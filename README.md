@@ -10,48 +10,79 @@ SystemPrompt Core provides the foundational platform for building AI agent orche
 - **MCP Protocol**: Model Context Protocol server and client implementations
 - **Database Abstraction**: Unified interface supporting SQLite and PostgreSQL
 - **HTTP API Framework**: REST API with OAuth2 authentication
-- **Module System**: Extensible module architecture with schema management
-- **Configuration**: Multi-environment configuration system
+- **Extension System**: Extensible architecture with compile-time registration
+- **Configuration**: Profile-based configuration with startup validation
 - **Structured Logging**: Context-aware logging with request tracing
 
 ## Architecture
 
-Core uses a **module-based architecture**:
+Core uses a **layered crate architecture** with strict dependency rules:
 
 ```
 crates/
-├── shared/           # Shared libraries
-│   ├── models/      # Data models and types
-│   ├── traits/      # Trait definitions
-│   └── identifiers/ # ID types
-└── modules/         # Core platform modules
-    ├── agent/       # Agent orchestration (A2A protocol)
-    ├── mcp/         # MCP server management
-    ├── api/         # HTTP API server
-    ├── database/    # Database abstraction
-    ├── oauth/       # OAuth2 authentication
-    ├── users/       # User management
-    ├── log/         # Logging system
-    ├── ai/          # AI integrations
-    ├── rag/         # RAG functionality
-    └── config/      # Configuration
+├── shared/           # Pure types, zero internal dependencies
+│   ├── traits/       # Core trait definitions (LlmProvider, ToolProvider, Job)
+│   ├── models/       # Data models, API types, config structs
+│   ├── identifiers/  # Typed IDs (UserId, TaskId, etc.)
+│   ├── client/       # HTTP client for external APIs
+│   └── extension/    # Extension framework for customization
+│
+├── infra/            # Stateless infrastructure utilities
+│   ├── database/     # SQLx abstraction, connection pooling
+│   ├── events/       # Event bus, broadcasters, SSE
+│   ├── security/     # JWT validation, token handling
+│   ├── config/       # Configuration loading
+│   ├── logging/      # Tracing setup, log sinks
+│   ├── cloud/        # Cloud API, tenant management
+│   └── loader/       # Module loader
+│
+├── domain/           # Bounded contexts with SQL + repos + services
+│   ├── users/        # User identity (User, Role)
+│   ├── oauth/        # Authentication (Token, Client, Grant, Session)
+│   ├── files/        # File storage (File, FileMetadata)
+│   ├── analytics/    # Metrics & tracking (Session, Event, Metric)
+│   ├── content/      # Content management (Content, Category, Tag)
+│   ├── ai/           # LLM integration (Request, Response, Provider)
+│   ├── mcp/          # MCP protocol (Server, Tool, Deployment)
+│   └── agent/        # A2A protocol (Agent, Task, Context, Skill)
+│
+├── app/              # Orchestration, no business logic
+│   ├── runtime/      # AppContext, StartupValidator, lifecycle
+│   ├── scheduler/    # Job scheduling, cron execution
+│   ├── generator/    # Static site generation
+│   └── sync/         # Sync services
+│
+└── entry/            # Entry points (binaries, public APIs)
+    ├── api/          # HTTP gateway, route handlers, middleware
+    ├── cli/          # Command-line interface
+    └── tui/          # Terminal UI
+
+systemprompt/         # Facade: Public API for external consumers
 ```
 
-Each module owns its schema via `module.yaml`.
+### Dependency Flow
+
+```
+FACADE (systemprompt) ← External consumers
+        │
+    ENTRY (api, cli, tui)
+        │
+    APP (runtime, scheduler, generator, sync)
+        │
+    DOMAIN (users, oauth, ai, agent, mcp, ...)
+        │
+    INFRA (database, events, security, config, logging, cloud)
+        │
+    SHARED (models, traits, identifiers, client, extension)
+```
+
+Domain crates cannot depend on each other - use traits or events for cross-domain communication.
 
 ## Distribution Model
 
 **SystemPrompt Core is distributed via Git (not crates.io).**
 
-This workspace contains 14 interdependent crates that share a single version and are published together as one repository. This approach ensures version consistency and simplifies the development experience for a tightly-coupled platform.
-
-**Why Git?**
-- ✅ All 14 crates versioned together (impossible to have mismatches)
-- ✅ Simple publishing (one git tag vs 14 separate publications)
-- ✅ Workspace structure preserved (path dependencies work naturally)
-- ✅ Private repository support
-
-See [FAQ](./docs/FAQ.md#why-git-dependencies-instead-of-cratesio) for detailed explanation.
+This workspace contains 27+ interdependent crates that share a single version and are published together. This approach ensures version consistency and simplifies development.
 
 ## Installation
 
@@ -62,11 +93,11 @@ Add to your `Cargo.toml`:
 ```toml
 [workspace.dependencies]
 # Import only the modules you need
-systemprompt-models = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.1.0" }
-systemprompt-core-api = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.1.0" }
-systemprompt-core-database = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.1.0" }
-systemprompt-core-mcp = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.1.0" }
-systemprompt-core-agent = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.1.0" }
+systemprompt-models = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
+systemprompt-core-api = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
+systemprompt-core-database = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
+systemprompt-core-mcp = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
+systemprompt-core-agent = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
 ```
 
 Then in your service crate:
@@ -77,33 +108,6 @@ systemprompt-models.workspace = true
 systemprompt-core-api.workspace = true
 ```
 
-Build your project:
-
-```bash
-cargo build
-```
-
-**First build**: 2-5 minutes (downloads repository ~50MB)
-**Subsequent builds**: <30 seconds (uses cache)
-
-### Optional: GeoIP Database Setup
-
-For geographic analytics (IP geolocation), download the GeoIP database:
-
-```bash
-# From repository root
-./scripts/download-geoip.sh
-```
-
-This downloads the free DB-IP database (~60MB, MaxMind-compatible). Without this file:
-- Application runs normally
-- Geographic data (country/region/city) will not be available in analytics
-- Warning message shown in logs: `⚠ Warning: Could not load GeoIP database`
-
-**Production**: Automatically downloaded by deployment scripts (`infrastructure/environments/production/terraform/startup.sh`)
-
-📖 **[Complete Installation Guide](./docs/INSTALLATION.md)**
-
 ### For Core Contributors
 
 ```bash
@@ -111,11 +115,11 @@ This downloads the free DB-IP database (~60MB, MaxMind-compatible). Without this
 git clone https://github.com/systempromptio/systemprompt-core
 cd systemprompt-core
 
-# Build all modules
+# Build all crates
 cargo build --workspace
 
-# Run tests
-cargo test --workspace
+# Run tests (tests are in separate crates)
+cargo test --manifest-path crates/tests/Cargo.toml
 
 # Build specific crate
 cargo build -p systemprompt-core-api
@@ -126,113 +130,156 @@ cargo run --bin systemprompt -- --help
 
 ## Available Crates
 
+### Shared Layer
+
 | Crate | Description |
 |-------|-------------|
-| `systemprompt-models` | Shared data models and types |
-| `systemprompt-identifiers` | ID types and generators |
-| `systemprompt-traits` | Trait definitions |
-| `systemprompt-core-database` | Database abstraction (SQLite + PostgreSQL) |
-| `systemprompt-core-config` | Configuration management |
-| `systemprompt-core-api` | HTTP API server framework |
+| `systemprompt-traits` | Core trait definitions |
+| `systemprompt-models` | Data models and config types |
+| `systemprompt-identifiers` | Typed ID generators |
+| `systemprompt-client` | HTTP client |
+| `systemprompt-extension` | Extension framework |
+
+### Infrastructure Layer
+
+| Crate | Description |
+|-------|-------------|
+| `systemprompt-core-database` | SQLx abstraction (PostgreSQL) |
+| `systemprompt-core-events` | Event bus, SSE infrastructure |
+| `systemprompt-core-security` | JWT, auth utilities |
+| `systemprompt-core-config` | Configuration loading |
+| `systemprompt-core-logging` | Tracing setup |
+| `systemprompt-cloud` | Cloud API, tenant management |
+
+### Domain Layer
+
+| Crate | Description |
+|-------|-------------|
+| `systemprompt-core-users` | User management |
+| `systemprompt-core-oauth` | OAuth2/OIDC authentication |
+| `systemprompt-core-files` | File storage |
+| `systemprompt-core-analytics` | Metrics and tracking |
+| `systemprompt-core-content` | Content management |
+| `systemprompt-core-ai` | LLM integration |
 | `systemprompt-core-mcp` | MCP protocol implementation |
 | `systemprompt-core-agent` | Agent orchestration (A2A) |
-| `systemprompt-core-oauth` | OAuth2 authentication |
-| `systemprompt-core-users` | User management |
-| `systemprompt-core-logging` | Structured logging |
-| `systemprompt-core-ai` | AI service integrations |
-| `systemprompt-core-rag` | RAG functionality |
 
-## Code Quality & Standards
+### Application Layer
 
-SystemPrompt maintains **world-class code quality** through automated tooling and strict standards.
+| Crate | Description |
+|-------|-------------|
+| `systemprompt-runtime` | AppContext, lifecycle management |
+| `systemprompt-core-scheduler` | Job scheduling |
+| `systemprompt-generator` | Static site generation |
+| `systemprompt-sync` | Sync services |
 
-### Style Enforcement
+### Entry Layer
 
-```bash
-# Format code
-just fmt
+| Crate | Description |
+|-------|-------------|
+| `systemprompt-core-api` | HTTP server framework |
+| `systemprompt-cli` | Command-line interface |
+| `systemprompt-core-tui` | Terminal UI |
 
-# Run all style checks (format + lint + validate)
-just style-check
+## Extension Framework
+
+Extensions enable downstream projects to extend core functionality without modifying it.
+
+```rust
+use systemprompt_extension::*;
+
+struct MyExtension;
+impl Extension for MyExtension { ... }
+impl ApiExtension for MyExtension { ... }
+
+register_extension!(MyExtension);
+register_api_extension!(MyExtension);
 ```
 
-**Our Standards**:
-- ✅ Self-documenting code (no inline comments)
-- ✅ Low cognitive complexity (max 15)
-- ✅ Short functions (max 100 lines)
-- ✅ Type-safe patterns (DatabaseQueryEnum, repository pattern)
-- ✅ Comprehensive error handling (no .unwrap())
+**Available extension traits:**
 
-📖 **[Complete Coding Standards](./tests/validator/coding-standards.md)**
+| Trait | Purpose |
+|-------|---------|
+| `Extension` | Base trait - ID, name, version, dependencies |
+| `SchemaExtension` | Database table definitions |
+| `ApiExtension` | HTTP route handlers |
+| `ConfigExtensionTyped` | Config validation at startup |
+| `JobExtension` | Background job definitions |
+| `ProviderExtension` | Custom LLM/tool provider implementations |
 
-### Automated Checks
-
-Every pull request runs:
-1. **Rustfmt** - Code formatting
-2. **Clippy** - Linting with strict rules
-3. **Custom Validators** - SystemPrompt-specific patterns
-
-See [tests/validator/README.md](./tests/validator/README.md) for details.
+Extensions are discovered at runtime via the `inventory` crate.
 
 ## Module System
 
-Each module has a `module.yaml` defining:
-- Schema files (SQL)
-- Permissions
-- Dependencies
-- API configuration
-- Commands
-
-Example: `crates/modules/agent/module.yaml`
-
-Modules are loaded dynamically at runtime.
-
-## Schema Management
-
-Schemas are **module-owned** and referenced via `module.yaml`:
+Domain crates include a `module.yaml` defining:
 
 ```yaml
+name: users
+version: "0.1.0"
+display_name: "User Management"
+type: core
+weight: 1
+
 schemas:
-  - file: "schema/agent_tasks.sql"
-    table: "agent_tasks"
-    required_columns: ["id", "uuid"]
+  - file: "migrations/001_users.sql"
+    table: users
+    required_columns: [id, email, created_at]
+
+tables_created: [users, user_roles]
+
+api:
+  enabled: true
+  path_prefix: "/api/v1/users"
 ```
 
-Schema files remain in each module's directory.
+## Code Quality
+
+SystemPrompt enforces strict code quality through automated tooling:
+
+```bash
+# Format code
+cargo fmt
+
+# Run clippy with strict rules
+cargo clippy --workspace
+```
+
+**Standards:**
+
+- No `unsafe` code (forbidden)
+- No `.unwrap()` (denied)
+- Low cognitive complexity
+- Pedantic clippy lints enabled
+- All tests in separate test crates
+
+## Testing
+
+Tests are in separate crates under `crates/tests/` for faster incremental builds:
+
+```bash
+# Run all tests
+cargo test --manifest-path crates/tests/Cargo.toml
+
+# Run specific test crate
+cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-integration-tests
+```
 
 ## Versioning
 
 Follows [Semantic Versioning](https://semver.org/):
 
-- **Major** (1.0.0): Breaking API changes
-- **Minor** (0.1.0): New features, backward compatible
-- **Patch** (0.0.1): Bug fixes, backward compatible
+- **Major**: Breaking API changes
+- **Minor**: New features, backward compatible
+- **Patch**: Bug fixes, backward compatible
 
-## Documentation
-
-### Guides
-
-- **[Architecture Guide](./docs/ARCHITECTURE.md)** - Workspace structure, module organization, and design principles
-- **[Installation Guide](./docs/INSTALLATION.md)** - Detailed installation instructions and version management
-- **[Dependency Guide](./docs/DEPENDENCY_GUIDE.md)** - Technical deep dive on how dependencies work
-- **[Publishing Guide](./docs/PUBLISHING.md)** - How to release new versions (for maintainers)
-- **[FAQ](./docs/FAQ.md)** - Frequently asked questions
-
-### Additional Documentation
-
-- [Module System](./CLAUDE.md#module-structure) - How modules are organized
-- [Database Patterns](./CLAUDE.md#repository--database-patterns) - Repository and query patterns
-- **[Coding Standards](./tests/validator/coding-standards.md)** - Rust style guide and best practices
-- **[Style Quick Reference](./tests/validator/QUICK_REFERENCE.md)** - One-page style reference
-- [Contributing Guide](./CONTRIBUTING.md) - (coming soon)
-- [Changelog](./CHANGELOG.md) - (coming soon)
+Current version: **0.0.1**
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details
+FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 
 ## Links
 
 - [GitHub Repository](https://github.com/systempromptio/systemprompt-core)
 - [Issues](https://github.com/systempromptio/systemprompt-core/issues)
-- [Discussions](https://github.com/systempromptio/systemprompt-core/discussions)
+- [Documentation](https://docs.systemprompt.io)
