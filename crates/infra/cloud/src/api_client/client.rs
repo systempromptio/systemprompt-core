@@ -9,8 +9,8 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
     ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
-    ListResponse, Plan, ProvisioningEvent, RegistryToken, Tenant, TenantSecrets, TenantStatus,
-    UserMeResponse,
+    ListResponse, LogEntry, LogsResponse, Plan, ProvisioningEvent, RegistryToken, StatusResponse,
+    Tenant, TenantSecrets, TenantStatus, UserMeResponse,
 };
 
 #[derive(Serialize)]
@@ -111,6 +111,19 @@ impl CloudApiClient {
         Ok(())
     }
 
+    async fn post_empty<T: DeserializeOwned>(&self, path: &str) -> Result<T> {
+        let url = format!("{}{}", self.api_url, path);
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .send()
+            .await
+            .context("Failed to connect to API")?;
+
+        self.handle_response(response).await
+    }
+
     async fn handle_response<T: DeserializeOwned>(&self, response: reqwest::Response) -> Result<T> {
         let status = response.status();
 
@@ -196,6 +209,24 @@ impl CloudApiClient {
 
     pub async fn delete_tenant(&self, tenant_id: &str) -> Result<()> {
         self.delete(&ApiPaths::tenant(tenant_id)).await
+    }
+
+    /// Get tenant logs
+    pub async fn get_logs(&self, tenant_id: &str, lines: u32) -> Result<Vec<LogEntry>> {
+        let path = format!("{}?lines={}", ApiPaths::tenant_logs(tenant_id), lines);
+        let response: LogsResponse = self.get(&path).await?;
+        Ok(response.logs)
+    }
+
+    /// Restart tenant machine
+    pub async fn restart_tenant(&self, tenant_id: &str) -> Result<StatusResponse> {
+        self.post_empty(&ApiPaths::tenant_restart(tenant_id)).await
+    }
+
+    /// Retry failed provisioning
+    pub async fn retry_provision(&self, tenant_id: &str) -> Result<StatusResponse> {
+        self.post_empty(&ApiPaths::tenant_retry_provision(tenant_id))
+            .await
     }
 
     pub fn subscribe_provisioning_events(

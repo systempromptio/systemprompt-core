@@ -3,8 +3,10 @@ pub mod checkout;
 mod deploy;
 mod init;
 mod init_templates;
+mod logs;
 mod oauth;
 pub mod profile;
+mod restart;
 mod status;
 pub mod sync;
 pub mod tenant;
@@ -56,6 +58,24 @@ pub enum CloudCommands {
     /// Check cloud deployment status
     Status,
 
+    /// View tenant logs
+    Logs {
+        /// Tenant ID (uses profile tenant if not specified)
+        #[arg(long)]
+        tenant: Option<String>,
+
+        /// Number of lines to show
+        #[arg(long, short = 'n', default_value = "100")]
+        lines: u32,
+    },
+
+    /// Restart tenant machine
+    Restart {
+        /// Tenant ID (uses profile tenant if not specified)
+        #[arg(long)]
+        tenant: Option<String>,
+    },
+
     /// Sync between local and cloud environments
     #[command(subcommand)]
     Sync(sync::SyncCommands),
@@ -63,7 +83,14 @@ pub enum CloudCommands {
 
 impl CloudCommands {
     pub fn requires_profile(&self) -> bool {
-        matches!(self, Self::Deploy { .. } | Self::Status | Self::Sync { .. })
+        matches!(
+            self,
+            Self::Deploy { .. }
+                | Self::Status
+                | Self::Logs { .. }
+                | Self::Restart { .. }
+                | Self::Sync { .. }
+        )
     }
 }
 
@@ -75,6 +102,8 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Profile { command } => profile::execute(command).await,
         CloudCommands::Deploy { skip_push, tag } => deploy::execute(skip_push, tag).await,
         CloudCommands::Status => status::execute().await,
+        CloudCommands::Logs { tenant, lines } => logs::execute(tenant, lines).await,
+        CloudCommands::Restart { tenant } => restart::execute(tenant).await,
         CloudCommands::Sync(cmd) => sync::execute(cmd).await,
     }
 }
