@@ -70,6 +70,11 @@ schemas:
     table: "task_execution_steps"
     required_columns: ["id", "step_id", "task_id", "step_type", "status"]
 
+  # Service Registry (tracks running agent services)
+  - file: "schema/services.sql"
+    table: "services"
+    required_columns: ["name", "module_name", "port", "status"]
+
   # Cross-module analytics views (references user_sessions, user_contexts, task_messages)
   - file: "schema/user_session_analytics.sql"
     table: ""
@@ -96,6 +101,8 @@ tables_created:
   - "agent_skills"
   # AG-UI Protocol - Execution Timeline
   - "task_execution_steps"
+  # Service Registry
+  - "services"
 
 # Seed files with validation metadata
 seeds: []
