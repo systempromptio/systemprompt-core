@@ -23,7 +23,7 @@ pub enum ColorMode {
     Never,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct CliConfig {
     pub output_format: OutputFormat,
     pub verbosity: VerbosityLevel,
