@@ -135,11 +135,6 @@ fn log_and_notify_cleanup(
     }
 }
 
-async fn get_running_server_names(database: &DatabaseManager) -> Result<HashSet<String>> {
-    let running_servers = database.get_running_servers().await?;
-    Ok(running_servers.iter().map(|s| s.name.clone()).collect())
-}
-
 async fn kill_all_running_servers(
     database: &DatabaseManager,
     events: Option<&StartupEventSender>,
