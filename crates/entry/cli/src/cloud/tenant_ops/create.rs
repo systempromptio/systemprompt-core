@@ -203,6 +203,38 @@ pub async fn create_cloud_tenant(
         .find(|t| t.id == result.tenant_id)
         .ok_or_else(|| anyhow!("New tenant not found after checkout"))?;
 
+    // Fetch database credentials from the one-time secrets endpoint
+    let spinner = CliService::spinner("Fetching database credentials...");
+    let database_url = match client.get_tenant_status(&result.tenant_id).await {
+        Ok(status) => {
+            if let Some(secrets_url) = status.secrets_url {
+                match client.fetch_secrets(&secrets_url).await {
+                    Ok(secrets) => Some(secrets.database_url),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to fetch secrets");
+                        None
+                    },
+                }
+            } else {
+                tracing::warn!("No secrets URL available for tenant {}", result.tenant_id);
+                None
+            }
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to get tenant status");
+            None
+        },
+    };
+    spinner.finish_and_clear();
+
+    if database_url.is_some() {
+        CliService::success("Database credentials retrieved");
+    } else {
+        CliService::warning(
+            "Could not retrieve database credentials. You may need to recreate the tenant.",
+        );
+    }
+
     Ok(StoredTenant {
         id: new_tenant.id.clone(),
         name: new_tenant.name.clone(),
@@ -210,6 +242,6 @@ pub async fn create_cloud_tenant(
         app_id: new_tenant.app_id.clone(),
         hostname: new_tenant.hostname.clone().or(final_event.app_url.clone()),
         region: new_tenant.region.clone(),
-        database_url: None,
+        database_url,
     })
 }
