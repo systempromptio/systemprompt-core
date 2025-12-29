@@ -167,3 +167,21 @@ pub struct ProvisioningEvent {
     pub message: Option<String>,
     pub app_url: Option<String>,
 }
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogEntry {
+    pub timestamp: String,
+    pub message: String,
+    #[serde(default)]
+    pub level: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct LogsResponse {
+    pub logs: Vec<LogEntry>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct StatusResponse {
+    pub status: String,
+}

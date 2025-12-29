@@ -94,6 +94,18 @@ impl ApiPaths {
         format!("{}/{}/events", Self::CLOUD_TENANTS, tenant_id)
     }
 
+    pub fn tenant_logs(tenant_id: &str) -> String {
+        format!("{}/{}/logs", Self::CLOUD_TENANTS, tenant_id)
+    }
+
+    pub fn tenant_restart(tenant_id: &str) -> String {
+        format!("{}/{}/restart", Self::CLOUD_TENANTS, tenant_id)
+    }
+
+    pub fn tenant_retry_provision(tenant_id: &str) -> String {
+        format!("{}/{}/retry-provision", Self::CLOUD_TENANTS, tenant_id)
+    }
+
     pub fn mcp_server_endpoint(server_name: &str) -> String {
         format!("{}/{}/mcp", Self::MCP_BASE, server_name)
     }
