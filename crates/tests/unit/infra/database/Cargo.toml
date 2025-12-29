@@ -1,0 +1,21 @@
+[package]
+name = "systemprompt-database-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-core-database crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-core-database = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }

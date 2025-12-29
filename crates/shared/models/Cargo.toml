@@ -1,0 +1,65 @@
+[package]
+name = "systemprompt-models"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Shared data models and types for SystemPrompt OS"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+indexmap = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Configuration
+dotenvy = { workspace = true }
+
+# Module loading
+serde_yaml = { workspace = true }
+walkdir = { workspace = true }
+
+# Web types (minimal - only for Request type in analytics)
+axum = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# JSON Schema generation
+schemars = { workspace = true }
+
+# Regex
+regex = { workspace = true }
+once_cell = { workspace = true }
+
+# Async runtime (for config loading)
+tokio = { workspace = true }
+
+# Async streaming
+futures = { workspace = true }
+
+# Shared traits and identifiers
+systemprompt-traits = { path = "../traits" }
+systemprompt-identifiers = { path = "../identifiers" }
+
+# MCP protocol
+rmcp = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

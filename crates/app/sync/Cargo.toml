@@ -1,0 +1,54 @@
+[package]
+name = "systemprompt-sync"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Sync services for SystemPrompt - file, database, and crate deployment synchronization"
+
+[dependencies]
+# Core runtime
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Compression/archive
+flate2 = { workspace = true }
+tar = { workspace = true }
+sha2 = { workspace = true }
+
+# File scanning
+walkdir = { workspace = true }
+
+# Domain crates for local sync
+systemprompt-core-agent = { path = "../../domain/agent" }
+systemprompt-core-content = { path = "../../domain/content" }
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+
+[[test]]
+name = "unit"
+path = "../../tests/unit/app/sync/mod.rs"
+
+[lints]
+workspace = true

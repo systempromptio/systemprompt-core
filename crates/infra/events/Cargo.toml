@@ -1,0 +1,30 @@
+[package]
+name = "systemprompt-core-events"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Events module for SystemPrompt - event broadcasting and routing"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core runtime
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+async-trait = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+
+# Utilities
+once_cell = { workspace = true }
+
+# SystemPrompt dependencies
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

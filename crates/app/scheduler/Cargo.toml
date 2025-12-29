@@ -1,0 +1,57 @@
+[package]
+name = "systemprompt-core-scheduler"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core scheduler module for SystemPrompt OS - background jobs and cron tasks"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+tokio-cron-scheduler = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# UUID for job IDs
+uuid = { workspace = true }
+
+# URL parsing
+url = { workspace = true }
+urlencoding = "2.1"
+
+# Core libs - scheduler only depends on infrastructure modules
+systemprompt-runtime = { path = "../runtime" }
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-core-analytics = { path = "../../domain/analytics" }
+systemprompt-core-users = { path = "../../domain/users" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-models = { path = "../../shared/models" }
+
+# Job registration and discovery
+inventory = { workspace = true }
+
+# Traits
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+wiremock = "0.5"             # HTTP mocking for tests
+tokio-test = { workspace = true }
+tempfile = "3"               # Temporary directories for tests
+serde_json = { workspace = true }
+
+[features]
+default = []

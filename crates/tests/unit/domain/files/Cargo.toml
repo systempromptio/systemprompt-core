@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-files-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-core-files crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-core-files = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }

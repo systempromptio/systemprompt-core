@@ -1,0 +1,109 @@
+[package]
+name = "systemprompt-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "SystemPrompt OS - CLI for agent orchestration, AI operations, and system management"
+
+[lints]
+workspace = true
+
+[lib]
+name = "systemprompt_cli"
+path = "src/lib.rs"
+
+[[bin]]
+name = "systemprompt"
+path = "src/main.rs"
+
+[dependencies]
+# Core runtime
+tokio = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+
+# SystemPrompt crates
+systemprompt = { path = "../../../systemprompt", features = ["cloud"] }
+systemprompt-runtime = { path = "../../app/runtime" }
+systemprompt-core-agent = { path = "../../domain/agent" }
+systemprompt-core-mcp = { path = "../../domain/mcp" }
+systemprompt-core-api = { path = "../api" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-core-users = { path = "../../domain/users" }
+systemprompt-core-oauth = { path = "../../domain/oauth" }
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-content = { path = "../../domain/content" }
+systemprompt-core-files = { path = "../../domain/files" }
+systemprompt-core-scheduler = { path = "../../app/scheduler" }
+systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-core-analytics = { path = "../../domain/analytics" }
+systemprompt-core-security = { path = "../../infra/security" }
+systemprompt-core-tui = { path = "../tui" }
+systemprompt-core-ai = { path = "../../domain/ai" }
+systemprompt-sync = { path = "../../app/sync" }
+systemprompt-generator = { path = "../../app/generator" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-loader = { path = "../../infra/loader" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-extension = { path = "../../shared/extension" }
+systemprompt-cloud = { path = "../../infra/cloud" }
+
+# Additional dependencies used by CLI modules
+tracing = { workspace = true }
+sqlx = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+colored = { workspace = true }
+console = { workspace = true }
+tabled = { workspace = true }
+inventory = { workspace = true }
+dotenvy = { workspace = true }
+uuid = { workspace = true }
+reqwest = { workspace = true }
+atty = "0.2"
+dialoguer = { workspace = true }
+dirs = "5"
+base64 = "0.22"
+sha2 = { workspace = true }
+walkdir = { workspace = true }
+axum = { workspace = true }
+open = "5"
+urlencoding = { workspace = true }
+rand = { workspace = true }
+toml = "0.8"
+indicatif = { workspace = true }
+
+[[test]]
+name = "unit_tests"
+path = "tests/unit_tests.rs"
+harness = true
+
+[[test]]
+name = "integration"
+path = "tests/integration/lib.rs"
+harness = true
+
+[[test]]
+name = "a2a_integration_tests"
+path = "tests/integration/a2a_integration_tests.rs"
+harness = true
+
+[dev-dependencies]
+reqwest = { version = "0.12", features = ["json", "cookies", "stream"] }
+systemprompt-runtime = { path = "../../app/runtime" }
+systemprompt-core-ai = { path = "../../domain/ai" }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+serde_json = "1.0"
+tokio = { version = "1", features = ["full"] }
+futures = "0.3"
+base64 = "0.22"
+rand = "0.8"
+jsonwebtoken = "9.0"
+chrono = { version = "0.4", features = ["serde"] }
+tempfile = { workspace = true }

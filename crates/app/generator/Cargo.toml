@@ -1,0 +1,86 @@
+[package]
+name = "systemprompt-generator"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Static site generation for SystemPrompt"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Shared layer
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+
+# Infrastructure layer
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-core-config = { path = "../../infra/config" }
+
+# Domain layer (read-only access for content types)
+systemprompt-core-content = { path = "../../domain/content" }
+systemprompt-core-files = { path = "../../domain/files" }
+
+# Async runtime
+tokio = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Template engine
+handlebars = "4.1"
+
+# Markdown processing
+pulldown-cmark = "0.12"
+comrak = "0.17"
+
+# XML generation (sitemap)
+quick-xml = { version = "0.31", features = ["serialize"] }
+
+# Progress indication
+indicatif = { workspace = true }
+
+# File utilities
+walkdir = { workspace = true }
+
+# Image processing (WebP conversion)
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+
+# HTTP client
+reqwest = { workspace = true }
+
+# Chrono for dates
+chrono = { workspace = true }
+
+# UUID
+uuid = { workspace = true }
+
+# URL handling
+url = { workspace = true }
+urlencoding = "2.1"
+
+# Random
+rand = "0.8"
+
+# Hashing
+sha2 = { workspace = true }
+hex = { workspace = true }
+
+# Job registration
+inventory = { workspace = true }
+async-trait = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

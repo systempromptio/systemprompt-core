@@ -1,0 +1,50 @@
+[package]
+name = "systemprompt-cloud"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "SystemPrompt Cloud infrastructure - API client, credentials, OAuth"
+
+[lints]
+workspace = true
+
+[features]
+test-utils = []
+
+[dependencies]
+# Core
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+
+# HTTP
+reqwest = { workspace = true }
+axum = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Validation
+validator = { workspace = true }
+
+# Security
+base64 = "0.22"
+
+# Utilities
+tokio = { workspace = true }
+open = "5"
+urlencoding = { workspace = true }
+tracing = { workspace = true }
+futures = { workspace = true }
+reqwest-eventsource = "0.6"
+async-stream = "0.3"
+
+# CLI
+clap = { workspace = true }
+
+# Internal dependencies
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-core-logging = { path = "../logging" }

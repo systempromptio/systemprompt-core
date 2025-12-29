@@ -1,0 +1,65 @@
+# Rust build artifacts
+target/
+**/target/
+**/*.rs.bk
+
+# Dependencies
+node_modules/
+**/node_modules/
+
+# Database files
+/database/*.db
+/database/*.db-*
+/database/*.sqlite
+/database/*.sqlite-*
+*.db
+*.db-shm
+*.db-wal
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Secrets files
+*.secrets.*
+*secrets*.yml
+*secrets*.yaml
+*secrets*.json
+*secrets*.toml
+
+# Cargo config (may contain local paths)
+.cargo/
+
+tests/validator
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+/logs/
+/log/
+
+# Build output
+/dist/
+/build/
+
+# Test artifacts
+/tmp/
+/temp/
+/test-output/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Service implementations (moved to implementation repos)
+/crates/services/
+
+/plan
+/plan/*

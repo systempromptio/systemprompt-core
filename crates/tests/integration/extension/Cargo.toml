@@ -1,0 +1,21 @@
+[package]
+name = "systemprompt-extension-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Tests for systemprompt-extension framework"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-extension = { workspace = true }
+systemprompt-traits = { workspace = true }
+axum = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+trybuild = { workspace = true }

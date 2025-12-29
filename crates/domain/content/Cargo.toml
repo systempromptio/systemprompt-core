@@ -1,0 +1,75 @@
+[package]
+name = "systemprompt-core-content"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Content module for SystemPrompt with content management, analytics, and event tracking"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core modules
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+
+# Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+
+# Database
+sqlx = { workspace = true, features = ["postgres", "uuid"] }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# Markdown processing
+pulldown-cmark = "0.12"
+
+# Environment
+dotenvy = { workspace = true }
+
+# Utilities
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+walkdir = { workspace = true }
+sha2 = { workspace = true }
+tracing = { workspace = true }
+
+# Job registration
+inventory = { workspace = true }
+async-trait = { workspace = true }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-core-config = { path = "../../infra/config" }
+
+# Static content generation
+comrak = "0.17"
+handlebars = "4.1"
+quick-xml = { version = "0.31", features = ["serialize"] }
+indicatif = { workspace = true }
+
+# HTTP
+reqwest = { workspace = true }
+
+# UUID to hex conversion
+hex = { workspace = true }
+
+# URL handling
+urlencoding = "2.1"
+url = { workspace = true }
+
+# Random number generation
+rand = "0.8"
+
+[dev-dependencies]
+tempfile = { workspace = true }

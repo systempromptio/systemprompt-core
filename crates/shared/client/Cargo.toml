@@ -1,0 +1,34 @@
+[package]
+name = "systemprompt-client"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "HTTP API client library for SystemPrompt - enables TUI and external clients to communicate with the server"
+
+[lints]
+workspace = true
+
+[dependencies]
+# HTTP client
+reqwest = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Shared types (no business logic dependencies)
+systemprompt-models = { path = "../models" }
+systemprompt-identifiers = { path = "../identifiers" }

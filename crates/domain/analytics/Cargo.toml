@@ -1,0 +1,39 @@
+[package]
+name = "systemprompt-core-analytics"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Analytics module for SystemPrompt - session tracking, metrics, and reporting"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core runtime
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Web framework
+axum = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+
+# GeoIP
+maxminddb = { workspace = true }
+url = { workspace = true }
+
+# SystemPrompt dependencies
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-core-database = { path = "../../infra/database" }

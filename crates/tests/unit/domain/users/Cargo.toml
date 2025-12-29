@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-users-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-core-users crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-core-users = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+tokio = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }

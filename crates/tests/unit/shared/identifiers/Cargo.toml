@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-identifiers-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-identifiers crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+uuid = { workspace = true }

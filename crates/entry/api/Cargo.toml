@@ -1,0 +1,86 @@
+[package]
+name = "systemprompt-core-api"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "HTTP API server and gateway for SystemPrompt OS"
+
+[dependencies]
+# Core runtime
+tokio = { workspace = true }
+tokio-stream = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# HTTP/Web framework
+axum = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true, features = ["normalize-path"] }
+tower_governor = { workspace = true }
+http = { workspace = true }
+reqwest = { workspace = true }
+futures-util = { workspace = true }
+
+# MCP transport
+rmcp = { workspace = true }
+
+# Database
+sqlx = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+urlencoding = { workspace = true }
+regex = { workspace = true }
+indexmap = { workspace = true }
+sha2 = { workspace = true }
+
+# Error handling
+thiserror = { workspace = true }
+
+# Logging
+tracing = { workspace = true }
+
+# Configuration
+dotenvy = { workspace = true }
+
+# SystemPrompt crates
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-loader = { path = "../../infra/loader" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-extension = { path = "../../shared/extension" }
+systemprompt-runtime = { path = "../../app/runtime" }
+systemprompt-core-users = { path = "../../domain/users" }
+systemprompt-core-oauth = { path = "../../domain/oauth" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-core-agent = { path = "../../domain/agent" }
+systemprompt-core-mcp = { path = "../../domain/mcp" }
+systemprompt-core-content = { path = "../../domain/content" }
+systemprompt-core-files = { path = "../../domain/files" }
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-scheduler = { path = "../../app/scheduler" }
+systemprompt-core-events = { path = "../../infra/events" }
+systemprompt-core-analytics = { path = "../../domain/analytics" }
+systemprompt-core-security = { path = "../../infra/security" }
+
+# API registry
+inventory = { workspace = true }
+
+# JWT
+jsonwebtoken = { workspace = true }
+once_cell = { workspace = true }
+
+# Sync/compression
+flate2 = { workspace = true }
+tar = { workspace = true }
+
+[lints]
+workspace = true

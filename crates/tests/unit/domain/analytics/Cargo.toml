@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-analytics-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-core-analytics crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-core-analytics = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+axum = { workspace = true }
+http = { workspace = true }

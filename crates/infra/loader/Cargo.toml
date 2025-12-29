@@ -1,0 +1,30 @@
+[package]
+name = "systemprompt-loader"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "File loading infrastructure for SystemPrompt - separates I/O from shared models"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core runtime
+anyhow = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# File system traversal
+walkdir = { workspace = true }
+
+# Async
+tokio = { workspace = true }
+
+# SystemPrompt dependencies
+systemprompt-models = { path = "../../shared/models" }

@@ -1,0 +1,34 @@
+[package]
+name = "systemprompt-traits"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Minimal shared traits and contracts for SystemPrompt"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Minimal dependencies - traits crate should have almost none
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+axum = { workspace = true }  # For Router type in module trait
+inventory = { workspace = true }  # For module registration
+
+# Repository trait dependencies
+thiserror = { workspace = true }
+sqlx = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+
+# Tool and LLM provider trait dependencies
+serde = { workspace = true }
+futures = { workspace = true }
+
+# Startup events channel
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+tokio = { workspace = true }
+systemprompt-core-database = { path = "../../infra/database" }

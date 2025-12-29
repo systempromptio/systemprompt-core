@@ -1,0 +1,24 @@
+[package]
+name = "systemprompt-runtime-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-runtime crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-runtime = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+axum = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }

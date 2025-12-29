@@ -1,0 +1,42 @@
+[package]
+name = "systemprompt-core-tui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Interactive TUI for SystemPrompt - chat-first AI interface with real-time monitoring"
+
+[lints]
+workspace = true
+
+[dependencies]
+# TUI Framework
+ratatui = "0.29"
+crossterm = { version = "0.28", features = ["event-stream"] }
+tui-textarea = "0.7"
+
+# Async Runtime
+tokio = { workspace = true }
+futures = { workspace = true }
+
+# SystemPrompt Crates
+systemprompt-client = { path = "../../shared/client" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-traits = { path = "../../shared/traits" }
+
+# Utilities
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+chrono = { workspace = true }
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+reqwest = { workspace = true }
+bytes = { workspace = true }
+open = "5"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"

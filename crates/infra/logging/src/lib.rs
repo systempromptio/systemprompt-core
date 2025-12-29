@@ -1,0 +1,54 @@
+pub mod layer;
+pub mod models;
+pub mod repository;
+pub mod services;
+pub mod trace;
+
+pub use layer::DatabaseLayer;
+pub use models::{LogEntry, LogFilter, LogLevel};
+pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
+pub use services::{
+    get_output_mode, init_tui_mode, is_console_output_enabled, is_startup_mode, publish_log,
+    set_log_publisher, set_output_mode, set_startup_mode, CliService, DatabaseLogService,
+    LoggingMaintenanceService, OutputMode, RequestSpan, RequestSpanBuilder, SystemSpan,
+};
+pub use trace::{
+    AiRequestInfo, AiRequestSummary, AiTraceService, ConversationMessage, ExecutionStep,
+    ExecutionStepSummary, McpExecutionSummary, McpToolExecution, TaskArtifact, TaskInfo,
+    ToolLogEntry, TraceEvent, TraceQueryService,
+};
+
+use systemprompt_core_database::DbPool;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{EnvFilter, Layer};
+
+pub fn init_logging(db_pool: DbPool) {
+    use crate::services::output::is_startup_mode;
+
+    // Console filter: during startup, only WARN/ERROR; otherwise respect env
+    let console_filter = if is_startup_mode() {
+        EnvFilter::new("warn")
+    } else {
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+    };
+
+    let fmt_layer = tracing_subscriber::fmt::layer()
+        .with_target(true)
+        .with_writer(std::io::stderr) // Use stderr, not stdout (spinners use stdout)
+        .with_filter(console_filter);
+
+    let db_layer =
+        DatabaseLayer::new(db_pool).with_filter(tracing_subscriber::filter::LevelFilter::INFO);
+
+    tracing_subscriber::registry()
+        .with(fmt_layer)
+        .with(db_layer)
+        .init();
+}
+
+pub fn init_console_logging() {
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    tracing_subscriber::fmt().with_env_filter(env_filter).init();
+}

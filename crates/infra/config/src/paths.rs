@@ -1,0 +1,135 @@
+use anyhow::{bail, Context, Result};
+use std::path::{Path, PathBuf};
+use systemprompt_models::Config;
+
+#[derive(Debug, Copy, Clone)]
+pub struct BinaryPaths;
+
+impl BinaryPaths {
+    pub fn resolve_binary(binary_name: &str) -> Result<PathBuf> {
+        let config = Config::get()?;
+
+        if let Some(binary_dir) = &config.binary_dir {
+            let binary_path = PathBuf::from(binary_dir).join(binary_name);
+            if binary_path.exists() {
+                return Self::ensure_absolute(binary_path);
+            }
+            bail!(
+                "Binary '{}' not found at paths.binary_dir: {}\n\nRun: cargo build --bin {}",
+                binary_name,
+                binary_path.display(),
+                binary_name
+            );
+        }
+
+        let cargo_target_dir = PathBuf::from(&config.cargo_target_dir);
+        let debug_path = cargo_target_dir.join("debug").join(binary_name);
+        let release_path = cargo_target_dir.join("release").join(binary_name);
+
+        match (debug_path.exists(), release_path.exists()) {
+            (true, _) => Self::ensure_absolute(debug_path),
+            (false, true) => Self::ensure_absolute(release_path),
+            (false, false) => {
+                bail!(
+                    "Binary '{}' not found:\n  - {}\n  - {}\n\npaths.cargo_target: {}\n\nRun: \
+                     cargo build --bin {}",
+                    binary_name,
+                    debug_path.display(),
+                    release_path.display(),
+                    config.cargo_target_dir,
+                    binary_name
+                )
+            },
+        }
+    }
+
+    fn ensure_absolute(path: PathBuf) -> Result<PathBuf> {
+        if path.is_absolute() {
+            Ok(path)
+        } else {
+            std::fs::canonicalize(&path)
+                .with_context(|| format!("Failed to canonicalize: {}", path.display()))
+        }
+    }
+
+    pub fn binary_exists(binary_name: &str) -> bool {
+        Self::resolve_binary(binary_name).is_ok()
+    }
+
+    pub fn get_all_binary_paths(binary_name: &str) -> Result<(PathBuf, PathBuf)> {
+        let config = Config::get()?;
+        let cargo_target_dir = PathBuf::from(&config.cargo_target_dir);
+
+        Ok((
+            cargo_target_dir.join("debug").join(binary_name),
+            cargo_target_dir.join("release").join(binary_name),
+        ))
+    }
+
+    pub fn resolve_binary_with_path(
+        binary_name: &str,
+        crate_path: Option<&Path>,
+    ) -> Result<PathBuf> {
+        let config = Config::get()?;
+
+        // 1. Production: check binary_dir first
+        if let Some(binary_dir) = &config.binary_dir {
+            let binary_path = PathBuf::from(binary_dir).join(binary_name);
+            if binary_path.exists() {
+                return Self::ensure_absolute(binary_path);
+            }
+        }
+
+        // 2. Development: check crate-specific target directory
+        if let Some(crate_path) = crate_path {
+            let release_path = crate_path.join("target/release").join(binary_name);
+            let debug_path = crate_path.join("target/debug").join(binary_name);
+
+            if release_path.exists() {
+                return Self::ensure_absolute(release_path);
+            }
+            if debug_path.exists() {
+                return Self::ensure_absolute(debug_path);
+            }
+        }
+
+        // 3. Fallback: main cargo target directory
+        let cargo_target_dir = PathBuf::from(&config.cargo_target_dir);
+        let debug_path = cargo_target_dir.join("debug").join(binary_name);
+        let release_path = cargo_target_dir.join("release").join(binary_name);
+
+        match (debug_path.exists(), release_path.exists()) {
+            (true, _) => Self::ensure_absolute(debug_path),
+            (false, true) => Self::ensure_absolute(release_path),
+            (false, false) => {
+                let mut searched = vec![
+                    format!("  - {}", debug_path.display()),
+                    format!("  - {}", release_path.display()),
+                ];
+                if let Some(crate_path) = crate_path {
+                    searched.insert(
+                        0,
+                        format!(
+                            "  - {}/target/release/{}",
+                            crate_path.display(),
+                            binary_name
+                        ),
+                    );
+                    searched.insert(
+                        1,
+                        format!("  - {}/target/debug/{}", crate_path.display(), binary_name),
+                    );
+                }
+                if let Some(binary_dir) = &config.binary_dir {
+                    searched.insert(0, format!("  - {}/{}", binary_dir, binary_name));
+                }
+                bail!(
+                    "Binary '{}' not found:\n{}\n\nRun: cargo build --bin {}",
+                    binary_name,
+                    searched.join("\n"),
+                    binary_name
+                )
+            },
+        }
+    }
+}

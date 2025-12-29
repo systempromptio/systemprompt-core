@@ -1,0 +1,29 @@
+[package]
+name = "systemprompt-core-config"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Configuration module for SystemPrompt - environment configuration and validation"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core runtime
+anyhow = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+schemars = { workspace = true }
+
+# Utilities
+regex = { workspace = true }
+
+# SystemPrompt dependencies
+systemprompt-core-logging = { path = "../logging" }
+systemprompt-models = { path = "../../shared/models" }

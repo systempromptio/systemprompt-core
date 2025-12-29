@@ -1,0 +1,47 @@
+pub mod admin;
+pub mod error;
+pub mod lifecycle;
+pub mod models;
+#[macro_use]
+pub mod repository;
+pub mod services;
+
+pub use models::{
+    parse_database_datetime, ArtifactId, ClientId, ColumnInfo, ContentId, ContextId, DatabaseInfo,
+    DatabaseQuery, DatabaseTransaction, DbValue, ExecutionStepId, FileId, FromDatabaseRow,
+    FromDbValue, JsonRow, LogId, QueryResult, QueryRow, QuerySelector, SessionId, SkillId,
+    TableInfo, TaskId, ToDbValue, TokenId, TraceId, UserId,
+};
+
+pub use services::{
+    with_transaction, with_transaction_raw, with_transaction_retry, BoxFuture, Database,
+    DatabaseCliDisplay, DatabaseExt, DatabaseProvider, DatabaseProviderExt, DbPool,
+    PostgresProvider, SqlExecutor,
+};
+
+pub use error::RepositoryError;
+pub use lifecycle::{
+    install_extension_schemas, install_module_schemas, install_module_seeds, install_schema,
+    install_seed, validate_column_exists, validate_database_connection, validate_table_exists,
+    ModuleInstaller,
+};
+pub use repository::{
+    CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PaginatedRepository, PgDbPool,
+    Repository, ServiceConfig, ServiceRepository, SoftDeleteRepository,
+};
+
+pub use admin::{DatabaseAdminService, QueryExecutor, QueryExecutorError};
+pub use sqlx::types::Json;
+pub use sqlx::{PgPool, Pool, Postgres, Transaction};
+
+use systemprompt_traits::DatabaseHandle;
+
+impl DatabaseHandle for Database {
+    fn is_connected(&self) -> bool {
+        true
+    }
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

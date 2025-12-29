@@ -1,0 +1,71 @@
+use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EngagementEventData {
+    pub scroll_depth: Option<i32>,
+    pub time_on_page_ms: Option<i64>,
+    pub time_to_first_interaction_ms: Option<i64>,
+    pub click_count: Option<i32>,
+    pub mouse_move_distance_px: Option<i32>,
+    pub visible_time_ms: Option<i64>,
+    pub is_rage_click: Option<bool>,
+    pub reading_pattern: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct EngagementEvent {
+    pub id: String,
+    pub session_id: String,
+    pub user_id: String,
+    pub page_url: String,
+    pub time_on_page_ms: i32,
+    pub time_to_first_interaction_ms: Option<i32>,
+    pub time_to_first_scroll_ms: Option<i32>,
+    pub max_scroll_depth: i32,
+    pub scroll_velocity_avg: Option<f32>,
+    pub scroll_direction_changes: Option<i32>,
+    pub click_count: i32,
+    pub mouse_move_distance_px: Option<i32>,
+    pub keyboard_events: Option<i32>,
+    pub copy_events: Option<i32>,
+    pub focus_time_ms: i32,
+    pub blur_count: i32,
+    pub tab_switches: i32,
+    pub visible_time_ms: i32,
+    pub hidden_time_ms: i32,
+    pub is_rage_click: Option<bool>,
+    pub is_dead_click: Option<bool>,
+    pub reading_pattern: Option<String>,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CreateEngagementEventInput {
+    pub page_url: String,
+    pub time_on_page_ms: i32,
+    pub max_scroll_depth: i32,
+    pub click_count: i32,
+    #[serde(flatten)]
+    pub optional_metrics: EngagementOptionalMetrics,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+pub struct EngagementOptionalMetrics {
+    pub time_to_first_interaction_ms: Option<i32>,
+    pub time_to_first_scroll_ms: Option<i32>,
+    pub scroll_velocity_avg: Option<f32>,
+    pub scroll_direction_changes: Option<i32>,
+    pub mouse_move_distance_px: Option<i32>,
+    pub keyboard_events: Option<i32>,
+    pub copy_events: Option<i32>,
+    pub focus_time_ms: Option<i32>,
+    pub blur_count: Option<i32>,
+    pub visible_time_ms: Option<i32>,
+    pub hidden_time_ms: Option<i32>,
+    pub is_rage_click: Option<bool>,
+    pub is_dead_click: Option<bool>,
+    pub reading_pattern: Option<String>,
+}

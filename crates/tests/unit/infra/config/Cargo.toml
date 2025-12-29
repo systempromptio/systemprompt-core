@@ -1,0 +1,21 @@
+[package]
+name = "systemprompt-config-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-core-config crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-core-config = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+schemars = { workspace = true }

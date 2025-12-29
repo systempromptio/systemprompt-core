@@ -1,0 +1,227 @@
+use anyhow::{Context, Result};
+use std::path::Path;
+use systemprompt_cloud::ProjectContext;
+use systemprompt_core_logging::CliService;
+use systemprompt_models::auth::JwtAudience;
+use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
+use systemprompt_models::{
+    CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig, Profile,
+    ProfileDatabaseConfig, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig,
+    SiteConfig,
+};
+
+fn generate_display_name(name: &str) -> String {
+    match name.to_lowercase().as_str() {
+        "dev" | "development" => "Development".to_string(),
+        "prod" | "production" => "Production".to_string(),
+        "staging" | "stage" => "Staging".to_string(),
+        "test" | "testing" => "Test".to_string(),
+        "local" => "Local Development".to_string(),
+        _ => {
+            let mut chars = name.chars();
+            match chars.next() {
+                None => name.to_string(),
+                Some(first) => first.to_uppercase().chain(chars).collect(),
+            }
+        },
+    }
+}
+
+fn determine_environment(env_name: &str) -> Environment {
+    match env_name.to_lowercase().as_str() {
+        "prod" | "production" => Environment::Production,
+        "staging" | "stage" => Environment::Staging,
+        "test" | "testing" => Environment::Test,
+        _ => Environment::Development,
+    }
+}
+
+pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<Profile> {
+    let ctx = ProjectContext::new(project_root.to_path_buf());
+    let system_path = project_root.to_string_lossy().to_string();
+    let core_path = project_root.join("core").to_string_lossy().to_string();
+    let services_path = project_root.join("services").to_string_lossy().to_string();
+
+    let runtime_env = determine_environment(env_name);
+    let is_prod = matches!(runtime_env, Environment::Production);
+
+    let profile = Profile {
+        name: env_name.to_string(),
+        display_name: generate_display_name(env_name),
+        site: SiteConfig {
+            name: "SystemPrompt".to_string(),
+            github_link: None,
+            service_display_name: Some("SystemPrompt".to_string()),
+            service_version: None,
+        },
+        database: ProfileDatabaseConfig {
+            db_type: "postgres".to_string(),
+        },
+        server: ServerConfig {
+            host: if is_prod {
+                "0.0.0.0".to_string()
+            } else {
+                "127.0.0.1".to_string()
+            },
+            port: 8080,
+            api_server_url: "http://localhost:8080".to_string(),
+            api_internal_url: "http://localhost:8080".to_string(),
+            api_external_url: "http://localhost:8080".to_string(),
+            use_https: is_prod,
+            cors_allowed_origins: vec![
+                "http://localhost:8080".to_string(),
+                "http://localhost:5173".to_string(),
+                "http://127.0.0.1:8080".to_string(),
+            ],
+        },
+        paths: PathsConfig {
+            system: system_path.clone(),
+            core: core_path.clone(),
+            services: services_path.clone(),
+            skills: Some(format!("{}/skills", services_path)),
+            config: Some(format!("{}/config/config.yaml", services_path)),
+            storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
+            cargo_target: Some(format!("{}/target", system_path)),
+            binary_dir: Some(format!("{}/target/debug", system_path)),
+            geoip_database: None,
+            ai_config: Some(format!("{}/ai/config.yaml", services_path)),
+            content_config: Some(format!("{}/content/config.yaml", services_path)),
+            web_config: Some(format!("{}/web/config.yaml", services_path)),
+            web_metadata: Some(format!("{}/web/metadata.yaml", services_path)),
+            web_path: Some(format!("{}/web/dist", core_path)),
+            scg_templates: Some(format!("{}/templates", core_path)),
+            scg_assets: Some(format!("{}/assets", core_path)),
+            dockerfile: Some(ctx.dockerfile().to_string_lossy().to_string()),
+            web_dist: Some(format!("{}/web/dist", core_path)),
+        },
+        security: SecurityConfig {
+            issuer: format!("systemprompt-{}", env_name),
+            access_token_expiration: 86400,
+            refresh_token_expiration: 2_592_000,
+            audiences: vec![
+                JwtAudience::Web,
+                JwtAudience::Api,
+                JwtAudience::A2a,
+                JwtAudience::Mcp,
+            ],
+        },
+        rate_limits: RateLimitsConfig {
+            disabled: !is_prod,
+            ..Default::default()
+        },
+        runtime: RuntimeConfig {
+            environment: runtime_env,
+            log_level: if is_prod {
+                LogLevel::Normal
+            } else {
+                LogLevel::Verbose
+            },
+            output_format: OutputFormat::Text,
+            no_color: false,
+            non_interactive: is_prod,
+        },
+        cloud: Some(CloudConfig {
+            credentials_path: "../credentials.json".to_string(),
+            tenants_path: "../tenants.json".to_string(),
+            tenant_id: None,
+            enabled: false,
+            validation: CloudValidationMode::Skip,
+        }),
+        extensions: None,
+        secrets: Some(SecretsConfig {
+            secrets_path: secrets_path.to_string(),
+            validation: SecretsValidationMode::Warn,
+            source: SecretsSource::File,
+        }),
+    };
+
+    validate_profile(&profile)?;
+    Ok(profile)
+}
+
+fn validate_profile(profile: &Profile) -> Result<()> {
+    if profile.security.issuer.is_empty() {
+        anyhow::bail!("JWT issuer cannot be empty");
+    }
+    if profile.security.access_token_expiration <= 0 {
+        anyhow::bail!("Access token expiration must be positive");
+    }
+    if profile.security.refresh_token_expiration <= 0 {
+        anyhow::bail!("Refresh token expiration must be positive");
+    }
+    if profile.security.audiences.is_empty() {
+        anyhow::bail!("At least one JWT audience must be configured");
+    }
+    Ok(())
+}
+
+pub fn save(profile: &Profile, profile_path: &Path) -> Result<()> {
+    if let Some(parent) = profile_path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
+    }
+
+    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
+
+    let header = format!(
+        "# SystemPrompt Profile: {}\n#\n# Generated by 'systemprompt setup'\n# \n# WARNING: This \
+         file contains database credentials.\n# DO NOT commit this file to version control.\n#\n\n",
+        profile.display_name
+    );
+
+    std::fs::write(profile_path, format!("{}{}", header, content))
+        .with_context(|| format!("Failed to write {}", profile_path.display()))?;
+
+    CliService::success(&format!("Saved profile to {}", profile_path.display()));
+
+    Ok(())
+}
+
+pub fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathBuf {
+    systemprompt_dir
+        .join("profiles")
+        .join(format!("{}.profile.yaml", env_name))
+}
+
+pub async fn run_migrations(profile_path: &Path) -> Result<()> {
+    CliService::info("Running database migrations...");
+
+    let current_exe = std::env::current_exe().context("Failed to get executable path")?;
+    let profile_path_str = profile_path.to_string_lossy();
+
+    let output = std::process::Command::new(&current_exe)
+        .args(["services", "db", "migrate"])
+        .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
+        .output()
+        .context("Failed to run migrations")?;
+
+    if output.status.success() {
+        CliService::success("Migrations completed successfully");
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        for line in stdout.lines().filter(|l| !l.is_empty()) {
+            CliService::info(&format!("    {}", line));
+        }
+        return Ok(());
+    }
+
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let stdout = String::from_utf8_lossy(&output.stdout);
+
+    CliService::error("Migrations failed");
+
+    if !stdout.is_empty() {
+        CliService::info(&stdout);
+    }
+    if !stderr.is_empty() {
+        CliService::error(&stderr);
+    }
+
+    CliService::info("Run manually with:");
+    CliService::info(&format!(
+        "  SYSTEMPROMPT_PROFILE={} systemprompt services db migrate",
+        profile_path_str
+    ));
+
+    Ok(())
+}

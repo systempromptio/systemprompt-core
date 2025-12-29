@@ -1,0 +1,35 @@
+[package]
+name = "systemprompt-runtime"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Application runtime context and module registry for SystemPrompt"
+
+[lints]
+workspace = true
+
+[dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+inventory = { workspace = true }
+axum = { workspace = true }
+maxminddb = { workspace = true }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-extension = { path = "../../shared/extension" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-loader = { path = "../../infra/loader" }
+systemprompt-core-analytics = { path = "../../domain/analytics" }
+systemprompt-core-files = { path = "../../domain/files" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+indicatif = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

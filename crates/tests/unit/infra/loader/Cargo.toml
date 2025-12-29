@@ -1,0 +1,22 @@
+[package]
+name = "systemprompt-loader-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-loader crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-loader = { workspace = true }
+systemprompt-models = { workspace = true }
+serde = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,0 +1,241 @@
+pub mod any;
+pub mod builder;
+pub mod capabilities;
+pub mod context;
+pub mod error;
+pub mod hlist;
+pub mod registry;
+pub mod typed;
+pub mod typed_registry;
+pub mod types;
+
+use std::path::PathBuf;
+use std::sync::Arc;
+
+use serde::{Deserialize, Serialize};
+use serde_json::Value as JsonValue;
+use systemprompt_traits::{Job, LlmProvider, ToolProvider};
+
+pub use context::{DynExtensionContext, ExtensionContext};
+pub use error::{ConfigError, LoaderError};
+pub use registry::{ExtensionRegistration, ExtensionRegistry};
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ExtensionMetadata {
+    pub id: &'static str,
+    pub name: &'static str,
+    pub version: &'static str,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SchemaDefinition {
+    pub table: String,
+    pub sql: SchemaSource,
+    pub required_columns: Vec<String>,
+}
+
+impl SchemaDefinition {
+    #[must_use]
+    pub fn inline(table: impl Into<String>, sql: impl Into<String>) -> Self {
+        Self {
+            table: table.into(),
+            sql: SchemaSource::Inline(sql.into()),
+            required_columns: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn file(table: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+        Self {
+            table: table.into(),
+            sql: SchemaSource::File(path.into()),
+            required_columns: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_required_columns(mut self, columns: Vec<String>) -> Self {
+        self.required_columns = columns;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SchemaSource {
+    Inline(String),
+    File(PathBuf),
+}
+
+#[derive(Debug, Clone)]
+pub struct ExtensionRouter {
+    pub router: axum::Router,
+    pub base_path: &'static str,
+    pub requires_auth: bool,
+}
+
+impl ExtensionRouter {
+    #[must_use]
+    pub const fn new(router: axum::Router, base_path: &'static str) -> Self {
+        Self {
+            router,
+            base_path,
+            requires_auth: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn public(router: axum::Router, base_path: &'static str) -> Self {
+        Self {
+            router,
+            base_path,
+            requires_auth: false,
+        }
+    }
+}
+
+pub trait Extension: Send + Sync + 'static {
+    fn metadata(&self) -> ExtensionMetadata;
+
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![]
+    }
+
+    fn migration_weight(&self) -> u32 {
+        100
+    }
+
+    fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
+        let _ = ctx;
+        None
+    }
+
+    fn jobs(&self) -> Vec<Arc<dyn Job>> {
+        vec![]
+    }
+
+    fn config_prefix(&self) -> Option<&str> {
+        None
+    }
+
+    fn config_schema(&self) -> Option<JsonValue> {
+        None
+    }
+
+    fn validate_config(&self, config: &JsonValue) -> Result<(), ConfigError> {
+        let _ = config;
+        Ok(())
+    }
+
+    fn llm_providers(&self) -> Vec<Arc<dyn LlmProvider>> {
+        vec![]
+    }
+
+    fn tool_providers(&self) -> Vec<Arc<dyn ToolProvider>> {
+        vec![]
+    }
+
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
+    fn priority(&self) -> u32 {
+        100
+    }
+
+    fn id(&self) -> &'static str {
+        self.metadata().id
+    }
+
+    fn name(&self) -> &'static str {
+        self.metadata().name
+    }
+
+    fn version(&self) -> &'static str {
+        self.metadata().version
+    }
+
+    fn has_schemas(&self) -> bool {
+        !self.schemas().is_empty()
+    }
+
+    fn has_router(&self, ctx: &dyn ExtensionContext) -> bool {
+        self.router(ctx).is_some()
+    }
+
+    fn has_jobs(&self) -> bool {
+        !self.jobs().is_empty()
+    }
+
+    fn has_config(&self) -> bool {
+        self.config_prefix().is_some()
+    }
+
+    fn has_llm_providers(&self) -> bool {
+        !self.llm_providers().is_empty()
+    }
+
+    fn has_tool_providers(&self) -> bool {
+        !self.tool_providers().is_empty()
+    }
+}
+
+#[macro_export]
+macro_rules! register_extension {
+    ($ext_type:ty) => {
+        ::inventory::submit! {
+            $crate::ExtensionRegistration {
+                factory: || ::std::sync::Arc::new(<$ext_type>::default()) as ::std::sync::Arc<dyn $crate::Extension>,
+            }
+        }
+    };
+    ($ext_expr:expr) => {
+        ::inventory::submit! {
+            $crate::ExtensionRegistration {
+                factory: || ::std::sync::Arc::new($ext_expr) as ::std::sync::Arc<dyn $crate::Extension>,
+            }
+        }
+    };
+}
+
+pub mod prelude {
+    pub use crate::context::{DynExtensionContext, ExtensionContext};
+    pub use crate::error::{ConfigError, LoaderError};
+    pub use crate::registry::ExtensionRegistry;
+    pub use crate::{
+        register_extension, Extension, ExtensionMetadata, ExtensionRouter, SchemaDefinition,
+        SchemaSource,
+    };
+
+    pub use crate::any::AnyExtension;
+    pub use crate::builder::ExtensionBuilder;
+    pub use crate::capabilities::{
+        CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
+        HasHttpClient,
+    };
+    pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
+    pub use crate::typed::{
+        ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
+        ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+    };
+    pub use crate::typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
+    pub use crate::types::{
+        Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,
+        NoDependencies,
+    };
+}
+
+pub use any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
+pub use builder::ExtensionBuilder;
+pub use capabilities::{
+    CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
+    HasHttpClient,
+};
+pub use hlist::{Contains, NotSame, Subset, TypeList};
+pub use typed::{
+    ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
+    ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+};
+pub use typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
+pub use types::{
+    Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,
+};
