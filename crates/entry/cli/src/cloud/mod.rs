@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod checkout;
 mod deploy;
+pub mod dockerfile;
 mod init;
 mod init_templates;
 mod logs;
