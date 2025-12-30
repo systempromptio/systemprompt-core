@@ -288,61 +288,48 @@ impl CloudApiClient {
         let token = self.token.clone();
 
         let stream = async_stream::stream! {
-            eprintln!("[SSE] Building request to: {}", url);
+            tracing::debug!(url = %url, "Building SSE request");
             let request = Client::new()
                 .get(&url)
                 .header("Authorization", format!("Bearer {}", token))
                 .header("Accept", "text/event-stream");
 
-            eprintln!("[SSE] Creating EventSource...");
             let mut es = match EventSource::new(request) {
-                Ok(es) => {
-                    eprintln!("[SSE] EventSource created, waiting for connection...");
-                    es
-                }
+                Ok(es) => es,
                 Err(e) => {
-                    eprintln!("[SSE] ERROR: Failed to create EventSource: {}", e);
+                    tracing::error!(error = %e, "Failed to create EventSource");
                     yield Err(anyhow!("Failed to create SSE connection: {}", e));
                     return;
                 }
             };
 
-            eprintln!("[SSE] Polling for events...");
             while let Some(event) = es.next().await {
                 match event {
                     Ok(Event::Open) => {
-                        eprintln!("[SSE] Connection OPENED successfully!");
+                        tracing::debug!("SSE connection opened");
                     }
                     Ok(Event::Message(message)) => {
-                        eprintln!("[SSE] Message: event={}, data_len={}", message.event, message.data.len());
+                        tracing::debug!(event_type = %message.event, "SSE message received");
                         if message.event == "provisioning" {
                             match serde_json::from_str::<CheckoutEvent>(&message.data) {
-                                Ok(event) => {
-                                    eprintln!("[SSE] Provisioning event: {:?}", event.event_type);
-                                    yield Ok(event);
-                                }
+                                Ok(event) => yield Ok(event),
                                 Err(e) => {
-                                    eprintln!("[SSE] Parse error: {} - data: {}", e, message.data);
+                                    tracing::warn!(error = %e, "Failed to parse checkout event");
                                 }
                             }
-                        } else if message.event == "status" {
-                            eprintln!("[SSE] Status event: {}", message.data);
-                        } else {
-                            eprintln!("[SSE] Unknown event type: {}", message.event);
                         }
                     }
                     Err(reqwest_eventsource::Error::StreamEnded) => {
-                        eprintln!("[SSE] Stream ended normally");
+                        tracing::debug!("SSE stream ended");
                         break;
                     }
                     Err(e) => {
-                        eprintln!("[SSE] ERROR: {}", e);
+                        tracing::warn!(error = %e, "SSE stream error");
                         yield Err(anyhow!("SSE stream error: {}", e));
                         break;
                     }
                 }
             }
-            eprintln!("[SSE] Event loop exited");
         };
 
         Box::pin(stream)

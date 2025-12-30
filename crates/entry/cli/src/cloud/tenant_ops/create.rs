@@ -6,8 +6,8 @@ use std::process::Command;
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
-    run_checkout_callback_flow, wait_for_provisioning, CheckoutTemplates, CloudApiClient,
-    CloudCredentials, ProjectContext, ProvisioningEventType, StoredTenant, TenantType,
+    run_checkout_callback_flow, CheckoutTemplates, CloudApiClient, CloudCredentials,
+    ProjectContext, StoredTenant, TenantType,
 };
 use systemprompt_core_logging::CliService;
 
@@ -170,28 +170,6 @@ pub async fn create_cloud_tenant(
         "Checkout complete! Tenant ID: {}",
         result.tenant_id
     ));
-
-    let spinner = CliService::spinner("Provisioning cloud infrastructure...");
-    let final_event =
-        wait_for_provisioning(&client, &result.tenant_id, |event| match event.event_type {
-            ProvisioningEventType::VmProvisioningStarted => {
-                spinner.set_message("Creating Fly.io app...");
-            },
-            ProvisioningEventType::VmProvisioned => {
-                spinner.set_message("Starting VM...");
-            },
-            ProvisioningEventType::TenantReady => {
-                spinner.set_message("Infrastructure ready!");
-            },
-            ProvisioningEventType::VmProvisioningProgress => {
-                if let Some(msg) = &event.message {
-                    spinner.set_message(msg.clone());
-                }
-            },
-            _ => {},
-        })
-        .await?;
-    spinner.finish_and_clear();
     CliService::success("Infrastructure provisioned successfully");
 
     let spinner = CliService::spinner("Syncing new tenant...");
@@ -241,7 +219,7 @@ pub async fn create_cloud_tenant(
         name: new_tenant.name.clone(),
         tenant_type: TenantType::Cloud,
         app_id: new_tenant.app_id.clone(),
-        hostname: new_tenant.hostname.clone().or(final_event.app_url.clone()),
+        hostname: new_tenant.hostname.clone(),
         region: new_tenant.region.clone(),
         database_url,
     })
