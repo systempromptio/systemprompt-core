@@ -4,6 +4,7 @@ use std::process::Command;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_core_logging::CliService;
 
+use super::dockerfile;
 use super::init_templates::{
     admin_agent_config, admin_mcp_config, agent_config, ai_config, blog_list_template,
     blog_post_template, content_config, cookie_policy, page_list_template, page_template,
@@ -11,6 +12,46 @@ use super::init_templates::{
 };
 
 const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp-admin.git";
+
+const GITIGNORE_CONTENT: &str = "# Ignore sensitive files
+credentials.json
+tenants.json
+**/secrets.json
+docker/
+storage/
+";
+
+const DOCKERIGNORE_CONTENT: &str = ".git
+.gitignore
+.gitmodules
+target/debug
+.cargo
+.systemprompt/credentials.json
+.systemprompt/tenants.json
+.systemprompt/**/secrets.json
+.systemprompt/docker
+.systemprompt/storage
+.env*
+backup
+docs
+instructions
+*.md
+core/web/node_modules
+.vscode
+.idea
+logs
+*.log
+";
+
+const ENTRYPOINT_CONTENT: &str = r#"#!/bin/sh
+set -e
+
+echo "Running database migrations..."
+/app/bin/systemprompt services db migrate
+
+echo "Starting services..."
+exec /app/bin/systemprompt services serve --foreground
+"#;
 
 pub async fn execute(force: bool) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
@@ -29,7 +70,7 @@ pub async fn execute(force: bool) -> Result<()> {
     CliService::key_value("Root", &project_root.display().to_string());
 
     if !systemprompt_dir.exists() {
-        create_systemprompt_dir(&systemprompt_dir)?;
+        create_systemprompt_dir(&systemprompt_dir, &project_root)?;
     } else {
         CliService::info(".systemprompt/ already exists");
     }
@@ -53,12 +94,25 @@ pub async fn execute(force: bool) -> Result<()> {
     Ok(())
 }
 
-fn create_systemprompt_dir(dir: &Path) -> Result<()> {
+fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
     std::fs::create_dir_all(dir).context("Failed to create .systemprompt directory")?;
 
-    let gitignore = dir.join(".gitignore");
-    std::fs::write(&gitignore, "# Ignore all files in this directory\n*\n")
+    std::fs::write(dir.join(".gitignore"), GITIGNORE_CONTENT)
         .context("Failed to create .gitignore")?;
+    CliService::info("  Created .systemprompt/.gitignore");
+
+    std::fs::write(dir.join(".dockerignore"), DOCKERIGNORE_CONTENT)
+        .context("Failed to create .dockerignore")?;
+    CliService::info("  Created .systemprompt/.dockerignore");
+
+    let dockerfile_content = dockerfile::generate_dockerfile_content(project_root)?;
+    std::fs::write(dir.join("Dockerfile"), dockerfile_content)
+        .context("Failed to create Dockerfile")?;
+    CliService::info("  Created .systemprompt/Dockerfile");
+
+    std::fs::write(dir.join("entrypoint.sh"), ENTRYPOINT_CONTENT)
+        .context("Failed to create entrypoint.sh")?;
+    CliService::info("  Created .systemprompt/entrypoint.sh");
 
     CliService::success("Created .systemprompt/");
     Ok(())
