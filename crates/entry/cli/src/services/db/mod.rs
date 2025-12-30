@@ -1,5 +1,5 @@
 use crate::cli_settings::{get_global_config, OutputFormat};
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_core_database::{
@@ -91,17 +91,8 @@ async fn migrate_standalone() -> Result<()> {
     let database =
         Arc::new(Database::from_config(&config.database_type, &config.database_url).await?);
 
-    let loaded_modules = ModuleLoader::scan_and_load(&config.core_path)?;
-    let modules = Modules::from_vec(loaded_modules)?;
+    let modules = Modules::from_vec(ModuleLoader::all())?;
     let all_modules = modules.all();
-
-    if all_modules.is_empty() {
-        bail!(
-            "No modules found in '{}'. Check CORE_PATH environment variable points to \
-             systemprompt-core root.",
-            config.core_path
-        );
-    }
 
     if verbosity.should_show_verbose() {
         CliService::info(&format!("Installing {} modules", all_modules.len()));
