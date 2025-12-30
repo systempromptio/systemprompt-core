@@ -160,7 +160,7 @@ fn print_summary(profiles: &[(String, PathBuf)]) {
         ));
         CliService::info("");
         CliService::info("2. Start services:");
-        CliService::info("   systemprompt services start");
+        CliService::info("   just start");
         CliService::info("");
         CliService::info("3. (Optional) Configure cloud deployment:");
         CliService::info("   systemprompt cloud login");
