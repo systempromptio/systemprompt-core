@@ -50,10 +50,6 @@ pub enum CloudCommands {
         /// Skip Docker push step
         #[arg(long)]
         skip_push: bool,
-
-        /// Custom image tag
-        #[arg(long)]
-        tag: Option<String>,
     },
 
     /// Check cloud deployment status
@@ -106,7 +102,7 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Init { force } => init::execute(force).await,
         CloudCommands::Tenant { command } => tenant::execute(command).await,
         CloudCommands::Profile { command } => profile::execute(command).await,
-        CloudCommands::Deploy { skip_push, tag } => deploy::execute(skip_push, tag).await,
+        CloudCommands::Deploy { skip_push } => deploy::execute(skip_push).await,
         CloudCommands::Status => status::execute().await,
         CloudCommands::Logs { tenant, lines } => logs::execute(tenant, lines).await,
         CloudCommands::Restart { tenant } => restart::execute(tenant).await,
