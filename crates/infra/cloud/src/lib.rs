@@ -25,9 +25,9 @@ pub mod paths;
 pub mod tenants;
 
 pub use api_client::{
-    CheckoutResponse, CloudApiClient, DeployResponse, LogEntry, Plan, ProvisioningEvent,
-    ProvisioningEventType, RegistryToken, StatusResponse, SubscriptionStatus, Tenant, TenantInfo,
-    TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CheckoutEvent, CheckoutResponse, CloudApiClient, DeployResponse, LogEntry, Plan,
+    ProvisioningEvent, ProvisioningEventType, RegistryToken, StatusResponse, SubscriptionStatus,
+    Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };
 pub use checkout::{
     run_checkout_callback_flow, wait_for_provisioning, CheckoutCallbackResult, CheckoutTemplates,
