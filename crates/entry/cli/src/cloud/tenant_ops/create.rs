@@ -157,7 +157,7 @@ fn validate_build_ready() -> Result<BuildValidationResult> {
         Some(_) => {},
     }
 
-    let extension_result = ExtensionLoader::validate(root)?;
+    let extension_result = ExtensionLoader::validate(root);
     if !extension_result.missing_binaries.is_empty() {
         let missing_list = extension_result.format_missing_binaries();
         bail!(
@@ -169,8 +169,12 @@ fn validate_build_ready() -> Result<BuildValidationResult> {
     dockerfile::check_dockerfile_completeness(root)?;
 
     let services_path = find_services_config(root)?;
-    let services_config = ConfigLoader::load_from_path(&services_path)
-        .with_context(|| format!("Failed to load services config: {}", services_path.display()))?;
+    let services_config = ConfigLoader::load_from_path(&services_path).with_context(|| {
+        format!(
+            "Failed to load services config: {}",
+            services_path.display()
+        )
+    })?;
 
     let required_secrets = validate_ai_config(&services_config)?;
 
@@ -190,9 +194,7 @@ fn find_services_config(root: &Path) -> Result<std::path::PathBuf> {
         }
     }
 
-    bail!(
-        "Services config not found.\n\nExpected at: services/config/config.yaml"
-    );
+    bail!("Services config not found.\n\nExpected at: services/config/config.yaml");
 }
 
 /// Validate AI configuration and return required secrets.
@@ -203,8 +205,8 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
     // Must have a default provider set
     if ai.default_provider.is_empty() {
         bail!(
-            "AI config missing default_provider.\n\nSet default_provider in services/ai/config.yaml \
-             (e.g., default_provider: \"anthropic\")"
+            "AI config missing default_provider.\n\nSet default_provider in \
+             services/ai/config.yaml (e.g., default_provider: \"anthropic\")"
         );
     }
 

@@ -1,5 +1,3 @@
-//! Extension discovery and loading.
-
 use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
@@ -10,33 +8,32 @@ use systemprompt_models::{DiscoveredExtension, ExtensionManifest};
 pub struct ExtensionLoader;
 
 impl ExtensionLoader {
-    pub fn discover(project_root: &Path) -> Result<Vec<DiscoveredExtension>> {
+    pub fn discover(project_root: &Path) -> Vec<DiscoveredExtension> {
         let extensions_dir = project_root.join("extensions");
 
         if !extensions_dir.exists() {
-            return Ok(vec![]);
+            return vec![];
         }
 
         let mut discovered = vec![];
 
-        Self::scan_directory(&extensions_dir, &mut discovered)?;
+        Self::scan_directory(&extensions_dir, &mut discovered);
 
         if let Ok(entries) = fs::read_dir(&extensions_dir) {
             for entry in entries.flatten() {
                 let path = entry.path();
                 if path.is_dir() {
-                    Self::scan_directory(&path, &mut discovered)?;
+                    Self::scan_directory(&path, &mut discovered);
                 }
             }
         }
 
-        Ok(discovered)
+        discovered
     }
 
-    fn scan_directory(dir: &Path, discovered: &mut Vec<DiscoveredExtension>) -> Result<()> {
-        let entries = match fs::read_dir(dir) {
-            Ok(e) => e,
-            Err(_) => return Ok(()),
+    fn scan_directory(dir: &Path, discovered: &mut Vec<DiscoveredExtension>) {
+        let Ok(entries) = fs::read_dir(dir) else {
+            return;
         };
 
         for entry in entries.flatten() {
@@ -49,11 +46,7 @@ impl ExtensionLoader {
             if manifest_path.exists() {
                 match Self::load_manifest(&manifest_path) {
                     Ok(manifest) => {
-                        discovered.push(DiscoveredExtension::new(
-                            manifest,
-                            ext_dir,
-                            manifest_path,
-                        ));
+                        discovered.push(DiscoveredExtension::new(manifest, ext_dir, manifest_path));
                     },
                     Err(e) => {
                         tracing::warn!(
@@ -65,8 +58,6 @@ impl ExtensionLoader {
                 }
             }
         }
-
-        Ok(())
     }
 
     fn load_manifest(path: &Path) -> Result<ExtensionManifest> {
@@ -77,51 +68,45 @@ impl ExtensionLoader {
             .with_context(|| format!("Failed to parse manifest: {}", path.display()))
     }
 
-    pub fn get_enabled_mcp_extensions(project_root: &Path) -> Result<Vec<DiscoveredExtension>> {
-        let extensions = Self::discover(project_root)?;
-        Ok(extensions
+    pub fn get_enabled_mcp_extensions(project_root: &Path) -> Vec<DiscoveredExtension> {
+        Self::discover(project_root)
             .into_iter()
             .filter(|e| e.is_mcp() && e.is_enabled())
-            .collect())
+            .collect()
     }
 
-    pub fn validate_mcp_binaries(
-        project_root: &Path,
-    ) -> Result<Vec<(String, std::path::PathBuf)>> {
-        let extensions = Self::get_enabled_mcp_extensions(project_root)?;
+    pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
+        let extensions = Self::get_enabled_mcp_extensions(project_root);
         let target_dir = project_root.join("target/release");
 
-        let mut missing = vec![];
-
-        for ext in extensions {
-            if let Some(binary) = ext.binary_name() {
-                let binary_path = target_dir.join(binary);
-                if !binary_path.exists() {
-                    missing.push((binary.to_string(), ext.path.clone()));
-                }
-            }
-        }
-
-        Ok(missing)
+        extensions
+            .into_iter()
+            .filter_map(|ext| {
+                ext.binary_name().and_then(|binary| {
+                    let binary_path = target_dir.join(binary);
+                    if binary_path.exists() {
+                        None
+                    } else {
+                        Some((binary.to_string(), ext.path.clone()))
+                    }
+                })
+            })
+            .collect()
     }
 
-    pub fn get_mcp_binary_names(project_root: &Path) -> Result<Vec<String>> {
-        let extensions = Self::get_enabled_mcp_extensions(project_root)?;
-        Ok(extensions
+    pub fn get_mcp_binary_names(project_root: &Path) -> Vec<String> {
+        Self::get_enabled_mcp_extensions(project_root)
             .iter()
             .filter_map(|e| e.binary_name().map(String::from))
-            .collect())
+            .collect()
     }
 
-    pub fn validate(project_root: &Path) -> Result<ExtensionValidationResult> {
-        let discovered = Self::discover(project_root)?;
-        let missing_binaries = Self::validate_mcp_binaries(project_root)?;
-
-        Ok(ExtensionValidationResult {
-            discovered,
-            missing_binaries,
+    pub fn validate(project_root: &Path) -> ExtensionValidationResult {
+        ExtensionValidationResult {
+            discovered: Self::discover(project_root),
+            missing_binaries: Self::validate_mcp_binaries(project_root),
             missing_manifests: vec![],
-        })
+        }
     }
 }
 

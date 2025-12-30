@@ -1,5 +1,3 @@
-//! Dockerfile generation and validation for cloud deployments.
-
 use anyhow::{bail, Result};
 use std::path::Path;
 
@@ -48,8 +46,8 @@ ENV HOST=0.0.0.0 \
 CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
 "#;
 
-pub fn generate_dockerfile_content(project_root: &Path) -> Result<String> {
-    let mcp_binaries = ExtensionLoader::get_mcp_binary_names(project_root)?;
+pub fn generate_dockerfile_content(project_root: &Path) -> String {
+    let mcp_binaries = ExtensionLoader::get_mcp_binary_names(project_root);
 
     let mcp_section = if mcp_binaries.is_empty() {
         String::new()
@@ -61,62 +59,53 @@ pub fn generate_dockerfile_content(project_root: &Path) -> Result<String> {
             .join("\n")
     };
 
-    Ok(format!("{}{}{}", DOCKERFILE_HEADER, mcp_section, DOCKERFILE_FOOTER))
+    format!("{}{}{}", DOCKERFILE_HEADER, mcp_section, DOCKERFILE_FOOTER)
 }
 
-pub fn get_required_mcp_copy_lines(project_root: &Path) -> Result<Vec<String>> {
-    let mcp_binaries = ExtensionLoader::get_mcp_binary_names(project_root)?;
-    Ok(mcp_binaries
+pub fn get_required_mcp_copy_lines(project_root: &Path) -> Vec<String> {
+    ExtensionLoader::get_mcp_binary_names(project_root)
         .iter()
         .map(|bin| format!("COPY target/release/{} /app/bin/mcp/", bin))
-        .collect())
+        .collect()
 }
 
 pub fn validate_dockerfile_has_mcp_binaries(
     dockerfile_content: &str,
     project_root: &Path,
-) -> Result<Vec<String>> {
-    let mcp_binaries = ExtensionLoader::get_mcp_binary_names(project_root)?;
-    let mut missing: Vec<String> = vec![];
-
-    for binary in &mcp_binaries {
-        let expected_pattern = format!("target/release/{}", binary);
-        if !dockerfile_content.contains(&expected_pattern) {
-            missing.push(binary.clone());
-        }
-    }
-
-    Ok(missing)
+) -> Vec<String> {
+    ExtensionLoader::get_mcp_binary_names(project_root)
+        .into_iter()
+        .filter(|binary| {
+            let expected_pattern = format!("target/release/{}", binary);
+            !dockerfile_content.contains(&expected_pattern)
+        })
+        .collect()
 }
 
-pub fn print_dockerfile_suggestion(project_root: &Path) -> Result<()> {
-    let content = generate_dockerfile_content(project_root)?;
-    println!("{}", content);
-    Ok(())
+pub fn print_dockerfile_suggestion(project_root: &Path) {
+    println!("{}", generate_dockerfile_content(project_root));
 }
 
 pub fn check_dockerfile_completeness(project_root: &Path) -> Result<()> {
     let dockerfile_path = project_root.join(".systemprompt/Dockerfile");
 
     if !dockerfile_path.exists() {
-        let suggested = generate_dockerfile_content(project_root)?;
         bail!(
-            "Dockerfile not found at .systemprompt/Dockerfile\n\n\
-             Create it with the following content:\n\n{}",
-            suggested
+            "Dockerfile not found at .systemprompt/Dockerfile\n\nCreate it with the following \
+             content:\n\n{}",
+            generate_dockerfile_content(project_root)
         );
     }
 
     let content = std::fs::read_to_string(&dockerfile_path)?;
-    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root)?;
+    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
 
     if !missing.is_empty() {
-        let required_lines = get_required_mcp_copy_lines(project_root)?;
         bail!(
-            "Dockerfile is missing COPY commands for MCP binaries:\n\n{}\n\n\
-             Add these lines to your Dockerfile:\n\n{}",
+            "Dockerfile is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these lines to \
+             your Dockerfile:\n\n{}",
             missing.join(", "),
-            required_lines.join("\n")
+            get_required_mcp_copy_lines(project_root).join("\n")
         );
     }
 

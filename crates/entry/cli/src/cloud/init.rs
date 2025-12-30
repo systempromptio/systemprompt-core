@@ -105,7 +105,7 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
         .context("Failed to create .dockerignore")?;
     CliService::info("  Created .systemprompt/.dockerignore");
 
-    let dockerfile_content = dockerfile::generate_dockerfile_content(project_root)?;
+    let dockerfile_content = dockerfile::generate_dockerfile_content(project_root);
     std::fs::write(dir.join("Dockerfile"), dockerfile_content)
         .context("Failed to create Dockerfile")?;
     CliService::info("  Created .systemprompt/Dockerfile");

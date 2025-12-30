@@ -51,14 +51,18 @@ The deployment system spans three repositories:
   │                                                                          │
   PHASE 2: BUILD & DEPLOY
   ═══════════════════════
-  │   docker build -t registry.fly.io/{app}:initial                          │
+  │   docker build -t registry.fly.io/systemprompt-images:tenant-{id}        │
   │                                      │                                   │
   ├── GET /tenants/{id}/registry-token ──┤                                   │
+  │   { registry, token, repository: "systemprompt-images", tag: "tenant-{id}" }
   │                                      │                                   │
-  │   docker push ───────────────► registry.fly.io/{app}:initial ────────────┤
+  │   docker push ───────────────► SHARED REGISTRY ─────────────────────────┤
+  │                                registry.fly.io/systemprompt-images       │
   │                                      │                                   │
   ├── POST /tenants/{id}/deploy ─────────┤                                   │
-  │   { image: "registry.fly.io/{app}:initial" }                             │
+  │   { image: "registry.fly.io/systemprompt-images:tenant-{id}" }           │
+  │   │                                  │                                   │
+  │   │  Validate: image == expected ────┤  (EXACT match required!)          │
   │                                      │                                   │
   │                              Create Machine ────────────────► Machine    │
   │                              Wait for Running                 Starts     │
@@ -76,26 +80,111 @@ The deployment system spans three repositories:
   ══════════════════
   $ just deploy
   │
-  ├── docker build -t registry.fly.io/{app}:{tag}
-  ├── docker push ───────────────► registry.fly.io/{app}:{tag}
+  ├── docker build -t registry.fly.io/systemprompt-images:tenant-{id}
+  ├── docker push ───────────────► registry.fly.io/systemprompt-images
   └── POST /tenants/{id}/deploy ─► Update Machine ────────────► New Image
 ```
 
 ## Key Concepts
 
-### Single Registry: Fly.io Only
-All Docker images are pushed to `registry.fly.io/{app_id}:{tag}`. There is no base image
-in GitHub Container Registry - each tenant deploys their own built image from day one.
+### Shared Registry: systemprompt-images
+
+All tenant Docker images are pushed to a single shared Fly.io registry app (`systemprompt-images`).
+There is no per-tenant registry - all tenants share one registry with tenant-scoped tags.
 
 ### Build Before Provision
+
 Cloud tenant creation requires a successful build first. The CLI validates:
 - `target/release/systemprompt` exists
 - `core/web/dist` exists
 - `.systemprompt/Dockerfile` exists
 
 ### Two-Phase Provisioning
+
 1. **Phase 1 (Backend)**: Creates infrastructure (app, volume, IPs, cert) but NO machine
-2. **Phase 2 (CLI)**: Builds image, pushes to Fly registry, triggers deploy to create machine
+2. **Phase 2 (CLI)**: Builds image, pushes to shared registry, triggers deploy to create machine
+
+## Registry Security Model
+
+### Shared Registry Architecture
+
+All tenant images are pushed to a single shared Fly.io registry app:
+
+```
+systemprompt-images (registry-only app)
+├── No machines     → Can't steal compute
+├── No secrets      → Nothing to exfiltrate
+├── No volumes      → No data to access
+└── Deploy token    → Scoped to this empty app only
+```
+
+### Tenant-Scoped Image Tags
+
+Images are tagged using the format `tenant-{tenant_id}`:
+- Full image reference: `registry.fly.io/systemprompt-images:tenant-{uuid}`
+- Tags are cryptographically strong (UUIDs)
+- Each tenant can only push to their own tag
+
+### Security Controls
+
+| Layer | Control | Location |
+|-------|---------|----------|
+| API Authentication | User must be authenticated | AuthUser middleware |
+| Tenant Ownership | User must own the tenant | `verify_ownership()` |
+| Subscription Access | User's subscription must be active | `has_tenant_access()` |
+| Registry Token | Org token, but tag is tenant-scoped | `get_registry_token()` handler |
+| Image Validation | **Exact** image match required | `DeployRequest::validate_image()` |
+
+### Image Validation on Deploy
+
+The deploy endpoint performs strict validation:
+
+```rust
+// In handlers.rs:205-221
+let expected_image = provisioner.config().build_full_image(&tenant_id);
+// e.g., "registry.fly.io/systemprompt-images:tenant-abc123"
+
+req.validate_image(&expected_image)?;  // Must match EXACTLY
+```
+
+This prevents:
+- Tenant A deploying Tenant B's image
+- Arbitrary image injection
+- Tag manipulation attacks
+
+### Registry Token Response
+
+When tenants request registry credentials:
+
+```json
+{
+  "registry": "registry.fly.io",
+  "username": "x",
+  "token": "<org-level-api-token>",
+  "repository": "systemprompt-images",
+  "tag": "tenant-{tenant_id}"
+}
+```
+
+### Why This is Safe
+
+1. **Fly.io deploy token scope**: Limited to `systemprompt-images` app only
+2. **Empty app**: No machines, secrets, or volumes to compromise
+3. **Exact validation**: Deploy rejects any image not matching `tenant-{id}` exactly
+4. **Ownership checks**: Multi-layer auth before token issuance
+5. **UUID tags**: Cryptographically hard to guess other tenants' tags
+
+### Code References
+
+| Component | File | Lines |
+|-----------|------|-------|
+| Image tag building | `services/fly/config.rs` | 101-111 |
+| Registry token generation | `api/tenants/handlers.rs` | 331-363 |
+| Deploy validation | `api/tenants/handlers.rs` | 205-221 |
+| Validation logic | `models/tenant.rs` | 215-222 |
+| Tenant ownership check | `api/tenants/mod.rs` | 25-30 |
+| Tenant access control | `api/tenants/mod.rs` | 67-84 |
+| Tag cleanup on deletion | `api/admin/sync.rs` | 139-143, 183-187 |
 
 ## Phase 1: Tenant Provisioning (`just tenant`)
 
@@ -196,25 +285,32 @@ Events received:
 After receiving `infrastructure_ready`, the CLI:
 
 ```bash
-# 1. Build Docker image
-docker build -f .systemprompt/Dockerfile -t registry.fly.io/{app}:initial .
+# 1. Build Docker image with tenant-scoped tag
+docker build -f .systemprompt/Dockerfile \
+  -t registry.fly.io/systemprompt-images:tenant-{tenant_id} .
 
 # 2. Get registry token
 curl -X GET /api/v1/tenants/{id}/registry-token
+# Returns: { registry, username, token, repository: "systemprompt-images", tag: "tenant-{id}" }
 
-# 3. Push image
+# 3. Push image to shared registry
 docker login registry.fly.io -u x -p $TOKEN
-docker push registry.fly.io/{app}:initial
+docker push registry.fly.io/systemprompt-images:tenant-{tenant_id}
 
-# 4. Trigger deploy (creates machine)
-curl -X POST /api/v1/tenants/{id}/deploy -d '{"image": "registry.fly.io/{app}:initial"}'
+# 4. Trigger deploy (creates machine with exact image validation)
+curl -X POST /api/v1/tenants/{id}/deploy \
+  -d '{"image": "registry.fly.io/systemprompt-images:tenant-{tenant_id}"}'
 ```
 
 The deploy endpoint creates the machine:
 
 ```rust
+// Validate image matches expected tenant-scoped tag
+let expected_image = provisioner.config().build_full_image(&tenant_id);
+req.validate_image(&expected_image)?;  // EXACT match required
+
 fly.create_machine(app_name, MachineConfig {
-    image: provided_image, // registry.fly.io/{app}:initial
+    image: provided_image, // registry.fly.io/systemprompt-images:tenant-{id}
     env: { DATABASE_URL, JWT_SECRET, ... },
     mounts: [{ volume: "services", path: "/app/services" }],
     memory_mb: 256-2048,
@@ -527,9 +623,9 @@ cargo build --release --manifest-path=core/Cargo.toml
 # Step 2: Build React frontend
 cd core/web && npm run build
 
-# Step 3: Build Docker image
+# Step 3: Build Docker image with tenant-scoped tag
 docker build -f .systemprompt/Dockerfile \
-  -t registry.fly.io/{app_id}:{tag} .
+  -t registry.fly.io/systemprompt-images:tenant-{tenant_id} .
 ```
 
 ### 2.2 Docker Image Contents
@@ -589,25 +685,27 @@ exec "$@"
 ### 2.3 Image Push & Deploy
 
 ```bash
-# Get registry token
-TOKEN=$(curl -X POST /api/v1/tenants/{id}/registry-token)
+# Get registry token (returns tenant-scoped tag info)
+REGISTRY_INFO=$(curl -X GET /api/v1/tenants/{id}/registry-token)
+# Returns: { registry, username, token, repository: "systemprompt-images", tag: "tenant-{id}" }
 
-# Docker login
+# Docker login to shared registry
 docker login registry.fly.io -u x -p $TOKEN
 
-# Push image
-docker push registry.fly.io/{app_id}:{tag}
+# Push image to shared registry with tenant-scoped tag
+docker push registry.fly.io/systemprompt-images:tenant-{tenant_id}
 
-# Trigger deployment
+# Trigger deployment (image must match EXACTLY)
 curl -X POST /api/v1/tenants/{id}/deploy \
-  -d '{"image": "registry.fly.io/{app_id}:{tag}"}'
+  -d '{"image": "registry.fly.io/systemprompt-images:tenant-{tenant_id}"}'
 ```
 
 The Management API then:
-1. Stops the running machine
-2. Updates machine config with new image
-3. Restarts machine
-4. Returns deployment status
+1. **Validates image** - Must match `registry.fly.io/systemprompt-images:tenant-{tenant_id}` exactly
+2. Stops the running machine
+3. Updates machine config with new image
+4. Restarts machine
+5. Returns deployment status
 
 ## Data Storage Summary
 
@@ -915,15 +1013,15 @@ If secrets are missing:
 │                  PHASE 2: DEPLOY (CLI-driven)                                │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  CLI                                         FLY.IO REGISTRY
+  CLI                                         SHARED REGISTRY
   ───                                         ───────────────
 
   1. Build Docker image
-  docker build -t registry.fly.io/{app}:initial
+  docker build -t registry.fly.io/systemprompt-images:tenant-{id}
 
-  2. Push to Fly registry
+  2. Push to shared registry
   ─────────────────────────────────────────►
-  docker push registry.fly.io/{app}:initial
+  docker push registry.fly.io/systemprompt-images:tenant-{id}
                                               ◄──────
                                               { digest }
 
@@ -933,14 +1031,18 @@ If secrets are missing:
   3. Trigger deploy
   ─────────────────►
   POST /tenants/{id}/deploy
-  { image: "registry.fly.io/{app}:initial" }
+  { image: "registry.fly.io/systemprompt-images:tenant-{id}" }
 
-                            4. Create Machine
+                            4. Validate image (EXACT match)
+                            expected = "registry.fly.io/systemprompt-images:tenant-{id}"
+                            if req.image != expected { reject }
+
+                            5. Create Machine
                             ─────────────────────────────────────────►
                             POST /apps/{app}/machines
                             {
                               config: {
-                                image: "registry.fly.io/{app}:initial",
+                                image: "registry.fly.io/systemprompt-images:tenant-{id}",
                                 env: { DATABASE_URL, JWT_SECRET, ... },
                                 mounts: [{ volume, path: "/app/services" }]
                               }
@@ -948,7 +1050,7 @@ If secrets are missing:
                                                                     ◄──────
                                                                     { machine_id }
 
-                            5. Wait for running
+                            6. Wait for running
                             ─────────────────────────────────────────►
                             GET /apps/{app}/machines/{id}
                                                                     ◄──────
@@ -967,8 +1069,8 @@ If secrets are missing:
 │                          DEPLOY SEQUENCE                                     │
 └─────────────────────────────────────────────────────────────────────────────┘
 
-  LOCAL MACHINE                MANAGEMENT API           FLY REGISTRY       FLY.IO
-  ─────────────                ──────────────           ────────────       ──────
+  LOCAL MACHINE                MANAGEMENT API           SHARED REGISTRY    FLY.IO
+  ─────────────                ──────────────           ───────────────    ──────
 
   1. Build Rust binary
   cargo build --release
@@ -982,37 +1084,41 @@ If secrets are missing:
   cd extensions/mcp/* && npm run build
   └── extensions/mcp/*/dist/
 
-  4. Build Docker image
+  4. Build Docker image (tenant-scoped tag)
   docker build -f .systemprompt/Dockerfile \
-    -t registry.fly.io/{app}:{tag} .
+    -t registry.fly.io/systemprompt-images:tenant-{id} .
 
   5. Get registry token
   ─────────────────────────►
-  POST /api/v1/tenants/{id}/registry-token
+  GET /api/v1/tenants/{id}/registry-token
   ◄─────────────────────────
-  { token, expires_at }
+  { registry, token, repository: "systemprompt-images", tag: "tenant-{id}" }
 
-  6. Push image
+  6. Push image to shared registry
   ───────────────────────────────────────►
-  docker push registry.fly.io/{app}:{tag}
+  docker push registry.fly.io/systemprompt-images:tenant-{id}
                                            ◄──────
                                            { digest }
 
   7. Trigger deployment
   ─────────────────────────►
   POST /api/v1/tenants/{id}/deploy
-  { image: "registry.fly.io/{app}:{tag}" }
+  { image: "registry.fly.io/systemprompt-images:tenant-{id}" }
 
-                             8. Update machine
+                             8. Validate image (EXACT match)
+                             expected = build_full_image(tenant_id)
+                             if req.image != expected { return 400 }
+
+                             9. Update machine
                              ──────────────────────────────────────────────►
                              PATCH /apps/{app}/machines/{id}
-                             { config: { image: "..." } }
+                             { config: { image: "registry.fly.io/systemprompt-images:tenant-{id}" } }
 
-                                                                           9. Pull image
+                                                                           10. Pull image
                                                                            ◄──────
-                                                                           (from registry)
+                                                                           (from shared registry)
 
-                                                                           10. Restart machine
+                                                                           11. Restart machine
                                                                            ◄──────
                              ◄──────────────────────────────────────────────
                              { machine_id, state: "started" }

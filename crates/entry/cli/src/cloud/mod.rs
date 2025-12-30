@@ -21,66 +21,59 @@ use clap::Subcommand;
 
 #[derive(Subcommand)]
 pub enum CloudCommands {
-    /// Authentication (login, logout, whoami)
-    #[command(subcommand)]
+    #[command(subcommand, about = "Authentication (login, logout, whoami)")]
     Auth(auth::AuthCommands),
 
-    /// Initialize project structure
+    #[command(about = "Initialize project structure")]
     Init {
-        /// Overwrite existing files
         #[arg(long)]
         force: bool,
     },
 
-    /// Manage tenants (local or cloud)
-    #[command(subcommand_required = false)]
+    #[command(subcommand_required = false, about = "Manage tenants (local or cloud)")]
     Tenant {
         #[command(subcommand)]
         command: Option<tenant::TenantCommands>,
     },
 
-    /// Manage profiles (create, list, show, delete)
-    #[command(subcommand_required = false)]
+    #[command(subcommand_required = false, about = "Manage profiles")]
     Profile {
         #[command(subcommand)]
         command: Option<profile::ProfileCommands>,
     },
 
-    /// Deploy to SystemPrompt Cloud
+    #[command(about = "Deploy to SystemPrompt Cloud")]
     Deploy {
-        /// Skip Docker push step
         #[arg(long)]
         skip_push: bool,
     },
 
-    /// Check cloud deployment status
+    #[command(about = "Check cloud deployment status")]
     Status,
 
-    /// View tenant logs
+    #[command(about = "View tenant logs")]
     Logs {
-        /// Tenant ID (uses profile tenant if not specified)
         #[arg(long)]
         tenant: Option<String>,
 
-        /// Number of lines to show
         #[arg(long, short = 'n', default_value = "100")]
         lines: u32,
     },
 
-    /// Restart tenant machine
+    #[command(about = "Restart tenant machine")]
     Restart {
-        /// Tenant ID (uses profile tenant if not specified)
         #[arg(long)]
         tenant: Option<String>,
     },
 
-    /// Sync between local and cloud environments
-    #[command(subcommand)]
+    #[command(subcommand, about = "Sync between local and cloud environments")]
     Sync(sync::SyncCommands),
 
-    /// Manage secrets for cloud tenant
-    #[command(subcommand)]
+    #[command(subcommand, about = "Manage secrets for cloud tenant")]
     Secrets(secrets::SecretsCommands),
+
+    #[command(about = "Generate Dockerfile based on discovered extensions")]
+    Dockerfile,
 }
 
 impl CloudCommands {
@@ -109,5 +102,14 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Restart { tenant } => restart::execute(tenant).await,
         CloudCommands::Sync(cmd) => sync::execute(cmd).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd).await,
+        CloudCommands::Dockerfile => execute_dockerfile().await,
     }
+}
+
+async fn execute_dockerfile() -> Result<()> {
+    use crate::common::project::ProjectRoot;
+
+    let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
+    dockerfile::print_dockerfile_suggestion(project.as_path());
+    Ok(())
 }
