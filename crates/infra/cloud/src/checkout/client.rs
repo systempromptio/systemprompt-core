@@ -37,16 +37,20 @@ pub struct CheckoutCallbackResult {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[allow(clippy::struct_field_names)]
 pub struct CheckoutTemplates {
     pub success_html: &'static str,
     pub error_html: &'static str,
+    pub waiting_html: &'static str,
 }
 
+#[allow(clippy::struct_field_names)]
 struct AppState {
     tx: Arc<Mutex<Option<oneshot::Sender<Result<CheckoutCallbackResult>>>>>,
     api_client: Arc<CloudApiClient>,
     success_html: String,
     error_html: String,
+    waiting_html: String,
 }
 
 pub async fn run_checkout_callback_flow(
@@ -65,6 +69,7 @@ pub async fn run_checkout_callback_flow(
         )),
         success_html: templates.success_html.to_string(),
         error_html: templates.error_html.to_string(),
+        waiting_html: templates.waiting_html.to_string(),
     };
 
     let app = Router::new()
@@ -110,71 +115,96 @@ async fn callback_handler(
     State(state): State<Arc<AppState>>,
     Query(params): Query<CallbackParams>,
 ) -> Html<String> {
-    let result = if let Some(error) = params.error {
-        Err(anyhow!("Checkout error: {}", error))
-    } else if let (Some(transaction_id), Some(tenant_id)) =
+    if let Some(error) = &params.error {
+        tracing::error!(error = %error, "Checkout error from callback");
+        send_result(&state.tx, Err(anyhow!("Checkout error: {}", error))).await;
+        return Html(state.error_html.clone());
+    }
+
+    if let (Some(transaction_id), Some(tenant_id)) =
         (params.transaction_id.clone(), params.tenant_id.clone())
     {
         match params.status.as_deref() {
-            Some("completed") => Ok(CheckoutCallbackResult {
-                transaction_id,
-                tenant_id,
-            }),
-            Some(status) => Err(anyhow!("Checkout status: {}", status)),
-            None => Err(anyhow!(
-                "Checkout callback missing required 'status' parameter"
-            )),
-        }
-    } else if params.status.as_deref() == Some("pending") {
-        match params.checkout_session_id.clone() {
-            Some(checkout_session_id) => {
-                CliService::info("Payment confirmed, waiting for provisioning...");
-                let transaction_id = params
-                    .transaction_id
-                    .clone()
-                    .unwrap_or_else(|| checkout_session_id.clone());
-                match wait_for_checkout_provisioning(&state.api_client, &checkout_session_id).await
-                {
-                    Ok(event) => Ok(CheckoutCallbackResult {
-                        transaction_id,
-                        tenant_id: event.tenant_id,
-                    }),
-                    Err(e) => Err(e),
-                }
-            },
-            None => Err(anyhow!("Pending status but no checkout_session_id")),
-        }
-    } else {
-        Err(anyhow!("Missing transaction_id or tenant_id in callback"))
-    };
-
-    state.tx.lock().await.take().map_or_else(
-        || Html(state.error_html.clone()),
-        |sender| {
-            let is_success = result.is_ok();
-            let tenant_id = match &result {
-                Ok(r) => r.tenant_id.clone(),
-                Err(e) => {
-                    tracing::error!(error = %e, "Checkout failed, tenant ID unavailable");
-                    String::new()
-                },
-            };
-
-            if sender.send(result).is_err() {
-                tracing::warn!(
-                    "Checkout result receiver dropped - client may not receive payment \
-                     confirmation"
-                );
-            }
-
-            if is_success {
+            Some("completed") => {
+                let result = Ok(CheckoutCallbackResult {
+                    transaction_id,
+                    tenant_id: tenant_id.clone(),
+                });
+                send_result(&state.tx, result).await;
                 let html = state.success_html.replace("{{TENANT_ID}}", &tenant_id);
-                Html(html)
-            } else {
-                Html(state.error_html.clone())
-            }
-        },
+                return Html(html);
+            },
+            Some(status) => {
+                send_result(&state.tx, Err(anyhow!("Checkout status: {}", status))).await;
+                return Html(state.error_html.clone());
+            },
+            None => {
+                send_result(
+                    &state.tx,
+                    Err(anyhow!(
+                        "Checkout callback missing required 'status' parameter"
+                    )),
+                )
+                .await;
+                return Html(state.error_html.clone());
+            },
+        }
+    }
+
+    if params.status.as_deref() == Some("pending") {
+        if let Some(checkout_session_id) = params.checkout_session_id.clone() {
+            CliService::info("Payment confirmed, waiting for provisioning...");
+
+            let api_client = Arc::clone(&state.api_client);
+            let tx = Arc::clone(&state.tx);
+            let transaction_id = params
+                .transaction_id
+                .clone()
+                .unwrap_or_else(|| checkout_session_id.clone());
+
+            tokio::spawn(async move {
+                match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
+                    Ok(event) => {
+                        let result = Ok(CheckoutCallbackResult {
+                            transaction_id,
+                            tenant_id: event.tenant_id,
+                        });
+                        send_result(&tx, result).await;
+                    },
+                    Err(e) => {
+                        send_result(&tx, Err(e)).await;
+                    },
+                }
+            });
+
+            return Html(state.waiting_html.clone());
+        } else {
+            send_result(
+                &state.tx,
+                Err(anyhow!("Pending status but no checkout_session_id")),
+            )
+            .await;
+            return Html(state.error_html.clone());
+        }
+    }
+
+    send_result(
+        &state.tx,
+        Err(anyhow!("Missing transaction_id or tenant_id in callback")),
     )
+    .await;
+    Html(state.error_html.clone())
+}
+
+async fn send_result(
+    tx: &Arc<Mutex<Option<oneshot::Sender<Result<CheckoutCallbackResult>>>>>,
+    result: Result<CheckoutCallbackResult>,
+) {
+    if let Some(sender) = tx.lock().await.take() {
+        if sender.send(result).is_err() {
+            tracing::warn!("Checkout result receiver dropped");
+        }
+    }
 }
 
 async fn wait_for_checkout_provisioning(

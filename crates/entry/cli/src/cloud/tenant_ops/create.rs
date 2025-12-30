@@ -11,7 +11,7 @@ use systemprompt_cloud::{
 };
 use systemprompt_core_logging::CliService;
 
-use crate::cloud::checkout::templates::{ERROR_HTML, SUCCESS_HTML};
+use crate::cloud::checkout::templates::{ERROR_HTML, SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
     generate_postgres_compose, is_port_in_use, nanoid, stop_container_on_port,
@@ -162,6 +162,7 @@ pub async fn create_cloud_tenant(
     let templates = CheckoutTemplates {
         success_html: SUCCESS_HTML,
         error_html: ERROR_HTML,
+        waiting_html: WAITING_HTML,
     };
 
     let result = run_checkout_callback_flow(&client, &checkout.checkout_url, templates).await?;
