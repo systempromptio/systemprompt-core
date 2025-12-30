@@ -6,7 +6,7 @@ pub use api_paths::ApiPaths;
 pub use service_category::ServiceCategory;
 pub use types::{
     ApiConfig, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed, ModuleType,
-    SchemaSource,
+    SchemaSource, SeedSource,
 };
 
 use anyhow::{bail, Result};

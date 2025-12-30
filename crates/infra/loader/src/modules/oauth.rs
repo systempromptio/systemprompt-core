@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-use systemprompt_models::modules::{ApiConfig, Module, ModuleSchema, ModuleSeed, SchemaSource};
+use systemprompt_models::modules::{ApiConfig, Module, ModuleSchema, ModuleSeed, SchemaSource, SeedSource};
 
 pub fn define() -> Module {
     Module {
@@ -128,13 +128,17 @@ pub fn define() -> Module {
         ]),
         seeds: Some(vec![
             ModuleSeed {
-                file: "src/queries/seed/webauthn_client.sql".into(),
+                sql: SeedSource::Inline(
+                    include_str!("../../../../domain/oauth/src/queries/seed/webauthn_client.sql").into(),
+                ),
                 table: "oauth_clients".into(),
                 check_column: "client_id".into(),
                 check_value: "sp_web".into(),
             },
             ModuleSeed {
-                file: "src/queries/seed/webauthn_client_scopes.sql".into(),
+                sql: SeedSource::Inline(
+                    include_str!("../../../../domain/oauth/src/queries/seed/webauthn_client_scopes.sql").into(),
+                ),
                 table: "oauth_client_scopes".into(),
                 check_column: "client_id".into(),
                 check_value: "sp_web".into(),
