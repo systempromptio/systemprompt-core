@@ -105,7 +105,7 @@ pub async fn execute(name: &str) -> Result<()> {
     }
 
     if tenant.tenant_type == TenantType::Local {
-        handle_local_tenant_setup(&cloud_user, db_url, name, &profile_path).await?;
+        handle_local_tenant_setup(&cloud_user, db_url, &tenant.name, &profile_path).await?;
     }
 
     CliService::section("Next Steps");

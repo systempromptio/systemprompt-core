@@ -110,6 +110,8 @@ systemprompt-core-api.workspace = true
 
 ### For Core Contributors
 
+**Prerequisites:** Docker must be running for PostgreSQL containers.
+
 ```bash
 # Clone repository
 git clone https://github.com/systempromptio/systemprompt-core
