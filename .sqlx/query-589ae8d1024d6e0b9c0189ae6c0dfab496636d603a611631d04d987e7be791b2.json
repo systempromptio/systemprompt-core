@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM user_contexts c\n            WHERE NOT EXISTS (\n                SELECT 1 FROM task_messages m\n                JOIN agent_tasks t ON m.task_id = t.task_id\n                WHERE t.context_id = c.context_id\n            )\n            AND c.created_at < NOW() - ($1 || ' hours')::INTERVAL\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "589ae8d1024d6e0b9c0189ae6c0dfab496636d603a611631d04d987e7be791b2"
+}

@@ -13,13 +13,29 @@ default:
 build:
     cargo build --workspace
 
+# Build workspace offline (uses cached .sqlx metadata, no database required)
+build-offline:
+    SQLX_OFFLINE=true cargo build --workspace
+
 # Build CLI only
 cli:
     cargo build --bin systemprompt
 
+# Build CLI offline (uses cached .sqlx metadata, no database required)
+cli-offline:
+    SQLX_OFFLINE=true cargo build --bin systemprompt
+
+# Prepare sqlx offline cache (requires running database)
+sqlx-prepare:
+    cargo sqlx prepare --workspace
+
 # Check without building
 check:
     cargo check --workspace
+
+# Check offline (uses cached .sqlx metadata, no database required)
+check-offline:
+    SQLX_OFFLINE=true cargo check --workspace
 
 # Format code
 fmt:

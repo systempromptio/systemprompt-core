@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id as \"id: ContentId\", image FROM markdown_content WHERE\n             image IS NOT NULL AND image != '' AND\n             (image_optimization_status IS NULL OR image_optimization_status != 'optimized')\n             ORDER BY published_at DESC LIMIT $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id: ContentId",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "image",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "65340740439491da6db23f1eea238dc6651855901641d5d7d9d82e318178a972"
+}

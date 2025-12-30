@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT issues_encountered, COUNT(*) as \"count!: i64\"\n            FROM conversation_evaluations\n            WHERE issues_encountered IS NOT NULL\n                AND analyzed_at >= $1\n                AND analyzed_at <= $2\n            GROUP BY issues_encountered\n            ORDER BY 2 DESC\n            LIMIT 20\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "issues_encountered",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!: i64",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      true,
+      null
+    ]
+  },
+  "hash": "f4ad6240bd3cfa287c193435e1f72bfbd09cd47cd00efda60836ecf0806b3c93"
+}

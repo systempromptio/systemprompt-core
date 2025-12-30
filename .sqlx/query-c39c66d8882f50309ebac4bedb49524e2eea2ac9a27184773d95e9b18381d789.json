@@ -1,0 +1,47 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT id, context_id, overall_score, evaluation_summary, analyzed_at\n            FROM conversation_evaluations\n            WHERE overall_score < $1\n            ORDER BY overall_score ASC\n            LIMIT $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "context_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "overall_score",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 3,
+        "name": "evaluation_summary",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "analyzed_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Float4",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "c39c66d8882f50309ebac4bedb49524e2eea2ac9a27184773d95e9b18381d789"
+}
