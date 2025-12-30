@@ -146,15 +146,20 @@ pub struct CheckoutRequest {
 pub struct CheckoutResponse {
     pub checkout_url: String,
     pub transaction_id: String,
+    pub checkout_session_id: String,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProvisioningEventType {
+    SubscriptionCreated,
     TenantCreated,
+    DatabaseCreated,
+    SecretsStored,
     VmProvisioningStarted,
     VmProvisioningProgress,
     VmProvisioned,
+    SecretsConfigured,
     TenantReady,
     ProvisioningFailed,
 }
@@ -162,6 +167,17 @@ pub enum ProvisioningEventType {
 #[derive(Debug, Clone, Deserialize)]
 pub struct ProvisioningEvent {
     pub tenant_id: String,
+    pub event_type: ProvisioningEventType,
+    pub status: String,
+    pub message: Option<String>,
+    pub app_url: Option<String>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct CheckoutEvent {
+    pub checkout_session_id: String,
+    pub tenant_id: String,
+    pub tenant_name: String,
     pub event_type: ProvisioningEventType,
     pub status: String,
     pub message: Option<String>,

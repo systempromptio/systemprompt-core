@@ -10,7 +10,7 @@ use std::time::Duration;
 use systemprompt_core_logging::CliService;
 use tokio::sync::{oneshot, Mutex};
 
-use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
+use crate::api_client::{CheckoutEvent, ProvisioningEvent, ProvisioningEventType};
 use crate::constants::checkout::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
 use crate::CloudApiClient;
 
@@ -20,6 +20,7 @@ struct CallbackParams {
     tenant_id: Option<String>,
     status: Option<String>,
     error: Option<String>,
+    checkout_session_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -112,10 +113,10 @@ async fn callback_handler(
     let result = if let Some(error) = params.error {
         Err(anyhow!("Checkout error: {}", error))
     } else if let (Some(transaction_id), Some(tenant_id)) =
-        (params.transaction_id, params.tenant_id)
+        (params.transaction_id.clone(), params.tenant_id.clone())
     {
-        match params.status {
-            Some(status) if status == "completed" => Ok(CheckoutCallbackResult {
+        match params.status.as_deref() {
+            Some("completed") => Ok(CheckoutCallbackResult {
                 transaction_id,
                 tenant_id,
             }),
@@ -123,6 +124,25 @@ async fn callback_handler(
             None => Err(anyhow!(
                 "Checkout callback missing required 'status' parameter"
             )),
+        }
+    } else if params.status.as_deref() == Some("pending") {
+        match params.checkout_session_id.clone() {
+            Some(checkout_session_id) => {
+                CliService::info("Payment confirmed, waiting for provisioning...");
+                let transaction_id = params
+                    .transaction_id
+                    .clone()
+                    .unwrap_or_else(|| checkout_session_id.clone());
+                match wait_for_checkout_provisioning(&state.api_client, &checkout_session_id).await
+                {
+                    Ok(event) => Ok(CheckoutCallbackResult {
+                        transaction_id,
+                        tenant_id: event.tenant_id,
+                    }),
+                    Err(e) => Err(e),
+                }
+            },
+            None => Err(anyhow!("Pending status but no checkout_session_id")),
         }
     } else {
         Err(anyhow!("Missing transaction_id or tenant_id in callback"))
@@ -155,6 +175,41 @@ async fn callback_handler(
             }
         },
     )
+}
+
+async fn wait_for_checkout_provisioning(
+    client: &CloudApiClient,
+    checkout_session_id: &str,
+) -> Result<CheckoutEvent> {
+    let mut stream = client.subscribe_checkout_events(checkout_session_id);
+
+    while let Some(event_result) = stream.next().await {
+        match event_result {
+            Ok(event) => {
+                CliService::info(&format!(
+                    "[{}] {}",
+                    format!("{:?}", event.event_type).to_uppercase(),
+                    event.message.as_deref().unwrap_or("")
+                ));
+
+                match event.event_type {
+                    ProvisioningEventType::TenantReady => return Ok(event),
+                    ProvisioningEventType::ProvisioningFailed => {
+                        return Err(anyhow!(
+                            "Provisioning failed: {}",
+                            event.message.as_deref().unwrap_or("Unknown error")
+                        ));
+                    },
+                    _ => {},
+                }
+            },
+            Err(e) => {
+                return Err(anyhow!("SSE stream error: {}", e));
+            },
+        }
+    }
+
+    Err(anyhow!("SSE stream closed unexpectedly"))
 }
 
 async fn status_handler(
