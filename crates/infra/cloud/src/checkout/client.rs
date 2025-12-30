@@ -178,14 +178,14 @@ async fn callback_handler(
             });
 
             return Html(state.waiting_html.clone());
-        } else {
-            send_result(
-                &state.tx,
-                Err(anyhow!("Pending status but no checkout_session_id")),
-            )
-            .await;
-            return Html(state.error_html.clone());
         }
+
+        send_result(
+            &state.tx,
+            Err(anyhow!("Pending status but no checkout_session_id")),
+        )
+        .await;
+        return Html(state.error_html.clone());
     }
 
     send_result(
