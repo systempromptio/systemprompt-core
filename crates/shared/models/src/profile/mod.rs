@@ -203,7 +203,6 @@ impl Profile {
         Self::validate_optional_path(errors, "web_config", &self.paths.web_config, is_prod);
         Self::validate_optional_path(errors, "web_path", &self.paths.web_path, is_prod);
         Self::validate_optional_path(errors, "dockerfile", &self.paths.dockerfile, is_prod);
-        Self::validate_optional_path(errors, "web_dist", &self.paths.web_dist, is_prod);
     }
 
     fn validate_security_settings(&self, errors: &mut Vec<String>) {
