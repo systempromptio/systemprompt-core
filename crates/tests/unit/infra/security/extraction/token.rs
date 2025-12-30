@@ -77,7 +77,10 @@ fn test_token_extractor_with_cookie_name() {
         .with_cookie_name("custom_token".to_string());
 
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("custom_token=my_token_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("custom_token=my_token_value"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -90,7 +93,10 @@ fn test_token_extractor_with_mcp_header_name() {
         .with_mcp_header_name("x-custom-auth".to_string());
 
     let mut headers = HeaderMap::new();
-    headers.insert("x-custom-auth", HeaderValue::from_static("Bearer custom_token"));
+    headers.insert(
+        "x-custom-auth",
+        HeaderValue::from_static("Bearer custom_token"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -104,7 +110,10 @@ fn test_token_extractor_with_mcp_header_name() {
 #[test]
 fn test_extract_from_authorization_header_success() {
     let mut headers = HeaderMap::new();
-    headers.insert("authorization", HeaderValue::from_static("Bearer test_token_123"));
+    headers.insert(
+        "authorization",
+        HeaderValue::from_static("Bearer test_token_123"),
+    );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_ok());
@@ -117,17 +126,26 @@ fn test_extract_from_authorization_header_missing() {
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::MissingAuthorizationHeader);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::MissingAuthorizationHeader
+    );
 }
 
 #[test]
 fn test_extract_from_authorization_header_invalid_format_no_bearer() {
     let mut headers = HeaderMap::new();
-    headers.insert("authorization", HeaderValue::from_static("Basic dXNlcjpwYXNz"));
+    headers.insert(
+        "authorization",
+        HeaderValue::from_static("Basic dXNlcjpwYXNz"),
+    );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::InvalidAuthorizationFormat);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::InvalidAuthorizationFormat
+    );
 }
 
 #[test]
@@ -137,7 +155,10 @@ fn test_extract_from_authorization_header_empty_token() {
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::InvalidAuthorizationFormat);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::InvalidAuthorizationFormat
+    );
 }
 
 #[test]
@@ -147,24 +168,39 @@ fn test_extract_from_authorization_header_whitespace_token() {
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::InvalidAuthorizationFormat);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::InvalidAuthorizationFormat
+    );
 }
 
 #[test]
 fn test_extract_from_authorization_header_case_sensitive_bearer() {
     let mut headers = HeaderMap::new();
-    headers.insert("authorization", HeaderValue::from_static("bearer test_token"));
+    headers.insert(
+        "authorization",
+        HeaderValue::from_static("bearer test_token"),
+    );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::InvalidAuthorizationFormat);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::InvalidAuthorizationFormat
+    );
 }
 
 #[test]
 fn test_extract_from_authorization_multiple_headers_first_valid() {
     let mut headers = HeaderMap::new();
-    headers.append("authorization", HeaderValue::from_static("Bearer first_token"));
-    headers.append("authorization", HeaderValue::from_static("Bearer second_token"));
+    headers.append(
+        "authorization",
+        HeaderValue::from_static("Bearer first_token"),
+    );
+    headers.append(
+        "authorization",
+        HeaderValue::from_static("Bearer second_token"),
+    );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_ok());
@@ -175,7 +211,10 @@ fn test_extract_from_authorization_multiple_headers_first_valid() {
 fn test_extract_from_authorization_multiple_headers_skip_invalid() {
     let mut headers = HeaderMap::new();
     headers.append("authorization", HeaderValue::from_static("Basic invalid"));
-    headers.append("authorization", HeaderValue::from_static("Bearer valid_token"));
+    headers.append(
+        "authorization",
+        HeaderValue::from_static("Bearer valid_token"),
+    );
 
     let result = TokenExtractor::extract_from_authorization(&headers);
     assert!(result.is_ok());
@@ -190,7 +229,10 @@ fn test_extract_from_authorization_multiple_headers_skip_invalid() {
 fn test_extract_from_mcp_proxy_success() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("x-mcp-proxy-auth", HeaderValue::from_static("Bearer mcp_token"));
+    headers.insert(
+        "x-mcp-proxy-auth",
+        HeaderValue::from_static("Bearer mcp_token"),
+    );
 
     let result = extractor.extract_from_mcp_proxy(&headers);
     assert!(result.is_ok());
@@ -204,18 +246,27 @@ fn test_extract_from_mcp_proxy_missing() {
 
     let result = extractor.extract_from_mcp_proxy(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::MissingMcpProxyHeader);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::MissingMcpProxyHeader
+    );
 }
 
 #[test]
 fn test_extract_from_mcp_proxy_invalid_format() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("x-mcp-proxy-auth", HeaderValue::from_static("token_without_bearer"));
+    headers.insert(
+        "x-mcp-proxy-auth",
+        HeaderValue::from_static("token_without_bearer"),
+    );
 
     let result = extractor.extract_from_mcp_proxy(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::InvalidMcpProxyFormat);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::InvalidMcpProxyFormat
+    );
 }
 
 // ============================================================================
@@ -226,7 +277,10 @@ fn test_extract_from_mcp_proxy_invalid_format() {
 fn test_extract_from_cookie_success() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=cookie_token_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=cookie_token_value"),
+    );
 
     let result = extractor.extract_from_cookie(&headers);
     assert!(result.is_ok());
@@ -265,7 +319,10 @@ fn test_extract_from_cookie_token_not_found() {
 
     let result = extractor.extract_from_cookie(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
@@ -276,7 +333,10 @@ fn test_extract_from_cookie_empty_value() {
 
     let result = extractor.extract_from_cookie(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), TokenExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        TokenExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
@@ -302,9 +362,18 @@ fn test_extract_from_cookie_with_spaces() {
 fn test_extract_fallback_authorization_first() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("authorization", HeaderValue::from_static("Bearer auth_token"));
-    headers.insert("x-mcp-proxy-auth", HeaderValue::from_static("Bearer mcp_token"));
-    headers.insert("cookie", HeaderValue::from_static("access_token=cookie_token"));
+    headers.insert(
+        "authorization",
+        HeaderValue::from_static("Bearer auth_token"),
+    );
+    headers.insert(
+        "x-mcp-proxy-auth",
+        HeaderValue::from_static("Bearer mcp_token"),
+    );
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=cookie_token"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -315,8 +384,14 @@ fn test_extract_fallback_authorization_first() {
 fn test_extract_fallback_to_mcp_proxy() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("x-mcp-proxy-auth", HeaderValue::from_static("Bearer mcp_token"));
-    headers.insert("cookie", HeaderValue::from_static("access_token=cookie_token"));
+    headers.insert(
+        "x-mcp-proxy-auth",
+        HeaderValue::from_static("Bearer mcp_token"),
+    );
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=cookie_token"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -327,7 +402,10 @@ fn test_extract_fallback_to_mcp_proxy() {
 fn test_extract_fallback_to_cookie() {
     let extractor = TokenExtractor::standard();
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=cookie_token"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=cookie_token"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -383,7 +461,10 @@ fn test_token_extraction_error_display_invalid_authorization() {
 #[test]
 fn test_token_extraction_error_display_missing_mcp_proxy() {
     let error = TokenExtractionError::MissingMcpProxyHeader;
-    assert_eq!(format!("{}", error), "Missing MCP proxy authorization header");
+    assert_eq!(
+        format!("{}", error),
+        "Missing MCP proxy authorization header"
+    );
 }
 
 #[test]

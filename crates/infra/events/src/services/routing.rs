@@ -47,7 +47,8 @@ impl EventRouter {
 mod tests {
     use super::*;
     use systemprompt_identifiers::{ContextId, TaskId};
-    use systemprompt_models::{a2a::TaskState, A2AEventBuilder, AgUiEvent, AgUiEventBuilder};
+    use systemprompt_models::a2a::TaskState;
+    use systemprompt_models::{A2AEventBuilder, AgUiEvent, AgUiEventBuilder};
 
     fn test_user_id() -> UserId {
         UserId::new("test-router-user")
@@ -145,7 +146,9 @@ mod tests {
         let user_id = UserId::new("agui-test-user");
         let (sender, mut receiver) = tokio::sync::mpsc::unbounded_channel();
 
-        AGUI_BROADCASTER.register(&user_id, "agui-conn", sender).await;
+        AGUI_BROADCASTER
+            .register(&user_id, "agui-conn", sender)
+            .await;
 
         let event = test_agui_event();
         let (agui_count, _context_count) = EventRouter::route_agui(&user_id, event).await;
@@ -280,10 +283,7 @@ mod tests {
     async fn test_agui_event_type_preserved() {
         let event = test_agui_event();
         let event_type = event.event_type();
-        assert_eq!(
-            event_type,
-            systemprompt_models::AgUiEventType::RunStarted
-        );
+        assert_eq!(event_type, systemprompt_models::AgUiEventType::RunStarted);
     }
 
     #[tokio::test]
@@ -300,9 +300,6 @@ mod tests {
     async fn test_system_event_type_preserved() {
         let event = test_system_event();
         let event_type = event.event_type();
-        assert_eq!(
-            event_type,
-            systemprompt_models::SystemEventType::Heartbeat
-        );
+        assert_eq!(event_type, systemprompt_models::SystemEventType::Heartbeat);
     }
 }

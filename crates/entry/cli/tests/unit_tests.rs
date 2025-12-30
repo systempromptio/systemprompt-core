@@ -19,9 +19,9 @@
     clippy::needless_collect
 )]
 
+use std::path::PathBuf;
 use systemprompt_cli::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use systemprompt_cli::common::project::ProjectError;
-use std::path::PathBuf;
 use tempfile::TempDir;
 
 // ============================================================================
@@ -430,19 +430,11 @@ fn test_all_verbosity_levels_with_should_show_verbose() {
 
 #[test]
 fn test_all_color_modes_with_should_use_color() {
-    let modes_and_expected = [
-        (ColorMode::Always, true),
-        (ColorMode::Never, false),
-    ];
+    let modes_and_expected = [(ColorMode::Always, true), (ColorMode::Never, false)];
 
     for (mode, expected) in modes_and_expected {
         let config = CliConfig::default().with_color_mode(mode);
-        assert_eq!(
-            config.should_use_color(),
-            expected,
-            "Failed for {:?}",
-            mode
-        );
+        assert_eq!(config.should_use_color(), expected, "Failed for {:?}", mode);
     }
 }
 
@@ -456,12 +448,7 @@ fn test_all_output_formats_with_is_json() {
 
     for (format, expected) in formats_and_expected {
         let config = CliConfig::default().with_output_format(format);
-        assert_eq!(
-            config.is_json_output(),
-            expected,
-            "Failed for {:?}",
-            format
-        );
+        assert_eq!(config.is_json_output(), expected, "Failed for {:?}", format);
     }
 }
 
@@ -565,8 +552,7 @@ fn test_valid_project_has_systemprompt_dir() {
 fn test_systemprompt_directory_must_be_directory() {
     let temp = TempDir::new().expect("Failed to create temp directory");
 
-    std::fs::write(temp.path().join(".systemprompt"), "not a dir")
-        .expect("Failed to create file");
+    std::fs::write(temp.path().join(".systemprompt"), "not a dir").expect("Failed to create file");
 
     assert!(temp.path().join(".systemprompt").is_file());
     assert!(!temp.path().join(".systemprompt").is_dir());

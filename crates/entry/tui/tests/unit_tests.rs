@@ -4,7 +4,8 @@
 //! - AppState initialization and tab navigation
 //! - TuiModeInfo environment and display methods
 //! - SseStatus and InitStatus states
-//! - Chat types and formatting helpers (format_duration, truncate_text, short_id)
+//! - Chat types and formatting helpers (format_duration, truncate_text,
+//!   short_id)
 //! - Agent types (AgentInfo, AgentConnectionStatus)
 //! - Tools state (ToolsState approval/rejection workflow)
 //! - Conversations state (ConversationsState navigation and editing)
@@ -18,10 +19,10 @@
 
 use chrono::Utc;
 use systemprompt_core_tui::state::{
-    ActiveTab, AgentConnectionStatus, AgentInfo, ApprovalAction, ConversationDisplay,
-    ConversationsState, ExecutionStatus, FocusedPanel, InitStatus, InputMode, InputType,
-    LoadingState, SseStatus, SystemInstructionsSource, TaskMetadataDisplay, ToolCallStatus,
-    format_duration, short_id, truncate_text,
+    format_duration, short_id, truncate_text, ActiveTab, AgentConnectionStatus, AgentInfo,
+    ApprovalAction, ConversationDisplay, ConversationsState, ExecutionStatus, FocusedPanel,
+    InitStatus, InputMode, InputType, LoadingState, SseStatus, SystemInstructionsSource,
+    TaskMetadataDisplay, ToolCallStatus,
 };
 use systemprompt_core_tui::tools::{RiskLevel, ToolResult};
 use systemprompt_identifiers::ContextId;
@@ -392,9 +393,18 @@ fn test_agent_connection_status_default() {
 
 #[test]
 fn test_agent_connection_status_variants() {
-    assert_eq!(AgentConnectionStatus::Connected, AgentConnectionStatus::Connected);
-    assert_eq!(AgentConnectionStatus::Disconnected, AgentConnectionStatus::Disconnected);
-    assert_eq!(AgentConnectionStatus::Connecting, AgentConnectionStatus::Connecting);
+    assert_eq!(
+        AgentConnectionStatus::Connected,
+        AgentConnectionStatus::Connected
+    );
+    assert_eq!(
+        AgentConnectionStatus::Disconnected,
+        AgentConnectionStatus::Disconnected
+    );
+    assert_eq!(
+        AgentConnectionStatus::Connecting,
+        AgentConnectionStatus::Connecting
+    );
 }
 
 #[test]
@@ -462,8 +472,7 @@ fn test_agent_info_with_display_name() {
 
 #[test]
 fn test_agent_info_with_primary() {
-    let agent = AgentInfo::new("primary-agent".to_string(), 8080)
-        .with_primary(true);
+    let agent = AgentInfo::new("primary-agent".to_string(), 8080).with_primary(true);
 
     assert!(agent.is_primary);
 }

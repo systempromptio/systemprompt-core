@@ -28,7 +28,10 @@ fn test_cookie_extractor_new() {
 fn test_cookie_extractor_default() {
     let extractor = CookieExtractor::default();
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=default_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=default_value"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -47,7 +50,10 @@ fn test_cookie_extractor_default_cookie_name_constant() {
 #[test]
 fn test_extract_access_token_static() {
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=static_token"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=static_token"),
+    );
 
     let result = CookieExtractor::extract_access_token(&headers);
     assert!(result.is_ok());
@@ -71,7 +77,10 @@ fn test_extract_access_token_static_missing() {
 fn test_extract_single_cookie() {
     let extractor = CookieExtractor::default();
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=single_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=single_value"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -126,7 +135,10 @@ fn test_extract_cookie_with_special_characters() {
     let mut headers = HeaderMap::new();
     headers.insert(
         "cookie",
-        HeaderValue::from_static("access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U"),
+        HeaderValue::from_static(
+            "access_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.\
+             dozjgNryP4J3jVmNHl0w5N_XgL0n3I9PlFUP0THsR8U",
+        ),
     );
 
     let result = extractor.extract(&headers);
@@ -167,11 +179,17 @@ fn test_extract_missing_cookie_header() {
 fn test_extract_token_not_in_cookie() {
     let extractor = CookieExtractor::default();
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("session=abc; theme=dark"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("session=abc; theme=dark"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CookieExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        CookieExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
@@ -182,7 +200,10 @@ fn test_extract_empty_cookie_value() {
 
     let result = extractor.extract(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CookieExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        CookieExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
@@ -193,7 +214,10 @@ fn test_extract_empty_cookie_header() {
 
     let result = extractor.extract(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CookieExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        CookieExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
@@ -207,7 +231,10 @@ fn test_extract_partial_cookie_name_match() {
 
     let result = extractor.extract(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CookieExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        CookieExtractionError::TokenNotFoundInCookie
+    );
 }
 
 // ============================================================================
@@ -218,7 +245,10 @@ fn test_extract_partial_cookie_name_match() {
 fn test_extract_custom_cookie_name() {
     let extractor = CookieExtractor::new("auth_token");
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("auth_token=custom_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("auth_token=custom_value"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -229,18 +259,27 @@ fn test_extract_custom_cookie_name() {
 fn test_extract_custom_cookie_not_default() {
     let extractor = CookieExtractor::new("auth_token");
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("access_token=wrong_cookie"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("access_token=wrong_cookie"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_err());
-    assert_eq!(result.unwrap_err(), CookieExtractionError::TokenNotFoundInCookie);
+    assert_eq!(
+        result.unwrap_err(),
+        CookieExtractionError::TokenNotFoundInCookie
+    );
 }
 
 #[test]
 fn test_extract_custom_cookie_from_string() {
     let extractor = CookieExtractor::new(String::from("dynamic_name"));
     let mut headers = HeaderMap::new();
-    headers.insert("cookie", HeaderValue::from_static("dynamic_name=dynamic_value"));
+    headers.insert(
+        "cookie",
+        HeaderValue::from_static("dynamic_name=dynamic_value"),
+    );
 
     let result = extractor.extract(&headers);
     assert!(result.is_ok());
@@ -277,7 +316,10 @@ fn test_cookie_extraction_error_is_std_error() {
 
 #[test]
 fn test_cookie_extraction_error_equality() {
-    assert_eq!(CookieExtractionError::MissingCookie, CookieExtractionError::MissingCookie);
+    assert_eq!(
+        CookieExtractionError::MissingCookie,
+        CookieExtractionError::MissingCookie
+    );
     assert_eq!(
         CookieExtractionError::InvalidCookieFormat,
         CookieExtractionError::InvalidCookieFormat
@@ -286,7 +328,10 @@ fn test_cookie_extraction_error_equality() {
         CookieExtractionError::TokenNotFoundInCookie,
         CookieExtractionError::TokenNotFoundInCookie
     );
-    assert_ne!(CookieExtractionError::MissingCookie, CookieExtractionError::InvalidCookieFormat);
+    assert_ne!(
+        CookieExtractionError::MissingCookie,
+        CookieExtractionError::InvalidCookieFormat
+    );
 }
 
 #[test]
