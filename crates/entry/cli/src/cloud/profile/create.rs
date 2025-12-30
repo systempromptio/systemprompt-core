@@ -6,9 +6,7 @@ use super::api_keys::collect_api_keys;
 use super::builders::{build_cloud_profile, build_local_profile};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
-use super::templates::{
-    generate_display_name, get_services_path, save_dockerfile, save_profile, save_secrets,
-};
+use super::templates::{get_services_path, save_dockerfile, save_profile, save_secrets};
 
 pub async fn execute(name: &str) -> Result<()> {
     CliService::section(&format!("Create Profile: {}", name));
@@ -73,7 +71,6 @@ pub async fn execute(name: &str) -> Result<()> {
     let built_profile = match tenant.tenant_type {
         TenantType::Local => build_local_profile(
             name,
-            &generate_display_name(name),
             Some(tenant.id.clone()),
             relative_secrets_path,
             &services_path,
@@ -82,10 +79,10 @@ pub async fn execute(name: &str) -> Result<()> {
             let external_url = tenant.hostname.as_ref().map(|h| format!("https://{}", h));
             build_cloud_profile(
                 name,
-                &generate_display_name(name),
                 Some(tenant.id.clone()),
                 &services_path,
                 external_url.as_deref(),
+                relative_secrets_path,
             )?
         },
     };
@@ -95,7 +92,7 @@ pub async fn execute(name: &str) -> Result<()> {
 
     let dockerfile_path = ctx.dockerfile();
     if !dockerfile_path.exists() {
-        save_dockerfile(&dockerfile_path)?;
+        save_dockerfile(&dockerfile_path, name)?;
         CliService::success(&format!("Created: {}", dockerfile_path.display()));
     }
 

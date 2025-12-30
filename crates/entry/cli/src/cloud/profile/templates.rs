@@ -22,8 +22,9 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub fn save_dockerfile(path: &Path) -> Result<()> {
-    let content = r#"# SystemPrompt Application Dockerfile
+pub fn save_dockerfile(path: &Path, profile_name: &str) -> Result<()> {
+    let content = format!(
+        r#"# SystemPrompt Application Dockerfile
 # Built by: systemprompt cloud profile create
 # Used by: systemprompt cloud deploy
 
@@ -32,29 +33,52 @@ FROM debian:bookworm-slim
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
+    curl \
     libssl3 \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
+RUN useradd -m -u 1000 app
 WORKDIR /app
 
-# Copy the pre-built binary
-COPY target/release/systemprompt /app/systemprompt
+RUN mkdir -p /app/bin /app/bin/mcp /app/storage
+
+# Copy pre-built binaries
+COPY target/release/systemprompt /app/bin/
+
+# Copy MCP server binaries (if they exist)
+COPY target/release/systemprompt-* /app/bin/mcp/ 2>/dev/null || true
 
 # Copy web assets
-COPY core/web/dist /app/web/dist
+COPY core/web/dist /app/web
 
 # Copy services configuration
 COPY services /app/services
 
-# Set environment
-ENV RUST_LOG=info
-ENV SYSTEMPROMPT_ENV=production
+# Copy profiles
+COPY .systemprompt/profiles /app/services/profiles
 
+RUN chmod +x /app/bin/* && chown -R app:app /app
+
+USER app
 EXPOSE 8080
 
-CMD ["/app/systemprompt", "services", "start"]
-"#;
+# Environment: secrets loaded from fly secrets, profile from bundled file
+ENV HOST=0.0.0.0 \
+    PORT=8080 \
+    RUST_LOG=info \
+    PATH="/app/bin:/app/bin/mcp:$PATH" \
+    SYSTEMPROMPT_PROFILE=/app/services/profiles/{profile_name}/profile.yaml \
+    SYSTEMPROMPT_SERVICES_PATH=/app/services \
+    WEB_DIR=/app/web
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8080/api/v1/health || exit 1
+
+CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
+"#,
+        profile_name = profile_name
+    );
 
     std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
 
