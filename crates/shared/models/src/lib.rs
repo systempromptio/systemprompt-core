@@ -18,6 +18,7 @@ pub mod errors;
 pub mod evaluations;
 pub mod events;
 pub mod execution;
+pub mod extension;
 pub mod mcp;
 pub mod modules;
 pub mod oauth;
@@ -83,6 +84,7 @@ pub use content_config::{
     ParentRoute, SitemapConfig, SourceBranding, StructuredData,
 };
 pub use errors::{CoreError, RepositoryError, ServiceError};
+pub use extension::{DiscoveredExtension, Extension, ExtensionManifest, ExtensionType};
 pub use evaluations::{AiEvaluationResponse, ConversationEvaluation};
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, ContextEvent, ContextSummary, SystemEvent,
