@@ -10,7 +10,7 @@ use std::time::Duration;
 use systemprompt_core_logging::CliService;
 use tokio::sync::{oneshot, Mutex};
 
-use crate::api_client::{CheckoutEvent, ProvisioningEvent, ProvisioningEventType};
+use crate::api_client::{CheckoutEvent, ProvisioningEventType};
 use crate::constants::checkout::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
 use crate::CloudApiClient;
 
@@ -34,6 +34,8 @@ struct StatusResponse {
 pub struct CheckoutCallbackResult {
     pub transaction_id: String,
     pub tenant_id: String,
+    pub fly_app_name: Option<String>,
+    pub needs_deploy: bool,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -129,6 +131,8 @@ async fn callback_handler(
                 let result = Ok(CheckoutCallbackResult {
                     transaction_id,
                     tenant_id: tenant_id.clone(),
+                    fly_app_name: None,
+                    needs_deploy: false,
                 });
                 send_result(&state.tx, result).await;
                 let html = state.success_html.replace("{{TENANT_ID}}", &tenant_id);
@@ -164,10 +168,12 @@ async fn callback_handler(
 
             tokio::spawn(async move {
                 match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
-                    Ok(event) => {
+                    Ok(prov_result) => {
                         let result = Ok(CheckoutCallbackResult {
                             transaction_id,
-                            tenant_id: event.tenant_id,
+                            tenant_id: prov_result.event.tenant_id,
+                            fly_app_name: prov_result.event.fly_app_name,
+                            needs_deploy: prov_result.needs_deploy,
                         });
                         send_result(&tx, result).await;
                     },
@@ -207,10 +213,15 @@ async fn send_result(
     }
 }
 
+struct CheckoutProvisioningResult {
+    event: CheckoutEvent,
+    needs_deploy: bool,
+}
+
 async fn wait_for_checkout_provisioning(
     client: &CloudApiClient,
     checkout_session_id: &str,
-) -> Result<CheckoutEvent> {
+) -> Result<CheckoutProvisioningResult> {
     let mut stream = client.subscribe_checkout_events(checkout_session_id);
 
     while let Some(event_result) = stream.next().await {
@@ -221,7 +232,18 @@ async fn wait_for_checkout_provisioning(
                 }
 
                 match event.event_type {
-                    ProvisioningEventType::TenantReady => return Ok(event),
+                    ProvisioningEventType::InfrastructureReady => {
+                        return Ok(CheckoutProvisioningResult {
+                            event,
+                            needs_deploy: true,
+                        });
+                    },
+                    ProvisioningEventType::TenantReady => {
+                        return Ok(CheckoutProvisioningResult {
+                            event,
+                            needs_deploy: false,
+                        });
+                    },
                     ProvisioningEventType::ProvisioningFailed => {
                         return Err(anyhow!(
                             "Provisioning failed: {}",
@@ -256,88 +278,4 @@ async fn status_handler(
             app_url: None,
         }),
     }
-}
-
-pub async fn wait_for_provisioning<F>(
-    client: &CloudApiClient,
-    tenant_id: &str,
-    on_event: F,
-) -> Result<ProvisioningEvent>
-where
-    F: Fn(&ProvisioningEvent),
-{
-    let mut stream = client.subscribe_provisioning_events(tenant_id);
-
-    while let Some(event_result) = stream.next().await {
-        match event_result {
-            Ok(event) => {
-                on_event(&event);
-
-                match event.event_type {
-                    ProvisioningEventType::TenantReady => return Ok(event),
-                    ProvisioningEventType::ProvisioningFailed => {
-                        return Err(anyhow!(
-                            "Provisioning failed: {}",
-                            event.message.as_deref().unwrap_or("Unknown error")
-                        ));
-                    },
-                    _ => {},
-                }
-            },
-            Err(e) => {
-                tracing::warn!(error = %e, "SSE stream error, falling back to polling");
-                return wait_for_provisioning_polling(client, tenant_id).await;
-            },
-        }
-    }
-
-    tracing::warn!("SSE stream closed unexpectedly, falling back to polling");
-    wait_for_provisioning_polling(client, tenant_id).await
-}
-
-async fn wait_for_provisioning_polling(
-    client: &CloudApiClient,
-    tenant_id: &str,
-) -> Result<ProvisioningEvent> {
-    const MAX_ATTEMPTS: u32 = 60;
-    const POLL_INTERVAL_SECS: u64 = 2;
-
-    for attempt in 0..MAX_ATTEMPTS {
-        match client.get_tenant_status(tenant_id).await {
-            Ok(status) => match status.status.as_str() {
-                "ready" => {
-                    return Ok(ProvisioningEvent {
-                        tenant_id: tenant_id.to_string(),
-                        event_type: ProvisioningEventType::TenantReady,
-                        status: "ready".to_string(),
-                        message: status.message,
-                        app_url: status.app_url,
-                    });
-                },
-                "failed" => {
-                    return Err(anyhow!(
-                        "Provisioning failed: {}",
-                        status.message.as_deref().unwrap_or("Unknown error")
-                    ));
-                },
-                _ => {
-                    tracing::debug!(
-                        attempt = attempt,
-                        status = %status.status,
-                        "Polling provisioning status"
-                    );
-                    tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
-                },
-            },
-            Err(e) => {
-                tracing::warn!(error = %e, attempt = attempt, "Failed to get tenant status");
-                tokio::time::sleep(Duration::from_secs(POLL_INTERVAL_SECS)).await;
-            },
-        }
-    }
-
-    Err(anyhow!(
-        "Provisioning timed out after {} seconds",
-        MAX_ATTEMPTS * POLL_INTERVAL_SECS as u32
-    ))
 }

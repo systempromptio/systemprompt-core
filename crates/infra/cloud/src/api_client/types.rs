@@ -149,7 +149,7 @@ pub struct CheckoutResponse {
     pub checkout_session_id: String,
 }
 
-#[derive(Debug, Clone, Copy, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ProvisioningEventType {
     SubscriptionCreated,
@@ -160,6 +160,7 @@ pub enum ProvisioningEventType {
     VmProvisioningProgress,
     VmProvisioned,
     SecretsConfigured,
+    InfrastructureReady,
     TenantReady,
     ProvisioningFailed,
 }
@@ -171,6 +172,8 @@ pub struct ProvisioningEvent {
     pub status: String,
     pub message: Option<String>,
     pub app_url: Option<String>,
+    #[serde(default)]
+    pub fly_app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -182,6 +185,8 @@ pub struct CheckoutEvent {
     pub status: String,
     pub message: Option<String>,
     pub app_url: Option<String>,
+    #[serde(default)]
+    pub fly_app_name: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
