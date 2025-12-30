@@ -455,12 +455,14 @@ fn test_deploy_response_with_url() {
 fn test_checkout_response_deserialization() {
     let json = r#"{
         "checkout_url": "https://checkout.paddle.com/checkout/123",
-        "transaction_id": "txn-abc-123"
+        "transaction_id": "txn-abc-123",
+        "checkout_session_id": "cs-xyz-789"
     }"#;
     let response: CheckoutResponse = serde_json::from_str(json).unwrap();
 
     assert_eq!(response.checkout_url, "https://checkout.paddle.com/checkout/123");
     assert_eq!(response.transaction_id, "txn-abc-123");
+    assert_eq!(response.checkout_session_id, "cs-xyz-789");
 }
 
 // ============================================================================
