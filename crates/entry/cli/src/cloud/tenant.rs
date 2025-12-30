@@ -88,11 +88,10 @@ async fn create(default_region: &str) -> Result<()> {
 
     let creds = get_credentials()?;
 
-    let build_ready = check_build_ready().is_ok();
-    let cloud_option = if build_ready {
-        "Cloud (requires subscription at systemprompt.io)".to_string()
-    } else {
-        "Cloud (unavailable - run 'just build --release' first)".to_string()
+    let build_result = check_build_ready();
+    let cloud_option = match &build_result {
+        Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_string(),
+        Err(_) => "Cloud (unavailable - build requirements not met)".to_string(),
     };
 
     let options = vec![
@@ -108,9 +107,11 @@ async fn create(default_region: &str) -> Result<()> {
 
     let tenant = match selection {
         0 => create_local_tenant().await?,
-        _ if !build_ready => {
+        _ if build_result.is_err() => {
             CliService::warning("Cloud tenant requires a built project");
-            CliService::info("Run 'just build --release' first");
+            if let Err(err) = build_result {
+                CliService::error(&err);
+            }
             return Ok(());
         },
         _ => create_cloud_tenant(&creds, default_region).await?,
