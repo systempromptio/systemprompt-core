@@ -5389,6 +5389,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sqlx",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-traits",
  "tempfile",

@@ -81,7 +81,7 @@ Full bounded contexts. Each crate owns its database tables, repositories, and se
 | SQL/Database | YES (required) |
 | Repository | YES (required, in `src/repository/`) |
 | Service | YES (required, in `src/services/`) |
-| module.yaml | YES (required, validated at build) |
+| Module definition | YES (in `crates/infra/loader/src/modules/`) |
 | Bounded context | YES (single domain responsibility) |
 | Can depend on | `shared/`, `infra/` |
 | Cross-domain deps | NEVER (use traits or events) |
@@ -91,7 +91,8 @@ Full bounded contexts. Each crate owns its database tables, repositories, and se
 ```
 domain/{name}/
   Cargo.toml
-  module.yaml         # REQUIRED: Module manifest
+  schema/             # SQL schema files
+    {table}.sql
   src/
     lib.rs            # Public API
     error.rs          # Domain-specific errors
@@ -102,30 +103,6 @@ domain/{name}/
     services/         # Business logic
       mod.rs
       {entity}_service.rs
-```
-
-**module.yaml schema** (required fields marked with `*`, file MUST be named `module.yaml` not `.yml`):
-
-```yaml
-name: users                    # * Module identifier (matches directory)
-version: "0.1.0"               # * SemVer
-display_name: "User Management" # * Human-readable name
-description: "..."             # Optional long description
-type: core                     # * infrastructure | core
-weight: 1                      # Load order (-100 to 100, lower = earlier)
-
-dependencies: []               # Other module names this depends on
-
-schemas:                       # Database migrations
-  - file: "migrations/001_users.sql"
-    table: users
-    required_columns: [id, email, created_at]
-
-tables_created: [users, user_roles]  # Tables this module owns
-
-api:
-  enabled: true
-  path_prefix: "/api/v1/users"
 ```
 
 | Crate | Bounded Context | Key Entities |
@@ -246,14 +223,63 @@ This ensures core tables exist before extension tables that reference them.
 
 ---
 
-### Module Discovery
+### Module System
 
-The module loader (`Modules::load()`) scans these directories under `crates/`:
-- `domain/` - Domain modules with required SQL schemas
-- `app/` - Application layer modules (optional SQL)
-- `infra/` - Infrastructure modules (database, logging)
+Modules are defined in Rust code at `crates/infra/loader/src/modules/`. Each module file uses `include_str!()` to embed SQL schemas at compile time.
 
-**Critical**: Module manifests must be named `module.yaml` (not `.yml`).
+**Structure:**
+
+```
+crates/infra/loader/src/modules/
+  mod.rs           # pub fn all() -> Vec<Module>
+  database.rs      # pub fn define() -> Module
+  log.rs
+  users.rs
+  oauth.rs
+  mcp.rs
+  files.rs
+  content.rs
+  ai.rs
+  analytics.rs
+  agent.rs
+  scheduler.rs
+  api.rs
+```
+
+**Module definition pattern:**
+
+```rust
+// crates/infra/loader/src/modules/users.rs
+use systemprompt_models::modules::{Module, ModuleSchema, SchemaSource};
+
+pub fn define() -> Module {
+    Module {
+        name: "users".into(),
+        weight: Some(1),
+        schemas: Some(vec![
+            ModuleSchema {
+                table: "users".into(),
+                sql: SchemaSource::Inline(
+                    include_str!("../../../../domain/users/schema/users.sql").into()
+                ),
+                required_columns: vec!["id".into(), "email".into()],
+            },
+        ]),
+        // ...
+    }
+}
+```
+
+**Benefits:**
+- Compile-time SQL validation (missing file = compile error)
+- No YAML parsing at runtime
+- Matches extension pattern (`SchemaSource::Inline`)
+- Works in Docker without source tree
+
+**Adding a new module:**
+1. Create SQL files in `domain/{name}/schema/`
+2. Create `modules/{name}.rs` with `pub fn define() -> Module`
+3. Add `mod {name};` and call in `modules/mod.rs`
 
 Extensions use a separate discovery mechanism via the `inventory` crate and `ExtensionRegistry::discover()`. See [Extension Framework](#extension-framework-cratessharedextension) above.
 

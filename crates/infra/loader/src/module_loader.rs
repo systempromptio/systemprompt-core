@@ -1,18 +1,27 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::path::Path;
 use systemprompt_models::Module;
+
+use crate::modules;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleLoader;
 
 impl ModuleLoader {
+    #[allow(clippy::unnecessary_wraps)]
     pub fn scan_and_load(core_path: &str) -> Result<Vec<Module>> {
         let crates_dir = Path::new(core_path).join("crates");
 
-        if !crates_dir.exists() {
-            bail!("Crates directory not found: {}", crates_dir.display());
+        if crates_dir.exists() {
+            tracing::debug!("Using filesystem modules (development mode)");
+            return Ok(Self::scan_from_filesystem(&crates_dir));
         }
 
+        tracing::info!("Using embedded modules (production mode)");
+        Ok(modules::all())
+    }
+
+    fn scan_from_filesystem(crates_dir: &Path) -> Vec<Module> {
         let module_categories = ["domain", "app", "infra"];
 
         let mut modules: Vec<Module> = module_categories
@@ -25,7 +34,7 @@ impl ModuleLoader {
 
         modules.sort_by_key(|m| m.weight.unwrap_or(100));
 
-        Ok(modules)
+        modules
     }
 
     fn scan_category(category_dir: &Path) -> Vec<Module> {

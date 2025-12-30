@@ -1,9 +1,7 @@
-//! Module type definitions.
-
-use std::path::PathBuf;
-
 use anyhow::Result;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
+use std::path::PathBuf;
+pub use systemprompt_extension::SchemaSource;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Module {
@@ -52,11 +50,34 @@ pub struct ApiConfig {
     pub openapi_path: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ModuleSchema {
-    pub file: String,
+    pub sql: SchemaSource,
     pub table: String,
+    #[serde(default)]
     pub required_columns: Vec<String>,
+}
+
+#[derive(Deserialize)]
+struct ModuleSchemaYaml {
+    file: String,
+    table: String,
+    #[serde(default)]
+    required_columns: Vec<String>,
+}
+
+impl<'de> Deserialize<'de> for ModuleSchema {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let yaml = ModuleSchemaYaml::deserialize(deserializer)?;
+        Ok(Self {
+            sql: SchemaSource::File(PathBuf::from(yaml.file)),
+            table: yaml.table,
+            required_columns: yaml.required_columns,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

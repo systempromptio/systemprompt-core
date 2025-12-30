@@ -28,3 +28,4 @@ tokio = { workspace = true }
 
 # SystemPrompt dependencies
 systemprompt-models = { path = "../../shared/models" }
+

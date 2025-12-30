@@ -90,18 +90,69 @@ command
 - `crates/domain/mcp/src/services/process/spawner.rs`
 - `crates/shared/models/src/secrets.rs`
 
-### 6. Module Discovery Rules
+### 6. Module System
 
-The module loader scans specific directories for `module.yaml` files:
-- `crates/domain/` - Required for all domain modules
-- `crates/app/` - Application orchestration modules
-- `crates/infra/` - Infrastructure modules (database, logging)
+Modules are defined in Rust code at `crates/infra/loader/src/modules/`. Each module uses `include_str!()` to embed SQL schemas at compile time.
 
-**File naming**: Must be `module.yaml` (not `.yml`)
+**Module pattern:**
+```rust
+// crates/infra/loader/src/modules/users.rs
+pub fn define() -> Module {
+    Module {
+        name: "users".into(),
+        schemas: Some(vec![
+            ModuleSchema {
+                table: "users".into(),
+                sql: SchemaSource::Inline(
+                    include_str!("../../../../domain/users/schema/users.sql").into()
+                ),
+                required_columns: vec!["id".into()],
+            },
+        ]),
+        // ...
+    }
+}
+```
 
-**Extensions vs Modules**:
-- Modules: Discovered via directory scan, defined in `module.yaml`
-- Extensions: Discovered via `inventory` crate, registered with `register_extension!()` macros
+**Modules vs Extensions:**
+
+| Aspect | Modules | Extensions |
+|--------|---------|------------|
+| Discovery | `modules::all()` in loader | `inventory` crate + `register_extension!()` |
+| Schema embedding | `include_str!()` in module definition | `SchemaSource::Inline` in `impl Extension` |
+| Location | `crates/infra/loader/src/modules/` | User project or domain crate |
+| Purpose | Core domain schemas (users, oauth, etc.) | User customization, plugins |
+
+**Both use the same `SchemaSource` enum:**
+```rust
+pub enum SchemaSource {
+    Inline(String),    // Embedded SQL
+    File(PathBuf),     // Path to SQL file (dev only)
+}
+```
+
+**Adding a new module:**
+1. Create SQL files in `domain/{name}/schema/`
+2. Create `modules/{name}.rs` with `pub fn define() -> Module`
+3. Add `mod {name};` and call in `modules/mod.rs`
+
+**Adding a new extension (user project):**
+```rust
+use systemprompt_extension::*;
+
+struct MyExtension;
+
+impl Extension for MyExtension {
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![SchemaDefinition::inline(
+            "my_table",
+            include_str!("../schema/my_table.sql"),
+        )]
+    }
+}
+
+register_extension!(MyExtension);
+```
 
 ---
 

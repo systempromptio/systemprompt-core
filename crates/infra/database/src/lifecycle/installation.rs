@@ -2,7 +2,7 @@ use crate::services::{DatabaseProvider, SqlExecutor};
 use anyhow::Result;
 use std::path::Path;
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource};
-use systemprompt_models::modules::{Module, ModuleSchema, ModuleSeed};
+use systemprompt_models::modules::{Module, ModuleSchema};
 use tracing::{info, warn};
 
 /// Module installer that handles schema and seed installation
@@ -10,67 +10,76 @@ use tracing::{info, warn};
 pub struct ModuleInstaller;
 
 impl ModuleInstaller {
-    pub async fn install<F, G>(
-        module: &Module,
-        db: &dyn DatabaseProvider,
-        schema_path_resolver: F,
-        seed_path_resolver: G,
-    ) -> Result<()>
-    where
-        F: Fn(&Module, &ModuleSchema) -> Result<std::path::PathBuf> + Send + Sync,
-        G: Fn(&Module, &ModuleSeed) -> Result<std::path::PathBuf> + Send + Sync,
-    {
-        install_module_schemas(module, db, &schema_path_resolver).await?;
-        install_module_seeds(module, db, &seed_path_resolver).await?;
+    pub async fn install(module: &Module, db: &dyn DatabaseProvider) -> Result<()> {
+        install_module_schemas_from_source(module, db).await?;
+        install_module_seeds_from_path(module, db).await?;
         Ok(())
     }
 }
 
-/// Install all schemas for a module
-pub async fn install_module_schemas<F>(
+pub async fn install_module_schemas_from_source(
     module: &Module,
     db: &dyn DatabaseProvider,
-    path_resolver: F,
-) -> Result<()>
-where
-    F: Fn(&Module, &ModuleSchema) -> Result<std::path::PathBuf>,
-{
+) -> Result<()> {
     let Some(schemas) = &module.schemas else {
         return Ok(());
     };
 
     for schema in schemas {
+        if schema.table.is_empty() {
+            let sql = read_module_schema_sql(module, schema)?;
+            SqlExecutor::execute_statements_parsed(db, &sql).await?;
+            continue;
+        }
+
         if !table_exists(db, &schema.table).await? {
-            let schema_path = path_resolver(module, schema)?;
-            install_schema(db, &schema_path).await?;
+            let sql = read_module_schema_sql(module, schema)?;
+            SqlExecutor::execute_statements_parsed(db, &sql).await?;
         }
     }
 
     Ok(())
 }
 
-/// Install all seeds for a module
-pub async fn install_module_seeds<F>(
+fn read_module_schema_sql(module: &Module, schema: &ModuleSchema) -> Result<String> {
+    match &schema.sql {
+        SchemaSource::Inline(sql) => Ok(sql.clone()),
+        SchemaSource::File(relative_path) => {
+            let full_path = module.path.join(relative_path);
+            std::fs::read_to_string(&full_path).map_err(|e| {
+                anyhow::anyhow!(
+                    "Failed to read schema file '{}' for module '{}': {e}",
+                    full_path.display(),
+                    module.name
+                )
+            })
+        },
+    }
+}
+
+pub async fn install_module_seeds_from_path(
     module: &Module,
     db: &dyn DatabaseProvider,
-    path_resolver: F,
-) -> Result<()>
-where
-    F: Fn(&Module, &ModuleSeed) -> Result<std::path::PathBuf>,
-{
+) -> Result<()> {
     let Some(seeds) = &module.seeds else {
         return Ok(());
     };
 
     for seed in seeds {
-        let seed_path = path_resolver(module, seed)?;
+        let seed_path = module.path.join(&seed.file);
+        if !seed_path.exists() {
+            anyhow::bail!(
+                "Seed file not found for module '{}': {}",
+                module.name,
+                seed_path.display()
+            );
+        }
         install_seed(db, &seed_path).await?;
     }
 
     Ok(())
 }
 
-/// Install a schema from a file path
 pub async fn install_schema(db: &dyn DatabaseProvider, schema_path: &Path) -> Result<()> {
     let schema_content = std::fs::read_to_string(schema_path)?;
     SqlExecutor::execute_statements_parsed(db, &schema_content).await

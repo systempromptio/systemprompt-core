@@ -1,5 +1,0 @@
-name: analytics
-version: "0.1.0"
-display_name: Analytics
-type: domain
-description: Session tracking, behavioral analysis, engagement metrics, and ML feature preparation

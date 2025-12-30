@@ -80,16 +80,6 @@ let valid_items: Vec<_> = items
 
 ## 3. Mandatory Patterns
 
-### Module Manifest (Domain Crates Only)
-
-Every domain crate (`crates/domain/*`) MUST have a validated `module.yaml` at its root. See [architecture.md](./architecture.md) for schema.
-
-| Forbidden | Resolution |
-|-----------|------------|
-| Domain crate without `module.yaml` | Add manifest with required fields |
-| `module.yaml` with missing required fields | Add: name, version, display_name, type |
-| Mismatched name/directory | Module name must match directory name |
-
 ### Typed Identifiers
 
 All identifier fields use wrappers from `systemprompt_identifiers`:
