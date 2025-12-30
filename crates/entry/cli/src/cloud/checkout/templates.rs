@@ -1,4 +1,63 @@
 #[allow(dead_code)]
+pub const WAITING_HTML: &str = r##"<!DOCTYPE html>
+<html>
+<head>
+    <title>Provisioning in Progress - SystemPrompt</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: #0a0a0a;
+            color: white;
+        }
+        .container {
+            text-align: center;
+            padding: 48px;
+            max-width: 500px;
+        }
+        .spinner {
+            width: 48px;
+            height: 48px;
+            border: 4px solid #27272a;
+            border-top-color: #FF9A2F;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 24px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        h1 {
+            margin: 0 0 12px;
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        p {
+            margin: 0 0 8px;
+            color: #a1a1aa;
+            font-size: 0.95em;
+        }
+        .highlight {
+            color: #FF9A2F;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="spinner"></div>
+        <h1>Payment Confirmed!</h1>
+        <p>Your tenant is being provisioned...</p>
+        <p class="highlight">Check your terminal for progress.</p>
+        <p style="margin-top: 16px; font-size: 0.85em;">You can close this window.</p>
+    </div>
+</body>
+</html>"##;
+
+#[allow(dead_code)]
 pub const SUCCESS_HTML: &str = r##"<!DOCTYPE html>
 <html>
 <head>
