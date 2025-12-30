@@ -1,4 +1,5 @@
 mod client;
+mod streams;
 mod types;
 
 pub use client::CloudApiClient;
