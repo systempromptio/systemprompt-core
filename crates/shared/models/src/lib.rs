@@ -84,7 +84,6 @@ pub use content_config::{
     ParentRoute, SitemapConfig, SourceBranding, StructuredData,
 };
 pub use errors::{CoreError, RepositoryError, ServiceError};
-pub use extension::{DiscoveredExtension, Extension, ExtensionManifest, ExtensionType};
 pub use evaluations::{AiEvaluationResponse, ConversationEvaluation};
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, ContextEvent, ContextSummary, SystemEvent,
@@ -94,6 +93,7 @@ pub use execution::{
     ExecutionStep, PlannedTool, RequestContext, StepContent, StepId, StepStatus, StepType,
     TrackedStep,
 };
+pub use extension::{BuildType, DiscoveredExtension, Extension, ExtensionManifest, ExtensionType};
 pub use mcp::{
     Deployment, DeploymentConfig, DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider,
     McpAuthState, McpDeploymentProvider, McpProvider, McpRegistry, McpServerConfig, McpServerState,

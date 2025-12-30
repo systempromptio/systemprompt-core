@@ -1,5 +1,3 @@
-//! Extension manifest models for MCP and other extensions.
-
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
@@ -10,6 +8,14 @@ pub enum ExtensionType {
     Blog,
     #[default]
     Other,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum BuildType {
+    #[default]
+    Workspace,
+    Submodule,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +39,9 @@ pub struct Extension {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub port: Option<u16>,
 
+    #[serde(default)]
+    pub build_type: BuildType,
+
     #[serde(default = "default_true")]
     pub enabled: bool,
 }
@@ -49,7 +58,7 @@ pub struct DiscoveredExtension {
 }
 
 impl DiscoveredExtension {
-    pub fn new(manifest: ExtensionManifest, path: PathBuf, manifest_path: PathBuf) -> Self {
+    pub const fn new(manifest: ExtensionManifest, path: PathBuf, manifest_path: PathBuf) -> Self {
         Self {
             manifest,
             path,
@@ -57,7 +66,7 @@ impl DiscoveredExtension {
         }
     }
 
-    pub fn extension_type(&self) -> ExtensionType {
+    pub const fn extension_type(&self) -> ExtensionType {
         self.manifest.extension.type_
     }
 
@@ -65,11 +74,15 @@ impl DiscoveredExtension {
         self.manifest.extension.binary.as_deref()
     }
 
-    pub fn is_enabled(&self) -> bool {
+    pub const fn is_enabled(&self) -> bool {
         self.manifest.extension.enabled
     }
 
     pub fn is_mcp(&self) -> bool {
         self.manifest.extension.type_ == ExtensionType::Mcp
+    }
+
+    pub const fn build_type(&self) -> BuildType {
+        self.manifest.extension.build_type
     }
 }

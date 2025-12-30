@@ -57,6 +57,7 @@ use systemprompt_runtime::{
 };
 
 mod agents;
+mod build;
 mod cli_settings;
 mod cloud;
 mod common;
@@ -117,6 +118,9 @@ enum Commands {
     #[command(subcommand, about = "Log streaming and tracing")]
     Logs(logs::LogsCommands),
 
+    #[command(subcommand, about = "Build MCP extensions")]
+    Build(build::BuildCommands),
+
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
 }
@@ -135,6 +139,7 @@ async fn main() -> Result<()> {
     let requires_profile = match &cli.command {
         Some(Commands::Cloud(cmd)) => cmd.requires_profile(),
         Some(Commands::Setup(_)) => false,
+        Some(Commands::Build(_)) => false,
         Some(_) => true,
         None => true,
     };
@@ -175,6 +180,7 @@ async fn main() -> Result<()> {
         Some(Commands::Cloud(cmd)) => cloud::execute(cmd).await?,
         Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
         Some(Commands::Logs(cmd)) => logs::execute(cmd).await?,
+        Some(Commands::Build(cmd)) => build::execute(cmd).await?,
         Some(Commands::Setup(args)) => setup::execute(args).await?,
         None => tui::execute().await?,
     }
