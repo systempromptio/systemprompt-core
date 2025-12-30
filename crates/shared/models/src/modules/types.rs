@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Deserializer, Serialize};
 use std::path::PathBuf;
-pub use systemprompt_extension::SchemaSource;
+pub use systemprompt_extension::{SchemaSource, SeedSource};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Module {
@@ -80,12 +80,35 @@ impl<'de> Deserialize<'de> for ModuleSchema {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ModuleSeed {
-    pub file: String,
+    pub sql: SeedSource,
     pub table: String,
     pub check_column: String,
     pub check_value: String,
+}
+
+#[derive(Deserialize)]
+struct ModuleSeedYaml {
+    file: String,
+    table: String,
+    check_column: String,
+    check_value: String,
+}
+
+impl<'de> Deserialize<'de> for ModuleSeed {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let yaml = ModuleSeedYaml::deserialize(deserializer)?;
+        Ok(Self {
+            sql: SeedSource::File(PathBuf::from(yaml.file)),
+            table: yaml.table,
+            check_column: yaml.check_column,
+            check_value: yaml.check_value,
+        })
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

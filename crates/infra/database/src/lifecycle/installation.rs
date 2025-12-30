@@ -1,7 +1,7 @@
 use crate::services::{DatabaseProvider, SqlExecutor};
 use anyhow::Result;
 use std::path::Path;
-use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource};
+use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource, SeedSource};
 use systemprompt_models::modules::{Module, ModuleSchema};
 use tracing::{info, warn};
 
@@ -66,15 +66,21 @@ pub async fn install_module_seeds_from_path(
     };
 
     for seed in seeds {
-        let seed_path = module.path.join(&seed.file);
-        if !seed_path.exists() {
-            anyhow::bail!(
-                "Seed file not found for module '{}': {}",
-                module.name,
-                seed_path.display()
-            );
-        }
-        install_seed(db, &seed_path).await?;
+        let sql = match &seed.sql {
+            SeedSource::Inline(sql) => sql.clone(),
+            SeedSource::File(relative_path) => {
+                let seed_path = module.path.join(relative_path);
+                if !seed_path.exists() {
+                    anyhow::bail!(
+                        "Seed file not found for module '{}': {}",
+                        module.name,
+                        seed_path.display()
+                    );
+                }
+                std::fs::read_to_string(&seed_path)?
+            }
+        };
+        SqlExecutor::execute_statements_parsed(db, &sql).await?;
     }
 
     Ok(())

@@ -66,6 +66,12 @@ pub enum SchemaSource {
     File(PathBuf),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum SeedSource {
+    Inline(String),
+    File(PathBuf),
+}
+
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
     pub router: axum::Router,
