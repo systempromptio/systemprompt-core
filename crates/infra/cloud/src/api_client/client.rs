@@ -1,16 +1,13 @@
 use anyhow::{anyhow, Context, Result};
-use futures::stream::{Stream, StreamExt};
 use reqwest::{Client, StatusCode};
-use reqwest_eventsource::{Event, EventSource};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
-use std::pin::Pin;
 use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
-    ApiError, ApiErrorDetail, ApiResponse, CheckoutEvent, CheckoutRequest, CheckoutResponse,
-    DeployResponse, ListResponse, LogEntry, LogsResponse, Plan, ProvisioningEvent, RegistryToken,
-    StatusResponse, Tenant, TenantSecrets, TenantStatus, UserMeResponse,
+    ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
+    ListResponse, LogEntry, LogsResponse, Plan, RegistryToken, SetSecretsRequest, StatusResponse,
+    Tenant, TenantSecrets, TenantStatus, UserMeResponse,
 };
 
 #[derive(Serialize)]
@@ -74,6 +71,35 @@ impl CloudApiClient {
             .context("Failed to connect to API")?;
 
         self.handle_response(response).await
+    }
+
+    async fn put_no_content<B: Serialize + Sync>(&self, path: &str, body: &B) -> Result<()> {
+        let url = format!("{}{}", self.api_url, path);
+        let response = self
+            .client
+            .put(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .json(body)
+            .send()
+            .await
+            .context("Failed to connect to API")?;
+
+        let status = response.status();
+        if status == StatusCode::UNAUTHORIZED {
+            return Err(anyhow!(
+                "Authentication failed. Please run 'systemprompt cloud login' again."
+            ));
+        }
+        if status == StatusCode::NO_CONTENT || status.is_success() {
+            return Ok(());
+        }
+        let error: ApiError = response.json().await.unwrap_or_else(|_| ApiError {
+            error: ApiErrorDetail {
+                code: "unknown".to_string(),
+                message: format!("Request failed with status {status}"),
+            },
+        });
+        Err(anyhow!("{}: {}", error.error.code, error.error.message))
     }
 
     async fn delete(&self, path: &str) -> Result<()> {
@@ -211,127 +237,35 @@ impl CloudApiClient {
         self.delete(&ApiPaths::tenant(tenant_id)).await
     }
 
-    /// Get tenant logs
     pub async fn get_logs(&self, tenant_id: &str, lines: u32) -> Result<Vec<LogEntry>> {
         let path = format!("{}?lines={}", ApiPaths::tenant_logs(tenant_id), lines);
         let response: LogsResponse = self.get(&path).await?;
         Ok(response.logs)
     }
 
-    /// Restart tenant machine
     pub async fn restart_tenant(&self, tenant_id: &str) -> Result<StatusResponse> {
         self.post_empty(&ApiPaths::tenant_restart(tenant_id)).await
     }
 
-    /// Retry failed provisioning
     pub async fn retry_provision(&self, tenant_id: &str) -> Result<StatusResponse> {
         self.post_empty(&ApiPaths::tenant_retry_provision(tenant_id))
             .await
     }
 
-    pub fn subscribe_provisioning_events(
+    pub async fn set_secrets(
         &self,
         tenant_id: &str,
-    ) -> Pin<Box<dyn Stream<Item = Result<ProvisioningEvent>> + Send + '_>> {
-        let url = format!("{}{}", self.api_url, ApiPaths::tenant_events(tenant_id));
-        let token = self.token.clone();
-
-        let stream = async_stream::stream! {
-            let request = Client::new()
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Accept", "text/event-stream");
-
-            let mut es = EventSource::new(request).context("Failed to create SSE connection")?;
-
-            while let Some(event) = es.next().await {
-                match event {
-                    Ok(Event::Open) => {
-                        tracing::debug!("SSE connection opened");
-                    }
-                    Ok(Event::Message(message)) => {
-                        if message.event == "provisioning" || message.event == "message" {
-                            match serde_json::from_str::<ProvisioningEvent>(&message.data) {
-                                Ok(event) => yield Ok(event),
-                                Err(e) => {
-                                    tracing::warn!(error = %e, data = %message.data, "Failed to parse SSE event");
-                                }
-                            }
-                        } else if message.event == "heartbeat" {
-                            tracing::trace!("SSE heartbeat received");
-                        }
-                    }
-                    Err(reqwest_eventsource::Error::StreamEnded) => {
-                        tracing::debug!("SSE stream ended normally");
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "SSE stream error");
-                        yield Err(anyhow!("SSE stream error: {}", e));
-                        break;
-                    }
-                }
-            }
-        };
-
-        Box::pin(stream)
+        secrets: std::collections::HashMap<String, String>,
+    ) -> Result<Vec<String>> {
+        let keys: Vec<String> = secrets.keys().cloned().collect();
+        let request = SetSecretsRequest { secrets };
+        self.put_no_content(&ApiPaths::tenant_secrets(tenant_id), &request)
+            .await?;
+        Ok(keys)
     }
 
-    pub fn subscribe_checkout_events(
-        &self,
-        checkout_session_id: &str,
-    ) -> Pin<Box<dyn Stream<Item = Result<CheckoutEvent>> + Send + '_>> {
-        let url = format!(
-            "{}/api/v1/checkout/{}/events",
-            self.api_url, checkout_session_id
-        );
-        let token = self.token.clone();
-
-        let stream = async_stream::stream! {
-            tracing::debug!(url = %url, "Building SSE request");
-            let request = Client::new()
-                .get(&url)
-                .header("Authorization", format!("Bearer {}", token))
-                .header("Accept", "text/event-stream");
-
-            let mut es = match EventSource::new(request) {
-                Ok(es) => es,
-                Err(e) => {
-                    tracing::error!(error = %e, "Failed to create EventSource");
-                    yield Err(anyhow!("Failed to create SSE connection: {}", e));
-                    return;
-                }
-            };
-
-            while let Some(event) = es.next().await {
-                match event {
-                    Ok(Event::Open) => {
-                        tracing::debug!("SSE connection opened");
-                    }
-                    Ok(Event::Message(message)) => {
-                        tracing::debug!(event_type = %message.event, "SSE message received");
-                        if message.event == "provisioning" {
-                            match serde_json::from_str::<CheckoutEvent>(&message.data) {
-                                Ok(event) => yield Ok(event),
-                                Err(e) => {
-                                    tracing::warn!(error = %e, "Failed to parse checkout event");
-                                }
-                            }
-                        }
-                    }
-                    Err(reqwest_eventsource::Error::StreamEnded) => {
-                        tracing::debug!("SSE stream ended");
-                        break;
-                    }
-                    Err(e) => {
-                        tracing::warn!(error = %e, "SSE stream error");
-                        yield Err(anyhow!("SSE stream error: {}", e));
-                        break;
-                    }
-                }
-            }
-        };
-
-        Box::pin(stream)
+    pub async fn unset_secret(&self, tenant_id: &str, key: &str) -> Result<()> {
+        let path = format!("{}/{}", ApiPaths::tenant_secrets(tenant_id), key);
+        self.delete(&path).await
     }
 }

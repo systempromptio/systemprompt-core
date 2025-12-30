@@ -7,6 +7,7 @@ mod logs;
 mod oauth;
 pub mod profile;
 mod restart;
+mod secrets;
 mod status;
 pub mod sync;
 pub mod tenant;
@@ -79,6 +80,10 @@ pub enum CloudCommands {
     /// Sync between local and cloud environments
     #[command(subcommand)]
     Sync(sync::SyncCommands),
+
+    /// Manage secrets for cloud tenant
+    #[command(subcommand)]
+    Secrets(secrets::SecretsCommands),
 }
 
 impl CloudCommands {
@@ -90,6 +95,7 @@ impl CloudCommands {
                 | Self::Logs { .. }
                 | Self::Restart { .. }
                 | Self::Sync { .. }
+                | Self::Secrets { .. }
         )
     }
 }
@@ -105,5 +111,6 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Logs { tenant, lines } => logs::execute(tenant, lines).await,
         CloudCommands::Restart { tenant } => restart::execute(tenant).await,
         CloudCommands::Sync(cmd) => sync::execute(cmd).await,
+        CloudCommands::Secrets(cmd) => secrets::execute(cmd).await,
     }
 }

@@ -206,3 +206,8 @@ pub struct LogsResponse {
 pub struct StatusResponse {
     pub status: String,
 }
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SetSecretsRequest {
+    pub secrets: std::collections::HashMap<String, String>,
+}
