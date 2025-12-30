@@ -405,18 +405,22 @@ fn test_registry_token_deserialization() {
     let json = r#"{
         "registry": "registry.fly.io",
         "username": "x",
-        "password": "token123"
+        "token": "token123",
+        "repository": "systemprompt-images",
+        "tag": "tenant-abc"
     }"#;
     let token: RegistryToken = serde_json::from_str(json).unwrap();
 
     assert_eq!(token.registry, "registry.fly.io");
     assert_eq!(token.username, "x");
-    assert_eq!(token.password, "token123");
+    assert_eq!(token.token, "token123");
+    assert_eq!(token.repository, "systemprompt-images");
+    assert_eq!(token.tag, "tenant-abc");
 }
 
 #[test]
 fn test_registry_token_debug() {
-    let json = r#"{"registry": "r", "username": "u", "password": "p"}"#;
+    let json = r#"{"registry": "r", "username": "u", "token": "t", "repository": "repo", "tag": "tag"}"#;
     let token: RegistryToken = serde_json::from_str(json).unwrap();
     let debug_str = format!("{:?}", token);
     assert!(debug_str.contains("RegistryToken"));

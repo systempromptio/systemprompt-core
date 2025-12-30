@@ -151,7 +151,7 @@ pub async fn execute(skip_push: bool) -> Result<()> {
         docker_login(
             &registry_token.registry,
             &registry_token.username,
-            &registry_token.password,
+            &registry_token.token,
         )?;
         docker_push(&image)?;
         spinner.finish_and_clear();
@@ -195,7 +195,7 @@ pub async fn deploy_initial(client: &CloudApiClient, tenant_id: &str) -> Result<
     docker_login(
         &registry_token.registry,
         &registry_token.username,
-        &registry_token.password,
+        &registry_token.token,
     )?;
     docker_push(&image)?;
     spinner.finish_and_clear();

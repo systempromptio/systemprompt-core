@@ -16,7 +16,7 @@ pub struct SyncApiClient {
 pub struct RegistryToken {
     pub registry: String,
     pub username: String,
-    pub password: String,
+    pub token: String,
 }
 
 #[derive(Debug, Deserialize)]
