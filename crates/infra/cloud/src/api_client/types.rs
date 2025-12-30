@@ -107,7 +107,7 @@ pub struct TenantSecrets {
 pub struct RegistryToken {
     pub registry: String,
     pub username: String,
-    pub password: String,
+    pub token: String,
     pub repository: String,
     pub tag: String,
 }

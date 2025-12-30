@@ -20,14 +20,14 @@ pub fn build_docker_image(context_dir: &Path, dockerfile: &Path, image: &str) ->
     )
 }
 
-pub fn docker_login(registry: &str, username: &str, password: &str) -> Result<()> {
+pub fn docker_login(registry: &str, username: &str, token: &str) -> Result<()> {
     let mut command = Command::new("docker");
     command.args(["login", registry, "-u", username, "--password-stdin"]);
     command.stdin(std::process::Stdio::piped());
 
     let mut child = command.spawn()?;
     if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(password.as_bytes())?;
+        stdin.write_all(token.as_bytes())?;
     }
 
     let status = child.wait()?;

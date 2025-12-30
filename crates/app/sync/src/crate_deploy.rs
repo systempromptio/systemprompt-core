@@ -48,7 +48,7 @@ impl CrateDeployService {
             .api_client
             .get_registry_token(&self.config.tenant_id)
             .await?;
-        Self::docker_login(&token.registry, &token.username, &token.password)?;
+        Self::docker_login(&token.registry, &token.username, &token.token)?;
         Self::docker_push(&image)?;
 
         let response = self
@@ -127,14 +127,14 @@ impl CrateDeployService {
         )
     }
 
-    fn docker_login(registry: &str, username: &str, password: &str) -> SyncResult<()> {
+    fn docker_login(registry: &str, username: &str, token: &str) -> SyncResult<()> {
         let mut command = Command::new("docker");
         command.args(["login", registry, "-u", username, "--password-stdin"]);
         command.stdin(std::process::Stdio::piped());
 
         let mut child = command.spawn()?;
         if let Some(mut stdin) = child.stdin.take() {
-            stdin.write_all(password.as_bytes())?;
+            stdin.write_all(token.as_bytes())?;
         }
 
         let status = child.wait()?;
