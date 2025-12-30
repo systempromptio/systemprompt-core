@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            INSERT INTO ml_behavioral_features (\n                id, session_id, fingerprint_hash,\n                is_bot, is_human_verified, label_source,\n                session_duration_seconds, total_requests, unique_pages_visited,\n                avg_time_between_requests_ms, request_time_variance,\n                referrer_present, has_javascript, accepts_cookies,\n                viewport_width, viewport_height,\n                avg_scroll_depth, max_scroll_depth, avg_time_on_page_ms,\n                total_clicks, avg_mouse_speed, mouse_movement_entropy,\n                time_pattern_regularity, request_burst_count,\n                headless_indicators, automation_indicators, fingerprint_anomaly_score,\n                feature_vector\n            )\n            VALUES (\n                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,\n                $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,\n                $21, $22, $23, $24, $25, $26, $27, $28\n            )\n            ON CONFLICT (id) DO NOTHING\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "Bool",
+        "Bool",
+        "Varchar",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Bool",
+        "Bool",
+        "Bool",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4",
+        "Float4",
+        "Int4",
+        "Int4",
+        "Int4",
+        "Float4",
+        "Float4Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f975f2eefea579b3b0fcb093bba367d95fef36fc758240d7c192991fd75e29c9"
+}

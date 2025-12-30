@@ -1,0 +1,191 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                    SELECT\n                        id, session_id, fingerprint_hash,\n                        is_bot, is_human_verified, label_source,\n                        session_duration_seconds, total_requests, unique_pages_visited,\n                        avg_time_between_requests_ms, request_time_variance,\n                        referrer_present, has_javascript, accepts_cookies,\n                        viewport_width, viewport_height,\n                        avg_scroll_depth, max_scroll_depth, avg_time_on_page_ms,\n                        total_clicks, avg_mouse_speed, mouse_movement_entropy,\n                        time_pattern_regularity, request_burst_count,\n                        headless_indicators, automation_indicators, fingerprint_anomaly_score,\n                        feature_vector, created_at\n                    FROM ml_behavioral_features\n                    WHERE is_human_verified = true AND is_bot = $1\n                    ORDER BY created_at DESC\n                    LIMIT $2\n                    ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "session_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "fingerprint_hash",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "is_bot",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_human_verified",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "label_source",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "session_duration_seconds",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 7,
+        "name": "total_requests",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "unique_pages_visited",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "avg_time_between_requests_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 10,
+        "name": "request_time_variance",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 11,
+        "name": "referrer_present",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "has_javascript",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 13,
+        "name": "accepts_cookies",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 14,
+        "name": "viewport_width",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 15,
+        "name": "viewport_height",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 16,
+        "name": "avg_scroll_depth",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 17,
+        "name": "max_scroll_depth",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 18,
+        "name": "avg_time_on_page_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 19,
+        "name": "total_clicks",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 20,
+        "name": "avg_mouse_speed",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 21,
+        "name": "mouse_movement_entropy",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 22,
+        "name": "time_pattern_regularity",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 23,
+        "name": "request_burst_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 24,
+        "name": "headless_indicators",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 25,
+        "name": "automation_indicators",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 26,
+        "name": "fingerprint_anomaly_score",
+        "type_info": "Float4"
+      },
+      {
+        "ordinal": 27,
+        "name": "feature_vector",
+        "type_info": "Float4Array"
+      },
+      {
+        "ordinal": 28,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Bool",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "c33d2213860423f3481dd86480d387d23257d6e0cba232dfeada028cff06d8b1"
+}
