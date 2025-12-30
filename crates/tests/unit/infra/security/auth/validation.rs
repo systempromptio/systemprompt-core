@@ -10,7 +10,9 @@ use axum::http::{HeaderMap, HeaderValue};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use systemprompt_core_security::{AuthMode, AuthValidationService};
-use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType};
+use systemprompt_models::auth::{
+    JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
+};
 
 // ============================================================================
 // Test Helpers
@@ -47,7 +49,12 @@ fn create_valid_jwt(secret: &str, issuer: &str, session_id: Option<String>) -> S
     };
 
     let header = Header::new(Algorithm::HS256);
-    encode(&header, &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+    encode(
+        &header,
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 fn create_admin_jwt(secret: &str, issuer: &str) -> String {
@@ -73,7 +80,12 @@ fn create_admin_jwt(secret: &str, issuer: &str) -> String {
     };
 
     let header = Header::new(Algorithm::HS256);
-    encode(&header, &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+    encode(
+        &header,
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 fn create_expired_jwt(secret: &str, issuer: &str) -> String {
@@ -99,7 +111,12 @@ fn create_expired_jwt(secret: &str, issuer: &str) -> String {
     };
 
     let header = Header::new(Algorithm::HS256);
-    encode(&header, &claims, &EncodingKey::from_secret(secret.as_bytes())).unwrap()
+    encode(
+        &header,
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .unwrap()
 }
 
 // ============================================================================
@@ -218,7 +235,10 @@ fn test_validate_request_required_missing_auth() {
 
     let result = service.validate_request(&headers, AuthMode::Required);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("Missing authorization"));
+    assert!(result
+        .unwrap_err()
+        .to_string()
+        .contains("Missing authorization"));
 }
 
 #[test]
@@ -238,7 +258,11 @@ fn test_validate_request_required_invalid_token() {
 #[test]
 fn test_validate_request_required_wrong_secret() {
     let service = create_test_service();
-    let token = create_valid_jwt("wrong_secret", "test_issuer", Some("session_123".to_string()));
+    let token = create_valid_jwt(
+        "wrong_secret",
+        "test_issuer",
+        Some("session_123".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -253,7 +277,11 @@ fn test_validate_request_required_wrong_secret() {
 #[test]
 fn test_validate_request_required_wrong_issuer() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "wrong_issuer", Some("session_123".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "wrong_issuer",
+        Some("session_123".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -300,7 +328,11 @@ fn test_validate_request_required_missing_session_id() {
 #[test]
 fn test_validate_request_required_valid_token() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session_123".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session_123".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -371,7 +403,11 @@ fn test_validate_request_optional_invalid_token() {
 #[test]
 fn test_validate_request_optional_valid_token() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session_456".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session_456".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -395,7 +431,11 @@ fn test_validate_request_optional_valid_token() {
 #[test]
 fn test_validate_request_extracts_trace_id() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -414,14 +454,21 @@ fn test_validate_request_extracts_trace_id() {
 #[test]
 fn test_validate_request_extracts_context_id() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
         "authorization",
         HeaderValue::from_str(&format!("Bearer {}", token)).unwrap(),
     );
-    headers.insert("x-context-id", HeaderValue::from_static("custom-context-id"));
+    headers.insert(
+        "x-context-id",
+        HeaderValue::from_static("custom-context-id"),
+    );
 
     let result = service.validate_request(&headers, AuthMode::Required);
     assert!(result.is_ok());
@@ -433,7 +480,11 @@ fn test_validate_request_extracts_context_id() {
 #[test]
 fn test_validate_request_extracts_agent_name() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -452,7 +503,11 @@ fn test_validate_request_extracts_agent_name() {
 #[test]
 fn test_validate_request_generates_trace_id_if_missing() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -491,7 +546,11 @@ fn test_validate_request_anonymous_extracts_headers() {
 #[test]
 fn test_validate_request_lowercase_authorization() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -506,13 +565,14 @@ fn test_validate_request_lowercase_authorization() {
 #[test]
 fn test_validate_request_no_bearer_prefix() {
     let service = create_test_service();
-    let token = create_valid_jwt("test_secret_key", "test_issuer", Some("session".to_string()));
+    let token = create_valid_jwt(
+        "test_secret_key",
+        "test_issuer",
+        Some("session".to_string()),
+    );
 
     let mut headers = HeaderMap::new();
-    headers.insert(
-        "authorization",
-        HeaderValue::from_str(&token).unwrap(),
-    );
+    headers.insert("authorization", HeaderValue::from_str(&token).unwrap());
 
     let result = service.validate_request(&headers, AuthMode::Required);
     assert!(result.is_err());

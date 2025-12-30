@@ -223,7 +223,9 @@ fn test_is_scanner_agent_sqlmap() {
 
 #[test]
 fn test_is_scanner_agent_acunetix() {
-    assert!(ScannerDetector::is_scanner_agent("Acunetix Web Vulnerability Scanner"));
+    assert!(ScannerDetector::is_scanner_agent(
+        "Acunetix Web Vulnerability Scanner"
+    ));
     assert!(ScannerDetector::is_scanner_agent("acunetix"));
 }
 
@@ -374,7 +376,8 @@ fn test_is_scanner_agent_probe_image_size() {
 #[test]
 fn test_is_scanner_agent_outdated_chrome() {
     assert!(ScannerDetector::is_scanner_agent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/89.0.4389.82 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/89.0.4389.82 \
+         Safari/537.36"
     ));
     assert!(ScannerDetector::is_scanner_agent(
         "Mozilla/5.0 (Windows NT 10.0) Chrome/50.0.2661.102"
@@ -384,23 +387,27 @@ fn test_is_scanner_agent_outdated_chrome() {
 #[test]
 fn test_is_scanner_agent_outdated_firefox() {
     // Firefox versions below 88 are considered outdated
-    // The parser extracts version after "firefox/", finds where version ends (non-numeric, non-dot char),
-    // then parses the substring as i32 (which fails if it contains dots).
-    // This test validates behavior with versions that can be parsed.
-    // Note: Due to parsing logic quirk, only single-digit major versions work with this test
-    // because "80.0" fails to parse as i32. Testing with a realistic scenario:
-    // User agent with text after Firefox version where major version can be extracted.
+    // The parser extracts version after "firefox/", finds where version ends
+    // (non-numeric, non-dot char), then parses the substring as i32 (which
+    // fails if it contains dots). This test validates behavior with versions
+    // that can be parsed. Note: Due to parsing logic quirk, only single-digit
+    // major versions work with this test because "80.0" fails to parse as i32.
+    // Testing with a realistic scenario: User agent with text after Firefox
+    // version where major version can be extracted.
 
-    // For Firefox, the current implementation has a parsing edge case where full version strings
-    // like "80.0" don't parse correctly as i32. This test validates that the function
-    // doesn't crash and handles such inputs (returns false since parse fails).
-    // The function still catches other scanner indicators.
-    let firefox_80 = "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0 ";
+    // For Firefox, the current implementation has a parsing edge case where full
+    // version strings like "80.0" don't parse correctly as i32. This test
+    // validates that the function doesn't crash and handles such inputs
+    // (returns false since parse fails). The function still catches other
+    // scanner indicators.
+    let firefox_80 =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:80.0) Gecko/20100101 Firefox/80.0 ";
     // This won't be detected as outdated due to parsing, but we verify no panic
     let _ = ScannerDetector::is_scanner_agent(firefox_80);
 
     // Test Firefox version formats that would work if the parsing was different
-    // For now, we'll just verify the function handles various formats without panicking
+    // For now, we'll just verify the function handles various formats without
+    // panicking
     assert!(!ScannerDetector::is_scanner_agent(
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0 "
     ));
@@ -413,7 +420,8 @@ fn test_is_scanner_agent_outdated_firefox() {
 #[test]
 fn test_is_scanner_agent_modern_chrome() {
     assert!(!ScannerDetector::is_scanner_agent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
+         Chrome/120.0.0.0 Safari/537.36"
     ));
 }
 
@@ -427,14 +435,16 @@ fn test_is_scanner_agent_modern_firefox() {
 #[test]
 fn test_is_scanner_agent_safari() {
     assert!(!ScannerDetector::is_scanner_agent(
-        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) \
+         Version/17.0 Safari/605.1.15"
     ));
 }
 
 #[test]
 fn test_is_scanner_agent_edge() {
     assert!(!ScannerDetector::is_scanner_agent(
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) \
+         Chrome/120.0.0.0 Safari/537.36 Edg/120.0.0.0"
     ));
 }
 
@@ -513,7 +523,12 @@ fn test_is_scanner_high_velocity_only() {
 
 #[test]
 fn test_is_scanner_no_user_agent() {
-    assert!(ScannerDetector::is_scanner(Some("/api/data"), None, None, None));
+    assert!(ScannerDetector::is_scanner(
+        Some("/api/data"),
+        None,
+        None,
+        None
+    ));
 }
 
 #[test]

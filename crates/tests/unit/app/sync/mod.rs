@@ -1364,7 +1364,8 @@ fn test_sync_direction_roundtrip() {
 
 #[test]
 fn test_diff_status_serialize_all_variants() {
-    // DiffStatus only implements Serialize (not Deserialize), so we only test serialization
+    // DiffStatus only implements Serialize (not Deserialize), so we only test
+    // serialization
     let added_json = serde_json::to_string(&DiffStatus::Added).unwrap();
     let removed_json = serde_json::to_string(&DiffStatus::Removed).unwrap();
     let modified_json = serde_json::to_string(&DiffStatus::Modified).unwrap();

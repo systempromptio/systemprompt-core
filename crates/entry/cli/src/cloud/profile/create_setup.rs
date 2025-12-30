@@ -20,7 +20,6 @@ pub async fn handle_local_tenant_setup(
     spinner.finish_and_clear();
 
     if !connection_valid {
-        // Check if docker compose file exists for this tenant
         let ctx = ProjectContext::discover();
         let compose_path = ctx.docker_dir().join(format!("{}.yaml", tenant_name));
 
@@ -105,11 +104,11 @@ async fn start_postgres_container(compose_path: &Path) -> Result<bool> {
         Ok(()) => {
             spinner.finish_and_clear();
             Ok(true)
-        }
+        },
         Err(e) => {
             spinner.finish_and_clear();
             CliService::warning(&format!("PostgreSQL failed to become healthy: {}", e));
             Ok(false)
-        }
+        },
     }
 }

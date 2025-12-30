@@ -1374,10 +1374,7 @@ fn test_check_port_protected_pgbouncer() {
 
     // PgBouncer port should return None (protected)
     let result = ProcessCleanup::check_port(6432);
-    assert!(
-        result.is_none(),
-        "PgBouncer port 6432 should be protected"
-    );
+    assert!(result.is_none(), "PgBouncer port 6432 should be protected");
 }
 
 #[test]
@@ -1441,10 +1438,7 @@ fn test_kill_by_pattern_protected_contains() {
 
     // Patterns containing protected names should also be blocked
     let result = ProcessCleanup::kill_by_pattern("my-postgres-wrapper");
-    assert_eq!(
-        result, 0,
-        "Should not kill patterns containing postgres"
-    );
+    assert_eq!(result, 0, "Should not kill patterns containing postgres");
 }
 
 // ============================================================================
@@ -1709,10 +1703,7 @@ fn test_all_jobs_have_non_empty_names() {
     ];
 
     for job in jobs {
-        assert!(
-            !job.name().is_empty(),
-            "Job name should not be empty"
-        );
+        assert!(!job.name().is_empty(), "Job name should not be empty");
         assert!(
             !job.description().is_empty(),
             "Job description should not be empty for {}",
