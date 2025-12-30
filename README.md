@@ -115,6 +115,9 @@ systemprompt-core-api.workspace = true
 git clone https://github.com/systempromptio/systemprompt-core
 cd systemprompt-core
 
+# Install web dependencies
+cd web && npm install && cd ..
+
 # Build all crates
 cargo build --workspace
 

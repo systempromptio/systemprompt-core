@@ -115,8 +115,8 @@ pub async fn execute(name: &str) -> Result<()> {
     ));
 
     match tenant.tenant_type {
-        TenantType::Local => CliService::info("  systemprompt services start"),
-        TenantType::Cloud => CliService::info("  systemprompt cloud deploy"),
+        TenantType::Local => CliService::info("  just start"),
+        TenantType::Cloud => CliService::info("  just deploy"),
     }
 
     Ok(())
