@@ -3,7 +3,6 @@ use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::ProcessCleanup;
 use systemprompt_loader::ModuleLoader;
-use systemprompt_models::Config;
 use systemprompt_runtime::{
     install_module_with_db, validate_system, AppContext, Modules, ServiceCategory,
 };
@@ -195,12 +194,7 @@ fn register_modules(events: Option<&StartupEventSender>) {
 }
 
 async fn run_migrations(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
-    let config = Config::get().context("Failed to load config for migrations")?;
-
-    let loaded_modules = ModuleLoader::scan_and_load(&config.core_path)
-        .context("Failed to load modules - check CORE_PATH environment variable")?;
-
-    let modules = Modules::from_vec(loaded_modules)?;
+    let modules = Modules::from_vec(ModuleLoader::all())?;
 
     for module in modules.all() {
         install_module_with_db(module, ctx.db_pool().as_ref())
