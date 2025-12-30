@@ -154,10 +154,6 @@ async fn callback_handler(
     if params.status.as_deref() == Some("pending") {
         if let Some(checkout_session_id) = params.checkout_session_id.clone() {
             CliService::info("Payment confirmed, waiting for provisioning...");
-            CliService::info(&format!(
-                "Subscribing to SSE: checkout_session_id={}",
-                checkout_session_id
-            ));
 
             let api_client = Arc::clone(&state.api_client);
             let tx = Arc::clone(&state.tx);
@@ -165,13 +161,8 @@ async fn callback_handler(
                 .transaction_id
                 .clone()
                 .unwrap_or_else(|| checkout_session_id.clone());
-            let session_id_for_log = checkout_session_id.clone();
 
             tokio::spawn(async move {
-                tracing::info!(
-                    checkout_session_id = %session_id_for_log,
-                    "Starting SSE subscription in background task"
-                );
                 match wait_for_checkout_provisioning(&api_client, &checkout_session_id).await {
                     Ok(event) => {
                         let result = Ok(CheckoutCallbackResult {
@@ -220,22 +211,14 @@ async fn wait_for_checkout_provisioning(
     client: &CloudApiClient,
     checkout_session_id: &str,
 ) -> Result<CheckoutEvent> {
-    CliService::info(&format!(
-        "Connecting to SSE: {}/api/v1/checkout/{}/events",
-        client.api_url(),
-        checkout_session_id
-    ));
     let mut stream = client.subscribe_checkout_events(checkout_session_id);
-    CliService::info("SSE stream created, waiting for events...");
 
     while let Some(event_result) = stream.next().await {
         match event_result {
             Ok(event) => {
-                CliService::info(&format!(
-                    "[{}] {}",
-                    format!("{:?}", event.event_type).to_uppercase(),
-                    event.message.as_deref().unwrap_or("")
-                ));
+                if let Some(msg) = &event.message {
+                    CliService::info(msg);
+                }
 
                 match event.event_type {
                     ProvisioningEventType::TenantReady => return Ok(event),
