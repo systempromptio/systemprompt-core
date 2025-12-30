@@ -111,6 +111,10 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     Ok(StoredTenant::new_local(id, name, database_url))
 }
 
+pub fn check_build_ready() -> Result<(), String> {
+    validate_build_ready().map_err(|e| e.to_string())
+}
+
 fn validate_build_ready() -> Result<()> {
     let project_root =
         ProjectRoot::discover().context("Must be in a SystemPrompt project directory")?;
@@ -222,12 +226,8 @@ pub async fn create_cloud_tenant(
     ));
 
     if result.needs_deploy {
-        let app_name = result
-            .fly_app_name
-            .as_deref()
-            .ok_or_else(|| anyhow!("No app ID provided for deployment"))?;
         CliService::info("Infrastructure ready, deploying your code...");
-        deploy_initial(&client, &result.tenant_id, app_name).await?;
+        deploy_initial(&client, &result.tenant_id).await?;
     }
 
     CliService::success("Tenant provisioned successfully");

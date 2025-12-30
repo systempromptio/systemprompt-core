@@ -108,6 +108,8 @@ pub struct RegistryToken {
     pub registry: String,
     pub username: String,
     pub password: String,
+    pub repository: String,
+    pub tag: String,
 }
 
 #[derive(Debug, Deserialize)]

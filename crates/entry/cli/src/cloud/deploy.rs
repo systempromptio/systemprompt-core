@@ -1,7 +1,6 @@
 //! Cloud deploy command - builds and deploys to SystemPrompt Cloud
 
 use std::path::PathBuf;
-use std::process::Command;
 
 use anyhow::{anyhow, bail, Context, Result};
 use systemprompt_cloud::{
@@ -86,7 +85,7 @@ impl DeployConfig {
     }
 }
 
-pub async fn execute(skip_push: bool, custom_tag: Option<String>) -> Result<()> {
+pub async fn execute(skip_push: bool) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
     let creds = CredentialsBootstrap::require()
@@ -119,11 +118,6 @@ pub async fn execute(skip_push: bool, custom_tag: Option<String>) -> Result<()> 
         )
     })?;
 
-    let app_id = tenant
-        .app_id
-        .as_ref()
-        .ok_or_else(|| anyhow!("No app configured for tenant. Run 'systemprompt cloud setup'"))?;
-
     let tenant_name = &tenant.name;
 
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
@@ -135,12 +129,16 @@ pub async fn execute(skip_push: bool, custom_tag: Option<String>) -> Result<()> 
     CliService::key_value("Web dist", &config.web_dist.display().to_string());
     CliService::key_value("Dockerfile", &config.dockerfile.display().to_string());
 
-    let tag = custom_tag.unwrap_or_else(|| {
-        let timestamp = chrono::Utc::now().timestamp();
-        let git_sha = get_git_sha().unwrap_or_else(|| "unknown".to_string());
-        format!("deploy-{timestamp}-{git_sha}")
-    });
-    let image = format!("registry.fly.io/{app_id}:{tag}");
+    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    let spinner = CliService::spinner("Fetching registry credentials...");
+    let registry_token = api_client.get_registry_token(tenant_id).await?;
+    spinner.finish_and_clear();
+
+    let image = format!(
+        "{}/{}:{}",
+        registry_token.registry, registry_token.repository, registry_token.tag
+    );
     CliService::key_value("Image", &image);
 
     let spinner = CliService::spinner("Building Docker image...");
@@ -148,11 +146,8 @@ pub async fn execute(skip_push: bool, custom_tag: Option<String>) -> Result<()> 
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
-    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
-
     if !skip_push {
         let spinner = CliService::spinner("Pushing to registry...");
-        let registry_token = api_client.get_registry_token(tenant_id).await?;
         docker_login(
             &registry_token.registry,
             &registry_token.username,
@@ -177,35 +172,19 @@ pub async fn execute(skip_push: bool, custom_tag: Option<String>) -> Result<()> 
     Ok(())
 }
 
-fn get_git_sha() -> Option<String> {
-    match Command::new("git")
-        .args(["rev-parse", "--short", "HEAD"])
-        .output()
-    {
-        Ok(output) if output.status.success() => String::from_utf8(output.stdout)
-            .map(|s| s.trim().to_string())
-            .map_err(|e| tracing::debug!(error = %e, "Git SHA not valid UTF-8"))
-            .ok(),
-        Ok(output) => {
-            tracing::debug!(status = ?output.status, "Git command failed");
-            None
-        },
-        Err(e) => {
-            tracing::debug!(error = %e, "Failed to execute git command");
-            None
-        },
-    }
-}
-
-pub async fn deploy_initial(
-    client: &CloudApiClient,
-    tenant_id: &str,
-    fly_app_name: &str,
-) -> Result<()> {
+pub async fn deploy_initial(client: &CloudApiClient, tenant_id: &str) -> Result<()> {
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let dockerfile = project.as_path().join(".systemprompt/Dockerfile");
-    let timestamp = chrono::Utc::now().timestamp();
-    let image = format!("registry.fly.io/{fly_app_name}:initial-{timestamp}");
+
+    let spinner = CliService::spinner("Fetching registry credentials...");
+    let registry_token = client.get_registry_token(tenant_id).await?;
+    spinner.finish_and_clear();
+
+    let image = format!(
+        "{}/{}:{}",
+        registry_token.registry, registry_token.repository, registry_token.tag
+    );
+    CliService::key_value("Image", &image);
 
     let spinner = CliService::spinner("Building Docker image...");
     build_docker_image(project.as_path(), &dockerfile, &image)?;
@@ -213,7 +192,6 @@ pub async fn deploy_initial(
     CliService::success("Docker image built");
 
     let spinner = CliService::spinner("Pushing to registry...");
-    let registry_token = client.get_registry_token(tenant_id).await?;
     docker_login(
         &registry_token.registry,
         &registry_token.username,

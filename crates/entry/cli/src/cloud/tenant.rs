@@ -6,8 +6,8 @@ use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_core_logging::CliService;
 
 use super::tenant_ops::{
-    create_cloud_tenant, create_local_tenant, delete_tenant, edit_tenant, get_credentials,
-    list_tenants, show_tenant,
+    check_build_ready, create_cloud_tenant, create_local_tenant, delete_tenant, edit_tenant,
+    get_credentials, list_tenants, show_tenant,
 };
 
 #[derive(Subcommand)]
@@ -88,9 +88,16 @@ async fn create(default_region: &str) -> Result<()> {
 
     let creds = get_credentials()?;
 
+    let build_ready = check_build_ready().is_ok();
+    let cloud_option = if build_ready {
+        "Cloud (requires subscription at systemprompt.io)".to_string()
+    } else {
+        "Cloud (unavailable - run 'just build --release' first)".to_string()
+    };
+
     let options = vec![
-        "Local (creates PostgreSQL container automatically)",
-        "Cloud (requires subscription at systemprompt.io)",
+        "Local (creates PostgreSQL container automatically)".to_string(),
+        cloud_option,
     ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
@@ -101,6 +108,11 @@ async fn create(default_region: &str) -> Result<()> {
 
     let tenant = match selection {
         0 => create_local_tenant().await?,
+        _ if !build_ready => {
+            CliService::warning("Cloud tenant requires a built project");
+            CliService::info("Run 'just build --release' first");
+            return Ok(());
+        },
         _ => create_cloud_tenant(&creds, default_region).await?,
     };
 
