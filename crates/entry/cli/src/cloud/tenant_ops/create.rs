@@ -12,6 +12,8 @@ use systemprompt_cloud::{
 use systemprompt_core_logging::CliService;
 
 use crate::cloud::checkout::templates::{ERROR_HTML, SUCCESS_HTML, WAITING_HTML};
+use crate::cloud::deploy::deploy_initial;
+use crate::common::project::ProjectRoot;
 
 use super::docker::{
     generate_postgres_compose, is_port_in_use, nanoid, stop_container_on_port,
@@ -109,10 +111,58 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     Ok(StoredTenant::new_local(id, name, database_url))
 }
 
+fn validate_build_ready() -> Result<()> {
+    let project_root =
+        ProjectRoot::discover().context("Must be in a SystemPrompt project directory")?;
+    let root = project_root.as_path();
+
+    let dockerfile = root.join(".systemprompt/Dockerfile");
+    if !dockerfile.exists() {
+        bail!(
+            "Dockerfile not found: {}\n\nCloud tenant creation requires a Dockerfile.\nCreate one \
+             at .systemprompt/Dockerfile",
+            dockerfile.display()
+        );
+    }
+
+    let binary_paths = [
+        root.join("core/target/release/systemprompt"),
+        root.join("target/release/systemprompt"),
+    ];
+    if !binary_paths.iter().any(|p| p.exists()) {
+        bail!(
+            "Release binary not found.\n\nCloud tenant creation requires a built binary.\nRun: \
+             just build --release\nOr:  cargo build --release --bin systemprompt"
+        );
+    }
+
+    let web_dist_paths = [root.join("core/web/dist"), root.join("web/dist")];
+    let web_dist = web_dist_paths.iter().find(|p| p.exists());
+    match web_dist {
+        None => bail!(
+            "Web dist not found.\n\nCloud tenant creation requires built web assets.\nRun: just \
+             build --release\nOr:  cd core/web && npm run build"
+        ),
+        Some(dist_path) if !dist_path.join("index.html").exists() => bail!(
+            "Web dist missing index.html: {}\n\nRun: just build --release",
+            dist_path.display()
+        ),
+        Some(_) => {},
+    }
+
+    Ok(())
+}
+
 pub async fn create_cloud_tenant(
     creds: &CloudCredentials,
     _default_region: &str,
 ) -> Result<StoredTenant> {
+    validate_build_ready().context(
+        "Cloud tenant creation requires a built project.\nRun 'just build --release' before \
+         creating a cloud tenant.",
+    )?;
+
+    CliService::success("Build validation passed");
     CliService::info("Creating cloud tenant via subscription");
 
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
@@ -170,7 +220,17 @@ pub async fn create_cloud_tenant(
         "Checkout complete! Tenant ID: {}",
         result.tenant_id
     ));
-    CliService::success("Infrastructure provisioned successfully");
+
+    if result.needs_deploy {
+        let app_name = result
+            .fly_app_name
+            .as_deref()
+            .ok_or_else(|| anyhow!("No app ID provided for deployment"))?;
+        CliService::info("Infrastructure ready, deploying your code...");
+        deploy_initial(&client, &result.tenant_id, app_name).await?;
+    }
+
+    CliService::success("Tenant provisioned successfully");
 
     let spinner = CliService::spinner("Syncing new tenant...");
     let response = client.get_user().await?;

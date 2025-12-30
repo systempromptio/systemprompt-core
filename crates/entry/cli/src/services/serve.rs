@@ -2,7 +2,11 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::ProcessCleanup;
-use systemprompt_runtime::{validate_system, AppContext, ServiceCategory};
+use systemprompt_loader::ModuleLoader;
+use systemprompt_models::Config;
+use systemprompt_runtime::{
+    install_module_with_db, validate_system, AppContext, Modules, ServiceCategory,
+};
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 pub async fn execute_with_events(
@@ -36,6 +40,8 @@ pub async fn execute_with_events(
             .await
             .context("Failed to initialize application context")?,
     );
+
+    run_migrations(&ctx, events).await?;
 
     systemprompt_core_logging::init_logging(ctx.db_pool().clone());
 
@@ -186,4 +192,25 @@ fn register_modules(events: Option<&StartupEventSender>) {
             );
         }
     }
+}
+
+async fn run_migrations(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
+    let config = Config::get().context("Failed to load config for migrations")?;
+
+    let loaded_modules = ModuleLoader::scan_and_load(&config.core_path)
+        .context("Failed to load modules - check CORE_PATH environment variable")?;
+
+    let modules = Modules::from_vec(loaded_modules)?;
+
+    for module in modules.all() {
+        install_module_with_db(module, ctx.db_pool().as_ref())
+            .await
+            .with_context(|| format!("Failed to install module '{}'", module.name))?;
+    }
+
+    if events.is_none() {
+        CliService::phase_success("Database schemas installed", None);
+    }
+
+    Ok(())
 }

@@ -196,3 +196,40 @@ fn get_git_sha() -> Option<String> {
         },
     }
 }
+
+pub async fn deploy_initial(
+    client: &CloudApiClient,
+    tenant_id: &str,
+    fly_app_name: &str,
+) -> Result<()> {
+    let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
+    let dockerfile = project.as_path().join(".systemprompt/Dockerfile");
+    let timestamp = chrono::Utc::now().timestamp();
+    let image = format!("registry.fly.io/{fly_app_name}:initial-{timestamp}");
+
+    let spinner = CliService::spinner("Building Docker image...");
+    build_docker_image(project.as_path(), &dockerfile, &image)?;
+    spinner.finish_and_clear();
+    CliService::success("Docker image built");
+
+    let spinner = CliService::spinner("Pushing to registry...");
+    let registry_token = client.get_registry_token(tenant_id).await?;
+    docker_login(
+        &registry_token.registry,
+        &registry_token.username,
+        &registry_token.password,
+    )?;
+    docker_push(&image)?;
+    spinner.finish_and_clear();
+    CliService::success("Image pushed");
+
+    let spinner = CliService::spinner("Deploying...");
+    let response = client.deploy(tenant_id, &image).await?;
+    spinner.finish_and_clear();
+    CliService::success("Deployed!");
+    if let Some(url) = response.app_url {
+        CliService::key_value("URL", &url);
+    }
+
+    Ok(())
+}
