@@ -21,9 +21,9 @@ pub use services::{
 
 pub use error::RepositoryError;
 pub use lifecycle::{
-    install_extension_schemas, install_module_schemas, install_module_seeds, install_schema,
-    install_seed, validate_column_exists, validate_database_connection, validate_table_exists,
-    ModuleInstaller,
+    install_extension_schemas, install_module_schemas_from_source, install_module_seeds_from_path,
+    install_schema, install_seed, validate_column_exists, validate_database_connection,
+    validate_table_exists, ModuleInstaller,
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PaginatedRepository, PgDbPool,

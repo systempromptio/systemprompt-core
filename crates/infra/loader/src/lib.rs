@@ -1,6 +1,7 @@
 mod extension_loader;
 mod include_resolver;
 mod module_loader;
+mod modules;
 mod profile_loader;
 mod secrets_loader;
 mod services_loader;

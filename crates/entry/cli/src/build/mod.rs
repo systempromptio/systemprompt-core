@@ -119,16 +119,9 @@ fn build_submodule_crate(extension_path: &Path, project_root: &Path, release: bo
 }
 
 fn find_cargo_manifest(project_root: &Path) -> Result<std::path::PathBuf> {
-    let paths = [
-        project_root.join("core/Cargo.toml"),
-        project_root.join("Cargo.toml"),
-    ];
-
-    for path in &paths {
-        if path.exists() {
-            return Ok(path.clone());
-        }
+    let manifest = project_root.join("Cargo.toml");
+    if manifest.exists() {
+        return Ok(manifest);
     }
-
-    bail!("Cargo.toml not found in project")
+    bail!("Cargo.toml not found in project root")
 }

@@ -1,5 +1,3 @@
-//! Module management and configuration.
-
 mod api_paths;
 mod service_category;
 mod types;
@@ -8,6 +6,7 @@ pub use api_paths::ApiPaths;
 pub use service_category::ServiceCategory;
 pub use types::{
     ApiConfig, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed, ModuleType,
+    SchemaSource,
 };
 
 use anyhow::{bail, Result};

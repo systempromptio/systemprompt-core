@@ -54,9 +54,10 @@ tokio = { workspace = true }
 # Async streaming
 futures = { workspace = true }
 
-# Shared traits and identifiers
+# Shared traits, identifiers, and extension framework
 systemprompt-traits = { path = "../traits" }
 systemprompt-identifiers = { path = "../identifiers" }
+systemprompt-extension = { path = "../extension" }
 
 # MCP protocol
 rmcp = { workspace = true }
