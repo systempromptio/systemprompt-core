@@ -78,7 +78,7 @@ pub async fn install_module_seeds_from_path(
                     );
                 }
                 std::fs::read_to_string(&seed_path)?
-            }
+            },
         };
         SqlExecutor::execute_statements_parsed(db, &sql).await?;
     }

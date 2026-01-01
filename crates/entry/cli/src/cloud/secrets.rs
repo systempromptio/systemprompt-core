@@ -196,7 +196,7 @@ fn get_tenant_and_secrets_path() -> Result<(String, PathBuf)> {
     Ok((tenant_id, secrets_path))
 }
 
-fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
+pub fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
     let content = std::fs::read_to_string(path)
         .with_context(|| format!("Failed to read {}", path.display()))?;
 
@@ -218,7 +218,7 @@ fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
     Ok(secrets)
 }
 
-fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
+pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
     secrets
         .into_iter()
         .map(|(k, v)| {
