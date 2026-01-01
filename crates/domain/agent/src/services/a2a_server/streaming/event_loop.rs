@@ -6,6 +6,7 @@ use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::{A2AEventBuilder, AgUiEventBuilder, RequestContext};
 use tokio::sync::mpsc::{UnboundedReceiver, UnboundedSender};
 
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::{Message, TaskState};
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{MessageProcessor, StreamEvent};
@@ -25,6 +26,7 @@ pub struct ProcessEventsParams {
     pub context: RequestContext,
     pub task_repo: TaskRepository,
     pub processor: Arc<MessageProcessor>,
+    pub request_id: NumberOrString,
 }
 
 impl std::fmt::Debug for ProcessEventsParams {
@@ -44,9 +46,11 @@ fn send_a2a_status_event(
     context_id: &ContextId,
     state: &str,
     is_final: bool,
+    request_id: &NumberOrString,
 ) {
     let event = json!({
         "jsonrpc": "2.0",
+        "id": request_id,
         "result": {
             "kind": "status-update",
             "taskId": task_id.as_str(),
@@ -67,6 +71,7 @@ pub async fn emit_run_started(
     context_id: &ContextId,
     task_id: &TaskId,
     task_repo: &TaskRepository,
+    request_id: &NumberOrString,
 ) {
     let working_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
@@ -77,7 +82,7 @@ pub async fn emit_run_started(
         return;
     }
 
-    send_a2a_status_event(tx, task_id, context_id, "working", false);
+    send_a2a_status_event(tx, task_id, context_id, "working", false, request_id);
 
     let a2a_event = A2AEventBuilder::task_status_update(
         task_id.clone(),
@@ -107,12 +112,21 @@ pub async fn process_events(params: ProcessEventsParams) {
         context,
         task_repo,
         processor,
+        request_id,
     } = params;
 
     let webhook_context =
         WebhookContext::new(context.user_id().as_str(), context.auth_token().as_str());
 
-    emit_run_started(&tx, &webhook_context, &context_id, &task_id, &task_repo).await;
+    emit_run_started(
+        &tx,
+        &webhook_context,
+        &context_id,
+        &task_id,
+        &task_repo,
+        &request_id,
+    )
+    .await;
 
     tracing::info!("Stream channel received, waiting for events...");
 
@@ -185,7 +199,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 };
                 handle_complete(complete_params).await;
 
-                send_a2a_status_event(&tx, &task_id, &context_id, "completed", true);
+                send_a2a_status_event(&tx, &task_id, &context_id, "completed", true, &request_id);
 
                 let a2a_event = A2AEventBuilder::task_status_update(
                     task_id.clone(),
@@ -211,7 +225,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 )
                 .await;
 
-                send_a2a_status_event(&tx, &task_id, &context_id, "failed", true);
+                send_a2a_status_event(&tx, &task_id, &context_id, "failed", true, &request_id);
 
                 let a2a_event = A2AEventBuilder::task_status_update(
                     task_id.clone(),

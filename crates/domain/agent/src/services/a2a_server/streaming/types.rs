@@ -3,6 +3,7 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ContextId, TaskId};
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
@@ -13,7 +14,7 @@ pub struct StreamContext {
     pub task_id: TaskId,
     pub context_id: ContextId,
     pub message_id: String,
-    pub request_id: Option<serde_json::Value>,
+    pub request_id: NumberOrString,
     pub task_repo: TaskRepository,
     pub state: Arc<AgentHandlerState>,
     pub processor: Arc<MessageProcessor>,

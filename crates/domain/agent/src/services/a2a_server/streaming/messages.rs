@@ -5,6 +5,7 @@ use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 use uuid::Uuid;
 
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::a2a::Message;
 use crate::services::a2a_server::handlers::AgentHandlerState;
@@ -23,7 +24,7 @@ pub async fn create_sse_stream(
     message: Message,
     agent_name: String,
     state: Arc<AgentHandlerState>,
-    request_id: Option<serde_json::Value>,
+    request_id: NumberOrString,
     context: RequestContext,
     callback_config: Option<PushNotificationConfig>,
 ) -> UnboundedReceiverStream<Event> {
@@ -102,7 +103,7 @@ pub async fn create_sse_stream(
                         "code": -32603,
                         "message": format!("Failed to initialize message processor: {e}")
                     },
-                    "id": request_id
+                    "id": &request_id
                 });
                 let _ = tx.send(Event::default().data(error_event.to_string()));
                 drop(tx);
@@ -134,6 +135,7 @@ pub async fn create_sse_stream(
                     context,
                     task_repo,
                     processor,
+                    request_id,
                 };
                 process_events(params).await;
             },

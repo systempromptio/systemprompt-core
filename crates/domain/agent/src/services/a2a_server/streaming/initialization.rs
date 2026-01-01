@@ -7,6 +7,7 @@ use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
 
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
 use crate::repository::content::PushNotificationConfigRepository;
@@ -56,7 +57,7 @@ pub async fn validate_context(
     user_id: &UserId,
     state: &Arc<AgentHandlerState>,
     tx: &UnboundedSender<Event>,
-    request_id: &Option<serde_json::Value>,
+    request_id: &NumberOrString,
 ) -> Result<(), ()> {
     let context_repo = ContextRepository::new(state.db_pool.clone());
 
@@ -96,7 +97,7 @@ pub async fn persist_initial_task(
     context: &RequestContext,
     state: &Arc<AgentHandlerState>,
     tx: &UnboundedSender<Event>,
-    request_id: &Option<serde_json::Value>,
+    request_id: &NumberOrString,
 ) -> Result<TaskRepository, ()> {
     let task_repo = TaskRepository::new(state.db_pool.clone());
     let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
