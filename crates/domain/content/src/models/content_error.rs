@@ -3,16 +3,21 @@ pub enum ContentError {
     #[error("Missing required field: {field}")]
     MissingField { field: String },
 
-    #[error("Missing organization config: {field}")]
+    #[error(
+        "Missing organization config: '{field}' in content.yaml under \
+         metadata.structured_data.organization"
+    )]
     MissingOrgConfig { field: String },
 
-    #[error("Missing article config: {field}")]
+    #[error(
+        "Missing article config: '{field}' in content.yaml under metadata.structured_data.article"
+    )]
     MissingArticleConfig { field: String },
 
     #[error("Invalid content: {message}")]
     InvalidContent { message: String },
 
-    #[error("Missing branding config: {field}")]
+    #[error("Missing branding config: '{field}' in web.yaml under branding")]
     MissingBrandingConfig { field: String },
 }
 

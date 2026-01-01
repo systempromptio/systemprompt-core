@@ -169,6 +169,26 @@ pub async fn execute(skip_push: bool) -> Result<()> {
         CliService::key_value("URL", &url);
     }
 
+    CliService::section("Syncing Secrets");
+    let profile_path = ProfileBootstrap::get_path()?;
+    let profile_dir = std::path::Path::new(profile_path)
+        .parent()
+        .ok_or_else(|| anyhow!("Invalid profile path"))?;
+    let secrets_path = profile_dir.join("secrets.json");
+
+    if secrets_path.exists() {
+        let secrets = super::secrets::load_secrets_json(&secrets_path)?;
+        if !secrets.is_empty() {
+            let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
+            let spinner = CliService::spinner("Syncing secrets...");
+            let keys = api_client.set_secrets(tenant_id, env_secrets).await?;
+            spinner.finish_and_clear();
+            CliService::success(&format!("Synced {} secrets", keys.len()));
+        }
+    } else {
+        CliService::warning("No secrets.json found - skipping secrets sync");
+    }
+
     Ok(())
 }
 

@@ -1,5 +1,7 @@
 use std::path::PathBuf;
-use systemprompt_models::modules::{ApiConfig, Module, ModuleSchema, ModuleSeed, SchemaSource, SeedSource};
+use systemprompt_models::modules::{
+    ApiConfig, Module, ModuleSchema, ModuleSeed, SchemaSource, SeedSource,
+};
 
 pub fn define() -> Module {
     Module {
@@ -129,7 +131,8 @@ pub fn define() -> Module {
         seeds: Some(vec![
             ModuleSeed {
                 sql: SeedSource::Inline(
-                    include_str!("../../../../domain/oauth/src/queries/seed/webauthn_client.sql").into(),
+                    include_str!("../../../../domain/oauth/src/queries/seed/webauthn_client.sql")
+                        .into(),
                 ),
                 table: "oauth_clients".into(),
                 check_column: "client_id".into(),
@@ -137,7 +140,10 @@ pub fn define() -> Module {
             },
             ModuleSeed {
                 sql: SeedSource::Inline(
-                    include_str!("../../../../domain/oauth/src/queries/seed/webauthn_client_scopes.sql").into(),
+                    include_str!(
+                        "../../../../domain/oauth/src/queries/seed/webauthn_client_scopes.sql"
+                    )
+                    .into(),
                 ),
                 table: "oauth_client_scopes".into(),
                 check_column: "client_id".into(),
