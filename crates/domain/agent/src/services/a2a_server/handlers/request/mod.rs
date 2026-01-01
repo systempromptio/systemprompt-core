@@ -246,16 +246,7 @@ async fn handle_streaming_path(
 ) -> axum::response::Response {
     tracing::info!("Processing message/stream request with SSE response");
 
-    let request_id_value = Some(match request_id {
-        crate::models::a2a::jsonrpc::NumberOrString::String(ref s) => {
-            serde_json::Value::String(s.to_string())
-        },
-        crate::models::a2a::jsonrpc::NumberOrString::Number(n) => {
-            serde_json::Value::Number(serde_json::Number::from(n))
-        },
-    });
-
-    let stream = handle_streaming_request(a2a_request, state, request_id_value, context).await;
+    let stream = handle_streaming_request(a2a_request, state, request_id, context).await;
 
     let latency_ms = start_time.elapsed().as_millis();
     tracing::info!(latency_ms = %latency_ms, "SSE stream initialized for message/stream");

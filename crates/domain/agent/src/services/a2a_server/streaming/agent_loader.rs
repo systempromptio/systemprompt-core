@@ -3,6 +3,7 @@ use serde_json::json;
 use systemprompt_identifiers::TaskId;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::TaskState;
 use crate::models::AgentRuntimeInfo;
 use crate::repository::task::TaskRepository;
@@ -13,7 +14,7 @@ pub async fn load_agent_runtime(
     task_id: &TaskId,
     task_repo: &TaskRepository,
     tx: &UnboundedSender<Event>,
-    request_id: &Option<serde_json::Value>,
+    request_id: &NumberOrString,
 ) -> Result<AgentRuntimeInfo, ()> {
     match AgentRegistry::new().await {
         Ok(registry) => match registry.get_agent(agent_name).await {

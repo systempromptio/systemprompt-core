@@ -4,13 +4,14 @@ use std::sync::Arc;
 use systemprompt_models::RequestContext;
 
 use super::validation::validate_message_context;
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::streaming::create_sse_stream;
 
 pub async fn handle_streaming_request(
     request: crate::models::a2a::A2aRequestParams,
     state: Arc<AgentHandlerState>,
-    request_id: Option<serde_json::Value>,
+    request_id: NumberOrString,
     context: RequestContext,
 ) -> impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>> + Send {
     use crate::models::a2a::*;
@@ -51,7 +52,7 @@ pub async fn handle_streaming_request(
                         "message": "Invalid params",
                         "data": err
                     },
-                    "id": request_id
+                    "id": &request_id
                 });
 
                 let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
@@ -86,7 +87,7 @@ pub async fn handle_streaming_request(
                     "message": "Method not found",
                     "data": "Only message/stream requests are supported for streaming"
                 },
-                "id": request_id
+                "id": &request_id
             });
 
             let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
