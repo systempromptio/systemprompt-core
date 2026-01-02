@@ -143,7 +143,11 @@ impl ContentLocalSync {
 
             let source = IngestionSource::new(&entry.source_id, &entry.category_id, &allowed_types);
             let report = ingestion_service
-                .ingest_directory(source_path, &source, IngestionOptions::default())
+                .ingest_directory(
+                    source_path,
+                    &source,
+                    IngestionOptions::default().with_recursive(true),
+                )
                 .await?;
 
             result.items_synced += report.files_processed;
