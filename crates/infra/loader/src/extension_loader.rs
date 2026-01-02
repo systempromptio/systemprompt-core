@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 
@@ -100,6 +101,16 @@ impl ExtensionLoader {
         Self::get_enabled_mcp_extensions(project_root)
             .iter()
             .filter_map(|e| e.binary_name().map(String::from))
+            .collect()
+    }
+
+    pub fn build_binary_map(project_root: &Path) -> HashMap<String, DiscoveredExtension> {
+        Self::discover(project_root)
+            .into_iter()
+            .filter_map(|ext| {
+                let name = ext.binary_name()?.to_string();
+                Some((name, ext))
+            })
             .collect()
     }
 

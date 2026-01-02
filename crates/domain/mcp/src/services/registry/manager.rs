@@ -1,16 +1,11 @@
 use anyhow::{anyhow, Result};
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use systemprompt_loader::ExtensionRegistry;
 use systemprompt_models::Config;
 
 use crate::services::deployment::DeploymentService;
 use crate::ServerManifest;
-
-fn resolve_mcp_server_path(
-    deployment: &systemprompt_models::mcp::deployment::Deployment,
-) -> PathBuf {
-    PathBuf::from(&deployment.path)
-}
 
 #[derive(Debug, Clone, Copy)]
 pub struct RegistryService;
@@ -75,6 +70,8 @@ impl RegistryService {
     pub fn get_enabled_servers_as_config() -> Result<Vec<crate::McpServerConfig>> {
         use systemprompt_loader::ConfigLoader;
 
+        let global_config = Config::get()?;
+        let registry = ExtensionRegistry::build(Path::new(&global_config.system_path));
         let services_config = ConfigLoader::load()?;
         let mut enabled = Vec::new();
 
@@ -87,7 +84,7 @@ impl RegistryService {
                 continue;
             }
 
-            let crate_path = PathBuf::from(&deployment.path);
+            let crate_path = registry.get_path(&deployment.binary)?;
             let display_name = deployment
                 .package
                 .clone()
@@ -140,6 +137,8 @@ pub fn get_enabled_servers(
 pub fn get_all_servers(
     config: &systemprompt_models::ServicesConfig,
 ) -> Result<Vec<crate::McpServerConfig>> {
+    let global_config = Config::get()?;
+    let registry = ExtensionRegistry::build(Path::new(&global_config.system_path));
     let servers = RegistryService::list_servers();
     let mut configs = Vec::new();
 
@@ -150,7 +149,7 @@ pub fn get_all_servers(
             .get(&server_name)
             .ok_or_else(|| anyhow!("No deployment config for {server_name}"))?;
 
-        let crate_path = resolve_mcp_server_path(deployment);
+        let crate_path = registry.get_path(&deployment.binary)?;
 
         let server_config = crate::McpServerConfig::from_manifest_and_deployment(
             server_name,
@@ -169,9 +168,11 @@ pub fn get_server_by_name(
     name: &str,
 ) -> Result<Option<crate::McpServerConfig>> {
     if let Some(deployment) = config.mcp_servers.get(name) {
+        let global_config = Config::get()?;
+        let registry = ExtensionRegistry::build(Path::new(&global_config.system_path));
         let manifest = RegistryService::load_manifest(name)?;
 
-        let crate_path = resolve_mcp_server_path(deployment);
+        let crate_path = registry.get_path(&deployment.binary)?;
 
         let server_config = crate::McpServerConfig::from_manifest_and_deployment(
             name.to_string(),
@@ -193,13 +194,15 @@ pub fn get_servers_by_oauth_requirement(
     config: &systemprompt_models::ServicesConfig,
     oauth_required: bool,
 ) -> Result<Vec<crate::McpServerConfig>> {
+    let global_config = Config::get()?;
+    let registry = ExtensionRegistry::build(Path::new(&global_config.system_path));
     let mut configs = Vec::new();
 
     for (server_name, deployment) in &config.mcp_servers {
         if deployment.enabled && deployment.oauth.required == oauth_required {
             let manifest = RegistryService::load_manifest(server_name)?;
 
-            let crate_path = resolve_mcp_server_path(deployment);
+            let crate_path = registry.get_path(&deployment.binary)?;
 
             let server_config = crate::McpServerConfig::from_manifest_and_deployment(
                 server_name.clone(),
