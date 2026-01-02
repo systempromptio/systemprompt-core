@@ -32,7 +32,7 @@ pub fn mcp_protocol_version() -> String {
 }
 
 pub mod registry {
-    pub use crate::services::registry::export_registry_servers;
+    pub use crate::services::registry::RegistryManager;
 }
 
 pub use cli::{list_services, show_status, start_services, stop_services};

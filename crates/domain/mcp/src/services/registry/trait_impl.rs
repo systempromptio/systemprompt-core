@@ -9,7 +9,6 @@ use systemprompt_models::mcp::{
 use systemprompt_models::{RequestContext, ServicesConfig};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
 
-use super::manager::RegistryService;
 use super::RegistryManager;
 use crate::services::client::McpClient;
 use crate::services::deployment::DeploymentService;
@@ -17,11 +16,13 @@ use crate::services::deployment::DeploymentService;
 #[async_trait]
 impl McpRegistry for RegistryManager {
     async fn list_servers(&self) -> Result<Vec<String>> {
-        Ok(RegistryService::list_servers())
+        use systemprompt_loader::ConfigLoader;
+        let config = ConfigLoader::load()?;
+        Ok(config.mcp_servers.keys().cloned().collect())
     }
 
-    async fn get_server_manifest(&self, name: &str) -> Result<Option<ServerManifest>> {
-        Ok(RegistryService::load_manifest(name).ok())
+    async fn get_server_manifest(&self, _name: &str) -> Result<Option<ServerManifest>> {
+        Ok(None)
     }
 
     async fn find_server(&self, name: &str) -> Result<Option<McpServerState>> {
@@ -35,8 +36,9 @@ impl McpRegistry for RegistryManager {
     }
 
     async fn server_exists(&self, name: &str) -> Result<bool> {
-        let servers = RegistryService::list_servers();
-        Ok(servers.contains(&name.to_string()))
+        use systemprompt_loader::ConfigLoader;
+        let config = ConfigLoader::load()?;
+        Ok(config.mcp_servers.contains_key(name))
     }
 }
 
