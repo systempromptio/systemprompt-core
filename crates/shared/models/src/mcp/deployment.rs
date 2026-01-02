@@ -21,7 +21,6 @@ pub struct DeploymentConfig {
 pub struct Deployment {
     pub binary: String,
     pub package: Option<String>,
-    pub path: String,
     pub port: u16,
     pub endpoint: String,
     pub enabled: bool,
