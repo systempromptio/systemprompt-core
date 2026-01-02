@@ -96,6 +96,14 @@ impl CloudCommands {
             _ => false,
         }
     }
+
+    pub fn requires_secrets(&self) -> bool {
+        match self {
+            Self::Status | Self::Logs { .. } | Self::Restart { .. } => false,
+            Self::Sync { command: Some(_) } | Self::Secrets { .. } => true,
+            _ => false,
+        }
+    }
 }
 
 pub async fn execute(cmd: CloudCommands) -> Result<()> {
