@@ -4,6 +4,8 @@ use std::path::Path;
 
 use systemprompt_models::{DiscoveredExtension, ExtensionManifest};
 
+const CARGO_TARGET: &str = "target";
+
 #[derive(Debug, Clone, Copy)]
 pub struct ExtensionLoader;
 
@@ -77,7 +79,7 @@ impl ExtensionLoader {
 
     pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
         let extensions = Self::get_enabled_mcp_extensions(project_root);
-        let target_dir = project_root.join("target/release");
+        let target_dir = project_root.join(CARGO_TARGET).join("release");
 
         extensions
             .into_iter()

@@ -19,12 +19,6 @@ pub struct PathsConfig {
     pub storage: Option<String>,
 
     #[serde(default)]
-    pub cargo_target: Option<String>,
-
-    #[serde(default)]
-    pub binary_dir: Option<String>,
-
-    #[serde(default)]
     pub geoip_database: Option<String>,
 
     #[serde(default)]
@@ -47,12 +41,6 @@ pub struct PathsConfig {
 
     #[serde(default)]
     pub scg_assets: Option<String>,
-
-    #[serde(default)]
-    pub dockerfile: Option<String>,
-
-    #[serde(default)]
-    pub web_dist: Option<String>,
 }
 
 impl PathsConfig {
@@ -63,8 +51,6 @@ impl PathsConfig {
         self.skills = self.skills.as_ref().map(|p| resolve_path(base, p));
         self.config = self.config.as_ref().map(|p| resolve_path(base, p));
         self.storage = self.storage.as_ref().map(|p| resolve_path(base, p));
-        self.cargo_target = self.cargo_target.as_ref().map(|p| resolve_path(base, p));
-        self.binary_dir = self.binary_dir.as_ref().map(|p| resolve_path(base, p));
         self.geoip_database = self.geoip_database.as_ref().map(|p| resolve_path(base, p));
         self.ai_config = self.ai_config.as_ref().map(|p| resolve_path(base, p));
         self.content_config = self.content_config.as_ref().map(|p| resolve_path(base, p));
@@ -73,8 +59,6 @@ impl PathsConfig {
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
         self.scg_templates = self.scg_templates.as_ref().map(|p| resolve_path(base, p));
         self.scg_assets = self.scg_assets.as_ref().map(|p| resolve_path(base, p));
-        self.dockerfile = self.dockerfile.as_ref().map(|p| resolve_path(base, p));
-        self.web_dist = self.web_dist.as_ref().map(|p| resolve_path(base, p));
     }
 }
 

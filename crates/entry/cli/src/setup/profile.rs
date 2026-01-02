@@ -82,8 +82,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             skills: Some(format!("{}/skills", services_path)),
             config: Some(format!("{}/config/config.yaml", services_path)),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
-            cargo_target: Some(format!("{}/target", system_path)),
-            binary_dir: Some(format!("{}/target/debug", system_path)),
             geoip_database: None,
             ai_config: Some(format!("{}/ai/config.yaml", services_path)),
             content_config: Some(format!("{}/content/config.yaml", services_path)),
@@ -92,8 +90,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             web_path: Some(format!("{}/web/dist", core_path)),
             scg_templates: Some(format!("{}/templates", core_path)),
             scg_assets: Some(format!("{}/assets", core_path)),
-            dockerfile: Some(ctx.dockerfile().to_string_lossy().to_string()),
-            web_dist: Some(format!("{}/web/dist", core_path)),
         },
         security: SecurityConfig {
             issuer: format!("systemprompt-{}", env_name),

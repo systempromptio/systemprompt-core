@@ -2,25 +2,11 @@ use anyhow::{anyhow, Result};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use crate::profile_bootstrap::ProfileBootstrap;
+use crate::config::Config;
+
+const WEB_DIST_RELATIVE: &str = "core/web/dist";
 
 static PATH_CONFIG: OnceLock<PathConfig> = OnceLock::new();
-
-fn profile_error(field: &str, message: &str) -> anyhow::Error {
-    let profile_path = ProfileBootstrap::get_path()
-        .map(ToString::to_string)
-        .unwrap_or_else(|_| "<not set>".to_string());
-
-    anyhow!(
-        "Profile Error: {}\n\n  Field: paths.{}\n  Profile: {}\n\n  To fix:\n  - Run \
-         'systemprompt cloud config' to regenerate profile\n  - Or manually add paths.{} to your \
-         profile",
-        message,
-        field,
-        profile_path,
-        field
-    )
-}
 
 #[derive(Debug, Clone)]
 pub struct PathConfig {
@@ -32,8 +18,7 @@ impl PathConfig {
         if PATH_CONFIG.get().is_some() {
             return Ok(());
         }
-        let config = Self::from_profile()?;
-        config.validate()?;
+        let config = Self::from_config()?;
         let _ = PATH_CONFIG.set(config);
         Ok(())
     }
@@ -44,29 +29,14 @@ impl PathConfig {
             .ok_or_else(|| anyhow!("PathConfig::init() not called"))
     }
 
-    pub fn from_profile() -> Result<Self> {
-        let profile =
-            ProfileBootstrap::get().map_err(|e| anyhow!("Profile not initialized: {}", e))?;
-
-        let web_dist = profile
-            .paths
-            .web_dist
-            .as_ref()
-            .ok_or_else(|| profile_error("web_dist", "Required path not configured"))?;
-
-        Ok(Self {
-            web_dist: PathBuf::from(web_dist),
-        })
+    pub fn from_config() -> Result<Self> {
+        let config = Config::get()?;
+        let web_dist = PathBuf::from(&config.system_path).join(WEB_DIST_RELATIVE);
+        Ok(Self { web_dist })
     }
 
-    pub fn validate(&self) -> Result<()> {
-        if !self.web_dist.is_absolute() {
-            return Err(profile_error(
-                "web_dist",
-                &format!("Must be an absolute path, got: {}", self.web_dist.display()),
-            ));
-        }
-        Ok(())
+    pub fn from_profile() -> Result<Self> {
+        Self::from_config()
     }
 
     pub const fn web_dist(&self) -> &PathBuf {

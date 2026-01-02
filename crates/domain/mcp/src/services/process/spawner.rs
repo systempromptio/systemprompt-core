@@ -138,13 +138,15 @@ pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
 }
 
 pub fn build_server(config: &McpServerConfig) -> Result<()> {
+    use std::path::PathBuf;
     use systemprompt_models::Config;
-    let cargo_target_dir = &Config::get()?.cargo_target_dir;
+    let global_config = Config::get()?;
+    let cargo_target_dir = PathBuf::from(&global_config.system_path).join("target");
 
     tracing::info!(service = %config.name, binary = %config.binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")
-        .env("CARGO_TARGET_DIR", cargo_target_dir)
+        .env("CARGO_TARGET_DIR", &cargo_target_dir)
         .args([
             "build",
             "--package",

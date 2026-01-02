@@ -109,7 +109,6 @@ pub struct SystemPromptEnvVars {
     pub services_path: Option<String>,
     pub skills_path: Option<String>,
     pub config_path: Option<String>,
-    pub binary_dir: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -135,7 +134,6 @@ pub struct RateLimitEnvVars {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PathsEnvVars {
     pub system_path: String,
-    pub cargo_target_dir: String,
     pub services: String,
     pub skills: String,
     pub services_config: String,
