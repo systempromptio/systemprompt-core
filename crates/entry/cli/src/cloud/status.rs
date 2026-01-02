@@ -1,16 +1,13 @@
 //! Cloud status command
 
 use anyhow::Result;
-use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudPath, CredentialsBootstrap, TenantStore,
-};
+use systemprompt_cloud::{CloudApiClient, CredentialsBootstrap};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 pub async fn execute() -> Result<()> {
     CliService::section("SystemPrompt Cloud Status");
 
-    let cloud_paths = get_cloud_paths()?;
     let mut tenant_id_from_profile: Option<String> = None;
 
     match ProfileBootstrap::get() {
@@ -41,35 +38,6 @@ pub async fn execute() -> Result<()> {
         },
     }
 
-    if cloud_paths.exists(CloudPath::Tenants) {
-        let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-        if let Ok(store) = TenantStore::load_from_path(&tenants_path) {
-            CliService::key_value("Stored tenants", &store.tenants.len().to_string());
-            CliService::key_value(
-                "Last synced",
-                &store.synced_at.format("%Y-%m-%d %H:%M").to_string(),
-            );
-
-            if let Some(ref tid) = tenant_id_from_profile {
-                if let Some(tenant) = store.find_tenant(tid) {
-                    CliService::key_value("Tenant name", &tenant.name);
-                    if let Some(ref app_id) = tenant.app_id {
-                        CliService::key_value("App ID", app_id);
-                    }
-                    if let Some(ref hostname) = tenant.hostname {
-                        CliService::key_value("Hostname", hostname);
-                    }
-                    if let Some(ref region) = tenant.region {
-                        CliService::key_value("Region", region);
-                    }
-                } else {
-                    CliService::warning(&format!("Tenant {} not found", tid));
-                }
-            }
-        }
-    } else {
-        CliService::key_value("Tenant store", "Not found (run 'cloud login')");
-    }
 
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {
@@ -86,25 +54,46 @@ pub async fn execute() -> Result<()> {
                 },
             );
 
-            if let Some(ref tenant_id) = tenant_id_from_profile {
-                let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
-                let spinner = CliService::spinner("Fetching tenant status...");
-                match api_client.get_tenant_status(tenant_id).await {
-                    Ok(status) => {
-                        spinner.finish_and_clear();
-                        CliService::key_value("Tenant Status", &status.status);
-                        if let Some(msg) = status.message {
-                            CliService::info(&format!("Message: {}", msg));
+            let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+            let spinner = CliService::spinner("Fetching tenants...");
+
+            match api_client.list_tenants().await {
+                Ok(tenants) => {
+                    spinner.finish_and_clear();
+                    if tenants.is_empty() {
+                        CliService::info("No tenants found for this account");
+                    } else {
+                        for tenant in &tenants {
+                            CliService::section(&format!(
+                                "Tenant: {} ({})",
+                                tenant.name, tenant.id
+                            ));
+
+                            match api_client.get_tenant_status(&tenant.id).await {
+                                Ok(status) => {
+                                    CliService::key_value("Status", &status.status);
+                                    if let Some(url) = &status.app_url {
+                                        CliService::key_value("URL", url);
+                                    }
+                                    if let Some(msg) = &status.message {
+                                        CliService::info(&format!("Message: {}", msg));
+                                    }
+                                },
+                                Err(e) => {
+                                    CliService::warning(&format!("Could not fetch status: {}", e));
+                                },
+                            }
+
+                            if tenant_id_from_profile.as_deref() == Some(tenant.id.as_str()) {
+                                CliService::info("(configured in profile)");
+                            }
                         }
-                        if let Some(url) = status.app_url {
-                            CliService::key_value("URL", &url);
-                        }
-                    },
-                    Err(e) => {
-                        spinner.finish_and_clear();
-                        CliService::warning(&format!("Could not fetch tenant status: {}", e));
-                    },
-                }
+                    }
+                },
+                Err(e) => {
+                    spinner.finish_and_clear();
+                    CliService::warning(&format!("Could not fetch tenants: {}", e));
+                },
             }
         },
         Ok(None) => {

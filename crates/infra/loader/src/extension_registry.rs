@@ -35,9 +35,7 @@ impl ExtensionRegistry {
         self.discovered
             .get(binary_name)
             .map(|ext| ext.path.clone())
-            .ok_or_else(|| {
-                anyhow::anyhow!("No manifest.yaml found for binary '{}'", binary_name)
-            })
+            .ok_or_else(|| anyhow::anyhow!("No manifest.yaml found for binary '{}'", binary_name))
     }
 
     pub fn get_extension(&self, binary_name: &str) -> Option<&DiscoveredExtension> {
@@ -45,7 +43,9 @@ impl ExtensionRegistry {
     }
 
     pub fn has_extension(&self, binary_name: &str) -> bool {
-        self.mcp_path.as_ref().is_some_and(|p| p.join(binary_name).exists())
+        self.mcp_path
+            .as_ref()
+            .is_some_and(|p| p.join(binary_name).exists())
             || self.discovered.contains_key(binary_name)
     }
 }
