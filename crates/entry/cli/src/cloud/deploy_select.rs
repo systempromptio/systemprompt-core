@@ -6,7 +6,6 @@ use dialoguer::Select;
 use systemprompt_cloud::{get_cloud_paths, CloudPath, ProfilePath, ProjectContext, TenantStore};
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::ProfileLoader;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
 pub struct DeployableProfile {
@@ -95,10 +94,6 @@ pub fn resolve_profile(profile_name: Option<&str>) -> Result<(Profile, PathBuf)>
         return resolve_profile_by_name(name);
     }
 
-    if ProfileBootstrap::is_initialized() || std::env::var("SYSTEMPROMPT_PROFILE").is_ok() {
-        return resolve_profile_from_env();
-    }
-
     resolve_profile_interactive()
 }
 
@@ -114,14 +109,6 @@ fn resolve_profile_by_name(name: &str) -> Result<(Profile, PathBuf)> {
         .with_context(|| format!("Failed to load profile: {}", name))?;
 
     Ok((profile, profile_path))
-}
-
-fn resolve_profile_from_env() -> Result<(Profile, PathBuf)> {
-    let profile = ProfileBootstrap::try_init()
-        .context("Failed to load profile from SYSTEMPROMPT_PROFILE")?
-        .clone();
-    let path = PathBuf::from(ProfileBootstrap::get_path()?);
-    Ok((profile, path))
 }
 
 fn resolve_profile_interactive() -> Result<(Profile, PathBuf)> {
