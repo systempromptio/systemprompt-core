@@ -10,6 +10,7 @@ pub fn build_docker_image(context_dir: &Path, dockerfile: &Path, image: &str) ->
         "docker",
         &[
             "build",
+            "--no-cache",
             "-f",
             &dockerfile.to_string_lossy(),
             "-t",
