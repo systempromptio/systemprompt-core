@@ -1,5 +1,3 @@
-//! Cloud deploy command - builds and deploys to SystemPrompt Cloud
-
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -7,9 +5,9 @@ use systemprompt_cloud::{
     get_cloud_paths, CloudApiClient, CloudError, CloudPath, CredentialsBootstrap, TenantStore,
 };
 use systemprompt_core_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
+use super::deploy_select::resolve_profile;
 use crate::common::docker::{build_docker_image, docker_login, docker_push};
 use crate::common::project::ProjectRoot;
 
@@ -85,14 +83,13 @@ impl DeployConfig {
     }
 }
 
-pub async fn execute(skip_push: bool) -> Result<()> {
+pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
     let creds = CredentialsBootstrap::require()
         .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")?;
 
-    let profile = ProfileBootstrap::get()
-        .context("Profile required for deployment. Set SYSTEMPROMPT_PROFILE")?;
+    let (profile, profile_path) = resolve_profile(profile_name.as_deref())?;
 
     if let Some(cloud) = &profile.cloud {
         if !cloud.enabled {
@@ -122,7 +119,7 @@ pub async fn execute(skip_push: bool) -> Result<()> {
 
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
-    let config = DeployConfig::from_profile(profile)?;
+    let config = DeployConfig::from_profile(&profile)?;
 
     CliService::key_value("Tenant", tenant_name);
     CliService::key_value("Binary", &config.binary.display().to_string());
@@ -170,8 +167,7 @@ pub async fn execute(skip_push: bool) -> Result<()> {
     }
 
     CliService::section("Syncing Secrets");
-    let profile_path = ProfileBootstrap::get_path()?;
-    let profile_dir = std::path::Path::new(profile_path)
+    let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;
     let secrets_path = profile_dir.join("secrets.json");

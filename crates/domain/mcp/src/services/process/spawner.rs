@@ -55,8 +55,8 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
 
     let profile_path = ProfileBootstrap::get_path()
         .context("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server")?;
-    let secrets = SecretsBootstrap::get()
-        .context("Secrets not available - cannot spawn MCP server")?;
+    let secrets =
+        SecretsBootstrap::get().context("Secrets not available - cannot spawn MCP server")?;
 
     let mut child_command = Command::new(&binary_path);
 

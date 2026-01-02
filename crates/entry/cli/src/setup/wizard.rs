@@ -1,21 +1,11 @@
-//! Interactive setup wizard for local development environment.
-
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, MultiSelect};
+use dialoguer::{Confirm, Input};
 use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
 
 use super::{postgres, profile, secrets};
 
-/// Available environments for setup
-const ENVIRONMENTS: &[(&str, &str)] = &[
-    ("dev", "Development - Local development environment"),
-    ("staging", "Staging - Pre-production testing"),
-    ("prod", "Production - Production environment"),
-];
-
-/// Execute the setup wizard
 pub async fn execute(env_arg: Option<String>) -> Result<()> {
     CliService::section("SystemPrompt Setup Wizard");
 
@@ -91,7 +81,6 @@ pub async fn execute(env_arg: Option<String>) -> Result<()> {
     Ok(())
 }
 
-/// Detect the project root directory
 fn detect_project_root() -> Result<PathBuf> {
     let cwd = std::env::current_dir().context("Failed to get current directory")?;
 
@@ -120,25 +109,24 @@ fn detect_project_root() -> Result<PathBuf> {
     Ok(cwd)
 }
 
-/// Interactive environment selection
 fn select_environments() -> Result<Vec<String>> {
-    let items: Vec<&str> = ENVIRONMENTS.iter().map(|(_, desc)| *desc).collect();
+    CliService::info("Enter environment names (comma-separated, e.g., 'dev, staging, prod')");
+    CliService::info("Press Enter for default: dev");
 
-    let selection = MultiSelect::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select environments to configure (Space to select, Enter to confirm)")
-        .items(&items)
-        .defaults(&[true, false, false])
-        .interact()?;
+    let input: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Environment names")
+        .default("dev".to_string())
+        .interact_text()?;
 
-    let selected: Vec<String> = selection
-        .iter()
-        .map(|&i| ENVIRONMENTS[i].0.to_string())
+    let names: Vec<String> = input
+        .split(',')
+        .map(|s| s.trim().to_lowercase())
+        .filter(|s| !s.is_empty())
         .collect();
 
-    Ok(selected)
+    Ok(names)
 }
 
-/// Print summary and next steps
 fn print_summary(profiles: &[(String, PathBuf)]) {
     CliService::section("Setup Complete!");
 
