@@ -48,16 +48,6 @@ impl BinaryPaths {
         Self::resolve_binary(binary_name).is_ok()
     }
 
-    pub fn get_all_binary_paths(binary_name: &str) -> Result<(PathBuf, PathBuf)> {
-        let config = Config::get()?;
-        let target_dir = PathBuf::from(&config.system_path).join(CARGO_TARGET);
-
-        Ok((
-            target_dir.join("debug").join(binary_name),
-            target_dir.join("release").join(binary_name),
-        ))
-    }
-
     pub fn resolve_binary_with_path(
         binary_name: &str,
         crate_path: Option<&Path>,
