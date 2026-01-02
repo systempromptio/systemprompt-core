@@ -136,12 +136,12 @@ async fn main() -> Result<()> {
         console::set_colors_enabled(false);
     }
 
-    let requires_profile = match &cli.command {
-        Some(Commands::Cloud(cmd)) => cmd.requires_profile(),
-        Some(Commands::Setup(_)) => false,
-        Some(Commands::Build(_)) => false,
-        Some(_) => true,
-        None => true,
+    let (requires_profile, requires_secrets) = match &cli.command {
+        Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
+        Some(Commands::Setup(_)) => (false, false),
+        Some(Commands::Build(_)) => (false, false),
+        Some(_) => (true, true),
+        None => (true, true),
     };
 
     if requires_profile {
@@ -150,7 +150,9 @@ async fn main() -> Result<()> {
              full path of your profile file",
         )?;
 
-        SecretsBootstrap::init().context("Secrets initialization failed")?;
+        if requires_secrets {
+            SecretsBootstrap::init().context("Secrets initialization failed")?;
+        }
 
         if let Err(e) = CredentialsBootstrap::init() {
             tracing::debug!("Credentials bootstrap: {}", e);
