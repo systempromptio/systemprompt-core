@@ -156,6 +156,7 @@ async fn ingest_source(
     config: &ContentSourceConfigRaw,
 ) -> Result<IngestionReport, crate::ContentError> {
     let override_existing = config.indexing.is_some_and(|i| i.override_existing);
+    let recursive = config.indexing.is_some_and(|i| i.recursive);
     let allowed_types: Vec<&str> = config
         .allowed_content_types
         .iter()
@@ -171,7 +172,9 @@ async fn ingest_source(
         .ingest_directory(
             path,
             &source,
-            IngestionOptions::default().with_override(override_existing),
+            IngestionOptions::default()
+                .with_override(override_existing)
+                .with_recursive(recursive),
         )
         .await
 }
