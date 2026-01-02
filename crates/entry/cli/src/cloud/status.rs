@@ -21,7 +21,10 @@ pub async fn execute() -> Result<()> {
             );
 
             if let Some(cloud) = &profile.cloud {
-                CliService::key_value("Cloud enabled", if cloud.enabled { "Yes" } else { "No" });
+                CliService::key_value(
+                    "Cloud enabled",
+                    if cloud.cli_enabled { "Yes" } else { "No" },
+                );
                 CliService::key_value("Credentials path", &cloud.credentials_path);
                 CliService::key_value("Validation mode", &format!("{:?}", cloud.validation));
 

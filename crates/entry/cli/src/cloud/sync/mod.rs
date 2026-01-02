@@ -127,8 +127,8 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         ProfileBootstrap::get().context("Profile required for sync. Set SYSTEMPROMPT_PROFILE")?;
 
     if let Some(cloud) = &profile.cloud {
-        if !cloud.enabled {
-            bail!("Cloud features are disabled in this profile. Set cloud.enabled: true");
+        if !cloud.cli_enabled {
+            bail!("Cloud features are disabled in this profile. Set cloud.cli_enabled: true");
         }
     }
 

@@ -109,7 +109,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         .as_ref()
         .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
 
-    if !cloud_config.enabled {
+    if !cloud_config.cli_enabled {
         bail!("Cloud features are disabled in this profile. Set cloud.enabled: true");
     }
 

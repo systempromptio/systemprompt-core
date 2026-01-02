@@ -52,11 +52,32 @@ fn substitute_env_vars(content: &str) -> String {
         .to_string()
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum ProfileType {
+    #[default]
+    Local,
+    Cloud,
+}
+
+impl ProfileType {
+    pub const fn is_cloud(&self) -> bool {
+        matches!(self, Self::Cloud)
+    }
+
+    pub const fn is_local(&self) -> bool {
+        matches!(self, Self::Local)
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Profile {
     pub name: String,
 
     pub display_name: String,
+
+    #[serde(default)]
+    pub target: ProfileType,
 
     pub site: SiteConfig,
 
@@ -105,11 +126,10 @@ impl Profile {
 
     pub fn validate(&self) -> Result<()> {
         let mut errors: Vec<String> = Vec::new();
-        let is_prod = self.runtime.environment.is_production();
+        let is_cloud = self.target.is_cloud();
 
         self.validate_required_fields(&mut errors);
-        self.validate_required_paths(&mut errors, is_prod);
-        self.validate_optional_paths(&mut errors, is_prod);
+        self.validate_paths(&mut errors, is_cloud);
         self.validate_security_settings(&mut errors);
 
         if errors.is_empty() {
@@ -120,6 +140,67 @@ impl Profile {
                 self.name,
                 errors.join("\n  - ")
             )
+        }
+    }
+
+    fn validate_paths(&self, errors: &mut Vec<String>, is_cloud: bool) {
+        if is_cloud {
+            self.validate_cloud_paths(errors);
+        } else {
+            self.validate_local_paths(errors);
+        }
+    }
+
+    fn validate_cloud_paths(&self, errors: &mut Vec<String>) {
+        Self::require_non_empty(errors, &self.paths.system, "Paths system");
+        Self::require_non_empty(errors, &self.paths.core, "Paths core");
+        Self::require_non_empty(errors, &self.paths.services, "Paths services");
+
+        for (name, path) in [
+            ("system", self.paths.system.as_str()),
+            ("core", self.paths.core.as_str()),
+            ("services", self.paths.services.as_str()),
+        ] {
+            if !path.is_empty() && !path.starts_with("/app") {
+                errors.push(format!(
+                    "Cloud profile {} path should start with /app, got: {}",
+                    name, path
+                ));
+            }
+        }
+    }
+
+    fn validate_local_paths(&self, errors: &mut Vec<String>) {
+        Self::validate_local_required_path(errors, "system", &self.paths.system);
+        Self::validate_local_required_path(errors, "core", &self.paths.core);
+        Self::validate_local_required_path(errors, "services", &self.paths.services);
+
+        Self::validate_local_optional_path(errors, "skills", &self.paths.skills);
+        Self::validate_local_optional_path(errors, "config", &self.paths.config);
+        Self::validate_local_optional_path(errors, "storage", &self.paths.storage);
+        Self::validate_local_optional_path(errors, "geoip_database", &self.paths.geoip_database);
+        Self::validate_local_optional_path(errors, "content_config", &self.paths.content_config);
+        Self::validate_local_optional_path(errors, "web_config", &self.paths.web_config);
+        Self::validate_local_optional_path(errors, "web_path", &self.paths.web_path);
+        Self::validate_local_optional_path(errors, "dockerfile", &self.paths.dockerfile);
+    }
+
+    fn validate_local_required_path(errors: &mut Vec<String>, name: &str, path: &str) {
+        if path.is_empty() {
+            errors.push(format!("Paths {} is required", name));
+            return;
+        }
+
+        if !Path::new(path).exists() {
+            errors.push(format!("{} path does not exist: {}", name, path));
+        }
+    }
+
+    fn validate_local_optional_path(errors: &mut Vec<String>, name: &str, path: &Option<String>) {
+        if let Some(p) = path {
+            if !p.is_empty() && !Path::new(p).exists() {
+                errors.push(format!("paths.{} does not exist: {}", name, p));
+            }
         }
     }
 
@@ -151,60 +232,6 @@ impl Profile {
         }
     }
 
-    fn validate_required_paths(&self, errors: &mut Vec<String>, is_prod: bool) {
-        Self::validate_required_path(errors, "system", &self.paths.system, is_prod);
-        Self::validate_required_path(errors, "core", &self.paths.core, is_prod);
-
-        if self.paths.services.is_empty() {
-            errors.push("Paths services is required".to_string());
-        } else if !Path::new(&self.paths.services).exists() {
-            errors.push(format!(
-                "Services path does not exist: {}",
-                self.paths.services
-            ));
-        }
-    }
-
-    fn validate_required_path(errors: &mut Vec<String>, name: &str, path: &str, is_prod: bool) {
-        if path.is_empty() {
-            errors.push(format!("Paths {name} is required"));
-            return;
-        }
-
-        if !Path::new(path).exists() {
-            if is_prod {
-                tracing::debug!(
-                    "{} path does not exist (expected in production): {}",
-                    name,
-                    path
-                );
-            } else {
-                errors.push(format!("{} path does not exist: {}", name, path));
-            }
-        }
-    }
-
-    fn validate_optional_paths(&self, errors: &mut Vec<String>, is_prod: bool) {
-        Self::validate_optional_path(errors, "skills", &self.paths.skills, is_prod);
-        Self::validate_optional_path(errors, "config", &self.paths.config, is_prod);
-        Self::validate_optional_path(errors, "storage", &self.paths.storage, is_prod);
-        Self::validate_optional_path(
-            errors,
-            "geoip_database",
-            &self.paths.geoip_database,
-            is_prod,
-        );
-        Self::validate_optional_path(
-            errors,
-            "content_config",
-            &self.paths.content_config,
-            is_prod,
-        );
-        Self::validate_optional_path(errors, "web_config", &self.paths.web_config, is_prod);
-        Self::validate_optional_path(errors, "web_path", &self.paths.web_path, is_prod);
-        Self::validate_optional_path(errors, "dockerfile", &self.paths.dockerfile, is_prod);
-    }
-
     fn validate_security_settings(&self, errors: &mut Vec<String>) {
         if self.security.access_token_expiration <= 0 {
             errors.push("Security access_token_expiration must be positive".to_string());
@@ -212,23 +239,6 @@ impl Profile {
 
         if self.security.refresh_token_expiration <= 0 {
             errors.push("Security refresh_token_expiration must be positive".to_string());
-        }
-    }
-
-    fn validate_optional_path(
-        errors: &mut Vec<String>,
-        name: &str,
-        path: &Option<String>,
-        is_production: bool,
-    ) {
-        if let Some(p) = path {
-            if !p.is_empty() && !Path::new(p).exists() {
-                if is_production {
-                    tracing::debug!("Optional path '{}' does not exist: {}", name, p);
-                } else {
-                    errors.push(format!("paths.{} does not exist: {}", name, p));
-                }
-            }
         }
     }
 
@@ -267,6 +277,7 @@ impl Profile {
         Ok(Self {
             name: profile_name.to_string(),
             display_name: display_name.to_string(),
+            target: ProfileType::Cloud,
             site: Self::site_config_from_env(&require_env)?,
             database: DatabaseConfig { db_type },
             server: Self::server_config_from_env(&require_env)?,
