@@ -1,5 +1,6 @@
 pub mod admin_user;
 pub mod content;
+mod interactive;
 mod prompt;
 pub mod skills;
 
@@ -102,11 +103,12 @@ pub struct SkillsSyncArgs {
     pub delete_orphans: bool,
 }
 
-pub async fn execute(cmd: SyncCommands) -> Result<()> {
+pub async fn execute(cmd: Option<SyncCommands>) -> Result<()> {
     match cmd {
-        SyncCommands::Push(args) => execute_cloud_sync(SyncDirection::Push, args).await,
-        SyncCommands::Pull(args) => execute_cloud_sync(SyncDirection::Pull, args).await,
-        SyncCommands::Local(cmd) => execute_local_sync(cmd).await,
+        Some(SyncCommands::Push(args)) => execute_cloud_sync(SyncDirection::Push, args).await,
+        Some(SyncCommands::Pull(args)) => execute_cloud_sync(SyncDirection::Pull, args).await,
+        Some(SyncCommands::Local(cmd)) => execute_local_sync(cmd).await,
+        None => interactive::execute().await,
     }
 }
 

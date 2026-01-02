@@ -166,7 +166,10 @@ impl SecretsBootstrap {
                 keys.split(',')
                     .filter_map(|key| {
                         let key = key.trim();
-                        std::env::var(key).ok().filter(|v| !v.is_empty()).map(|v| (key.to_owned(), v))
+                        std::env::var(key)
+                            .ok()
+                            .filter(|v| !v.is_empty())
+                            .map(|v| (key.to_owned(), v))
                     })
                     .collect()
             })
