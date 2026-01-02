@@ -2,9 +2,10 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudError, CloudPath, CredentialsBootstrap, TenantStore,
+    get_cloud_paths, CloudApiClient, CloudCredentials, CloudError, CloudPath, TenantStore,
 };
 use systemprompt_core_logging::CliService;
+use systemprompt_models::profile::CloudConfig;
 use systemprompt_models::Profile;
 
 use super::deploy_select::resolve_profile;
@@ -83,25 +84,41 @@ impl DeployConfig {
     }
 }
 
+fn load_credentials_from_profile(
+    profile_path: &std::path::Path,
+    cloud_config: &CloudConfig,
+) -> Result<CloudCredentials> {
+    let profile_dir = profile_path
+        .parent()
+        .ok_or_else(|| anyhow!("Invalid profile path"))?;
+
+    let credentials_path =
+        systemprompt_cloud::resolve_path(profile_dir, &cloud_config.credentials_path);
+
+    CloudCredentials::load_and_validate_from_path(&credentials_path)
+        .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")
+}
+
 pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
-    let creds = CredentialsBootstrap::require()
-        .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")?;
-
     let (profile, profile_path) = resolve_profile(profile_name.as_deref())?;
 
-    if let Some(cloud) = &profile.cloud {
-        if !cloud.enabled {
-            bail!("Cloud features are disabled in this profile. Set cloud.enabled: true");
-        }
-    }
-
-    let tenant_id = profile
+    let cloud_config = profile
         .cloud
         .as_ref()
-        .and_then(|c| c.tenant_id.as_ref())
+        .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
+
+    if !cloud_config.enabled {
+        bail!("Cloud features are disabled in this profile. Set cloud.enabled: true");
+    }
+
+    let tenant_id = cloud_config
+        .tenant_id
+        .as_ref()
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud config'"))?;
+
+    let creds = load_credentials_from_profile(&profile_path, cloud_config)?;
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
