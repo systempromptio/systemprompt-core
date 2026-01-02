@@ -108,8 +108,8 @@ pub use oauth::{OAuthClientConfig, OAuthServerConfig};
 pub use paths::PathConfig;
 pub use profile::{
     CloudConfig, CloudValidationMode, DatabaseConfig as ProfileDatabaseConfig, Environment,
-    LogLevel, OutputFormat, PathsConfig, Profile, ProfileStyle, RateLimitsConfig, RuntimeConfig,
-    SecurityConfig, ServerConfig, SiteConfig,
+    LogLevel, OutputFormat, PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig,
+    RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
 };
 pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};

@@ -15,7 +15,8 @@ pub enum CloudError {
     AppNotConfigured,
 
     #[error(
-        "Cloud features are disabled in this profile.\n\nSet cloud.enabled: true in your profile"
+        "Cloud features are disabled in this profile.\n\nSet cloud.cli_enabled: true in your \
+         profile"
     )]
     CloudDisabled,
 
@@ -111,7 +112,7 @@ impl CloudError {
             Self::TenantNotConfigured | Self::AppNotConfigured => {
                 "Run 'systemprompt cloud setup' to configure your project"
             },
-            Self::CloudDisabled => "Set cloud.enabled: true in your profile YAML",
+            Self::CloudDisabled => "Set cloud.cli_enabled: true in your profile YAML",
             Self::ProfileRequired { .. } => {
                 "Set SYSTEMPROMPT_PROFILE or run 'systemprompt cloud config'"
             },

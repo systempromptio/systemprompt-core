@@ -6,8 +6,8 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig, Profile,
-    ProfileDatabaseConfig, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig,
-    SiteConfig,
+    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    ServerConfig, SiteConfig,
 };
 
 fn generate_display_name(name: &str) -> String {
@@ -48,6 +48,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
     let profile = Profile {
         name: env_name.to_string(),
         display_name: generate_display_name(env_name),
+        target: ProfileType::Local,
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
@@ -124,7 +125,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             credentials_path: "../credentials.json".to_string(),
             tenants_path: "../tenants.json".to_string(),
             tenant_id: None,
-            enabled: false,
+            cli_enabled: false,
             validation: CloudValidationMode::Skip,
         }),
         extensions: None,

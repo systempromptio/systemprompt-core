@@ -51,7 +51,7 @@ async fn run_startup(
 
     if let Ok(profile) = ProfileBootstrap::get() {
         if let Some(cloud) = &profile.cloud {
-            if cloud.enabled {
+            if cloud.cli_enabled {
                 match CredentialsBootstrap::get() {
                     Ok(Some(_)) => {
                         events.info("Cloud features enabled with valid credentials");

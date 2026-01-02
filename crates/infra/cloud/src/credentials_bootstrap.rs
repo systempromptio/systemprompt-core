@@ -67,7 +67,7 @@ impl CredentialsBootstrap {
             return Ok(None);
         };
 
-        if !cloud_config.enabled {
+        if !cloud_config.cli_enabled {
             tracing::debug!("Cloud features disabled in profile");
             CREDENTIALS
                 .set(None)
@@ -169,7 +169,7 @@ impl CredentialsBootstrap {
             .as_ref()
             .ok_or(CredentialsBootstrapError::NotAvailable)?;
 
-        if !cloud_config.enabled {
+        if !cloud_config.cli_enabled {
             return Err(CredentialsBootstrapError::NotAvailable);
         }
 

@@ -52,7 +52,7 @@ fn build_deployable_profile(
     let name = entry.file_name().to_string_lossy().to_string();
     let profile = ProfileLoader::load_from_path(&profile_yaml).ok()?;
 
-    let is_cloud_enabled = profile.cloud.as_ref().map_or(false, |c| c.enabled);
+    let is_cloud_enabled = profile.cloud.as_ref().map_or(false, |c| c.cli_enabled);
     let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
 
     if !is_cloud_enabled || tenant_id.is_none() {

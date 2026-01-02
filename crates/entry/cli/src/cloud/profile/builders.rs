@@ -4,8 +4,8 @@ use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig, Profile,
-    ProfileDatabaseConfig, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig,
-    SiteConfig,
+    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    ServerConfig, SiteConfig,
 };
 
 use super::templates::generate_display_name;
@@ -25,6 +25,7 @@ pub fn build_local_profile(
     Ok(Profile {
         name: name.to_string(),
         display_name,
+        target: ProfileType::Local,
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
@@ -92,7 +93,7 @@ pub fn build_local_profile(
             credentials_path: "../../credentials.json".to_string(),
             tenants_path: "../../tenants.json".to_string(),
             tenant_id,
-            enabled: true,
+            cli_enabled: true,
             validation: CloudValidationMode::Warn,
         }),
         extensions: None,
@@ -119,6 +120,7 @@ pub fn build_cloud_profile(
     Ok(Profile {
         name: name.to_string(),
         display_name,
+        target: ProfileType::Cloud,
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
@@ -180,7 +182,7 @@ pub fn build_cloud_profile(
             credentials_path: String::new(),
             tenants_path: String::new(),
             tenant_id,
-            enabled: false,
+            cli_enabled: false,
             validation: CloudValidationMode::Strict,
         }),
         extensions: None,

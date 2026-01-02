@@ -74,11 +74,13 @@ fn select_profile(prompt: &str) -> Result<ProfileSelection> {
     let options: Vec<String> = profiles
         .iter()
         .map(|p| {
-            let cloud_status =
-                p.profile
-                    .cloud
-                    .as_ref()
-                    .map_or("local", |c| if c.enabled { "cloud" } else { "local" });
+            let cloud_status = p.profile.cloud.as_ref().map_or("local", |c| {
+                if c.cli_enabled {
+                    "cloud"
+                } else {
+                    "local"
+                }
+            });
             format!("{} ({})", p.name, cloud_status)
         })
         .collect();
@@ -147,7 +149,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Profile has no cloud configuration"))?;
 
-    if !cloud.enabled {
+    if !cloud.cli_enabled {
         bail!("Cloud features are disabled in this profile");
     }
 

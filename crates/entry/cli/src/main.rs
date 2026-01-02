@@ -223,7 +223,7 @@ fn validate_cloud_credentials() {
     };
 
     let cloud_config = match &profile.cloud {
-        Some(config) if config.enabled => config,
+        Some(config) if config.cli_enabled => config,
         _ => return,
     };
 
