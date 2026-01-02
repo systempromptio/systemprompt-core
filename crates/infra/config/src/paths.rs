@@ -9,6 +9,13 @@ pub struct BinaryPaths;
 
 impl BinaryPaths {
     pub fn resolve_binary(binary_name: &str) -> Result<PathBuf> {
+        if let Ok(mcp_path) = std::env::var("SYSTEMPROMPT_MCP_PATH") {
+            let binary_path = PathBuf::from(&mcp_path).join(binary_name);
+            if binary_path.exists() {
+                return Self::ensure_absolute(binary_path);
+            }
+        }
+
         let config = Config::get()?;
         let target_dir = PathBuf::from(&config.system_path).join(CARGO_TARGET);
 
@@ -55,6 +62,13 @@ impl BinaryPaths {
         binary_name: &str,
         crate_path: Option<&Path>,
     ) -> Result<PathBuf> {
+        if let Ok(mcp_path) = std::env::var("SYSTEMPROMPT_MCP_PATH") {
+            let binary_path = PathBuf::from(&mcp_path).join(binary_name);
+            if binary_path.exists() {
+                return Self::ensure_absolute(binary_path);
+            }
+        }
+
         if let Some(crate_path) = crate_path {
             let release_path = crate_path.join("target/release").join(binary_name);
             let debug_path = crate_path.join("target/debug").join(binary_name);
