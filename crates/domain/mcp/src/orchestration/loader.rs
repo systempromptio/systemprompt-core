@@ -10,7 +10,7 @@ use tracing::{debug, error};
 use super::state::ServiceStateManager;
 use crate::services::client::McpClient;
 use crate::services::deployment::DeploymentService;
-use crate::services::registry::manager::RegistryService;
+use crate::services::registry::RegistryManager;
 
 #[derive(Debug, Clone)]
 pub struct McpToolLoader {
@@ -149,9 +149,10 @@ impl McpToolLoader {
                     .await?
                     .map_or_else(|| "not_started".to_string(), |s| s.status);
 
-                let version = RegistryService::load_manifest(server_name)
+                let version = RegistryManager::find_server(server_name)
                     .ok()
-                    .map(|m| m.version);
+                    .flatten()
+                    .map(|s| s.version);
 
                 let tools = tools_by_server.get(server_name).cloned();
 

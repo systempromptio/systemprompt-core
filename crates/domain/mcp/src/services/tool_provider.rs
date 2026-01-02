@@ -245,28 +245,27 @@ impl ToolProvider for McpToolProvider {
     }
 
     async fn health_check(&self) -> ToolProviderResult<HashMap<String, bool>> {
-        use crate::services::registry::manager::RegistryService;
+        use crate::services::registry::RegistryManager;
 
         let mut health_status = HashMap::new();
 
         let config_api_server_url = systemprompt_models::Config::get()
             .map(|c| c.api_server_url.clone())
             .unwrap_or_default();
-        if let Ok(servers) = RegistryService::get_enabled_servers() {
-            for (manifest, port) in servers {
-                let server_name = manifest.name.clone();
+        if let Ok(servers) = RegistryManager::get_enabled_servers() {
+            for server in servers {
                 let api_server_url = &config_api_server_url;
-                let url = format!("{}/api/v1/mcp/{}/mcp", api_server_url, server_name);
+                let url = format!("{}/api/v1/mcp/{}/mcp", api_server_url, server.name);
 
                 let is_healthy = if let Ok(parsed_url) = url::Url::parse(&url) {
                     let host = parsed_url.host_str().unwrap_or("127.0.0.1");
-                    let actual_port = if port > 0 {
-                        port
+                    let actual_port = if server.port > 0 {
+                        server.port
                     } else {
                         parsed_url.port().unwrap_or(80)
                     };
 
-                    validate_connection(&server_name, host, actual_port)
+                    validate_connection(&server.name, host, actual_port)
                         .await
                         .map(|r| r.success)
                         .unwrap_or(false)
@@ -274,7 +273,7 @@ impl ToolProvider for McpToolProvider {
                     false
                 };
 
-                health_status.insert(server_name, is_healthy);
+                health_status.insert(server.name, is_healthy);
             }
         }
 

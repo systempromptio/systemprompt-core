@@ -28,7 +28,9 @@ pub fn extract_port_from_url(url: &str) -> Option<u16> {
 }
 
 pub async fn list_available_mcp_servers() -> Result<Vec<String>, String> {
-    use systemprompt_core_mcp::services::registry::manager::RegistryService;
+    use systemprompt_loader::ConfigLoader;
 
-    Ok(RegistryService::list_servers())
+    ConfigLoader::load()
+        .map(|config| config.mcp_servers.keys().cloned().collect())
+        .map_err(|e| e.to_string())
 }
