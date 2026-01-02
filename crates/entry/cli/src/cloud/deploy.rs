@@ -1,12 +1,12 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
+use systemprompt_cloud::constants::build;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudCredentials, CloudError, CloudPath, TenantStore,
+    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, TenantStore,
 };
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile::CloudConfig;
-use systemprompt_models::Profile;
 
 use super::deploy_select::resolve_profile;
 use crate::common::docker::{build_docker_image, docker_login, docker_push};
@@ -20,26 +20,14 @@ pub struct DeployConfig {
 }
 
 impl DeployConfig {
-    pub fn from_profile(profile: &Profile) -> Result<Self> {
-        let paths = &profile.paths;
-
-        let cargo_target = paths
-            .cargo_target
-            .as_ref()
-            .ok_or_else(|| CloudError::missing_cargo_target())?;
-        let binary = PathBuf::from(cargo_target).join("release/systemprompt");
-
-        let web_dist = paths
-            .web_dist
-            .as_ref()
-            .ok_or_else(|| CloudError::missing_web_dist())?;
-        let web_dist = PathBuf::from(web_dist);
-
-        let dockerfile = paths
-            .dockerfile
-            .as_ref()
-            .ok_or_else(|| CloudError::missing_dockerfile())?;
-        let dockerfile = PathBuf::from(dockerfile);
+    pub fn from_project(project: &ProjectRoot) -> Result<Self> {
+        let root = project.as_path();
+        let binary = root
+            .join(build::CARGO_TARGET)
+            .join("release")
+            .join(build::BINARY_NAME);
+        let web_dist = root.join(build::WEB_DIST);
+        let dockerfile = root.join(build::DOCKERFILE);
 
         let config = Self {
             binary,
@@ -136,7 +124,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
 
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
-    let config = DeployConfig::from_profile(&profile)?;
+    let config = DeployConfig::from_project(&project)?;
 
     CliService::key_value("Tenant", tenant_name);
     CliService::key_value("Binary", &config.binary.display().to_string());
@@ -207,7 +195,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
 
 pub async fn deploy_initial(client: &CloudApiClient, tenant_id: &str) -> Result<()> {
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-    let dockerfile = project.as_path().join(".systemprompt/Dockerfile");
+    let dockerfile = project.as_path().join(build::DOCKERFILE);
 
     let spinner = CliService::spinner("Fetching registry credentials...");
     let registry_token = client.get_registry_token(tenant_id).await?;

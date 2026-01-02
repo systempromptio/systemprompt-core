@@ -63,27 +63,6 @@ pub enum CloudError {
 pub type CloudResult<T> = Result<T, CloudError>;
 
 impl CloudError {
-    pub fn missing_cargo_target() -> Self {
-        Self::MissingProfileField {
-            field: "paths.cargo_target".into(),
-            example: "paths:\n  cargo_target: /path/to/target".into(),
-        }
-    }
-
-    pub fn missing_web_dist() -> Self {
-        Self::MissingProfileField {
-            field: "paths.web_dist".into(),
-            example: "paths:\n  web_dist: /path/to/core/web/dist".into(),
-        }
-    }
-
-    pub fn missing_dockerfile() -> Self {
-        Self::MissingProfileField {
-            field: "paths.dockerfile".into(),
-            example: "paths:\n  dockerfile: /path/to/.systemprompt/Dockerfile".into(),
-        }
-    }
-
     pub const fn user_message(&self) -> &'static str {
         match self {
             Self::NotAuthenticated => "Not logged in to SystemPrompt Cloud",

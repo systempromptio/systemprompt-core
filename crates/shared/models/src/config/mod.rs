@@ -24,11 +24,10 @@ pub use verbosity::VerbosityLevel;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
 
+#[allow(clippy::struct_field_names)]
 struct BuildConfigPaths {
     system_path: String,
     core_path: String,
-    cargo_target_dir: String,
-    binary_dir: Option<String>,
     skills_path: String,
     settings_path: String,
     content_config_path: String,
@@ -64,8 +63,6 @@ pub struct Config {
     pub jwt_refresh_token_expiration: i64,
     pub jwt_audiences: Vec<JwtAudience>,
     pub use_https: bool,
-    pub cargo_target_dir: String,
-    pub binary_dir: Option<String>,
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,
 }
@@ -114,10 +111,6 @@ impl Config {
 
         let system_path = Self::canonicalize_path(&profile.paths.system, "system")?;
         let core_path = Self::canonicalize_path(&profile.paths.core, "core")?;
-        let cargo_target_dir =
-            Self::resolve_target_dir(profile.paths.cargo_target.as_deref(), &system_path);
-        let binary_dir =
-            Self::resolve_optional_path(profile.paths.binary_dir.as_deref(), &system_path);
 
         let skills_path = Self::require_path(profile.paths.skills.as_deref(), "skills")?;
         let settings_path =
@@ -142,8 +135,6 @@ impl Config {
         let paths = BuildConfigPaths {
             system_path,
             core_path,
-            cargo_target_dir,
-            binary_dir,
             skills_path,
             settings_path,
             content_config_path,
@@ -161,32 +152,6 @@ impl Config {
         std::fs::canonicalize(path)
             .map(|p| p.to_string_lossy().to_string())
             .map_err(|e| anyhow::anyhow!("Failed to canonicalize {} path: {}", name, e))
-    }
-
-    fn resolve_target_dir(cargo_target: Option<&str>, system_path: &str) -> String {
-        cargo_target
-            .map(|dir| Self::make_absolute(dir, system_path))
-            .unwrap_or_else(|| {
-                std::path::Path::new(system_path)
-                    .join("target")
-                    .to_string_lossy()
-                    .to_string()
-            })
-    }
-
-    fn resolve_optional_path(path: Option<&str>, system_path: &str) -> Option<String> {
-        path.map(|dir| Self::make_absolute(dir, system_path))
-    }
-
-    fn make_absolute(dir: &str, base: &str) -> String {
-        if std::path::Path::new(dir).is_absolute() {
-            dir.to_string()
-        } else {
-            std::path::Path::new(base)
-                .join(dir)
-                .to_string_lossy()
-                .to_string()
-        }
     }
 
     fn require_path(value: Option<&str>, field: &str) -> Result<String> {
@@ -255,8 +220,6 @@ impl Config {
             jwt_refresh_token_expiration: profile.security.refresh_token_expiration,
             jwt_audiences: profile.security.audiences.clone(),
             use_https: profile.server.use_https,
-            cargo_target_dir: paths.cargo_target_dir,
-            binary_dir: paths.binary_dir,
             rate_limits: (&profile.rate_limits).into(),
             cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
         })
@@ -321,8 +284,6 @@ impl ConfigProvider for Config {
             "api_server_url" => Some(self.api_server_url.clone()),
             "api_external_url" => Some(self.api_external_url.clone()),
             "jwt_issuer" => Some(self.jwt_issuer.clone()),
-            "cargo_target_dir" => Some(self.cargo_target_dir.clone()),
-            "binary_dir" => self.binary_dir.clone(),
             _ => None,
         }
     }

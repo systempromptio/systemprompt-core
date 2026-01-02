@@ -182,7 +182,6 @@ impl Profile {
         Self::validate_local_optional_path(errors, "content_config", &self.paths.content_config);
         Self::validate_local_optional_path(errors, "web_config", &self.paths.web_config);
         Self::validate_local_optional_path(errors, "web_path", &self.paths.web_path);
-        Self::validate_local_optional_path(errors, "dockerfile", &self.paths.dockerfile);
     }
 
     fn validate_local_required_path(errors: &mut Vec<String>, name: &str, path: &str) {
@@ -330,8 +329,6 @@ impl Profile {
             skills: Self::get_env("SYSTEMPROMPT_SKILLS_PATH"),
             config: Self::get_env("SYSTEMPROMPT_CONFIG_PATH"),
             storage: Self::get_env("STORAGE_PATH"),
-            cargo_target: Self::get_env("CARGO_TARGET_DIR"),
-            binary_dir: Self::get_env("SYSTEMPROMPT_BINARY_DIR"),
             geoip_database: Self::get_env("GEOIP_DATABASE_PATH"),
             ai_config: Self::get_env("AI_CONFIG_PATH"),
             content_config: Self::get_env("CONTENT_CONFIG_PATH"),
@@ -340,8 +337,6 @@ impl Profile {
             web_path: Self::get_env("SYSTEMPROMPT_WEB_PATH"),
             scg_templates: Self::get_env("SCG_TEMPLATES_PATH"),
             scg_assets: Self::get_env("SCG_ASSETS_PATH"),
-            dockerfile: Self::get_env("SYSTEMPROMPT_DOCKERFILE_PATH"),
-            web_dist: Self::get_env("SYSTEMPROMPT_WEB_DIST_PATH"),
         })
     }
 

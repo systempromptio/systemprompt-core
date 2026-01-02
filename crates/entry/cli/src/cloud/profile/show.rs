@@ -169,7 +169,6 @@ fn build_env_config(config: &Config) -> EnvironmentConfig {
             services_path: Some(config.services_path.clone()),
             skills_path: Some(config.skills_path.clone()),
             config_path: Some(config.settings_path.clone()),
-            binary_dir: config.binary_dir.clone(),
         },
         database: DatabaseEnvVars {
             database_type: config.database_type.clone(),
@@ -187,7 +186,6 @@ fn build_env_config(config: &Config) -> EnvironmentConfig {
         },
         paths: PathsEnvVars {
             system_path: config.system_path.clone(),
-            cargo_target_dir: config.cargo_target_dir.clone(),
             services: SystemPaths::services(config).display().to_string(),
             skills: SystemPaths::skills(config).display().to_string(),
             services_config: SystemPaths::services_config(config).display().to_string(),
