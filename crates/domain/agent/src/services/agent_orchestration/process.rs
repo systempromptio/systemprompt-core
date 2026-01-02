@@ -96,6 +96,17 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
     if let Some(ref key) = secrets.openai {
         command.env("OPENAI_API_KEY", key);
     }
+    if let Some(ref key) = secrets.github {
+        command.env("GITHUB_TOKEN", key);
+    }
+
+    if !secrets.custom.is_empty() {
+        let custom_keys: Vec<&str> = secrets.custom.keys().map(String::as_str).collect();
+        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", custom_keys.join(","));
+        for (key, value) in &secrets.custom {
+            command.env(key, value);
+        }
+    }
 
     let child = command.spawn().map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))

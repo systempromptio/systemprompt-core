@@ -159,6 +159,19 @@ impl SecretsBootstrap {
             .filter(|s| !s.is_empty())
             .ok_or(SecretsBootstrapError::DatabaseUrlRequired)?;
 
+        let custom = std::env::var("SYSTEMPROMPT_CUSTOM_SECRETS")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .map(|keys| {
+                keys.split(',')
+                    .filter_map(|key| {
+                        let key = key.trim();
+                        std::env::var(key).ok().filter(|v| !v.is_empty()).map(|v| (key.to_owned(), v))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
         let secrets = Secrets {
             jwt_secret,
             database_url,
@@ -172,7 +185,7 @@ impl SecretsBootstrap {
                 .ok()
                 .filter(|s| !s.is_empty()),
             github: std::env::var("GITHUB_TOKEN").ok().filter(|s| !s.is_empty()),
-            custom: HashMap::new(),
+            custom,
         };
 
         secrets.validate()?;

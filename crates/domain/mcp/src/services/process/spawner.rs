@@ -55,20 +55,41 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
 
     let profile_path = ProfileBootstrap::get_path()
         .context("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server")?;
-    let jwt_secret = SecretsBootstrap::jwt_secret()
-        .context("JWT_SECRET not available - cannot spawn MCP server")?;
+    let secrets = SecretsBootstrap::get()
+        .context("Secrets not available - cannot spawn MCP server")?;
 
     let mut child_command = Command::new(&binary_path);
 
     child_command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env("JWT_SECRET", jwt_secret)
-        .env("DATABASE_URL", &config_global.database_url)
+        .env("JWT_SECRET", &secrets.jwt_secret)
+        .env("DATABASE_URL", &secrets.database_url)
         .env("DATABASE_TYPE", &config_global.database_type)
         .env("MCP_SERVICE_ID", &config.name)
         .env("MCP_PORT", config.port.to_string())
         .env("MCP_TOOLS_CONFIG", &tools_config_json)
         .env("MCP_SERVER_MODEL_CONFIG", &server_model_config_json);
+
+    if let Some(key) = &secrets.gemini {
+        child_command.env("GEMINI_API_KEY", key);
+    }
+    if let Some(key) = &secrets.anthropic {
+        child_command.env("ANTHROPIC_API_KEY", key);
+    }
+    if let Some(key) = &secrets.openai {
+        child_command.env("OPENAI_API_KEY", key);
+    }
+    if let Some(key) = &secrets.github {
+        child_command.env("GITHUB_TOKEN", key);
+    }
+
+    if !secrets.custom.is_empty() {
+        let custom_keys: Vec<&str> = secrets.custom.keys().map(String::as_str).collect();
+        child_command.env("SYSTEMPROMPT_CUSTOM_SECRETS", custom_keys.join(","));
+        for (key, value) in &secrets.custom {
+            child_command.env(key, value);
+        }
+    }
 
     for var_name in &config.env_vars {
         match std::env::var(var_name) {
