@@ -56,7 +56,7 @@ async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
         anyhow::bail!("Unknown job: {job_name}");
     };
 
-    let job_ctx = JobContext::new(db_pool, ctx.clone());
+    let job_ctx = JobContext::new(Arc::new(db_pool), ctx);
 
     match job.execute(&job_ctx).await {
         Ok(result) if result.success => {
