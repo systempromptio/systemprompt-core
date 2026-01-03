@@ -1,5 +1,3 @@
-//! Path validation utilities.
-
 use anyhow::Result;
 use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,
@@ -7,28 +5,25 @@ use systemprompt_traits::validation_report::{
 
 use crate::profile::Profile;
 
-/// Validate all profile paths exist.
 pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> ValidationReport {
     let mut report = ValidationReport::new("paths");
 
-    // Required paths - MUST exist
     validate_required_path(&mut report, "system", &profile.paths.system);
-    validate_required_path(&mut report, "core", &profile.paths.core);
     validate_required_path(&mut report, "services", &profile.paths.services);
+    validate_required_path(&mut report, "bin", &profile.paths.bin);
 
-    // Required optional paths - must be set AND exist
-    validate_required_optional_path(&mut report, "skills", &profile.paths.skills);
-    validate_required_optional_path(&mut report, "config", &profile.paths.config);
-    validate_required_optional_path(&mut report, "web_path", &profile.paths.web_path);
-    validate_required_optional_path(&mut report, "web_config", &profile.paths.web_config);
-    validate_required_optional_path(&mut report, "web_metadata", &profile.paths.web_metadata);
-    validate_required_optional_path(&mut report, "content_config", &profile.paths.content_config);
+    validate_required_path(&mut report, "core", &profile.paths.core());
+    validate_required_path(&mut report, "skills", &profile.paths.skills());
+    validate_required_path(&mut report, "config", &profile.paths.config());
+    validate_required_path(&mut report, "web_path", &profile.paths.web_path_resolved());
+    validate_required_path(&mut report, "web_config", &profile.paths.web_config());
+    validate_required_path(&mut report, "web_metadata", &profile.paths.web_metadata());
+    validate_required_path(&mut report, "content_config", &profile.paths.content_config());
 
-    // Optional paths - warn if set but doesn't exist
     validate_optional_path(&mut report, "geoip_database", &profile.paths.geoip_database);
     validate_optional_path(&mut report, "storage", &profile.paths.storage);
 
-    let _ = profile_path; // Used in error messages via format_path_errors
+    let _ = profile_path;
     report
 }
 

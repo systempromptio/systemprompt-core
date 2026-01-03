@@ -46,7 +46,7 @@ impl AppPaths {
             web: WebPaths::from_profile(paths)?,
             build: BuildPaths::from_profile(paths),
             storage: paths.storage.as_ref().map(PathBuf::from),
-            ai_config: paths.ai_config.as_ref().map(PathBuf::from),
+            ai_config: Some(PathBuf::from(paths.ai_config())),
         })
     }
 

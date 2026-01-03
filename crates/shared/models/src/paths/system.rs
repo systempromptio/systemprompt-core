@@ -19,15 +19,15 @@ impl SystemPaths {
 
     pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         let root = Self::canonicalize(&paths.system, "system")?;
-        let core = Self::canonicalize(&paths.core, "core")?;
+        let core = Self::canonicalize(&paths.core(), "core")?;
 
         Ok(Self {
             root,
             core,
             services: PathBuf::from(&paths.services),
-            skills: Self::require_path(paths.skills.as_deref(), "skills")?,
-            settings: Self::require_path(paths.config.as_deref(), "config")?,
-            content_config: Self::require_path(paths.content_config.as_deref(), "content_config")?,
+            skills: PathBuf::from(paths.skills()),
+            settings: PathBuf::from(paths.config()),
+            content_config: PathBuf::from(paths.content_config()),
             geoip_database: paths.geoip_database.as_ref().map(PathBuf::from),
         })
     }

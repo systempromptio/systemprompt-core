@@ -154,8 +154,8 @@ impl TuiApp {
 
     pub(super) fn populate_agent_display_metadata(state: &mut AppState) {
         let profile = state.mode_info.profile();
-        let skills_path = profile.paths.skills.clone();
-        let config_path = profile.paths.config.clone();
+        let skills_path = profile.paths.skills();
+        let config_path = profile.paths.config();
 
         let agent_names: Vec<String> = state.agents.agent_cards.keys().cloned().collect();
 
@@ -165,7 +165,7 @@ impl TuiApp {
                 .agent_cards
                 .get(&agent_name)
                 .map(|card| {
-                    Self::build_agent_metadata(card, skills_path.as_deref(), config_path.as_deref())
+                    Self::build_agent_metadata(card, Some(&skills_path), Some(&config_path))
                 })
                 .unwrap_or_default();
 

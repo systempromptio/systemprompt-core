@@ -51,6 +51,15 @@ pub struct SchedulerConfig {
     pub enabled: bool,
     #[serde(default)]
     pub jobs: Vec<JobConfig>,
+    #[serde(default = "default_bootstrap_jobs")]
+    pub bootstrap_jobs: Vec<String>,
+}
+
+fn default_bootstrap_jobs() -> Vec<String> {
+    vec![
+        "database_cleanup".to_string(),
+        "cleanup_inactive_sessions".to_string(),
+    ]
 }
 
 impl Default for SchedulerConfig {
@@ -74,6 +83,7 @@ impl Default for SchedulerConfig {
                     .with_extension("content")
                     .with_schedule("0 */30 * * * *"),
             ],
+            bootstrap_jobs: default_bootstrap_jobs(),
         }
     }
 }

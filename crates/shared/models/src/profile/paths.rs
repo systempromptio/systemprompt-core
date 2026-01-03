@@ -4,53 +4,69 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PathsConfig {
     pub system: String,
-
-    pub core: String,
-
     pub services: String,
+    pub bin: String,
 
     #[serde(default)]
-    pub skills: Option<String>,
-
-    #[serde(default)]
-    pub config: Option<String>,
+    pub web_path: Option<String>,
 
     #[serde(default)]
     pub storage: Option<String>,
 
     #[serde(default)]
     pub geoip_database: Option<String>,
-
-    #[serde(default)]
-    pub ai_config: Option<String>,
-
-    #[serde(default)]
-    pub content_config: Option<String>,
-
-    #[serde(default)]
-    pub web_config: Option<String>,
-
-    #[serde(default)]
-    pub web_metadata: Option<String>,
-
-    #[serde(default)]
-    pub web_path: Option<String>,
 }
 
 impl PathsConfig {
     pub fn resolve_relative_to(&mut self, base: &Path) {
         self.system = resolve_path(base, &self.system);
-        self.core = resolve_path(base, &self.core);
         self.services = resolve_path(base, &self.services);
-        self.skills = self.skills.as_ref().map(|p| resolve_path(base, p));
-        self.config = self.config.as_ref().map(|p| resolve_path(base, p));
+        self.bin = resolve_path(base, &self.bin);
         self.storage = self.storage.as_ref().map(|p| resolve_path(base, p));
         self.geoip_database = self.geoip_database.as_ref().map(|p| resolve_path(base, p));
-        self.ai_config = self.ai_config.as_ref().map(|p| resolve_path(base, p));
-        self.content_config = self.content_config.as_ref().map(|p| resolve_path(base, p));
-        self.web_config = self.web_config.as_ref().map(|p| resolve_path(base, p));
-        self.web_metadata = self.web_metadata.as_ref().map(|p| resolve_path(base, p));
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
+    }
+
+    pub fn core(&self) -> String {
+        format!("{}/core", self.system)
+    }
+
+    pub fn skills(&self) -> String {
+        format!("{}/skills", self.services)
+    }
+
+    pub fn config(&self) -> String {
+        format!("{}/config/config.yaml", self.services)
+    }
+
+    pub fn ai_config(&self) -> String {
+        format!("{}/ai/config.yaml", self.services)
+    }
+
+    pub fn content_config(&self) -> String {
+        format!("{}/content/config.yaml", self.services)
+    }
+
+    pub fn web_config(&self) -> String {
+        format!("{}/web/config.yaml", self.services)
+    }
+
+    pub fn web_metadata(&self) -> String {
+        format!("{}/web/metadata.yaml", self.services)
+    }
+
+    pub fn web_path_resolved(&self) -> String {
+        self.web_path
+            .clone()
+            .unwrap_or_else(|| format!("{}/web", self.core()))
+    }
+
+    pub fn storage_resolved(&self) -> Option<&str> {
+        self.storage.as_deref()
+    }
+
+    pub fn geoip_database_resolved(&self) -> Option<&str> {
+        self.geoip_database.as_deref()
     }
 }
 

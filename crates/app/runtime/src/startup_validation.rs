@@ -204,44 +204,14 @@ impl StartupValidator {
     fn validate_single_extension(
         _config: &Config,
         ext: &dyn systemprompt_extension::Extension,
-        report: &mut StartupValidationReport,
+        _report: &mut StartupValidationReport,
     ) {
         let ext_id = ext.id();
-        let Some(prefix) = ext.config_prefix() else {
+        if ext.config_prefix().is_none() {
             return;
         };
 
-        let Some(ext_config) = Self::get_extension_config(prefix) else {
-            return;
-        };
-
-        let spinner = create_spinner(&format!("Validating {}", ext_id));
-
-        match ext.validate_config(&ext_config) {
-            Ok(()) => {
-                spinner.finish_and_clear();
-                render_phase_success(&format!("[ext:{}]", ext_id), Some("valid"));
-            },
-            Err(e) => {
-                spinner.finish_and_clear();
-                println!("  {} [ext:{}] {}", BrandColors::stopped("✗"), ext_id, e);
-
-                let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
-                ext_report.add_error(ValidationError::new(
-                    format!("{}.config", prefix),
-                    format!("Extension config invalid: {}", e),
-                ));
-                report.add_extension(ext_report);
-            },
-        }
-    }
-
-    fn get_extension_config(prefix: &str) -> Option<serde_json::Value> {
-        ProfileBootstrap::get()
-            .ok()
-            .and_then(|profile| profile.extensions.as_ref())
-            .and_then(|exts| exts.get(prefix))
-            .cloned()
+        render_phase_success(&format!("[ext:{}]", ext_id), Some("loaded"));
     }
 }
 

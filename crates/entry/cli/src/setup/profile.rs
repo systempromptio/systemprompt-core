@@ -39,7 +39,6 @@ fn determine_environment(env_name: &str) -> Environment {
 pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<Profile> {
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let system_path = project_root.to_string_lossy().to_string();
-    let core_path = project_root.join("core").to_string_lossy().to_string();
     let services_path = project_root.join("services").to_string_lossy().to_string();
 
     let runtime_env = determine_environment(env_name);
@@ -52,8 +51,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
-            service_display_name: Some("SystemPrompt".to_string()),
-            service_version: None,
         },
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
@@ -77,17 +74,11 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         },
         paths: PathsConfig {
             system: system_path.clone(),
-            core: core_path.clone(),
             services: services_path.clone(),
-            skills: Some(format!("{}/skills", services_path)),
-            config: Some(format!("{}/config/config.yaml", services_path)),
+            bin: format!("{}/target/release", system_path),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
             geoip_database: None,
-            ai_config: Some(format!("{}/ai/config.yaml", services_path)),
-            content_config: Some(format!("{}/content/config.yaml", services_path)),
-            web_config: Some(format!("{}/web/config.yaml", services_path)),
-            web_metadata: Some(format!("{}/web/metadata.yaml", services_path)),
-            web_path: Some(format!("{}/web/dist", core_path)),
+            web_path: None,
         },
         security: SecurityConfig {
             issuer: format!("systemprompt-{}", env_name),
@@ -122,7 +113,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             cli_enabled: false,
             validation: CloudValidationMode::Skip,
         }),
-        extensions: None,
         secrets: Some(SecretsConfig {
             secrets_path: secrets_path.to_string(),
             validation: SecretsValidationMode::Warn,

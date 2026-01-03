@@ -110,25 +110,25 @@ impl Config {
         }
 
         let system_path = Self::canonicalize_path(&profile.paths.system, "system")?;
-        let core_path = Self::canonicalize_path(&profile.paths.core, "core")?;
+        let core_path = Self::canonicalize_path(&profile.paths.core(), "core")?;
 
-        let skills_path = Self::require_path(profile.paths.skills.as_deref(), "skills")?;
+        let skills_path = profile.paths.skills();
         let settings_path =
-            Self::require_yaml_path("config", profile.paths.config.as_deref(), &profile_path)?;
+            Self::require_yaml_path("config", Some(&profile.paths.config()), &profile_path)?;
         let content_config_path = Self::require_yaml_path(
             "content_config",
-            profile.paths.content_config.as_deref(),
+            Some(&profile.paths.content_config()),
             &profile_path,
         )?;
-        let web_path = Self::require_path(profile.paths.web_path.as_deref(), "web_path")?;
+        let web_path = profile.paths.web_path_resolved();
         let web_config_path = Self::require_yaml_path(
             "web_config",
-            profile.paths.web_config.as_deref(),
+            Some(&profile.paths.web_config()),
             &profile_path,
         )?;
         let web_metadata_path = Self::require_yaml_path(
             "web_metadata",
-            profile.paths.web_metadata.as_deref(),
+            Some(&profile.paths.web_metadata()),
             &profile_path,
         )?;
 
@@ -152,12 +152,6 @@ impl Config {
         std::fs::canonicalize(path)
             .map(|p| p.to_string_lossy().to_string())
             .map_err(|e| anyhow::anyhow!("Failed to canonicalize {} path: {}", name, e))
-    }
-
-    fn require_path(value: Option<&str>, field: &str) -> Result<String> {
-        value
-            .map(ToString::to_string)
-            .ok_or_else(|| anyhow::anyhow!("Missing required path: paths.{}", field))
     }
 
     fn require_yaml_path(field: &str, value: Option<&str>, profile_path: &str) -> Result<String> {
