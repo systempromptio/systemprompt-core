@@ -50,15 +50,16 @@ cloud = ["dep:systemprompt-cloud"]
 # Test utilities (credential fixtures, etc.)
 test-utils = ["cloud"]
 
-# CLI entry point for product binaries
-cli = ["full", "dep:systemprompt-cli"]
+# CLI entry point for product binaries (standalone, use 'full' for everything)
+cli = ["dep:systemprompt-cli"]
 
-# Full functionality including all domain modules
+# Full functionality including all domain modules and CLI
 full = [
     "api",
     "mcp",
     "sync",
     "cloud",
+    "cli",
     "dep:systemprompt-core-agent",
     "dep:systemprompt-core-ai",
     "dep:systemprompt-core-mcp",

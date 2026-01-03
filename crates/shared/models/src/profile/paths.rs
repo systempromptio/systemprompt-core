@@ -27,10 +27,6 @@ impl PathsConfig {
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
     }
 
-    pub fn core(&self) -> String {
-        format!("{}/core", self.system)
-    }
-
     pub fn skills(&self) -> String {
         format!("{}/skills", self.services)
     }
@@ -58,7 +54,7 @@ impl PathsConfig {
     pub fn web_path_resolved(&self) -> String {
         self.web_path
             .clone()
-            .unwrap_or_else(|| format!("{}/web", self.core()))
+            .unwrap_or_else(|| format!("{}/web", self.system))
     }
 
     pub fn storage_resolved(&self) -> Option<&str> {

@@ -6,7 +6,6 @@ use crate::profile::PathsConfig;
 #[derive(Debug, Clone)]
 pub struct SystemPaths {
     root: PathBuf,
-    core: PathBuf,
     services: PathBuf,
     skills: PathBuf,
     settings: PathBuf,
@@ -19,11 +18,9 @@ impl SystemPaths {
 
     pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         let root = Self::canonicalize(&paths.system, "system")?;
-        let core = Self::canonicalize(&paths.core(), "core")?;
 
         Ok(Self {
             root,
-            core,
             services: PathBuf::from(&paths.services),
             skills: PathBuf::from(paths.skills()),
             settings: PathBuf::from(paths.config()),
@@ -42,10 +39,6 @@ impl SystemPaths {
 
     pub fn root(&self) -> &Path {
         &self.root
-    }
-
-    pub fn core(&self) -> &Path {
-        &self.core
     }
 
     pub fn services(&self) -> &Path {
