@@ -26,7 +26,6 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 # SystemPrompt crates
-systemprompt = { path = "../../../systemprompt", features = ["cloud"] }
 systemprompt-runtime = { path = "../../app/runtime" }
 systemprompt-core-agent = { path = "../../domain/agent" }
 systemprompt-core-mcp = { path = "../../domain/mcp" }

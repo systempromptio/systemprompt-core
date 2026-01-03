@@ -213,6 +213,86 @@ register_api_extension!(MyExtension);
 
 At runtime, `ExtensionRegistry::discover()` collects all registered extensions.
 
+---
+
+### Product Binary Pattern
+
+Template/product repositories must own the final binary to include extension jobs. Core provides reusable entry points; products compose them with extensions.
+
+**Architecture:**
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Product Repository (template)                           │
+│                                                          │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  src/lib.rs (FACADE)                               │ │
+│  │  - Re-exports core: pub use systemprompt::*        │ │
+│  │  - Exports extensions: pub use blog_extension as   │ │
+│  └────────────────────────────────────────────────────┘ │
+│                          │                               │
+│  ┌────────────────────────────────────────────────────┐ │
+│  │  src/main.rs (BINARY)                              │ │
+│  │  - Uses facade (forces all linkage)                │ │
+│  │  - Delegates to systemprompt_cli::run()            │ │
+│  └────────────────────────────────────────────────────┘ │
+│           │                              │               │
+│           ▼                              ▼               │
+│  ┌─────────────────┐          ┌─────────────────────┐   │
+│  │ core/           │          │ extensions/         │   │
+│  │ (submodule)     │          │ └── blog/           │   │
+│  │ - systemprompt  │          │     └── jobs/       │   │
+│  │ - CLI run()     │          │                     │   │
+│  └─────────────────┘          └─────────────────────┘   │
+└──────────────────────────────────────────────────────────┘
+```
+
+**Why this pattern:**
+
+The `inventory` crate uses static initialization. `submit_job!()` registers jobs in a static collector, but statics are only included if the crate is linked into the binary.
+
+Core's CLI binary only links core crates. To include extension jobs, the product must own the binary that links both core and extensions.
+
+**Product structure:**
+
+| File | Purpose |
+|------|---------|
+| `src/lib.rs` | Facade re-exporting core + extensions |
+| `src/main.rs` | Binary calling `systemprompt_cli::run()` |
+| `Cargo.toml` | `[[bin]]` target + all dependencies |
+
+**Example product Cargo.toml:**
+
+```toml
+[package]
+name = "my-product"
+
+[lib]
+path = "src/lib.rs"
+
+[[bin]]
+name = "systemprompt"
+path = "src/main.rs"
+
+[dependencies]
+systemprompt = { path = "core/systemprompt" }
+systemprompt-cli = { path = "core/crates/entry/cli" }
+my-blog-extension = { path = "extensions/blog" }
+```
+
+**Example product main.rs:**
+
+```rust
+use my_product as _;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    systemprompt_cli::run().await
+}
+```
+
+The `use my_product as _;` forces the facade (and all its dependencies) to be linked, pulling in extension job registrations.
+
 **Migration weights:**
 
 Schema extensions define `migration_weight()` to control installation order:
