@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR /app
 
-RUN mkdir -p /app/bin /app/bin/mcp /app/data /app/logs /app/storage
+RUN mkdir -p /app/bin /app/data /app/logs /app/storage
 
 COPY target/release/systemprompt /app/bin/
 "#;
@@ -27,7 +27,7 @@ COPY .systemprompt/profiles /app/services/profiles
 COPY .systemprompt/entrypoint.sh /app/entrypoint.sh
 COPY core/web/dist /app/web
 
-RUN chmod +x /app/bin/* /app/bin/mcp/* /app/entrypoint.sh && chown -R app:app /app
+RUN chmod +x /app/bin/* /app/entrypoint.sh && chown -R app:app /app
 
 USER app
 EXPOSE 8080
@@ -38,9 +38,8 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
 ENV HOST=0.0.0.0 \
     PORT=8080 \
     RUST_LOG=info \
-    PATH="/app/bin:/app/bin/mcp:$PATH" \
+    PATH="/app/bin:$PATH" \
     SYSTEMPROMPT_SERVICES_PATH=/app/services \
-    SYSTEMPROMPT_MCP_PATH=/app/bin/mcp \
     WEB_DIR=/app/web
 
 CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
@@ -54,7 +53,7 @@ pub fn generate_dockerfile_content(project_root: &Path) -> String {
     } else {
         mcp_binaries
             .iter()
-            .map(|bin| format!("COPY target/release/{} /app/bin/mcp/", bin))
+            .map(|bin| format!("COPY target/release/{} /app/bin/", bin))
             .collect::<Vec<_>>()
             .join("\n")
     };
@@ -65,7 +64,7 @@ pub fn generate_dockerfile_content(project_root: &Path) -> String {
 pub fn get_required_mcp_copy_lines(project_root: &Path) -> Vec<String> {
     ExtensionLoader::get_mcp_binary_names(project_root)
         .iter()
-        .map(|bin| format!("COPY target/release/{} /app/bin/mcp/", bin))
+        .map(|bin| format!("COPY target/release/{} /app/bin/", bin))
         .collect()
 }
 

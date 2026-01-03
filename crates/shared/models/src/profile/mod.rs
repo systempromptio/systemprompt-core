@@ -30,7 +30,6 @@ use anyhow::{Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 #[allow(clippy::expect_used)]
@@ -95,9 +94,6 @@ pub struct Profile {
     pub runtime: RuntimeConfig,
 
     #[serde(default)]
-    pub extensions: Option<HashMap<String, serde_json::Value>>,
-
-    #[serde(default)]
     pub cloud: Option<CloudConfig>,
 
     #[serde(default)]
@@ -153,13 +149,13 @@ impl Profile {
 
     fn validate_cloud_paths(&self, errors: &mut Vec<String>) {
         Self::require_non_empty(errors, &self.paths.system, "Paths system");
-        Self::require_non_empty(errors, &self.paths.core, "Paths core");
         Self::require_non_empty(errors, &self.paths.services, "Paths services");
+        Self::require_non_empty(errors, &self.paths.bin, "Paths bin");
 
         for (name, path) in [
             ("system", self.paths.system.as_str()),
-            ("core", self.paths.core.as_str()),
             ("services", self.paths.services.as_str()),
+            ("bin", self.paths.bin.as_str()),
         ] {
             if !path.is_empty() && !path.starts_with("/app") {
                 errors.push(format!(
@@ -172,15 +168,11 @@ impl Profile {
 
     fn validate_local_paths(&self, errors: &mut Vec<String>) {
         Self::validate_local_required_path(errors, "system", &self.paths.system);
-        Self::validate_local_required_path(errors, "core", &self.paths.core);
         Self::validate_local_required_path(errors, "services", &self.paths.services);
+        Self::validate_local_required_path(errors, "bin", &self.paths.bin);
 
-        Self::validate_local_optional_path(errors, "skills", &self.paths.skills);
-        Self::validate_local_optional_path(errors, "config", &self.paths.config);
         Self::validate_local_optional_path(errors, "storage", &self.paths.storage);
         Self::validate_local_optional_path(errors, "geoip_database", &self.paths.geoip_database);
-        Self::validate_local_optional_path(errors, "content_config", &self.paths.content_config);
-        Self::validate_local_optional_path(errors, "web_config", &self.paths.web_config);
         Self::validate_local_optional_path(errors, "web_path", &self.paths.web_path);
     }
 
@@ -284,7 +276,6 @@ impl Profile {
             security: Self::security_config_from_env()?,
             rate_limits: Self::rate_limits_from_env(),
             runtime: Self::runtime_config_from_env()?,
-            extensions: None,
             cloud: None,
             secrets: None,
         })
@@ -298,8 +289,6 @@ impl Profile {
         Ok(SiteConfig {
             name: require_env("SITENAME")?,
             github_link: Self::get_env("GITHUB_LINK"),
-            service_display_name: Self::get_env("SERVICE_DISPLAY_NAME"),
-            service_version: Self::get_env("SERVICE_VERSION"),
         })
     }
 
@@ -324,16 +313,10 @@ impl Profile {
     fn paths_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Result<PathsConfig> {
         Ok(PathsConfig {
             system: require_env("SYSTEM_PATH")?,
-            core: require_env("CORE_PATH")?,
             services: require_env("SYSTEMPROMPT_SERVICES_PATH")?,
-            skills: Self::get_env("SYSTEMPROMPT_SKILLS_PATH"),
-            config: Self::get_env("SYSTEMPROMPT_CONFIG_PATH"),
+            bin: require_env("BIN_PATH")?,
             storage: Self::get_env("STORAGE_PATH"),
             geoip_database: Self::get_env("GEOIP_DATABASE_PATH"),
-            ai_config: Self::get_env("AI_CONFIG_PATH"),
-            content_config: Self::get_env("CONTENT_CONFIG_PATH"),
-            web_config: Self::get_env("SYSTEMPROMPT_WEB_CONFIG_PATH"),
-            web_metadata: Self::get_env("SYSTEMPROMPT_WEB_METADATA_PATH"),
             web_path: Self::get_env("SYSTEMPROMPT_WEB_PATH"),
         })
     }

@@ -19,7 +19,6 @@ pub fn build_local_profile(
     let ctx = ProjectContext::discover();
     let root = ctx.root();
     let system_path = root.to_string_lossy().to_string();
-    let core_path = root.join("core").to_string_lossy().to_string();
     let display_name = generate_display_name(name);
 
     Ok(Profile {
@@ -29,8 +28,6 @@ pub fn build_local_profile(
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
-            service_display_name: Some("SystemPrompt".to_string()),
-            service_version: None,
         },
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
@@ -49,17 +46,11 @@ pub fn build_local_profile(
         },
         paths: PathsConfig {
             system: system_path.clone(),
-            core: core_path.clone(),
             services: services_path.to_string(),
-            skills: Some(format!("{}/skills", services_path)),
-            config: Some(format!("{}/config/config.yaml", services_path)),
+            bin: format!("{}/target/release", system_path),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
             geoip_database: None,
-            ai_config: Some(format!("{}/ai/config.yaml", services_path)),
-            content_config: Some(format!("{}/content/config.yaml", services_path)),
-            web_config: Some(format!("{}/web/config.yaml", services_path)),
-            web_metadata: Some(format!("{}/web/metadata.yaml", services_path)),
-            web_path: Some(format!("{}/web", core_path)),
+            web_path: None,
         },
         security: SecurityConfig {
             issuer: "systemprompt-local".to_string(),
@@ -90,7 +81,6 @@ pub fn build_local_profile(
             cli_enabled: true,
             validation: CloudValidationMode::Warn,
         }),
-        extensions: None,
         secrets: Some(SecretsConfig {
             secrets_path: secrets_path.to_string(),
             validation: SecretsValidationMode::Warn,
@@ -118,8 +108,6 @@ pub fn build_cloud_profile(
         site: SiteConfig {
             name: "SystemPrompt".to_string(),
             github_link: None,
-            service_display_name: Some("SystemPrompt".to_string()),
-            service_version: None,
         },
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
@@ -135,16 +123,10 @@ pub fn build_cloud_profile(
         },
         paths: PathsConfig {
             system: "/app".to_string(),
-            core: "/app".to_string(),
             services: "/app/services".to_string(),
-            skills: Some("/app/services/skills".to_string()),
-            config: Some("/app/services/config/config.yaml".to_string()),
+            bin: "/app/bin".to_string(),
             storage: Some("/app/storage".to_string()),
             geoip_database: None,
-            ai_config: Some("/app/services/ai/config.yaml".to_string()),
-            content_config: Some("/app/services/content/config.yaml".to_string()),
-            web_config: Some("/app/services/web/config.yaml".to_string()),
-            web_metadata: Some("/app/services/web/metadata.yaml".to_string()),
             web_path: Some("/app/web".to_string()),
         },
         security: SecurityConfig {
@@ -173,7 +155,6 @@ pub fn build_cloud_profile(
             cli_enabled: false,
             validation: CloudValidationMode::Strict,
         }),
-        extensions: None,
         secrets: Some(SecretsConfig {
             secrets_path: String::new(),
             validation: SecretsValidationMode::Strict,

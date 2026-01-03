@@ -29,7 +29,7 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
 
     let binary_path = paths
         .build()
-        .resolve_binary_with_crate(&config.binary, Some(&config.crate_path))
+        .resolve_binary(&config.binary)
         .with_context(|| {
             format!(
                 "Failed to find binary '{}' for {}",
@@ -126,7 +126,7 @@ pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
     let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
     let binary_path = paths
         .build()
-        .resolve_binary_with_crate(&config.binary, Some(&config.crate_path))?;
+        .resolve_binary(&config.binary)?;
 
     let metadata = fs::metadata(&binary_path)
         .with_context(|| format!("Binary not found: {}", binary_path.display()))?;
@@ -142,13 +142,9 @@ pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
 }
 
 pub fn build_server(config: &McpServerConfig) -> Result<()> {
-    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let cargo_target_dir = paths.build().target();
-
     tracing::info!(service = %config.name, binary = %config.binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")
-        .env("CARGO_TARGET_DIR", cargo_target_dir)
         .args([
             "build",
             "--package",

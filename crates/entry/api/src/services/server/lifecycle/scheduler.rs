@@ -26,6 +26,8 @@ pub async fn initialize_scheduler(
         },
     };
 
+    let bootstrap_jobs = scheduler_config.bootstrap_jobs.clone();
+
     let scheduler = SchedulerService::new(
         scheduler_config,
         ctx.db_pool().clone(),
@@ -39,9 +41,7 @@ pub async fn initialize_scheduler(
 
     let job_ctx = JobContext::new(Arc::new(db_pool.clone()), Arc::new(ctx.clone()));
 
-    let bootstrap_jobs = ["database_cleanup", "cleanup_inactive_sessions"];
-
-    for job_name in bootstrap_jobs {
+    for job_name in &bootstrap_jobs {
         let job = inventory::iter::<&'static dyn Job>
             .into_iter()
             .find(|&j| j.name() == job_name)
@@ -49,6 +49,8 @@ pub async fn initialize_scheduler(
 
         if let Some(job) = job {
             run_bootstrap_job(&scheduler_repo, job, &job_ctx, events).await;
+        } else {
+            tracing::warn!(job = %job_name, "Bootstrap job not found in registry");
         }
     }
 
