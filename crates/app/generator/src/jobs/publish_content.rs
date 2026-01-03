@@ -94,7 +94,7 @@ async fn run_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
             stats.record_success();
         },
         Err(e) => {
-            tracing::warn!(error = %e, "Prerendering warning");
+            tracing::warn!("Prerendering failed: {:#}", e);
             stats.record_failure();
         },
     }
