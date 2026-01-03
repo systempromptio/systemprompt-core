@@ -88,8 +88,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             web_config: Some(format!("{}/web/config.yaml", services_path)),
             web_metadata: Some(format!("{}/web/metadata.yaml", services_path)),
             web_path: Some(format!("{}/web/dist", core_path)),
-            scg_templates: Some(format!("{}/templates", core_path)),
-            scg_assets: Some(format!("{}/assets", core_path)),
         },
         security: SecurityConfig {
             issuer: format!("systemprompt-{}", env_name),
