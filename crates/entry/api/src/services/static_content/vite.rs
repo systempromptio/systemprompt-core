@@ -6,7 +6,7 @@ use std::sync::Arc;
 use super::config::StaticContentMatcher;
 use systemprompt_core_content::ContentRepository;
 use systemprompt_core_files::FilesConfig;
-use systemprompt_models::{PathConfig, RouteClassifier, RouteType};
+use systemprompt_models::{AppPaths, RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 
 #[derive(Clone, Debug)]
@@ -22,12 +22,12 @@ pub async fn serve_vite_app(
     req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
     let matcher = state.matcher;
-    let dist_dir = match PathConfig::get() {
-        Ok(config) => config.web_dist().clone(),
+    let dist_dir = match AppPaths::get() {
+        Ok(paths) => paths.web().dist().to_path_buf(),
         Err(_) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "PathConfig not initialized",
+                "AppPaths not initialized",
             )
                 .into_response();
         },

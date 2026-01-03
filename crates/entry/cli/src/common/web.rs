@@ -2,11 +2,12 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
 use systemprompt_core_logging::CliService;
-use systemprompt_models::{Config, SystemPaths};
+use systemprompt_models::{AppPaths, Config};
 
 pub async fn build_web_assets() -> Result<()> {
     let config = Config::get()?;
-    let web_path = SystemPaths::web_path(config);
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let web_path = paths.web().root().to_path_buf();
 
     if !web_path.exists() {
         return Err(anyhow::anyhow!(

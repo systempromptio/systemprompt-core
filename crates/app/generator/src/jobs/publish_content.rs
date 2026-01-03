@@ -3,7 +3,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_core_content::ContentIngestionJob;
 use systemprompt_core_database::DbPool;
-use systemprompt_models::PathConfig;
+use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::ImageOptimizationJob;
@@ -114,10 +114,10 @@ async fn run_sitemap_generation(db_pool: &DbPool, stats: &mut PublishStats) {
 }
 
 async fn run_css_organization(stats: &mut PublishStats) {
-    let web_dir = match PathConfig::get() {
-        Ok(config) => config.web_dist(),
+    let web_dir = match AppPaths::get() {
+        Ok(paths) => paths.web().dist(),
         Err(e) => {
-            tracing::warn!(error = %e, "Failed to get path config");
+            tracing::warn!(error = %e, "Failed to get app paths");
             stats.record_failure();
             return;
         },

@@ -4,9 +4,7 @@ use systemprompt_core_content::models::{Content, ContentError};
 use systemprompt_core_content::ContentRepository;
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::{
-    Config, ContentConfigRaw, ContentSourceConfigRaw, PathConfig, SitemapConfig, SystemPaths,
-};
+use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
 use tokio::fs;
 
 use crate::content::render_markdown;
@@ -34,8 +32,8 @@ pub async fn prerender_content(db_pool: DbPool) -> Result<()> {
 }
 
 async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
-    let global_config = Config::get()?;
-    let config_path = SystemPaths::content_config(global_config);
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
         .await
@@ -54,7 +52,11 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
         .await
         .context("Failed to load templates")?;
 
-    let dist_dir = PathConfig::from_profile()?.web_dist().clone();
+    let dist_dir = AppPaths::get()
+        .map_err(|e| anyhow::anyhow!("{}", e))?
+        .web()
+        .dist()
+        .to_path_buf();
 
     Ok(PrerenderContext {
         db_pool,
@@ -105,13 +107,19 @@ async fn process_source(
     source: &ContentSourceConfigRaw,
     sitemap_config: &SitemapConfig,
 ) -> Result<u32> {
-    let contents = fetch_content_for_source(ctx, source_name, source.source_id.as_str()).await;
+    let contents = fetch_content_for_source(ctx, source_name, source.source_id.as_str())
+        .await
+        .with_context(|| format!("Failed to fetch content for source '{}'", source_name))?;
+
     if contents.is_empty() {
+        tracing::debug!(source = %source_name, "No content found for source");
         return Ok(0);
     }
 
     let items = contents_to_json(&contents);
-    let popular_ids = fetch_popular_ids(ctx, source_name, source.source_id.as_str()).await;
+    let popular_ids = fetch_popular_ids(ctx, source_name, source.source_id.as_str())
+        .await
+        .with_context(|| format!("Failed to fetch popular IDs for source '{}'", source_name))?;
 
     let rendered = render_all_items(ctx, source_name, sitemap_config, &items, &popular_ids).await?;
     let parent = render_parent_if_enabled(ctx, source_name, source, sitemap_config, &items).await?;
@@ -122,34 +130,46 @@ async fn fetch_content_for_source(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id: &str,
-) -> Vec<Content> {
+) -> Result<Vec<Content>> {
     if source_name.contains("skill") {
-        return Vec::new();
+        return Ok(Vec::new());
     }
-    match ContentRepository::new(&ctx.db_pool) {
-        Ok(repo) => fetch_with_retries(&repo, source_id, source_name).await,
-        Err(_) => Vec::new(),
-    }
+    let repo = ContentRepository::new(&ctx.db_pool)
+        .map_err(|e| anyhow::anyhow!("{}", e))
+        .context("Failed to create content repository")?;
+    fetch_with_retries(&repo, source_id, source_name).await
 }
 
 async fn fetch_with_retries(
     repo: &ContentRepository,
     source_id_str: &str,
     source_name: &str,
-) -> Vec<Content> {
+) -> Result<Vec<Content>> {
     let source_id = SourceId::new(source_id_str);
+    let mut last_error = None;
 
     for retry in 0..=MAX_RETRIES {
         match repo.list_by_source(&source_id).await {
-            Ok(contents) if !contents.is_empty() => return contents,
+            Ok(contents) if !contents.is_empty() => return Ok(contents),
             Ok(_) if retry < MAX_RETRIES => {
-                tracing::warn!(source = %source_name, attempt = retry + 1, "Retrying");
+                tracing::warn!(source = %source_name, attempt = retry + 1, "No content found, retrying");
                 tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
             },
-            _ => return Vec::new(),
+            Ok(_) => return Ok(Vec::new()),
+            Err(e) => {
+                tracing::warn!(source = %source_name, attempt = retry + 1, error = %e, "Query failed");
+                last_error = Some(e);
+                if retry < MAX_RETRIES {
+                    tokio::time::sleep(tokio::time::Duration::from_millis(RETRY_DELAY_MS)).await;
+                }
+            },
         }
     }
-    Vec::new()
+
+    last_error.map_or_else(
+        || Ok(Vec::new()),
+        |e| Err(anyhow::anyhow!("{}", e)).context("Failed to fetch content after retries"),
+    )
 }
 
 fn contents_to_json(contents: &[Content]) -> Vec<serde_json::Value> {
@@ -180,27 +200,23 @@ async fn fetch_popular_ids(
     ctx: &PrerenderContext,
     source_name: &str,
     source_id_str: &str,
-) -> Vec<String> {
-    // Popular content is available for all sources, not just blog
+) -> Result<Vec<String>> {
     if source_name.is_empty() {
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
-    let Ok(content_repo) = ContentRepository::new(&ctx.db_pool) else {
-        return Vec::new();
-    };
+    let content_repo = ContentRepository::new(&ctx.db_pool)
+        .map_err(|e| anyhow::anyhow!("{}", e))
+        .context("Failed to create content repository for popular IDs")?;
 
     let source_id = SourceId::new(source_id_str);
-    match content_repo
+    let ids = content_repo
         .get_popular_content_ids(&source_id, 30, 20)
         .await
-    {
-        Ok(ids) => ids.into_iter().map(|id| id.to_string()).collect(),
-        Err(e) => {
-            tracing::warn!(error = %e, "Failed to get popular content IDs");
-            Vec::new()
-        },
-    }
+        .map_err(|e| anyhow::anyhow!("{}", e))
+        .context("Failed to get popular content IDs")?;
+
+    Ok(ids.into_iter().map(|id| id.to_string()).collect())
 }
 
 async fn render_all_items(

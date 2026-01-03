@@ -5,7 +5,9 @@ use systemprompt_core_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
-use systemprompt_models::{Config, ContentConfigRaw, ContentRouting, RouteClassifier, SystemPaths};
+use systemprompt_models::{
+    AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap, RouteClassifier,
+};
 use systemprompt_traits::{AppContext as AppContextTrait, ConfigProvider, DatabaseHandle};
 
 #[derive(Clone)]
@@ -46,7 +48,8 @@ impl AppContext {
     }
 
     async fn new_internal(extension_registry: Option<ExtensionRegistry>) -> Result<Self> {
-        systemprompt_models::PathConfig::init()?;
+        let profile = ProfileBootstrap::get()?;
+        AppPaths::init(&profile.paths)?;
         systemprompt_core_files::FilesConfig::init()?;
         let config = Arc::new(Config::get()?.clone());
         let database =
@@ -116,8 +119,12 @@ impl AppContext {
         }
     }
 
-    fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {
-        let content_config_path = SystemPaths::content_config(config);
+    fn load_content_config(_config: &Config) -> Option<Arc<ContentConfigRaw>> {
+        let content_config_path = AppPaths::get()
+            .ok()?
+            .system()
+            .content_config()
+            .to_path_buf();
 
         if !content_config_path.exists() {
             CliService::warning(&format!(

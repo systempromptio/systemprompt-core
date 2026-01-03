@@ -4,8 +4,7 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use systemprompt_core_config::BinaryPaths;
-use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, ProfileBootstrap, SecretsBootstrap};
 
 const MAX_LOG_SIZE: u64 = 10 * 1024 * 1024;
 
@@ -26,18 +25,21 @@ fn rotate_log_if_needed(log_path: &Path) {
 }
 
 pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Result<u32> {
-    let binary_path =
-        BinaryPaths::resolve_binary_with_path(&config.binary, Some(&config.crate_path))
-            .with_context(|| {
-                format!(
-                    "Failed to find binary '{}' for {}",
-                    config.binary, config.name
-                )
-            })?;
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+
+    let binary_path = paths
+        .build()
+        .resolve_binary_with_crate(&config.binary, Some(&config.crate_path))
+        .with_context(|| {
+            format!(
+                "Failed to find binary '{}' for {}",
+                config.binary, config.name
+            )
+        })?;
 
     let config_global = systemprompt_models::Config::get()?;
 
-    let log_dir = Path::new(&config_global.system_path).join("logs");
+    let log_dir = paths.system().logs();
     fs::create_dir_all(&log_dir)
         .with_context(|| format!("Failed to create logs directory: {}", log_dir.display()))?;
 
@@ -121,8 +123,10 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
 }
 
 pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
-    let binary_path =
-        BinaryPaths::resolve_binary_with_path(&config.binary, Some(&config.crate_path))?;
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let binary_path = paths
+        .build()
+        .resolve_binary_with_crate(&config.binary, Some(&config.crate_path))?;
 
     let metadata = fs::metadata(&binary_path)
         .with_context(|| format!("Binary not found: {}", binary_path.display()))?;
@@ -138,15 +142,13 @@ pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
 }
 
 pub fn build_server(config: &McpServerConfig) -> Result<()> {
-    use std::path::PathBuf;
-    use systemprompt_models::Config;
-    let global_config = Config::get()?;
-    let cargo_target_dir = PathBuf::from(&global_config.system_path).join("target");
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let cargo_target_dir = paths.build().target();
 
     tracing::info!(service = %config.name, binary = %config.binary, "Building service (debug mode)");
 
     let output = Command::new("cargo")
-        .env("CARGO_TARGET_DIR", &cargo_target_dir)
+        .env("CARGO_TARGET_DIR", cargo_target_dir)
         .args([
             "build",
             "--package",

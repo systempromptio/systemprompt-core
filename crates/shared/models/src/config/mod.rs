@@ -14,7 +14,7 @@ mod validation;
 mod verbosity;
 
 pub use environment::Environment;
-pub use paths::{PathNotConfiguredError, SystemPaths};
+pub use paths::PathNotConfiguredError;
 pub use rate_limits::RateLimitConfig;
 pub use validation::{
     format_path_errors, validate_optional_path, validate_postgres_url, validate_profile_paths,

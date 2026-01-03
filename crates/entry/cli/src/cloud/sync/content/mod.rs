@@ -6,14 +6,12 @@ use dialoguer::{Confirm, Select};
 use std::sync::Arc;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
-use systemprompt_models::{
-    Config, ContentConfigRaw, ContentSourceConfigRaw, SecretsBootstrap, SystemPaths,
-};
+use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, SecretsBootstrap};
 use systemprompt_sync::{ContentDiffEntry, ContentLocalSync, LocalSyncDirection};
 
 fn get_content_config_path() -> Result<std::path::PathBuf> {
-    let config = Config::get()?;
-    let path = SystemPaths::content_config(config);
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let path = paths.system().content_config().to_path_buf();
 
     if !path.exists() {
         anyhow::bail!(

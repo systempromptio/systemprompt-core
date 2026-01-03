@@ -1,4 +1,3 @@
-use std::path::Path;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -14,8 +13,9 @@ use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_tui::{CloudParams, TuiApp};
 use systemprompt_core_users::{User, UserService};
 use systemprompt_identifiers::JwtToken;
-use systemprompt_loader::ProfileLoader;
-use systemprompt_models::{ApiPaths, Config, Profile, SecretsBootstrap};
+use systemprompt_models::{ApiPaths, Config, SecretsBootstrap};
+
+use crate::cloud::deploy_select::{discover_profiles, DiscoveredProfile};
 
 async fn check_local_api(api_url: &str) -> Result<(), String> {
     let client = reqwest::Client::builder()
@@ -48,27 +48,23 @@ async fn check_local_api(api_url: &str) -> Result<(), String> {
     }
 }
 
-fn find_services_path() -> Result<String> {
-    let config = Config::get()?;
-    Ok(config.services_path.clone())
-}
-
-fn prompt_profile_selection(profiles: &[String]) -> Result<usize> {
+fn prompt_profile_selection(profiles: &[DiscoveredProfile]) -> Result<usize> {
     if profiles.is_empty() {
         anyhow::bail!(
-            "No profiles found.\n\nCreate a profile in services/profiles/ (e.g., \
-             local.profile.yaml)"
+            "No profiles found.\n\nCreate a profile with: systemprompt cloud profile create <name>"
         );
     }
 
     if profiles.len() == 1 {
-        CliService::info(&format!("Using profile: {}", profiles[0]));
+        CliService::info(&format!("Using profile: {}", profiles[0].name));
         return Ok(0);
     }
 
+    let options: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
+
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select a profile")
-        .items(profiles)
+        .items(&options)
         .default(0)
         .interact()
         .context("Failed to get profile selection")?;
@@ -130,20 +126,22 @@ pub async fn execute() -> Result<()> {
     }
     CliService::success("Token valid");
 
-    let services_path = find_services_path()?;
-    let services_dir = Path::new(&services_path);
+    let profiles = discover_profiles().context("Failed to discover profiles")?;
 
-    let profile_names = Profile::list_available(services_dir);
     CliService::section("Available profiles");
-    for name in &profile_names {
-        CliService::info(&format!("  - {}", name));
+    for p in &profiles {
+        CliService::info(&format!("  - {}", p.name));
     }
 
-    let selected_idx = prompt_profile_selection(&profile_names)?;
-    let profile_name = &profile_names[selected_idx];
+    let selected_idx = prompt_profile_selection(&profiles)?;
+    let selected = &profiles[selected_idx];
 
-    let profile = ProfileLoader::load_and_validate(services_dir, profile_name)
-        .with_context(|| format!("Failed to load profile: {}", profile_name))?;
+    selected
+        .profile
+        .validate()
+        .with_context(|| format!("Failed to validate profile: {}", selected.name))?;
+
+    let profile = selected.profile.clone();
 
     CliService::info("Checking local API server...");
     CliService::key_value("URL", &profile.server.api_external_url);
@@ -194,7 +192,7 @@ pub async fn execute() -> Result<()> {
     CliService::section("Starting TUI");
     CliService::key_value(
         "Profile",
-        &format!("{} ({})", profile.display_name, profile_name),
+        &format!("{} ({})", profile.display_name, selected.name),
     );
     CliService::key_value("Admin", &selected_admin.email);
     CliService::key_value("Session", session_id.as_str());

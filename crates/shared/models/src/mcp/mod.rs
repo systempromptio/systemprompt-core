@@ -7,10 +7,7 @@ mod tool_result_metadata;
 
 pub use call_tool_result_ext::CallToolResultExt;
 pub use deployment::{Deployment, DeploymentConfig, OAuthRequirement, Settings};
-pub use registry::{
-    EnvVar, Header, OfficialMetadata, Package, RegistryConfig, RegistryMetadata, Remote,
-    Repository, ServerManifest, Transport,
-};
+pub use registry::RegistryConfig;
 pub use registry_trait::{
     DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider, McpDeploymentProvider,
     McpProvider, McpRegistry, McpServerState, McpToolProvider,

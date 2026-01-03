@@ -2,8 +2,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_core_config::BinaryPaths;
 use systemprompt_core_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_models::AppPaths;
 
 use super::ServiceInfo;
 use crate::McpServerConfig;
@@ -18,8 +18,9 @@ pub fn get_binary_mtime(binary_path: &Path) -> Option<i64> {
 }
 
 pub fn get_binary_mtime_for_service(service_name: &str) -> Option<i64> {
-    BinaryPaths::resolve_binary(service_name)
+    AppPaths::get()
         .ok()
+        .and_then(|paths| paths.build().resolve_binary(service_name).ok())
         .and_then(|path| get_binary_mtime(path.as_path()))
 }
 

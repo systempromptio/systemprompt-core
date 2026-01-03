@@ -2,9 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use std::path::Path;
 use systemprompt_core_database::{DatabaseProvider, DbPool};
-use systemprompt_models::{
-    Config, ContentConfigRaw, ContentSourceConfigRaw, PathConfig, SystemPaths,
-};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
 use super::xml::{build_sitemap_index, build_sitemap_xml, SitemapUrl};
@@ -29,7 +27,8 @@ pub async fn generate_sitemap(db_pool: DbPool) -> Result<()> {
 
 async fn load_sitemap_context(db_pool: DbPool) -> Result<SitemapContext> {
     let global_config = Config::get()?;
-    let config_path = SystemPaths::content_config(global_config);
+    let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
+    let config_path = paths.system().content_config();
 
     let yaml_content = fs::read_to_string(&config_path)
         .await
@@ -38,7 +37,11 @@ async fn load_sitemap_context(db_pool: DbPool) -> Result<SitemapContext> {
     let config: ContentConfigRaw =
         serde_yaml::from_str(&yaml_content).context("Failed to parse content config")?;
 
-    let web_dir = PathConfig::from_profile()?.web_dist().clone();
+    let web_dir = AppPaths::get()
+        .map_err(|e| anyhow!("{}", e))?
+        .web()
+        .dist()
+        .to_path_buf();
     let base_url = std::env::var("SITEMAP_BASE_URL")
         .unwrap_or_else(|_| global_config.api_external_url.clone());
 
