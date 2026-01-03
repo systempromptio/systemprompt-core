@@ -5,6 +5,7 @@ use systemprompt_core_analytics::SessionCleanupService;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext};
+use tracing_subscriber::EnvFilter;
 
 use systemprompt_generator as _;
 
@@ -41,6 +42,9 @@ fn list_jobs() -> Result<()> {
 
 #[tracing::instrument(name = "cli_scheduler", skip(ctx))]
 async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+
     CliService::info(&format!("Running job: {}", job_name));
 
     let db_pool = ctx.db_pool().clone();
