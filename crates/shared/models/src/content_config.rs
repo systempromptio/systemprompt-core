@@ -229,7 +229,7 @@ pub struct OrganizationData {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ArticleDefaults {
-    #[serde(default)]
+    #[serde(default, rename = "type")]
     pub article_type: String,
     #[serde(default)]
     pub article_section: String,
