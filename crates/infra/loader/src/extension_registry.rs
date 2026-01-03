@@ -9,33 +9,46 @@ use crate::ExtensionLoader;
 #[derive(Debug)]
 pub struct ExtensionRegistry {
     discovered: HashMap<String, DiscoveredExtension>,
-    mcp_path: Option<PathBuf>,
+    bin_path: PathBuf,
+    is_cloud: bool,
 }
 
 impl ExtensionRegistry {
-    pub fn build(project_root: &Path) -> Self {
-        let mcp_path = std::env::var("SYSTEMPROMPT_MCP_PATH")
-            .ok()
-            .map(PathBuf::from);
+    pub fn build(project_root: &Path, is_cloud: bool, bin_path: &str) -> Self {
+        let discovered = if is_cloud {
+            HashMap::new()
+        } else {
+            ExtensionLoader::build_binary_map(project_root)
+        };
 
         Self {
-            discovered: ExtensionLoader::build_binary_map(project_root),
-            mcp_path,
+            discovered,
+            bin_path: PathBuf::from(bin_path),
+            is_cloud,
         }
     }
 
     pub fn get_path(&self, binary_name: &str) -> Result<PathBuf> {
-        if let Some(ref mcp_path) = self.mcp_path {
-            let binary_path = mcp_path.join(binary_name);
-            if binary_path.exists() {
-                return Ok(mcp_path.clone());
-            }
+        if self.is_cloud {
+            let binary_path = self.bin_path.join(binary_name);
+            return binary_path.exists().then(|| self.bin_path.clone()).ok_or_else(|| {
+                anyhow::anyhow!(
+                    "Binary '{}' not found at {}",
+                    binary_name,
+                    binary_path.display()
+                )
+            });
         }
 
         self.discovered
             .get(binary_name)
             .map(|ext| ext.path.clone())
-            .ok_or_else(|| anyhow::anyhow!("No manifest.yaml found for binary '{}'", binary_name))
+            .ok_or_else(|| {
+                anyhow::anyhow!(
+                    "No manifest.yaml found for extension '{}' in extensions/",
+                    binary_name
+                )
+            })
     }
 
     pub fn get_extension(&self, binary_name: &str) -> Option<&DiscoveredExtension> {
@@ -43,9 +56,6 @@ impl ExtensionRegistry {
     }
 
     pub fn has_extension(&self, binary_name: &str) -> bool {
-        self.mcp_path
-            .as_ref()
-            .is_some_and(|p| p.join(binary_name).exists())
-            || self.discovered.contains_key(binary_name)
+        self.bin_path.join(binary_name).exists() || self.discovered.contains_key(binary_name)
     }
 }
