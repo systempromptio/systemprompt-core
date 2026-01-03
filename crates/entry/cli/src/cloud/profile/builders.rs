@@ -60,8 +60,6 @@ pub fn build_local_profile(
             web_config: Some(format!("{}/web/config.yaml", services_path)),
             web_metadata: Some(format!("{}/web/metadata.yaml", services_path)),
             web_path: Some(format!("{}/web", core_path)),
-            scg_templates: None,
-            scg_assets: None,
         },
         security: SecurityConfig {
             issuer: "systemprompt-local".to_string(),
@@ -148,8 +146,6 @@ pub fn build_cloud_profile(
             web_config: Some("/app/services/web/config.yaml".to_string()),
             web_metadata: Some("/app/services/web/metadata.yaml".to_string()),
             web_path: Some("/app/web".to_string()),
-            scg_templates: None,
-            scg_assets: None,
         },
         security: SecurityConfig {
             issuer: "systemprompt".to_string(),

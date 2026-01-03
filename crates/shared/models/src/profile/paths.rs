@@ -35,12 +35,6 @@ pub struct PathsConfig {
 
     #[serde(default)]
     pub web_path: Option<String>,
-
-    #[serde(default)]
-    pub scg_templates: Option<String>,
-
-    #[serde(default)]
-    pub scg_assets: Option<String>,
 }
 
 impl PathsConfig {
@@ -57,8 +51,6 @@ impl PathsConfig {
         self.web_config = self.web_config.as_ref().map(|p| resolve_path(base, p));
         self.web_metadata = self.web_metadata.as_ref().map(|p| resolve_path(base, p));
         self.web_path = self.web_path.as_ref().map(|p| resolve_path(base, p));
-        self.scg_templates = self.scg_templates.as_ref().map(|p| resolve_path(base, p));
-        self.scg_assets = self.scg_assets.as_ref().map(|p| resolve_path(base, p));
     }
 }
 

@@ -335,8 +335,6 @@ impl Profile {
             web_config: Self::get_env("SYSTEMPROMPT_WEB_CONFIG_PATH"),
             web_metadata: Self::get_env("SYSTEMPROMPT_WEB_METADATA_PATH"),
             web_path: Self::get_env("SYSTEMPROMPT_WEB_PATH"),
-            scg_templates: Self::get_env("SCG_TEMPLATES_PATH"),
-            scg_assets: Self::get_env("SCG_ASSETS_PATH"),
         })
     }
 
