@@ -43,7 +43,7 @@ impl AppPaths {
     fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         Ok(Self {
             system: SystemPaths::from_profile(paths)?,
-            web: WebPaths::from_profile(paths)?,
+            web: WebPaths::from_profile(paths),
             build: BuildPaths::from_profile(paths),
             storage: paths.storage.as_ref().map(PathBuf::from),
             ai_config: Some(PathBuf::from(paths.ai_config())),

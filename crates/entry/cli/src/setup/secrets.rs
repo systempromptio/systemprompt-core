@@ -1,19 +1,11 @@
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_core_logging::CliService;
 
-fn generate_jwt_secret() -> String {
-    let mut rng = thread_rng();
-    (0..64)
-        .map(|_| rng.sample(Alphanumeric))
-        .map(char::from)
-        .collect()
-}
+use crate::common::profile::generate_jwt_secret;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretsData {

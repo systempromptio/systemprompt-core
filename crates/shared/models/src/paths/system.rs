@@ -40,11 +40,6 @@ impl SystemPaths {
         })
     }
 
-    fn require_path(path: Option<&str>, field: &'static str) -> Result<PathBuf, PathError> {
-        path.map(PathBuf::from)
-            .ok_or(PathError::NotConfigured { field })
-    }
-
     pub fn root(&self) -> &Path {
         &self.root
     }

@@ -209,7 +209,7 @@ impl StartupValidator {
         let ext_id = ext.id();
         if ext.config_prefix().is_none() {
             return;
-        };
+        }
 
         render_phase_success(&format!("[ext:{}]", ext_id), Some("loaded"));
     }
