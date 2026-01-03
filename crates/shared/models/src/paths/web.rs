@@ -1,6 +1,5 @@
 use std::path::{Path, PathBuf};
 
-use super::PathError;
 use crate::profile::PathsConfig;
 
 #[derive(Debug, Clone)]
@@ -14,21 +13,16 @@ pub struct WebPaths {
 impl WebPaths {
     const DIST_DIR: &'static str = "dist";
 
-    pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
+    pub fn from_profile(paths: &PathsConfig) -> Self {
         let root = PathBuf::from(paths.web_path_resolved());
         let dist = root.join(Self::DIST_DIR);
 
-        Ok(Self {
+        Self {
             root,
             dist,
             config: PathBuf::from(paths.web_config()),
             metadata: PathBuf::from(paths.web_metadata()),
-        })
-    }
-
-    fn require_path(path: Option<&str>, field: &'static str) -> Result<PathBuf, PathError> {
-        path.map(PathBuf::from)
-            .ok_or(PathError::NotConfigured { field })
+        }
     }
 
     pub fn root(&self) -> &Path {

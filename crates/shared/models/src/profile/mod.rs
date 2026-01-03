@@ -127,6 +127,8 @@ impl Profile {
         self.validate_required_fields(&mut errors);
         self.validate_paths(&mut errors, is_cloud);
         self.validate_security_settings(&mut errors);
+        self.validate_cors_origins(&mut errors);
+        self.validate_rate_limits(&mut errors);
 
         if errors.is_empty() {
             Ok(())
@@ -230,6 +232,52 @@ impl Profile {
 
         if self.security.refresh_token_expiration <= 0 {
             errors.push("Security refresh_token_expiration must be positive".to_string());
+        }
+    }
+
+    fn validate_cors_origins(&self, errors: &mut Vec<String>) {
+        for origin in &self.server.cors_allowed_origins {
+            if origin.is_empty() {
+                errors.push("CORS origin cannot be empty".to_string());
+                continue;
+            }
+
+            let is_valid = origin.starts_with("http://") || origin.starts_with("https://");
+            if !is_valid {
+                errors.push(format!(
+                    "Invalid CORS origin (must start with http:// or https://): {}",
+                    origin
+                ));
+            }
+        }
+    }
+
+    fn validate_rate_limits(&self, errors: &mut Vec<String>) {
+        if self.rate_limits.disabled {
+            return;
+        }
+
+        if self.rate_limits.burst_multiplier == 0 {
+            errors.push("rate_limits.burst_multiplier must be greater than 0".to_string());
+        }
+
+        Self::validate_rate_limit(errors, "oauth_public", self.rate_limits.oauth_public_per_second);
+        Self::validate_rate_limit(errors, "oauth_auth", self.rate_limits.oauth_auth_per_second);
+        Self::validate_rate_limit(errors, "contexts", self.rate_limits.contexts_per_second);
+        Self::validate_rate_limit(errors, "tasks", self.rate_limits.tasks_per_second);
+        Self::validate_rate_limit(errors, "artifacts", self.rate_limits.artifacts_per_second);
+        Self::validate_rate_limit(errors, "agents", self.rate_limits.agents_per_second);
+        Self::validate_rate_limit(errors, "mcp", self.rate_limits.mcp_per_second);
+        Self::validate_rate_limit(errors, "stream", self.rate_limits.stream_per_second);
+        Self::validate_rate_limit(errors, "content", self.rate_limits.content_per_second);
+    }
+
+    fn validate_rate_limit(errors: &mut Vec<String>, name: &str, value: u64) {
+        if value == 0 {
+            errors.push(format!(
+                "rate_limits.{}_per_second must be greater than 0",
+                name
+            ));
         }
     }
 
