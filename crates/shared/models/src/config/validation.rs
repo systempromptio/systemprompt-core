@@ -12,7 +12,6 @@ pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> Validati
     validate_required_path(&mut report, "services", &profile.paths.services);
     validate_required_path(&mut report, "bin", &profile.paths.bin);
 
-    validate_required_path(&mut report, "core", &profile.paths.core());
     validate_required_path(&mut report, "skills", &profile.paths.skills());
     validate_required_path(&mut report, "config", &profile.paths.config());
     validate_required_path(&mut report, "web_path", &profile.paths.web_path_resolved());

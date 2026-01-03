@@ -177,7 +177,8 @@ Public API for external consumers. Published to crates.io for downstream project
 | `core` (default) | traits, models, identifiers, extension |
 | `database` | database abstraction |
 | `api` | HTTP server, AppContext |
-| `full` | All domain modules (agent, mcp, oauth, users, content, analytics, scheduler) |
+| `cli` | CLI entry point (`systemprompt::cli::run()`) |
+| `full` | Everything: all domain modules + CLI |
 
 ---
 

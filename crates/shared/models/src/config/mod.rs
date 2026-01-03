@@ -27,7 +27,6 @@ static CONFIG: OnceLock<Config> = OnceLock::new();
 #[allow(clippy::struct_field_names)]
 struct BuildConfigPaths {
     system_path: String,
-    core_path: String,
     skills_path: String,
     settings_path: String,
     content_config_path: String,
@@ -44,7 +43,6 @@ pub struct Config {
     pub github_link: String,
     pub github_token: Option<String>,
     pub system_path: String,
-    pub core_path: String,
     pub services_path: String,
     pub skills_path: String,
     pub settings_path: String,
@@ -110,7 +108,6 @@ impl Config {
         }
 
         let system_path = Self::canonicalize_path(&profile.paths.system, "system")?;
-        let core_path = Self::canonicalize_path(&profile.paths.core(), "core")?;
 
         let skills_path = profile.paths.skills();
         let settings_path =
@@ -134,7 +131,6 @@ impl Config {
 
         let paths = BuildConfigPaths {
             system_path,
-            core_path,
             skills_path,
             settings_path,
             content_config_path,
@@ -195,7 +191,6 @@ impl Config {
                 .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_string()),
             github_token: None,
             system_path: paths.system_path,
-            core_path: paths.core_path,
             services_path: profile.paths.services.clone(),
             skills_path: paths.skills_path,
             settings_path: paths.settings_path,
@@ -264,7 +259,6 @@ impl ConfigProvider for Config {
             "host" => Some(self.host.clone()),
             "port" => Some(self.port.to_string()),
             "system_path" => Some(self.system_path.clone()),
-            "core_path" => Some(self.core_path.clone()),
             "services_path" => Some(self.services_path.clone()),
             "skills_path" => Some(self.skills_path.clone()),
             "settings_path" => Some(self.settings_path.clone()),
