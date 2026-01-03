@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use crate::ai::tools::McpTool;
 use crate::execution::context::RequestContext;
-use crate::ServerManifest;
 
 #[derive(Debug, Clone)]
 pub struct McpServerState {
@@ -18,8 +17,6 @@ pub struct McpServerState {
 #[async_trait]
 pub trait McpRegistry: Send + Sync {
     async fn list_servers(&self) -> Result<Vec<String>>;
-
-    async fn get_server_manifest(&self, name: &str) -> Result<Option<ServerManifest>>;
 
     async fn find_server(&self, name: &str) -> Result<Option<McpServerState>>;
 

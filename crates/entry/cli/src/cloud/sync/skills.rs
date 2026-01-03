@@ -4,12 +4,12 @@ use dialoguer::{Confirm, Select};
 use std::sync::Arc;
 use systemprompt_core_database::{Database, DatabaseProvider};
 use systemprompt_core_logging::CliService;
-use systemprompt_models::{Config, SecretsBootstrap, SystemPaths};
+use systemprompt_models::{AppPaths, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult, SkillsLocalSync};
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
-    let config = Config::get()?;
-    Ok(SystemPaths::skills(config))
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    Ok(paths.system().skills().to_path_buf())
 }
 
 async fn create_db_provider(database_url: Option<&str>) -> Result<Arc<dyn DatabaseProvider>> {

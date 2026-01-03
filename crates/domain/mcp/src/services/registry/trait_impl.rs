@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::mcp::{
-    McpDeploymentProvider, McpRegistry, McpServerState, McpToolProvider, ServerManifest,
+    McpDeploymentProvider, McpRegistry, McpServerState, McpToolProvider,
 };
 use systemprompt_models::{RequestContext, ServicesConfig};
 use systemprompt_traits::{McpRegistryProvider, McpServerInfo, RegistryError, ServiceOAuthConfig};
@@ -19,10 +19,6 @@ impl McpRegistry for RegistryManager {
         use systemprompt_loader::ConfigLoader;
         let config = ConfigLoader::load()?;
         Ok(config.mcp_servers.keys().cloned().collect())
-    }
-
-    async fn get_server_manifest(&self, _name: &str) -> Result<Option<ServerManifest>> {
-        Ok(None)
     }
 
     async fn find_server(&self, name: &str) -> Result<Option<McpServerState>> {

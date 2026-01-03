@@ -8,7 +8,7 @@ use systemprompt_models::services::{
     AgentConfig, AiConfig, PartialServicesConfig, SchedulerConfig, ServicesConfig,
     Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
-use systemprompt_models::{Config, SystemPaths};
+use systemprompt_models::AppPaths;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigLoader;
@@ -23,9 +23,9 @@ struct ConfigWithIncludes {
 
 impl ConfigLoader {
     pub fn load() -> Result<ServicesConfig> {
-        let config = Config::get()?;
-        let path = SystemPaths::services_config(config);
-        Self::load_from_path(&path)
+        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let path = paths.system().settings();
+        Self::load_from_path(path)
     }
 
     pub fn load_from_path(config_path: &Path) -> Result<ServicesConfig> {
@@ -142,8 +142,8 @@ impl EnhancedConfigLoader {
     }
 
     pub fn from_env() -> Result<Self> {
-        let config = Config::get()?;
-        let config_path = SystemPaths::services_config(config);
+        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        let config_path = paths.system().settings().to_path_buf();
         Ok(Self::new(config_path))
     }
 

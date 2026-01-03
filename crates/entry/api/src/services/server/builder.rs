@@ -6,7 +6,7 @@ use serde_json::json;
 use systemprompt_core_database::DatabaseQuery;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::PathConfig;
+use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
@@ -219,8 +219,8 @@ pub async fn handle_health(
         Err(_) => (0, "error"),
     };
 
-    let web_dir = PathConfig::get()
-        .map(|c| c.web_dist().clone())
+    let web_dir = AppPaths::get()
+        .map(|p| p.web().dist().to_path_buf())
         .unwrap_or_else(|_| std::path::PathBuf::from("/var/www/html/dist"));
     let sitemap_exists = web_dir.join("sitemap.xml").exists();
     let sitemap_status = if sitemap_exists { "present" } else { "missing" };

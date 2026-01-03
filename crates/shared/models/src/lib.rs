@@ -76,7 +76,7 @@ pub use auth::{
     AuthError, AuthenticatedUser, BaseRole, BaseRoles, GrantType, PkceMethod, ResponseType,
     BEARER_PREFIX,
 };
-pub use config::{Config, PathNotConfiguredError, SystemPaths};
+pub use config::{Config, PathNotConfiguredError};
 pub use content::{ContentLink, IngestionReport};
 pub use content_config::{
     ArticleDefaults, Category, ContentConfigError, ContentConfigErrors, ContentConfigRaw,
@@ -97,15 +97,15 @@ pub use extension::{BuildType, DiscoveredExtension, Extension, ExtensionManifest
 pub use mcp::{
     Deployment, DeploymentConfig, DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider,
     McpAuthState, McpDeploymentProvider, McpProvider, McpRegistry, McpServerConfig, McpServerState,
-    McpToolProvider, OAuthRequirement, RegistryConfig, ServerManifest, Settings,
-    ERROR as MCP_ERROR, RUNNING as MCP_RUNNING, STARTING as MCP_STARTING, STOPPED as MCP_STOPPED,
+    McpToolProvider, OAuthRequirement, RegistryConfig, Settings, ERROR as MCP_ERROR,
+    RUNNING as MCP_RUNNING, STARTING as MCP_STARTING, STOPPED as MCP_STOPPED,
 };
 pub use modules::{
     ApiConfig, ApiPaths, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed,
     ModuleType, Modules, ServiceCategory,
 };
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
-pub use paths::PathConfig;
+pub use paths::{AppPaths, BuildPaths, PathError, SystemPaths, WebPaths};
 pub use profile::{
     CloudConfig, CloudValidationMode, DatabaseConfig as ProfileDatabaseConfig, Environment,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig,

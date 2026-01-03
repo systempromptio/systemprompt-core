@@ -12,7 +12,7 @@ use axum::routing::get;
 use std::sync::Arc;
 use systemprompt_core_users::BannedIpRepository;
 use systemprompt_extension::LoaderError;
-use systemprompt_models::{Config, SystemPaths};
+use systemprompt_models::AppPaths;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
 pub fn configure_routes(
@@ -145,19 +145,19 @@ pub fn configure_routes(
 
     router = mount_extension_routes(router, ctx, &user_middleware, events)?;
 
-    let config = match Config::get() {
-        Ok(c) => c,
+    let paths = match AppPaths::get() {
+        Ok(p) => p,
         Err(e) => {
             if let Some(tx) = events {
                 let _ = tx.send(StartupEvent::Warning {
-                    message: format!("Failed to load config: {e}"),
+                    message: format!("Failed to load paths: {e}"),
                     context: Some("Static content matching will be disabled".to_string()),
                 });
             }
             return Ok(router);
         },
     };
-    let path = SystemPaths::content_config(config);
+    let path = paths.system().content_config().to_path_buf();
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),

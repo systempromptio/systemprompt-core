@@ -51,7 +51,7 @@ use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile::CloudValidationMode;
-use systemprompt_models::{Config, PathConfig, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
@@ -159,8 +159,9 @@ async fn main() -> Result<()> {
         }
 
         if requires_secrets {
+            let profile = ProfileBootstrap::get()?;
+            AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
             Config::try_init().context("Failed to initialize configuration")?;
-            PathConfig::init().context("Failed to initialize path configuration")?;
             FilesConfig::init().context("Failed to initialize files configuration")?;
 
             let mut validator = StartupValidator::new();

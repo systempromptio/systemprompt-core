@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use systemprompt_core_database::DbPool;
-use systemprompt_models::{Config, ContentConfigRaw, ContentSourceConfigRaw, SystemPaths};
+use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use crate::services::IngestionService;
@@ -40,14 +40,15 @@ fn log_job_started() {
 }
 
 fn load_content_config() -> Result<ContentConfigRaw> {
-    let global_config = Config::get()?;
-    let config_path = SystemPaths::content_config(global_config);
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let config_path = paths.system().content_config();
+    let config_display = config_path.display().to_string();
 
-    let yaml_content = std::fs::read_to_string(&config_path)
-        .with_context(|| format!("Failed to read config: {}", config_path.display()))?;
+    let yaml_content = std::fs::read_to_string(config_path)
+        .with_context(|| format!("Failed to read config: {config_display}"))?;
 
     serde_yaml::from_str(&yaml_content)
-        .with_context(|| format!("Failed to parse config: {}", config_path.display()))
+        .with_context(|| format!("Failed to parse config: {config_display}"))
 }
 
 fn create_ingestion_service(db_pool: &DbPool) -> Result<IngestionService> {

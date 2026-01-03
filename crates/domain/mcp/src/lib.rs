@@ -7,8 +7,8 @@ pub mod repository;
 pub mod services;
 
 pub use systemprompt_models::mcp::{
-    Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Package, Remote,
-    Repository, ServerManifest, Settings, ERROR, RUNNING, STARTING, STOPPED,
+    Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings, ERROR,
+    RUNNING, STARTING, STOPPED,
 };
 
 pub use services::monitoring::health::HealthStatus;

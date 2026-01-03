@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::EnhancedConfigLoader;
-use systemprompt_models::{Config, ContentConfigRaw, SkillsConfig, SystemPaths};
+use systemprompt_models::{AppPaths, Config, ContentConfigRaw, SkillsConfig};
 
 use super::show_display::print_formatted_config;
 use super::show_types::{
@@ -166,9 +166,15 @@ fn build_env_config(config: &Config) -> EnvironmentConfig {
         systemprompt: SystemPromptEnvVars {
             env: format!("{:?}", env),
             verbosity: format!("{:?}", verbosity),
-            services_path: Some(config.services_path.clone()),
-            skills_path: Some(config.skills_path.clone()),
-            config_path: Some(config.settings_path.clone()),
+            services_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().services().display().to_string()),
+            skills_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().skills().display().to_string()),
+            config_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().settings().display().to_string()),
         },
         database: DatabaseEnvVars {
             database_type: config.database_type.clone(),
@@ -185,10 +191,18 @@ fn build_env_config(config: &Config) -> EnvironmentConfig {
             burst_multiplier: config.rate_limits.burst_multiplier,
         },
         paths: PathsEnvVars {
-            system_path: config.system_path.clone(),
-            services: SystemPaths::services(config).display().to_string(),
-            skills: SystemPaths::skills(config).display().to_string(),
-            services_config: SystemPaths::services_config(config).display().to_string(),
+            system_path: AppPaths::get()
+                .map(|p| p.system().root().display().to_string())
+                .unwrap_or_default(),
+            services: AppPaths::get()
+                .map(|p| p.system().services().display().to_string())
+                .unwrap_or_default(),
+            skills: AppPaths::get()
+                .map(|p| p.system().skills().display().to_string())
+                .unwrap_or_default(),
+            services_config: AppPaths::get()
+                .map(|p| p.system().settings().display().to_string())
+                .unwrap_or_default(),
         },
     }
 }
@@ -205,8 +219,8 @@ fn redact_database_url(url: &str) -> String {
     format!("{}[REDACTED]{}", protocol, after_at)
 }
 
-fn load_skills_config(config: &Config) -> Option<SkillsConfig> {
-    let skills_path = SystemPaths::skills(config);
+fn load_skills_config(_config: &Config) -> Option<SkillsConfig> {
+    let skills_path = AppPaths::get().ok()?.system().skills().to_path_buf();
     if !skills_path.exists() {
         return None;
     }
@@ -233,8 +247,11 @@ fn load_skills_config(config: &Config) -> Option<SkillsConfig> {
 }
 
 fn load_content_config() -> Option<ContentConfigRaw> {
-    let config = Config::get().ok()?;
-    let path = SystemPaths::content_config(config);
+    let path = AppPaths::get()
+        .ok()?
+        .system()
+        .content_config()
+        .to_path_buf();
     if !path.exists() {
         return None;
     }

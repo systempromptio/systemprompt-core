@@ -2,9 +2,8 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use systemprompt_core_config::BinaryPaths;
 use systemprompt_core_scheduler::ProcessCleanup;
-use systemprompt_models::{Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -21,7 +20,10 @@ fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
 }
 
 pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    let binary_path = BinaryPaths::resolve_binary("systemprompt").map_err(|e| {
+    let paths = AppPaths::get()
+        .map_err(|e| OrchestrationError::ProcessSpawnFailed(format!("Failed to get paths: {e}")))?;
+
+    let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
     })?;
 
@@ -29,7 +31,7 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
         OrchestrationError::ProcessSpawnFailed(format!("Failed to get config: {e}"))
     })?;
 
-    let log_dir = Path::new(&config.system_path).join("logs");
+    let log_dir = paths.system().logs();
     if let Err(e) = fs::create_dir_all(&log_dir) {
         tracing::error!(
             error = %e,
@@ -204,7 +206,8 @@ pub async fn spawn_detached_process(agent_name: &str, port: u16) -> Orchestratio
 }
 
 pub fn validate_agent_binary() -> Result<()> {
-    let binary_path = BinaryPaths::resolve_binary("systemprompt")?;
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let binary_path = paths.build().resolve_binary("systemprompt")?;
 
     let metadata = fs::metadata(&binary_path)
         .with_context(|| format!("Failed to get metadata for: {}", binary_path.display()))?;

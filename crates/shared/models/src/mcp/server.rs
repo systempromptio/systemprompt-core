@@ -59,34 +59,6 @@ impl McpServerConfig {
     pub fn endpoint(&self, api_server_url: &str) -> String {
         format!("{}/api/v1/mcp/{}/mcp", api_server_url, self.name)
     }
-
-    pub fn from_manifest_and_deployment(
-        name: String,
-        manifest: &super::registry::ServerManifest,
-        deployment: &super::deployment::Deployment,
-        crate_path: PathBuf,
-    ) -> Self {
-        Self {
-            name,
-            binary: deployment.binary.clone(),
-            enabled: deployment.enabled,
-            display_in_web: deployment.display_in_web,
-            port: deployment.port,
-            crate_path,
-            display_name: manifest.name.clone(),
-            description: manifest.description.clone(),
-            capabilities: vec!["tools".to_string(), "prompts".to_string()],
-            schemas: deployment.schemas.clone(),
-            oauth: deployment.oauth.clone(),
-            tools: deployment.tools.clone(),
-            model_config: deployment.model_config.clone(),
-            env_vars: deployment.env_vars.clone(),
-            version: manifest.version.clone(),
-            host: "127.0.0.1".to_string(),
-            module_name: "mcp".to_string(),
-            protocol: "mcp".to_string(),
-        }
-    }
 }
 
 /// Authentication state for MCP connections

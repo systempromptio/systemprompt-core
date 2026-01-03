@@ -8,6 +8,12 @@ use systemprompt_core_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
+pub struct DiscoveredProfile {
+    pub name: String,
+    pub path: PathBuf,
+    pub profile: Profile,
+}
+
 pub struct DeployableProfile {
     pub name: String,
     pub path: PathBuf,
@@ -16,7 +22,7 @@ pub struct DeployableProfile {
     pub hostname: Option<String>,
 }
 
-pub fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<DeployableProfile>> {
+pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
@@ -34,16 +40,13 @@ pub fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<De
     let profiles = entries
         .filter_map(std::result::Result::ok)
         .filter(|e| e.path().is_dir())
-        .filter_map(|entry| build_deployable_profile(entry, tenant_store))
+        .filter_map(build_discovered_profile)
         .collect();
 
     Ok(profiles)
 }
 
-fn build_deployable_profile(
-    entry: std::fs::DirEntry,
-    tenant_store: &TenantStore,
-) -> Option<DeployableProfile> {
+fn build_discovered_profile(entry: std::fs::DirEntry) -> Option<DiscoveredProfile> {
     let profile_yaml = entry.path().join("profile.yaml");
     if !profile_yaml.exists() {
         return None;
@@ -52,20 +55,41 @@ fn build_deployable_profile(
     let name = entry.file_name().to_string_lossy().to_string();
     let profile = ProfileLoader::load_from_path(&profile_yaml).ok()?;
 
-    let is_cloud_enabled = profile.cloud.as_ref().map_or(false, |c| c.cli_enabled);
-    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
-
-    if !is_cloud_enabled || tenant_id.is_none() {
-        return None;
-    }
-
-    let tenant_id = tenant_id.expect("checked above");
-    let tenant = tenant_store.find_tenant(tenant_id);
-
-    Some(DeployableProfile {
+    Some(DiscoveredProfile {
         name,
         path: profile_yaml,
         profile,
+    })
+}
+
+pub fn discover_deployable_profiles(tenant_store: &TenantStore) -> Result<Vec<DeployableProfile>> {
+    let profiles = discover_profiles()?;
+
+    let deployable = profiles
+        .into_iter()
+        .filter_map(|p| to_deployable_profile(p, tenant_store))
+        .collect();
+
+    Ok(deployable)
+}
+
+fn to_deployable_profile(
+    discovered: DiscoveredProfile,
+    tenant_store: &TenantStore,
+) -> Option<DeployableProfile> {
+    let cloud = discovered.profile.cloud.as_ref()?;
+
+    if !cloud.cli_enabled {
+        return None;
+    }
+
+    let tenant_id = cloud.tenant_id.as_ref()?;
+    let tenant = tenant_store.find_tenant(tenant_id);
+
+    Some(DeployableProfile {
+        name: discovered.name,
+        path: discovered.path,
+        profile: discovered.profile,
         tenant_name: tenant.map(|t| t.name.clone()),
         hostname: tenant.and_then(|t| t.hostname.clone()),
     })
