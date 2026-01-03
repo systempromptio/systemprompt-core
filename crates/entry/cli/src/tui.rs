@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt::CredentialsBootstrap;
+use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{AdminTokenParams, JwtService};

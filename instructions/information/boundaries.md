@@ -154,6 +154,50 @@ impl Extension for MyExtension {
 register_extension!(MyExtension);
 ```
 
+### 7. Extension Linkage via Product Binary
+
+Extensions register jobs, schemas, and routes via `inventory` macros (`submit_job!`, `register_extension!`). These registrations are static initializers that only execute if the crate is linked into the final binary.
+
+**Key rule:** Core's CLI binary does NOT link extension crates. Products must own the binary.
+
+**Correct pattern:**
+
+```rust
+use my_product as _;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    systemprompt_cli::run().await
+}
+```
+
+**Why `use ... as _;`:**
+
+The underscore import forces the crate to be linked without bringing names into scope. This triggers:
+1. Static initializers in the crate
+2. `inventory` collection of all registered items
+3. Job/extension discovery at runtime
+
+**Anti-patterns:**
+
+| Anti-pattern | Why it fails |
+|--------------|--------------|
+| Using core's binary directly | Extension jobs not discovered - core binary doesn't link extensions |
+| Not importing the facade | Extensions not linked, `inventory` never collects their registrations |
+
+```rust
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    systemprompt_cli::run().await
+}
+```
+
+**Verification:**
+
+```bash
+./target/debug/systemprompt services scheduler list
+```
+
 ---
 
 ## 1. Dependency Direction

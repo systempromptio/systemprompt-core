@@ -140,6 +140,18 @@ pub mod api {
 }
 
 // =============================================================================
+// CLI EXPORTS
+// =============================================================================
+
+#[cfg(feature = "cli")]
+#[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
+pub mod cli {
+    //! CLI entry point for product binaries.
+    pub use systemprompt_cli::run;
+    pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+}
+
+// =============================================================================
 // DOMAIN EXPORTS (full feature)
 // =============================================================================
 

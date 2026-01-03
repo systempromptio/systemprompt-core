@@ -50,6 +50,9 @@ cloud = ["dep:systemprompt-cloud"]
 # Test utilities (credential fixtures, etc.)
 test-utils = ["cloud"]
 
+# CLI entry point for product binaries
+cli = ["full", "dep:systemprompt-cli"]
+
 # Full functionality including all domain modules
 full = [
     "api",
@@ -88,6 +91,7 @@ systemprompt-runtime = { path = "../crates/app/runtime", optional = true }
 
 # Entry points
 systemprompt-core-api = { path = "../crates/entry/api", optional = true }
+systemprompt-cli = { path = "../crates/entry/cli", optional = true }
 
 # Domain crates
 systemprompt-core-agent = { path = "../crates/domain/agent", optional = true }
