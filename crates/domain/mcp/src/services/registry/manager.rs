@@ -13,7 +13,11 @@ impl RegistryService {
         use systemprompt_loader::ConfigLoader;
 
         let global_config = Config::get()?;
-        let registry = ExtensionRegistry::build(Path::new(&global_config.system_path));
+        let registry = ExtensionRegistry::build(
+            Path::new(&global_config.system_path),
+            global_config.is_cloud,
+            &global_config.bin_path,
+        );
         let services_config = ConfigLoader::load()?;
         let mut enabled = Vec::new();
 

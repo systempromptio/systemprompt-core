@@ -44,6 +44,7 @@ pub struct Config {
     pub github_token: Option<String>,
     pub system_path: String,
     pub services_path: String,
+    pub bin_path: String,
     pub skills_path: String,
     pub settings_path: String,
     pub content_config_path: String,
@@ -63,6 +64,7 @@ pub struct Config {
     pub use_https: bool,
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,
+    pub is_cloud: bool,
 }
 
 impl Config {
@@ -192,6 +194,7 @@ impl Config {
             github_token: None,
             system_path: paths.system_path,
             services_path: profile.paths.services.clone(),
+            bin_path: profile.paths.bin.clone(),
             skills_path: paths.skills_path,
             settings_path: paths.settings_path,
             content_config_path: paths.content_config_path,
@@ -211,6 +214,7 @@ impl Config {
             use_https: profile.server.use_https,
             rate_limits: (&profile.rate_limits).into(),
             cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
+            is_cloud: profile.target.is_cloud(),
         })
     }
 
@@ -260,6 +264,7 @@ impl ConfigProvider for Config {
             "port" => Some(self.port.to_string()),
             "system_path" => Some(self.system_path.clone()),
             "services_path" => Some(self.services_path.clone()),
+            "bin_path" => Some(self.bin_path.clone()),
             "skills_path" => Some(self.skills_path.clone()),
             "settings_path" => Some(self.settings_path.clone()),
             "content_config_path" => Some(self.content_config_path.clone()),
@@ -272,6 +277,7 @@ impl ConfigProvider for Config {
             "api_server_url" => Some(self.api_server_url.clone()),
             "api_external_url" => Some(self.api_external_url.clone()),
             "jwt_issuer" => Some(self.jwt_issuer.clone()),
+            "is_cloud" => Some(self.is_cloud.to_string()),
             _ => None,
         }
     }
