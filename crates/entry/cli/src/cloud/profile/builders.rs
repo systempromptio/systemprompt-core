@@ -116,7 +116,7 @@ pub fn build_cloud_profile(
             host: "0.0.0.0".to_string(),
             port: 8080,
             api_server_url: external.clone(),
-            api_internal_url: external.clone(),
+            api_internal_url: "http://localhost:8080".to_string(),
             api_external_url: external.clone(),
             use_https: true,
             cors_allowed_origins: vec![external],
