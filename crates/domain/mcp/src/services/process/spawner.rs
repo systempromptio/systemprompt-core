@@ -124,9 +124,7 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
 
 pub fn verify_binary(config: &McpServerConfig) -> Result<()> {
     let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
-    let binary_path = paths
-        .build()
-        .resolve_binary(&config.binary)?;
+    let binary_path = paths.build().resolve_binary(&config.binary)?;
 
     let metadata = fs::metadata(&binary_path)
         .with_context(|| format!("Binary not found: {}", binary_path.display()))?;

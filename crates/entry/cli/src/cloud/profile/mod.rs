@@ -13,6 +13,9 @@ mod show_display;
 mod show_types;
 mod templates;
 
+pub use api_keys::collect_api_keys;
+pub use create::create_profile_for_tenant;
+
 use anyhow::Result;
 use clap::{Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;

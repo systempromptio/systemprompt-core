@@ -1,8 +1,10 @@
 use anyhow::{bail, Context, Result};
-use systemprompt_cloud::{get_cloud_paths, CloudPath, ProjectContext, TenantStore, TenantType};
+use systemprompt_cloud::{
+    get_cloud_paths, CloudPath, ProjectContext, StoredTenant, TenantStore, TenantType,
+};
 use systemprompt_core_logging::CliService;
 
-use super::api_keys::collect_api_keys;
+use super::api_keys::{collect_api_keys, ApiKeys};
 use super::builders::{build_cloud_profile, build_local_profile};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
@@ -117,4 +119,74 @@ pub async fn execute(name: &str) -> Result<()> {
     }
 
     Ok(())
+}
+
+pub struct CreatedProfile {
+    pub name: String,
+}
+
+pub fn create_profile_for_tenant(
+    tenant: &StoredTenant,
+    api_keys: &ApiKeys,
+) -> Result<CreatedProfile> {
+    let name = tenant.name.clone();
+    let ctx = ProjectContext::discover();
+    let profile_dir = ctx.profile_dir(&name);
+
+    if profile_dir.exists() {
+        bail!(
+            "Profile '{}' already exists at {}",
+            name,
+            profile_dir.display()
+        );
+    }
+
+    std::fs::create_dir_all(ctx.profiles_dir())
+        .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
+
+    std::fs::create_dir_all(&profile_dir)
+        .with_context(|| format!("Failed to create directory {}", profile_dir.display()))?;
+
+    std::fs::create_dir_all(ctx.storage_dir()).with_context(|| {
+        format!(
+            "Failed to create storage directory {}",
+            ctx.storage_dir().display()
+        )
+    })?;
+
+    let secrets_path = profile_dir.join("secrets.json");
+    let db_url = tenant
+        .database_url
+        .as_ref()
+        .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
+    save_secrets(db_url, api_keys, &secrets_path)?;
+    CliService::success(&format!("Created: {}", secrets_path.display()));
+
+    let services_path = get_services_path()?;
+    let profile_path = profile_dir.join("profile.yaml");
+
+    let external_url = tenant.hostname.as_ref().map(|h| format!("https://{}", h));
+    let built_profile = build_cloud_profile(
+        &name,
+        Some(tenant.id.clone()),
+        &services_path,
+        external_url.as_deref(),
+        "./secrets.json",
+    )?;
+
+    save_profile(&built_profile, &profile_path)?;
+    CliService::success(&format!("Created: {}", profile_path.display()));
+
+    let dockerfile_path = ctx.dockerfile();
+    if !dockerfile_path.exists() {
+        save_dockerfile(&dockerfile_path, &name)?;
+        CliService::success(&format!("Created: {}", dockerfile_path.display()));
+    }
+
+    match built_profile.validate() {
+        Ok(()) => CliService::success("Profile validated"),
+        Err(e) => CliService::warning(&format!("Validation warning: {}", e)),
+    }
+
+    Ok(CreatedProfile { name })
 }

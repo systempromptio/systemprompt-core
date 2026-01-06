@@ -1,7 +1,8 @@
 //! SystemPrompt CLI Library
 //!
 //! This module provides the CLI entry point for external consumers.
-//! Template/product binaries can call `run()` to start the CLI with extension jobs included.
+//! Template/product binaries can call `run()` to start the CLI with extension
+//! jobs included.
 
 #![allow(
     clippy::unused_async,

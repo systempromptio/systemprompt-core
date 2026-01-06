@@ -261,7 +261,11 @@ impl Profile {
             errors.push("rate_limits.burst_multiplier must be greater than 0".to_string());
         }
 
-        Self::validate_rate_limit(errors, "oauth_public", self.rate_limits.oauth_public_per_second);
+        Self::validate_rate_limit(
+            errors,
+            "oauth_public",
+            self.rate_limits.oauth_public_per_second,
+        );
         Self::validate_rate_limit(errors, "oauth_auth", self.rate_limits.oauth_auth_per_second);
         Self::validate_rate_limit(errors, "contexts", self.rate_limits.contexts_per_second);
         Self::validate_rate_limit(errors, "tasks", self.rate_limits.tasks_per_second);
