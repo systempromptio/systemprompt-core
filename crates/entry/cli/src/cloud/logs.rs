@@ -1,18 +1,14 @@
-//! Cloud logs command
-
 use anyhow::{bail, Result};
 use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore, TenantType};
 use systemprompt_core_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-use super::tenant_ops::get_credentials;
+use super::tenant_ops::{get_credentials, resolve_tenant_id};
 
 pub async fn execute(tenant_id: Option<String>, lines: u32) -> Result<()> {
     CliService::section("Tenant Logs");
 
     let resolved_tenant_id = resolve_tenant_id(tenant_id)?;
 
-    // Verify this is a cloud tenant
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     if let Ok(store) = TenantStore::load_from_path(&tenants_path) {
@@ -62,21 +58,4 @@ pub async fn execute(tenant_id: Option<String>, lines: u32) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn resolve_tenant_id(tenant_id: Option<String>) -> Result<String> {
-    if let Some(id) = tenant_id {
-        return Ok(id);
-    }
-
-    // Try to get from profile
-    if let Ok(profile) = ProfileBootstrap::get() {
-        if let Some(cloud) = &profile.cloud {
-            if let Some(ref tid) = cloud.tenant_id {
-                return Ok(tid.clone());
-            }
-        }
-    }
-
-    bail!("No tenant specified. Use --tenant or configure a tenant in your profile.")
 }

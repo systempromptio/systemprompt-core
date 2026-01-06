@@ -4,6 +4,7 @@ use dialoguer::Select;
 use systemprompt_cloud::{
     get_cloud_paths, CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType,
 };
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 pub fn get_credentials() -> Result<CloudCredentials> {
     if CredentialsBootstrap::is_initialized() {
@@ -47,6 +48,19 @@ pub fn select_tenant(tenants: &[StoredTenant]) -> Result<&StoredTenant> {
         .interact()?;
 
     Ok(&tenants[selection])
+}
+
+pub fn resolve_tenant_id(tenant_id: Option<String>) -> Result<String> {
+    if let Some(id) = tenant_id {
+        return Ok(id);
+    }
+
+    ProfileBootstrap::get()
+        .ok()
+        .and_then(|p| p.cloud.as_ref()?.tenant_id.clone())
+        .ok_or_else(|| {
+            anyhow!("No tenant specified. Use --tenant or configure a tenant in your profile.")
+        })
 }
 
 trait Pipe: Sized {

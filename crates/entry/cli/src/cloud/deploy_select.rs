@@ -77,7 +77,6 @@ fn to_deployable_profile(
     discovered: DiscoveredProfile,
     tenant_store: &TenantStore,
 ) -> Option<DeployableProfile> {
-    // Only show cloud profiles as deployable
     if discovered.profile.target != systemprompt_models::ProfileType::Cloud {
         return None;
     }
