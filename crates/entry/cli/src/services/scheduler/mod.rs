@@ -60,7 +60,12 @@ async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
         anyhow::bail!("Unknown job: {job_name}");
     };
 
-    let job_ctx = JobContext::new(Arc::new(db_pool), ctx);
+    // db_pool is Arc<Database>, wrap in Arc to store Arc<Database> as the type-erased value
+    // ctx is Arc<AppContext>, wrap in Arc to store Arc<AppContext> as the type-erased value
+    // Jobs will access these via ctx.db_pool::<DbPool>() and ctx.app_context::<Arc<AppContext>>()
+    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool);
+    let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(ctx);
+    let job_ctx = JobContext::new(db_pool_any, app_context_any);
 
     match job.execute(&job_ctx).await {
         Ok(result) if result.success => {
