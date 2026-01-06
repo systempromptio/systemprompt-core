@@ -6,7 +6,6 @@ use systemprompt_cloud::{
     get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, TenantStore,
 };
 use systemprompt_core_logging::CliService;
-use systemprompt_models::profile::CloudConfig;
 
 use super::deploy_select::resolve_profile;
 use crate::common::docker::{build_docker_image, docker_login, docker_push};
@@ -72,21 +71,6 @@ impl DeployConfig {
     }
 }
 
-fn load_credentials_from_profile(
-    profile_path: &std::path::Path,
-    cloud_config: &CloudConfig,
-) -> Result<CloudCredentials> {
-    let profile_dir = profile_path
-        .parent()
-        .ok_or_else(|| anyhow!("Invalid profile path"))?;
-
-    let credentials_path =
-        systemprompt_cloud::resolve_path(profile_dir, &cloud_config.credentials_path);
-
-    CloudCredentials::load_and_validate_from_path(&credentials_path)
-        .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")
-}
-
 pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
@@ -109,9 +93,11 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         .as_ref()
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud config'"))?;
 
-    let creds = load_credentials_from_profile(&profile_path, cloud_config)?;
-
     let cloud_paths = get_cloud_paths()?;
+    let creds_path = cloud_paths.resolve(CloudPath::Credentials);
+    let creds = CloudCredentials::load_and_validate_from_path(&creds_path)
+        .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")?;
+
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;

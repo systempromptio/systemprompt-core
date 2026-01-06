@@ -51,18 +51,34 @@ impl CloudPaths {
         credentials_path_str: &str,
         tenants_path_str: &str,
     ) -> Self {
-        let credentials_path = resolve_path(profile_dir, credentials_path_str);
-        let tenants_path = resolve_path(profile_dir, tenants_path_str);
+        let credentials_path = if credentials_path_str.is_empty() {
+            None
+        } else {
+            Some(resolve_path(profile_dir, credentials_path_str))
+        };
 
-        let base_dir = credentials_path.parent().map_or_else(
-            || profile_dir.join(credentials::DEFAULT_DIR_NAME),
-            PathBuf::from,
-        );
+        let tenants_path = if tenants_path_str.is_empty() {
+            None
+        } else {
+            Some(resolve_path(profile_dir, tenants_path_str))
+        };
+
+        let base_dir = credentials_path
+            .as_ref()
+            .and_then(|p| p.parent())
+            .map(PathBuf::from)
+            .unwrap_or_else(|| {
+                profile_dir
+                    .ancestors()
+                    .find(|p| p.file_name().is_some_and(|n| n == ".systemprompt"))
+                    .map(PathBuf::from)
+                    .unwrap_or_else(|| profile_dir.join(credentials::DEFAULT_DIR_NAME))
+            });
 
         Self {
             base_dir,
-            credentials_path: Some(credentials_path),
-            tenants_path: Some(tenants_path),
+            credentials_path,
+            tenants_path,
         }
     }
 
