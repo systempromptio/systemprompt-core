@@ -128,8 +128,9 @@ pub struct CreatedProfile {
 pub fn create_profile_for_tenant(
     tenant: &StoredTenant,
     api_keys: &ApiKeys,
+    profile_name: &str,
 ) -> Result<CreatedProfile> {
-    let name = tenant.name.clone();
+    let name = profile_name.to_string();
     let ctx = ProjectContext::discover();
     let profile_dir = ctx.profile_dir(&name);
 
