@@ -379,11 +379,17 @@ pub async fn create_cloud_tenant(
         database_url,
     };
 
+    CliService::section("Profile Setup");
+    let profile_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Profile name")
+        .default(stored_tenant.name.clone())
+        .interact_text()?;
+
     CliService::section("API Keys");
     let api_keys = collect_api_keys()?;
 
-    CliService::section("Creating Profile");
-    let profile = create_profile_for_tenant(&stored_tenant, &api_keys)?;
+    let profile = create_profile_for_tenant(&stored_tenant, &api_keys, &profile_name)?;
+    CliService::success(&format!("Profile '{}' created", profile.name));
 
     if result.needs_deploy {
         CliService::section("Initial Deploy");
