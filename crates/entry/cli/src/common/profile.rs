@@ -18,11 +18,9 @@ pub fn generate_display_name(name: &str) -> String {
 
 fn capitalize_first(name: &str) -> String {
     let mut chars = name.chars();
-    chars
-        .next()
-        .map_or_else(String::new, |first| {
-            first.to_uppercase().chain(chars).collect()
-        })
+    chars.next().map_or_else(String::new, |first| {
+        first.to_uppercase().chain(chars).collect()
+    })
 }
 
 pub fn generate_jwt_secret() -> String {
@@ -43,8 +41,7 @@ pub fn save_profile_yaml(profile: &Profile, path: &Path, header: Option<&str>) -
 
     let content = header.map_or_else(|| yaml.clone(), |h| format!("{}\n\n{}", h, yaml));
 
-    std::fs::write(path, content)
-        .with_context(|| format!("Failed to write {}", path.display()))?;
+    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
 
     Ok(())
 }

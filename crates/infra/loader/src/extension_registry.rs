@@ -31,13 +31,16 @@ impl ExtensionRegistry {
     pub fn get_path(&self, binary_name: &str) -> Result<PathBuf> {
         if self.is_cloud {
             let binary_path = self.bin_path.join(binary_name);
-            return binary_path.exists().then(|| self.bin_path.clone()).ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Binary '{}' not found at {}",
-                    binary_name,
-                    binary_path.display()
-                )
-            });
+            return binary_path
+                .exists()
+                .then(|| self.bin_path.clone())
+                .ok_or_else(|| {
+                    anyhow::anyhow!(
+                        "Binary '{}' not found at {}",
+                        binary_name,
+                        binary_path.display()
+                    )
+                });
         }
 
         self.discovered

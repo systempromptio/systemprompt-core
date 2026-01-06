@@ -97,8 +97,11 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         .as_ref()
         .ok_or_else(|| anyhow!("No cloud configuration in profile"))?;
 
-    if !cloud_config.cli_enabled {
-        bail!("Cloud features are disabled in this profile. Set cloud.enabled: true");
+    if profile.target != systemprompt_models::ProfileType::Cloud {
+        bail!(
+            "Cannot deploy a local profile. Create a cloud profile with: systemprompt cloud \
+             profile create <name>"
+        );
     }
 
     let tenant_id = cloud_config
@@ -190,10 +193,22 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         CliService::warning("No secrets.json found - skipping secrets sync");
     }
 
+    let profile_env_path = format!("/app/services/profiles/{}/profile.yaml", profile.name);
+    let spinner = CliService::spinner("Setting profile path...");
+    let mut profile_secret = std::collections::HashMap::new();
+    profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
+    api_client.set_secrets(tenant_id, profile_secret).await?;
+    spinner.finish_and_clear();
+    CliService::success("Profile path configured");
+
     Ok(())
 }
 
-pub async fn deploy_initial(client: &CloudApiClient, tenant_id: &str) -> Result<()> {
+pub async fn deploy_with_secrets(
+    client: &CloudApiClient,
+    tenant_id: &str,
+    profile_name: &str,
+) -> Result<()> {
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let dockerfile = project.as_path().join(build::DOCKERFILE);
 
@@ -229,6 +244,29 @@ pub async fn deploy_initial(client: &CloudApiClient, tenant_id: &str) -> Result<
     if let Some(url) = response.app_url {
         CliService::key_value("URL", &url);
     }
+
+    let ctx = systemprompt_cloud::ProjectContext::discover();
+    let profile_dir = ctx.profile_dir(profile_name);
+    let secrets_path = profile_dir.join("secrets.json");
+
+    if secrets_path.exists() {
+        let secrets = super::secrets::load_secrets_json(&secrets_path)?;
+        if !secrets.is_empty() {
+            let env_secrets = super::secrets::map_secrets_to_env_vars(secrets);
+            let spinner = CliService::spinner("Syncing secrets...");
+            let keys = client.set_secrets(tenant_id, env_secrets).await?;
+            spinner.finish_and_clear();
+            CliService::success(&format!("Synced {} secrets", keys.len()));
+        }
+    }
+
+    let profile_env_path = format!("/app/services/profiles/{}/profile.yaml", profile_name);
+    let spinner = CliService::spinner("Setting profile path...");
+    let mut profile_secret = std::collections::HashMap::new();
+    profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
+    client.set_secrets(tenant_id, profile_secret).await?;
+    spinner.finish_and_clear();
+    CliService::success("Profile path configured");
 
     Ok(())
 }

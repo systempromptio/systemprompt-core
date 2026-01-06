@@ -77,12 +77,12 @@ fn to_deployable_profile(
     discovered: DiscoveredProfile,
     tenant_store: &TenantStore,
 ) -> Option<DeployableProfile> {
-    let cloud = discovered.profile.cloud.as_ref()?;
-
-    if !cloud.cli_enabled {
+    // Only show cloud profiles as deployable
+    if discovered.profile.target != systemprompt_models::ProfileType::Cloud {
         return None;
     }
 
+    let cloud = discovered.profile.cloud.as_ref()?;
     let tenant_id = cloud.tenant_id.as_ref()?;
     let tenant = tenant_store.find_tenant(tenant_id);
 

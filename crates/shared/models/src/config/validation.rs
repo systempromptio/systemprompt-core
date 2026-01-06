@@ -17,7 +17,11 @@ pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> Validati
     validate_required_path(&mut report, "web_path", &profile.paths.web_path_resolved());
     validate_required_path(&mut report, "web_config", &profile.paths.web_config());
     validate_required_path(&mut report, "web_metadata", &profile.paths.web_metadata());
-    validate_required_path(&mut report, "content_config", &profile.paths.content_config());
+    validate_required_path(
+        &mut report,
+        "content_config",
+        &profile.paths.content_config(),
+    );
 
     validate_optional_path(&mut report, "geoip_database", &profile.paths.geoip_database);
     validate_optional_path(&mut report, "storage", &profile.paths.storage);

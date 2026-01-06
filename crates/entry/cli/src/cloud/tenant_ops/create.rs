@@ -15,8 +15,9 @@ use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::ServicesConfig;
 
 use crate::cloud::checkout::templates::{ERROR_HTML, SUCCESS_HTML, WAITING_HTML};
-use crate::cloud::deploy::deploy_initial;
+use crate::cloud::deploy::deploy_with_secrets;
 use crate::cloud::dockerfile;
+use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::common::project::ProjectRoot;
 
 use super::docker::{
@@ -328,27 +329,8 @@ pub async fn create_cloud_tenant(
         result.tenant_id
     ));
 
-    if result.needs_deploy {
-        CliService::info("Infrastructure ready, deploying your code...");
-        deploy_initial(&client, &result.tenant_id).await?;
-    }
-
     CliService::success("Tenant provisioned successfully");
 
-    // Warn about required secrets after successful deployment
-    warn_required_secrets(&validation.required_secrets);
-
-    let spinner = CliService::spinner("Syncing new tenant...");
-    let response = client.get_user().await?;
-    spinner.finish_and_clear();
-
-    let new_tenant = response
-        .tenants
-        .iter()
-        .find(|t| t.id == result.tenant_id)
-        .ok_or_else(|| anyhow!("New tenant not found after checkout"))?;
-
-    // Fetch database credentials from the one-time secrets endpoint
     let spinner = CliService::spinner("Fetching database credentials...");
     let database_url = match client.get_tenant_status(&result.tenant_id).await {
         Ok(status) => {
@@ -372,15 +354,22 @@ pub async fn create_cloud_tenant(
     };
     spinner.finish_and_clear();
 
-    if database_url.is_some() {
-        CliService::success("Database credentials retrieved");
-    } else {
-        CliService::warning(
-            "Could not retrieve database credentials. You may need to recreate the tenant.",
-        );
+    if database_url.is_none() {
+        bail!("Could not retrieve database credentials. Tenant creation incomplete.");
     }
+    CliService::success("Database credentials retrieved");
 
-    Ok(StoredTenant {
+    let spinner = CliService::spinner("Syncing new tenant...");
+    let response = client.get_user().await?;
+    spinner.finish_and_clear();
+
+    let new_tenant = response
+        .tenants
+        .iter()
+        .find(|t| t.id == result.tenant_id)
+        .ok_or_else(|| anyhow!("New tenant not found after checkout"))?;
+
+    let stored_tenant = StoredTenant {
         id: new_tenant.id.clone(),
         name: new_tenant.name.clone(),
         tenant_type: TenantType::Cloud,
@@ -388,5 +377,21 @@ pub async fn create_cloud_tenant(
         hostname: new_tenant.hostname.clone(),
         region: new_tenant.region.clone(),
         database_url,
-    })
+    };
+
+    CliService::section("API Keys");
+    let api_keys = collect_api_keys()?;
+
+    CliService::section("Creating Profile");
+    let profile = create_profile_for_tenant(&stored_tenant, &api_keys)?;
+
+    if result.needs_deploy {
+        CliService::section("Initial Deploy");
+        CliService::info("Deploying your code with profile configuration...");
+        deploy_with_secrets(&client, &result.tenant_id, &profile.name).await?;
+    }
+
+    warn_required_secrets(&validation.required_secrets);
+
+    Ok(stored_tenant)
 }
