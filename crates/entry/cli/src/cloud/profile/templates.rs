@@ -42,7 +42,7 @@ COPY target/release/systemprompt /app/bin/
 COPY target/release/systemprompt-* /app/bin/mcp/ 2>/dev/null || true
 
 # Copy web assets
-COPY core/web/dist /app/web
+COPY core/web/dist /app/web/dist
 
 # Copy services configuration
 COPY services /app/services

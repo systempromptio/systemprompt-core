@@ -25,7 +25,7 @@ const DOCKERFILE_FOOTER: &str = r#"
 COPY services /app/services
 COPY .systemprompt/profiles /app/services/profiles
 COPY .systemprompt/entrypoint.sh /app/entrypoint.sh
-COPY core/web/dist /app/web
+COPY core/web/dist /app/web/dist
 
 RUN chmod +x /app/bin/* /app/entrypoint.sh && chown -R app:app /app
 
