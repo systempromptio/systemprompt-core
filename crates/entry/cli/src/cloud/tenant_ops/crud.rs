@@ -169,8 +169,6 @@ pub async fn delete_tenant(id: Option<String>) -> Result<()> {
         return Ok(());
     }
 
-    // For cloud tenants, call the API to delete (cancels subscription + cleans up
-    // Fly)
     if is_cloud {
         let creds = get_credentials()?;
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
@@ -180,7 +178,6 @@ pub async fn delete_tenant(id: Option<String>) -> Result<()> {
         spinner.finish_and_clear();
     }
 
-    // Remove from local store
     store.tenants.retain(|t| t.id != tenant_id);
     store.save_to_path(&tenants_path)?;
 

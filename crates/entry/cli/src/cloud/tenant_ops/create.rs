@@ -203,7 +203,6 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
     let ai = &services_config.ai;
     let mut required_secrets = vec![];
 
-    // Must have a default provider set
     if ai.default_provider.is_empty() {
         bail!(
             "AI config missing default_provider.\n\nSet default_provider in \
@@ -211,7 +210,6 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
         );
     }
 
-    // Default provider must exist in providers map
     let provider = ai.providers.get(&ai.default_provider).ok_or_else(|| {
         anyhow!(
             "Default provider '{}' not found in providers.\n\nAdd '{}' to ai.providers in your \
@@ -221,7 +219,6 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
         )
     })?;
 
-    // Provider must be enabled
     if !provider.enabled {
         bail!(
             "Default provider '{}' is disabled.\n\nSet enabled: true for the '{}' provider.",
@@ -230,7 +227,6 @@ fn validate_ai_config(services_config: &ServicesConfig) -> Result<Vec<String>> {
         );
     }
 
-    // Collect required secrets for each enabled provider
     for (name, prov) in &ai.providers {
         if prov.enabled {
             let secret_key = match name.as_str() {

@@ -4,13 +4,14 @@ mod interactive;
 mod prompt;
 pub mod skills;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{anyhow, bail, Result};
 use clap::{Args, Subcommand};
-use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
+
+use crate::cloud::tenant_ops::get_credentials;
 
 #[derive(Subcommand)]
 pub enum SyncCommands {
@@ -120,11 +121,10 @@ async fn execute_local_sync(cmd: LocalSyncCommands) -> Result<()> {
 }
 
 async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<()> {
-    let creds = CredentialsBootstrap::require()
-        .context("Cloud sync requires credentials. Run 'systemprompt cloud auth login'")?;
+    let creds = get_credentials()?;
 
-    let profile =
-        ProfileBootstrap::get().context("Profile required for sync. Set SYSTEMPROMPT_PROFILE")?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|_| anyhow!("Profile required for sync. Set SYSTEMPROMPT_PROFILE"))?;
 
     if let Some(cloud) = &profile.cloud {
         if !cloud.cli_enabled {

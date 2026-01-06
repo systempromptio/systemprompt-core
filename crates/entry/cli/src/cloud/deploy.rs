@@ -2,12 +2,11 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use systemprompt_cloud::constants::build;
-use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, TenantStore,
-};
+use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore};
 use systemprompt_core_logging::CliService;
 
 use super::deploy_select::resolve_profile;
+use super::tenant_ops::get_credentials;
 use crate::common::docker::{build_docker_image, docker_login, docker_push};
 use crate::common::project::ProjectRoot;
 
@@ -93,11 +92,12 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         .as_ref()
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud config'"))?;
 
-    let cloud_paths = get_cloud_paths()?;
-    let creds_path = cloud_paths.resolve(CloudPath::Credentials);
-    let creds = CloudCredentials::load_and_validate_from_path(&creds_path)
-        .context("Deployment requires cloud credentials. Run 'systemprompt cloud login'")?;
+    let creds = get_credentials()?;
+    if creds.is_token_expired() {
+        bail!("Token expired. Run 'systemprompt cloud login' to refresh.");
+    }
 
+    let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
