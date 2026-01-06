@@ -149,8 +149,8 @@ pub fn build_cloud_profile(
             non_interactive: true,
         },
         cloud: Some(CloudConfig {
-            credentials_path: String::new(),
-            tenants_path: String::new(),
+            credentials_path: "../../credentials.json".to_string(),
+            tenants_path: "../../tenants.json".to_string(),
             tenant_id,
             cli_enabled: false,
             validation: CloudValidationMode::Strict,
