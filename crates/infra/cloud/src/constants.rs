@@ -61,6 +61,7 @@ pub mod paths {
 pub mod build {
     pub const CARGO_TARGET: &str = "target";
     pub const WEB_DIST: &str = "core/web/dist";
+    pub const WEB_IMAGES: &str = "core/web/src/assets/images";
     pub const BINARY_NAME: &str = "systemprompt";
     pub const DOCKERFILE: &str = ".systemprompt/Dockerfile";
 }

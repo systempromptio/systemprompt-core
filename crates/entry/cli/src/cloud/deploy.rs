@@ -14,6 +14,7 @@ use crate::common::project::ProjectRoot;
 pub struct DeployConfig {
     pub binary: PathBuf,
     pub web_dist: PathBuf,
+    pub web_images: PathBuf,
     pub dockerfile: PathBuf,
 }
 
@@ -25,11 +26,13 @@ impl DeployConfig {
             .join("release")
             .join(build::BINARY_NAME);
         let web_dist = root.join(build::WEB_DIST);
+        let web_images = root.join(build::WEB_IMAGES);
         let dockerfile = root.join(build::DOCKERFILE);
 
         let config = Self {
             binary,
             web_dist,
+            web_images,
             dockerfile,
         };
         config.validate()?;
@@ -59,10 +62,43 @@ impl DeployConfig {
             ));
         }
 
+        if !self.web_images.exists() {
+            return Err(anyhow!(
+                "Web images directory not found: {}\n\nEnsure core/web/src/assets/images/ exists \
+                 with blog/, social/, and logos/ subdirectories",
+                self.web_images.display()
+            ));
+        }
+
+        self.validate_images_structure()?;
+
         if !self.dockerfile.exists() {
             return Err(anyhow!(
                 "Dockerfile not found: {}\n\nCreate a Dockerfile at this location",
                 self.dockerfile.display()
+            ));
+        }
+
+        Ok(())
+    }
+
+    fn validate_images_structure(&self) -> Result<()> {
+        let required_subdirs = ["blog", "social", "logos"];
+        let mut missing = Vec::new();
+
+        for subdir in required_subdirs {
+            let path = self.web_images.join(subdir);
+            if !path.exists() {
+                missing.push(subdir);
+            }
+        }
+
+        if !missing.is_empty() {
+            return Err(anyhow!(
+                "Web images missing required subdirectories: {}\n\nRequired structure:\n  \
+                 {}/\n    blog/\n    social/\n    logos/",
+                missing.join(", "),
+                self.web_images.display()
             ));
         }
 
@@ -118,6 +154,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
     CliService::key_value("Tenant", tenant_name);
     CliService::key_value("Binary", &config.binary.display().to_string());
     CliService::key_value("Web dist", &config.web_dist.display().to_string());
+    CliService::key_value("Web images", &config.web_images.display().to_string());
     CliService::key_value("Dockerfile", &config.dockerfile.display().to_string());
 
     let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);

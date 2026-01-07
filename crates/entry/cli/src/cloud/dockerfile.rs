@@ -27,6 +27,7 @@ COPY services /app/services
 COPY .systemprompt/profiles /app/services/profiles
 COPY .systemprompt/entrypoint.sh /app/entrypoint.sh
 COPY core/web/dist /app/web/dist
+COPY core/web/src/assets/images /app/storage/images
 
 RUN chmod +x /app/bin/* /app/entrypoint.sh && chown -R app:app /app
 
