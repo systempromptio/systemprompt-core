@@ -107,10 +107,17 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
             api,
             agents,
             mcp,
-            foreground,
+            foreground: _,
             skip_web,
             skip_migrate,
-        } => start::execute(all, api, agents, mcp, foreground, skip_web, skip_migrate).await,
+        } => {
+            let target = start::ServiceTarget::from_flags(all, api, agents, mcp);
+            let options = start::StartupOptions {
+                skip_web,
+                skip_migrate,
+            };
+            start::execute(target, options).await
+        },
 
         ServicesCommands::Stop {
             all,
@@ -118,7 +125,10 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
             agents,
             mcp,
             force,
-        } => stop::execute(all, api, agents, mcp, force).await,
+        } => {
+            let target = start::ServiceTarget::from_flags(all, api, agents, mcp);
+            stop::execute(target, force).await
+        },
 
         ServicesCommands::Restart { target, failed } => {
             let ctx = Arc::new(

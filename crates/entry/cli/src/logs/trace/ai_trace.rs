@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use systemprompt_core_logging::{AiTraceService, CliService};
 use systemprompt_runtime::AppContext;
 
@@ -10,22 +10,44 @@ use super::ai_display::{
 };
 use super::ai_mcp::print_mcp_executions;
 
+#[derive(Clone, Copy, Default, ValueEnum)]
+pub enum TraceOutput {
+    #[default]
+    Text,
+    Json,
+}
+
 #[derive(Args)]
 pub struct AiTraceOptions {
     #[arg(help = "Task ID (can be partial, will match prefix)")]
     pub task_id: String,
 
-    #[arg(long, help = "Show full conversation history")]
-    pub history: bool,
+    #[arg(long, value_enum, default_value = "text")]
+    pub output: TraceOutput,
 
-    #[arg(long, help = "Show artifacts produced by the task")]
-    pub artifact: bool,
+    #[arg(long, help = "Include sections: history, artifact, tool-results (comma-separated)")]
+    pub include: Vec<TraceSection>,
+}
 
-    #[arg(long, help = "Output as JSON")]
-    pub json: bool,
+#[derive(Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum TraceSection {
+    History,
+    Artifact,
+    ToolResults,
+}
 
-    #[arg(long, help = "Show full tool input/output")]
-    pub tool_results: bool,
+impl AiTraceOptions {
+    pub fn show_history(&self) -> bool {
+        self.include.contains(&TraceSection::History)
+    }
+
+    pub fn show_artifact(&self) -> bool {
+        self.include.contains(&TraceSection::Artifact)
+    }
+
+    pub fn show_tool_results(&self) -> bool {
+        self.include.contains(&TraceSection::ToolResults)
+    }
 }
 
 pub async fn execute(options: AiTraceOptions) -> Result<()> {
@@ -60,7 +82,7 @@ pub async fn execute(options: AiTraceOptions) -> Result<()> {
         print_system_prompt(prompt.as_ref());
     }
 
-    if options.history {
+    if options.show_history() {
         let mut messages_by_request = Vec::new();
         for (idx, request_id) in request_ids.iter().enumerate() {
             let messages = service.get_conversation_messages(request_id).await?;
@@ -75,11 +97,11 @@ pub async fn execute(options: AiTraceOptions) -> Result<()> {
         &mcp_executions,
         &task_id,
         &context_id,
-        options.tool_results,
+        options.show_tool_results(),
     )
     .await;
 
-    if options.artifact {
+    if options.show_artifact() {
         let artifacts = service.get_task_artifacts(&task_id, &context_id).await?;
         print_artifacts(&artifacts);
     }

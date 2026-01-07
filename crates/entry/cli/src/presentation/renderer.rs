@@ -81,31 +81,32 @@ impl StartupRenderer {
                 }
             },
 
-            StartupEvent::PortCheckStarted { port: _ } | StartupEvent::PortAvailable { port: _ } => {
-            },
             StartupEvent::PortConflict { port, pid } => {
                 render_warning(&format!("Port {} in use by PID {}", port, pid));
             },
-            StartupEvent::PortConflictResolved { port: _ } => {},
-            StartupEvent::ModulesLoaded {
-                count: _,
-                modules: _,
-            } => {},
 
-            StartupEvent::MigrationStarted => {},
-            StartupEvent::MigrationApplied { name: _ } => {},
-            StartupEvent::MigrationComplete {
-                applied: _,
-                skipped: _,
-            } => {},
-            StartupEvent::DatabaseValidated => {},
-
-            StartupEvent::McpServerStarting { name: _, port: _ } => {},
-            StartupEvent::McpServerHealthCheck {
-                name: _,
-                attempt: _,
-                max_attempts: _,
-            } => {},
+            StartupEvent::PortCheckStarted { .. }
+            | StartupEvent::PortAvailable { .. }
+            | StartupEvent::PortConflictResolved { .. }
+            | StartupEvent::ModulesLoaded { .. }
+            | StartupEvent::MigrationStarted
+            | StartupEvent::MigrationApplied { .. }
+            | StartupEvent::MigrationComplete { .. }
+            | StartupEvent::DatabaseValidated
+            | StartupEvent::McpServerStarting { .. }
+            | StartupEvent::McpServerHealthCheck { .. }
+            | StartupEvent::McpServiceCleanup { .. }
+            | StartupEvent::AgentStarting { .. }
+            | StartupEvent::AgentCleanup { .. }
+            | StartupEvent::RoutesConfiguring
+            | StartupEvent::RoutesConfigured { .. }
+            | StartupEvent::ExtensionRouteMounted { .. }
+            | StartupEvent::ServerBinding { .. }
+            | StartupEvent::ServerListening { .. }
+            | StartupEvent::SchedulerJobRegistered { .. }
+            | StartupEvent::BootstrapJobStarted { .. }
+            | StartupEvent::BootstrapJobCompleted { .. }
+            | StartupEvent::Info { .. } => {},
 
             StartupEvent::McpServerReady {
                 name,
@@ -133,13 +134,9 @@ impl StartupRenderer {
                 });
             },
 
-            StartupEvent::McpServiceCleanup { name: _, reason: _ } => {},
-
             StartupEvent::McpReconciliationComplete { running, required } => {
                 self.state.mcp_count = (running, required);
             },
-
-            StartupEvent::AgentStarting { name: _, port: _ } => {},
 
             StartupEvent::AgentReady {
                 name,
@@ -166,31 +163,14 @@ impl StartupRenderer {
                 });
             },
 
-            StartupEvent::AgentCleanup { name: _, reason: _ } => {},
-
             StartupEvent::AgentReconciliationComplete { running, total } => {
                 self.state.agent_count = (running, total);
             },
-
-            StartupEvent::RoutesConfiguring => {},
-            StartupEvent::RoutesConfigured { module_count: _ } => {},
-            StartupEvent::ExtensionRouteMounted {
-                name: _,
-                path: _,
-                auth_required: _,
-            } => {},
-            StartupEvent::ServerBinding { address: _ } => {},
-            StartupEvent::ServerListening { address: _, pid: _ } => {},
 
             StartupEvent::SchedulerInitializing => {
                 let spinner = Self::create_phase_spinner("Scheduler");
                 self.state.spinners.insert("scheduler".to_string(), spinner);
             },
-
-            StartupEvent::SchedulerJobRegistered {
-                name: _,
-                schedule: _,
-            } => {},
 
             StartupEvent::SchedulerReady { job_count } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {
@@ -203,12 +183,6 @@ impl StartupRenderer {
                 }
             },
 
-            StartupEvent::BootstrapJobStarted { name: _ } => {},
-            StartupEvent::BootstrapJobCompleted {
-                name: _,
-                success: _,
-                message: _,
-            } => {},
 
             StartupEvent::Warning { message, context } => {
                 self.state.warnings.push(message.clone());
@@ -224,8 +198,6 @@ impl StartupRenderer {
                 }
                 render_warning(&format!("ERROR: {}", message));
             },
-
-            StartupEvent::Info { message: _ } => {},
 
             StartupEvent::StartupComplete {
                 duration,
