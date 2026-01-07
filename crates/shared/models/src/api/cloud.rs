@@ -137,10 +137,9 @@ pub struct SetExternalDbAccessRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExternalDbAccessResponse {
+    pub tenant_id: String,
     pub external_db_access: bool,
     pub database_url: String,
-    #[serde(default)]
-    pub tenant_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
