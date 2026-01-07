@@ -3,13 +3,13 @@
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
+use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::services::cli::{
     render_phase_success, render_phase_warning, BrandColors,
 };
 use systemprompt_core_logging::CliService;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionRegistry as McpExtensionRegistry};
-use systemprompt_core_files::FilesConfig;
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     ValidationConfigProvider, WebConfigRaw, WebConfigValidator, WebMetadataRaw,
@@ -305,9 +305,7 @@ impl systemprompt_traits::DomainConfig for FilesConfigValidator {
         Ok(())
     }
 
-    fn validate(
-        &self,
-    ) -> Result<ValidationReport, systemprompt_traits::DomainConfigError> {
+    fn validate(&self) -> Result<ValidationReport, systemprompt_traits::DomainConfigError> {
         let mut report = ValidationReport::new("files");
 
         let Some(files_config) = FilesConfig::get_optional() else {
@@ -316,10 +314,10 @@ impl systemprompt_traits::DomainConfig for FilesConfigValidator {
 
         let errors = files_config.validate_storage_structure();
         for error_msg in errors {
-            report.add_error(
-                ValidationError::new("storage", &error_msg)
-                    .with_suggestion("Ensure static files are copied to storage during deployment"),
-            );
+            report
+                .add_error(ValidationError::new("storage", &error_msg).with_suggestion(
+                    "Ensure static files are copied to storage during deployment",
+                ));
         }
 
         Ok(report)

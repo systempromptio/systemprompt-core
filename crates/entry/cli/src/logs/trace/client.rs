@@ -118,7 +118,10 @@ pub async fn send_test_message(
     });
 
     let response = client
-        .post(format!("{}/api/v1/agents/{}/", ctx.base_url, ctx.agent_name))
+        .post(format!(
+            "{}/api/v1/agents/{}/",
+            ctx.base_url, ctx.agent_name
+        ))
         .header("Authorization", format!("Bearer {}", ctx.token))
         .header("x-trace-id", ctx.trace_id)
         .header("Content-Type", "application/json")

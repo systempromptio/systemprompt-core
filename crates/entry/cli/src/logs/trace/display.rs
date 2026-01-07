@@ -37,9 +37,10 @@ pub fn format_metadata_value(key: &str, value: &Value) -> String {
                 format!("${:.6}", dollars)
             },
         ),
-        "latency_ms" | "execution_time_ms" => value
-            .as_i64()
-            .map_or_else(|| format!("{}", value).trim_matches('"').to_string(), |ms| format!("{}ms", ms)),
+        "latency_ms" | "execution_time_ms" => value.as_i64().map_or_else(
+            || format!("{}", value).trim_matches('"').to_string(),
+            |ms| format!("{}ms", ms),
+        ),
         "tokens_used" => value.as_i64().map_or_else(
             || format!("{}", value).trim_matches('"').to_string(),
             |tokens| format!("{}", tokens),
@@ -58,8 +59,7 @@ pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -
                     }
                 },
                 "MCP" => {
-                    if let Some(exec_time) =
-                        parsed.get("execution_time_ms").and_then(Value::as_i64)
+                    if let Some(exec_time) = parsed.get("execution_time_ms").and_then(Value::as_i64)
                     {
                         return format!("{}ms", exec_time);
                     }

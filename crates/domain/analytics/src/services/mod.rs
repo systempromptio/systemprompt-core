@@ -1,5 +1,6 @@
 mod anomaly_detection;
 mod behavioral_detector;
+pub mod detection;
 mod extractor;
 mod feature_extraction;
 mod service;

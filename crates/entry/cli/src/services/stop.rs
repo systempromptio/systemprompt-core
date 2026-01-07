@@ -7,7 +7,6 @@ use systemprompt_runtime::AppContext;
 use super::start::ServiceTarget;
 
 pub async fn execute(target: ServiceTarget, force: bool) -> Result<()> {
-
     let ctx = Arc::new(AppContext::new().await?);
     let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
 

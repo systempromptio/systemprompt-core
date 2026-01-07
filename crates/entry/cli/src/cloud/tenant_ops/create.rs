@@ -350,9 +350,8 @@ pub async fn create_cloud_tenant(
     };
     spinner.finish_and_clear();
 
-    let mut database_url = match database_url {
-        Some(url) => url,
-        None => bail!("Could not retrieve database credentials. Tenant creation incomplete."),
+    let Some(mut database_url) = database_url else {
+        bail!("Could not retrieve database credentials. Tenant creation incomplete.")
     };
     CliService::success("Database credentials retrieved");
 

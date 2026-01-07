@@ -25,7 +25,10 @@ pub struct AiTraceOptions {
     #[arg(long, value_enum, default_value = "text")]
     pub output: TraceOutput,
 
-    #[arg(long, help = "Include sections: history, artifact, tool-results (comma-separated)")]
+    #[arg(
+        long,
+        help = "Include sections: history, artifact, tool-results (comma-separated)"
+    )]
     pub include: Vec<TraceSection>,
 }
 

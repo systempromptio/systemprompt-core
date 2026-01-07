@@ -27,8 +27,8 @@ pub use repository::{
     MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
 pub use services::{
-    AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel,
-    AnomalyThresholdConfig, BehavioralAnalysisInput, BehavioralAnalysisResult,
+    detection, AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent,
+    AnomalyLevel, AnomalyThresholdConfig, BehavioralAnalysisInput, BehavioralAnalysisResult,
     BehavioralBotDetector, BehavioralSignal, CreateAnalyticsSessionInput, EscalationCriteria,
     FeatureExtractionService, SessionAnalytics, SessionCleanupService, SignalType, ThrottleLevel,
     ThrottleService, BEHAVIORAL_BOT_THRESHOLD,

@@ -146,8 +146,9 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             return Ok(Some(ProfileCommands::List));
         },
         2 => Some(ProfileCommands::Edit { name: None }),
-        3 => select_profile("Select profile to delete")?
-            .map(|name| ProfileCommands::Delete { name }),
+        3 => {
+            select_profile("Select profile to delete")?.map(|name| ProfileCommands::Delete { name })
+        },
         4 => None,
         _ => unreachable!(),
     };
