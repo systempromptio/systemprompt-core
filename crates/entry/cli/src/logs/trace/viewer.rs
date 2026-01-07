@@ -165,7 +165,7 @@ pub async fn execute(trace_id: Option<&str>, options: TraceOptions) -> Result<()
             &ai_summary,
             &mcp_summary,
             &step_summary,
-        )?;
+        );
     } else {
         let display_ctx = FormattedDisplayContext {
             events: &events,

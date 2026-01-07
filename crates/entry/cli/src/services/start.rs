@@ -24,7 +24,7 @@ pub struct ServiceTargetFlags {
 }
 
 impl ServiceTarget {
-    pub fn all() -> Self {
+    pub const fn all() -> Self {
         Self {
             api: true,
             agents: true,

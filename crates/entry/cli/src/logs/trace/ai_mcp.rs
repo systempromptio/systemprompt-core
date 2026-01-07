@@ -136,9 +136,8 @@ async fn print_mcp_linked_ai_requests(
 }
 
 async fn print_tool_errors_from_logs(service: &AiTraceService, task_id: &str, context_id: &str) {
-    let logs = match service.get_tool_logs(task_id, context_id).await {
-        Ok(logs) => logs,
-        Err(_) => return,
+    let Ok(logs) = service.get_tool_logs(task_id, context_id).await else {
+        return;
     };
 
     if logs.is_empty() {

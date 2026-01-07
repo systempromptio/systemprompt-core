@@ -1,4 +1,3 @@
-use anyhow::Result;
 use serde_json::Value;
 use systemprompt_core_logging::{
     AiRequestSummary, CliService, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
@@ -10,7 +9,7 @@ pub fn print_json(
     ai_summary: &AiRequestSummary,
     mcp_summary: &McpExecutionSummary,
     step_summary: &ExecutionStepSummary,
-) -> Result<()> {
+) {
     let json_events: Vec<Value> = events
         .iter()
         .map(|e| {
@@ -69,5 +68,4 @@ pub fn print_json(
     });
 
     CliService::json(&output);
-    Ok(())
 }

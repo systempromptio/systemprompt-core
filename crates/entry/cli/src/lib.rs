@@ -193,9 +193,8 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
 }
 
 fn validate_cloud_credentials() {
-    let profile = match ProfileBootstrap::get() {
-        Ok(p) => p,
-        Err(_) => return,
+    let Ok(profile) = ProfileBootstrap::get() else {
+        return;
     };
 
     let cloud_config = match &profile.cloud {

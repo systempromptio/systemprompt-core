@@ -83,7 +83,7 @@ pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
 
     start_compose(&config, &compose_dir, &container)?;
 
-    wait_for_postgres_ready(&config, &container)?;
+    wait_for_postgres_ready(&config, &container);
 
     super::postgres::enable_extensions(&config).await?;
 
@@ -200,7 +200,7 @@ fn start_compose(
     Ok(())
 }
 
-fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) -> Result<()> {
+fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) {
     CliService::info("Waiting for PostgreSQL to be ready...");
 
     for _ in 0..30 {
@@ -220,12 +220,11 @@ fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) -> Res
 
         if health.map(|o| o.status.success()).unwrap_or(false) {
             CliService::success("PostgreSQL is ready");
-            return Ok(());
+            return;
         }
     }
 
     CliService::warning("PostgreSQL started but health check timed out");
-    Ok(())
 }
 
 pub async fn create_database_in_docker(

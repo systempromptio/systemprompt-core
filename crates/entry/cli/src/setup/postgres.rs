@@ -165,14 +165,13 @@ pub fn detect_postgresql(host: &str, port: u16) -> bool {
 }
 
 pub async fn test_connection(config: &PostgresConfig) -> bool {
-    let pool = match PgPoolOptions::new()
+    let Ok(pool) = PgPoolOptions::new()
         .max_connections(1)
         .acquire_timeout(Duration::from_secs(5))
         .connect(&config.database_url())
         .await
-    {
-        Ok(pool) => pool,
-        Err(_) => return false,
+    else {
+        return false;
     };
 
     let result = sqlx::query("SELECT 1").fetch_one(&pool).await.is_ok();

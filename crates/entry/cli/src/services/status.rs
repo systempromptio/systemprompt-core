@@ -12,7 +12,7 @@ pub async fn execute(detailed: bool, json: bool, health: bool) -> Result<()> {
     let states = state_manager.get_verified_states(&configs).await?;
 
     if json {
-        output_json(&states)?;
+        output_json(&states);
     } else if detailed {
         output_detailed(&states, health);
     } else {
@@ -75,8 +75,7 @@ fn output_detailed(states: &[VerifiedServiceState], include_health: bool) {
     }
 }
 
-fn output_json(states: &[VerifiedServiceState]) -> Result<()> {
+fn output_json(states: &[VerifiedServiceState]) {
     let states_vec: Vec<_> = states.to_vec();
     CliService::json(&states_vec);
-    Ok(())
 }
