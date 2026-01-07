@@ -350,10 +350,43 @@ pub async fn create_cloud_tenant(
     };
     spinner.finish_and_clear();
 
-    if database_url.is_none() {
-        bail!("Could not retrieve database credentials. Tenant creation incomplete.");
-    }
+    let mut database_url = match database_url {
+        Some(url) => url,
+        None => bail!("Could not retrieve database credentials. Tenant creation incomplete."),
+    };
     CliService::success("Database credentials retrieved");
+
+    CliService::section("Database Access");
+    CliService::info(
+        "External database access allows direct PostgreSQL connections from your local machine.",
+    );
+    CliService::info("This is required for the TUI and local development workflows.");
+
+    let enable_external = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Enable external database access?")
+        .default(true)
+        .interact()?;
+
+    let external_db_access = if enable_external {
+        let spinner = CliService::spinner("Enabling external database access...");
+        match client.set_external_db_access(&result.tenant_id, true).await {
+            Ok(response) => {
+                database_url = response.database_url;
+                spinner.finish_and_clear();
+                CliService::success("External database access enabled");
+                true
+            },
+            Err(e) => {
+                spinner.finish_and_clear();
+                CliService::warning(&format!("Failed to enable external access: {}", e));
+                CliService::info("You can enable it later with 'systemprompt cloud tenant edit'");
+                false
+            },
+        }
+    } else {
+        CliService::info("External access disabled. TUI features will be limited.");
+        false
+    };
 
     let spinner = CliService::spinner("Syncing new tenant...");
     let response = client.get_user().await?;
@@ -372,7 +405,8 @@ pub async fn create_cloud_tenant(
         app_id: new_tenant.app_id.clone(),
         hostname: new_tenant.hostname.clone(),
         region: new_tenant.region.clone(),
-        database_url,
+        database_url: Some(database_url),
+        external_db_access,
     };
 
     CliService::section("Profile Setup");

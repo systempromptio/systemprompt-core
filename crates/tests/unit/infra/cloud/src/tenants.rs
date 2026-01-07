@@ -114,6 +114,7 @@ fn test_stored_tenant_new_cloud() {
         hostname: Some("prod.systemprompt.io".to_string()),
         region: Some("iad".to_string()),
         database_url: "postgres://cloud/prod".to_string(),
+        external_db_access: false,
     };
 
     let tenant = StoredTenant::new_cloud(params);
@@ -139,6 +140,7 @@ fn test_stored_tenant_new_cloud_minimal() {
         hostname: None,
         region: None,
         database_url: "postgres://minimal".to_string(),
+        external_db_access: false,
     };
 
     let tenant = StoredTenant::new_cloud(params);
