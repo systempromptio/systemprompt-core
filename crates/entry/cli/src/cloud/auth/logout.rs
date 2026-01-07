@@ -4,7 +4,7 @@ use anyhow::Result;
 use systemprompt_cloud::{get_cloud_paths, CloudPath};
 use systemprompt_core_logging::CliService;
 
-pub async fn execute() -> Result<()> {
+pub fn execute() -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 

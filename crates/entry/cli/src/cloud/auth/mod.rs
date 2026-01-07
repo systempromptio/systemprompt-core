@@ -29,7 +29,7 @@ pub enum AuthCommands {
 pub async fn execute(cmd: AuthCommands) -> Result<()> {
     match cmd {
         AuthCommands::Login { environment } => login::execute(environment).await,
-        AuthCommands::Logout => logout::execute().await,
+        AuthCommands::Logout => logout::execute(),
         AuthCommands::Whoami => whoami::execute().await,
     }
 }

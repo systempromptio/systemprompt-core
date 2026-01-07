@@ -87,10 +87,8 @@ async fn execute_command(cmd: ProfileCommands) -> Result<bool> {
             filter,
             json,
             yaml,
-        } => show::execute(name.as_deref(), filter, json, yaml)
-            .await
-            .map(|()| false),
-        ProfileCommands::Delete { name } => delete::execute(&name).await.map(|()| false),
+        } => show::execute(name.as_deref(), filter, json, yaml).map(|()| false),
+        ProfileCommands::Delete { name } => delete::execute(&name).map(|()| false),
         ProfileCommands::Edit { name } => edit::execute(name.as_deref()).await.map(|()| false),
     }
 }

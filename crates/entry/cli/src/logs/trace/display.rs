@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use systemprompt_core_logging::{
@@ -32,28 +30,20 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
 
 pub fn format_metadata_value(key: &str, value: &Value) -> String {
     match key {
-        "cost_cents" => {
-            if let Some(microdollars) = value.as_i64() {
+        "cost_cents" => value.as_i64().map_or_else(
+            || format!("{}", value).trim_matches('"').to_string(),
+            |microdollars| {
                 let dollars = microdollars as f64 / 1_000_000.0;
                 format!("${:.6}", dollars)
-            } else {
-                format!("{}", value).trim_matches('"').to_string()
-            }
-        },
-        "latency_ms" | "execution_time_ms" => {
-            if let Some(ms) = value.as_i64() {
-                format!("{}ms", ms)
-            } else {
-                format!("{}", value).trim_matches('"').to_string()
-            }
-        },
-        "tokens_used" => {
-            if let Some(tokens) = value.as_i64() {
-                format!("{}", tokens)
-            } else {
-                format!("{}", value).trim_matches('"').to_string()
-            }
-        },
+            },
+        ),
+        "latency_ms" | "execution_time_ms" => value
+            .as_i64()
+            .map_or_else(|| format!("{}", value).trim_matches('"').to_string(), |ms| format!("{}ms", ms)),
+        "tokens_used" => value.as_i64().map_or_else(
+            || format!("{}", value).trim_matches('"').to_string(),
+            |tokens| format!("{}", tokens),
+        ),
         _ => format!("{}", value).trim_matches('"').to_string(),
     }
 }
@@ -84,15 +74,16 @@ pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -
 pub fn print_event(event: &TraceEvent, verbose: bool, prev_timestamp: Option<DateTime<Utc>>) {
     let timestamp = event.timestamp.format("%H:%M:%S%.3f").to_string();
 
-    let delta = if let Some(prev) = prev_timestamp {
-        let delta_ms = event
-            .timestamp
-            .signed_duration_since(prev)
-            .num_milliseconds();
-        format!("(+{delta_ms}ms)")
-    } else {
-        "(+0ms)".to_string()
-    };
+    let delta = prev_timestamp.map_or_else(
+        || "(+0ms)".to_string(),
+        |prev| {
+            let delta_ms = event
+                .timestamp
+                .signed_duration_since(prev)
+                .num_milliseconds();
+            format!("(+{delta_ms}ms)")
+        },
+    );
 
     let type_label = match event.event_type.as_str() {
         "LOG" => "[LOG]   ",
@@ -298,12 +289,13 @@ pub fn print_table(events: &[TraceEvent]) {
         .iter()
         .map(|e| {
             let time = e.timestamp.format("%H:%M:%S%.3f").to_string();
-            let delta = if let Some(prev) = prev_timestamp {
-                let delta_ms = e.timestamp.signed_duration_since(prev).num_milliseconds();
-                format!("+{}ms", delta_ms)
-            } else {
-                "+0ms".to_string()
-            };
+            let delta = prev_timestamp.map_or_else(
+                || "+0ms".to_string(),
+                |prev| {
+                    let delta_ms = e.timestamp.signed_duration_since(prev).num_milliseconds();
+                    format!("+{}ms", delta_ms)
+                },
+            );
             prev_timestamp = Some(e.timestamp);
 
             let latency = extract_latency_from_metadata(e.metadata.as_deref(), &e.event_type);

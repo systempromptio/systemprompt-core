@@ -6,7 +6,7 @@ use systemprompt_runtime::AppContext;
 
 pub async fn execute(detailed: bool, json: bool, health: bool) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
-    let configs = super::load_service_configs(&ctx).await?;
+    let configs = super::load_service_configs(&ctx)?;
     let state_manager = ServiceStateManager::new(Arc::clone(ctx.db_pool()));
 
     let states = state_manager.get_verified_states(&configs).await?;

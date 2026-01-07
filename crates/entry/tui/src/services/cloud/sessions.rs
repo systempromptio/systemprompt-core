@@ -41,7 +41,10 @@ pub async fn create_tui_session(api_url: &str, user_id: &str, email: &str) -> Re
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
         anyhow::bail!("Session creation failed with status {}: {}", status, body);
     }
 

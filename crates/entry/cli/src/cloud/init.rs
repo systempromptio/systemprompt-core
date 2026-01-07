@@ -53,7 +53,7 @@ echo "Starting services..."
 exec /app/bin/systemprompt services serve --foreground
 "#;
 
-pub async fn execute(force: bool) -> Result<()> {
+pub fn execute(force: bool) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
     let ctx = ProjectContext::new(project_root.clone());
     let systemprompt_dir = ctx.systemprompt_dir();

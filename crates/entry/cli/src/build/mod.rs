@@ -17,7 +17,7 @@ pub enum BuildCommands {
     },
 }
 
-pub async fn execute(cmd: BuildCommands) -> Result<()> {
+pub fn execute(cmd: BuildCommands) -> Result<()> {
     match cmd {
         BuildCommands::Mcp { release } => build_mcp(release),
     }

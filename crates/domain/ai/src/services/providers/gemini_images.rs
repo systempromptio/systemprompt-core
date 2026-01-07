@@ -240,7 +240,10 @@ impl ImageProvider for GeminiImageProvider {
 
         if !response.status().is_success() {
             let status = response.status();
-            let error_body = response.text().await.unwrap_or_default();
+            let error_body = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("<error reading response: {}>", e));
             return Err(AiError::ProviderError {
                 provider: self.name().to_string(),
                 message: format!("API returned status {status}: {error_body}"),

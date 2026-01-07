@@ -69,7 +69,12 @@ fn parse_stream_chunk(bytes: &bytes::Bytes) -> String {
         return content;
     }
 
-    try_parse_chunked_format(cleaned).unwrap_or_default()
+    try_parse_chunked_format(cleaned).unwrap_or_else(|| {
+        if !cleaned.is_empty() {
+            tracing::debug!(chunk = %cleaned, "Could not parse Gemini stream chunk");
+        }
+        String::new()
+    })
 }
 
 fn try_parse_array_format(cleaned: &str) -> Option<String> {

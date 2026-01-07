@@ -32,7 +32,7 @@ impl McpToolLoader {
         context: &RequestContext,
     ) -> Result<HashMap<String, Vec<McpTool>>> {
         let deployment_config = DeploymentService::load_config()?;
-        let user_permissions = extract_user_permissions(context);
+        let user_permissions = extract_user_permissions(context)?;
 
         let mut tools_by_server = HashMap::new();
         let mut load_errors = Vec::new();
@@ -180,38 +180,27 @@ impl McpToolLoader {
     }
 }
 
-fn extract_user_permissions(context: &RequestContext) -> Vec<String> {
+fn extract_user_permissions(context: &RequestContext) -> Result<Vec<String>> {
     use systemprompt_core_oauth::services::validation::jwt::validate_jwt_token;
 
-    let jwt_secret = match systemprompt_models::SecretsBootstrap::jwt_secret() {
-        Ok(s) => s,
-        Err(e) => {
-            error!(error = %e, "Failed to get JWT secret");
-            return vec![];
-        },
-    };
+    let token = context.auth_token().as_str();
+    if token.is_empty() {
+        return Ok(vec![]);
+    }
 
-    let config = match systemprompt_models::Config::get() {
-        Ok(c) => c,
-        Err(e) => {
-            error!(error = %e, "Failed to get config");
-            return vec![];
-        },
-    };
+    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        .map_err(|e| anyhow::anyhow!("Failed to get JWT secret: {}", e))?;
 
-    validate_jwt_token(
-        context.auth_token().as_str(),
-        jwt_secret,
-        &config.jwt_issuer,
-        &config.jwt_audiences,
-    )
-    .inspect_err(|e| {
-        if !context.auth_token().as_str().is_empty() {
-            error!(error = %e, "JWT validation failed. Using empty permissions");
-        }
-    })
-    .map(|claims| claims.get_scopes())
-    .unwrap_or_default()
+    let config = systemprompt_models::Config::get()
+        .map_err(|e| anyhow::anyhow!("Failed to get config: {}", e))?;
+
+    let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)
+        .map_err(|e| {
+            error!(error = %e, "JWT validation failed");
+            anyhow::anyhow!("JWT validation failed: {}", e)
+        })?;
+
+    Ok(claims.get_scopes())
 }
 
 fn has_server_permission(

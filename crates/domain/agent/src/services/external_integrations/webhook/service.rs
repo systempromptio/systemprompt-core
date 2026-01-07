@@ -165,7 +165,10 @@ impl WebhookService {
                     .map(|(k, v)| (k.to_string(), v.to_str().unwrap_or("").to_string()))
                     .collect();
 
-                let body = response.text().await.unwrap_or_default();
+                let body = response
+                    .text()
+                    .await
+                    .unwrap_or_else(|e| format!("<error reading response: {}>", e));
                 let duration = start_time.elapsed();
 
                 Ok(WebhookDeliveryResult {

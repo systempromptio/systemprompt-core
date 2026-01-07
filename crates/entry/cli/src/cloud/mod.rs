@@ -106,7 +106,7 @@ impl CloudCommands {
 pub async fn execute(cmd: CloudCommands) -> Result<()> {
     match cmd {
         CloudCommands::Auth(cmd) => auth::execute(cmd).await,
-        CloudCommands::Init { force } => init::execute(force).await,
+        CloudCommands::Init { force } => init::execute(force),
         CloudCommands::Tenant { command } => tenant::execute(command).await,
         CloudCommands::Profile { command } => profile::execute(command).await,
         CloudCommands::Deploy { skip_push, profile } => deploy::execute(skip_push, profile).await,
@@ -115,11 +115,11 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Restart { tenant } => restart::execute(tenant).await,
         CloudCommands::Sync { command } => sync::execute(command).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd).await,
-        CloudCommands::Dockerfile => execute_dockerfile().await,
+        CloudCommands::Dockerfile => execute_dockerfile(),
     }
 }
 
-async fn execute_dockerfile() -> Result<()> {
+fn execute_dockerfile() -> Result<()> {
     use crate::common::project::ProjectRoot;
 
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;

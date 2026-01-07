@@ -12,7 +12,7 @@ async fn resolve_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub async fn execute_api(_ctx: &Arc<AppContext>) -> Result<()> {
+pub fn execute_api(_ctx: &Arc<AppContext>) -> Result<()> {
     CliService::section("Restarting API Server");
 
     CliService::warning("API server restart via CLI is not currently supported");

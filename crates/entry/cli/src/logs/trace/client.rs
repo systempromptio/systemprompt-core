@@ -47,7 +47,10 @@ pub async fn get_anonymous_token(client: &Client, base_url: &str) -> Result<Stri
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
         anyhow::bail!("Failed to get anonymous token: {} - {}", status, body);
     }
 
@@ -127,7 +130,10 @@ pub async fn send_test_message(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
         anyhow::bail!("Agent request failed: {} - {}", status, body);
     }
 
