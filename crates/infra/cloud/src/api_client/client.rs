@@ -6,8 +6,9 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
     ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
-    ListResponse, LogEntry, LogsResponse, Plan, RegistryToken, SetSecretsRequest, StatusResponse,
-    Tenant, TenantSecrets, TenantStatus, UserMeResponse,
+    ExternalDbAccessResponse, ListResponse, LogEntry, LogsResponse, Plan, RegistryToken,
+    SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, Tenant, TenantSecrets,
+    TenantStatus, UserMeResponse,
 };
 
 #[derive(Serialize)]
@@ -267,5 +268,17 @@ impl CloudApiClient {
     pub async fn unset_secret(&self, tenant_id: &str, key: &str) -> Result<()> {
         let path = format!("{}/{}", ApiPaths::tenant_secrets(tenant_id), key);
         self.delete(&path).await
+    }
+
+    pub async fn set_external_db_access(
+        &self,
+        tenant_id: &str,
+        enabled: bool,
+    ) -> Result<ExternalDbAccessResponse> {
+        let request = SetExternalDbAccessRequest { enabled };
+        let response: ApiResponse<ExternalDbAccessResponse> = self
+            .put(&ApiPaths::tenant_external_db_access(tenant_id), &request)
+            .await?;
+        Ok(response.data)
     }
 }

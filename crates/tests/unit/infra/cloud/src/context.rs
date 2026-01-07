@@ -32,6 +32,7 @@ fn test_resolved_tenant_from_stored_tenant_full() {
         hostname: Some("tenant.example.com".to_string()),
         region: Some("iad".to_string()),
         database_url: "postgres://db".to_string(),
+        external_db_access: false,
     };
     let stored = StoredTenant::new_cloud(params);
     let resolved: ResolvedTenant = stored.into();

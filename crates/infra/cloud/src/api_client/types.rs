@@ -62,6 +62,9 @@ pub struct TenantInfo {
     pub region: Option<String>,
     #[serde(default)]
     pub plan: Option<PlanInfo>,
+    #[serde(default)]
+    pub external_db_access: bool,
+    pub database_url: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -212,4 +215,15 @@ pub struct StatusResponse {
 #[derive(Debug, Clone, Serialize)]
 pub struct SetSecretsRequest {
     pub secrets: std::collections::HashMap<String, String>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct SetExternalDbAccessRequest {
+    pub enabled: bool,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct ExternalDbAccessResponse {
+    pub external_db_access: bool,
+    pub database_url: String,
 }

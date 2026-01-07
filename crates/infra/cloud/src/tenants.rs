@@ -16,6 +16,7 @@ pub struct NewCloudTenantParams {
     pub hostname: Option<String>,
     pub region: Option<String>,
     pub database_url: String,
+    pub external_db_access: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -48,6 +49,9 @@ pub struct StoredTenant {
 
     #[serde(default)]
     pub tenant_type: TenantType,
+
+    #[serde(default)]
+    pub external_db_access: bool,
 }
 
 impl StoredTenant {
@@ -61,6 +65,7 @@ impl StoredTenant {
             region: None,
             database_url: None,
             tenant_type: TenantType::default(),
+            external_db_access: false,
         }
     }
 
@@ -74,6 +79,7 @@ impl StoredTenant {
             region: None,
             database_url: Some(database_url),
             tenant_type: TenantType::Local,
+            external_db_access: false,
         }
     }
 
@@ -87,6 +93,7 @@ impl StoredTenant {
             region: params.region,
             database_url: Some(params.database_url),
             tenant_type: TenantType::Cloud,
+            external_db_access: params.external_db_access,
         }
     }
 
@@ -98,8 +105,9 @@ impl StoredTenant {
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),
             region: info.region.clone(),
-            database_url: None,
+            database_url: Some(info.database_url.clone()),
             tenant_type: TenantType::Cloud,
+            external_db_access: info.external_db_access,
         }
     }
 
