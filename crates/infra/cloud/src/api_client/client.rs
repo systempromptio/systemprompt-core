@@ -7,8 +7,8 @@ use systemprompt_models::modules::ApiPaths;
 use super::types::{
     ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
     ExternalDbAccessResponse, ListResponse, LogEntry, LogsResponse, Plan, RegistryToken,
-    SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, Tenant, TenantSecrets,
-    TenantStatus, UserMeResponse,
+    RotateCredentialsResponse, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse,
+    Tenant, TenantSecrets, TenantStatus, UserMeResponse,
 };
 
 #[derive(Serialize)]
@@ -298,5 +298,10 @@ impl CloudApiClient {
             .put(&ApiPaths::tenant_external_db_access(tenant_id), &request)
             .await?;
         Ok(response.data)
+    }
+
+    pub async fn rotate_credentials(&self, tenant_id: &str) -> Result<RotateCredentialsResponse> {
+        self.post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
+            .await
     }
 }
