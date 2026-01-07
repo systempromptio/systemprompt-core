@@ -39,8 +39,9 @@ pub async fn initialize_scheduler(
     let db_pool = ctx.db_pool().clone();
     let scheduler_repo = SchedulerRepository::new(&db_pool)?;
 
-    // db_pool is Arc<Database>, wrap in Arc to store Arc<Database> as the type-erased value
-    // ctx is &AppContext, we need Arc<Arc<AppContext>> so jobs can access via app_context::<Arc<AppContext>>()
+    // db_pool is Arc<Database>, wrap in Arc to store Arc<Database> as the
+    // type-erased value ctx is &AppContext, we need Arc<Arc<AppContext>> so
+    // jobs can access via app_context::<Arc<AppContext>>()
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool.clone());
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::new(ctx.clone()));
     let job_ctx = JobContext::new(db_pool_any, app_context_any);

@@ -15,6 +15,7 @@ import { useContextStream } from '@/hooks/useContextStream'
 import { useTokenExpiryMonitor } from '@/hooks/useTokenExpiryMonitor'
 import { useContextInit } from '@/hooks/useContextInit'
 import { useDeepLink } from '@/hooks/useDeepLink'
+import { useExtensionSidebar } from '@/hooks/useExtensionNavigation'
 import { useContextStore, CONTEXT_STATE } from '@/stores/context.store'
 import { createAgentUrl } from '@/types/core/brand'
 import { useAuthStore } from '@/stores/auth.store'
@@ -31,6 +32,7 @@ function App() {
   useTokenExpiryMonitor()
   useContextInit()
   useDeepLink()
+  const extensionSections = useExtensionSidebar()
 
   const { isAuthenticated, showAuthModal, handleAuthSuccess, handleAuthClose, authAgentName } = useAuth()
   const { isTokenValid, accessToken } = useAuthStore()
@@ -221,6 +223,30 @@ function App() {
             }
             footer={
               <div className="space-y-md">
+                {/* Extension-contributed sections */}
+                {extensionSections.map((section) => (
+                  <div key={section.id}>
+                    <div className="text-xs font-medium font-heading text-text-secondary uppercase tracking-wide mb-sm">
+                      {section.title}
+                    </div>
+                    <div className="flex flex-col gap-xs text-xs font-body">
+                      {section.links.map((link) => (
+                        <a
+                          key={link.path}
+                          href={link.path}
+                          target={link.external ? '_blank' : undefined}
+                          rel={link.external ? 'noopener noreferrer' : undefined}
+                          className="text-text-secondary hover:text-primary transition-fast"
+                        >
+                          {link.label}
+                          {link.external && ' ↗'}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+
+                {/* Existing Registries section */}
                 <div>
                   <div className="text-xs font-medium font-heading text-text-secondary uppercase tracking-wide mb-sm">
                     Registries

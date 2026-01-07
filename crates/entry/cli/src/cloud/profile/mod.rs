@@ -20,6 +20,8 @@ use anyhow::Result;
 use clap::{Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
+use systemprompt_cloud::ProjectContext;
+use systemprompt_core_logging::CliService;
 
 #[derive(Subcommand)]
 pub enum ProfileCommands {
@@ -117,15 +119,42 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         },
         1 => Some(ProfileCommands::List),
         2 => Some(ProfileCommands::Edit { name: None }),
-        3 => {
-            let name: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Profile name to delete")
-                .interact_text()?;
-            Some(ProfileCommands::Delete { name })
+        3 => match select_profile("Select profile to delete")? {
+            Some(name) => Some(ProfileCommands::Delete { name }),
+            None => None,
         },
         4 => None,
         _ => unreachable!(),
     };
 
     Ok(cmd)
+}
+
+fn select_profile(prompt: &str) -> Result<Option<String>> {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+
+    if !profiles_dir.exists() {
+        CliService::warning("No profiles directory found.");
+        return Ok(None);
+    }
+
+    let profiles: Vec<String> = std::fs::read_dir(&profiles_dir)?
+        .filter_map(|e| e.ok())
+        .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+        .filter_map(|e| e.file_name().to_str().map(String::from))
+        .collect();
+
+    if profiles.is_empty() {
+        CliService::warning("No profiles found.");
+        return Ok(None);
+    }
+
+    let selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt(prompt)
+        .items(&profiles)
+        .default(0)
+        .interact()?;
+
+    Ok(Some(profiles[selection].clone()))
 }

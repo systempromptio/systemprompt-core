@@ -1,8 +1,8 @@
-//! Cloud whoami command
-
 use anyhow::Result;
 use chrono::Duration;
-use systemprompt_cloud::{get_cloud_paths, CloudCredentials, CloudPath, TenantStore, TenantType};
+use systemprompt_cloud::{
+    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, ProjectContext,
+};
 use systemprompt_core_logging::CliService;
 
 pub async fn execute() -> Result<()> {
@@ -44,25 +44,44 @@ pub async fn execute() -> Result<()> {
             .to_string(),
     );
 
-    if cloud_paths.exists(CloudPath::Tenants) {
-        let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-        if let Ok(store) = TenantStore::load_from_path(&tenants_path) {
-            let local_count = store
-                .tenants
-                .iter()
-                .filter(|t| t.tenant_type == TenantType::Local)
-                .count();
-            let cloud_count = store.tenants.len() - local_count;
+    CliService::section("Tenants");
 
-            CliService::section("Tenants");
-            CliService::key_value("Local", &local_count.to_string());
-            CliService::key_value("Cloud", &cloud_count.to_string());
-            CliService::key_value(
-                "Last synced",
-                &store.synced_at.format("%Y-%m-%d %H:%M").to_string(),
-            );
-        }
-    }
+    let cloud_count = fetch_cloud_tenant_count(&creds).await;
+    let local_count = count_local_profiles();
+
+    CliService::key_value("Local profiles", &local_count.to_string());
+    CliService::key_value("Cloud tenants", &cloud_count.to_string());
 
     Ok(())
+}
+
+async fn fetch_cloud_tenant_count(creds: &CloudCredentials) -> usize {
+    if creds.is_token_expired() {
+        return 0;
+    }
+
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    client
+        .list_tenants()
+        .await
+        .map(|tenants| tenants.len())
+        .unwrap_or(0)
+}
+
+fn count_local_profiles() -> usize {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+
+    if !profiles_dir.exists() {
+        return 0;
+    }
+
+    std::fs::read_dir(&profiles_dir)
+        .map(|entries| {
+            entries
+                .filter_map(|e| e.ok())
+                .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+                .count()
+        })
+        .unwrap_or(0)
 }
