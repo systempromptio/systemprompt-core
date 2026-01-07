@@ -117,17 +117,19 @@ impl DatabaseSyncService {
     async fn export_local(&self) -> SyncResult<DatabaseExport> {
         let pool = PgPool::connect(&self.database_url).await?;
 
-        let skills: Vec<SkillExport> = sqlx::query_as(
-            r"SELECT skill_id, file_path, name, description, instructions, enabled,
-                     tags, category_id, source_id, created_at, updated_at
-              FROM agent_skills",
+        let skills = sqlx::query_as!(
+            SkillExport,
+            r#"SELECT skill_id, file_path, name, description, instructions, enabled,
+                      tags, category_id, source_id, created_at, updated_at
+               FROM agent_skills"#
         )
         .fetch_all(&pool)
         .await?;
 
-        let contexts: Vec<ContextExport> = sqlx::query_as(
-            r"SELECT context_id, user_id, session_id, name, created_at, updated_at
-              FROM user_contexts",
+        let contexts = sqlx::query_as!(
+            ContextExport,
+            r#"SELECT context_id, user_id, session_id, name, created_at, updated_at
+               FROM user_contexts"#
         )
         .fetch_all(&pool)
         .await?;
@@ -165,32 +167,32 @@ impl DatabaseSyncService {
 }
 
 async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query(
-        r"INSERT INTO agent_skills (skill_id, file_path, name, description, instructions,
-                                    enabled, tags, category_id, source_id, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-          ON CONFLICT (skill_id) DO UPDATE SET
-            file_path = EXCLUDED.file_path,
-            name = EXCLUDED.name,
-            description = EXCLUDED.description,
-            instructions = EXCLUDED.instructions,
-            enabled = EXCLUDED.enabled,
-            tags = EXCLUDED.tags,
-            category_id = EXCLUDED.category_id,
-            source_id = EXCLUDED.source_id,
-            updated_at = EXCLUDED.updated_at",
+    let result = sqlx::query!(
+        r#"INSERT INTO agent_skills (skill_id, file_path, name, description, instructions,
+                                     enabled, tags, category_id, source_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (skill_id) DO UPDATE SET
+             file_path = EXCLUDED.file_path,
+             name = EXCLUDED.name,
+             description = EXCLUDED.description,
+             instructions = EXCLUDED.instructions,
+             enabled = EXCLUDED.enabled,
+             tags = EXCLUDED.tags,
+             category_id = EXCLUDED.category_id,
+             source_id = EXCLUDED.source_id,
+             updated_at = EXCLUDED.updated_at"#,
+        skill.skill_id,
+        skill.file_path,
+        skill.name,
+        skill.description,
+        skill.instructions,
+        skill.enabled,
+        skill.tags.as_deref(),
+        skill.category_id,
+        skill.source_id,
+        skill.created_at,
+        skill.updated_at
     )
-    .bind(&skill.skill_id)
-    .bind(&skill.file_path)
-    .bind(&skill.name)
-    .bind(&skill.description)
-    .bind(&skill.instructions)
-    .bind(skill.enabled)
-    .bind(skill.tags.as_deref())
-    .bind(&skill.category_id)
-    .bind(&skill.source_id)
-    .bind(skill.created_at)
-    .bind(skill.updated_at)
     .execute(pool)
     .await?;
 
@@ -204,21 +206,21 @@ async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, 
 }
 
 async fn upsert_context(pool: &PgPool, context: &ContextExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query(
-        r"INSERT INTO user_contexts (context_id, user_id, session_id, name, created_at, updated_at)
-          VALUES ($1, $2, $3, $4, $5, $6)
-          ON CONFLICT (context_id) DO UPDATE SET
-            user_id = EXCLUDED.user_id,
-            session_id = EXCLUDED.session_id,
-            name = EXCLUDED.name,
-            updated_at = EXCLUDED.updated_at",
+    let result = sqlx::query!(
+        r#"INSERT INTO user_contexts (context_id, user_id, session_id, name, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (context_id) DO UPDATE SET
+             user_id = EXCLUDED.user_id,
+             session_id = EXCLUDED.session_id,
+             name = EXCLUDED.name,
+             updated_at = EXCLUDED.updated_at"#,
+        context.context_id,
+        context.user_id,
+        context.session_id,
+        context.name,
+        context.created_at,
+        context.updated_at
     )
-    .bind(&context.context_id)
-    .bind(&context.user_id)
-    .bind(&context.session_id)
-    .bind(&context.name)
-    .bind(context.created_at)
-    .bind(context.updated_at)
     .execute(pool)
     .await?;
 
