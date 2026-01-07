@@ -143,6 +143,13 @@ pub struct ExternalDbAccessResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RotateCredentialsResponse {
+    pub status: String,
+    pub message: String,
+    pub database_url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMeResponse {
     pub user: CloudUserInfo,
     #[serde(default)]

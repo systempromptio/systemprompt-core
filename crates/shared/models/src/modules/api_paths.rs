@@ -114,6 +114,10 @@ impl ApiPaths {
         format!("{}/{}/external-db-access", Self::CLOUD_TENANTS, tenant_id)
     }
 
+    pub fn tenant_rotate_credentials(tenant_id: &str) -> String {
+        format!("{}/{}/rotate-credentials", Self::CLOUD_TENANTS, tenant_id)
+    }
+
     pub fn mcp_server_endpoint(server_name: &str) -> String {
         format!("{}/{}/mcp", Self::MCP_BASE, server_name)
     }

@@ -7,7 +7,7 @@ use systemprompt_core_logging::CliService;
 
 use super::tenant_ops::{
     check_build_ready, create_cloud_tenant, create_local_tenant, delete_tenant, edit_tenant,
-    get_credentials, list_tenants, show_tenant,
+    get_credentials, list_tenants, rotate_credentials, show_tenant,
 };
 
 #[derive(Subcommand)]
@@ -29,6 +29,9 @@ pub enum TenantCommands {
 
     #[command(about = "Edit tenant configuration")]
     Edit { id: Option<String> },
+
+    #[command(about = "Rotate database credentials")]
+    RotateCredentials { id: Option<String> },
 }
 
 pub async fn execute(cmd: Option<TenantCommands>) -> Result<()> {
@@ -51,6 +54,7 @@ async fn execute_command(cmd: TenantCommands) -> Result<bool> {
         TenantCommands::Show { id } => show_tenant(id).await.map(|()| false),
         TenantCommands::Delete { id } => delete_tenant(id).await.map(|()| false),
         TenantCommands::Edit { id } => edit_tenant(id).await.map(|()| false),
+        TenantCommands::RotateCredentials { id } => rotate_credentials(id).await.map(|()| false),
     }
 }
 
