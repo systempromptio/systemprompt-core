@@ -27,10 +27,7 @@ fn output_table(states: &[VerifiedServiceState]) {
     let rows: Vec<Vec<String>> = states
         .iter()
         .map(|state| {
-            let pid_str = state
-                .pid
-                .map(|p| p.to_string())
-                .unwrap_or_else(|| "-".to_string());
+            let pid_str = state.pid.map_or_else(|| "-".to_string(), |p| p.to_string());
 
             vec![
                 state.name.clone(),
@@ -57,7 +54,7 @@ fn output_detailed(states: &[VerifiedServiceState], include_health: bool) {
     for state in states {
         CliService::section(&state.name);
         CliService::key_value("Type", &state.service_type.to_string());
-        CliService::key_value("Status", &state.status_display());
+        CliService::key_value("Status", state.status_display());
         CliService::key_value("Port", &state.port.to_string());
 
         if let Some(pid) = state.pid {
@@ -65,7 +62,7 @@ fn output_detailed(states: &[VerifiedServiceState], include_health: bool) {
         }
 
         CliService::key_value("Desired", &format!("{:?}", state.desired_status));
-        CliService::key_value("Action", &state.action_display());
+        CliService::key_value("Action", state.action_display());
 
         if let Some(error) = &state.error {
             CliService::error(&format!("Error: {}", error));

@@ -176,7 +176,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         });
 
     let config = SyncConfig {
-        direction: direction.clone(),
+        direction,
         dry_run: false,
         verbose: false,
         tenant_id: tenant_id.clone(),
@@ -226,8 +226,7 @@ async fn execute_local_content_sync(source: &ProfileSelection) -> Result<()> {
     std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
 
     let args = ContentSyncArgs {
-        force_to_db: false,
-        force_to_disk: false,
+        direction: None,
         database_url: None,
         source: None,
         dry_run: false,
@@ -241,8 +240,7 @@ async fn execute_local_skills_sync(source: &ProfileSelection) -> Result<()> {
     std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
 
     let args = SkillsSyncArgs {
-        force_to_db: false,
-        force_to_disk: false,
+        direction: None,
         database_url: None,
         skill: None,
         dry_run: false,

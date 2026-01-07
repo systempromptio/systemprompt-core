@@ -136,10 +136,7 @@ pub async fn validate_connection(db_url: &str) -> bool {
     })
     .await;
 
-    match result {
-        Ok(Ok(_pool)) => true,
-        _ => false,
-    }
+    matches!(result, Ok(Ok(_)))
 }
 
 pub async fn run_migrations_cmd(profile_path: &Path) -> Result<()> {

@@ -84,7 +84,7 @@ pub async fn run() -> Result<()> {
     let cli = Cli::parse();
 
     let cli_config = build_cli_config(&cli);
-    cli_settings::set_global_config(cli_config.clone());
+    cli_settings::set_global_config(cli_config);
 
     if cli.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
@@ -92,10 +92,8 @@ pub async fn run() -> Result<()> {
 
     let (requires_profile, requires_secrets) = match &cli.command {
         Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
-        Some(Commands::Setup(_)) => (false, false),
-        Some(Commands::Build(_)) => (false, false),
-        Some(_) => (true, true),
-        None => (true, true),
+        Some(Commands::Setup(_) | Commands::Build(_)) => (false, false),
+        Some(_) | None => (true, true),
     };
 
     if requires_profile {

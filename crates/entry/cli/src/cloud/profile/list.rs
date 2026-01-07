@@ -60,7 +60,7 @@ pub async fn execute() -> Result<()> {
     let options: Vec<String> = profiles
         .iter()
         .map(|(name, has_secrets, _)| {
-            let is_current = current_profile_name.as_ref().map_or(false, |c| c == name);
+            let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
             let current_marker = if is_current { " (active)" } else { "" };
             let secrets_marker = if *has_secrets { "✓" } else { "✗" };
             format!("{}{} [secrets: {}]", name, current_marker, secrets_marker)

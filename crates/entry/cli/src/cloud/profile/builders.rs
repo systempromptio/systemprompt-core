@@ -97,9 +97,10 @@ pub fn build_cloud_profile(
     _secrets_path: &str,
 ) -> Result<Profile> {
     let display_name = generate_display_name(name);
-    let external = external_url
-        .map(String::from)
-        .unwrap_or_else(|| "https://cloud.systemprompt.io".to_string());
+    let external = external_url.map_or_else(
+        || "https://cloud.systemprompt.io".to_string(),
+        String::from,
+    );
 
     Ok(Profile {
         name: name.to_string(),

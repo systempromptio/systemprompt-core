@@ -114,18 +114,17 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         return Ok(());
     }
 
-    let direction = if args.force_to_disk {
-        LocalSyncDirection::ToDisk
-    } else if args.force_to_db {
-        LocalSyncDirection::ToDatabase
-    } else {
-        match prompt_sync_direction()? {
-            Some(dir) => dir,
-            None => {
+    let direction = match args.direction {
+        Some(crate::cloud::sync::CliLocalSyncDirection::ToDisk) => LocalSyncDirection::ToDisk,
+        Some(crate::cloud::sync::CliLocalSyncDirection::ToDb) => LocalSyncDirection::ToDatabase,
+        None => {
+            if let Some(dir) = prompt_sync_direction()? {
+                dir
+            } else {
                 CliService::info("Sync cancelled");
                 return Ok(());
-            },
-        }
+            }
+        },
     };
 
     if args.dry_run {
@@ -133,7 +132,7 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         return Ok(());
     }
 
-    if !args.force_to_disk && !args.force_to_db {
+    if args.direction.is_none() {
         let confirmed = Confirm::new()
             .with_prompt("Proceed with sync?")
             .default(false)

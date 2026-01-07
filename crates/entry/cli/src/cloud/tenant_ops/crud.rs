@@ -89,16 +89,15 @@ pub async fn show_tenant(id: Option<String>) -> Result<()> {
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
 
-    let tenant = match id {
-        Some(ref id) => store
+    let tenant = if let Some(ref id) = id {
+        store
             .find_tenant(id)
-            .ok_or_else(|| anyhow!("Tenant not found: {}", id))?,
-        None => {
-            if store.tenants.is_empty() {
-                bail!("No tenants configured.");
-            }
-            select_tenant(&store.tenants)?
-        },
+            .ok_or_else(|| anyhow!("Tenant not found: {}", id))?
+    } else {
+        if store.tenants.is_empty() {
+            bail!("No tenants configured.");
+        }
+        select_tenant(&store.tenants)?
     };
 
     CliService::section(&format!("Tenant: {}", tenant.name));
@@ -131,14 +130,13 @@ pub async fn delete_tenant(id: Option<String>) -> Result<()> {
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
 
-    let tenant_id = match id {
-        Some(id) => id,
-        None => {
-            if store.tenants.is_empty() {
-                bail!("No tenants configured.");
-            }
-            select_tenant(&store.tenants)?.id.clone()
-        },
+    let tenant_id = if let Some(id) = id {
+        id
+    } else {
+        if store.tenants.is_empty() {
+            bail!("No tenants configured.");
+        }
+        select_tenant(&store.tenants)?.id.clone()
     };
 
     let tenant = store
@@ -191,14 +189,13 @@ pub async fn edit_tenant(id: Option<String>) -> Result<()> {
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
 
-    let tenant_id = match id {
-        Some(id) => id,
-        None => {
-            if store.tenants.is_empty() {
-                bail!("No tenants configured.");
-            }
-            select_tenant(&store.tenants)?.id.clone()
-        },
+    let tenant_id = if let Some(id) = id {
+        id
+    } else {
+        if store.tenants.is_empty() {
+            bail!("No tenants configured.");
+        }
+        select_tenant(&store.tenants)?.id.clone()
     };
 
     let tenant = store
@@ -217,7 +214,7 @@ pub async fn edit_tenant(id: Option<String>) -> Result<()> {
     if new_name.is_empty() {
         bail!("Tenant name cannot be empty");
     }
-    tenant.name = new_name.clone();
+    tenant.name.clone_from(&new_name);
 
     if tenant.tenant_type == TenantType::Local {
         edit_local_tenant_database(tenant)?;

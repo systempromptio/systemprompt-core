@@ -21,10 +21,9 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
                 name: artifact
                     .name
                     .as_ref()
-                    .map(|s| truncate(s, 30))
-                    .unwrap_or("-".to_string()),
-                source: artifact.source.clone().unwrap_or("-".to_string()),
-                tool_name: artifact.tool_name.clone().unwrap_or("-".to_string()),
+                    .map_or("-".to_string(), |s| truncate(s, 30)),
+                source: artifact.source.clone().unwrap_or_else(|| "-".to_string()),
+                tool_name: artifact.tool_name.clone().unwrap_or_else(|| "-".to_string()),
             });
         }
     }

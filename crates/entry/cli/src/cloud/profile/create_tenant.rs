@@ -35,25 +35,22 @@ pub fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {
         .default(0)
         .interact()?;
 
-    match selection {
-        0 => {
-            if local_count == 0 {
-                bail!(
-                    "No local tenants available.\nRun 'systemprompt cloud tenant create' and \
-                     select 'Local' to create one."
-                );
-            }
-            Ok(TenantType::Local)
-        },
-        _ => {
-            if cloud_count == 0 {
-                bail!(
-                    "No cloud tenants available.\nRun 'systemprompt cloud tenant create' and \
-                     select 'Cloud' to create one."
-                );
-            }
-            Ok(TenantType::Cloud)
-        },
+    if selection == 0 {
+        if local_count == 0 {
+            bail!(
+                "No local tenants available.\nRun 'systemprompt cloud tenant create' and \
+                 select 'Local' to create one."
+            );
+        }
+        Ok(TenantType::Local)
+    } else {
+        if cloud_count == 0 {
+            bail!(
+                "No cloud tenants available.\nRun 'systemprompt cloud tenant create' and \
+                 select 'Cloud' to create one."
+            );
+        }
+        Ok(TenantType::Cloud)
     }
 }
 

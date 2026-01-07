@@ -1,4 +1,4 @@
-pub const SUCCESS_HTML: &str = r##"<!DOCTYPE html>
+pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Authentication Successful - SystemPrompt</title>
@@ -48,9 +48,9 @@ pub const SUCCESS_HTML: &str = r##"<!DOCTYPE html>
         <p>You can close this window and return to the terminal.</p>
     </div>
 </body>
-</html>"##;
+</html>"#;
 
-pub const ERROR_HTML: &str = r##"<!DOCTYPE html>
+pub const ERROR_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Authentication Failed - SystemPrompt</title>
@@ -100,4 +100,4 @@ pub const ERROR_HTML: &str = r##"<!DOCTYPE html>
         <p>Please try again.</p>
     </div>
 </body>
-</html>"##;
+</html>"#;

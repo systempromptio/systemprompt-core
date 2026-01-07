@@ -102,13 +102,7 @@ pub async fn execute(cmd: AgentCommands, ctx: Arc<AppContext>) -> Result<()> {
                 agent_name, service_id
             ));
         },
-        AgentCommands::Status => {
-            let all_agents = orchestrator.list_all().await?;
-            for (agent_id, status) in all_agents {
-                CliService::info(&format!("{}: {:?}", agent_id, status));
-            }
-        },
-        AgentCommands::List => {
+        AgentCommands::Status | AgentCommands::List => {
             let all_agents = orchestrator.list_all().await?;
             for (agent_id, status) in all_agents {
                 CliService::info(&format!("{}: {:?}", agent_id, status));

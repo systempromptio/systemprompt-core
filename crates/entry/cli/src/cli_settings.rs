@@ -126,5 +126,5 @@ pub fn set_global_config(config: CliConfig) {
 }
 
 pub fn get_global_config() -> CliConfig {
-    CLI_CONFIG.with(|c| c.borrow().clone())
+    CLI_CONFIG.with(|c| *c.borrow())
 }

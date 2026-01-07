@@ -152,7 +152,7 @@ async fn restart_failed_mcp(
                 .restart_services(Some(server.name.clone()))
                 .await
             {
-                Ok(_) => {
+                Ok(()) => {
                     *restarted_count += 1;
                     CliService::success(&format!("  {} restarted", server.name));
                 },

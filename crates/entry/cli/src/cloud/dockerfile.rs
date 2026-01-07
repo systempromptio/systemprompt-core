@@ -3,7 +3,7 @@ use std::path::Path;
 
 use systemprompt_loader::ExtensionLoader;
 
-const DOCKERFILE_HEADER: &str = r#"# SystemPrompt Cloud Image
+const DOCKERFILE_HEADER: &str = r"# SystemPrompt Cloud Image
 FROM debian:bookworm-slim
 
 RUN apt-get update && apt-get install -y \
@@ -19,8 +19,9 @@ WORKDIR /app
 RUN mkdir -p /app/bin /app/data /app/logs /app/storage
 
 COPY target/release/systemprompt /app/bin/
-"#;
+";
 
+#[allow(clippy::needless_raw_string_hashes)]
 const DOCKERFILE_FOOTER: &str = r#"
 COPY services /app/services
 COPY .systemprompt/profiles /app/services/profiles
