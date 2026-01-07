@@ -29,9 +29,19 @@ pub async fn register_client(
     let client_id = generate_client_id(&request);
     let client_secret = Uuid::new_v4().to_string();
     let registration_access_token = generate_registration_access_token();
-    let base_url = Config::get()
-        .map(|c| c.api_server_url.clone())
-        .unwrap_or_default();
+    let base_url = match Config::get() {
+        Ok(c) => c.api_server_url.clone(),
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({
+                    "error": "server_error",
+                    "error_description": format!("Configuration unavailable: {e}")
+                })),
+            )
+                .into_response();
+        },
+    };
     let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
 
     let client_secret_hash = match hash(&client_secret, DEFAULT_COST) {

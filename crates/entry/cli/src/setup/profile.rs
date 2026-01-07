@@ -59,7 +59,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         },
         paths: PathsConfig {
             system: system_path.clone(),
-            services: services_path.clone(),
+            services: services_path,
             bin: format!("{}/target/release", system_path),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
             geoip_database: None,

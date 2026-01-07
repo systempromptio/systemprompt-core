@@ -12,15 +12,13 @@ async fn resolve_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub fn execute_api(_ctx: &Arc<AppContext>) -> Result<()> {
+pub fn execute_api(_ctx: &Arc<AppContext>) {
     CliService::section("Restarting API Server");
 
     CliService::warning("API server restart via CLI is not currently supported");
     CliService::info("To restart the API server:");
     CliService::info("  1. Stop the current server (Ctrl+C if running in foreground)");
     CliService::info("  2. Run: just api");
-
-    Ok(())
 }
 
 pub async fn execute_agent(ctx: &Arc<AppContext>, agent_id: &str) -> Result<()> {
@@ -93,9 +91,8 @@ async fn restart_failed_agents(
 
     let all_agents = orchestrator.list_all().await?;
     for (agent_id, status) in &all_agents {
-        let agent_config = match agent_registry.get_agent(agent_id).await {
-            Ok(config) => config,
-            Err(_) => continue,
+        let Ok(agent_config) = agent_registry.get_agent(agent_id).await else {
+            continue;
         };
 
         if !agent_config.enabled {

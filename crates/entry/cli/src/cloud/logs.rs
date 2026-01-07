@@ -34,7 +34,7 @@ pub async fn execute(tenant_id: Option<String>, lines: u32) -> Result<()> {
                 CliService::info("No logs available");
             } else {
                 CliService::info(&format!("Showing last {} log entries:", logs.len()));
-                println!();
+                CliService::info("");
 
                 for entry in logs {
                     let level_indicator = entry
@@ -44,9 +44,12 @@ pub async fn execute(tenant_id: Option<String>, lines: u32) -> Result<()> {
                         .unwrap_or_default();
 
                     if level_indicator.is_empty() {
-                        println!("{} {}", entry.timestamp, entry.message);
+                        CliService::info(&format!("{} {}", entry.timestamp, entry.message));
                     } else {
-                        println!("{} {} {}", entry.timestamp, level_indicator, entry.message);
+                        CliService::info(&format!(
+                            "{} {} {}",
+                            entry.timestamp, level_indicator, entry.message
+                        ));
                     }
                 }
             }

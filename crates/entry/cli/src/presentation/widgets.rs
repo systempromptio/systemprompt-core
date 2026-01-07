@@ -46,14 +46,14 @@ impl CompletionMessage {
     }
 
     pub fn render_failure(duration: Duration, error: &str) {
-        println!();
-        println!(
+        systemprompt_core_logging::CliService::info("");
+        systemprompt_core_logging::CliService::info(&format!(
             "{} {} {}",
             BrandColors::stopped("✗"),
             BrandColors::white_bold("Startup failed"),
             BrandColors::dim(format!("after {:.1}s", duration.as_secs_f64()))
-        );
-        println!("  {}", BrandColors::stopped(error));
-        println!();
+        ));
+        systemprompt_core_logging::CliService::info(&format!("  {}", BrandColors::stopped(error)));
+        systemprompt_core_logging::CliService::info("");
     }
 }

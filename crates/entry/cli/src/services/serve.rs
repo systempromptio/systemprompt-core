@@ -108,31 +108,27 @@ async fn handle_port_conflict(
     let is_interactive = atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout);
 
     if is_interactive {
-        print!("Kill process {} and restart? [y/N] ", pid);
-        std::io::Write::flush(&mut std::io::stdout()).ok();
+        let should_kill =
+            CliService::confirm(&format!("Kill process {} and restart?", pid)).unwrap_or(false);
 
-        let mut input = String::new();
-        if std::io::stdin().read_line(&mut input).is_ok() {
-            let response = input.trim().to_lowercase();
-            if response == "y" || response == "yes" {
-                if events.is_none() {
-                    CliService::info(&format!("Killing process {}...", pid));
-                }
-                kill_process(pid);
-                tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-
-                if check_port_available(port).is_some() {
-                    return Err(anyhow::anyhow!(
-                        "Failed to free port {} after killing PID {}",
-                        port,
-                        pid
-                    ));
-                }
-                if events.is_none() {
-                    CliService::success(&format!("Port {} is now available", port));
-                }
-                return Ok(());
+        if should_kill {
+            if events.is_none() {
+                CliService::info(&format!("Killing process {}...", pid));
             }
+            kill_process(pid);
+            tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
+
+            if check_port_available(port).is_some() {
+                return Err(anyhow::anyhow!(
+                    "Failed to free port {} after killing PID {}",
+                    port,
+                    pid
+                ));
+            }
+            if events.is_none() {
+                CliService::success(&format!("Port {} is now available", port));
+            }
+            return Ok(());
         }
         return Err(anyhow::anyhow!(
             "Port {} is occupied by PID {}. Aborted by user.",

@@ -83,7 +83,7 @@ pub fn validate_dockerfile_has_mcp_binaries(
 }
 
 pub fn print_dockerfile_suggestion(project_root: &Path) {
-    println!("{}", generate_dockerfile_content(project_root));
+    systemprompt_core_logging::CliService::info(&generate_dockerfile_content(project_root));
 }
 
 pub fn check_dockerfile_completeness(project_root: &Path) -> Result<()> {

@@ -55,14 +55,23 @@ async fn load_task_completed(
     let artifacts = artifact_repo
         .get_artifacts_by_task(&task_id)
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, task_id = %task_id, "Failed to load artifacts for webhook event");
+            vec![]
+        });
 
     let messages = task_repo
         .get_messages_by_task(&task_id)
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|e| {
+            tracing::warn!(error = %e, task_id = %task_id, "Failed to load messages for webhook event");
+            vec![]
+        });
 
-    let execution_steps = step_repo.list_by_task(&task_id).await.unwrap_or_default();
+    let execution_steps = step_repo.list_by_task(&task_id).await.unwrap_or_else(|e| {
+        tracing::warn!(error = %e, task_id = %task_id, "Failed to load execution steps for webhook event");
+        vec![]
+    });
 
     task.history = if messages.is_empty() {
         None

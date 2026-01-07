@@ -56,13 +56,13 @@ impl StartupRenderer {
                         Phase::Agents => self.state.agent_count,
                         _ => (0, 0),
                     };
-                    println!(
+                    systemprompt_core_logging::CliService::info(&format!(
                         "  {} {} ({}/{})",
                         BrandColors::running("✓"),
                         phase.name(),
                         running,
                         total
-                    );
+                    ));
                 }
             },
 
@@ -70,12 +70,12 @@ impl StartupRenderer {
                 let phase_key = format!("phase_{}", phase.name());
                 if let Some(spinner) = self.state.spinners.remove(&phase_key) {
                     spinner.finish_and_clear();
-                    println!(
+                    systemprompt_core_logging::CliService::info(&format!(
                         "  {} {} failed: {}",
                         BrandColors::stopped("✗"),
                         phase.name(),
                         error
-                    );
+                    ));
                 } else {
                     render_warning(&format!("{} failed: {}", phase.name(), error));
                 }
@@ -175,11 +175,11 @@ impl StartupRenderer {
             StartupEvent::SchedulerReady { job_count } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {
                     spinner.finish_and_clear();
-                    println!(
+                    systemprompt_core_logging::CliService::info(&format!(
                         "  {} Scheduler ({} jobs)",
                         BrandColors::running("✓"),
                         job_count
-                    );
+                    ));
                 }
             },
 

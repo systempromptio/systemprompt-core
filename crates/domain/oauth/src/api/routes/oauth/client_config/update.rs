@@ -112,9 +112,19 @@ pub async fn update_client_configuration(
         .await
     {
         Ok(_) => {
-            let base_url = Config::get()
-                .map(|c| c.api_server_url.clone())
-                .unwrap_or_default();
+            let base_url = match Config::get() {
+                Ok(c) => c.api_server_url.clone(),
+                Err(e) => {
+                    return (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        Json(serde_json::json!({
+                            "error": "server_error",
+                            "error_description": format!("Configuration unavailable: {e}")
+                        })),
+                    )
+                        .into_response();
+                },
+            };
 
             let response = DynamicRegistrationResponse {
                 client_id: client_id.clone(),

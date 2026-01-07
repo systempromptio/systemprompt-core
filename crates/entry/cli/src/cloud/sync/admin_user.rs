@@ -43,7 +43,7 @@ impl CloudUser {
         self.email
             .split('@')
             .next()
-            .expect("email split always yields at least one element")
+            .unwrap_or(&self.email)
             .to_string()
     }
 }

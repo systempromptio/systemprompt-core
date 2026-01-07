@@ -149,7 +149,10 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
                 restart::execute_failed(&ctx).await
             } else {
                 match target {
-                    Some(RestartTarget::Api) => restart::execute_api(&ctx),
+                    Some(RestartTarget::Api) => {
+                        restart::execute_api(&ctx);
+                        Ok(())
+                    },
                     Some(RestartTarget::Agent { agent_id }) => {
                         restart::execute_agent(&ctx, &agent_id).await
                     },

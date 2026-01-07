@@ -7,7 +7,7 @@ use systemprompt_core_logging::CliService;
 
 use super::{show, ShowFilter};
 
-pub async fn execute() -> Result<()> {
+pub fn execute() -> Result<()> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
