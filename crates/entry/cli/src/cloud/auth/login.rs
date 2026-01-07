@@ -29,8 +29,8 @@ pub async fn execute(environment: Environment) -> Result<()> {
         }
     }
 
-    let providers = vec![OAuthProvider::Github, OAuthProvider::Google];
-    let provider_names: Vec<&str> = providers.iter().map(|p| p.display_name()).collect();
+    let providers = [OAuthProvider::Github, OAuthProvider::Google];
+    let provider_names: Vec<&str> = providers.iter().map(OAuthProvider::display_name).collect();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Select authentication provider")
@@ -88,13 +88,15 @@ pub async fn execute(environment: Environment) -> Result<()> {
         CliService::key_value("ID", &customer.id);
     }
 
-    if !response.tenants.is_empty() {
+    if response.tenants.is_empty() {
+        CliService::info("No cloud tenants found.");
+        CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
+    } else {
         CliService::section("Available Tenants");
         for tenant in &response.tenants {
             let status_str = tenant
                 .subscription_status
-                .map(|s| format!("{s:?}"))
-                .unwrap_or_else(|| "Unknown".to_string());
+                .map_or_else(|| "Unknown".to_string(), |s| format!("{s:?}"));
             CliService::key_value(&tenant.name, &status_str);
             if let Some(plan) = &tenant.plan {
                 CliService::info(&format!(
@@ -112,9 +114,6 @@ pub async fn execute(environment: Environment) -> Result<()> {
         CliService::info("");
         CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
         CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
-    } else {
-        CliService::info("No cloud tenants found.");
-        CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
     }
 
     Ok(())

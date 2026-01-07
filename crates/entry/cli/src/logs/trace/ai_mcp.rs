@@ -24,10 +24,7 @@ pub async fn print_mcp_executions(
             tool_name: e.tool_name.clone(),
             server: e.server_name.clone(),
             status: e.status.clone(),
-            duration: e
-                .execution_time_ms
-                .map(|ms| format!("{}ms", ms))
-                .unwrap_or("-".to_string()),
+            duration: e.execution_time_ms.map_or("-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 
@@ -58,7 +55,7 @@ pub async fn print_mcp_executions(
 
 fn print_tool_io(exec: &McpToolExecution, show_full: bool) {
     let has_input = !exec.input.is_empty();
-    let has_output = exec.output.as_ref().map_or(false, |s| !s.is_empty());
+    let has_output = exec.output.as_ref().is_some_and(|s| !s.is_empty());
 
     if has_input || has_output {
         CliService::info(&format!("  → {}:", exec.tool_name));
@@ -109,10 +106,7 @@ async fn print_mcp_linked_ai_requests(
 
     for req in requests {
         let tokens = req.input_tokens.unwrap_or(0) + req.output_tokens.unwrap_or(0);
-        let latency_str = req
-            .latency_ms
-            .map(|ms| format!("{ms}ms"))
-            .unwrap_or_else(|| "-".to_string());
+        let latency_str = req.latency_ms.map_or_else(|| "-".to_string(), |ms| format!("{ms}ms"));
 
         CliService::info(&format!(
             "    {} {}/{} | {tokens} tokens | {latency_str}",
@@ -164,7 +158,6 @@ async fn print_tool_errors_from_logs(service: &AiTraceService, task_id: &str, co
                 "✗"
             },
             "WARN" => "⚠",
-            "INFO" => "•",
             "DEBUG" => "·",
             _ => "•",
         };

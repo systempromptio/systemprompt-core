@@ -88,21 +88,18 @@ pub enum CloudCommands {
 
 impl CloudCommands {
     pub fn requires_profile(&self) -> bool {
-        match self {
-            Self::Deploy { .. } => false,
-            Self::Sync { command: None } => false,
-            Self::Sync { command: Some(_) } => true,
-            Self::Status | Self::Logs { .. } | Self::Restart { .. } | Self::Secrets { .. } => true,
-            _ => false,
-        }
+        matches!(
+            self,
+            Self::Sync { command: Some(_) }
+                | Self::Status
+                | Self::Logs { .. }
+                | Self::Restart { .. }
+                | Self::Secrets { .. }
+        )
     }
 
     pub fn requires_secrets(&self) -> bool {
-        match self {
-            Self::Status | Self::Logs { .. } | Self::Restart { .. } => false,
-            Self::Sync { command: Some(_) } | Self::Secrets { .. } => true,
-            _ => false,
-        }
+        matches!(self, Self::Sync { command: Some(_) } | Self::Secrets { .. })
     }
 }
 

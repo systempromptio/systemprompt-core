@@ -66,28 +66,22 @@ pub enum ShowFilter {
 }
 
 pub async fn execute(cmd: Option<ProfileCommands>) -> Result<()> {
-    match cmd {
-        Some(cmd) => execute_command(cmd).await.map(|_| ()),
-        None => {
-            loop {
-                match select_operation()? {
-                    Some(cmd) => {
-                        if execute_command(cmd).await? {
-                            break;
-                        }
-                    },
-                    None => break,
-                }
+    if let Some(cmd) = cmd {
+        execute_command(cmd).await.map(drop)
+    } else {
+        while let Some(cmd) = select_operation()? {
+            if execute_command(cmd).await? {
+                break;
             }
-            Ok(())
-        },
+        }
+        Ok(())
     }
 }
 
 async fn execute_command(cmd: ProfileCommands) -> Result<bool> {
     match cmd {
-        ProfileCommands::Create { name } => create::execute(&name).await.map(|_| true),
-        ProfileCommands::List => list::execute().await.map(|_| false),
+        ProfileCommands::Create { name } => create::execute(&name).await.map(|()| true),
+        ProfileCommands::List => list::execute().await.map(|()| false),
         ProfileCommands::Show {
             name,
             filter,
@@ -95,14 +89,44 @@ async fn execute_command(cmd: ProfileCommands) -> Result<bool> {
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml)
             .await
-            .map(|_| false),
-        ProfileCommands::Delete { name } => delete::execute(&name).await.map(|_| false),
-        ProfileCommands::Edit { name } => edit::execute(name.as_deref()).await.map(|_| false),
+            .map(|()| false),
+        ProfileCommands::Delete { name } => delete::execute(&name).await.map(|()| false),
+        ProfileCommands::Edit { name } => edit::execute(name.as_deref()).await.map(|()| false),
     }
 }
 
 fn select_operation() -> Result<Option<ProfileCommands>> {
-    let operations = ["Create", "List", "Edit", "Delete", "Done"];
+    // Check if profiles exist
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+    let has_profiles = profiles_dir.exists()
+        && std::fs::read_dir(&profiles_dir)
+            .map(|entries| {
+                entries
+                    .filter_map(Result::ok)
+                    .any(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+            })
+            .unwrap_or(false);
+
+    // Build options with availability indicators
+    let edit_label = if has_profiles {
+        "Edit".to_string()
+    } else {
+        "Edit (unavailable - no profiles)".to_string()
+    };
+    let delete_label = if has_profiles {
+        "Delete".to_string()
+    } else {
+        "Delete (unavailable - no profiles)".to_string()
+    };
+
+    let operations = vec![
+        "Create".to_string(),
+        "List".to_string(),
+        edit_label,
+        delete_label,
+        "Done".to_string(),
+    ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Profile operation")
@@ -118,11 +142,14 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             Some(ProfileCommands::Create { name })
         },
         1 => Some(ProfileCommands::List),
-        2 => Some(ProfileCommands::Edit { name: None }),
-        3 => match select_profile("Select profile to delete")? {
-            Some(name) => Some(ProfileCommands::Delete { name }),
-            None => None,
+        2 | 3 if !has_profiles => {
+            CliService::warning("No profiles found");
+            CliService::info("Run 'systemprompt cloud profile create <name>' to create one.");
+            return Ok(Some(ProfileCommands::List));
         },
+        2 => Some(ProfileCommands::Edit { name: None }),
+        3 => select_profile("Select profile to delete")?
+            .map(|name| ProfileCommands::Delete { name }),
         4 => None,
         _ => unreachable!(),
     };
@@ -140,7 +167,7 @@ fn select_profile(prompt: &str) -> Result<Option<String>> {
     }
 
     let profiles: Vec<String> = std::fs::read_dir(&profiles_dir)?
-        .filter_map(|e| e.ok())
+        .filter_map(Result::ok)
         .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
         .filter_map(|e| e.file_name().to_str().map(String::from))
         .collect();

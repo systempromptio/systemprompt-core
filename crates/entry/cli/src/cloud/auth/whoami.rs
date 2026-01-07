@@ -79,7 +79,7 @@ fn count_local_profiles() -> usize {
     std::fs::read_dir(&profiles_dir)
         .map(|entries| {
             entries
-                .filter_map(|e| e.ok())
+                .filter_map(Result::ok)
                 .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
                 .count()
         })

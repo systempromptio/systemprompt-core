@@ -54,7 +54,7 @@ impl DatabaseTool {
         })
     }
 
-    fn print_result(&self, result: &QueryResult, format: &str) {
+    fn print_result(result: &QueryResult, format: &str) {
         let config = get_global_config();
         let output_format = if format == "json" {
             OutputFormat::Json
@@ -105,7 +105,7 @@ async fn migrate_standalone() -> Result<()> {
 
     for module in all_modules {
         match install_module_with_db(module, database.as_ref()).await {
-            Ok(_) => {},
+            Ok(()) => {},
             Err(e) => {
                 CliService::error(&format!("{} failed: {}", module.name, e));
                 error_count += 1;
@@ -147,7 +147,7 @@ pub async fn execute(cmd: DbCommands) -> Result<()> {
                             result.row_count, result.execution_time_ms
                         ));
                     }
-                    db.print_result(&result, &format);
+                    DatabaseTool::print_result(&result, &format);
                 },
                 Err(e) => {
                     CliService::error(&format!("Query failed: {}", e));
@@ -164,7 +164,7 @@ pub async fn execute(cmd: DbCommands) -> Result<()> {
                             result.execution_time_ms
                         ));
                     }
-                    db.print_result(&result, &format);
+                    DatabaseTool::print_result(&result, &format);
                 },
                 Err(e) => {
                     CliService::error(&format!("Execution failed: {}", e));

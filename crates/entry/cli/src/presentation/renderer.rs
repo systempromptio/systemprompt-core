@@ -40,7 +40,7 @@ impl StartupRenderer {
                 self.state.is_blocking = phase.is_blocking();
 
                 if matches!(phase, Phase::McpServers | Phase::Agents) {
-                    let spinner = self.create_phase_spinner(phase.name());
+                    let spinner = Self::create_phase_spinner(phase.name());
                     self.state
                         .spinners
                         .insert(format!("phase_{}", phase.name()), spinner);
@@ -81,8 +81,8 @@ impl StartupRenderer {
                 }
             },
 
-            StartupEvent::PortCheckStarted { port: _ } => {},
-            StartupEvent::PortAvailable { port: _ } => {},
+            StartupEvent::PortCheckStarted { port: _ } | StartupEvent::PortAvailable { port: _ } => {
+            },
             StartupEvent::PortConflict { port, pid } => {
                 render_warning(&format!("Port {} in use by PID {}", port, pid));
             },
@@ -183,7 +183,7 @@ impl StartupRenderer {
             StartupEvent::ServerListening { address: _, pid: _ } => {},
 
             StartupEvent::SchedulerInitializing => {
-                let spinner = self.create_phase_spinner("Scheduler");
+                let spinner = Self::create_phase_spinner("Scheduler");
                 self.state.spinners.insert("scheduler".to_string(), spinner);
             },
 
@@ -258,7 +258,7 @@ impl StartupRenderer {
         false
     }
 
-    fn create_phase_spinner(&self, name: &str) -> ProgressBar {
+    fn create_phase_spinner(name: &str) -> ProgressBar {
         let spinner = ProgressBar::new_spinner();
         spinner.set_style(
             ProgressStyle::default_spinner()

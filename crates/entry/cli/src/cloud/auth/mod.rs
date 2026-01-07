@@ -1,4 +1,4 @@
-//! Authentication commands for SystemPrompt Cloud
+//! Authentication commands for `SystemPrompt` Cloud
 //!
 //! Handles login, logout, and user identity.
 

@@ -32,36 +32,54 @@ pub enum TenantCommands {
 }
 
 pub async fn execute(cmd: Option<TenantCommands>) -> Result<()> {
-    match cmd {
-        Some(cmd) => execute_command(cmd).await.map(|_| ()),
-        None => {
-            loop {
-                match select_operation()? {
-                    Some(cmd) => {
-                        if execute_command(cmd).await? {
-                            break;
-                        }
-                    },
-                    None => break,
-                }
+    if let Some(cmd) = cmd {
+        execute_command(cmd).await.map(drop)
+    } else {
+        while let Some(cmd) = select_operation()? {
+            if execute_command(cmd).await? {
+                break;
             }
-            Ok(())
-        },
+        }
+        Ok(())
     }
 }
 
 async fn execute_command(cmd: TenantCommands) -> Result<bool> {
     match cmd {
-        TenantCommands::Create { region } => create(&region).await.map(|_| true),
-        TenantCommands::List => list_tenants().await.map(|_| false),
-        TenantCommands::Show { id } => show_tenant(id).await.map(|_| false),
-        TenantCommands::Delete { id } => delete_tenant(id).await.map(|_| false),
-        TenantCommands::Edit { id } => edit_tenant(id).await.map(|_| false),
+        TenantCommands::Create { region } => create(&region).await.map(|()| true),
+        TenantCommands::List => list_tenants().await.map(|()| false),
+        TenantCommands::Show { id } => show_tenant(id).await.map(|()| false),
+        TenantCommands::Delete { id } => delete_tenant(id).await.map(|()| false),
+        TenantCommands::Edit { id } => edit_tenant(id).await.map(|()| false),
     }
 }
 
 fn select_operation() -> Result<Option<TenantCommands>> {
-    let operations = ["Create", "List", "Edit", "Delete", "Done"];
+    // Load tenant store to check prerequisites
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let has_tenants = !store.tenants.is_empty();
+
+    // Build options with availability indicators
+    let edit_label = if has_tenants {
+        "Edit".to_string()
+    } else {
+        "Edit (unavailable - no tenants configured)".to_string()
+    };
+    let delete_label = if has_tenants {
+        "Delete".to_string()
+    } else {
+        "Delete (unavailable - no tenants configured)".to_string()
+    };
+
+    let operations = vec![
+        "Create".to_string(),
+        "List".to_string(),
+        edit_label,
+        delete_label,
+        "Done".to_string(),
+    ];
 
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("Tenant operation")
@@ -74,6 +92,11 @@ fn select_operation() -> Result<Option<TenantCommands>> {
             region: "iad".to_string(),
         }),
         1 => Some(TenantCommands::List),
+        2 | 3 if !has_tenants => {
+            CliService::warning("No tenants configured");
+            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
+            return Ok(Some(TenantCommands::List));
+        },
         2 => Some(TenantCommands::Edit { id: None }),
         3 => Some(TenantCommands::Delete { id: None }),
         4 => None,

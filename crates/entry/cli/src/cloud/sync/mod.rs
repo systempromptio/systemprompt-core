@@ -5,13 +5,19 @@ mod prompt;
 pub mod skills;
 
 use anyhow::{anyhow, bail, Result};
-use clap::{Args, Subcommand};
+use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cloud::tenant_ops::get_credentials;
+
+#[derive(Clone, Copy, ValueEnum)]
+pub enum CliLocalSyncDirection {
+    ToDb,
+    ToDisk,
+}
 
 #[derive(Subcommand)]
 pub enum SyncCommands {
@@ -52,54 +58,36 @@ pub struct SyncArgs {
 
 #[derive(Args)]
 pub struct ContentSyncArgs {
-    /// Force sync direction: disk -> database
-    #[arg(long, conflicts_with = "force_to_disk")]
-    pub force_to_db: bool,
+    #[arg(long, value_enum)]
+    pub direction: Option<CliLocalSyncDirection>,
 
-    /// Force sync direction: database -> disk
-    #[arg(long, conflicts_with = "force_to_db")]
-    pub force_to_disk: bool,
-
-    /// Override database URL
     #[arg(long)]
     pub database_url: Option<String>,
 
-    /// Filter by source name
     #[arg(long)]
     pub source: Option<String>,
 
-    /// Preview changes without executing
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Delete orphaned records
     #[arg(long)]
     pub delete_orphans: bool,
 }
 
 #[derive(Args)]
 pub struct SkillsSyncArgs {
-    /// Force sync direction: disk -> database
-    #[arg(long, conflicts_with = "force_to_disk")]
-    pub force_to_db: bool,
+    #[arg(long, value_enum)]
+    pub direction: Option<CliLocalSyncDirection>,
 
-    /// Force sync direction: database -> disk
-    #[arg(long, conflicts_with = "force_to_db")]
-    pub force_to_disk: bool,
-
-    /// Override database URL
     #[arg(long)]
     pub database_url: Option<String>,
 
-    /// Filter by skill name
     #[arg(long)]
     pub skill: Option<String>,
 
-    /// Preview changes without executing
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Delete orphaned records
     #[arg(long)]
     pub delete_orphans: bool,
 }
@@ -143,7 +131,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
     let database_url = SecretsBootstrap::get().ok().map(|s| s.database_url.clone());
 
     let config = SyncConfig {
-        direction: direction.clone(),
+        direction,
         dry_run: args.dry_run,
         verbose: args.verbose,
         tenant_id: tenant_id.clone(),

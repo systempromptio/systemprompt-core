@@ -101,12 +101,10 @@ pub fn print_task_info(task_info: &TaskInfo) {
         status: task_info.status.clone(),
         started_at: task_info
             .started_at
-            .map(|t| t.format("%H:%M:%S").to_string())
-            .unwrap_or("-".to_string()),
+            .map_or("-".to_string(), |t| t.format("%H:%M:%S").to_string()),
         duration: task_info
             .execution_time_ms
-            .map(|ms| format!("{}ms", ms))
-            .unwrap_or("-".to_string()),
+            .map_or("-".to_string(), |ms| format!("{}ms", ms)),
     }];
 
     print_section("TASK");
@@ -141,10 +139,7 @@ pub fn print_execution_steps(steps: &[ExecutionStep]) {
             step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_string()),
             title: truncate(&s.title.clone().unwrap_or_default(), 40),
             status: s.status.clone(),
-            duration: s
-                .duration_ms
-                .map(|ms| format!("{}ms", ms))
-                .unwrap_or("-".to_string()),
+            duration: s.duration_ms.map_or("-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 
@@ -176,21 +171,15 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
         .iter()
         .map(|r| AiRequestRow {
             model: format!("{}/{}", r.provider, r.model),
-            max_tokens: r
-                .max_tokens
-                .map(|t| t.to_string())
-                .unwrap_or("-".to_string()),
+            max_tokens: r.max_tokens.map_or("-".to_string(), |t| t.to_string()),
             tokens: format!(
                 "{} (in:{}, out:{})",
                 r.input_tokens.unwrap_or(0) + r.output_tokens.unwrap_or(0),
                 r.input_tokens.unwrap_or(0),
                 r.output_tokens.unwrap_or(0)
             ),
-            cost: format!("${:.4}", r.cost_cents as f64 / 1_000_000.0),
-            latency: r
-                .latency_ms
-                .map(|ms| format!("{}ms", ms))
-                .unwrap_or("-".to_string()),
+            cost: format!("${:.4}", f64::from(r.cost_cents) / 1_000_000.0),
+            latency: r.latency_ms.map_or("-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 

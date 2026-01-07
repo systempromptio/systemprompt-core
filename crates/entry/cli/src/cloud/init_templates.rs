@@ -134,15 +134,15 @@ site:
 }
 
 pub fn scheduler_config() -> String {
-    r#"# Scheduler Configuration
+    r"# Scheduler Configuration
 enabled: false
 jobs: []
-"#
+"
     .to_string()
 }
 
 pub fn page_template() -> String {
-    r#"<!DOCTYPE html>
+    r"<!DOCTYPE html>
 <html>
 <head>
     <title>{{ title }}</title>
@@ -151,12 +151,12 @@ pub fn page_template() -> String {
     <main>{{ content }}</main>
 </body>
 </html>
-"#
+"
     .to_string()
 }
 
 pub fn blog_post_template() -> String {
-    r#"<!DOCTYPE html>
+    r"<!DOCTYPE html>
 <html>
 <head>
     <title>{{ title }}</title>
@@ -169,7 +169,7 @@ pub fn blog_post_template() -> String {
     </article>
 </body>
 </html>
-"#
+"
     .to_string()
 }
 
@@ -213,7 +213,7 @@ pub fn page_list_template() -> String {
 
 pub fn welcome_blog_post(project_name: &str) -> String {
     format!(
-        r#"---
+        r"---
 title: Welcome to {}
 date: 2024-01-01
 description: Getting started with your new project
@@ -222,35 +222,35 @@ description: Getting started with your new project
 # Welcome
 
 This is your first blog post. Edit or delete this file to get started.
-"#,
+",
         project_name
     )
 }
 
 pub fn privacy_policy(project_name: &str) -> String {
     format!(
-        r#"---
+        r"---
 title: Privacy Policy
 ---
 
 # Privacy Policy
 
 This is a placeholder privacy policy for {}.
-"#,
+",
         project_name
     )
 }
 
 pub fn cookie_policy(project_name: &str) -> String {
     format!(
-        r#"---
+        r"---
 title: Cookie Policy
 ---
 
 # Cookie Policy
 
 This is a placeholder cookie policy for {}.
-"#,
+",
         project_name
     )
 }

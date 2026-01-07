@@ -21,7 +21,7 @@ interface SidebarSection {
  * Filters links based on authentication state.
  */
 export function useExtensionSidebar(): SidebarSection[] {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const sections = theme.extensionUi?.sidebar?.sections ?? [];
 
