@@ -209,9 +209,7 @@ impl ToolProvider for McpToolProvider {
         })?;
 
         let api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| {
-                ToolProviderError::Internal(format!("Failed to get configuration: {e}"))
-            })?
+            .map_err(|e| ToolProviderError::Internal(format!("Failed to get configuration: {e}")))?
             .api_server_url
             .clone();
         for server_name in assigned_servers {
@@ -253,9 +251,7 @@ impl ToolProvider for McpToolProvider {
         let mut health_status = HashMap::new();
 
         let config_api_server_url = systemprompt_models::Config::get()
-            .map_err(|e| {
-                ToolProviderError::Internal(format!("Failed to get configuration: {e}"))
-            })?
+            .map_err(|e| ToolProviderError::Internal(format!("Failed to get configuration: {e}")))?
             .api_server_url
             .clone();
         if let Ok(servers) = RegistryManager::get_enabled_servers() {

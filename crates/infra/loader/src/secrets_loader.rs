@@ -29,7 +29,8 @@ impl SecretsLoader {
                 .or_else(|_| std::env::var("USERPROFILE"))
                 .map_err(|_| {
                     anyhow::anyhow!(
-                        "Cannot resolve path '{}': neither HOME nor USERPROFILE environment variable is set",
+                        "Cannot resolve path '{}': neither HOME nor USERPROFILE environment \
+                         variable is set",
                         path_str
                     )
                 })?;

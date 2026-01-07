@@ -86,10 +86,12 @@ fn build_config_for_filter(
             }
             full
         },
-        ShowFilter::Ai => FullConfig::empty()
-            .with_ai(services_config.map(|s| s.ai.clone()).unwrap_or_default()),
-        ShowFilter::Web => FullConfig::empty()
-            .with_web(services_config.map(|s| s.web.clone()).unwrap_or_default()),
+        ShowFilter::Ai => {
+            FullConfig::empty().with_ai(services_config.map(|s| s.ai.clone()).unwrap_or_default())
+        },
+        ShowFilter::Web => {
+            FullConfig::empty().with_web(services_config.map(|s| s.web.clone()).unwrap_or_default())
+        },
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
             if let Some(content) = load_content_config() {

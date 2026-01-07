@@ -2,6 +2,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, Uri};
 use std::collections::HashMap;
 
+use super::detection;
 use crate::GeoIpReader;
 
 const BOT_KEYWORDS: &[&str] = &[
@@ -398,5 +399,31 @@ impl SessionAnalytics {
         ];
 
         BOT_IP_PREFIXES.iter().any(|prefix| ip.starts_with(prefix))
+    }
+
+    pub fn is_spam_referrer(&self) -> bool {
+        self.referrer_url
+            .as_ref()
+            .is_some_and(|url| detection::is_spam_referrer(url))
+    }
+
+    pub fn is_datacenter_ip(&self) -> bool {
+        self.ip_address
+            .as_ref()
+            .is_some_and(|ip| detection::is_datacenter_ip(ip))
+    }
+
+    pub fn is_high_risk_country(&self) -> bool {
+        self.country
+            .as_ref()
+            .is_some_and(|c| detection::is_high_risk_country(c))
+    }
+
+    pub fn should_skip_tracking(&self) -> bool {
+        self.is_bot()
+            || self.is_bot_ip()
+            || self.is_datacenter_ip()
+            || self.is_high_risk_country()
+            || self.is_spam_referrer()
     }
 }

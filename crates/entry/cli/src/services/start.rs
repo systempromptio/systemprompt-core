@@ -52,10 +52,7 @@ pub struct StartupOptions {
     pub skip_migrate: bool,
 }
 
-pub async fn execute(
-    target: ServiceTarget,
-    options: StartupOptions,
-) -> Result<()> {
+pub async fn execute(target: ServiceTarget, options: StartupOptions) -> Result<()> {
     let start_time = Instant::now();
 
     let (tx, rx) = startup_channel();

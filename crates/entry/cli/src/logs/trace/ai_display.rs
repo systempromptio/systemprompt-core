@@ -139,7 +139,9 @@ pub fn print_execution_steps(steps: &[ExecutionStep]) {
             step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_string()),
             title: truncate(&s.title.clone().unwrap_or_default(), 40),
             status: s.status.clone(),
-            duration: s.duration_ms.map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+            duration: s
+                .duration_ms
+                .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 
@@ -171,7 +173,9 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
         .iter()
         .map(|r| AiRequestRow {
             model: format!("{}/{}", r.provider, r.model),
-            max_tokens: r.max_tokens.map_or_else(|| "-".to_string(), |t| t.to_string()),
+            max_tokens: r
+                .max_tokens
+                .map_or_else(|| "-".to_string(), |t| t.to_string()),
             tokens: format!(
                 "{} (in:{}, out:{})",
                 r.input_tokens.unwrap_or(0) + r.output_tokens.unwrap_or(0),
@@ -179,7 +183,9 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
                 r.output_tokens.unwrap_or(0)
             ),
             cost: format!("${:.4}", f64::from(r.cost_cents) / 1_000_000.0),
-            latency: r.latency_ms.map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
+            latency: r
+                .latency_ms
+                .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 

@@ -69,7 +69,7 @@ impl AnalyticsService {
     }
 
     pub fn is_bot(analytics: &SessionAnalytics) -> bool {
-        analytics.is_bot() || analytics.is_bot_ip()
+        analytics.should_skip_tracking()
     }
 
     pub fn compute_fingerprint(analytics: &SessionAnalytics) -> String {

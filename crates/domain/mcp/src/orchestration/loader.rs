@@ -196,9 +196,9 @@ fn extract_user_permissions(context: &RequestContext) -> Result<Vec<String>> {
 
     let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)
         .map_err(|e| {
-            error!(error = %e, "JWT validation failed");
-            anyhow::anyhow!("JWT validation failed: {}", e)
-        })?;
+        error!(error = %e, "JWT validation failed");
+        anyhow::anyhow!("JWT validation failed: {}", e)
+    })?;
 
     Ok(claims.get_scopes())
 }

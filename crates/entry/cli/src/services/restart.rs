@@ -125,7 +125,8 @@ async fn restart_failed_mcp(
     restarted_count: &mut i32,
     failed_count: &mut i32,
 ) -> Result<()> {
-    let mcp_manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+    let mcp_manager =
+        McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
     systemprompt_core_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_core_mcp::services::RegistryManager::get_enabled_servers()?;
@@ -135,7 +136,8 @@ async fn restart_failed_mcp(
             continue;
         }
 
-        let database = systemprompt_core_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
+        let database =
+            systemprompt_core_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
         let service_info = database.get_service_by_name(&server.name).await?;
 
         let needs_restart = match service_info {

@@ -183,7 +183,6 @@ impl StartupRenderer {
                 }
             },
 
-
             StartupEvent::Warning { message, context } => {
                 self.state.warnings.push(message.clone());
                 match context {

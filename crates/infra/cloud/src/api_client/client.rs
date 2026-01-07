@@ -74,6 +74,24 @@ impl CloudApiClient {
         self.handle_response(response).await
     }
 
+    async fn put<T: DeserializeOwned, B: Serialize + Sync>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<T> {
+        let url = format!("{}{}", self.api_url, path);
+        let response = self
+            .client
+            .put(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .json(body)
+            .send()
+            .await
+            .context("Failed to connect to API")?;
+
+        self.handle_response(response).await
+    }
+
     async fn put_no_content<B: Serialize + Sync>(&self, path: &str, body: &B) -> Result<()> {
         let url = format!("{}{}", self.api_url, path);
         let response = self
