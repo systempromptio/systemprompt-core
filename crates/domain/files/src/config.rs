@@ -61,6 +61,40 @@ impl FilesConfig {
         Ok(())
     }
 
+    pub fn validate_storage_structure(&self) -> Vec<String> {
+        let mut errors = Vec::new();
+
+        if !self.storage_root.exists() {
+            errors.push(format!(
+                "Storage root not found: {}",
+                self.storage_root.display()
+            ));
+            return errors;
+        }
+
+        let images_dir = self.images();
+        if !images_dir.exists() {
+            errors.push(format!(
+                "Images directory not found: {}",
+                images_dir.display()
+            ));
+            return errors;
+        }
+
+        let required_image_subdirs = ["blog", "social", "logos"];
+        for subdir in required_image_subdirs {
+            let path = images_dir.join(subdir);
+            if !path.exists() {
+                errors.push(format!(
+                    "Required images subdirectory not found: {}",
+                    path.display()
+                ));
+            }
+        }
+
+        errors
+    }
+
     pub fn storage(&self) -> &Path {
         &self.storage_root
     }

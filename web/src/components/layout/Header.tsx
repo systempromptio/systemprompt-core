@@ -25,9 +25,9 @@ export const Header: React.FC<HeaderProps> = ({
           <Menu size={20} />
         </button>
         <picture>
-          <source srcSet="/assets/logos/logo.webp" type="image/webp" />
-          <source srcSet="/assets/logos/logo.svg" type="image/svg+xml" />
-          <img src="/assets/logos/logo.svg" alt={theme.branding.name} className="h-6 lg:h-8" />
+          <source srcSet="/files/images/logos/logo.webp" type="image/webp" />
+          <source srcSet="/files/images/logos/logo.svg" type="image/svg+xml" />
+          <img src="/files/images/logos/logo.svg" alt={theme.branding.name} className="h-6 lg:h-8" />
         </picture>
       </div>
 

@@ -22,7 +22,7 @@ export const SmartLogo: React.FC<SmartLogoProps> = ({
   if (preferSvg) {
     return (
       <img
-        src="/assets/logos/logo.svg"
+        src="/files/images/logos/logo.svg"
         alt={logoAlt}
         width={width}
         height={height}
@@ -34,10 +34,10 @@ export const SmartLogo: React.FC<SmartLogoProps> = ({
 
   return (
     <picture>
-      <source srcSet="/assets/logos/logo.webp" type="image/webp" />
-      <source srcSet="/assets/logos/logo.png" type="image/png" />
+      <source srcSet="/files/images/logos/logo.webp" type="image/webp" />
+      <source srcSet="/files/images/logos/logo.png" type="image/png" />
       <img
-        src="/assets/logos/logo.svg"
+        src="/files/images/logos/logo.svg"
         alt={logoAlt}
         width={width}
         height={height}
