@@ -14,8 +14,8 @@ impl AnalyticsRepository {
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> anyhow::Result<u64> {
-        let result = sqlx::query(
-            r"
+        let result = sqlx::query!(
+            r#"
             DELETE FROM user_contexts
             WHERE context_id IN (
                 SELECT uc.context_id
@@ -24,9 +24,9 @@ impl AnalyticsRepository {
                 WHERE tm.id IS NULL
                 AND uc.created_at < NOW() - ($1 || ' hours')::interval
             )
-            ",
+            "#,
+            hours_old.to_string()
         )
-        .bind(hours_old.to_string())
         .execute(&*self.pool)
         .await?;
 
