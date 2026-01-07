@@ -112,9 +112,13 @@ pub async fn generate_link_handler(
         .await
     {
         Ok(link) => {
-            let base_url = Config::get()
-                .map(|c| c.api_external_url.clone())
-                .unwrap_or_default();
+            let base_url = match Config::get() {
+                Ok(c) => c.api_external_url.clone(),
+                Err(e) => {
+                    return internal_error(&format!("Configuration unavailable: {e}"))
+                        .into_response();
+                },
+            };
             let redirect_url = LinkGenerationService::build_trackable_url(&link, &base_url);
             let full_url = link.get_full_url();
 

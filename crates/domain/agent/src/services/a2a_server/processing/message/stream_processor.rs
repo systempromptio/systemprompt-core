@@ -55,7 +55,10 @@ impl StreamProcessor {
             .context_service
             .load_conversation_history(context_id.as_str())
             .await
-            .unwrap_or_default();
+            .unwrap_or_else(|e| {
+                tracing::warn!(error = %e, context_id = %context_id, "Failed to load conversation history");
+                vec![]
+            });
 
         tracing::info!(
             context_id = %context_id,

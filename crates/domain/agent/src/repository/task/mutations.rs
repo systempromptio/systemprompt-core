@@ -30,7 +30,12 @@ pub async fn create_task(
     let metadata_json = task
         .metadata
         .as_ref()
-        .map(|m| serde_json::to_value(m).unwrap_or_default())
+        .map(|m| {
+            serde_json::to_value(m).unwrap_or_else(|e| {
+                tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
+                serde_json::json!({})
+            })
+        })
         .unwrap_or_else(|| serde_json::json!({}));
 
     let status = task_state_to_db_string(task.status.state.clone());

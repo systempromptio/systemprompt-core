@@ -163,7 +163,10 @@ impl ServiceStateManager {
             let name = row
                 .get("name")
                 .and_then(|v| v.as_str())
-                .unwrap_or_default()
+                .unwrap_or_else(|| {
+                    tracing::warn!("Service record missing name field");
+                    ""
+                })
                 .to_string();
             let service_type = row
                 .get("service_type")

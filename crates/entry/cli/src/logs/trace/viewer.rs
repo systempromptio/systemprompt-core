@@ -33,7 +33,7 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_core_logging::ExecutionStepSummary,
 }
 
-fn print_formatted(ctx: &FormattedDisplayContext<'_>) -> Result<()> {
+fn print_formatted(ctx: &FormattedDisplayContext<'_>) {
     CliService::section(&format!("Trace Flow: {}", ctx.trace_id));
 
     let first_timestamp = ctx.events.first().map(|e| e.timestamp);
@@ -59,8 +59,6 @@ fn print_formatted(ctx: &FormattedDisplayContext<'_>) -> Result<()> {
         step_summary: ctx.step_summary,
     };
     print_summary(&summary_ctx);
-
-    Ok(())
 }
 
 fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
@@ -176,7 +174,7 @@ pub async fn execute(trace_id: Option<&str>, options: TraceOptions) -> Result<()
             mcp_summary: &mcp_summary,
             step_summary: &step_summary,
         };
-        print_formatted(&display_ctx)?;
+        print_formatted(&display_ctx);
     }
 
     Ok(())

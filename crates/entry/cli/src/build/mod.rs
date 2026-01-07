@@ -9,7 +9,7 @@ use systemprompt_models::BuildType;
 
 use crate::common::project::ProjectRoot;
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Clone, Copy)]
 pub enum BuildCommands {
     Mcp {
         #[arg(long, default_value = "false")]

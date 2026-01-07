@@ -70,7 +70,9 @@ async fn setup_existing_postgres(env_name: &str) -> Result<PostgresConfig> {
         .default(5432u16)
         .interact_text()?;
 
-    if !detect_postgresql(&host, port) {
+    if detect_postgresql(&host, port) {
+        CliService::success(&format!("PostgreSQL reachable at {}:{}", host, port));
+    } else {
         CliService::warning(&format!("Cannot reach PostgreSQL at {}:{}", host, port));
         let continue_anyway = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Continue anyway?")
@@ -80,8 +82,6 @@ async fn setup_existing_postgres(env_name: &str) -> Result<PostgresConfig> {
         if !continue_anyway {
             anyhow::bail!("PostgreSQL not reachable. Please start PostgreSQL and try again.");
         }
-    } else {
-        CliService::success(&format!("PostgreSQL reachable at {}:{}", host, port));
     }
 
     let default_user = format!("systemprompt_{}", env_name);

@@ -14,9 +14,13 @@ pub async fn broadcast_task_created(
 ) {
     let event_task = build_event_task(task_id, context_id, user_message, agent_name);
 
-    let api_url = &Config::get()
-        .map(|c| c.api_internal_url.clone())
-        .unwrap_or_default();
+    let api_url = match Config::get() {
+        Ok(c) => c.api_internal_url.clone(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Cannot broadcast task_created: config unavailable");
+            return;
+        },
+    };
     let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
 
     let payload = json!({
@@ -54,17 +58,29 @@ pub async fn broadcast_task_created(
 }
 
 pub async fn broadcast_task_completed(task: &Task, user_id: &str, token: &str) {
-    let api_url = &Config::get()
-        .map(|c| c.api_internal_url.clone())
-        .unwrap_or_default();
+    let api_url = match Config::get() {
+        Ok(c) => c.api_internal_url.clone(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Cannot broadcast task_completed: config unavailable");
+            return;
+        },
+    };
     let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
+
+    let task_data = match serde_json::to_value(task) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task for broadcast");
+            serde_json::json!(null)
+        },
+    };
 
     let payload = json!({
         "event_type": "task_completed",
         "entity_id": task.id.as_str(),
         "context_id": task.context_id.as_str(),
         "user_id": user_id,
-        "task_data": serde_json::to_value(task).unwrap_or_default()
+        "task_data": task_data
     });
 
     let client = reqwest::Client::new();
@@ -121,9 +137,10 @@ pub async fn broadcast_artifact_created(
     user_id: &str,
     token: &str,
 ) -> Result<(), anyhow::Error> {
-    let api_url = &Config::get()
-        .map(|c| c.api_internal_url.clone())
-        .unwrap_or_default();
+    let api_url = Config::get()
+        .map_err(|e| anyhow::anyhow!("Config unavailable for artifact broadcast: {}", e))?
+        .api_internal_url
+        .clone();
     let webhook_url = format!("{}/api/v1/webhook/broadcast", api_url);
 
     let payload = json!({

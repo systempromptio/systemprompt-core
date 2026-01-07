@@ -85,7 +85,13 @@ pub fn expand_home(path_str: &str) -> PathBuf {
         |stripped| {
             let home = std::env::var("HOME")
                 .or_else(|_| std::env::var("USERPROFILE"))
-                .unwrap_or_default();
+                .unwrap_or_else(|_| {
+                    tracing::warn!(
+                        path = %path_str,
+                        "Cannot expand ~/ path: neither HOME nor USERPROFILE is set"
+                    );
+                    String::new()
+                });
             PathBuf::from(home).join(stripped)
         },
     )

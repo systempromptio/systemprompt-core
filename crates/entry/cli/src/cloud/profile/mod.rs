@@ -81,7 +81,7 @@ pub async fn execute(cmd: Option<ProfileCommands>) -> Result<()> {
 async fn execute_command(cmd: ProfileCommands) -> Result<bool> {
     match cmd {
         ProfileCommands::Create { name } => create::execute(&name).await.map(|()| true),
-        ProfileCommands::List => list::execute().await.map(|()| false),
+        ProfileCommands::List => list::execute().map(|()| false),
         ProfileCommands::Show {
             name,
             filter,

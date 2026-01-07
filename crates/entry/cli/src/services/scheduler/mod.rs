@@ -26,18 +26,19 @@ pub async fn execute(cmd: SchedulerCommands, ctx: Arc<AppContext>) -> Result<()>
     match cmd {
         SchedulerCommands::Run { job_name } => run_job(&job_name, ctx).await,
         SchedulerCommands::CleanupSessions { hours } => cleanup_sessions(hours, ctx).await,
-        SchedulerCommands::List => list_jobs(),
+        SchedulerCommands::List => {
+            list_jobs();
+            Ok(())
+        },
     }
 }
 
-fn list_jobs() -> Result<()> {
+fn list_jobs() {
     CliService::section("Available Jobs");
 
     for job in inventory::iter::<&'static dyn Job> {
         CliService::info(&format!("  {} - {}", job.name(), job.description()));
     }
-
-    Ok(())
 }
 
 #[tracing::instrument(name = "cli_scheduler", skip(ctx))]

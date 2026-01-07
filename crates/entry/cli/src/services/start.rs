@@ -12,11 +12,13 @@ pub struct ServiceTarget {
     pub mcp: bool,
 }
 
+#[derive(Clone, Copy)]
 pub struct ServiceFlags {
     pub all: bool,
     pub targets: ServiceTargetFlags,
 }
 
+#[derive(Clone, Copy)]
 pub struct ServiceTargetFlags {
     pub api: bool,
     pub agents: bool,
@@ -32,7 +34,7 @@ impl ServiceTarget {
         }
     }
 
-    pub fn from_flags(flags: ServiceFlags) -> Self {
+    pub const fn from_flags(flags: ServiceFlags) -> Self {
         if flags.all || (!flags.targets.api && !flags.targets.agents && !flags.targets.mcp) {
             Self::all()
         } else {

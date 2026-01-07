@@ -211,7 +211,7 @@ async fn execute_view(service: &LoggingMaintenanceService, args: &ViewArgs) -> R
 
     loop {
         if args.clear_screen {
-            print!("\x1B[2J\x1B[1;1H");
+            CliService::clear_screen();
             CliService::section("SystemPrompt Log Stream");
         }
 

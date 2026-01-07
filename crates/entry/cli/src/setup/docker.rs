@@ -121,6 +121,10 @@ fn create_compose_files_if_missing(
     container_name: &str,
     port: u16,
 ) -> Result<()> {
+    const INIT_SCRIPT: &str = r#"CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+"#;
+
     let compose_file = compose_dir.join("docker-compose.yaml");
 
     std::fs::create_dir_all(compose_dir).context("Failed to create infrastructure/docker")?;
@@ -158,10 +162,6 @@ networks:
     driver: bridge
 "#
     );
-
-    const INIT_SCRIPT: &str = r#"CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-CREATE EXTENSION IF NOT EXISTS "pgcrypto";
-"#;
 
     std::fs::write(&compose_file, compose_content)
         .context("Failed to write docker-compose.yaml")?;

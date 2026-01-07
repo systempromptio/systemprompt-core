@@ -92,10 +92,10 @@ fn select_profile(prompt: &str) -> Result<ProfileSelection> {
         .interact()
         .context("Failed to select profile")?;
 
-    Ok(profiles
+    profiles
         .into_iter()
         .nth(selection)
-        .expect("valid selection"))
+        .ok_or_else(|| anyhow::anyhow!("Invalid selection index"))
 }
 
 fn discover_profiles() -> Result<Vec<ProfileSelection>> {
