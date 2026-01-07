@@ -17,9 +17,7 @@ src/
 ├── repository/
 │   ├── mod.rs                # SchedulerRepository facade
 │   ├── analytics/
-│   │   └── mod.rs            # Evaluation metrics queries
-│   ├── evaluations/
-│   │   └── mod.rs            # Conversation evaluation storage
+│   │   └── mod.rs            # Analytics queries
 │   ├── images/
 │   │   └── mod.rs            # Image optimization tracking
 │   └── jobs/
@@ -43,7 +41,6 @@ src/
 Jobs are discovered via the `inventory` crate. Domain modules register their jobs:
 
 ```rust
-inventory::submit! { &EvaluateConversationsJob }  // in ai module
 inventory::submit! { &ContentIngestionJob }       // in blog module
 ```
 
@@ -58,4 +55,4 @@ The scheduler discovers and runs all registered jobs based on configuration.
 | `systemprompt-core-system` | AppContext, CleanupRepository, SessionRepository |
 | `systemprompt-traits` | Job trait definition |
 | `systemprompt-identifiers` | ScheduledJobId |
-| `systemprompt-models` | ConversationEvaluation, config types |
+| `systemprompt-models` | Config types |

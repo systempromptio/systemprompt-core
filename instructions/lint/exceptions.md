@@ -148,7 +148,6 @@ These functions exceed complexity limits and must be refactored:
 | `crates/app/scheduler/src/services/scheduling/mod.rs:36` | `start` |
 | `crates/app/scheduler/src/services/scheduling/mod.rs:79` | `register_single_job` |
 | `crates/app/scheduler/src/services/scheduling/mod.rs:174` | `handle_job_result` |
-| `crates/app/scheduler/src/repository/evaluations/mod.rs:17` | `create_evaluation` |
 | `crates/app/scheduler/src/jobs/behavioral_analysis.rs:154` | `log_flag_result` |
 | `crates/app/scheduler/src/jobs/behavioral_analysis.rs:195` | `log_ban_result` |
 | `crates/domain/content/src/repository/content/mod.rs:22` | `create` |

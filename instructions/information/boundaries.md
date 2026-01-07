@@ -324,7 +324,6 @@ pub use systemprompt_models::{
 **Location**: `crates/modules/scheduler/src/services/`
 
 The scheduler contains:
-- AI evaluation (`jobs/evaluate_conversations.rs`)
 - Content ingestion (`jobs/content_ingestion.rs`)
 - File ingestion (`jobs/file_ingestion.rs`)
 - Static site generation (`static_content/` - markdown, templates, sitemap, prerendering)
@@ -526,7 +525,6 @@ let snapshot_data: Vec<ContextSummary> = contexts_with_stats
 | `api/src/services/server/lifecycle/scheduler.rs` | 6 | Direct scheduler access |
 | `agent/src/services/external_integrations/mcp/orchestration/loader.rs` | 6 | Cross-domain coupling |
 | `tui/src/services/agent_discovery.rs` | 5 | UI importing domain services |
-| `scheduler/src/services/jobs/evaluate_conversations.rs` | 5 | Job doing business logic |
 
 ---
 

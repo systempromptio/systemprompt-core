@@ -77,12 +77,11 @@ export function useMcpRegistry() {
         const registryServers: McpRegistryServer[] = registryData.data || []
         logger.debug('Found registry servers', { count: registryServers.length }, 'useMcpRegistry')
 
-        const apiBaseUrl = import.meta.env.VITE_API_BASE_HOST || window.location.origin
         const servers: McpServer[] = registryServers
           .filter(s => s.enabled)
           .map(s => ({
             name: s.name,
-            endpoint: s.endpoint.replace(apiBaseUrl, ''),
+            endpoint: s.endpoint,
             auth: s.oauth_required ? 'required' : 'none',
             status: s.status,
             oauth_required: s.oauth_required,
