@@ -71,6 +71,11 @@ full = [
     "dep:systemprompt-core-logging",
     "dep:systemprompt-core-config",
     "dep:systemprompt-core-files",
+    # Infrastructure crates for extension authors
+    "dep:systemprompt-loader",
+    "dep:systemprompt-core-events",
+    "dep:systemprompt-client",
+    "dep:systemprompt-core-security",
 ]
 
 [dependencies]
@@ -85,6 +90,10 @@ systemprompt-core-database = { path = "../crates/infra/database", optional = tru
 systemprompt-core-logging = { path = "../crates/infra/logging", optional = true }
 systemprompt-core-config = { path = "../crates/infra/config", optional = true }
 systemprompt-cloud = { path = "../crates/infra/cloud", optional = true }
+systemprompt-loader = { path = "../crates/infra/loader", optional = true }
+systemprompt-core-events = { path = "../crates/infra/events", optional = true }
+systemprompt-client = { path = "../crates/shared/client", optional = true }
+systemprompt-core-security = { path = "../crates/infra/security", optional = true }
 
 # Application
 systemprompt-sync = { path = "../crates/app/sync", optional = true }

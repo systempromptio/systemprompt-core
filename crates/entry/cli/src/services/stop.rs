@@ -4,23 +4,24 @@ use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
 use systemprompt_runtime::AppContext;
 
-pub async fn execute(all: bool, api: bool, agents: bool, mcp: bool, force: bool) -> Result<()> {
-    let stop_all = all || (!api && !agents && !mcp);
+use super::start::ServiceTarget;
+
+pub async fn execute(target: ServiceTarget, force: bool) -> Result<()> {
 
     let ctx = Arc::new(AppContext::new().await?);
     let service_mgmt = ServiceManagementService::new(ctx.db_pool().clone());
 
-    if stop_all || mcp {
+    if target.mcp {
         CliService::section("Stopping MCP Servers");
         stop_mcp_servers(&service_mgmt, force).await?;
     }
 
-    if stop_all || agents {
+    if target.agents {
         CliService::section("Stopping Agents");
         stop_agents(&service_mgmt, force).await?;
     }
 
-    if stop_all || api {
+    if target.api {
         CliService::section("Stopping API Server");
         stop_api(force).await?;
     }

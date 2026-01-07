@@ -6,24 +6,47 @@ use systemprompt_traits::{startup_channel, Phase, StartupEvent, StartupEventExt}
 
 use crate::presentation::StartupRenderer;
 
+pub struct ServiceTarget {
+    pub api: bool,
+    pub agents: bool,
+    pub mcp: bool,
+}
+
+impl ServiceTarget {
+    pub fn all() -> Self {
+        Self {
+            api: true,
+            agents: true,
+            mcp: true,
+        }
+    }
+
+    pub fn from_flags(all: bool, api: bool, agents: bool, mcp: bool) -> Self {
+        if all || (!api && !agents && !mcp) {
+            Self::all()
+        } else {
+            Self { api, agents, mcp }
+        }
+    }
+}
+
+pub struct StartupOptions {
+    pub skip_web: bool,
+    pub skip_migrate: bool,
+}
+
 pub async fn execute(
-    all: bool,
-    api: bool,
-    agents: bool,
-    mcp: bool,
-    _foreground: bool,
-    skip_web: bool,
-    skip_migrate: bool,
+    target: ServiceTarget,
+    options: StartupOptions,
 ) -> Result<()> {
     let start_time = Instant::now();
-    let start_all = all || (!api && !agents && !mcp);
 
     let (tx, rx) = startup_channel();
 
     let renderer = StartupRenderer::new(rx);
     let render_handle = tokio::spawn(renderer.run());
 
-    let result = run_startup(start_all, api, agents, mcp, skip_web, skip_migrate, &tx).await;
+    let result = run_startup(&target, &options, &tx).await;
 
     if let Err(e) = &result {
         let _ = tx.send(StartupEvent::StartupFailed {
@@ -39,12 +62,8 @@ pub async fn execute(
 }
 
 async fn run_startup(
-    start_all: bool,
-    api: bool,
-    agents: bool,
-    mcp: bool,
-    skip_web: bool,
-    skip_migrate: bool,
+    target: &ServiceTarget,
+    options: &StartupOptions,
     events: &systemprompt_traits::StartupEventSender,
 ) -> Result<String> {
     events.phase_started(Phase::PreFlight);
@@ -67,30 +86,30 @@ async fn run_startup(
         }
     }
 
-    if !skip_web {
+    if !options.skip_web {
         crate::common::web::build_web_assets().await?;
     }
 
     events.phase_completed(Phase::PreFlight);
 
-    if !skip_migrate {
+    if !options.skip_migrate {
         events.phase_started(Phase::Database);
         super::db::execute(super::db::DbCommands::Migrate).await?;
         events.phase_completed(Phase::Database);
     }
 
-    if start_all || api {
+    if target.api {
         let api_url = super::serve::execute_with_events(true, Some(events)).await?;
         return Ok(api_url);
     }
 
-    if agents {
+    if target.agents {
         events.phase_started(Phase::Agents);
         events.info("Agents start automatically with the API server");
         events.phase_completed(Phase::Agents);
     }
 
-    if mcp {
+    if target.mcp {
         events.phase_started(Phase::McpServers);
         events.info("MCP servers start automatically with the API server");
         events.phase_completed(Phase::McpServers);

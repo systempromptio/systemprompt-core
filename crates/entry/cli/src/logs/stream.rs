@@ -1,14 +1,21 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use clap::Args;
+use clap::{Args, Subcommand};
 use std::time::Duration;
 use systemprompt_core_logging::models::{LogEntry, LogLevel};
 use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
 use systemprompt_runtime::AppContext;
 use tokio::time;
 
+#[derive(Subcommand)]
+pub enum LogCommands {
+    View(ViewArgs),
+    ClearAll(MaintenanceArgs),
+    Cleanup(CleanupArgs),
+}
+
 #[derive(Args)]
-pub struct StreamArgs {
+pub struct ViewArgs {
     #[arg(long)]
     level: Option<String>,
 
@@ -18,37 +25,46 @@ pub struct StreamArgs {
     #[arg(long, default_value = "20")]
     tail: i64,
 
-    #[arg(long, short = 's', action = clap::ArgAction::SetTrue)]
+    #[arg(long, short = 's')]
     stream: bool,
 
     #[arg(long, default_value = "1000")]
     interval: u64,
 
     #[arg(long)]
-    clear: bool,
+    clear_screen: bool,
+}
 
-    #[arg(long, action = clap::ArgAction::SetTrue)]
-    clear_all: bool,
-
+#[derive(Args)]
+pub struct MaintenanceArgs {
     #[arg(long)]
-    cleanup: bool,
+    vacuum: bool,
+}
 
+#[derive(Args)]
+pub struct CleanupArgs {
     #[arg(long)]
     older_than: Option<i64>,
 
     #[arg(long)]
     keep_last_days: Option<i64>,
 
-    #[arg(long, action = clap::ArgAction::SetTrue)]
-    vacuum: bool,
+    #[arg(long)]
+    level: Option<String>,
 
-    #[arg(long, action = clap::ArgAction::SetTrue)]
+    #[arg(long)]
+    module: Option<String>,
+
+    #[arg(long)]
     dry_run: bool,
+
+    #[arg(long)]
+    vacuum: bool,
 }
 
 async fn get_initial_logs(
     service: &LoggingMaintenanceService,
-    args: &StreamArgs,
+    args: &ViewArgs,
 ) -> Result<Vec<LogEntry>> {
     if args.level.is_some() || args.module.is_some() {
         CliService::warning(
@@ -63,7 +79,7 @@ async fn get_initial_logs(
 
 async fn get_new_logs(
     service: &LoggingMaintenanceService,
-    args: &StreamArgs,
+    args: &ViewArgs,
     since: DateTime<Utc>,
 ) -> Result<Vec<LogEntry>> {
     let all_recent_logs = service
@@ -118,16 +134,10 @@ fn format_log(log: &LogEntry) -> String {
     }
 }
 
-async fn execute_cleanup(service: &LoggingMaintenanceService, args: &StreamArgs) -> Result<()> {
-    let days = if let Some(days) = args.older_than {
-        days
-    } else if let Some(keep_days) = args.keep_last_days {
-        keep_days
-    } else {
-        return Err(anyhow::anyhow!(
-            "Please specify --older-than <DAYS> or --keep-last-days <DAYS>"
-        ));
-    };
+async fn execute_cleanup(service: &LoggingMaintenanceService, args: &CleanupArgs) -> Result<()> {
+    let days = args.older_than.or(args.keep_last_days).ok_or_else(|| {
+        anyhow::anyhow!("Please specify --older-than <DAYS> or --keep-last-days <DAYS>")
+    })?;
 
     let cutoff = Utc::now() - chrono::Duration::days(days);
 
@@ -148,21 +158,23 @@ async fn execute_cleanup(service: &LoggingMaintenanceService, args: &StreamArgs)
         CliService::warning("DRY RUN MODE - No logs will be deleted");
     }
 
-    let deleted = if !args.dry_run {
-        service.cleanup_old_logs(cutoff).await?
-    } else {
+    let deleted = if args.dry_run {
         service
             .get_recent_logs(1000)
             .await?
             .iter()
             .filter(|log| log.timestamp < cutoff)
             .count() as u64
+    } else {
+        service.cleanup_old_logs(cutoff).await?
     };
 
     CliService::section("Results");
     CliService::key_value("Logs to be deleted", &deleted.to_string());
 
-    if !args.dry_run {
+    if args.dry_run {
+        CliService::info("Run without --dry-run to actually delete logs");
+    } else {
         CliService::success("Cleanup complete!");
 
         if args.vacuum {
@@ -170,34 +182,12 @@ async fn execute_cleanup(service: &LoggingMaintenanceService, args: &StreamArgs)
             LoggingMaintenanceService::vacuum();
             CliService::success("VACUUM complete");
         }
-    } else {
-        CliService::info("Run without --dry-run to actually delete logs");
     }
 
     Ok(())
 }
 
-pub async fn execute(args: StreamArgs) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool().clone());
-
-    if args.clear_all {
-        let cleared = service.clear_all_logs().await?;
-        CliService::success(&format!("Cleared {} log entries", cleared));
-
-        if args.vacuum {
-            CliService::info("Running VACUUM to reclaim disk space...");
-            LoggingMaintenanceService::vacuum();
-            CliService::success("VACUUM complete");
-        }
-
-        return Ok(());
-    }
-
-    if args.cleanup {
-        return execute_cleanup(&service, &args).await;
-    }
-
+async fn execute_view(service: &LoggingMaintenanceService, args: &ViewArgs) -> Result<()> {
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 
     CliService::section("SystemPrompt Log Stream");
@@ -216,14 +206,14 @@ pub async fn execute(args: StreamArgs) -> Result<()> {
     }
 
     loop {
-        if args.clear {
+        if args.clear_screen {
             print!("\x1B[2J\x1B[1;1H");
             CliService::section("SystemPrompt Log Stream");
         }
 
         let logs = match last_timestamp {
-            None => get_initial_logs(&service, &args).await?,
-            Some(ts) => get_new_logs(&service, &args, ts).await?,
+            None => get_initial_logs(service, args).await?,
+            Some(ts) => get_new_logs(service, args, ts).await?,
         };
 
         if !logs.is_empty() {
@@ -243,4 +233,45 @@ pub async fn execute(args: StreamArgs) -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn execute_clear_all(
+    service: &LoggingMaintenanceService,
+    args: &MaintenanceArgs,
+) -> Result<()> {
+    let cleared = service.clear_all_logs().await?;
+    CliService::success(&format!("Cleared {} log entries", cleared));
+
+    if args.vacuum {
+        CliService::info("Running VACUUM to reclaim disk space...");
+        LoggingMaintenanceService::vacuum();
+        CliService::success("VACUUM complete");
+    }
+
+    Ok(())
+}
+
+pub async fn execute(cmd: Option<LogCommands>) -> Result<()> {
+    let ctx = AppContext::new().await?;
+    let service = LoggingMaintenanceService::new(ctx.db_pool().clone());
+
+    match cmd {
+        Some(LogCommands::View(args)) => execute_view(&service, &args).await,
+        Some(LogCommands::ClearAll(args)) => execute_clear_all(&service, &args).await,
+        Some(LogCommands::Cleanup(args)) => execute_cleanup(&service, &args).await,
+        None => {
+            execute_view(
+                &service,
+                &ViewArgs {
+                    level: None,
+                    module: None,
+                    tail: 20,
+                    stream: false,
+                    interval: 1000,
+                    clear_screen: false,
+                },
+            )
+            .await
+        },
+    }
 }
