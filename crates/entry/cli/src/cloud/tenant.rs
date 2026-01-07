@@ -156,8 +156,10 @@ async fn create(default_region: &str) -> Result<()> {
     CliService::key_value("Name", &tenant.name);
     CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
 
-    if tenant.has_database_url() {
-        CliService::success("Database URL configured");
+    if let Some(ref url) = tenant.database_url {
+        if !url.is_empty() {
+            CliService::key_value("Database URL", url);
+        }
     }
 
     Ok(())

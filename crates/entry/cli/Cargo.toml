@@ -75,6 +75,7 @@ walkdir = { workspace = true }
 axum = { workspace = true }
 open = "5"
 urlencoding = { workspace = true }
+url = { workspace = true }
 rand = { workspace = true }
 toml = "0.8"
 indicatif = { workspace = true }

@@ -1,4 +1,6 @@
 use anyhow::{bail, Context, Result};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Input;
 use systemprompt_cloud::{
     get_cloud_paths, CloudPath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
@@ -130,17 +132,27 @@ pub fn create_profile_for_tenant(
     api_keys: &ApiKeys,
     profile_name: &str,
 ) -> Result<CreatedProfile> {
-    let name = profile_name.to_string();
     let ctx = ProjectContext::discover();
-    let profile_dir = ctx.profile_dir(&name);
+    let mut name = profile_name.to_string();
 
-    if profile_dir.exists() {
-        bail!(
+    loop {
+        let profile_dir = ctx.profile_dir(&name);
+        if !profile_dir.exists() {
+            break;
+        }
+
+        CliService::warning(&format!(
             "Profile '{}' already exists at {}",
             name,
             profile_dir.display()
-        );
+        ));
+
+        name = Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Enter a different profile name")
+            .interact_text()?;
     }
+
+    let profile_dir = ctx.profile_dir(&name);
 
     std::fs::create_dir_all(ctx.profiles_dir())
         .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
