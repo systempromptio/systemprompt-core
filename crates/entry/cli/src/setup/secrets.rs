@@ -28,7 +28,7 @@ pub struct SecretsData {
 }
 
 impl SecretsData {
-    pub fn has_ai_provider(&self) -> bool {
+    pub const fn has_ai_provider(&self) -> bool {
         self.gemini.is_some() || self.anthropic.is_some() || self.openai.is_some()
     }
 
