@@ -19,6 +19,7 @@ use crate::cloud::deploy::deploy_with_secrets;
 use crate::cloud::dockerfile;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::common::project::ProjectRoot;
+use url::Url;
 
 use super::docker::{
     generate_postgres_compose, is_port_in_use, nanoid, stop_container_on_port,
@@ -369,10 +370,11 @@ pub async fn create_cloud_tenant(
     let external_db_access = if enable_external {
         let spinner = CliService::spinner("Enabling external database access...");
         match client.set_external_db_access(&result.tenant_id, true).await {
-            Ok(response) => {
-                database_url = response.database_url;
+            Ok(_) => {
+                database_url = swap_to_external_host(&database_url);
                 spinner.finish_and_clear();
                 CliService::success("External database access enabled");
+                print_database_connection_info(&database_url);
                 true
             },
             Err(e) => {
@@ -429,4 +431,47 @@ pub async fn create_cloud_tenant(
     warn_required_secrets(&validation.required_secrets);
 
     Ok(stored_tenant)
+}
+
+fn swap_to_external_host(url: &str) -> String {
+    let Ok(parsed) = Url::parse(url) else {
+        return url.to_string();
+    };
+
+    let host = parsed.host_str().unwrap_or_default();
+    let external_host = if host.contains("sandbox") {
+        "db-sandbox.systemprompt.io"
+    } else {
+        "db.systemprompt.io"
+    };
+
+    url.replace(host, external_host)
+        .replace("sslmode=disable", "sslmode=require")
+}
+
+fn print_database_connection_info(url: &str) {
+    let Ok(parsed) = Url::parse(url) else {
+        return;
+    };
+
+    let host = parsed.host_str().unwrap_or("unknown");
+    let port = parsed.port().unwrap_or(5432);
+    let database = parsed.path().trim_start_matches('/');
+    let username = parsed.username();
+    let password = parsed.password().unwrap_or("********");
+
+    CliService::section("Database Connection");
+    CliService::key_value("Host", host);
+    CliService::key_value("Port", &port.to_string());
+    CliService::key_value("Database", database);
+    CliService::key_value("User", username);
+    CliService::key_value("Password", password);
+    CliService::key_value("SSL", "required");
+    CliService::info("");
+    CliService::key_value("Connection URL", url);
+    CliService::info("");
+    CliService::info(&format!(
+        "Connect with psql:\n  PGPASSWORD='{}' psql -h {} -p {} -U {} -d {}",
+        password, host, port, username, database
+    ));
 }
