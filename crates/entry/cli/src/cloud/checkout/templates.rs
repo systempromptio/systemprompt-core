@@ -1,5 +1,5 @@
 #[allow(dead_code)]
-pub const WAITING_HTML: &str = r##"<!DOCTYPE html>
+pub const WAITING_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Provisioning in Progress - SystemPrompt</title>
@@ -55,10 +55,10 @@ pub const WAITING_HTML: &str = r##"<!DOCTYPE html>
         <p style="margin-top: 16px; font-size: 0.85em;">You can close this window.</p>
     </div>
 </body>
-</html>"##;
+</html>"#;
 
 #[allow(dead_code)]
-pub const SUCCESS_HTML: &str = r##"<!DOCTYPE html>
+pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Purchase Successful - SystemPrompt</title>
@@ -191,10 +191,10 @@ pub const SUCCESS_HTML: &str = r##"<!DOCTYPE html>
         checkStatus();
     </script>
 </body>
-</html>"##;
+</html>"#;
 
 #[allow(dead_code)]
-pub const ERROR_HTML: &str = r##"<!DOCTYPE html>
+pub const ERROR_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
     <title>Checkout Failed - SystemPrompt</title>
@@ -244,4 +244,4 @@ pub const ERROR_HTML: &str = r##"<!DOCTYPE html>
         <p>Please try again or contact support.</p>
     </div>
 </body>
-</html>"##;
+</html>"#;

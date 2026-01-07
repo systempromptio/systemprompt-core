@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import yaml from 'js-yaml';
@@ -19,9 +19,72 @@ if (!process.env.SYSTEMPROMPT_WEB_METADATA_PATH) {
 }
 const YAML_PATH = process.env.SYSTEMPROMPT_WEB_CONFIG_PATH;
 const METADATA_PATH = process.env.SYSTEMPROMPT_WEB_METADATA_PATH;
+const EXTENSIONS_PATH = process.env.SYSTEMPROMPT_EXTENSIONS_PATH || null;
 const SCHEMA_PATH = join(__dirname, 'theme-schema.json');
 const CSS_OUTPUT = join(__dirname, '../src/styles/theme.generated.css');
 const TS_OUTPUT = join(__dirname, '../src/theme.config.ts');
+
+/**
+ * Discovers UI configurations from extension manifests
+ * @param {string} extensionsDir - Path to extensions directory
+ * @returns {object} Merged extension UI config
+ */
+function discoverExtensionUiConfig(extensionsDir) {
+  const result = {
+    sidebar: {
+      sections: []
+    }
+  };
+
+  if (!extensionsDir || !existsSync(extensionsDir)) {
+    return result;
+  }
+
+  console.log(`🔍 Discovering extension UI configs from: ${extensionsDir}`);
+
+  function scanDirectory(dir, depth = 0) {
+    if (depth > 2) return; // Limit recursion depth
+
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const subDir = join(dir, entry.name);
+        const manifestPath = join(subDir, 'manifest.yaml');
+
+        if (existsSync(manifestPath)) {
+          try {
+            const manifestContent = readFileSync(manifestPath, 'utf8');
+            const manifest = yaml.load(manifestContent);
+
+            if (manifest?.extension?.enabled && manifest?.extension?.ui?.sidebar?.sections) {
+              console.log(`  ✅ Found UI config in: ${entry.name}`);
+              result.sidebar.sections.push(...manifest.extension.ui.sidebar.sections);
+            }
+          } catch (err) {
+            console.warn(`  ⚠️ Error reading manifest in ${entry.name}: ${err.message}`);
+          }
+        }
+
+        // Recurse into subdirectories (e.g., extensions/mcp/admin)
+        scanDirectory(subDir, depth + 1);
+      }
+    } catch (err) {
+      console.warn(`  ⚠️ Error scanning directory ${dir}: ${err.message}`);
+    }
+  }
+
+  scanDirectory(extensionsDir);
+
+  // Sort sections by priority (lower = earlier)
+  result.sidebar.sections.sort((a, b) => (a.priority || 100) - (b.priority || 100));
+
+  console.log(`  📊 Found ${result.sidebar.sections.length} sidebar section(s)`);
+
+  return result;
+}
 
 function generateCSSVariables(theme) {
   const vars = [];
@@ -466,7 +529,7 @@ ${generateMobileOverrides(theme)}
 `;
 }
 
-function generateTypeScript(theme, metadata) {
+function generateTypeScript(theme, metadata, extensionUi) {
   return `/**
  * GENERATED FILE - DO NOT EDIT MANUALLY
  * Generated from: $SYSTEMPROMPT_WEB_CONFIG_PATH and $SYSTEMPROMPT_WEB_METADATA_PATH
@@ -499,6 +562,7 @@ export const theme = {
   mobile: ${JSON.stringify(theme.mobile, null, 2)},
   touchTargets: ${JSON.stringify(theme.touchTargets, null, 2)},
   navigation: ${JSON.stringify(theme.navigation, null, 2)},
+  extensionUi: ${JSON.stringify(extensionUi, null, 2)},
 } as const;
 
 export type Theme = typeof theme;
@@ -515,6 +579,9 @@ function main() {
     console.log('📖 Reading metadata...');
     const metadataContent = readFileSync(METADATA_PATH, 'utf8');
     const metadata = yaml.load(metadataContent);
+
+    console.log('🔍 Discovering extension UI configs...');
+    const extensionUi = discoverExtensionUiConfig(EXTENSIONS_PATH);
 
     console.log('🔍 Validating theme schema...');
     const schemaContent = readFileSync(SCHEMA_PATH, 'utf8');
@@ -543,7 +610,7 @@ function main() {
     console.log(`✅ Generated: ${CSS_OUTPUT}`);
 
     console.log('📝 Writing TypeScript config...');
-    const tsContent = generateTypeScript(theme, metadata);
+    const tsContent = generateTypeScript(theme, metadata, extensionUi);
     mkdirSync(dirname(TS_OUTPUT), { recursive: true });
     writeFileSync(TS_OUTPUT, tsContent);
     console.log(`✅ Generated: ${TS_OUTPUT}`);
