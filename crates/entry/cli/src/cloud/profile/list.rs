@@ -82,7 +82,7 @@ pub async fn execute() -> Result<()> {
         }
 
         let (profile_name, _, _) = &profiles[selection];
-        show::execute(Some(profile_name), ShowFilter::All, false, false).await?;
+        show::execute(Some(profile_name), ShowFilter::All, false, false)?;
     }
 
     Ok(())

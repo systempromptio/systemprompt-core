@@ -52,8 +52,10 @@ pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Resu
         .open(&log_file_path)
         .with_context(|| format!("Failed to create log file: {}", log_file_path.display()))?;
 
-    let tools_config_json = serde_json::to_string(&config.tools).unwrap_or_default();
-    let server_model_config_json = serde_json::to_string(&config.model_config).unwrap_or_default();
+    let tools_config_json = serde_json::to_string(&config.tools)
+        .context("Failed to serialize tools config")?;
+    let server_model_config_json = serde_json::to_string(&config.model_config)
+        .context("Failed to serialize server model config")?;
 
     let profile_path = ProfileBootstrap::get_path()
         .context("SYSTEMPROMPT_PROFILE not set - cannot spawn MCP server")?;

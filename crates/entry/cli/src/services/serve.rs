@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;

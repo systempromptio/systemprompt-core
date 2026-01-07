@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use std::time::Duration;
 use systemprompt_core_logging::services::cli::{
     render_phase_warning, render_service_table, render_startup_banner, render_startup_complete,

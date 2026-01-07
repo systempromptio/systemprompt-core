@@ -102,7 +102,7 @@ async fn run_startup(
     }
 
     if !options.skip_web {
-        crate::common::web::build_web_assets().await?;
+        crate::common::web::build_web_assets()?;
     }
 
     events.phase_completed(Phase::PreFlight);

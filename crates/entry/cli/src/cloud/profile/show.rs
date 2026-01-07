@@ -12,7 +12,7 @@ use super::show_types::{
 };
 use super::ShowFilter;
 
-pub async fn execute(
+pub fn execute(
     name: Option<&str>,
     filter: ShowFilter,
     json_output: bool,

@@ -149,7 +149,7 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
                 restart::execute_failed(&ctx).await
             } else {
                 match target {
-                    Some(RestartTarget::Api) => restart::execute_api(&ctx).await,
+                    Some(RestartTarget::Api) => restart::execute_api(&ctx),
                     Some(RestartTarget::Agent { agent_id }) => {
                         restart::execute_agent(&ctx, &agent_id).await
                     },
@@ -186,7 +186,7 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
     }
 }
 
-pub async fn load_service_configs(
+pub fn load_service_configs(
     _ctx: &AppContext,
 ) -> Result<Vec<systemprompt_core_scheduler::ServiceConfig>> {
     use systemprompt_core_scheduler::{ServiceConfig, ServiceType};

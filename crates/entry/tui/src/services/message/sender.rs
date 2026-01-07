@@ -65,7 +65,10 @@ impl MessageSender {
             .await?;
 
         let status = response.status();
-        let response_text = response.text().await.unwrap_or_default();
+        let response_text = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
 
         if !status.is_success() {
             let _ = self.message_tx.send(Message::TaskProgressError(format!(

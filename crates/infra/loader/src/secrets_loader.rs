@@ -19,25 +19,29 @@ impl SecretsLoader {
     }
 
     pub fn resolve_and_load(path_str: &str, base_dir: Option<&Path>) -> Result<Secrets> {
-        let path = Self::resolve_path(path_str, base_dir);
+        let path = Self::resolve_path(path_str, base_dir)?;
         Self::load_from_file(&path)
     }
 
-    pub fn resolve_path(path_str: &str, base_dir: Option<&Path>) -> PathBuf {
-        let path = path_str.strip_prefix("~/").map_or_else(
-            || PathBuf::from(path_str),
-            |stripped| {
-                let home = std::env::var("HOME")
-                    .or_else(|_| std::env::var("USERPROFILE"))
-                    .unwrap_or_default();
-                PathBuf::from(home).join(stripped)
-            },
-        );
+    pub fn resolve_path(path_str: &str, base_dir: Option<&Path>) -> Result<PathBuf> {
+        let path = if let Some(stripped) = path_str.strip_prefix("~/") {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .map_err(|_| {
+                    anyhow::anyhow!(
+                        "Cannot resolve path '{}': neither HOME nor USERPROFILE environment variable is set",
+                        path_str
+                    )
+                })?;
+            PathBuf::from(home).join(stripped)
+        } else {
+            PathBuf::from(path_str)
+        };
 
         if path.is_relative() {
-            base_dir.map_or_else(|| path.clone(), |base| base.join(&path))
+            Ok(base_dir.map_or_else(|| path.clone(), |base| base.join(&path)))
         } else {
-            path
+            Ok(path)
         }
     }
 

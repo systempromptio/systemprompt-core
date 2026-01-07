@@ -75,7 +75,10 @@ pub async fn broadcast_agui_event(
                 }
             } else {
                 let status = resp.status().as_u16();
-                let message = resp.text().await.unwrap_or_default();
+                let message = resp
+                    .text()
+                    .await
+                    .unwrap_or_else(|e| format!("<error reading response: {}>", e));
                 tracing::error!(
                     event_type = ?event_type,
                     status = status,
@@ -151,7 +154,10 @@ pub async fn broadcast_a2a_event(
                 }
             } else {
                 let status = resp.status().as_u16();
-                let message = resp.text().await.unwrap_or_default();
+                let message = resp
+                    .text()
+                    .await
+                    .unwrap_or_else(|e| format!("<error reading response: {}>", e));
                 tracing::error!(
                     event_type = ?event_type,
                     status = status,

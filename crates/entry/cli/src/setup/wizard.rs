@@ -72,7 +72,7 @@ pub async fn execute(env_arg: Option<String>) -> Result<()> {
             .interact()?;
 
         if run_migrations {
-            profile::run_migrations(&profile_path).await?;
+            profile::run_migrations(&profile_path)?;
         }
     }
 

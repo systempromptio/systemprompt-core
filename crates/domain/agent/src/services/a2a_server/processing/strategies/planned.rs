@@ -76,8 +76,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         let tools = context
             .ai_service
             .list_available_tools_for_agent(&context.agent_name, &context.request_ctx)
-            .await
-            .unwrap_or_default();
+            .await?;
 
         tracing::info!(tool_count = tools.len(), "Available tools");
 

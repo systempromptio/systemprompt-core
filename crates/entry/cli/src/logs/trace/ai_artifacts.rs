@@ -21,7 +21,7 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
                 name: artifact
                     .name
                     .as_ref()
-                    .map_or("-".to_string(), |s| truncate(s, 30)),
+                    .map_or_else(|| "-".to_string(), |s| truncate(s, 30)),
                 source: artifact.source.clone().unwrap_or_else(|| "-".to_string()),
                 tool_name: artifact.tool_name.clone().unwrap_or_else(|| "-".to_string()),
             });
@@ -38,12 +38,11 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
     for artifact in artifacts {
         if current_artifact.as_ref() != Some(&artifact.artifact_id) {
             current_artifact = Some(artifact.artifact_id.clone());
+            let truncated_id = truncate(&artifact.artifact_id, 12);
+            let display_name = artifact.name.as_deref().unwrap_or(&truncated_id);
             CliService::info(&format!(
                 "── {} ({}) ──",
-                artifact
-                    .name
-                    .as_ref()
-                    .unwrap_or(&truncate(&artifact.artifact_id, 12)),
+                display_name,
                 artifact.artifact_type
             ));
         }

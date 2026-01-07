@@ -145,7 +145,7 @@ pub fn default_path(systemprompt_dir: &Path, env_name: &str) -> std::path::PathB
         .join(format!("{}.profile.yaml", env_name))
 }
 
-pub async fn run_migrations(profile_path: &Path) -> Result<()> {
+pub fn run_migrations(profile_path: &Path) -> Result<()> {
     CliService::info("Running database migrations...");
 
     let current_exe = std::env::current_exe().context("Failed to get executable path")?;

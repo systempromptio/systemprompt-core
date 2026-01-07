@@ -229,7 +229,13 @@ pub async fn generate_with_schema(
         .iter()
         .find_map(|block| match block {
             AnthropicContentBlock::ToolUse { input, .. } => {
-                Some(serde_json::to_string(input).unwrap_or_default())
+                match serde_json::to_string(input) {
+                    Ok(s) => Some(s),
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Failed to serialize Anthropic tool input");
+                        Some(String::new())
+                    },
+                }
             },
             _ => None,
         })

@@ -24,7 +24,7 @@ pub async fn print_mcp_executions(
             tool_name: e.tool_name.clone(),
             server: e.server_name.clone(),
             status: e.status.clone(),
-            duration: e.execution_time_ms.map_or("-".to_string(), |ms| format!("{}ms", ms)),
+            duration: e.execution_time_ms.map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),
         })
         .collect();
 

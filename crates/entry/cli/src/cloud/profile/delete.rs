@@ -8,7 +8,7 @@ use dialoguer::Confirm;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 
-pub async fn execute(name: &str) -> Result<()> {
+pub fn execute(name: &str) -> Result<()> {
     CliService::section(&format!("Delete Profile: {}", name));
 
     let ctx = ProjectContext::discover();

@@ -156,7 +156,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Cloud(cmd)) => cloud::execute(cmd).await?,
         Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
         Some(Commands::Logs(cmd)) => logs::execute(cmd).await?,
-        Some(Commands::Build(cmd)) => build::execute(cmd).await?,
+        Some(Commands::Build(cmd)) => build::execute(cmd)?,
         Some(Commands::Setup(args)) => setup::execute(args).await?,
         None => tui::execute().await?,
     }

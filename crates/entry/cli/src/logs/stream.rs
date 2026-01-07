@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
@@ -120,21 +118,24 @@ fn format_log(log: &LogEntry) -> String {
         LogLevel::Trace => "TRACE",
     };
 
-    if let Some(ref metadata) = log.metadata {
-        format!(
-            "{} {} [{}] {} {}",
-            timestamp,
-            level_str,
-            log.module,
-            log.message,
-            serde_json::to_string(metadata).unwrap_or_default()
-        )
-    } else {
-        format!(
-            "{} {} [{}] {}",
-            timestamp, level_str, log.module, log.message
-        )
-    }
+    log.metadata.as_ref().map_or_else(
+        || {
+            format!(
+                "{} {} [{}] {}",
+                timestamp, level_str, log.module, log.message
+            )
+        },
+        |metadata| {
+            format!(
+                "{} {} [{}] {} {}",
+                timestamp,
+                level_str,
+                log.module,
+                log.message,
+                serde_json::to_string(metadata).unwrap_or_default()
+            )
+        },
+    )
 }
 
 async fn execute_cleanup(service: &LoggingMaintenanceService, args: &CleanupArgs) -> Result<()> {

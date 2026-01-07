@@ -30,11 +30,14 @@ impl ContextService {
         for task in tasks {
             if let Some(task_history) = task.history {
                 for msg in task_history {
-                    let text = Self::extract_message_text(&msg).unwrap_or_default();
-
-                    if text.is_empty() {
-                        continue;
-                    }
+                    let text = match Self::extract_message_text(&msg) {
+                        Ok(t) if !t.is_empty() => t,
+                        Ok(_) => continue,
+                        Err(e) => {
+                            tracing::warn!(error = %e, "Failed to extract message text");
+                            continue;
+                        },
+                    };
 
                     let role = match msg.role.as_str() {
                         "user" => MessageRole::User,
