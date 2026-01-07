@@ -59,11 +59,9 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         .into_iter()
         .filter(|(_, source)| source.enabled)
         .filter(|(name, _)| {
-            if let Some(ref filter) = args.source {
-                name.as_str() == filter.as_str()
-            } else {
-                true
-            }
+            args.source
+                .as_ref()
+                .map_or(true, |filter| name.as_str() == filter.as_str())
         })
         .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_string()))
         .collect();
@@ -77,7 +75,7 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         return Ok(());
     }
 
-    let sync = ContentLocalSync::new(db.clone());
+    let sync = ContentLocalSync::new(Arc::clone(&db));
     let mut all_diffs: Vec<ContentDiffEntry> = Vec::new();
 
     let spinner = CliService::spinner("Calculating diff...");

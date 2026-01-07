@@ -22,6 +22,36 @@ use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
 
+#[derive(clap::Args)]
+struct VerbosityOpts {
+    #[arg(long, short = 'v', global = true)]
+    verbose: bool,
+
+    #[arg(long, short = 'q', global = true, conflicts_with = "verbose")]
+    quiet: bool,
+
+    #[arg(long, global = true)]
+    debug: bool,
+}
+
+#[derive(clap::Args)]
+struct OutputOpts {
+    #[arg(long, global = true)]
+    json: bool,
+
+    #[arg(long, global = true, conflicts_with = "json")]
+    yaml: bool,
+}
+
+#[derive(clap::Args)]
+struct DisplayOpts {
+    #[arg(long, global = true)]
+    no_color: bool,
+
+    #[arg(long, global = true)]
+    non_interactive: bool,
+}
+
 #[derive(Parser)]
 #[command(name = "systemprompt")]
 #[command(
@@ -31,26 +61,14 @@ use systemprompt_runtime::{
 #[command(version = "0.1.0")]
 #[command(long_about = None)]
 struct Cli {
-    #[arg(long, short = 'v', global = true)]
-    verbose: bool,
+    #[command(flatten)]
+    verbosity: VerbosityOpts,
 
-    #[arg(long, short = 'q', global = true, conflicts_with = "verbose")]
-    quiet: bool,
+    #[command(flatten)]
+    output: OutputOpts,
 
-    #[arg(long, global = true)]
-    debug: bool,
-
-    #[arg(long, global = true)]
-    json: bool,
-
-    #[arg(long, global = true, conflicts_with = "json")]
-    yaml: bool,
-
-    #[arg(long, global = true)]
-    no_color: bool,
-
-    #[arg(long, global = true)]
-    non_interactive: bool,
+    #[command(flatten)]
+    display: DisplayOpts,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -86,7 +104,7 @@ pub async fn run() -> Result<()> {
     let cli_config = build_cli_config(&cli);
     cli_settings::set_global_config(cli_config);
 
-    if cli.no_color || !cli_config.should_use_color() {
+    if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
     }
 
@@ -149,25 +167,25 @@ pub async fn run() -> Result<()> {
 fn build_cli_config(cli: &Cli) -> CliConfig {
     let mut cfg = CliConfig::new();
 
-    if cli.debug {
+    if cli.verbosity.debug {
         cfg = cfg.with_verbosity(VerbosityLevel::Debug);
-    } else if cli.verbose {
+    } else if cli.verbosity.verbose {
         cfg = cfg.with_verbosity(VerbosityLevel::Verbose);
-    } else if cli.quiet {
+    } else if cli.verbosity.quiet {
         cfg = cfg.with_verbosity(VerbosityLevel::Quiet);
     }
 
-    if cli.json {
+    if cli.output.json {
         cfg = cfg.with_output_format(OutputFormat::Json);
-    } else if cli.yaml {
+    } else if cli.output.yaml {
         cfg = cfg.with_output_format(OutputFormat::Yaml);
     }
 
-    if cli.no_color {
+    if cli.display.no_color {
         cfg = cfg.with_color_mode(ColorMode::Never);
     }
 
-    if cli.non_interactive {
+    if cli.display.non_interactive {
         cfg = cfg.with_interactive(false);
     }
 

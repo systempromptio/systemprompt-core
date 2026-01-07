@@ -26,9 +26,10 @@ pub async fn execute(
     let loader = EnhancedConfigLoader::from_env()?;
     let services_config = loader.load().ok();
 
-    let full_config = build_config_for_filter(filter, config, services_config.as_ref())?;
+    let full_config = build_config_for_filter(filter, config, services_config.as_ref());
 
-    output_config(&full_config, json_output, yaml_output)
+    output_config(&full_config, json_output, yaml_output);
+    Ok(())
 }
 
 fn resolve_profile_path(name: Option<&str>) -> Result<PathBuf> {
@@ -65,46 +66,44 @@ fn build_config_for_filter(
     filter: ShowFilter,
     config: &Config,
     services_config: Option<&systemprompt_models::ServicesConfig>,
-) -> Result<FullConfig> {
+) -> FullConfig {
     match filter {
         ShowFilter::All => build_full_config(config, services_config),
-        ShowFilter::Agents => Ok(FullConfig::empty().with_agents(
+        ShowFilter::Agents => FullConfig::empty().with_agents(
             services_config
                 .map(|s| s.agents.clone())
                 .unwrap_or_default(),
-        )),
-        ShowFilter::Mcp => Ok(FullConfig::empty().with_mcp_servers(
+        ),
+        ShowFilter::Mcp => FullConfig::empty().with_mcp_servers(
             services_config
                 .map(|s| s.mcp_servers.clone())
                 .unwrap_or_default(),
-        )),
+        ),
         ShowFilter::Skills => {
             let mut full = FullConfig::empty();
             if let Some(skills) = load_skills_config(config) {
                 full = full.with_skills(skills);
             }
-            Ok(full)
+            full
         },
-        ShowFilter::Ai => {
-            Ok(FullConfig::empty()
-                .with_ai(services_config.map(|s| s.ai.clone()).unwrap_or_default()))
-        },
-        ShowFilter::Web => Ok(FullConfig::empty()
-            .with_web(services_config.map(|s| s.web.clone()).unwrap_or_default())),
+        ShowFilter::Ai => FullConfig::empty()
+            .with_ai(services_config.map(|s| s.ai.clone()).unwrap_or_default()),
+        ShowFilter::Web => FullConfig::empty()
+            .with_web(services_config.map(|s| s.web.clone()).unwrap_or_default()),
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
             if let Some(content) = load_content_config() {
                 full = full.with_content(content);
             }
-            Ok(full)
+            full
         },
-        ShowFilter::Env => Ok(FullConfig::empty().with_environment(build_env_config(config))),
+        ShowFilter::Env => FullConfig::empty().with_environment(build_env_config(config)),
         ShowFilter::Settings => {
             let mut full = FullConfig::empty();
             if let Some(settings) = services_config.map(build_settings_output) {
                 full = full.with_settings(settings);
             }
-            Ok(full)
+            full
         },
     }
 }
@@ -112,7 +111,7 @@ fn build_config_for_filter(
 fn build_full_config(
     config: &Config,
     services_config: Option<&systemprompt_models::ServicesConfig>,
-) -> Result<FullConfig> {
+) -> FullConfig {
     let mut full = FullConfig::empty().with_environment(build_env_config(config));
 
     if let Some(sc) = services_config {
@@ -131,7 +130,7 @@ fn build_full_config(
         full = full.with_content(content);
     }
 
-    Ok(full)
+    full
 }
 
 fn build_settings_output(services_config: &systemprompt_models::ServicesConfig) -> SettingsOutput {
@@ -273,7 +272,7 @@ fn load_content_config() -> Option<ContentConfigRaw> {
     }
 }
 
-fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) -> Result<()> {
+fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) {
     if json_output {
         CliService::json(config);
     } else if yaml_output {
@@ -281,5 +280,4 @@ fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) -> R
     } else {
         print_formatted_config(config);
     }
-    Ok(())
 }

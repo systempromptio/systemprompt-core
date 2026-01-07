@@ -1,17 +1,6 @@
-//! Unit tests for JwtService
-//!
-//! Tests cover:
-//! - Admin token generation
-//! - Token structure and claims
-//! - AdminTokenParams configuration
-
 use chrono::Duration;
 use systemprompt_core_security::{AdminTokenParams, JwtService};
 use systemprompt_identifiers::{SessionId, UserId};
-
-// ============================================================================
-// AdminTokenParams Tests
-// ============================================================================
 
 #[test]
 fn test_admin_token_params_creation() {
@@ -48,10 +37,6 @@ fn test_admin_token_params_debug() {
     let debug_str = format!("{:?}", params);
     assert!(debug_str.contains("AdminTokenParams"));
 }
-
-// ============================================================================
-// JwtService Token Generation Tests
-// ============================================================================
 
 #[test]
 fn test_generate_admin_token_success() {

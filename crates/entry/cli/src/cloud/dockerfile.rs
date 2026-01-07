@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use anyhow::{bail, Result};
 use std::path::Path;
 

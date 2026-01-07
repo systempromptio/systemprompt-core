@@ -111,7 +111,11 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
             skip_web,
             skip_migrate,
         } => {
-            let target = start::ServiceTarget::from_flags(all, api, agents, mcp);
+            let flags = start::ServiceFlags {
+                all,
+                targets: start::ServiceTargetFlags { api, agents, mcp },
+            };
+            let target = start::ServiceTarget::from_flags(flags);
             let options = start::StartupOptions {
                 skip_web,
                 skip_migrate,
@@ -126,7 +130,11 @@ pub async fn execute(command: ServicesCommands) -> Result<()> {
             mcp,
             force,
         } => {
-            let target = start::ServiceTarget::from_flags(all, api, agents, mcp);
+            let flags = start::ServiceFlags {
+                all,
+                targets: start::ServiceTargetFlags { api, agents, mcp },
+            };
+            let target = start::ServiceTarget::from_flags(flags);
             stop::execute(target, force).await
         },
 

@@ -79,7 +79,10 @@ pub async fn execute(cmd: McpCommands) -> Result<()> {
         McpCommands::ListPackages => {
             let servers = RegistryManager::get_enabled_servers()?;
             let packages: Vec<_> = servers.iter().map(|s| s.name.clone()).collect();
-            println!("{}", packages.join(" "));
+            #[allow(clippy::print_stdout)]
+            {
+                println!("{}", packages.join(" "));
+            }
         },
     }
 

@@ -36,7 +36,7 @@ impl CloudUser {
 
         Ok(creds
             .user_email
-            .map(|email| CloudUser { email, name: None }))
+            .map(|email| Self { email, name: None }))
     }
 
     pub fn username(&self) -> String {

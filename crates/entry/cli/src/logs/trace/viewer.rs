@@ -23,39 +23,42 @@ pub struct TraceOptions {
     pub json: bool,
 }
 
-fn print_formatted(
-    events: &[TraceEvent],
-    trace_id: &str,
-    task_id: Option<&str>,
-    options: &TraceOptions,
-    ai_summary: &systemprompt_core_logging::AiRequestSummary,
-    mcp_summary: &systemprompt_core_logging::McpExecutionSummary,
-    step_summary: &systemprompt_core_logging::ExecutionStepSummary,
-) -> Result<()> {
-    CliService::section(&format!("Trace Flow: {trace_id}"));
+struct FormattedDisplayContext<'a> {
+    events: &'a [TraceEvent],
+    trace_id: &'a str,
+    task_id: Option<&'a str>,
+    options: &'a TraceOptions,
+    ai_summary: &'a systemprompt_core_logging::AiRequestSummary,
+    mcp_summary: &'a systemprompt_core_logging::McpExecutionSummary,
+    step_summary: &'a systemprompt_core_logging::ExecutionStepSummary,
+}
 
-    let first_timestamp = events.first().map(|e| e.timestamp);
-    let last_timestamp = events.last().map(|e| e.timestamp);
+fn print_formatted(ctx: &FormattedDisplayContext<'_>) -> Result<()> {
+    CliService::section(&format!("Trace Flow: {}", ctx.trace_id));
 
-    if options.verbose {
+    let first_timestamp = ctx.events.first().map(|e| e.timestamp);
+    let last_timestamp = ctx.events.last().map(|e| e.timestamp);
+
+    if ctx.options.verbose {
         let mut prev_timestamp: Option<DateTime<Utc>> = None;
-        for event in events {
-            print_event(event, options.verbose, prev_timestamp);
+        for event in ctx.events {
+            print_event(event, ctx.options.verbose, prev_timestamp);
             prev_timestamp = Some(event.timestamp);
         }
     } else {
-        print_table(events);
+        print_table(ctx.events);
     }
 
-    print_summary(
-        events,
-        first_timestamp,
-        last_timestamp,
-        task_id,
-        ai_summary,
-        mcp_summary,
-        step_summary,
-    );
+    let summary_ctx = super::display::SummaryContext {
+        events: ctx.events,
+        first: first_timestamp,
+        last: last_timestamp,
+        task_id: ctx.task_id,
+        ai_summary: ctx.ai_summary,
+        mcp_summary: ctx.mcp_summary,
+        step_summary: ctx.step_summary,
+    };
+    print_summary(&summary_ctx);
 
     Ok(())
 }
@@ -164,15 +167,16 @@ pub async fn execute(trace_id: Option<&str>, options: TraceOptions) -> Result<()
             &step_summary,
         )?;
     } else {
-        print_formatted(
-            &events,
-            &effective_trace_id,
-            task_id.as_deref(),
-            &options,
-            &ai_summary,
-            &mcp_summary,
-            &step_summary,
-        )?;
+        let display_ctx = FormattedDisplayContext {
+            events: &events,
+            trace_id: &effective_trace_id,
+            task_id: task_id.as_deref(),
+            options: &options,
+            ai_summary: &ai_summary,
+            mcp_summary: &mcp_summary,
+            step_summary: &step_summary,
+        };
+        print_formatted(&display_ctx)?;
     }
 
     Ok(())

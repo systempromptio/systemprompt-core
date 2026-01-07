@@ -9,7 +9,7 @@ use super::start::ServiceTarget;
 pub async fn execute(target: ServiceTarget, force: bool) -> Result<()> {
 
     let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(ctx.db_pool().clone());
+    let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
 
     if target.mcp {
         CliService::section("Stopping MCP Servers");

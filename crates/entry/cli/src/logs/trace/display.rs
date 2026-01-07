@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 use systemprompt_core_logging::{
@@ -156,28 +158,30 @@ fn print_event_metadata(event: &TraceEvent) {
     }
 }
 
-pub fn print_summary(
-    events: &[TraceEvent],
-    first: Option<DateTime<Utc>>,
-    last: Option<DateTime<Utc>>,
-    task_id: Option<&str>,
-    ai_summary: &AiRequestSummary,
-    mcp_summary: &McpExecutionSummary,
-    step_summary: &ExecutionStepSummary,
-) {
+pub struct SummaryContext<'a> {
+    pub events: &'a [TraceEvent],
+    pub first: Option<DateTime<Utc>>,
+    pub last: Option<DateTime<Utc>>,
+    pub task_id: Option<&'a str>,
+    pub ai_summary: &'a AiRequestSummary,
+    pub mcp_summary: &'a McpExecutionSummary,
+    pub step_summary: &'a ExecutionStepSummary,
+}
+
+pub fn print_summary(ctx: &SummaryContext<'_>) {
     CliService::section("Summary");
 
-    if let (Some(first), Some(last)) = (first, last) {
+    if let (Some(first), Some(last)) = (ctx.first, ctx.last) {
         let duration = last.signed_duration_since(first);
         CliService::key_value("  Duration", &format!("{}ms", duration.num_milliseconds()));
     }
 
-    print_event_counts(events);
-    print_ai_summary(ai_summary);
-    print_mcp_summary(mcp_summary);
-    print_step_summary(step_summary);
-    print_trace_context(events, task_id);
-    print_status(events);
+    print_event_counts(ctx.events);
+    print_ai_summary(ctx.ai_summary);
+    print_mcp_summary(ctx.mcp_summary);
+    print_step_summary(ctx.step_summary);
+    print_trace_context(ctx.events, ctx.task_id);
+    print_status(ctx.events);
 }
 
 fn print_event_counts(events: &[TraceEvent]) {

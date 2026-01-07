@@ -4,7 +4,8 @@ use std::env;
 use std::sync::Arc;
 use systemprompt_core_agent::services::a2a_server::Server;
 use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_core_ai::{AiService, NoopToolProvider};
+use systemprompt_core_ai::AiService;
+use systemprompt_core_mcp::McpToolProvider;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
@@ -68,7 +69,7 @@ pub enum AgentCommands {
 pub async fn execute(cmd: AgentCommands, ctx: Arc<AppContext>) -> Result<()> {
     env::set_var("SYSTEMPROMPT_NON_INTERACTIVE", "1");
 
-    let orchestrator = AgentOrchestrator::new(ctx.clone(), None)
+    let orchestrator = AgentOrchestrator::new(Arc::clone(&ctx), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -183,9 +184,9 @@ async fn run_agent_server(
     name: String,
     port: u16,
 ) -> Result<()> {
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
 
-    systemprompt_core_logging::init_logging(db_pool.clone());
+    systemprompt_core_logging::init_logging(Arc::clone(&db_pool));
 
     let pid = std::process::id();
     orchestrator
@@ -194,15 +195,15 @@ async fn run_agent_server(
         .context("Failed to update agent status to running")?;
 
     let services_config = ConfigLoader::load().context("Failed to load services config")?;
-    let tool_provider = Arc::new(NoopToolProvider::new());
+    let tool_provider = Arc::new(McpToolProvider::new(ctx));
     let ai_service = Arc::new(
         AiService::new(ctx, &services_config.ai, tool_provider)
             .context("Failed to create AI service")?,
     );
 
     let server = match Server::new(
-        db_pool.clone(),
-        ctx.clone(),
+        Arc::clone(&db_pool),
+        Arc::clone(ctx),
         ai_service,
         Some(name.clone()),
         port,
@@ -216,7 +217,7 @@ async fn run_agent_server(
         },
     };
 
-    let shutdown_ctx = ctx.clone();
+    let shutdown_ctx = Arc::clone(ctx);
     let shutdown_agent_name = name.clone();
     let shutdown = async move {
         signal::ctrl_c().await.ok();

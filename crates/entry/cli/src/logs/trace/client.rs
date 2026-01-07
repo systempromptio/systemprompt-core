@@ -81,13 +81,17 @@ pub async fn create_context(client: &Client, base_url: &str, token: &str) -> Res
         .ok_or_else(|| anyhow::anyhow!("No context_id in response"))
 }
 
+pub struct MessageContext<'a> {
+    pub base_url: &'a str,
+    pub agent_name: &'a str,
+    pub token: &'a str,
+    pub trace_id: &'a str,
+    pub context_id: &'a str,
+}
+
 pub async fn send_test_message(
     client: &Client,
-    base_url: &str,
-    agent_name: &str,
-    token: &str,
-    trace_id: &str,
-    context_id: &str,
+    ctx: &MessageContext<'_>,
     message: &str,
 ) -> Result<()> {
     let payload = json!({
@@ -95,7 +99,7 @@ pub async fn send_test_message(
         "method": "message/send",
         "params": {
             "message": {
-                "contextId": context_id,
+                "contextId": ctx.context_id,
                 "messageId": Uuid::new_v4().to_string(),
                 "role": "user",
                 "kind": "message",
@@ -111,9 +115,9 @@ pub async fn send_test_message(
     });
 
     let response = client
-        .post(format!("{}/api/v1/agents/{}/", base_url, agent_name))
-        .header("Authorization", format!("Bearer {}", token))
-        .header("x-trace-id", trace_id)
+        .post(format!("{}/api/v1/agents/{}/", ctx.base_url, ctx.agent_name))
+        .header("Authorization", format!("Bearer {}", ctx.token))
+        .header("x-trace-id", ctx.trace_id)
         .header("Content-Type", "application/json")
         .timeout(Duration::from_secs(300))
         .json(&payload)
@@ -161,16 +165,14 @@ pub async fn send_and_trace(options: &TraceOptions, base_url: &str) -> Result<St
 
     CliService::info(&format!("  -> Sending message: \"{message}\""));
 
-    send_test_message(
-        &client,
+    let msg_ctx = MessageContext {
         base_url,
-        &agent_name,
-        &token,
-        &trace_id,
-        &context_id,
-        message,
-    )
-    .await?;
+        agent_name: &agent_name,
+        token: &token,
+        trace_id: &trace_id,
+        context_id: &context_id,
+    };
+    send_test_message(&client, &msg_ctx, message).await?;
 
     CliService::success("  [OK] Message sent, waiting for processing...");
 

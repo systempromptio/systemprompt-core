@@ -12,6 +12,17 @@ pub struct ServiceTarget {
     pub mcp: bool,
 }
 
+pub struct ServiceFlags {
+    pub all: bool,
+    pub targets: ServiceTargetFlags,
+}
+
+pub struct ServiceTargetFlags {
+    pub api: bool,
+    pub agents: bool,
+    pub mcp: bool,
+}
+
 impl ServiceTarget {
     pub fn all() -> Self {
         Self {
@@ -21,11 +32,15 @@ impl ServiceTarget {
         }
     }
 
-    pub fn from_flags(all: bool, api: bool, agents: bool, mcp: bool) -> Self {
-        if all || (!api && !agents && !mcp) {
+    pub fn from_flags(flags: ServiceFlags) -> Self {
+        if flags.all || (!flags.targets.api && !flags.targets.agents && !flags.targets.mcp) {
             Self::all()
         } else {
-            Self { api, agents, mcp }
+            Self {
+                api: flags.targets.api,
+                agents: flags.targets.agents,
+                mcp: flags.targets.mcp,
+            }
         }
     }
 }

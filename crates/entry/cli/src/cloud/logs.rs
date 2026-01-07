@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use anyhow::{bail, Result};
 use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore, TenantType};
 use systemprompt_core_logging::CliService;

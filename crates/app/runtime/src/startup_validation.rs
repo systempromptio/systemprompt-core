@@ -8,12 +8,12 @@ use systemprompt_core_logging::services::cli::{
 };
 use systemprompt_core_logging::CliService;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{ConfigLoader, ExtensionRegistry as McpExtensionRegistry};
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     ValidationConfigProvider, WebConfigRaw, WebConfigValidator, WebMetadataRaw,
 };
-use systemprompt_models::{Config, ContentConfigRaw, ProfileBootstrap};
+use systemprompt_models::{Config, ContentConfigRaw, ProfileBootstrap, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{
     ConfigProvider, DomainConfigRegistry, StartupValidationReport, ValidationReport,
@@ -55,6 +55,8 @@ impl StartupValidator {
         }
 
         self.run_domain_validations(&mut report);
+
+        Self::validate_mcp_manifests(config, validation_provider.services_config(), &mut report);
 
         if report.has_errors() {
             return report;
@@ -212,6 +214,58 @@ impl StartupValidator {
         }
 
         render_phase_success(&format!("[ext:{}]", ext_id), Some("loaded"));
+    }
+
+    fn validate_mcp_manifests(
+        config: &Config,
+        services_config: &ServicesConfig,
+        report: &mut StartupValidationReport,
+    ) {
+        let registry = McpExtensionRegistry::build(
+            Path::new(&config.system_path),
+            config.is_cloud,
+            &config.bin_path,
+        );
+
+        let mut mcp_errors: Vec<ValidationError> = Vec::new();
+
+        for (name, deployment) in &services_config.mcp_servers {
+            if !deployment.enabled {
+                continue;
+            }
+
+            if let Err(e) = registry.get_path(&deployment.binary) {
+                mcp_errors.push(
+                    ValidationError::new(
+                        format!("mcp_servers.{}.binary", name),
+                        format!(
+                            "Manifest not found for binary '{}': {}",
+                            deployment.binary, e
+                        ),
+                    )
+                    .with_suggestion(format!(
+                        "Ensure manifest.yaml exists at extensions/mcp/{}/manifest.yaml",
+                        deployment.binary
+                    )),
+                );
+            }
+        }
+
+        if mcp_errors.is_empty() {
+            return;
+        }
+
+        if let Some(mcp_report) = report.domains.iter_mut().find(|d| d.domain == "mcp") {
+            for error in mcp_errors {
+                mcp_report.add_error(error);
+            }
+        } else {
+            let mut mcp_report = ValidationReport::new("mcp");
+            for error in mcp_errors {
+                mcp_report.add_error(error);
+            }
+            report.add_domain(mcp_report);
+        }
     }
 }
 

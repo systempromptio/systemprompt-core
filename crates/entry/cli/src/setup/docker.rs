@@ -42,7 +42,7 @@ pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
 
     let port: u16 = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("PostgreSQL port")
-        .default(5432_u16)
+        .default(5432u16)
         .interact_text()?;
 
     let config = PostgresConfig {
