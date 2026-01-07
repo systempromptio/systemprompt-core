@@ -114,7 +114,7 @@
 
 | ID | Rule | Status | Evidence |
 |----|------|--------|----------|
-| AP1 | No `&str` for typed IDs | WARN | context_id: &str in evaluations - acceptable as external input |
+| AP1 | No `&str` for typed IDs | PASS | Uses typed identifiers |
 | AP2 | No `.as_str().to_string()` | PASS | None found |
 | AP3 | No magic status strings | PASS | Uses JobStatus enum |
 | AP4 | No repeated SQL column lists | PASS | Exception: query_as! requires literal columns |
@@ -210,13 +210,13 @@
 | File & Folder | 7 | 0 | 0 | 0 | 7 |
 | Domain Consistency | 4 | 0 | 0 | 0 | 4 |
 | Module Boundaries | 4 | 0 | 0 | 0 | 4 |
-| Antipatterns | 10 | 0 | 1 | 0 | 11 |
+| Antipatterns | 11 | 0 | 0 | 0 | 11 |
 | Architecture Simplicity | 6 | 0 | 0 | 0 | 6 |
 | Module Architecture Taxonomy | 8 | 0 | 1 | 3 | 12 |
 | Module Boundary Violations | 6 | 0 | 0 | 6 | 12 |
 | Dependency Direction | 1 | 0 | 0 | 7 | 8 |
 | Circular Dependency Prevention | 8 | 0 | 0 | 0 | 8 |
-| **Total** | 93 | 0 | 2 | 21 | 116 |
+| **Total** | 94 | 0 | 1 | 21 | 116 |
 
 ## Verdict
 
@@ -229,13 +229,11 @@ The scheduler module passes all mandatory checks:
 - Zero FAIL in Module Architecture Taxonomy
 - Zero FAIL in Dependency Direction
 - Zero FAIL in Circular Dependency Prevention
-- Only 2 WARN items (acceptable edge cases)
+- Only 1 WARN item (acceptable edge case)
 
 ### Warnings (Acceptable)
 
-1. **AP1 (context_id: &str):** The evaluations repository uses `&str` for context_id instead of a typed identifier. This is acceptable as these are external input strings from the database query results.
-
-2. **TX11 (Repository structure):** Repositories use single mod.rs files instead of queries.rs/mutations.rs split. This is acceptable for the small, focused repositories in this module.
+1. **TX11 (Repository structure):** Repositories use single mod.rs files instead of queries.rs/mutations.rs split. This is acceptable for the small, focused repositories in this module.
 
 ## Build Verification
 

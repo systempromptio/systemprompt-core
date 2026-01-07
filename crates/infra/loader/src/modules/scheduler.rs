@@ -14,36 +14,20 @@ pub fn define() -> Module {
         ),
         weight: Some(5),
         dependencies: vec!["log".into(), "ai".into(), "agent".into()],
-        schemas: Some(vec![
-            ModuleSchema {
-                table: "scheduled_jobs".into(),
-                sql: SchemaSource::Inline(
-                    include_str!("../../../../app/scheduler/schema/scheduled_jobs.sql").into(),
-                ),
-                required_columns: vec![
-                    "id".into(),
-                    "job_name".into(),
-                    "schedule".into(),
-                    "enabled".into(),
-                    "last_run".into(),
-                    "next_run".into(),
-                ],
-            },
-            ModuleSchema {
-                table: "conversation_evaluations".into(),
-                sql: SchemaSource::Inline(
-                    include_str!("../../../../app/scheduler/schema/conversation_evaluations.sql")
-                        .into(),
-                ),
-                required_columns: vec![
-                    "id".into(),
-                    "task_id".into(),
-                    "agent_goal".into(),
-                    "goal_achieved".into(),
-                    "analyzed_at".into(),
-                ],
-            },
-        ]),
+        schemas: Some(vec![ModuleSchema {
+            table: "scheduled_jobs".into(),
+            sql: SchemaSource::Inline(
+                include_str!("../../../../app/scheduler/schema/scheduled_jobs.sql").into(),
+            ),
+            required_columns: vec![
+                "id".into(),
+                "job_name".into(),
+                "schedule".into(),
+                "enabled".into(),
+                "last_run".into(),
+                "next_run".into(),
+            ],
+        }]),
         seeds: None,
         permissions: None,
         audience: vec![],

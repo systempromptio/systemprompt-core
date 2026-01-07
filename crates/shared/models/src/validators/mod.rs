@@ -1,7 +1,4 @@
 //! Domain configuration validators for startup validation.
-//!
-//! Each validator implements the `DomainConfig` trait to participate
-//! in the startup validation pipeline.
 
 mod agents;
 mod ai;

@@ -2,7 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
-use uuid::Uuid;
 
 use crate::api_client::SyncApiClient;
 use crate::error::SyncResult;
@@ -10,36 +9,32 @@ use crate::{SyncConfig, SyncDirection, SyncOperationResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseExport {
-    pub agents: Vec<AgentExport>,
     pub skills: Vec<SkillExport>,
     pub contexts: Vec<ContextExport>,
     pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct AgentExport {
-    pub id: Uuid,
-    pub name: String,
-    pub system_prompt: Option<String>,
-    pub created_at: DateTime<Utc>,
-    pub updated_at: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct SkillExport {
-    pub id: Uuid,
-    pub agent_id: Uuid,
+    pub skill_id: String,
+    pub file_path: String,
     pub name: String,
-    pub description: Option<String>,
+    pub description: String,
+    pub instructions: String,
+    pub enabled: bool,
+    pub tags: Option<Vec<String>>,
+    pub category_id: Option<String>,
+    pub source_id: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct ContextExport {
-    pub id: Uuid,
+    pub context_id: String,
+    pub user_id: String,
+    pub session_id: Option<String>,
     pub name: String,
-    pub description: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -76,14 +71,13 @@ impl DatabaseSyncService {
 
     async fn push(&self) -> SyncResult<SyncOperationResult> {
         let export = self.export_local().await?;
-        let count = export.agents.len() + export.skills.len() + export.contexts.len();
+        let count = export.skills.len() + export.contexts.len();
 
         if self.config.dry_run {
             return Ok(SyncOperationResult::dry_run(
                 "database_push",
                 count,
                 serde_json::json!({
-                    "agents": export.agents.len(),
                     "skills": export.skills.len(),
                     "contexts": export.contexts.len(),
                 }),
@@ -103,14 +97,13 @@ impl DatabaseSyncService {
             .export_database(&self.config.tenant_id)
             .await?;
 
-        let count = export.agents.len() + export.skills.len() + export.contexts.len();
+        let count = export.skills.len() + export.contexts.len();
 
         if self.config.dry_run {
             return Ok(SyncOperationResult::dry_run(
                 "database_pull",
                 count,
                 serde_json::json!({
-                    "agents": export.agents.len(),
                     "skills": export.skills.len(),
                     "contexts": export.contexts.len(),
                 }),
@@ -124,24 +117,24 @@ impl DatabaseSyncService {
     async fn export_local(&self) -> SyncResult<DatabaseExport> {
         let pool = PgPool::connect(&self.database_url).await?;
 
-        let agents: Vec<AgentExport> =
-            sqlx::query_as("SELECT id, name, system_prompt, created_at, updated_at FROM agents")
-                .fetch_all(&pool)
-                .await?;
-
-        let skills: Vec<SkillExport> = sqlx::query_as(
-            "SELECT id, agent_id, name, description, created_at, updated_at FROM agent_skills",
+        let skills = sqlx::query_as!(
+            SkillExport,
+            r#"SELECT skill_id, file_path, name, description, instructions, enabled,
+                      tags, category_id, source_id, created_at, updated_at
+               FROM agent_skills"#
         )
         .fetch_all(&pool)
         .await?;
 
-        let contexts: Vec<ContextExport> =
-            sqlx::query_as("SELECT id, name, description, created_at, updated_at FROM contexts")
-                .fetch_all(&pool)
-                .await?;
+        let contexts = sqlx::query_as!(
+            ContextExport,
+            r#"SELECT context_id, user_id, session_id, name, created_at, updated_at
+               FROM user_contexts"#
+        )
+        .fetch_all(&pool)
+        .await?;
 
         Ok(DatabaseExport {
-            agents,
             skills,
             contexts,
             timestamp: Utc::now(),
@@ -152,12 +145,6 @@ impl DatabaseSyncService {
         let pool = PgPool::connect(&self.database_url).await?;
         let mut created = 0;
         let mut updated = 0;
-
-        for agent in &export.agents {
-            let (c, u) = upsert_agent(&pool, agent).await?;
-            created += c;
-            updated += u;
-        }
 
         for skill in &export.skills {
             let (c, u) = upsert_skill(&pool, skill).await?;
@@ -179,47 +166,33 @@ impl DatabaseSyncService {
     }
 }
 
-async fn upsert_agent(pool: &PgPool, agent: &AgentExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query(
-        "INSERT INTO agents (id, name, system_prompt, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           system_prompt = EXCLUDED.system_prompt,
-           updated_at = EXCLUDED.updated_at",
-    )
-    .bind(agent.id)
-    .bind(&agent.name)
-    .bind(&agent.system_prompt)
-    .bind(agent.created_at)
-    .bind(agent.updated_at)
-    .execute(pool)
-    .await?;
-
-    if result.rows_affected() > 0 && agent.created_at == agent.updated_at {
-        Ok((1, 0))
-    } else if result.rows_affected() > 0 {
-        Ok((0, 1))
-    } else {
-        Ok((0, 0))
-    }
-}
-
 async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query(
-        "INSERT INTO agent_skills (id, agent_id, name, description, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           description = EXCLUDED.description,
-           updated_at = EXCLUDED.updated_at",
+    let result = sqlx::query!(
+        r#"INSERT INTO agent_skills (skill_id, file_path, name, description, instructions,
+                                     enabled, tags, category_id, source_id, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+           ON CONFLICT (skill_id) DO UPDATE SET
+             file_path = EXCLUDED.file_path,
+             name = EXCLUDED.name,
+             description = EXCLUDED.description,
+             instructions = EXCLUDED.instructions,
+             enabled = EXCLUDED.enabled,
+             tags = EXCLUDED.tags,
+             category_id = EXCLUDED.category_id,
+             source_id = EXCLUDED.source_id,
+             updated_at = EXCLUDED.updated_at"#,
+        skill.skill_id,
+        skill.file_path,
+        skill.name,
+        skill.description,
+        skill.instructions,
+        skill.enabled,
+        skill.tags.as_deref(),
+        skill.category_id,
+        skill.source_id,
+        skill.created_at,
+        skill.updated_at
     )
-    .bind(skill.id)
-    .bind(skill.agent_id)
-    .bind(&skill.name)
-    .bind(&skill.description)
-    .bind(skill.created_at)
-    .bind(skill.updated_at)
     .execute(pool)
     .await?;
 
@@ -233,19 +206,21 @@ async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, 
 }
 
 async fn upsert_context(pool: &PgPool, context: &ContextExport) -> SyncResult<(usize, usize)> {
-    let result = sqlx::query(
-        "INSERT INTO contexts (id, name, description, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE SET
-           name = EXCLUDED.name,
-           description = EXCLUDED.description,
-           updated_at = EXCLUDED.updated_at",
+    let result = sqlx::query!(
+        r#"INSERT INTO user_contexts (context_id, user_id, session_id, name, created_at, updated_at)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           ON CONFLICT (context_id) DO UPDATE SET
+             user_id = EXCLUDED.user_id,
+             session_id = EXCLUDED.session_id,
+             name = EXCLUDED.name,
+             updated_at = EXCLUDED.updated_at"#,
+        context.context_id,
+        context.user_id,
+        context.session_id,
+        context.name,
+        context.created_at,
+        context.updated_at
     )
-    .bind(context.id)
-    .bind(&context.name)
-    .bind(&context.description)
-    .bind(context.created_at)
-    .bind(context.updated_at)
     .execute(pool)
     .await?;
 

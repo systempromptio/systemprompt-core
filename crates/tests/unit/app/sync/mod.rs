@@ -6,7 +6,7 @@
 //! - SyncDirection enum and serialization
 //! - SyncOperationResult construction and methods
 //! - FileBundle, FileManifest, FileEntry models
-//! - DatabaseExport models (AgentExport, SkillExport, ContextExport)
+//! - DatabaseExport models (SkillExport, ContextExport)
 //! - LocalSync models (DiffStatus, ContentDiffItem, SkillDiffItem, etc.)
 //! - Hash computation functions
 //! - Export generation functions
@@ -16,14 +16,12 @@ use chrono::{TimeZone, Utc};
 use std::fs;
 use systemprompt_sync::{
     compute_content_hash, escape_yaml, export_content_to_file, export_skill_to_disk,
-    generate_content_markdown, generate_skill_config, generate_skill_markdown, AgentExport,
-    ContentDiffItem, ContentDiffResult, ContextExport, DatabaseExport, DiffStatus, DiskContent,
-    DiskSkill, FileBundle, FileEntry, FileManifest, LocalSyncDirection, LocalSyncResult,
-    SkillDiffItem, SkillExport, SkillsDiffResult, SyncConfig, SyncDirection, SyncError,
-    SyncOperationResult,
+    generate_content_markdown, generate_skill_config, generate_skill_markdown, ContentDiffItem,
+    ContentDiffResult, ContextExport, DatabaseExport, DiffStatus, DiskContent, DiskSkill,
+    FileBundle, FileEntry, FileManifest, LocalSyncDirection, LocalSyncResult, SkillDiffItem,
+    SkillExport, SkillsDiffResult, SyncConfig, SyncDirection, SyncError, SyncOperationResult,
 };
 use tempfile::TempDir;
-use uuid::Uuid;
 
 // ============================================================================
 // SyncError Tests
@@ -360,96 +358,111 @@ fn test_file_bundle_creation() {
 // ============================================================================
 
 #[test]
-fn test_agent_export_creation() {
-    let now = Utc::now();
-    let agent = AgentExport {
-        id: Uuid::new_v4(),
-        name: "Test Agent".to_string(),
-        system_prompt: Some("You are a helpful assistant".to_string()),
-        created_at: now,
-        updated_at: now,
-    };
-
-    assert_eq!(agent.name, "Test Agent");
-    assert!(agent.system_prompt.is_some());
-}
-
-#[test]
-fn test_agent_export_no_system_prompt() {
-    let now = Utc::now();
-    let agent = AgentExport {
-        id: Uuid::new_v4(),
-        name: "Minimal Agent".to_string(),
-        system_prompt: None,
-        created_at: now,
-        updated_at: now,
-    };
-
-    assert!(agent.system_prompt.is_none());
-}
-
-#[test]
 fn test_skill_export_creation() {
     let now = Utc::now();
     let skill = SkillExport {
-        id: Uuid::new_v4(),
-        agent_id: Uuid::new_v4(),
+        skill_id: "test_skill".to_string(),
+        file_path: "/skills/test-skill/index.md".to_string(),
         name: "Test Skill".to_string(),
-        description: Some("A skill for testing".to_string()),
+        description: "A skill for testing".to_string(),
+        instructions: "Follow these instructions".to_string(),
+        enabled: true,
+        tags: Some(vec!["tag1".to_string(), "tag2".to_string()]),
+        category_id: Some("skills".to_string()),
+        source_id: "skills".to_string(),
         created_at: now,
         updated_at: now,
     };
 
+    assert_eq!(skill.skill_id, "test_skill");
     assert_eq!(skill.name, "Test Skill");
-    assert!(skill.description.is_some());
+    assert!(skill.enabled);
+    assert!(skill.tags.is_some());
+}
+
+#[test]
+fn test_skill_export_no_tags() {
+    let now = Utc::now();
+    let skill = SkillExport {
+        skill_id: "minimal_skill".to_string(),
+        file_path: "/skills/minimal/index.md".to_string(),
+        name: "Minimal Skill".to_string(),
+        description: "Minimal description".to_string(),
+        instructions: "Instructions".to_string(),
+        enabled: false,
+        tags: None,
+        category_id: None,
+        source_id: "skills".to_string(),
+        created_at: now,
+        updated_at: now,
+    };
+
+    assert!(skill.tags.is_none());
+    assert!(skill.category_id.is_none());
+    assert!(!skill.enabled);
 }
 
 #[test]
 fn test_context_export_creation() {
     let now = Utc::now();
     let context = ContextExport {
-        id: Uuid::new_v4(),
+        context_id: "ctx_123".to_string(),
+        user_id: "user_456".to_string(),
+        session_id: Some("session_789".to_string()),
         name: "Test Context".to_string(),
-        description: Some("Context description".to_string()),
         created_at: now,
         updated_at: now,
     };
 
-    assert_eq!(context.name, "Test Context");
+    assert_eq!(context.context_id, "ctx_123");
+    assert_eq!(context.user_id, "user_456");
+    assert!(context.session_id.is_some());
+}
+
+#[test]
+fn test_context_export_no_session() {
+    let now = Utc::now();
+    let context = ContextExport {
+        context_id: "ctx_no_session".to_string(),
+        user_id: "user_123".to_string(),
+        session_id: None,
+        name: "No Session Context".to_string(),
+        created_at: now,
+        updated_at: now,
+    };
+
+    assert!(context.session_id.is_none());
 }
 
 #[test]
 fn test_database_export_full() {
     let now = Utc::now();
-    let agent_id = Uuid::new_v4();
 
     let export = DatabaseExport {
-        agents: vec![AgentExport {
-            id: agent_id,
-            name: "Agent".to_string(),
-            system_prompt: Some("prompt".to_string()),
-            created_at: now,
-            updated_at: now,
-        }],
         skills: vec![SkillExport {
-            id: Uuid::new_v4(),
-            agent_id,
+            skill_id: "skill_1".to_string(),
+            file_path: "/skills/skill-1/index.md".to_string(),
             name: "Skill".to_string(),
-            description: None,
+            description: "Description".to_string(),
+            instructions: "Instructions".to_string(),
+            enabled: true,
+            tags: None,
+            category_id: None,
+            source_id: "skills".to_string(),
             created_at: now,
             updated_at: now,
         }],
         contexts: vec![ContextExport {
-            id: Uuid::new_v4(),
+            context_id: "ctx_1".to_string(),
+            user_id: "user_1".to_string(),
+            session_id: None,
             name: "Context".to_string(),
-            description: None,
             created_at: now,
             updated_at: now,
         }],
         timestamp: now,
     };
 
-    assert_eq!(export.agents.len(), 1);
     assert_eq!(export.skills.len(), 1);
     assert_eq!(export.contexts.len(), 1);
 }
@@ -457,13 +470,11 @@ fn test_database_export_full() {
 #[test]
 fn test_database_export_empty() {
     let export = DatabaseExport {
-        agents: vec![],
         skills: vec![],
         contexts: vec![],
         timestamp: Utc::now(),
     };
 
-    assert!(export.agents.is_empty());
     assert!(export.skills.is_empty());
     assert!(export.contexts.is_empty());
 }
@@ -472,14 +483,12 @@ fn test_database_export_empty() {
 fn test_database_export_serialization() {
     let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
     let export = DatabaseExport {
-        agents: vec![],
         skills: vec![],
         contexts: vec![],
         timestamp: now,
     };
 
     let json = serde_json::to_string(&export).unwrap();
-    assert!(json.contains("\"agents\":[]"));
     assert!(json.contains("\"skills\":[]"));
     assert!(json.contains("\"contexts\":[]"));
 }
@@ -1281,27 +1290,32 @@ fn test_sync_operation_result_large_item_count() {
 }
 
 #[test]
-fn test_database_export_multiple_items() {
+fn test_database_export_multiple_skills() {
     let now = Utc::now();
 
-    let agents: Vec<AgentExport> = (0..100)
-        .map(|i| AgentExport {
-            id: Uuid::new_v4(),
-            name: format!("Agent {}", i),
-            system_prompt: Some(format!("Prompt {}", i)),
+    let skills: Vec<SkillExport> = (0..100)
+        .map(|i| SkillExport {
+            skill_id: format!("skill_{}", i),
+            file_path: format!("/skills/skill-{}/index.md", i),
+            name: format!("Skill {}", i),
+            description: format!("Description {}", i),
+            instructions: format!("Instructions {}", i),
+            enabled: true,
+            tags: None,
+            category_id: None,
+            source_id: "skills".to_string(),
             created_at: now,
             updated_at: now,
         })
         .collect();
 
     let export = DatabaseExport {
-        agents,
-        skills: vec![],
+        skills,
         contexts: vec![],
         timestamp: now,
     };
 
-    assert_eq!(export.agents.len(), 100);
+    assert_eq!(export.skills.len(), 100);
 }
 
 #[test]
@@ -1399,14 +1413,19 @@ fn test_file_manifest_roundtrip() {
 fn test_database_export_roundtrip() {
     let now = Utc::now();
     let original = DatabaseExport {
-        agents: vec![AgentExport {
-            id: Uuid::new_v4(),
+        skills: vec![SkillExport {
+            skill_id: "test_skill".to_string(),
+            file_path: "/skills/test/index.md".to_string(),
             name: "Test".to_string(),
-            system_prompt: Some("Prompt".to_string()),
+            description: "Description".to_string(),
+            instructions: "Instructions".to_string(),
+            enabled: true,
+            tags: None,
+            category_id: None,
+            source_id: "skills".to_string(),
             created_at: now,
             updated_at: now,
         }],
-        skills: vec![],
         contexts: vec![],
         timestamp: now,
     };
@@ -1414,6 +1433,6 @@ fn test_database_export_roundtrip() {
     let json = serde_json::to_string(&original).unwrap();
     let restored: DatabaseExport = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(original.agents.len(), restored.agents.len());
-    assert_eq!(original.agents[0].name, restored.agents[0].name);
+    assert_eq!(original.skills.len(), restored.skills.len());
+    assert_eq!(original.skills[0].name, restored.skills[0].name);
 }

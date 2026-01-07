@@ -32,7 +32,7 @@ use serde::{Deserialize, Serialize};
 
 pub use api_client::SyncApiClient;
 pub use crate_deploy::CrateDeployService;
-pub use database::{AgentExport, ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
+pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
 pub use diff::{compute_content_hash, ContentDiffCalculator, SkillsDiffCalculator};
 pub use error::{SyncError, SyncResult};
 pub use export::{

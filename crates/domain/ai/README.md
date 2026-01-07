@@ -21,10 +21,7 @@ src/
 ├── lib.rs                          # Public API exports
 ├── error.rs                        # AiError, RepositoryError types
 ├── jobs/
-│   ├── mod.rs
-│   ├── evaluate_conversations.rs   # EvaluateConversationsJob
-│   ├── evaluation_helpers.rs       # Conversation evaluation logic
-│   └── evaluation_prompt.rs        # Evaluation prompt template
+│   └── mod.rs
 ├── models/
 │   ├── mod.rs                      # AiRequest, AiRequestMessage, usage types
 │   ├── ai_request_record.rs        # AiRequestRecord, RequestStatus, TokenInfo
@@ -40,14 +37,12 @@ src/
 │           └── response.rs         # Gemini response types
 ├── repository/
 │   ├── mod.rs
-│   ├── ai_requests/
-│   │   ├── mod.rs
-│   │   ├── repository.rs           # AiRequestRepository struct
-│   │   ├── queries.rs              # Read operations, usage queries
-│   │   ├── mutations.rs            # Write operations
-│   │   └── message_operations.rs   # Message/tool call persistence
-│   └── evaluations/
-│       └── mod.rs                  # EvaluationRepository
+│   └── ai_requests/
+│       ├── mod.rs
+│       ├── repository.rs           # AiRequestRepository struct
+│       ├── queries.rs              # Read operations, usage queries
+│       ├── mutations.rs            # Write operations
+│       └── message_operations.rs   # Message/tool call persistence
 └── services/
     ├── mod.rs
     ├── config/

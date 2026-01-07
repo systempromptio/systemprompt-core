@@ -22,7 +22,7 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-pub async fn handle_mcp_registry(State(app_context): State<AppContext>) -> impl IntoResponse {
+pub async fn handle_mcp_registry(State(_app_context): State<AppContext>) -> impl IntoResponse {
     let server_configs = match RegistryService::get_enabled_servers_as_config() {
         Ok(configs) => configs,
         Err(e) => {
@@ -32,7 +32,6 @@ pub async fn handle_mcp_registry(State(app_context): State<AppContext>) -> impl 
         },
     };
 
-    let api_external_url = &app_context.config().api_external_url;
     let servers: Vec<McpRegistryServer> = server_configs
         .iter()
         .map(|config| McpRegistryServer {
@@ -49,7 +48,7 @@ pub async fn handle_mcp_registry(State(app_context): State<AppContext>) -> impl 
                 .iter()
                 .map(ToString::to_string)
                 .collect(),
-            endpoint: format!("{}/api/v1/mcp/{}/mcp", api_external_url, config.name),
+            endpoint: format!("/api/v1/mcp/{}/mcp", config.name),
             status: if config.enabled {
                 "enabled".to_string()
             } else {

@@ -42,7 +42,7 @@
 |----|------|--------|----------|
 | R3.1 | Typed identifiers from `systemprompt_identifiers` | PASS | Uses AiRequestId, SessionId, etc. |
 | R3.2 | Logging via `tracing` with spans | PASS | Uses tracing crate |
-| R3.3 | Repository pattern for SQL | PASS | AiRequestRepository, EvaluationRepository |
+| R3.3 | Repository pattern for SQL | PASS | AiRequestRepository |
 | R3.4 | SQLX macros only | PASS | Uses query_as!, query! |
 | R3.5 | `DateTime<Utc>` for timestamps | PASS | No NaiveDateTime found |
 | R3.6 | `thiserror` for domain errors | PASS | Uses thiserror in error.rs |
@@ -144,7 +144,7 @@
 | TX1 | API uses `routes/` pattern | N/A | No API routes in AI module |
 | TX2 | Services layer exists | PASS | services/ directory exists |
 | TX3 | Services hierarchical | PASS | Organized in subdirectories |
-| TX4 | Repository uses entity subdirs | PASS | ai_requests/, evaluations/ |
+| TX4 | Repository uses entity subdirs | PASS | ai_requests/ |
 | TX5 | No redundant naming in paths | PASS | Clean naming |
 | TX6 | No empty directories | PASS | All directories have files |
 | TX7 | Allowed src/ root files only | PASS | lib.rs, error.rs only |
@@ -246,9 +246,9 @@ cargo test -p systemprompt-core-ai --no-run          # PASS
 
 The AI module follows a clean layered architecture:
 - `services/` - Core AI functionality, providers, tools
-- `repository/` - Database access for AI requests, evaluations
+- `repository/` - Database access for AI requests
 - `models/` - Data structures and type definitions
-- `jobs/` - Background job implementations (evaluate_conversations)
+- `jobs/` - Background job implementations
 
 ## Dependencies
 

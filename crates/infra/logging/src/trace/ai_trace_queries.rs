@@ -1,5 +1,5 @@
 use anyhow::Result;
-use sqlx::{PgPool, Row};
+use sqlx::PgPool;
 use std::sync::Arc;
 
 use super::models::{
@@ -232,22 +232,22 @@ pub async fn fetch_ai_request_message_previews(
     pool: &Arc<PgPool>,
     request_id: &str,
 ) -> Result<Vec<ConversationMessage>> {
-    let rows = sqlx::query(
-        r"SELECT role, LEFT(content, 500) as content_preview, sequence_number
+    let rows = sqlx::query!(
+        r#"SELECT role, LEFT(content, 500) as content_preview, sequence_number
            FROM ai_request_messages
            WHERE request_id = $1
-           ORDER BY sequence_number",
+           ORDER BY sequence_number"#,
+        request_id
     )
-    .bind(request_id)
     .fetch_all(&**pool)
     .await?;
 
     Ok(rows
         .into_iter()
         .map(|row| ConversationMessage {
-            role: row.get("role"),
-            content: row.get("content_preview"),
-            sequence_number: row.get("sequence_number"),
+            role: row.role,
+            content: row.content_preview.unwrap_or_default(),
+            sequence_number: row.sequence_number,
         })
         .collect())
 }
@@ -257,8 +257,8 @@ pub async fn fetch_tool_logs(
     task_id: &str,
     context_id: &str,
 ) -> Result<Vec<ToolLogEntry>> {
-    let rows = sqlx::query(
-        r"SELECT timestamp, level, module, message
+    let rows = sqlx::query!(
+        r#"SELECT timestamp, level, module, message
            FROM logs
            WHERE (task_id = $1 OR context_id = $2)
              AND (
@@ -268,20 +268,20 @@ pub async fn fetch_tool_logs(
                  OR message LIKE 'Tool failed%'
                  OR message LIKE 'MCP execution%'
              )
-           ORDER BY timestamp",
+           ORDER BY timestamp"#,
+        task_id,
+        context_id
     )
-    .bind(task_id)
-    .bind(context_id)
     .fetch_all(&**pool)
     .await?;
 
     Ok(rows
         .into_iter()
         .map(|row| ToolLogEntry {
-            timestamp: row.get("timestamp"),
-            level: row.get("level"),
-            module: row.get("module"),
-            message: row.get("message"),
+            timestamp: row.timestamp,
+            level: row.level,
+            module: row.module,
+            message: row.message,
         })
         .collect())
 }
@@ -291,30 +291,31 @@ pub async fn fetch_task_artifacts(
     task_id: &str,
     context_id: &str,
 ) -> Result<Vec<TaskArtifact>> {
-    let rows = sqlx::query(
-        r"SELECT ta.artifact_id, ta.artifact_type, ta.name, ta.source, ta.tool_name,
-                  ap.part_kind, ap.text_content, ap.data_content
+    let rows = sqlx::query!(
+        r#"SELECT ta.artifact_id, ta.artifact_type, ta.name, ta.source, ta.tool_name,
+                  ap.part_kind as "part_kind?", ap.text_content as "text_content?",
+                  ap.data_content as "data_content?"
            FROM task_artifacts ta
            LEFT JOIN artifact_parts ap ON ta.artifact_id = ap.artifact_id AND ta.context_id = ap.context_id
            WHERE ta.task_id = $1 OR ta.context_id = $2
-           ORDER BY ta.created_at, ap.sequence_number",
+           ORDER BY ta.created_at, ap.sequence_number"#,
+        task_id,
+        context_id
     )
-    .bind(task_id)
-    .bind(context_id)
     .fetch_all(&**pool)
     .await?;
 
     Ok(rows
         .into_iter()
         .map(|row| TaskArtifact {
-            artifact_id: row.get("artifact_id"),
-            artifact_type: row.get("artifact_type"),
-            name: row.get("name"),
-            source: row.get("source"),
-            tool_name: row.get("tool_name"),
-            part_kind: row.get("part_kind"),
-            text_content: row.get("text_content"),
-            data_content: row.get("data_content"),
+            artifact_id: row.artifact_id,
+            artifact_type: row.artifact_type,
+            name: row.name,
+            source: row.source,
+            tool_name: row.tool_name,
+            part_kind: row.part_kind,
+            text_content: row.text_content,
+            data_content: row.data_content,
         })
         .collect())
 }

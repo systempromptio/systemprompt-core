@@ -4552,7 +4552,6 @@ dependencies = [
  "thiserror 2.0.17",
  "tokio",
  "tracing",
- "walkdir",
 ]
 
 [[package]]
@@ -4611,6 +4610,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sqlx",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-traits",
  "thiserror 2.0.17",
