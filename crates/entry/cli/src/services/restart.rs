@@ -26,7 +26,7 @@ pub async fn execute_api(_ctx: &Arc<AppContext>) -> Result<()> {
 pub async fn execute_agent(ctx: &Arc<AppContext>, agent_id: &str) -> Result<()> {
     CliService::section(&format!("Restarting Agent: {}", agent_id));
 
-    let orchestrator = AgentOrchestrator::new(ctx.clone(), None)
+    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -44,7 +44,7 @@ pub async fn execute_agent(ctx: &Arc<AppContext>, agent_id: &str) -> Result<()> 
 pub async fn execute_mcp(ctx: &Arc<AppContext>, server_name: &str) -> Result<()> {
     CliService::section(&format!("Restarting MCP Server: {}", server_name));
 
-    let manager = McpManager::new(ctx.clone()).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
     manager
         .restart_services(Some(server_name.to_string()))
@@ -85,7 +85,7 @@ async fn restart_failed_agents(
     restarted_count: &mut i32,
     failed_count: &mut i32,
 ) -> Result<()> {
-    let orchestrator = AgentOrchestrator::new(ctx.clone(), None)
+    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -128,7 +128,7 @@ async fn restart_failed_mcp(
     restarted_count: &mut i32,
     failed_count: &mut i32,
 ) -> Result<()> {
-    let mcp_manager = McpManager::new(ctx.clone()).context("Failed to initialize MCP manager")?;
+    let mcp_manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
     systemprompt_core_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_core_mcp::services::RegistryManager::get_enabled_servers()?;
@@ -138,7 +138,7 @@ async fn restart_failed_mcp(
             continue;
         }
 
-        let database = systemprompt_core_mcp::services::DatabaseManager::new(ctx.db_pool().clone());
+        let database = systemprompt_core_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
         let service_info = database.get_service_by_name(&server.name).await?;
 
         let needs_restart = match service_info {

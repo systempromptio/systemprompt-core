@@ -49,22 +49,22 @@ impl CliConfig {
         config
     }
 
-    pub fn with_output_format(mut self, format: OutputFormat) -> Self {
+    pub const fn with_output_format(mut self, format: OutputFormat) -> Self {
         self.output_format = format;
         self
     }
 
-    pub fn with_verbosity(mut self, level: VerbosityLevel) -> Self {
+    pub const fn with_verbosity(mut self, level: VerbosityLevel) -> Self {
         self.verbosity = level;
         self
     }
 
-    pub fn with_color_mode(mut self, mode: ColorMode) -> Self {
+    pub const fn with_color_mode(mut self, mode: ColorMode) -> Self {
         self.color_mode = mode;
         self
     }
 
-    pub fn with_interactive(mut self, interactive: bool) -> Self {
+    pub const fn with_interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
         self
     }

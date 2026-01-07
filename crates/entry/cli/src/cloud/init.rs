@@ -69,10 +69,10 @@ pub async fn execute(force: bool) -> Result<()> {
     CliService::key_value("Project", &project_name);
     CliService::key_value("Root", &project_root.display().to_string());
 
-    if !systemprompt_dir.exists() {
-        create_systemprompt_dir(&systemprompt_dir, &project_root)?;
-    } else {
+    if systemprompt_dir.exists() {
         CliService::info(".systemprompt/ already exists");
+    } else {
+        create_systemprompt_dir(&systemprompt_dir, &project_root)?;
     }
 
     if !services_dir.exists() || force {

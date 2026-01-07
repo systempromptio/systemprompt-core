@@ -8,7 +8,7 @@ pub async fn execute() -> Result<()> {
     CliService::section("Cleaning Up Services");
 
     let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(ctx.db_pool().clone());
+    let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
 
     CliService::info("Finding running services...");
     let running_services = service_mgmt.get_running_services_with_pid().await?;

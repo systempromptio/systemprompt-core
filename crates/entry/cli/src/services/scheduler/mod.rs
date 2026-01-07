@@ -47,7 +47,7 @@ async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
 
     CliService::info(&format!("Running job: {}", job_name));
 
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
 
     let job = inventory::iter::<&'static dyn Job>
         .into_iter()
@@ -98,7 +98,7 @@ async fn cleanup_sessions(hours: i32, ctx: Arc<AppContext>) -> Result<()> {
         hours
     ));
 
-    let cleanup_service = SessionCleanupService::new(ctx.db_pool().clone());
+    let cleanup_service = SessionCleanupService::new(Arc::clone(ctx.db_pool()));
     let closed_count = cleanup_service.cleanup_inactive_sessions(hours).await?;
 
     CliService::success(&format!("Closed {} inactive session(s)", closed_count));

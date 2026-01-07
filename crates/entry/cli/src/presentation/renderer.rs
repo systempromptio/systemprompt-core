@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use systemprompt_traits::{
     Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, StartupEventReceiver,
 };

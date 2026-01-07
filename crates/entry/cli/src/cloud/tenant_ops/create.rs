@@ -59,7 +59,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
 
     let port: u16 = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Port")
-        .default(5432_u16)
+        .default(5432u16)
         .interact_text()?;
 
     if is_port_in_use(port) {

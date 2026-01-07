@@ -1,6 +1,9 @@
+#![allow(clippy::print_stdout)]
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::{Args, Subcommand};
+use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_core_logging::models::{LogEntry, LogLevel};
 use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
@@ -253,7 +256,7 @@ async fn execute_clear_all(
 
 pub async fn execute(cmd: Option<LogCommands>) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(ctx.db_pool().clone());
+    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
 
     match cmd {
         Some(LogCommands::View(args)) => execute_view(&service, &args).await,

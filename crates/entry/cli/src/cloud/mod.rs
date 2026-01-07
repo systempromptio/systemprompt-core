@@ -87,7 +87,7 @@ pub enum CloudCommands {
 }
 
 impl CloudCommands {
-    pub fn requires_profile(&self) -> bool {
+    pub const fn requires_profile(&self) -> bool {
         matches!(
             self,
             Self::Sync { command: Some(_) }
@@ -98,7 +98,7 @@ impl CloudCommands {
         )
     }
 
-    pub fn requires_secrets(&self) -> bool {
+    pub const fn requires_secrets(&self) -> bool {
         matches!(self, Self::Sync { command: Some(_) } | Self::Secrets { .. })
     }
 }

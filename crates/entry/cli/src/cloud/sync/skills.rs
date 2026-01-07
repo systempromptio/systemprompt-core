@@ -42,7 +42,7 @@ pub async fn execute(args: SkillsSyncArgs) -> Result<()> {
         );
     }
 
-    let sync = SkillsLocalSync::new(db.clone(), skills_path.clone());
+    let sync = SkillsLocalSync::new(Arc::clone(&db), skills_path.clone());
     let spinner = CliService::spinner("Calculating diff...");
     let diff = sync
         .calculate_diff()

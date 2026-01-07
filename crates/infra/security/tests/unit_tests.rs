@@ -1,11 +1,3 @@
-//! Unit tests for systemprompt-core-security crate
-//!
-//! Tests cover:
-//! - auth: AuthMode, AuthValidationService, TokenClaims
-//! - extraction: TokenExtractor, CookieExtractor, HeaderInjector
-//! - jwt: JwtService, AdminTokenParams
-//! - services: ScannerDetector
-
 #![allow(clippy::all)]
 
 #[path = "../../../tests/unit/infra/security/auth/mod.rs"]

@@ -137,7 +137,9 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
-    if !skip_push {
+    if skip_push {
+        CliService::info("Push skipped (--skip-push)");
+    } else {
         let spinner = CliService::spinner("Pushing to registry...");
         docker_login(
             &registry_token.registry,
@@ -147,8 +149,6 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         docker_push(&image)?;
         spinner.finish_and_clear();
         CliService::success("Image pushed");
-    } else {
-        CliService::info("Push skipped (--skip-push)");
     }
 
     let spinner = CliService::spinner("Deploying...");

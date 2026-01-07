@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
@@ -42,7 +44,7 @@ pub async fn execute_with_events(
 
     run_migrations(&ctx, events).await?;
 
-    systemprompt_core_logging::init_logging(ctx.db_pool().clone());
+    systemprompt_core_logging::init_logging(Arc::clone(ctx.db_pool()));
 
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);

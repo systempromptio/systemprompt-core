@@ -76,7 +76,7 @@ pub async fn execute(name: &str) -> Result<()> {
             Some(tenant.id.clone()),
             relative_secrets_path,
             &services_path,
-        )?,
+        ),
         TenantType::Cloud => {
             let external_url = tenant.hostname.as_ref().map(|h| format!("https://{}", h));
             build_cloud_profile(
@@ -85,7 +85,7 @@ pub async fn execute(name: &str) -> Result<()> {
                 &services_path,
                 external_url.as_deref(),
                 relative_secrets_path,
-            )?
+            )
         },
     };
 
@@ -173,7 +173,7 @@ pub fn create_profile_for_tenant(
         &services_path,
         external_url.as_deref(),
         "./secrets.json",
-    )?;
+    );
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));

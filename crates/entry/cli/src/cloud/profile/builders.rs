@@ -1,4 +1,3 @@
-use anyhow::Result;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
@@ -15,13 +14,13 @@ pub fn build_local_profile(
     tenant_id: Option<String>,
     secrets_path: &str,
     services_path: &str,
-) -> Result<Profile> {
+) -> Profile {
     let ctx = ProjectContext::discover();
     let root = ctx.root();
     let system_path = root.to_string_lossy().to_string();
     let display_name = generate_display_name(name);
 
-    Ok(Profile {
+    Profile {
         name: name.to_string(),
         display_name,
         target: ProfileType::Local,
@@ -86,7 +85,7 @@ pub fn build_local_profile(
             validation: SecretsValidationMode::Warn,
             source: SecretsSource::File,
         }),
-    })
+    }
 }
 
 pub fn build_cloud_profile(
@@ -95,14 +94,14 @@ pub fn build_cloud_profile(
     _services_path: &str,
     external_url: Option<&str>,
     _secrets_path: &str,
-) -> Result<Profile> {
+) -> Profile {
     let display_name = generate_display_name(name);
     let external = external_url.map_or_else(
         || "https://cloud.systemprompt.io".to_string(),
         String::from,
     );
 
-    Ok(Profile {
+    Profile {
         name: name.to_string(),
         display_name,
         target: ProfileType::Cloud,
@@ -161,5 +160,5 @@ pub fn build_cloud_profile(
             validation: SecretsValidationMode::Strict,
             source: SecretsSource::Env,
         }),
-    })
+    }
 }
