@@ -23,6 +23,10 @@ systemprompt-core-config = { path = "../../infra/config" }
 # Domain layer (read-only access for content types)
 systemprompt-core-content = { path = "../../domain/content" }
 systemprompt-core-files = { path = "../../domain/files" }
+systemprompt-templates = { path = "../../domain/templates" }
+
+# Template provider traits
+systemprompt-template-provider = { path = "../../shared/template-provider" }
 
 # Async runtime
 tokio = { workspace = true }

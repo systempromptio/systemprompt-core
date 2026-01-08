@@ -25,6 +25,12 @@ pub mod extension {
     pub use systemprompt_extension::*;
 }
 
+#[cfg(feature = "core")]
+#[cfg_attr(docsrs, doc(cfg(feature = "core")))]
+pub mod template_provider {
+    pub use systemprompt_template_provider::*;
+}
+
 #[cfg(feature = "database")]
 #[cfg_attr(docsrs, doc(cfg(feature = "database")))]
 pub mod database {

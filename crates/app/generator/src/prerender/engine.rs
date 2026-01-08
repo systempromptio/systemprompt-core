@@ -1,16 +1,20 @@
-use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
+
+use anyhow::{Context, Result};
 use systemprompt_core_content::models::{Content, ContentError};
 use systemprompt_core_content::ContentRepository;
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
+use systemprompt_template_provider::FileSystemLoader;
+use systemprompt_templates::{CoreTemplateProvider, TemplateRegistry, TemplateRegistryBuilder};
 use tokio::fs;
 
 use crate::content::render_markdown;
 use crate::prerender::parent::{render_parent_route, RenderParentParams};
 use crate::templates::data::{prepare_template_data, TemplateDataParams};
-use crate::templates::{get_templates_path, load_web_config, TemplateEngine};
+use crate::templates::{get_templates_path, load_web_config};
 
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MS: u64 = 500;
@@ -20,7 +24,7 @@ struct PrerenderContext {
     db_pool: DbPool,
     config: ContentConfigRaw,
     web_config: serde_yaml::Value,
-    templates: TemplateEngine,
+    template_registry: TemplateRegistry,
     dist_dir: PathBuf,
 }
 
@@ -48,9 +52,20 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
     let template_dir = get_templates_path(&web_config)?;
-    let templates = TemplateEngine::new(&template_dir)
+    let template_path = PathBuf::from(&template_dir);
+
+    let core_provider = CoreTemplateProvider::discover_from(&template_path)
         .await
-        .context("Failed to load templates")?;
+        .context("Failed to discover core templates")?;
+
+    let loader = FileSystemLoader::with_path(&template_path);
+
+    let template_registry = TemplateRegistryBuilder::new()
+        .with_provider(Arc::new(core_provider))
+        .with_loader(Arc::new(loader))
+        .build_and_init()
+        .await
+        .context("Failed to initialize template registry")?;
 
     let dist_dir = AppPaths::get()
         .map_err(|e| anyhow::anyhow!("{}", e))?
@@ -62,7 +77,7 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
         db_pool,
         config,
         web_config,
-        templates,
+        template_registry,
         dist_dir,
     })
 }
@@ -267,7 +282,6 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         config_value,
     } = params;
 
-    // Extract slug early for error context
     let item_slug = item
         .get("slug")
         .and_then(|v| v.as_str())
@@ -293,15 +307,17 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
     .await
     .with_context(|| format!("Failed to prepare template data for item '{}'", item_slug))?;
 
-    // Use source-specific template if available, fall back to generic
-    let template_name = match *source_name {
-        "papers" => "paper",
-        name => format!("{}-post", name).leak(), // e.g., "blog-post", "docs-post"
-    };
+    let content_type = item.get("content_type").and_then(|v| v.as_str());
+
+    let template_name = ctx
+        .template_registry
+        .get_template_for_content_type(content_type.unwrap_or(*source_name))
+        .map(str::to_string)
+        .unwrap_or_else(|| resolve_template_name(source_name));
 
     let html = ctx
-        .templates
-        .render(template_name, &template_data)
+        .template_registry
+        .render(&template_name, &template_data)
         .with_context(|| format!("Failed to render template for item '{}'", item_slug))?;
 
     let slug = item
@@ -310,6 +326,13 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .ok_or_else(|| ContentError::missing_field("slug"))?;
 
     write_rendered_page(&ctx.dist_dir, &sitemap_config.url_pattern, slug, &html).await
+}
+
+fn resolve_template_name(source_name: &str) -> String {
+    match source_name {
+        "papers" => "paper".to_string(),
+        name => format!("{}-post", name),
+    }
 }
 
 async fn write_rendered_page(
@@ -351,7 +374,7 @@ async fn render_parent_if_enabled(
         web_config: &ctx.web_config,
         parent_config,
         source_name,
-        templates: &ctx.templates,
+        template_registry: &ctx.template_registry,
         dist_dir: &ctx.dist_dir,
     })
     .await?;
