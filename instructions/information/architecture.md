@@ -216,6 +216,72 @@ At runtime, `ExtensionRegistry::discover()` collects all registered extensions.
 
 ---
 
+### Storage Path Constants
+
+Storage paths are centralized in `infra/cloud/src/constants.rs` to ensure consistency across core and extensions.
+
+**Core storage structure:**
+
+```
+storage/                          <- profile.paths.storage
+  files/                          <- storage::FILES
+    images/                       <- storage::IMAGES
+      generated/                  <- storage::GENERATED
+      logos/                      <- storage::LOGOS
+      {extension}/                <- Extension-specific (e.g., blog/, social/)
+    audio/                        <- storage::AUDIO
+    video/                        <- storage::VIDEO
+    documents/                    <- storage::DOCUMENTS
+    uploads/                      <- storage::UPLOADS
+```
+
+**Using paths in core:**
+
+```rust
+use systemprompt_cloud::constants::storage;
+
+let images_path = storage_root.join(storage::IMAGES);      // storage/files/images
+let generated = storage_root.join(storage::GENERATED);     // storage/files/images/generated
+let audio = storage_root.join(storage::AUDIO);             // storage/files/audio
+```
+
+**Using paths in extensions:**
+
+Extensions declare required storage paths via `required_storage_paths()`. These are:
+1. Included in generated Dockerfiles (mkdir commands)
+2. Available for validation via `ConfigExtensionTyped`
+
+```rust
+use systemprompt_extension::Extension;
+
+impl Extension for BlogExtension {
+    fn required_storage_paths(&self) -> Vec<&'static str> {
+        vec!["files/images/blog"]
+    }
+}
+```
+
+**Profile configuration:**
+
+The `paths.storage` in profile.yaml points to the **root** storage directory:
+
+```yaml
+paths:
+  storage: /var/www/html/myproject/storage  # Root, NOT storage/files
+```
+
+**Key rules:**
+
+| Rule | Description |
+|------|-------------|
+| Core owns structure | Core defines `files/`, `images/`, `audio/`, etc. |
+| Extensions own subdirs | Extensions define paths like `files/images/blog/` |
+| Profile points to root | `paths.storage` = root storage dir (not `storage/files`) |
+| Use constants | Always use `storage::*` constants, never hardcode paths |
+| Dockerfile discovery | Extensions register paths via `required_storage_paths()` |
+
+---
+
 ### Product Binary Pattern
 
 Template/product repositories must own the final binary to include extension jobs. Core provides reusable entry points; products compose them with extensions.
