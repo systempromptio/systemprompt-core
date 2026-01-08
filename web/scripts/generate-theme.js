@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync, readdirSync, copyFileSync, cpSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import yaml from 'js-yaml';
@@ -23,6 +23,7 @@ const EXTENSIONS_PATH = process.env.SYSTEMPROMPT_EXTENSIONS_PATH || null;
 const SCHEMA_PATH = join(__dirname, 'theme-schema.json');
 const CSS_OUTPUT = join(__dirname, '../src/styles/theme.generated.css');
 const TS_OUTPUT = join(__dirname, '../src/theme.config.ts');
+const DIST_DIR = join(__dirname, '../dist');
 
 /**
  * Discovers UI configurations from extension manifests
@@ -84,6 +85,104 @@ function discoverExtensionUiConfig(extensionsDir) {
   console.log(`  📊 Found ${result.sidebar.sections.length} sidebar section(s)`);
 
   return result;
+}
+
+function discoverExtensionAssets(extensionsDir) {
+  const assets = { css: [], fonts: [], images: [] };
+
+  if (!extensionsDir || !existsSync(extensionsDir)) {
+    return assets;
+  }
+
+  console.log(`🔍 Discovering extension assets from: ${extensionsDir}`);
+
+  function scanDirectory(dir, depth = 0) {
+    if (depth > 2) return;
+
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+
+      for (const entry of entries) {
+        if (!entry.isDirectory()) continue;
+
+        const subDir = join(dir, entry.name);
+        const manifestPath = join(subDir, 'manifest.yaml');
+        const assetsDir = join(subDir, 'assets');
+
+        if (existsSync(manifestPath) && existsSync(assetsDir)) {
+          try {
+            const manifestContent = readFileSync(manifestPath, 'utf8');
+            const manifest = yaml.load(manifestContent);
+
+            if (manifest?.extension?.enabled && manifest?.extension?.assets) {
+              const extAssets = manifest.extension.assets;
+
+              (extAssets.css || []).forEach(file => {
+                const srcPath = join(assetsDir, 'css', file);
+                if (existsSync(srcPath)) {
+                  assets.css.push({ src: srcPath, name: file, extension: entry.name });
+                }
+              });
+
+              (extAssets.fonts || []).forEach(fontDir => {
+                const srcPath = join(assetsDir, 'fonts', fontDir);
+                if (existsSync(srcPath)) {
+                  assets.fonts.push({ src: srcPath, name: fontDir, extension: entry.name });
+                }
+              });
+
+              (extAssets.images || []).forEach(imageDir => {
+                const srcPath = join(assetsDir, 'images', imageDir);
+                if (existsSync(srcPath)) {
+                  assets.images.push({ src: srcPath, name: imageDir, extension: entry.name });
+                }
+              });
+            }
+          } catch (err) {
+            console.warn(`  ⚠️ Error reading manifest in ${entry.name}: ${err.message}`);
+          }
+        }
+
+        scanDirectory(subDir, depth + 1);
+      }
+    } catch (err) {
+      console.warn(`  ⚠️ Error scanning directory ${dir}: ${err.message}`);
+    }
+  }
+
+  scanDirectory(extensionsDir);
+
+  console.log(`  📊 Found ${assets.css.length} CSS, ${assets.fonts.length} font dirs, ${assets.images.length} image dirs`);
+
+  return assets;
+}
+
+function copyExtensionAssets(assets, distDir) {
+  if (!existsSync(distDir)) {
+    console.log(`  ⏭️ Dist directory doesn't exist yet, skipping asset copy`);
+    return;
+  }
+
+  console.log(`📦 Copying extension assets to: ${distDir}`);
+
+  assets.css.forEach(({ src, name, extension }) => {
+    const dest = join(distDir, 'css', name);
+    mkdirSync(dirname(dest), { recursive: true });
+    copyFileSync(src, dest);
+    console.log(`  ✅ Copied CSS: ${name} (from ${extension})`);
+  });
+
+  assets.fonts.forEach(({ src, name, extension }) => {
+    const dest = join(distDir, 'fonts', name);
+    cpSync(src, dest, { recursive: true });
+    console.log(`  ✅ Copied fonts: ${name} (from ${extension})`);
+  });
+
+  assets.images.forEach(({ src, name, extension }) => {
+    const dest = join(distDir, 'images', name);
+    cpSync(src, dest, { recursive: true });
+    console.log(`  ✅ Copied images: ${name} (from ${extension})`);
+  });
 }
 
 function generateCSSVariables(theme) {
@@ -583,6 +682,9 @@ function main() {
     console.log('🔍 Discovering extension UI configs...');
     const extensionUi = discoverExtensionUiConfig(EXTENSIONS_PATH);
 
+    console.log('🔍 Discovering extension assets...');
+    const extensionAssets = discoverExtensionAssets(EXTENSIONS_PATH);
+
     console.log('🔍 Validating theme schema...');
     const schemaContent = readFileSync(SCHEMA_PATH, 'utf8');
     const schema = JSON.parse(schemaContent);
@@ -614,6 +716,8 @@ function main() {
     mkdirSync(dirname(TS_OUTPUT), { recursive: true });
     writeFileSync(TS_OUTPUT, tsContent);
     console.log(`✅ Generated: ${TS_OUTPUT}`);
+
+    copyExtensionAssets(extensionAssets, DIST_DIR);
 
     console.log('✨ Theme generation complete!');
   } catch (error) {
