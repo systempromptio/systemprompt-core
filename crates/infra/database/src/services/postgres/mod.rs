@@ -5,7 +5,7 @@ pub mod transaction;
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
-use sqlx::postgres::{PgConnectOptions, PgPool};
+use sqlx::postgres::{PgConnectOptions, PgPool, PgSslMode};
 use sqlx::Executor;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -27,10 +27,18 @@ impl PostgresProvider {
         let mut connect_options = PgConnectOptions::from_str(database_url)
             .map_err(|e| anyhow!("Failed to parse database URL: {e}"))?;
 
+        let ssl_mode = if database_url.contains("sslmode=require") {
+            PgSslMode::Require
+        } else if database_url.contains("sslmode=disable") {
+            PgSslMode::Disable
+        } else {
+            PgSslMode::Prefer
+        };
+
         connect_options = connect_options
             .application_name("systemprompt")
             .statement_cache_capacity(0)
-            .ssl_mode(sqlx::postgres::PgSslMode::Prefer);
+            .ssl_mode(ssl_mode);
 
         if let Some(ca_cert_path) = Self::get_cert_path() {
             connect_options = connect_options.ssl_root_cert(&ca_cert_path);
