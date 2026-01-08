@@ -1,8 +1,22 @@
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
+use serde::Deserialize;
 use systemprompt_template_provider::{TemplateDefinition, TemplateProvider, TemplateSource};
 use tokio::fs;
-use tracing::debug;
+use tracing::{debug, warn};
+
+#[derive(Debug, Deserialize, Default)]
+struct TemplateManifest {
+    #[serde(default)]
+    templates: HashMap<String, TemplateConfig>,
+}
+
+#[derive(Debug, Deserialize)]
+struct TemplateConfig {
+    #[serde(default)]
+    content_types: Vec<String>,
+}
 
 #[derive(Debug)]
 pub struct CoreTemplateProvider {
@@ -45,6 +59,29 @@ impl TemplateProvider for CoreTemplateProvider {
     }
 }
 
+async fn load_manifest(dir: &Path) -> TemplateManifest {
+    let manifest_path = dir.join("templates.yaml");
+
+    let Ok(content) = fs::read_to_string(&manifest_path).await else {
+        return TemplateManifest::default();
+    };
+
+    match serde_yaml::from_str(&content) {
+        Ok(manifest) => {
+            debug!(path = %manifest_path.display(), "Loaded template manifest");
+            manifest
+        },
+        Err(e) => {
+            warn!(
+                path = %manifest_path.display(),
+                error = %e,
+                "Failed to parse template manifest, using defaults"
+            );
+            TemplateManifest::default()
+        },
+    }
+}
+
 async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition>> {
     let mut templates = Vec::new();
 
@@ -52,6 +89,7 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
         return Ok(templates);
     }
 
+    let manifest = load_manifest(dir).await;
     let mut entries = fs::read_dir(dir).await?;
 
     while let Some(entry) = entries.next_entry().await? {
@@ -69,7 +107,13 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
                 "Discovered template"
             );
 
-            let content_types = infer_content_types(&template_name);
+            let content_types = manifest
+                .templates
+                .get(&template_name)
+                .map_or_else(
+                    || infer_content_types(&template_name),
+                    |config| config.content_types.clone(),
+                );
 
             templates.push(TemplateDefinition {
                 name: template_name,
@@ -85,11 +129,6 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
 
 fn infer_content_types(name: &str) -> Vec<String> {
     match name {
-        "paper" => vec!["paper".into()],
-        "blog-post" => vec!["blog".into()],
-        "docs-post" => vec!["docs".into()],
-        "paper-list" => vec!["paper-list".into()],
-        "blog-list" => vec!["blog-list".into()],
         _ if name.ends_with("-post") => {
             let content_type = name.trim_end_matches("-post");
             vec![content_type.into()]
