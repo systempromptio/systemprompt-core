@@ -717,8 +717,6 @@ function main() {
     writeFileSync(TS_OUTPUT, tsContent);
     console.log(`✅ Generated: ${TS_OUTPUT}`);
 
-    copyExtensionAssets(extensionAssets, DIST_DIR);
-
     console.log('✨ Theme generation complete!');
   } catch (error) {
     console.error('❌ Error generating theme:', error.message);
