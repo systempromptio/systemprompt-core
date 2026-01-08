@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
@@ -117,7 +117,7 @@ fn discover_profiles() -> Result<Vec<ProfileSelection>> {
         .filter_map(std::result::Result::ok)
         .filter(|e| e.path().is_dir())
         .filter_map(|entry| {
-            let profile_yaml = entry.path().join("profile.yaml");
+            let profile_yaml = ProfilePath::Config.resolve(&entry.path());
             if !profile_yaml.exists() {
                 return None;
             }
@@ -164,7 +164,10 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         _ => bail!("Invalid sync type for cloud sync"),
     };
 
-    let secrets_path = source.path.parent().map(|p| p.join("secrets.json"));
+    let secrets_path = source
+        .path
+        .parent()
+        .map(|p| ProfilePath::Secrets.resolve(p));
 
     let database_url = secrets_path
         .and_then(|p| std::fs::read_to_string(&p).ok())

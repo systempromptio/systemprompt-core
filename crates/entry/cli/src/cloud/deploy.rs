@@ -1,8 +1,10 @@
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
-use systemprompt_cloud::constants::build;
-use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, ProjectContext, TenantStore};
+use systemprompt_cloud::constants::{build, container, paths};
+use systemprompt_cloud::{
+    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore,
+};
 use systemprompt_core_logging::CliService;
 
 use super::deploy_select::resolve_profile;
@@ -206,7 +208,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow!("Invalid profile path"))?;
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
 
     if secrets_path.exists() {
         let secrets = super::secrets::load_secrets_json(&secrets_path)?;
@@ -221,7 +223,12 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
         CliService::warning("No secrets.json found - skipping secrets sync");
     }
 
-    let profile_env_path = format!("/app/services/profiles/{}/profile.yaml", profile.name);
+    let profile_env_path = format!(
+        "{}/{}/{}",
+        container::PROFILES,
+        profile.name,
+        paths::PROFILE_CONFIG
+    );
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);
@@ -278,7 +285,7 @@ pub async fn deploy_with_secrets(
 
     let ctx = ProjectContext::discover();
     let profile_dir = ctx.profile_dir(profile_name);
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
 
     if secrets_path.exists() {
         let secrets = super::secrets::load_secrets_json(&secrets_path)?;
@@ -291,7 +298,12 @@ pub async fn deploy_with_secrets(
         }
     }
 
-    let profile_env_path = format!("/app/services/profiles/{}/profile.yaml", profile_name);
+    let profile_env_path = format!(
+        "{}/{}/{}",
+        container::PROFILES,
+        profile_name,
+        paths::PROFILE_CONFIG
+    );
     let spinner = CliService::spinner("Setting profile path...");
     let mut profile_secret = std::collections::HashMap::new();
     profile_secret.insert("SYSTEMPROMPT_PROFILE".to_string(), profile_env_path);

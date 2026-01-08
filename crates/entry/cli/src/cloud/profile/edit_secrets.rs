@@ -2,13 +2,14 @@ use anyhow::Result;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Password, Select};
 use std::path::Path;
+use systemprompt_cloud::ProfilePath;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::Profile;
 
 pub async fn edit_api_keys(profile_dir: &Path) -> Result<()> {
     CliService::section("API Keys (secrets.json)");
 
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
 
     if !secrets_path.exists() {
         CliService::warning("No secrets.json found in this profile.");
