@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::{JwtToken, SessionId};
+use systemprompt_identifiers::{JwtToken, SessionId, SessionToken};
 
 #[derive(Debug, Serialize)]
 struct TuiSessionRequest {
@@ -58,8 +58,8 @@ pub async fn create_tui_session(api_url: &str, user_id: &str, email: &str) -> Re
 
 pub const fn end_tui_session(_session_id: &SessionId) {}
 
-pub async fn verify_token(api_url: &str, token: &JwtToken) -> Result<bool> {
-    let client = SystempromptClient::new(api_url)?.with_token(token.clone());
+pub async fn verify_token(api_url: &str, token: &SessionToken) -> Result<bool> {
+    let client = SystempromptClient::new(api_url)?.with_token(JwtToken::new(token.as_str()));
     client
         .verify_token()
         .await

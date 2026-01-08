@@ -8,12 +8,12 @@ use dialoguer::Select;
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath};
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
-use systemprompt_core_security::{AdminTokenParams, JwtService};
+use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_tui::services::cloud_api::create_tui_session;
-use systemprompt_core_tui::{CloudParams, TuiApp};
+use systemprompt_core_tui::{CloudConnection, LocalSession, TuiApp, TuiParams};
 use systemprompt_core_users::{User, UserService};
-use systemprompt_identifiers::JwtToken;
-use systemprompt_models::{ApiPaths, Config};
+use systemprompt_identifiers::CloudAuthToken;
+use systemprompt_models::ApiPaths;
 
 use crate::cloud::deploy_select::{discover_profiles, DiscoveredProfile};
 
@@ -207,16 +207,15 @@ pub async fn execute() -> Result<()> {
     .await
     .context("Failed to create TUI session")?;
 
-    let config = Config::get()?;
-    let local_token = JwtService::generate_admin_token(&AdminTokenParams {
-        user_id: &selected_admin.id,
-        session_id: &session_id,
-        email: &selected_admin.email,
-        jwt_secret,
-        issuer: &config.jwt_issuer,
-        duration: ChronoDuration::hours(24),
-    })
-    .context("Failed to generate admin token")?;
+    let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
+    let session_token = session_generator
+        .generate(&SessionParams {
+            user_id: &selected_admin.id,
+            session_id: &session_id,
+            email: &selected_admin.email,
+            duration: ChronoDuration::hours(24),
+        })
+        .context("Failed to generate session token")?;
 
     CliService::section("Starting TUI");
     CliService::key_value(
@@ -226,16 +225,23 @@ pub async fn execute() -> Result<()> {
     CliService::key_value("Admin", &selected_admin.email);
     CliService::key_value("Session", session_id.as_str());
 
-    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
+    let cloud_connection = Some(CloudConnection {
+        api_url: creds.api_url.clone(),
+        token: CloudAuthToken::new(creds.api_token.clone()),
+        tenant_id: profile.cloud.as_ref().and_then(|c| c.tenant_id.clone()),
+    });
 
-    let mut app = TuiApp::new_cloud(CloudParams {
-        cloud_api_url: creds.api_url.clone(),
-        cloud_token: JwtToken::new(creds.api_token.clone()),
-        user_email: creds.user_email.clone(),
-        tenant_id,
-        profile,
-        local_token,
+    let local_session = LocalSession {
+        token: session_token,
         session_id,
+        user_id: selected_admin.id.clone(),
+        user_email: selected_admin.email.clone(),
+    };
+
+    let mut app = TuiApp::new_cloud(TuiParams {
+        profile,
+        session: local_session,
+        cloud: cloud_connection,
     })
     .await
     .context("Failed to initialize TUI application")?;

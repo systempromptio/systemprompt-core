@@ -1,3 +1,3 @@
 mod validation;
 
-pub use validation::{AuthMode, AuthValidationService, TokenClaims};
+pub use validation::{AuthMode, AuthValidationService};

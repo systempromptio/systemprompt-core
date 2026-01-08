@@ -1,10 +1,10 @@
 use anyhow::Result;
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, SessionToken};
 use systemprompt_models::AgentCard;
 
-pub async fn fetch_agents(api_url: &str, token: &JwtToken) -> Result<Vec<AgentCard>> {
-    let client = SystempromptClient::new(api_url)?.with_token(token.clone());
+pub async fn fetch_agents(api_url: &str, token: &SessionToken) -> Result<Vec<AgentCard>> {
+    let client = SystempromptClient::new(api_url)?.with_token(JwtToken::new(token.as_str()));
     client
         .list_agents()
         .await

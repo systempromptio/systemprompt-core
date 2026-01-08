@@ -115,9 +115,13 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
                     |config| config.content_types.clone(),
                 );
 
+            let filename = path
+                .file_name()
+                .map_or_else(|| path.clone(), PathBuf::from);
+
             templates.push(TemplateDefinition {
                 name: template_name,
-                source: TemplateSource::File(path),
+                source: TemplateSource::File(filename),
                 priority: 1000,
                 content_types,
             });

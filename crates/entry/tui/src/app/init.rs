@@ -5,7 +5,7 @@ use tracing::{error, info};
 use crate::config::TuiConfig;
 use crate::services::cloud_api;
 use crate::state::{AgentDisplayMetadata, AppState, SystemInstructionsSource, TuiModeInfo};
-use systemprompt_identifiers::{ContextId, JwtToken};
+use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_models::{AgentCard, AgentExtension, Profile};
 
 use super::TuiApp;
@@ -52,9 +52,9 @@ impl TuiApp {
     pub(super) async fn load_agents(
         state: &mut AppState,
         api_external_url: &str,
-        admin_token: &JwtToken,
+        session_token: &SessionToken,
     ) -> Option<String> {
-        let result = cloud_api::fetch_agents(api_external_url, admin_token).await;
+        let result = cloud_api::fetch_agents(api_external_url, session_token).await;
         state.agents.set_loading(false);
 
         match result {
@@ -81,10 +81,10 @@ impl TuiApp {
     pub(super) async fn load_chat_history(
         state: &mut AppState,
         api_external_url: &str,
-        admin_token: &JwtToken,
+        session_token: &SessionToken,
         context_id: &ContextId,
     ) {
-        match cloud_api::fetch_tasks_by_context(api_external_url, admin_token, context_id.as_str())
+        match cloud_api::fetch_tasks_by_context(api_external_url, session_token, context_id.as_str())
             .await
         {
             Ok(tasks) => {
@@ -102,9 +102,9 @@ impl TuiApp {
     pub(super) async fn load_conversations(
         state: &mut AppState,
         api_external_url: &str,
-        admin_token: &JwtToken,
+        session_token: &SessionToken,
     ) {
-        match cloud_api::list_contexts(api_external_url, admin_token).await {
+        match cloud_api::list_contexts(api_external_url, session_token).await {
             Ok(contexts) => Self::apply_loaded_conversations(state, contexts),
             Err(e) => error!(error = %e, "Failed to load conversations"),
         }
@@ -134,9 +134,9 @@ impl TuiApp {
     pub(super) async fn load_artifacts(
         state: &mut AppState,
         api_external_url: &str,
-        admin_token: &JwtToken,
+        session_token: &SessionToken,
     ) {
-        let result = cloud_api::list_all_artifacts(api_external_url, admin_token, Some(100)).await;
+        let result = cloud_api::list_all_artifacts(api_external_url, session_token, Some(100)).await;
         Self::apply_artifacts_result(state, result);
     }
 

@@ -3,13 +3,13 @@ use std::time::Duration;
 use tokio::sync::mpsc;
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, SessionToken};
 
 use crate::messages::{LogEntry, Message};
 
 pub struct LogStreamer {
     api_url: String,
-    token: JwtToken,
+    token: SessionToken,
     message_tx: mpsc::UnboundedSender<Message>,
     poll_interval: Duration,
     last_timestamp: Option<chrono::DateTime<chrono::Utc>>,
@@ -18,7 +18,7 @@ pub struct LogStreamer {
 impl LogStreamer {
     pub const fn new(
         api_url: String,
-        token: JwtToken,
+        token: SessionToken,
         message_tx: mpsc::UnboundedSender<Message>,
         poll_interval: Duration,
     ) -> Self {
@@ -55,7 +55,7 @@ impl LogStreamer {
 
     async fn fetch_new_logs(&mut self) -> Option<Vec<LogEntry>> {
         let client = match SystempromptClient::new(&self.api_url) {
-            Ok(c) => c.with_token(self.token.clone()),
+            Ok(c) => c.with_token(JwtToken::new(self.token.as_str())),
             Err(e) => {
                 tracing::error!("Failed to create client: {}", e);
                 return None;

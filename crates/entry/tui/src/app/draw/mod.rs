@@ -5,7 +5,7 @@ use anyhow::Result;
 use ratatui::prelude::*;
 use ratatui::style::Stylize;
 use ratatui::widgets::{Block, Borders, Paragraph};
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::SessionToken;
 
 use crate::components::chat::render_chat_messages;
 use crate::components::{
@@ -25,7 +25,7 @@ struct RenderContext<'a> {
     state: &'a AppState,
     config: &'a TuiConfig,
     api_url: &'a str,
-    token: &'a JwtToken,
+    token: &'a SessionToken,
 }
 
 impl TuiApp {
@@ -34,7 +34,7 @@ impl TuiApp {
             state: &self.state,
             config: &self.config,
             api_url: &self.api_external_url,
-            token: &self.admin_token,
+            token: &self.session_token,
         };
 
         self.terminal.draw(|frame| {

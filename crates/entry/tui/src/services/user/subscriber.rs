@@ -4,7 +4,7 @@ use std::time::Duration;
 use tokio::sync::{broadcast, mpsc};
 
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, SessionToken};
 
 use crate::events::{TuiEvent, TuiEventBus};
 use crate::messages::Message;
@@ -12,7 +12,7 @@ use crate::state::UserDisplay;
 
 pub struct UserSubscriber {
     api_url: String,
-    token: JwtToken,
+    token: SessionToken,
     message_tx: mpsc::UnboundedSender<Message>,
     event_bus: Arc<TuiEventBus>,
 }
@@ -20,7 +20,7 @@ pub struct UserSubscriber {
 impl UserSubscriber {
     pub const fn new(
         api_url: String,
-        token: JwtToken,
+        token: SessionToken,
         message_tx: mpsc::UnboundedSender<Message>,
         event_bus: Arc<TuiEventBus>,
     ) -> Self {
@@ -68,7 +68,7 @@ impl UserSubscriber {
 
     async fn fetch_users(&self) -> Vec<UserDisplay> {
         let client = match SystempromptClient::new(&self.api_url) {
-            Ok(c) => c.with_token(self.token.clone()),
+            Ok(c) => c.with_token(JwtToken::new(self.token.as_str())),
             Err(e) => {
                 tracing::error!("Failed to create client: {}", e);
                 return Vec::new();

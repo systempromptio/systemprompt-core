@@ -1,7 +1,7 @@
 use anyhow::Result;
 use reqwest::Client;
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, JwtToken};
+use systemprompt_identifiers::{ContextId, SessionToken};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::messages::Message;
@@ -10,20 +10,20 @@ use crate::messages::Message;
 pub struct MessageSender {
     client: Client,
     api_base_url: String,
-    admin_jwt: JwtToken,
+    session_token: SessionToken,
     message_tx: UnboundedSender<Message>,
 }
 
 impl MessageSender {
     pub fn new_with_url(
-        admin_jwt: JwtToken,
+        session_token: SessionToken,
         message_tx: UnboundedSender<Message>,
         api_base_url: &str,
     ) -> Self {
         Self {
             client: Client::new(),
             api_base_url: api_base_url.trim_end_matches('/').to_string(),
-            admin_jwt,
+            session_token,
             message_tx,
         }
     }
@@ -56,7 +56,7 @@ impl MessageSender {
             .post(&url)
             .header(
                 "Authorization",
-                format!("Bearer {}", self.admin_jwt.as_str()),
+                format!("Bearer {}", self.session_token.as_str()),
             )
             .header("Content-Type", "application/json")
             .header("x-context-id", context_id.as_str())

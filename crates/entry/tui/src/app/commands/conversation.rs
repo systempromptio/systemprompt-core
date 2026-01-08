@@ -7,7 +7,7 @@ use super::super::TuiApp;
 impl TuiApp {
     pub(crate) fn spawn_refresh_conversations(&self) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::list_contexts(&api_url, &token).await {
@@ -47,7 +47,7 @@ impl TuiApp {
     async fn load_tasks_for_context(&mut self, context_id: &ContextId) {
         let result = cloud_api::fetch_tasks_by_context(
             &self.api_external_url,
-            &self.admin_token,
+            &self.session_token,
             context_id.as_str(),
         )
         .await;
@@ -67,7 +67,7 @@ impl TuiApp {
 
     pub(crate) fn spawn_rename_conversation(&self, context_id: ContextId, name: String) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::update_context_name(&api_url, &token, context_id.as_str(), &name).await
@@ -87,7 +87,7 @@ impl TuiApp {
 
     pub(crate) async fn spawn_delete_conversation(&self, context_id: ContextId) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         let current_ctx = self.current_context_id.read().await.clone();
 
@@ -115,7 +115,7 @@ impl TuiApp {
 
     pub(crate) fn spawn_create_conversation(&self, name: String) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::create_context_with_name(&api_url, &token, &name).await {

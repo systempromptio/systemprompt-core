@@ -13,13 +13,13 @@
 )]
 
 pub mod api_client;
+pub mod auth;
 pub mod checkout;
 pub mod constants;
 pub mod context;
 pub mod credentials;
 pub mod credentials_bootstrap;
 pub mod error;
-pub mod jwt;
 pub mod oauth;
 pub mod paths;
 pub mod tenants;
