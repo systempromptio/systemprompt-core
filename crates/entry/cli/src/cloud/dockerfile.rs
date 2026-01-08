@@ -74,6 +74,11 @@ pub fn validate_dockerfile_has_mcp_binaries(
     dockerfile_content: &str,
     project_root: &Path,
 ) -> Vec<String> {
+    let has_wildcard = dockerfile_content.contains("target/release/systemprompt-*");
+    if has_wildcard {
+        return Vec::new();
+    }
+
     ExtensionLoader::get_mcp_binary_names(project_root)
         .into_iter()
         .filter(|binary| {
@@ -87,42 +92,26 @@ pub fn print_dockerfile_suggestion(project_root: &Path) {
     systemprompt_core_logging::CliService::info(&generate_dockerfile_content(project_root));
 }
 
-pub fn check_dockerfile_completeness(project_root: &Path) -> Result<()> {
-    let ctx = systemprompt_cloud::ProjectContext::new(project_root.to_path_buf());
-    let profiles_dir = ctx.profiles_dir();
-
-    if !profiles_dir.exists() {
-        return Ok(());
+pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) -> Result<()> {
+    if !dockerfile_path.exists() {
+        bail!(
+            "Dockerfile not found at {}\n\nCreate a profile first with: systemprompt cloud \
+             profile create",
+            dockerfile_path.display()
+        );
     }
 
-    let profile_dockerfiles: Vec<_> = std::fs::read_dir(&profiles_dir)
-        .into_iter()
-        .flatten()
-        .filter_map(std::result::Result::ok)
-        .filter(|entry| entry.path().is_dir())
-        .filter_map(|entry| {
-            let dockerfile = entry.path().join("docker").join("Dockerfile");
-            dockerfile.exists().then_some(dockerfile)
-        })
-        .collect();
+    let content = std::fs::read_to_string(dockerfile_path)?;
+    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
 
-    if profile_dockerfiles.is_empty() {
-        return Ok(());
-    }
-
-    for dockerfile_path in profile_dockerfiles {
-        let content = std::fs::read_to_string(&dockerfile_path)?;
-        let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
-
-        if !missing.is_empty() {
-            bail!(
-                "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
-                 lines:\n\n{}",
-                dockerfile_path.display(),
-                missing.join(", "),
-                get_required_mcp_copy_lines(project_root).join("\n")
-            );
-        }
+    if !missing.is_empty() {
+        bail!(
+            "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
+             lines:\n\n{}",
+            dockerfile_path.display(),
+            missing.join(", "),
+            get_required_mcp_copy_lines(project_root).join("\n")
+        );
     }
 
     Ok(())

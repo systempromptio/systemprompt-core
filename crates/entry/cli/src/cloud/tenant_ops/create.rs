@@ -16,7 +16,6 @@ use systemprompt_models::ServicesConfig;
 
 use crate::cloud::checkout::templates::{ERROR_HTML, SUCCESS_HTML, WAITING_HTML};
 use crate::cloud::deploy::deploy_with_secrets;
-use crate::cloud::dockerfile;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
 use crate::common::project::ProjectRoot;
 use url::Url;
@@ -167,8 +166,6 @@ fn validate_build_ready() -> Result<BuildValidationResult> {
             missing_list
         );
     }
-
-    dockerfile::check_dockerfile_completeness(root)?;
 
     let services_path = find_services_config(root)?;
     let services_config = ConfigLoader::load_from_path(&services_path).with_context(|| {
