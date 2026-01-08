@@ -24,7 +24,10 @@ pub async fn create_context(api_url: &str, token: &SessionToken) -> Result<Conte
     Ok(context.context_id)
 }
 
-pub async fn list_contexts(api_url: &str, token: &SessionToken) -> Result<Vec<UserContextWithStats>> {
+pub async fn list_contexts(
+    api_url: &str,
+    token: &SessionToken,
+) -> Result<Vec<UserContextWithStats>> {
     let client = SystempromptClient::new(api_url)?.with_token(to_jwt(token));
     client
         .list_contexts()

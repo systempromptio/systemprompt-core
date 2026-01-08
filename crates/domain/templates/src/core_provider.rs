@@ -107,17 +107,12 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
                 "Discovered template"
             );
 
-            let content_types = manifest
-                .templates
-                .get(&template_name)
-                .map_or_else(
-                    || infer_content_types(&template_name),
-                    |config| config.content_types.clone(),
-                );
+            let content_types = manifest.templates.get(&template_name).map_or_else(
+                || infer_content_types(&template_name),
+                |config| config.content_types.clone(),
+            );
 
-            let filename = path
-                .file_name()
-                .map_or_else(|| path.clone(), PathBuf::from);
+            let filename = path.file_name().map_or_else(|| path.clone(), PathBuf::from);
 
             templates.push(TemplateDefinition {
                 name: template_name,
