@@ -239,11 +239,21 @@ fn mount_extension_routes(
         return Ok(router);
     }
 
+    let profile = systemprompt_models::ProfileBootstrap::get().map_err(|e| {
+        LoaderError::InitializationFailed {
+            extension: "profile".to_string(),
+            message: e.to_string(),
+        }
+    })?;
+
+    let config_json = serde_json::json!({
+        "paths": profile.paths,
+    });
+
     for ext in api_extensions {
         let ext_id = ext.metadata().id;
         let ext_name = ext.metadata().name;
 
-        let config_json = serde_json::json!({});
         ext.validate_config(&config_json)
             .map_err(|e| LoaderError::ConfigValidationFailed {
                 extension: ext_id.to_string(),

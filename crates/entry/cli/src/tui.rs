@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_cloud::{CredentialsBootstrap, ProfilePath};
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{AdminTokenParams, JwtService};
@@ -129,7 +129,7 @@ pub async fn execute() -> Result<()> {
     let profiles: Vec<_> = discover_profiles()
         .context("Failed to discover profiles")?
         .into_iter()
-        .filter(|p| p.profile.database.external_db_access)
+        .filter(|p| p.profile.database.external_db_access || p.profile.target.is_local())
         .collect();
 
     CliService::section("Available profiles");
@@ -175,7 +175,21 @@ pub async fn execute() -> Result<()> {
     })?;
 
     CliService::info("Loading admin user...");
-    let database_url = SecretsBootstrap::database_url()?;
+
+    let profile_dir = selected
+        .path
+        .parent()
+        .context("Invalid profile path - no parent directory")?;
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+    let secrets_content = std::fs::read_to_string(&secrets_path)
+        .with_context(|| format!("Failed to read secrets from {}", secrets_path.display()))?;
+    let secrets: serde_json::Value =
+        serde_json::from_str(&secrets_content).context("Failed to parse profile secrets.json")?;
+    let database_url = secrets
+        .get("database_url")
+        .and_then(|v| v.as_str())
+        .context("No database_url in profile secrets.json")?;
+
     let selected_admin = fetch_admin_user_by_email(database_url, cloud_email)
         .await
         .context("Failed to fetch admin user from database")?;
