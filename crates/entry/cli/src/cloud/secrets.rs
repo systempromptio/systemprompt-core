@@ -219,20 +219,24 @@ pub fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
 }
 
 pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
+    let has_internal = secrets.contains_key("internal_database_url");
+
     secrets
         .into_iter()
-        .map(|(k, v)| {
-            let env_key = to_env_var_name(&k);
-            (env_key, v)
+        .filter_map(|(k, v)| {
+            let env_key = to_env_var_name(&k, has_internal)?;
+            Some((env_key, v))
         })
         .collect()
 }
 
-fn to_env_var_name(key: &str) -> String {
+fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
     match key {
-        "gemini" => "GEMINI_API_KEY".to_string(),
-        "anthropic" => "ANTHROPIC_API_KEY".to_string(),
-        "openai" => "OPENAI_API_KEY".to_string(),
-        _ => key.to_uppercase(),
+        "gemini" => Some("GEMINI_API_KEY".to_string()),
+        "anthropic" => Some("ANTHROPIC_API_KEY".to_string()),
+        "openai" => Some("OPENAI_API_KEY".to_string()),
+        "internal_database_url" => Some("DATABASE_URL".to_string()),
+        "database_url" if has_internal_db_url => None,
+        _ => Some(key.to_uppercase()),
     }
 }

@@ -322,7 +322,10 @@ impl Profile {
             display_name: display_name.to_string(),
             target: ProfileType::Cloud,
             site: Self::site_config_from_env(&require_env)?,
-            database: DatabaseConfig { db_type },
+            database: DatabaseConfig {
+                db_type,
+                external_db_access: false,
+            },
             server: Self::server_config_from_env(&require_env)?,
             paths: Self::paths_config_from_env(&require_env)?,
             security: Self::security_config_from_env()?,

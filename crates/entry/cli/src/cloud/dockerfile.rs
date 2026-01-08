@@ -16,7 +16,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR /app
 
-RUN mkdir -p /app/bin /app/data /app/logs /app/storage
+RUN mkdir -p /app/bin /app/data /app/logs /app/storage/images/blog /app/storage/images/social /app/storage/images/logos /app/storage/images/generated /app/storage/files/audio /app/storage/files/video /app/storage/files/documents /app/storage/files/uploads
 
 COPY target/release/systemprompt /app/bin/
 ";

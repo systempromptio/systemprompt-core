@@ -15,7 +15,8 @@ pub struct NewCloudTenantParams {
     pub app_id: Option<String>,
     pub hostname: Option<String>,
     pub region: Option<String>,
-    pub database_url: String,
+    pub database_url: Option<String>,
+    pub internal_database_url: String,
     pub external_db_access: bool,
 }
 
@@ -47,6 +48,9 @@ pub struct StoredTenant {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub database_url: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub internal_database_url: Option<String>,
+
     #[serde(default)]
     pub tenant_type: TenantType,
 
@@ -64,6 +68,7 @@ impl StoredTenant {
             hostname: None,
             region: None,
             database_url: None,
+            internal_database_url: None,
             tenant_type: TenantType::default(),
             external_db_access: false,
         }
@@ -78,6 +83,7 @@ impl StoredTenant {
             hostname: None,
             region: None,
             database_url: Some(database_url),
+            internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
         }
@@ -91,7 +97,8 @@ impl StoredTenant {
             app_id: params.app_id,
             hostname: params.hostname,
             region: params.region,
-            database_url: Some(params.database_url),
+            database_url: params.database_url,
+            internal_database_url: Some(params.internal_database_url),
             tenant_type: TenantType::Cloud,
             external_db_access: params.external_db_access,
         }
@@ -105,7 +112,8 @@ impl StoredTenant {
             app_id: info.app_id.clone(),
             hostname: info.hostname.clone(),
             region: info.region.clone(),
-            database_url: Some(info.database_url.clone()),
+            database_url: None,
+            internal_database_url: Some(info.database_url.clone()),
             tenant_type: TenantType::Cloud,
             external_db_access: info.external_db_access,
         }
@@ -113,9 +121,23 @@ impl StoredTenant {
 
     #[must_use]
     pub fn has_database_url(&self) -> bool {
+        match self.tenant_type {
+            TenantType::Cloud => self
+                .internal_database_url
+                .as_ref()
+                .is_some_and(|url| !url.is_empty()),
+            TenantType::Local => self
+                .database_url
+                .as_ref()
+                .is_some_and(|url| !url.is_empty()),
+        }
+    }
+
+    #[must_use]
+    pub fn get_local_database_url(&self) -> Option<&String> {
         self.database_url
             .as_ref()
-            .is_some_and(|url| !url.is_empty())
+            .or(self.internal_database_url.as_ref())
     }
 }
 

@@ -13,6 +13,7 @@ mod mcp;
 mod roles;
 mod session;
 mod task;
+mod tenant;
 mod trace;
 mod user;
 
@@ -31,5 +32,6 @@ pub use mcp::{AiToolCallId, McpExecutionId, McpServerId};
 pub use roles::RoleId;
 pub use session::SessionId;
 pub use task::TaskId;
+pub use tenant::TenantId;
 pub use trace::TraceId;
 pub use user::UserId;

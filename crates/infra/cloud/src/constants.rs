@@ -65,3 +65,18 @@ pub mod build {
     pub const BINARY_NAME: &str = "systemprompt";
     pub const DOCKERFILE: &str = ".systemprompt/Dockerfile";
 }
+
+pub mod profile {
+    pub const DEFAULT_DB_TYPE: &str = "postgres";
+    pub const DEFAULT_PORT: u16 = 8080;
+    pub const LOCAL_HOST: &str = "127.0.0.1";
+    pub const CLOUD_HOST: &str = "0.0.0.0";
+    pub const DEFAULT_CLOUD_URL: &str = "https://cloud.systemprompt.io";
+    pub const LOCAL_ISSUER: &str = "systemprompt-local";
+    pub const CLOUD_ISSUER: &str = "systemprompt";
+    pub const ACCESS_TOKEN_EXPIRATION: i64 = 86400;
+    pub const REFRESH_TOKEN_EXPIRATION: i64 = 2_592_000;
+    pub const CLOUD_APP_PATH: &str = "/app";
+    pub const CREDENTIALS_PATH: &str = "../../credentials.json";
+    pub const TENANTS_PATH: &str = "../../tenants.json";
+}
