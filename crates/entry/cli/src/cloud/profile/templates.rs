@@ -114,6 +114,12 @@ pub fn save_dockerignore(path: &Path) -> Result<()> {
 .gitignore
 .gitmodules
 target/debug
+target/release/.fingerprint
+target/release/build
+target/release/deps
+target/release/examples
+target/release/incremental
+target/release/.cargo-lock
 .cargo
 .systemprompt/credentials.json
 .systemprompt/tenants.json
