@@ -58,7 +58,7 @@ pub mod paths {
     pub const TENANTS_FILE: &str = "tenants.json";
     pub const PROFILE_DOCKER_DIR: &str = "docker";
     pub const ENTRYPOINT: &str = "entrypoint.sh";
-    pub const DOCKERIGNORE: &str = ".dockerignore";
+    pub const DOCKERIGNORE: &str = "Dockerfile.dockerignore";
     pub const COMPOSE_FILE: &str = "compose.yaml";
 }
 
