@@ -145,6 +145,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn required_storage_paths(&self) -> Vec<&'static str> {
+        vec![]
+    }
+
     fn dependencies(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -191,6 +195,10 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_template_providers(&self) -> bool {
         !self.template_providers().is_empty()
+    }
+
+    fn has_storage_paths(&self) -> bool {
+        !self.required_storage_paths().is_empty()
     }
 }
 
