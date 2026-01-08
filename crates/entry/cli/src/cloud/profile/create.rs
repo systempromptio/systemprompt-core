@@ -110,9 +110,11 @@ pub async fn execute(name: &str) -> Result<()> {
     save_entrypoint(&entrypoint_path)?;
     CliService::success(&format!("Created: {}", entrypoint_path.display()));
 
-    let dockerignore_path = ctx.profile_dockerignore(name);
-    save_dockerignore(&dockerignore_path)?;
-    CliService::success(&format!("Created: {}", dockerignore_path.display()));
+    let dockerignore_path = ctx.dockerignore();
+    if !dockerignore_path.exists() {
+        save_dockerignore(&dockerignore_path)?;
+        CliService::success(&format!("Created: {}", dockerignore_path.display()));
+    }
 
     match built_profile.validate() {
         Ok(()) => CliService::success("Profile validated"),
@@ -220,9 +222,11 @@ pub fn create_profile_for_tenant(
     save_entrypoint(&entrypoint_path)?;
     CliService::success(&format!("Created: {}", entrypoint_path.display()));
 
-    let dockerignore_path = ctx.profile_dockerignore(&name);
-    save_dockerignore(&dockerignore_path)?;
-    CliService::success(&format!("Created: {}", dockerignore_path.display()));
+    let dockerignore_path = ctx.dockerignore();
+    if !dockerignore_path.exists() {
+        save_dockerignore(&dockerignore_path)?;
+        CliService::success(&format!("Created: {}", dockerignore_path.display()));
+    }
 
     match built_profile.validate() {
         Ok(()) => CliService::success("Profile validated"),
