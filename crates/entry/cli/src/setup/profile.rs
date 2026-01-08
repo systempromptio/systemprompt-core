@@ -39,6 +39,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         },
         database: ProfileDatabaseConfig {
             db_type: "postgres".to_string(),
+            external_db_access: false,
         },
         server: ServerConfig {
             host: if is_prod {

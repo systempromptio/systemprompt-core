@@ -6,11 +6,15 @@ use systemprompt_cloud::{
 };
 use systemprompt_core_logging::CliService;
 
+use systemprompt_identifiers::TenantId;
+
 use super::api_keys::{collect_api_keys, ApiKeys};
-use super::builders::{build_cloud_profile, build_local_profile};
+use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
-use super::templates::{get_services_path, save_dockerfile, save_profile, save_secrets};
+use super::templates::{
+    get_services_path, save_dockerfile, save_profile, save_secrets, DatabaseUrls,
+};
 
 pub async fn execute(name: &str) -> Result<()> {
     CliService::section(&format!("Create Profile: {}", name));
@@ -61,11 +65,14 @@ pub async fn execute(name: &str) -> Result<()> {
     })?;
 
     let secrets_path = profile_dir.join("secrets.json");
-    let db_url = tenant
-        .database_url
-        .as_ref()
+    let external_url = tenant
+        .get_local_database_url()
         .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-    save_secrets(db_url, &api_keys, &secrets_path)?;
+    let db_urls = DatabaseUrls {
+        external: external_url,
+        internal: tenant.internal_database_url.as_deref(),
+    };
+    save_secrets(db_urls, &api_keys, &secrets_path)?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let services_path = get_services_path()?;
@@ -73,21 +80,17 @@ pub async fn execute(name: &str) -> Result<()> {
     let relative_secrets_path = "./secrets.json";
 
     let built_profile = match tenant.tenant_type {
-        TenantType::Local => build_local_profile(
-            name,
-            Some(tenant.id.clone()),
-            relative_secrets_path,
-            &services_path,
-        ),
+        TenantType::Local => LocalProfileBuilder::new(name, relative_secrets_path, &services_path)
+            .with_tenant_id(TenantId::new(&tenant.id))
+            .build(),
         TenantType::Cloud => {
-            let external_url = tenant.hostname.as_ref().map(|h| format!("https://{}", h));
-            build_cloud_profile(
-                name,
-                Some(tenant.id.clone()),
-                &services_path,
-                external_url.as_deref(),
-                relative_secrets_path,
-            )
+            let mut builder = CloudProfileBuilder::new(name)
+                .with_tenant_id(TenantId::new(&tenant.id))
+                .with_external_db_access(tenant.external_db_access);
+            if let Some(hostname) = &tenant.hostname {
+                builder = builder.with_external_url(format!("https://{}", hostname));
+            }
+            builder.build()
         },
     };
 
@@ -106,6 +109,9 @@ pub async fn execute(name: &str) -> Result<()> {
     }
 
     if tenant.tenant_type == TenantType::Local {
+        let db_url = tenant
+            .get_local_database_url()
+            .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
         handle_local_tenant_setup(&cloud_user, db_url, &tenant.name, &profile_path).await?;
     }
 
@@ -168,24 +174,25 @@ pub fn create_profile_for_tenant(
     })?;
 
     let secrets_path = profile_dir.join("secrets.json");
-    let db_url = tenant
-        .database_url
-        .as_ref()
+    let local_db_url = tenant
+        .get_local_database_url()
         .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
-    save_secrets(db_url, api_keys, &secrets_path)?;
+    let db_urls = DatabaseUrls {
+        external: local_db_url,
+        internal: tenant.internal_database_url.as_deref(),
+    };
+    save_secrets(db_urls, api_keys, &secrets_path)?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
-    let services_path = get_services_path()?;
     let profile_path = profile_dir.join("profile.yaml");
 
-    let external_url = tenant.hostname.as_ref().map(|h| format!("https://{}", h));
-    let built_profile = build_cloud_profile(
-        &name,
-        Some(tenant.id.clone()),
-        &services_path,
-        external_url.as_deref(),
-        "./secrets.json",
-    );
+    let mut builder = CloudProfileBuilder::new(&name)
+        .with_tenant_id(TenantId::new(&tenant.id))
+        .with_external_db_access(tenant.external_db_access);
+    if let Some(hostname) = &tenant.hostname {
+        builder = builder.with_external_url(format!("https://{}", hostname));
+    }
+    let built_profile = builder.build();
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));

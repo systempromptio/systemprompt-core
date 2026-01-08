@@ -351,7 +351,7 @@ pub async fn create_cloud_tenant(
     };
     spinner.finish_and_clear();
 
-    let Some(mut database_url) = database_url else {
+    let Some(internal_database_url) = database_url else {
         bail!("Could not retrieve database credentials. Tenant creation incomplete.")
     };
     CliService::success("Database credentials retrieved");
@@ -367,26 +367,26 @@ pub async fn create_cloud_tenant(
         .default(true)
         .interact()?;
 
-    let external_db_access = if enable_external {
+    let (external_db_access, external_database_url) = if enable_external {
         let spinner = CliService::spinner("Enabling external database access...");
         match client.set_external_db_access(&result.tenant_id, true).await {
             Ok(_) => {
-                database_url = swap_to_external_host(&database_url);
+                let external_url = swap_to_external_host(&internal_database_url);
                 spinner.finish_and_clear();
                 CliService::success("External database access enabled");
-                print_database_connection_info(&database_url);
-                true
+                print_database_connection_info(&external_url);
+                (true, Some(external_url))
             },
             Err(e) => {
                 spinner.finish_and_clear();
                 CliService::warning(&format!("Failed to enable external access: {}", e));
                 CliService::info("You can enable it later with 'systemprompt cloud tenant edit'");
-                false
+                (false, None)
             },
         }
     } else {
         CliService::info("External access disabled. TUI features will be limited.");
-        false
+        (false, None)
     };
 
     let spinner = CliService::spinner("Syncing new tenant...");
@@ -406,7 +406,8 @@ pub async fn create_cloud_tenant(
         app_id: new_tenant.app_id.clone(),
         hostname: new_tenant.hostname.clone(),
         region: new_tenant.region.clone(),
-        database_url: Some(database_url),
+        database_url: external_database_url,
+        internal_database_url: Some(internal_database_url),
         external_db_access,
     };
 

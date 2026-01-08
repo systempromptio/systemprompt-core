@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR /app
 
-RUN mkdir -p /app/bin /app/bin/mcp /app/storage
+RUN mkdir -p /app/bin /app/bin/mcp /app/storage/images/blog /app/storage/images/social /app/storage/images/logos /app/storage/images/generated /app/storage/files/audio /app/storage/files/video /app/storage/files/documents /app/storage/files/uploads
 
 # Copy pre-built binaries
 COPY target/release/systemprompt /app/bin/
@@ -43,6 +43,9 @@ COPY target/release/systemprompt-* /app/bin/mcp/ 2>/dev/null || true
 
 # Copy web assets
 COPY core/web/dist /app/web/dist
+
+# Copy storage assets (images, etc.)
+COPY storage /app/storage
 
 # Copy services configuration
 COPY services /app/services
@@ -77,8 +80,13 @@ CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
     Ok(())
 }
 
+pub struct DatabaseUrls<'a> {
+    pub external: &'a str,
+    pub internal: Option<&'a str>,
+}
+
 pub fn save_secrets(
-    database_url: &str,
+    db_urls: DatabaseUrls<'_>,
     api_keys: &super::api_keys::ApiKeys,
     secrets_path: &Path,
 ) -> Result<()> {
@@ -89,13 +97,17 @@ pub fn save_secrets(
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    let secrets = json!({
+    let mut secrets = json!({
         "jwt_secret": generate_jwt_secret(),
-        "database_url": database_url,
+        "database_url": db_urls.external,
         "gemini": api_keys.gemini,
         "anthropic": api_keys.anthropic,
         "openai": api_keys.openai
     });
+
+    if let Some(internal) = db_urls.internal {
+        secrets["internal_database_url"] = json!(internal);
+    }
 
     let content = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
 

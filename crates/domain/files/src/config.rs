@@ -73,23 +73,41 @@ impl FilesConfig {
         }
 
         let images_dir = self.images();
-        if !images_dir.exists() {
+        if images_dir.exists() {
+            let required_image_subdirs = ["blog", "social", "logos"];
+            for subdir in required_image_subdirs {
+                let path = images_dir.join(subdir);
+                if !path.exists() {
+                    errors.push(format!(
+                        "Required images subdirectory not found: {}",
+                        path.display()
+                    ));
+                }
+            }
+        } else {
             errors.push(format!(
                 "Images directory not found: {}",
                 images_dir.display()
             ));
-            return errors;
         }
 
-        let required_image_subdirs = ["blog", "social", "logos"];
-        for subdir in required_image_subdirs {
-            let path = images_dir.join(subdir);
-            if !path.exists() {
-                errors.push(format!(
-                    "Required images subdirectory not found: {}",
-                    path.display()
-                ));
+        let files_dir = self.files();
+        if files_dir.exists() {
+            let required_file_subdirs = ["audio", "video", "documents", "uploads"];
+            for subdir in required_file_subdirs {
+                let path = files_dir.join(subdir);
+                if !path.exists() {
+                    errors.push(format!(
+                        "Required files subdirectory not found: {}",
+                        path.display()
+                    ));
+                }
             }
+        } else {
+            errors.push(format!(
+                "Files directory not found: {}",
+                files_dir.display()
+            ));
         }
 
         errors
@@ -110,6 +128,26 @@ impl FilesConfig {
 
     pub fn images(&self) -> PathBuf {
         self.storage_root.join("images")
+    }
+
+    pub fn files(&self) -> PathBuf {
+        self.storage_root.join("files")
+    }
+
+    pub fn audio(&self) -> PathBuf {
+        self.storage_root.join("files/audio")
+    }
+
+    pub fn video(&self) -> PathBuf {
+        self.storage_root.join("files/video")
+    }
+
+    pub fn documents(&self) -> PathBuf {
+        self.storage_root.join("files/documents")
+    }
+
+    pub fn uploads(&self) -> PathBuf {
+        self.storage_root.join("files/uploads")
     }
 
     pub fn url_prefix(&self) -> &str {
@@ -135,5 +173,30 @@ impl FilesConfig {
     pub fn content_image_url(&self, source: &str, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
         format!("{}/images/{}/{}", self.url_prefix, source, name)
+    }
+
+    pub fn file_url(&self, relative_to_files: &str) -> String {
+        let path = relative_to_files.trim_start_matches('/');
+        format!("{}/files/{}", self.url_prefix, path)
+    }
+
+    pub fn audio_url(&self, filename: &str) -> String {
+        let name = filename.trim_start_matches('/');
+        format!("{}/files/audio/{}", self.url_prefix, name)
+    }
+
+    pub fn video_url(&self, filename: &str) -> String {
+        let name = filename.trim_start_matches('/');
+        format!("{}/files/video/{}", self.url_prefix, name)
+    }
+
+    pub fn document_url(&self, filename: &str) -> String {
+        let name = filename.trim_start_matches('/');
+        format!("{}/files/documents/{}", self.url_prefix, name)
+    }
+
+    pub fn upload_url(&self, filename: &str) -> String {
+        let name = filename.trim_start_matches('/');
+        format!("{}/files/uploads/{}", self.url_prefix, name)
     }
 }
