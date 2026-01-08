@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use std::path::Path;
 
 use systemprompt_cloud::constants::{container, storage};
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::ExtensionLoader;
 
 pub struct DockerfileBuilder<'a> {
@@ -25,6 +26,7 @@ impl<'a> DockerfileBuilder<'a> {
     pub fn build(&self) -> String {
         let mcp_section = self.mcp_copy_section();
         let env_section = self.env_section();
+        let extension_dirs = Self::extension_storage_dirs();
 
         format!(
             r#"# SystemPrompt Application Dockerfile
@@ -45,7 +47,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads}
+RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads}{extension_dirs}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -89,9 +91,27 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
             video = storage::VIDEO,
             documents = storage::DOCUMENTS,
             uploads = storage::UPLOADS,
+            extension_dirs = extension_dirs,
             mcp_section = mcp_section,
             env_section = env_section,
         )
+    }
+
+    fn extension_storage_dirs() -> String {
+        let registry = ExtensionRegistry::discover();
+        let paths = registry.all_required_storage_paths();
+        if paths.is_empty() {
+            return String::new();
+        }
+
+        let mut result = String::new();
+        for path in paths {
+            result.push(' ');
+            result.push_str(container::STORAGE);
+            result.push('/');
+            result.push_str(path);
+        }
+        result
     }
 
     fn mcp_copy_section(&self) -> String {

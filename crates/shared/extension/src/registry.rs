@@ -253,6 +253,22 @@ impl ExtensionRegistry {
     }
 
     #[must_use]
+    pub fn storage_extensions(&self) -> Vec<Arc<dyn Extension>> {
+        self.sorted_extensions
+            .iter()
+            .filter(|e| e.has_storage_paths())
+            .cloned()
+            .collect()
+    }
+
+    pub fn all_required_storage_paths(&self) -> Vec<&'static str> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|e| e.required_storage_paths())
+            .collect()
+    }
+
+    #[must_use]
     pub fn len(&self) -> usize {
         self.extensions.len()
     }
