@@ -1,0 +1,40 @@
+[package]
+name = "systemprompt-templates"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Template registry and management for SystemPrompt"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Template provider traits
+systemprompt-template-provider = { path = "../../shared/template-provider" }
+
+# Core async
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+
+# Template engine
+handlebars = "4.1"
+
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["fs", "sync"] }
+
+# Tracing
+tracing = { workspace = true }
+
+# Collections
+indexmap = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+tempfile = { workspace = true }

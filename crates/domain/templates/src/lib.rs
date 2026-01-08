@@ -1,0 +1,14 @@
+mod core_provider;
+mod error;
+mod registry;
+
+pub use core_provider::CoreTemplateProvider;
+pub use error::TemplateError;
+pub use registry::{RegistryStats, TemplateRegistry, TemplateRegistryBuilder};
+
+pub use systemprompt_template_provider::{
+    ComponentContext, ComponentRenderer, DynComponentRenderer, DynTemplateDataExtender,
+    DynTemplateLoader, DynTemplateProvider, EmbeddedLoader, ExtendedData, ExtenderContext,
+    FileSystemLoader, RenderedComponent, TemplateDataExtender, TemplateDefinition, TemplateLoader,
+    TemplateProvider, TemplateSource,
+};

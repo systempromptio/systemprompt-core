@@ -6,6 +6,7 @@ members = [
     "crates/shared/client",
     "crates/shared/identifiers",
     "crates/shared/extension",
+    "crates/shared/template-provider",
     # Infrastructure layer
     "crates/infra/database",
     "crates/infra/logging",
@@ -23,6 +24,7 @@ members = [
     "crates/domain/mcp",
     "crates/domain/ai",
     "crates/domain/agent",
+    "crates/domain/templates",
     # Application layer
     "crates/app/runtime",
     "crates/app/scheduler",

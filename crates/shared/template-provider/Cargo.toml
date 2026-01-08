@@ -1,0 +1,29 @@
+[package]
+name = "systemprompt-template-provider"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Template provider traits and abstractions for SystemPrompt"
+
+[lints]
+workspace = true
+
+[dependencies]
+# Core async traits
+async-trait = { workspace = true }
+anyhow = { workspace = true }
+
+# Serialization for template data
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+
+# Async runtime
+tokio = { workspace = true, features = ["fs", "sync"] }
+
+# Tracing for diagnostics
+tracing = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
