@@ -1,9 +1,19 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{MessageId, TaskId};
+use systemprompt_core_files::{FileUploadRequest, FileUploadService};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Part;
+
+#[derive(Debug, Clone)]
+pub struct FileUploadContext<'a> {
+    pub upload_service: &'a FileUploadService,
+    pub context_id: &'a ContextId,
+    pub user_id: Option<&'a UserId>,
+    pub session_id: Option<&'a SessionId>,
+    pub trace_id: Option<&'a TraceId>,
+}
 
 pub async fn get_message_parts(
     pool: &Arc<PgPool>,
@@ -86,6 +96,7 @@ pub async fn persist_part_sqlx(
     message_id: &MessageId,
     task_id: &TaskId,
     sequence_number: i32,
+    upload_ctx: Option<&FileUploadContext<'_>>,
 ) -> Result<(), RepositoryError> {
     match part {
         Part::Text(text_part) => {
@@ -102,17 +113,24 @@ pub async fn persist_part_sqlx(
             .map_err(|e| RepositoryError::Database(e.to_string()))?;
         },
         Part::File(file_part) => {
-            let file_uri: Option<&str> = None;
+            let upload_result = try_upload_file(file_part, upload_ctx).await;
+
+            let (file_id, file_uri) = match upload_result {
+                Some((id, uri)) => (Some(id), Some(uri)),
+                None => (None, None),
+            };
+
             sqlx::query!(
-                r#"INSERT INTO message_parts (message_id, task_id, part_kind, sequence_number, file_name, file_mime_type, file_uri, file_bytes)
-                VALUES ($1, $2, 'file', $3, $4, $5, $6, $7)"#,
+                r#"INSERT INTO message_parts (message_id, task_id, part_kind, sequence_number, file_name, file_mime_type, file_uri, file_bytes, file_id)
+                VALUES ($1, $2, 'file', $3, $4, $5, $6, $7, $8)"#,
                 message_id.as_str(),
                 task_id.as_str(),
                 sequence_number,
                 file_part.file.name,
                 file_part.file.mime_type,
                 file_uri,
-                file_part.file.bytes
+                file_part.file.bytes,
+                file_id
             )
             .execute(&mut **tx)
             .await
@@ -136,6 +154,55 @@ pub async fn persist_part_sqlx(
     }
 
     Ok(())
+}
+
+async fn try_upload_file(
+    file_part: &crate::models::a2a::FilePart,
+    upload_ctx: Option<&FileUploadContext<'_>>,
+) -> Option<(uuid::Uuid, String)> {
+    let ctx = upload_ctx?;
+
+    if !ctx.upload_service.is_enabled() {
+        return None;
+    }
+
+    let mime_type = file_part
+        .file
+        .mime_type
+        .as_deref()
+        .unwrap_or("application/octet-stream");
+
+    let mut builder =
+        FileUploadRequest::builder(mime_type, &file_part.file.bytes, ctx.context_id.clone());
+
+    if let Some(name) = &file_part.file.name {
+        builder = builder.with_name(name);
+    }
+
+    if let Some(user_id) = ctx.user_id {
+        builder = builder.with_user_id(user_id.clone());
+    }
+
+    if let Some(session_id) = ctx.session_id {
+        builder = builder.with_session_id(session_id.clone());
+    }
+
+    if let Some(trace_id) = ctx.trace_id {
+        builder = builder.with_trace_id(trace_id.clone());
+    }
+
+    let request = builder.build();
+
+    match ctx.upload_service.upload_file(request).await {
+        Ok(uploaded) => {
+            let file_uuid = uuid::Uuid::parse_str(uploaded.file_id.as_str()).ok()?;
+            Some((file_uuid, uploaded.public_url))
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "File upload failed, continuing with base64 only");
+            None
+        },
+    }
 }
 
 pub async fn persist_part_with_tx(

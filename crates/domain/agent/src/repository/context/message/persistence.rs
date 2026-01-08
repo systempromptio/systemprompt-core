@@ -3,7 +3,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-use super::parts::{persist_part_sqlx, persist_part_with_tx};
+use super::parts::{persist_part_sqlx, persist_part_with_tx, FileUploadContext};
 
 pub async fn persist_message_sqlx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
@@ -14,6 +14,7 @@ pub async fn persist_message_sqlx(
     user_id: Option<&UserId>,
     session_id: &SessionId,
     trace_id: &TraceId,
+    upload_ctx: Option<&FileUploadContext<'_>>,
 ) -> Result<(), RepositoryError> {
     let metadata_json = serde_json::to_value(&message.metadata)
         .map_err(|e| RepositoryError::Serialization(e.to_string()))?;
@@ -66,7 +67,7 @@ pub async fn persist_message_sqlx(
     .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
     for (idx, part) in message.parts.iter().enumerate() {
-        persist_part_sqlx(tx, part, &message.id, task_id, idx as i32).await?;
+        persist_part_sqlx(tx, part, &message.id, task_id, idx as i32, upload_ctx).await?;
     }
 
     Ok(())
