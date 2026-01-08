@@ -21,7 +21,7 @@ pub mod macros;
 
 pub use agent::{AgentId, AgentName};
 pub use ai::{AiRequestId, ConfigId, MessageId};
-pub use auth::JwtToken;
+pub use auth::{CloudAuthToken, JwtToken, SessionToken};
 pub use client::{ClientId, ClientType};
 pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
 pub use context::ContextId;

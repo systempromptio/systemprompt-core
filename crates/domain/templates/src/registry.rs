@@ -81,7 +81,8 @@ impl TemplateRegistry {
         );
 
         if self.loaders.is_empty() {
-            let loader: DynTemplateLoader = Arc::new(FileSystemLoader::default());
+            let cwd = std::env::current_dir().unwrap_or_default();
+            let loader: DynTemplateLoader = Arc::new(FileSystemLoader::with_path(cwd));
             self.loaders.push(loader);
         }
 
