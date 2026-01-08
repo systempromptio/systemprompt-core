@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use systemprompt_cloud::constants::build;
-use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore};
+use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, ProjectContext, TenantStore};
 use systemprompt_core_logging::CliService;
 
 use super::deploy_select::resolve_profile;
@@ -19,7 +19,7 @@ pub struct DeployConfig {
 }
 
 impl DeployConfig {
-    pub fn from_project(project: &ProjectRoot) -> Result<Self> {
+    pub fn from_project(project: &ProjectRoot, profile_name: &str) -> Result<Self> {
         let root = project.as_path();
         let binary = root
             .join(build::CARGO_TARGET)
@@ -27,7 +27,9 @@ impl DeployConfig {
             .join(build::BINARY_NAME);
         let web_dist = root.join(build::WEB_DIST);
         let web_images = root.join(build::WEB_IMAGES);
-        let dockerfile = root.join(build::DOCKERFILE);
+
+        let ctx = ProjectContext::new(root.to_path_buf());
+        let dockerfile = ctx.profile_dockerfile(profile_name);
 
         let config = Self {
             binary,
@@ -149,7 +151,7 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
 
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
-    let config = DeployConfig::from_project(&project)?;
+    let config = DeployConfig::from_project(&project, &profile.name)?;
 
     CliService::key_value("Tenant", tenant_name);
     CliService::key_value("Binary", &config.binary.display().to_string());
@@ -233,7 +235,8 @@ pub async fn deploy_with_secrets(
     profile_name: &str,
 ) -> Result<()> {
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
-    let dockerfile = project.as_path().join(build::DOCKERFILE);
+    let ctx = ProjectContext::new(project.as_path().to_path_buf());
+    let dockerfile = ctx.profile_dockerfile(profile_name);
 
     let spinner = CliService::spinner("Fetching registry credentials...");
     let registry_token = client.get_registry_token(tenant_id).await?;
@@ -268,7 +271,7 @@ pub async fn deploy_with_secrets(
         CliService::key_value("URL", &url);
     }
 
-    let ctx = systemprompt_cloud::ProjectContext::discover();
+    let ctx = ProjectContext::discover();
     let profile_dir = ctx.profile_dir(profile_name);
     let secrets_path = profile_dir.join("secrets.json");
 

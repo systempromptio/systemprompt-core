@@ -88,26 +88,41 @@ pub fn print_dockerfile_suggestion(project_root: &Path) {
 }
 
 pub fn check_dockerfile_completeness(project_root: &Path) -> Result<()> {
-    let dockerfile_path = project_root.join(".systemprompt/Dockerfile");
+    let ctx = systemprompt_cloud::ProjectContext::new(project_root.to_path_buf());
+    let profiles_dir = ctx.profiles_dir();
 
-    if !dockerfile_path.exists() {
-        bail!(
-            "Dockerfile not found at .systemprompt/Dockerfile\n\nCreate it with the following \
-             content:\n\n{}",
-            generate_dockerfile_content(project_root)
-        );
+    if !profiles_dir.exists() {
+        return Ok(());
     }
 
-    let content = std::fs::read_to_string(&dockerfile_path)?;
-    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
+    let profile_dockerfiles: Vec<_> = std::fs::read_dir(&profiles_dir)
+        .into_iter()
+        .flatten()
+        .filter_map(std::result::Result::ok)
+        .filter(|entry| entry.path().is_dir())
+        .filter_map(|entry| {
+            let dockerfile = entry.path().join("docker").join("Dockerfile");
+            dockerfile.exists().then_some(dockerfile)
+        })
+        .collect();
 
-    if !missing.is_empty() {
-        bail!(
-            "Dockerfile is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these lines to \
-             your Dockerfile:\n\n{}",
-            missing.join(", "),
-            get_required_mcp_copy_lines(project_root).join("\n")
-        );
+    if profile_dockerfiles.is_empty() {
+        return Ok(());
+    }
+
+    for dockerfile_path in profile_dockerfiles {
+        let content = std::fs::read_to_string(&dockerfile_path)?;
+        let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
+
+        if !missing.is_empty() {
+            bail!(
+                "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
+                 lines:\n\n{}",
+                dockerfile_path.display(),
+                missing.join(", "),
+                get_required_mcp_copy_lines(project_root).join("\n")
+            );
+        }
     }
 
     Ok(())

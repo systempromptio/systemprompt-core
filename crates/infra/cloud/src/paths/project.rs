@@ -49,6 +49,11 @@ impl ProjectPath {
 pub enum ProfilePath {
     Config,
     Secrets,
+    DockerDir,
+    Dockerfile,
+    Entrypoint,
+    Dockerignore,
+    Compose,
 }
 
 impl ProfilePath {
@@ -57,12 +62,30 @@ impl ProfilePath {
         match self {
             Self::Config => paths::PROFILE_CONFIG,
             Self::Secrets => paths::PROFILE_SECRETS,
+            Self::DockerDir => paths::PROFILE_DOCKER_DIR,
+            Self::Dockerfile => paths::DOCKERFILE,
+            Self::Entrypoint => paths::ENTRYPOINT,
+            Self::Dockerignore => paths::DOCKERIGNORE,
+            Self::Compose => paths::COMPOSE_FILE,
         }
     }
 
     #[must_use]
+    pub const fn is_docker_file(&self) -> bool {
+        matches!(
+            self,
+            Self::Dockerfile | Self::Entrypoint | Self::Dockerignore | Self::Compose
+        )
+    }
+
+    #[must_use]
     pub fn resolve(&self, profile_dir: &Path) -> PathBuf {
-        profile_dir.join(self.filename())
+        match self {
+            Self::Dockerfile | Self::Entrypoint | Self::Dockerignore | Self::Compose => profile_dir
+                .join(paths::PROFILE_DOCKER_DIR)
+                .join(self.filename()),
+            _ => profile_dir.join(self.filename()),
+        }
     }
 }
 
@@ -125,6 +148,31 @@ impl ProjectContext {
     #[must_use]
     pub fn profile_path(&self, name: &str, path: ProfilePath) -> PathBuf {
         path.resolve(&self.profile_dir(name))
+    }
+
+    #[must_use]
+    pub fn profile_docker_dir(&self, name: &str) -> PathBuf {
+        self.profile_path(name, ProfilePath::DockerDir)
+    }
+
+    #[must_use]
+    pub fn profile_dockerfile(&self, name: &str) -> PathBuf {
+        self.profile_path(name, ProfilePath::Dockerfile)
+    }
+
+    #[must_use]
+    pub fn profile_entrypoint(&self, name: &str) -> PathBuf {
+        self.profile_path(name, ProfilePath::Entrypoint)
+    }
+
+    #[must_use]
+    pub fn profile_dockerignore(&self, name: &str) -> PathBuf {
+        self.profile_path(name, ProfilePath::Dockerignore)
+    }
+
+    #[must_use]
+    pub fn profile_compose(&self, name: &str) -> PathBuf {
+        self.profile_path(name, ProfilePath::Compose)
     }
 
     #[must_use]

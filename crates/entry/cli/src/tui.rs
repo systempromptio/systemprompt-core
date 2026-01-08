@@ -126,7 +126,11 @@ pub async fn execute() -> Result<()> {
     }
     CliService::success("Token valid");
 
-    let profiles = discover_profiles().context("Failed to discover profiles")?;
+    let profiles: Vec<_> = discover_profiles()
+        .context("Failed to discover profiles")?
+        .into_iter()
+        .filter(|p| p.profile.database.external_db_access)
+        .collect();
 
     CliService::section("Available profiles");
     for p in &profiles {
@@ -147,11 +151,18 @@ pub async fn execute() -> Result<()> {
     CliService::key_value("URL", &profile.server.api_external_url);
 
     if let Err(reason) = check_local_api(&profile.server.api_external_url).await {
+        if profile.database.external_db_access {
+            anyhow::bail!(
+                "Cloud instance is not accessible.\n\nURL: {}\nError: {}\n\nThe cloud server may \
+                 be stopped or unreachable.\nCheck your cloud deployment status with: \
+                 systemprompt cloud status",
+                profile.server.api_external_url,
+                reason
+            );
+        }
         anyhow::bail!(
             "Local API server is not accessible.\n\nURL: {}\nError: {}\n\nPlease start the local \
-             server first:\n\x20\x20cd {}\n\x20\x20just serve\n\nOr if using a different profile, \
-             ensure the server.api_external_url\nin your profile configuration points to a \
-             running server.",
+             server first:\n  cd {}\n  just serve",
             profile.server.api_external_url,
             reason,
             profile.paths.system

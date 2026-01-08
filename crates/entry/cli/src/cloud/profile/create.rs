@@ -13,7 +13,8 @@ use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::templates::{
-    get_services_path, save_dockerfile, save_profile, save_secrets, DatabaseUrls,
+    get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
+    save_secrets, DatabaseUrls,
 };
 
 pub async fn execute(name: &str) -> Result<()> {
@@ -72,7 +73,7 @@ pub async fn execute(name: &str) -> Result<()> {
         external: external_url,
         internal: tenant.internal_database_url.as_deref(),
     };
-    save_secrets(db_urls, &api_keys, &secrets_path)?;
+    save_secrets(&db_urls, &api_keys, &secrets_path)?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let services_path = get_services_path()?;
@@ -97,11 +98,21 @@ pub async fn execute(name: &str) -> Result<()> {
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));
 
-    let dockerfile_path = ctx.dockerfile();
-    if !dockerfile_path.exists() {
-        save_dockerfile(&dockerfile_path, name)?;
-        CliService::success(&format!("Created: {}", dockerfile_path.display()));
-    }
+    let docker_dir = ctx.profile_docker_dir(name);
+    std::fs::create_dir_all(&docker_dir)
+        .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
+
+    let dockerfile_path = ctx.profile_dockerfile(name);
+    save_dockerfile(&dockerfile_path, name)?;
+    CliService::success(&format!("Created: {}", dockerfile_path.display()));
+
+    let entrypoint_path = ctx.profile_entrypoint(name);
+    save_entrypoint(&entrypoint_path)?;
+    CliService::success(&format!("Created: {}", entrypoint_path.display()));
+
+    let dockerignore_path = ctx.profile_dockerignore(name);
+    save_dockerignore(&dockerignore_path)?;
+    CliService::success(&format!("Created: {}", dockerignore_path.display()));
 
     match built_profile.validate() {
         Ok(()) => CliService::success("Profile validated"),
@@ -181,7 +192,7 @@ pub fn create_profile_for_tenant(
         external: local_db_url,
         internal: tenant.internal_database_url.as_deref(),
     };
-    save_secrets(db_urls, api_keys, &secrets_path)?;
+    save_secrets(&db_urls, api_keys, &secrets_path)?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let profile_path = profile_dir.join("profile.yaml");
@@ -197,11 +208,21 @@ pub fn create_profile_for_tenant(
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));
 
-    let dockerfile_path = ctx.dockerfile();
-    if !dockerfile_path.exists() {
-        save_dockerfile(&dockerfile_path, &name)?;
-        CliService::success(&format!("Created: {}", dockerfile_path.display()));
-    }
+    let docker_dir = ctx.profile_docker_dir(&name);
+    std::fs::create_dir_all(&docker_dir)
+        .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
+
+    let dockerfile_path = ctx.profile_dockerfile(&name);
+    save_dockerfile(&dockerfile_path, &name)?;
+    CliService::success(&format!("Created: {}", dockerfile_path.display()));
+
+    let entrypoint_path = ctx.profile_entrypoint(&name);
+    save_entrypoint(&entrypoint_path)?;
+    CliService::success(&format!("Created: {}", entrypoint_path.display()));
+
+    let dockerignore_path = ctx.profile_dockerignore(&name);
+    save_dockerignore(&dockerignore_path)?;
+    CliService::success(&format!("Created: {}", dockerignore_path.display()));
 
     match built_profile.validate() {
         Ok(()) => CliService::success("Profile validated"),
