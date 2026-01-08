@@ -20,7 +20,7 @@ use anyhow::Result;
 use clap::{Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
-use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 
 #[derive(Subcommand)]
@@ -102,7 +102,7 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             .map(|entries| {
                 entries
                     .filter_map(Result::ok)
-                    .any(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+                    .any(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
             })
             .unwrap_or(false);
 
@@ -167,7 +167,7 @@ fn select_profile(prompt: &str) -> Result<Option<String>> {
 
     let profiles: Vec<String> = std::fs::read_dir(&profiles_dir)?
         .filter_map(Result::ok)
-        .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+        .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
         .filter_map(|e| e.file_name().to_str().map(String::from))
         .collect();
 

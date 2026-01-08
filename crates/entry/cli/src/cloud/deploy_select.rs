@@ -47,7 +47,7 @@ pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
 }
 
 fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfile> {
-    let profile_yaml = entry.path().join("profile.yaml");
+    let profile_yaml = ProfilePath::Config.resolve(&entry.path());
     if !profile_yaml.exists() {
         return None;
     }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use std::path::PathBuf;
-use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 
 use super::{show, ShowFilter};
@@ -34,14 +34,14 @@ pub fn execute() -> Result<()> {
         let path = entry.path();
 
         if path.is_dir() {
-            let profile_yaml = path.join("profile.yaml");
+            let profile_yaml = ProfilePath::Config.resolve(&path);
             if profile_yaml.exists() {
                 let name = path
                     .file_name()
                     .and_then(|n| n.to_str())
                     .unwrap_or("unknown");
 
-                let has_secrets = path.join("secrets.json").exists();
+                let has_secrets = ProfilePath::Secrets.resolve(&path).exists();
 
                 profiles.push((name.to_string(), has_secrets, path.clone()));
             }

@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProjectContext, StoredTenant, TenantStore, TenantType,
+    get_cloud_paths, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
 use systemprompt_core_logging::CliService;
 
@@ -65,7 +65,7 @@ pub async fn execute(name: &str) -> Result<()> {
         )
     })?;
 
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
     let external_url = tenant
         .get_local_database_url()
         .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
@@ -77,7 +77,7 @@ pub async fn execute(name: &str) -> Result<()> {
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let services_path = get_services_path()?;
-    let profile_path = profile_dir.join("profile.yaml");
+    let profile_path = ProfilePath::Config.resolve(&profile_dir);
     let relative_secrets_path = "./secrets.json";
 
     let built_profile = match tenant.tenant_type {
@@ -184,7 +184,7 @@ pub fn create_profile_for_tenant(
         )
     })?;
 
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
     let local_db_url = tenant
         .get_local_database_url()
         .ok_or_else(|| anyhow::anyhow!("Tenant database URL is required"))?;
@@ -195,7 +195,7 @@ pub fn create_profile_for_tenant(
     save_secrets(&db_urls, api_keys, &secrets_path)?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
-    let profile_path = profile_dir.join("profile.yaml");
+    let profile_path = ProfilePath::Config.resolve(&profile_dir);
 
     let mut builder = CloudProfileBuilder::new(&name)
         .with_tenant_id(TenantId::new(&tenant.id))

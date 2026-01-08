@@ -95,7 +95,7 @@ fn select_profile_interactively() -> Result<PathBuf> {
             })
             .ok()
         })
-        .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+        .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
         .filter_map(|e| e.file_name().to_str().map(String::from))
         .collect();
 

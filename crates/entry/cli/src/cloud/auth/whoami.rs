@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::Duration;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, ProjectContext,
+    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, ProfilePath, ProjectContext,
 };
 use systemprompt_core_logging::CliService;
 
@@ -80,7 +80,7 @@ fn count_local_profiles() -> usize {
         .map(|entries| {
             entries
                 .filter_map(Result::ok)
-                .filter(|e| e.path().is_dir() && e.path().join("profile.yaml").exists())
+                .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
                 .count()
         })
         .unwrap_or(0)

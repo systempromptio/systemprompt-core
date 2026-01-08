@@ -40,12 +40,13 @@ RUN apt-get update && apt-get install -y \
     curl \
     libssl3 \
     libpq5 \
+    lsof \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {storage}/images/blog {storage}/images/social {storage}/images/logos {storage}/images/generated {storage}/files/audio {storage}/files/video {storage}/files/documents {storage}/files/uploads
+RUN mkdir -p {bin} {logs} {storage}/images/blog {storage}/images/social {storage}/images/logos {storage}/images/generated {storage}/files/audio {storage}/files/video {storage}/files/documents {storage}/files/uploads
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -77,6 +78,7 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
 "#,
             app = container::APP,
             bin = container::BIN,
+            logs = container::LOGS,
             storage = container::STORAGE,
             services = container::SERVICES,
             web = container::WEB,

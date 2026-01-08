@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_cloud::CloudApiClient;
+use systemprompt_cloud::{CloudApiClient, ProfilePath};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
@@ -184,7 +184,7 @@ fn get_tenant_and_secrets_path() -> Result<(String, PathBuf)> {
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid profile path"))?;
 
-    let secrets_path = profile_dir.join("secrets.json");
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
 
     if !secrets_path.exists() {
         bail!(
