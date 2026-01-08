@@ -1,23 +1,32 @@
-use anyhow::{Context, Result};
 use std::path::Path;
-use systemprompt_models::{ContentConfigRaw, SitemapConfig};
-use tokio::fs;
 
+use anyhow::{Context, Result};
 use systemprompt_core_content::models::ContentError;
+use systemprompt_models::{ContentConfigRaw, SitemapConfig};
+use systemprompt_templates::TemplateRegistry;
+use tokio::fs;
 
 use crate::content::{generate_content_card, CardData};
 use crate::templates::navigation::generate_footer_html;
-use crate::templates::TemplateEngine;
 
-#[derive(Debug)]
 pub struct GenerateParentIndexParams<'a> {
     pub source_name: &'a str,
     pub sitemap_config: &'a SitemapConfig,
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
     pub web_config: &'a serde_yaml::Value,
-    pub templates: &'a TemplateEngine,
+    pub template_registry: &'a TemplateRegistry,
     pub dist_dir: &'a Path,
+}
+
+impl std::fmt::Debug for GenerateParentIndexParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("GenerateParentIndexParams")
+            .field("source_name", &self.source_name)
+            .field("items_count", &self.items.len())
+            .field("dist_dir", &self.dist_dir)
+            .finish_non_exhaustive()
+    }
 }
 
 pub async fn generate_parent_index(params: &GenerateParentIndexParams<'_>) -> Result<bool> {
@@ -27,7 +36,7 @@ pub async fn generate_parent_index(params: &GenerateParentIndexParams<'_>) -> Re
         items,
         config,
         web_config,
-        templates,
+        template_registry,
         dist_dir,
     } = params;
     let parent_config = match &sitemap_config.parent_route {
@@ -35,16 +44,20 @@ pub async fn generate_parent_index(params: &GenerateParentIndexParams<'_>) -> Re
         _ => return Ok(false),
     };
 
-    // Use source-specific template if available, fall back to generic
-    let template_name = match *source_name {
-        "papers" => "paper-list",
-        name => format!("{}-list", name).leak(), // e.g., "blog-list", "docs-list"
-    };
+    let list_content_type = format!("{}-list", source_name);
+    let template_name = template_registry
+        .get_template_for_content_type(&list_content_type)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No template registered for content type: {}",
+                list_content_type
+            )
+        })?;
 
     let posts_html = build_posts_html(items, &parent_config.url)?;
     let parent_data = build_parent_template_data(&posts_html, config, web_config, source_name)?;
 
-    let parent_html = templates
+    let parent_html = template_registry
         .render(template_name, &parent_data)
         .context("Failed to render parent route")?;
 
