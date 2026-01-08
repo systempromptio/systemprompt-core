@@ -1,7 +1,10 @@
 use anyhow::{Context, Result};
 use std::path::Path;
+use systemprompt_cloud::constants::container;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::Profile;
+
+use crate::cloud::dockerfile::DockerfileBuilder;
 
 pub use crate::common::profile::{generate_display_name, generate_jwt_secret};
 
@@ -14,89 +17,38 @@ pub fn save_profile(profile: &Profile, profile_path: &Path) -> Result<()> {
     crate::common::profile::save_profile_yaml(profile, profile_path, Some(&header))
 }
 
-pub fn save_dockerfile(path: &Path, profile_name: &str) -> Result<()> {
-    let content = format!(
-        r#"# SystemPrompt Application Dockerfile
-# Built by: systemprompt cloud profile create
-# Used by: systemprompt cloud deploy
+pub fn save_dockerfile(path: &Path, profile_name: &str, project_root: &Path) -> Result<()> {
+    let content = DockerfileBuilder::new(project_root)
+        .with_profile(profile_name)
+        .build();
 
-FROM debian:bookworm-slim
-
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    curl \
-    libssl3 \
-    libpq5 \
-    && rm -rf /var/lib/apt/lists/*
-
-RUN useradd -m -u 1000 app
-WORKDIR /app
-
-RUN mkdir -p /app/bin /app/bin/mcp /app/storage/images/blog /app/storage/images/social /app/storage/images/logos /app/storage/images/generated /app/storage/files/audio /app/storage/files/video /app/storage/files/documents /app/storage/files/uploads
-
-# Copy pre-built binaries
-COPY target/release/systemprompt /app/bin/
-
-# Copy MCP server binaries (if they exist)
-COPY target/release/systemprompt-* /app/bin/mcp/ 2>/dev/null || true
-
-# Copy web assets
-COPY core/web/dist /app/web/dist
-
-# Copy storage assets (images, etc.)
-COPY storage /app/storage
-
-# Copy services configuration
-COPY services /app/services
-
-# Copy profiles
-COPY .systemprompt/profiles /app/services/profiles
-
-RUN chmod +x /app/bin/* && chown -R app:app /app
-
-USER app
-EXPOSE 8080
-
-# Environment: secrets loaded from fly secrets, profile from bundled file
-ENV HOST=0.0.0.0 \
-    PORT=8080 \
-    RUST_LOG=info \
-    PATH="/app/bin:/app/bin/mcp:$PATH" \
-    SYSTEMPROMPT_PROFILE=/app/services/profiles/{profile_name}/profile.yaml \
-    SYSTEMPROMPT_SERVICES_PATH=/app/services \
-    WEB_DIR=/app/web
-
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD curl -f http://localhost:8080/api/v1/health || exit 1
-
-CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
-"#,
-        profile_name = profile_name
-    );
-
-    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
+    std::fs::write(path, &content)
+        .with_context(|| format!("Failed to write {}", path.display()))?;
 
     Ok(())
 }
 
 pub fn save_entrypoint(path: &Path) -> Result<()> {
-    let content = r#"#!/bin/sh
+    let content = format!(
+        r#"#!/bin/sh
 set -e
 
 echo "Running database migrations..."
-/app/bin/systemprompt services db migrate
+{bin}/systemprompt services db migrate
 
 echo "Starting services..."
-exec /app/bin/systemprompt services serve --foreground
-"#;
+exec {bin}/systemprompt services serve --foreground
+"#,
+        bin = container::BIN
+    );
 
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory {}", parent.display()))?;
     }
 
-    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
+    std::fs::write(path, &content)
+        .with_context(|| format!("Failed to write {}", path.display()))?;
 
     #[cfg(unix)]
     {
