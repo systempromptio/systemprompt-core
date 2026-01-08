@@ -5071,6 +5071,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "systemprompt-cloud",
  "systemprompt-core-database",
  "systemprompt-core-logging",
  "systemprompt-identifiers",
