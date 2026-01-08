@@ -13,7 +13,7 @@ impl CloudAuthClaims {
         &self.sub
     }
 
-    pub fn expires_at(&self) -> i64 {
+    pub const fn expires_at(&self) -> i64 {
         self.exp
     }
 

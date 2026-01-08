@@ -4,10 +4,11 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use systemprompt_core_logging::CliService;
+use systemprompt_identifiers::CloudAuthToken;
 use validator::Validate;
 
+use crate::auth;
 use crate::error::CloudError;
-use crate::jwt;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct CloudCredentials {
@@ -35,14 +36,18 @@ impl CloudCredentials {
         }
     }
 
+    pub fn token(&self) -> CloudAuthToken {
+        CloudAuthToken::new(&self.api_token)
+    }
+
     #[must_use]
     pub fn is_token_expired(&self) -> bool {
-        jwt::is_expired(&self.api_token)
+        auth::is_expired(&self.token())
     }
 
     #[must_use]
     pub fn expires_within(&self, duration: Duration) -> bool {
-        jwt::expires_within(&self.api_token, duration)
+        auth::expires_within(&self.token(), duration)
     }
 
     pub fn load_and_validate_from_path(path: &Path) -> Result<Self> {

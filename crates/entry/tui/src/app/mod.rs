@@ -32,18 +32,29 @@ use crate::services::{
 };
 use crate::state::AppState;
 use crate::tools::ToolRegistry;
-use systemprompt_identifiers::{ContextId, JwtToken, SessionId};
+use systemprompt_identifiers::{CloudAuthToken, ContextId, SessionId, SessionToken, UserId};
 use systemprompt_models::Profile;
 
-#[derive(Debug)]
-pub struct CloudParams {
-    pub cloud_api_url: String,
-    pub cloud_token: JwtToken,
-    pub user_email: Option<String>,
-    pub tenant_id: Option<String>,
-    pub profile: Profile,
-    pub local_token: JwtToken,
+#[derive(Debug, Clone)]
+pub struct LocalSession {
+    pub token: SessionToken,
     pub session_id: SessionId,
+    pub user_id: UserId,
+    pub user_email: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct CloudConnection {
+    pub api_url: String,
+    pub token: CloudAuthToken,
+    pub tenant_id: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct TuiParams {
+    pub profile: Profile,
+    pub session: LocalSession,
+    pub cloud: Option<CloudConnection>,
 }
 
 pub struct TuiApp {
@@ -54,7 +65,7 @@ pub struct TuiApp {
     message_rx: mpsc::UnboundedReceiver<Message>,
     pub(crate) tool_registry: Arc<ToolRegistry>,
     pub(crate) message_sender: MessageSender,
-    pub(crate) admin_token: JwtToken,
+    pub(crate) session_token: SessionToken,
     pub(crate) current_agent_name: Option<String>,
     pub(crate) current_context_id: Arc<RwLock<ContextId>>,
     pub(crate) api_external_url: String,
@@ -73,16 +84,21 @@ impl std::fmt::Debug for TuiApp {
 }
 
 impl TuiApp {
-    pub async fn new_cloud(params: CloudParams) -> Result<Self> {
-        let CloudParams {
-            cloud_api_url,
-            cloud_token: _,
-            user_email,
-            tenant_id,
+    pub async fn new_cloud(params: TuiParams) -> Result<Self> {
+        let TuiParams {
             profile,
-            local_token,
-            session_id,
+            session,
+            cloud,
         } = params;
+
+        let cloud_api_url = cloud.as_ref().map_or_else(
+            || profile.server.api_external_url.clone(),
+            |c| c.api_url.clone(),
+        );
+        let user_email = Some(session.user_email.clone());
+        let tenant_id = cloud.as_ref().and_then(|c| c.tenant_id.clone());
+        let session_token = session.token;
+        let session_id = session.session_id;
 
         Self::log_startup_info(&cloud_api_url, &profile, user_email.as_deref());
 
@@ -97,32 +113,31 @@ impl TuiApp {
         Self::update_init_progress(&mut state, "Validating credentials...", 1);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
 
-        let admin_token = local_token;
         let message_sender =
-            MessageSender::new_with_url(admin_token.clone(), message_tx.clone(), &api_external_url);
+            MessageSender::new_with_url(session_token.clone(), message_tx.clone(), &api_external_url);
 
         Self::update_init_progress(&mut state, "Loading context...", 2);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
 
         let context_id =
-            cloud_api::fetch_or_create_context(&api_external_url, &admin_token).await?;
+            cloud_api::fetch_or_create_context(&api_external_url, &session_token).await?;
         let current_context_id = Arc::new(RwLock::new(context_id.clone()));
 
         state.chat.set_context(context_id.clone());
-        Self::load_chat_history(&mut state, &api_external_url, &admin_token, &context_id).await;
-        Self::load_conversations(&mut state, &api_external_url, &admin_token).await;
+        Self::load_chat_history(&mut state, &api_external_url, &session_token, &context_id).await;
+        Self::load_conversations(&mut state, &api_external_url, &session_token).await;
 
         Self::update_init_progress(&mut state, "Loading agents...", 3);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
 
         let current_agent_name =
-            Self::load_agents(&mut state, &api_external_url, &admin_token).await;
+            Self::load_agents(&mut state, &api_external_url, &session_token).await;
         Self::populate_agent_display_metadata(&mut state);
 
         Self::update_init_progress(&mut state, "Loading artifacts...", 4);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
 
-        Self::load_artifacts(&mut state, &api_external_url, &admin_token).await;
+        Self::load_artifacts(&mut state, &api_external_url, &session_token).await;
 
         Self::update_init_progress(&mut state, "Initializing...", 5);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
@@ -144,7 +159,7 @@ impl TuiApp {
             message_rx,
             tool_registry,
             message_sender,
-            admin_token,
+            session_token,
             current_agent_name,
             current_context_id,
             api_external_url,
@@ -225,7 +240,7 @@ impl TuiApp {
 
         let context_stream_subscriber = ContextStreamSubscriber::new_with_url(
             self.message_tx.clone(),
-            self.admin_token.clone(),
+            self.session_token.clone(),
             Arc::clone(&self.current_context_id),
             &self.api_external_url,
         );
@@ -233,7 +248,7 @@ impl TuiApp {
 
         let user_subscriber = UserSubscriber::new(
             self.api_external_url.clone(),
-            self.admin_token.clone(),
+            self.session_token.clone(),
             self.message_tx.clone(),
             Arc::clone(&event_bus),
         );
@@ -241,7 +256,7 @@ impl TuiApp {
 
         let log_streamer = LogStreamer::new(
             self.api_external_url.clone(),
-            self.admin_token.clone(),
+            self.session_token.clone(),
             self.message_tx.clone(),
             Duration::from_secs(1),
         );
@@ -249,7 +264,7 @@ impl TuiApp {
 
         let analytics_subscriber = AnalyticsSubscriber::new(
             self.api_external_url.clone(),
-            self.admin_token.clone(),
+            self.session_token.clone(),
             self.message_tx.clone(),
             Arc::clone(&event_bus),
         );

@@ -129,7 +129,7 @@ impl TuiApp {
     }
 
     async fn create_new_context(&mut self) {
-        match cloud_api::create_context(&self.api_external_url, &self.admin_token).await {
+        match cloud_api::create_context(&self.api_external_url, &self.session_token).await {
             Ok(context_id) => self.apply_new_context(context_id).await,
             Err(ref e) => self.report_context_creation_error(e),
         }
@@ -150,7 +150,7 @@ impl TuiApp {
 
     fn spawn_agent_list(&self) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::fetch_agents(&api_url, &token).await {
@@ -175,7 +175,7 @@ impl TuiApp {
 
     fn spawn_agents_discover(&self) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::fetch_agents(&api_url, &token).await {
@@ -211,7 +211,7 @@ impl TuiApp {
 
     fn spawn_delete_task(&self, task_id: TaskId) {
         let api_url = self.api_external_url.clone();
-        let token = self.admin_token.clone();
+        let token = self.session_token.clone();
         let sender = self.message_tx.clone();
         tokio::spawn(async move {
             match cloud_api::delete_task(&api_url, &token, task_id.as_str()).await {

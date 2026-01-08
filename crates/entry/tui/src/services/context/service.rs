@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 
-use systemprompt_identifiers::{ContextId, JwtToken};
+use systemprompt_identifiers::{ContextId, SessionToken};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserContext {
@@ -21,12 +21,12 @@ struct CreateContextRequest {
 #[derive(Debug)]
 pub struct ContextService {
     api_base: String,
-    auth_token: JwtToken,
+    auth_token: SessionToken,
     client: reqwest::Client,
 }
 
 impl ContextService {
-    pub fn new(api_base: &str, auth_token: &JwtToken) -> Result<Self> {
+    pub fn new(api_base: &str, auth_token: &SessionToken) -> Result<Self> {
         let client = reqwest::Client::builder()
             .timeout(std::time::Duration::from_secs(10))
             .build()?;
@@ -131,6 +131,6 @@ impl ContextService {
     }
 }
 
-pub fn create_context_service(api_url: &str, admin_token: &JwtToken) -> Result<ContextService> {
-    ContextService::new(api_url, admin_token)
+pub fn create_context_service(api_url: &str, session_token: &SessionToken) -> Result<ContextService> {
+    ContextService::new(api_url, session_token)
 }

@@ -46,5 +46,6 @@ async-stream = "0.3"
 clap = { workspace = true }
 
 # Internal dependencies
+systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-core-logging = { path = "../logging" }

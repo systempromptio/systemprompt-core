@@ -4,18 +4,13 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId}
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
+use crate::session::ValidatedSessionClaims;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {
     Required,
     Optional,
     Disabled,
-}
-
-#[derive(Debug, Clone)]
-pub struct TokenClaims {
-    pub user_id: String,
-    pub session_id: String,
-    pub user_type: UserType,
 }
 
 #[derive(Debug)]
@@ -69,7 +64,7 @@ impl AuthValidationService {
             .and_then(|s| s.strip_prefix("Bearer "))
     }
 
-    fn validate_token(&self, token: &str) -> Result<TokenClaims> {
+    fn validate_token(&self, token: &str) -> Result<ValidatedSessionClaims> {
         use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
         let mut validation = Validation::new(Algorithm::HS256);
@@ -94,7 +89,7 @@ impl AuthValidationService {
             claims.user_type
         };
 
-        Ok(TokenClaims {
+        Ok(ValidatedSessionClaims {
             user_id: claims.sub,
             session_id: claims
                 .session_id
@@ -104,7 +99,7 @@ impl AuthValidationService {
     }
 
     fn create_context_from_claims(
-        claims: &TokenClaims,
+        claims: &ValidatedSessionClaims,
         token: &str,
         headers: &HeaderMap,
     ) -> RequestContext {

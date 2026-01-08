@@ -2,7 +2,7 @@ use chrono::Local;
 use ratatui::prelude::*;
 use ratatui::widgets::{Block, Borders, List, ListItem, Paragraph};
 use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
+use systemprompt_identifiers::{JwtToken, SessionToken};
 
 use super::artifact_renderers::render_artifact;
 use super::{border_color, split_left_panel_block};
@@ -14,7 +14,7 @@ pub struct ArtifactContext<'a> {
     pub state: &'a AppState,
     pub config: &'a TuiConfig,
     pub api_url: &'a str,
-    pub token: &'a JwtToken,
+    pub token: &'a SessionToken,
 }
 
 impl<'a> ArtifactContext<'a> {
@@ -22,7 +22,7 @@ impl<'a> ArtifactContext<'a> {
         state: &'a AppState,
         config: &'a TuiConfig,
         api_url: &'a str,
-        token: &'a JwtToken,
+        token: &'a SessionToken,
     ) -> Self {
         Self {
             state,
@@ -167,7 +167,7 @@ fn render_artifact_preview(frame: &mut Frame, area: Rect, ctx: &ArtifactContext<
         frame.render_widget(error_msg, inner_area);
         return;
     };
-    let client = c.with_token(ctx.token.clone());
+    let client = c.with_token(JwtToken::new(ctx.token.as_str()));
 
     let artifact_data = tokio::task::block_in_place(|| {
         tokio::runtime::Handle::current()

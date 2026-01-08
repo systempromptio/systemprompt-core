@@ -8,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, warn};
 
-use systemprompt_identifiers::{ContextId, JwtToken};
+use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_models::modules::ApiPaths;
 
 use super::event_parser;
@@ -20,7 +20,7 @@ const INITIAL_RECONNECT_DELAY_SECS: u64 = 2;
 
 pub struct ContextStreamSubscriber {
     message_tx: UnboundedSender<Message>,
-    auth_token: JwtToken,
+    auth_token: SessionToken,
     api_base_url: String,
     current_context_id: Arc<RwLock<ContextId>>,
 }
@@ -28,7 +28,7 @@ pub struct ContextStreamSubscriber {
 impl ContextStreamSubscriber {
     pub fn new_with_url(
         message_tx: UnboundedSender<Message>,
-        auth_token: JwtToken,
+        auth_token: SessionToken,
         current_context_id: Arc<RwLock<ContextId>>,
         api_base_url: &str,
     ) -> Self {

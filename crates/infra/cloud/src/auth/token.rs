@@ -1,6 +1,7 @@
 use base64::prelude::*;
 use chrono::{Duration, Utc};
 use serde::Deserialize;
+use systemprompt_identifiers::CloudAuthToken;
 
 use crate::error::{CloudError, CloudResult};
 
@@ -9,8 +10,9 @@ struct JwtClaims {
     exp: i64,
 }
 
-pub fn decode_expiry(token: &str) -> CloudResult<i64> {
-    let parts: Vec<&str> = token.split('.').collect();
+pub fn decode_expiry(token: &CloudAuthToken) -> CloudResult<i64> {
+    let token_str = token.as_str();
+    let parts: Vec<&str> = token_str.split('.').collect();
     if parts.len() != 3 {
         return Err(CloudError::JwtDecode);
     }
@@ -24,13 +26,13 @@ pub fn decode_expiry(token: &str) -> CloudResult<i64> {
     Ok(claims.exp)
 }
 
-pub fn is_expired(token: &str) -> bool {
+pub fn is_expired(token: &CloudAuthToken) -> bool {
     decode_expiry(token)
         .map(|exp| exp < Utc::now().timestamp())
         .unwrap_or(true)
 }
 
-pub fn expires_within(token: &str, duration: Duration) -> bool {
+pub fn expires_within(token: &CloudAuthToken, duration: Duration) -> bool {
     decode_expiry(token)
         .map(|exp| {
             let threshold = Utc::now().timestamp() + duration.num_seconds();
