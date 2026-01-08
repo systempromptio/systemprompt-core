@@ -13,7 +13,7 @@ use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_tui::{CloudParams, TuiApp};
 use systemprompt_core_users::{User, UserService};
 use systemprompt_identifiers::JwtToken;
-use systemprompt_models::{ApiPaths, Config, SecretsBootstrap};
+use systemprompt_models::{ApiPaths, Config};
 
 use crate::cloud::deploy_select::{discover_profiles, DiscoveredProfile};
 
@@ -189,6 +189,10 @@ pub async fn execute() -> Result<()> {
         .get("database_url")
         .and_then(|v| v.as_str())
         .context("No database_url in profile secrets.json")?;
+    let jwt_secret = secrets
+        .get("jwt_secret")
+        .and_then(|v| v.as_str())
+        .context("No jwt_secret in profile secrets.json")?;
 
     let selected_admin = fetch_admin_user_by_email(database_url, cloud_email)
         .await
@@ -208,7 +212,7 @@ pub async fn execute() -> Result<()> {
         user_id: &selected_admin.id,
         session_id: &session_id,
         email: &selected_admin.email,
-        jwt_secret: SecretsBootstrap::jwt_secret()?,
+        jwt_secret,
         issuer: &config.jwt_issuer,
         duration: ChronoDuration::hours(24),
     })
