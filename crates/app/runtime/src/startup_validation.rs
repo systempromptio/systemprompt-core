@@ -206,16 +206,51 @@ impl StartupValidator {
     }
 
     fn validate_single_extension(
-        _config: &Config,
+        config: &Config,
         ext: &dyn systemprompt_extension::Extension,
-        _report: &mut StartupValidationReport,
+        report: &mut StartupValidationReport,
     ) {
         let ext_id = ext.id();
-        if ext.config_prefix().is_none() {
+        let Some(prefix) = ext.config_prefix() else {
             return;
-        }
+        };
 
-        render_phase_success(&format!("[ext:{}]", ext_id), Some("loaded"));
+        let config_path = Path::new(&config.services_path)
+            .join("config")
+            .join(format!("{}.yaml", prefix));
+
+        let config_json = if config_path.exists() {
+            match load_extension_config(&config_path) {
+                Ok(json) => json,
+                Err(e) => {
+                    let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
+                    ext_report.add_error(ValidationError::new(
+                        format!("{}.config", prefix),
+                        format!("Failed to load config: {}", e),
+                    ));
+                    report.add_extension(ext_report);
+                    println!("  {} [ext:{}] {}", BrandColors::stopped("✗"), ext_id, e);
+                    return;
+                },
+            }
+        } else {
+            serde_json::json!({})
+        };
+
+        match ext.validate_config(&config_json) {
+            Ok(()) => {
+                render_phase_success(&format!("[ext:{}]", ext_id), Some("valid"));
+            },
+            Err(e) => {
+                let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
+                ext_report.add_error(ValidationError::new(
+                    format!("{}.config", prefix),
+                    e.to_string(),
+                ));
+                report.add_extension(ext_report);
+                println!("  {} [ext:{}] {}", BrandColors::stopped("✗"), ext_id, e);
+            },
+        }
     }
 
     fn validate_mcp_manifests(
@@ -508,4 +543,12 @@ fn load_yaml_config<T: serde::de::DeserializeOwned>(path: &Path) -> Result<T, St
     let content = std::fs::read_to_string(path)
         .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
     serde_yaml::from_str(&content).map_err(|e| format!("Cannot parse {}: {}", path.display(), e))
+}
+
+fn load_extension_config(path: &Path) -> Result<serde_json::Value, String> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| format!("Cannot read {}: {}", path.display(), e))?;
+    let yaml: serde_yaml::Value = serde_yaml::from_str(&content)
+        .map_err(|e| format!("Cannot parse {}: {}", path.display(), e))?;
+    serde_json::to_value(yaml).map_err(|e| format!("Cannot convert to JSON: {}", e))
 }
