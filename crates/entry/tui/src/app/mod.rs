@@ -113,8 +113,11 @@ impl TuiApp {
         Self::update_init_progress(&mut state, "Validating credentials...", 1);
         Self::draw_init_frame(&mut terminal, &state, &config)?;
 
-        let message_sender =
-            MessageSender::new_with_url(session_token.clone(), message_tx.clone(), &api_external_url);
+        let message_sender = MessageSender::new_with_url(
+            session_token.clone(),
+            message_tx.clone(),
+            &api_external_url,
+        );
 
         Self::update_init_progress(&mut state, "Loading context...", 2);
         Self::draw_init_frame(&mut terminal, &state, &config)?;

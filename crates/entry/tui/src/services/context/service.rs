@@ -131,6 +131,9 @@ impl ContextService {
     }
 }
 
-pub fn create_context_service(api_url: &str, session_token: &SessionToken) -> Result<ContextService> {
+pub fn create_context_service(
+    api_url: &str,
+    session_token: &SessionToken,
+) -> Result<ContextService> {
     ContextService::new(api_url, session_token)
 }

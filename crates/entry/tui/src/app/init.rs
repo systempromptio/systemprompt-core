@@ -84,8 +84,12 @@ impl TuiApp {
         session_token: &SessionToken,
         context_id: &ContextId,
     ) {
-        match cloud_api::fetch_tasks_by_context(api_external_url, session_token, context_id.as_str())
-            .await
+        match cloud_api::fetch_tasks_by_context(
+            api_external_url,
+            session_token,
+            context_id.as_str(),
+        )
+        .await
         {
             Ok(tasks) => {
                 for task in tasks {
@@ -136,7 +140,8 @@ impl TuiApp {
         api_external_url: &str,
         session_token: &SessionToken,
     ) {
-        let result = cloud_api::list_all_artifacts(api_external_url, session_token, Some(100)).await;
+        let result =
+            cloud_api::list_all_artifacts(api_external_url, session_token, Some(100)).await;
         Self::apply_artifacts_result(state, result);
     }
 

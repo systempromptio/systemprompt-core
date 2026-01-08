@@ -18,7 +18,14 @@ pub fn format_a2a_message(message: &Message, config: &TuiConfig) -> Vec<Line<'st
     for part in &message.parts {
         match part {
             Part::Text(text_part) => {
+                let mut prev_empty = false;
                 for (i, line) in text_part.text.lines().enumerate() {
+                    let is_empty = line.trim().is_empty();
+                    if is_empty && prev_empty {
+                        continue;
+                    }
+                    prev_empty = is_empty;
+
                     if first_line && i == 0 {
                         lines.push(Line::from(vec![
                             Span::styled(
@@ -185,7 +192,14 @@ pub fn render_pending_message(content: &str, config: &TuiConfig) -> Vec<Line<'st
         Span::raw(first_line.to_string()),
     ]));
 
+    let mut prev_empty = first_line.trim().is_empty();
     for line in content.lines().skip(1) {
+        let is_empty = line.trim().is_empty();
+        if is_empty && prev_empty {
+            continue;
+        }
+        prev_empty = is_empty;
+
         lines.push(Line::from(vec![
             Span::styled("  ", Style::default()),
             Span::raw(line.to_string()),
