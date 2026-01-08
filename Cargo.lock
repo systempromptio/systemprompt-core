@@ -5306,6 +5306,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "systemprompt-template-provider",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -5458,6 +5459,37 @@ dependencies = [
  "tracing",
  "uuid",
  "walkdir",
+]
+
+[[package]]
+name = "systemprompt-template-provider"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-templates"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "handlebars",
+ "indexmap",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "systemprompt-template-provider",
+ "tempfile",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

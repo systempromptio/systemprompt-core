@@ -14,6 +14,7 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
+use systemprompt_template_provider::TemplateProvider;
 use systemprompt_traits::{Job, LlmProvider, ToolProvider};
 
 pub use context::{DynExtensionContext, ExtensionContext};
@@ -140,6 +141,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn template_providers(&self) -> Vec<Arc<dyn TemplateProvider>> {
+        vec![]
+    }
+
     fn dependencies(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -182,6 +187,10 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_tool_providers(&self) -> bool {
         !self.tool_providers().is_empty()
+    }
+
+    fn has_template_providers(&self) -> bool {
+        !self.template_providers().is_empty()
     }
 }
 
@@ -227,6 +236,10 @@ pub mod prelude {
     pub use crate::types::{
         Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,
         NoDependencies,
+    };
+
+    pub use systemprompt_template_provider::{
+        TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }
 
