@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Result};
+use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
@@ -7,11 +8,73 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();
 
 const DEFAULT_URL_PREFIX: &str = "/files";
+const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 50 * 1024 * 1024;
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum FilePersistenceMode {
+    #[default]
+    ContextScoped,
+    UserLibrary,
+    Disabled,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
+pub struct AllowedFileTypes {
+    pub images: bool,
+    pub documents: bool,
+    pub audio: bool,
+    pub video: bool,
+}
+
+impl Default for AllowedFileTypes {
+    fn default() -> Self {
+        Self {
+            images: true,
+            documents: true,
+            audio: true,
+            video: false,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct FileUploadConfig {
+    #[serde(default = "default_enabled")]
+    pub enabled: bool,
+    #[serde(default = "default_max_file_size")]
+    pub max_file_size_bytes: u64,
+    #[serde(default)]
+    pub persistence_mode: FilePersistenceMode,
+    #[serde(default)]
+    pub allowed_types: AllowedFileTypes,
+}
+
+const fn default_enabled() -> bool {
+    true
+}
+
+const fn default_max_file_size() -> u64 {
+    DEFAULT_MAX_FILE_SIZE_BYTES
+}
+
+impl Default for FileUploadConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            max_file_size_bytes: DEFAULT_MAX_FILE_SIZE_BYTES,
+            persistence_mode: FilePersistenceMode::default(),
+            allowed_types: AllowedFileTypes::default(),
+        }
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct FilesConfig {
     storage_root: PathBuf,
     url_prefix: String,
+    upload: FileUploadConfig,
 }
 
 impl FilesConfig {
@@ -49,7 +112,12 @@ impl FilesConfig {
         Ok(Self {
             storage_root: PathBuf::from(storage_root),
             url_prefix: DEFAULT_URL_PREFIX.to_string(),
+            upload: FileUploadConfig::default(),
         })
+    }
+
+    pub const fn upload(&self) -> &FileUploadConfig {
+        &self.upload
     }
 
     pub fn validate(&self) -> Result<()> {

@@ -263,6 +263,7 @@ impl ImageService {
             user_id: request.user_id.as_ref().map(UserId::new),
             session_id: request.session_id.as_ref().map(SessionId::new),
             trace_id: request.trace_id.as_ref().map(TraceId::new),
+            context_id: None,
             created_at: now,
             updated_at: now,
             deleted_at: None,

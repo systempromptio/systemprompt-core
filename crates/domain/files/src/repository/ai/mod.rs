@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use systemprompt_identifiers::{SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;
 use crate::models::File;
@@ -9,7 +9,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE ai_content = true AND deleted_at IS NULL
             ORDER BY created_at DESC
@@ -33,7 +33,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE user_id = $1 AND ai_content = true AND deleted_at IS NULL
             ORDER BY created_at DESC

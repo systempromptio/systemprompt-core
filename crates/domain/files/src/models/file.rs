@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::metadata::FileMetadata;
 
@@ -18,6 +18,7 @@ pub struct File {
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
+    pub context_id: Option<ContextId>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
     pub deleted_at: Option<DateTime<Utc>>,

@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use chrono::Utc;
 use sqlx::PgPool;
 use systemprompt_core_database::DbPool;
-use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use crate::models::{File, FileMetadata};
 
@@ -20,6 +20,7 @@ pub struct InsertFileRequest {
     pub user_id: Option<UserId>,
     pub session_id: Option<SessionId>,
     pub trace_id: Option<TraceId>,
+    pub context_id: Option<ContextId>,
 }
 
 impl InsertFileRequest {
@@ -40,6 +41,7 @@ impl InsertFileRequest {
             user_id: None,
             session_id: None,
             trace_id: None,
+            context_id: None,
         }
     }
 
@@ -72,6 +74,11 @@ impl InsertFileRequest {
         self.trace_id = Some(trace_id);
         self
     }
+
+    pub fn with_context_id(mut self, context_id: ContextId) -> Self {
+        self.context_id = Some(context_id);
+        self
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -93,12 +100,13 @@ impl FileRepository {
         let user_id_str = request.user_id.as_ref().map(UserId::as_str);
         let session_id_str = request.session_id.as_ref().map(SessionId::as_str);
         let trace_id_str = request.trace_id.as_ref().map(TraceId::as_str);
+        let context_id_str = request.context_id.as_ref().map(ContextId::as_str);
 
         sqlx::query_as!(
             File,
             r#"
-            INSERT INTO files (id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id, session_id, trace_id, created_at, updated_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $11)
+            INSERT INTO files (id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id, session_id, trace_id, context_id, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $12)
             ON CONFLICT (path) DO UPDATE SET
                 public_url = EXCLUDED.public_url,
                 mime_type = EXCLUDED.mime_type,
@@ -106,7 +114,7 @@ impl FileRepository {
                 ai_content = EXCLUDED.ai_content,
                 metadata = EXCLUDED.metadata,
                 updated_at = EXCLUDED.updated_at
-            RETURNING id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            RETURNING id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             "#,
             id_uuid,
             request.path,
@@ -118,6 +126,7 @@ impl FileRepository {
             user_id_str,
             session_id_str,
             trace_id_str,
+            context_id_str,
             now
         )
         .fetch_one(self.pool.as_ref())
@@ -137,18 +146,34 @@ impl FileRepository {
     pub async fn insert_file(&self, file: &File) -> Result<FileId> {
         let file_id = FileId::new(file.id.to_string());
 
-        let request = InsertFileRequest {
-            id: file_id.clone(),
-            path: file.path.clone(),
-            public_url: file.public_url.clone(),
-            mime_type: file.mime_type.clone(),
-            size_bytes: file.size_bytes,
-            ai_content: file.ai_content,
-            metadata: file.metadata.clone(),
-            user_id: file.user_id.clone(),
-            session_id: file.session_id.clone(),
-            trace_id: file.trace_id.clone(),
-        };
+        let mut request = InsertFileRequest::new(
+            file_id.clone(),
+            file.path.clone(),
+            file.public_url.clone(),
+            file.mime_type.clone(),
+        )
+        .with_ai_content(file.ai_content)
+        .with_metadata(file.metadata.clone());
+
+        if let Some(size) = file.size_bytes {
+            request = request.with_size(size);
+        }
+
+        if let Some(ref user_id) = file.user_id {
+            request = request.with_user_id(user_id.clone());
+        }
+
+        if let Some(ref session_id) = file.session_id {
+            request = request.with_session_id(session_id.clone());
+        }
+
+        if let Some(ref trace_id) = file.trace_id {
+            request = request.with_trace_id(trace_id.clone());
+        }
+
+        if let Some(ref context_id) = file.context_id {
+            request = request.with_context_id(context_id.clone());
+        }
 
         self.insert(request).await
     }
@@ -159,7 +184,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE id = $1 AND deleted_at IS NULL
             "#,
@@ -174,7 +199,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE path = $1 AND deleted_at IS NULL
             "#,
@@ -195,7 +220,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE user_id = $1 AND deleted_at IS NULL
             ORDER BY created_at DESC
@@ -214,7 +239,7 @@ impl FileRepository {
         sqlx::query_as!(
             File,
             r#"
-            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", created_at, updated_at, deleted_at
+            SELECT id, path, public_url, mime_type, size_bytes, ai_content, metadata, user_id as "user_id: UserId", session_id as "session_id: SessionId", trace_id as "trace_id: TraceId", context_id as "context_id: ContextId", created_at, updated_at, deleted_at
             FROM files
             WHERE deleted_at IS NULL
             ORDER BY created_at DESC
