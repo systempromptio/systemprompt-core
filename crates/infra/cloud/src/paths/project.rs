@@ -201,11 +201,6 @@ impl ProjectContext {
     }
 
     #[must_use]
-    pub fn dockerignore(&self) -> PathBuf {
-        self.root.join(".dockerignore")
-    }
-
-    #[must_use]
     pub fn exists(&self, path: ProjectPath) -> bool {
         self.resolve(path).exists()
     }
