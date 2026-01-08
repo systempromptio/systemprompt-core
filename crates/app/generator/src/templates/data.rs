@@ -69,6 +69,8 @@ struct BrandingData<'a> {
     author: &'a str,
     twitter_handle: &'a str,
     display_sitename: bool,
+    logo_path: &'a str,
+    favicon_path: &'a str,
 }
 
 struct BuildTemplateJsonParams<'a> {
@@ -112,6 +114,8 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
     let author = extract_author(item, config)?;
     let twitter_handle = extract_twitter_handle(web_config)?;
     let display_sitename = extract_display_sitename(web_config)?;
+    let logo_path = extract_logo_path(web_config)?;
+    let favicon_path = extract_favicon_path(web_config)?;
 
     build_template_json(BuildTemplateJsonParams {
         item,
@@ -136,6 +140,8 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
             author,
             twitter_handle,
             display_sitename,
+            logo_path,
+            favicon_path,
         },
     })
 }
@@ -256,6 +262,24 @@ fn extract_display_sitename(web_config: &serde_yaml::Value) -> Result<bool> {
         .ok_or_else(|| ContentError::missing_branding_config("display_sitename").into())
 }
 
+fn extract_logo_path(web_config: &serde_yaml::Value) -> Result<&str> {
+    web_config
+        .get("branding")
+        .and_then(|b| b.get("logo"))
+        .and_then(|l| l.get("primary"))
+        .and_then(|p| p.get("svg"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ContentError::missing_branding_config("branding.logo.primary.svg").into())
+}
+
+fn extract_favicon_path(web_config: &serde_yaml::Value) -> Result<&str> {
+    web_config
+        .get("branding")
+        .and_then(|b| b.get("favicon"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ContentError::missing_branding_config("branding.favicon").into())
+}
+
 fn build_template_json(params: BuildTemplateJsonParams<'_>) -> Result<Value> {
     let BuildTemplateJsonParams {
         item,
@@ -316,6 +340,8 @@ fn build_template_json(params: BuildTemplateJsonParams<'_>) -> Result<Value> {
         "SOCIAL_CONTENT": content_data.social_html,
         "FOOTER_NAV": navigation.0,
         "DISPLAY_SITENAME": branding.display_sitename,
+        "LOGO_PATH": branding.logo_path,
+        "FAVICON_PATH": branding.favicon_path,
         "HERO_IMAGE": image_data.hero,
         "HERO_ALT": image_data.hero_alt,
         "TOC_HTML": content_data.toc_html,

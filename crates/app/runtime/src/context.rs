@@ -119,7 +119,7 @@ impl AppContext {
         }
     }
 
-    fn load_content_config(_config: &Config) -> Option<Arc<ContentConfigRaw>> {
+    fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {
         let content_config_path = AppPaths::get()
             .ok()?
             .system()
@@ -149,7 +149,19 @@ impl AppContext {
         };
 
         match serde_yaml::from_str::<ContentConfigRaw>(&yaml_content) {
-            Ok(content_cfg) => Some(Arc::new(content_cfg)),
+            Ok(mut content_cfg) => {
+                let base_url = config.api_external_url.trim_end_matches('/');
+
+                content_cfg.metadata.structured_data.organization.url = base_url.to_string();
+
+                let logo = &content_cfg.metadata.structured_data.organization.logo;
+                if logo.starts_with('/') {
+                    content_cfg.metadata.structured_data.organization.logo =
+                        format!("{base_url}{logo}");
+                }
+
+                Some(Arc::new(content_cfg))
+            },
             Err(e) => {
                 CliService::warning(&format!(
                     "Could not parse content config from {}: {}",
