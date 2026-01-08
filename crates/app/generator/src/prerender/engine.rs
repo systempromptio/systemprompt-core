@@ -7,7 +7,7 @@ use systemprompt_core_content::ContentRepository;
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::FileSystemLoader;
+use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{CoreTemplateProvider, TemplateRegistry, TemplateRegistryBuilder};
 use tokio::fs;
 
@@ -60,9 +60,12 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
 
     let loader = FileSystemLoader::with_path(&template_path);
 
+    let provider: DynTemplateProvider = Arc::new(core_provider);
+    let loader: DynTemplateLoader = Arc::new(loader);
+
     let template_registry = TemplateRegistryBuilder::new()
-        .with_provider(Arc::new(core_provider))
-        .with_loader(Arc::new(loader))
+        .with_provider(provider)
+        .with_loader(loader)
         .build_and_init()
         .await
         .context("Failed to initialize template registry")?;
@@ -302,22 +305,26 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         web_config: &ctx.web_config,
         content_html: &content_html,
         url_pattern: &sitemap_config.url_pattern,
-        db_pool: std::sync::Arc::clone(&ctx.db_pool),
+        db_pool: Arc::clone(&ctx.db_pool),
     })
     .await
     .with_context(|| format!("Failed to prepare template data for item '{}'", item_slug))?;
 
-    let content_type = item.get("content_type").and_then(|v| v.as_str());
+    let content_type = item
+        .get("content_type")
+        .and_then(|v| v.as_str())
+        .unwrap_or(*source_name);
 
     let template_name = ctx
         .template_registry
-        .get_template_for_content_type(content_type.unwrap_or(*source_name))
-        .map(str::to_string)
-        .unwrap_or_else(|| resolve_template_name(source_name));
+        .get_template_for_content_type(content_type)
+        .ok_or_else(|| {
+            anyhow::anyhow!("No template registered for content type: {}", content_type)
+        })?;
 
     let html = ctx
         .template_registry
-        .render(&template_name, &template_data)
+        .render(template_name, &template_data)
         .with_context(|| format!("Failed to render template for item '{}'", item_slug))?;
 
     let slug = item
@@ -326,13 +333,6 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .ok_or_else(|| ContentError::missing_field("slug"))?;
 
     write_rendered_page(&ctx.dist_dir, &sitemap_config.url_pattern, slug, &html).await
-}
-
-fn resolve_template_name(source_name: &str) -> String {
-    match source_name {
-        "papers" => "paper".to_string(),
-        name => format!("{}-post", name),
-    }
 }
 
 async fn write_rendered_page(

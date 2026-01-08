@@ -20,6 +20,16 @@ pub struct RenderParentParams<'a> {
     pub dist_dir: &'a Path,
 }
 
+impl std::fmt::Debug for RenderParentParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderParentParams")
+            .field("source_name", &self.source_name)
+            .field("items_count", &self.items.len())
+            .field("dist_dir", &self.dist_dir)
+            .finish_non_exhaustive()
+    }
+}
+
 pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
     let RenderParentParams {
         items,
@@ -32,7 +42,15 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
         dist_dir,
     } = params;
 
-    let template_name = resolve_list_template_name(source_name);
+    let list_content_type = format!("{}-list", source_name);
+    let template_name = template_registry
+        .get_template_for_content_type(&list_content_type)
+        .ok_or_else(|| {
+            anyhow::anyhow!(
+                "No template registered for content type: {}",
+                list_content_type
+            )
+        })?;
 
     let mut posts_html = Vec::new();
 
@@ -90,7 +108,7 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
     })?;
 
     let parent_html = template_registry
-        .render(&template_name, &parent_data)
+        .render(template_name, &parent_data)
         .context("Failed to render parent route")?;
 
     let parent_dir = dist_dir.join(parent_config.url.trim_start_matches('/'));
@@ -179,11 +197,4 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         "HEADER_CTA_URL": "/",
         "DISPLAY_SITENAME": display_sitename,
     }))
-}
-
-fn resolve_list_template_name(source_name: &str) -> String {
-    match source_name {
-        "papers" => "paper-list".to_string(),
-        name => format!("{}-list", name),
-    }
 }
