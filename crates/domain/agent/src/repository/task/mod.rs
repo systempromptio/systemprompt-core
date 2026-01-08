@@ -14,28 +14,42 @@ use crate::models::a2a::{Message, Part, Task, TaskState};
 use crate::repository::context::message::{
     get_message_parts, get_messages_by_context, get_messages_by_task, get_next_sequence_number,
     get_next_sequence_number_in_tx, get_next_sequence_number_sqlx, persist_message_sqlx,
-    persist_message_with_tx,
+    persist_message_with_tx, FileUploadContext,
 };
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_core_analytics::SessionRepository;
 use systemprompt_core_database::DbPool;
+use systemprompt_core_files::{FileUploadService, FilesConfig};
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug, Clone)]
 pub struct TaskRepository {
     db_pool: DbPool,
     analytics_session_repo: SessionRepository,
+    upload_service: Option<FileUploadService>,
 }
 
 impl TaskRepository {
     #[must_use]
     pub fn new(db_pool: DbPool) -> Self {
         let analytics_session_repo = SessionRepository::new(db_pool.clone());
+        let upload_service = Self::init_upload_service(&db_pool);
         Self {
             db_pool,
             analytics_session_repo,
+            upload_service,
         }
+    }
+
+    fn init_upload_service(db_pool: &DbPool) -> Option<FileUploadService> {
+        let files_config = FilesConfig::get_optional()?.clone();
+        FileUploadService::new(db_pool, files_config)
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to initialize FileUploadService");
+                e
+            })
+            .ok()
     }
 
     fn get_pg_pool(&self) -> Result<Arc<PgPool>, RepositoryError> {
@@ -226,6 +240,14 @@ impl TaskRepository {
             )));
         }
 
+        let upload_ctx = self.upload_service.as_ref().map(|svc| FileUploadContext {
+            upload_service: svc,
+            context_id: &task.context_id,
+            user_id,
+            session_id: Some(session_id),
+            trace_id: Some(trace_id),
+        });
+
         let user_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
         persist_message_sqlx(
             &mut tx,
@@ -236,6 +258,7 @@ impl TaskRepository {
             user_id,
             session_id,
             trace_id,
+            upload_ctx.as_ref(),
         )
         .await?;
 
@@ -249,6 +272,7 @@ impl TaskRepository {
             user_id,
             session_id,
             trace_id,
+            upload_ctx.as_ref(),
         )
         .await?;
 

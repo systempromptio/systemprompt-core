@@ -42,6 +42,7 @@ systemprompt-core-analytics = { path = "../analytics" }
 systemprompt-core-security = { path = "../../infra/security" }
 systemprompt-core-scheduler = { path = "../../app/scheduler" }
 systemprompt-core-mcp = { path = "../mcp" }
+systemprompt-core-files = { path = "../files" }
 rmcp = { workspace = true }
 
 # Async runtime

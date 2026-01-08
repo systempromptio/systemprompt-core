@@ -10,7 +10,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-pub use parts::get_message_parts;
+pub use parts::{get_message_parts, FileUploadContext};
 pub use persistence::{persist_message_sqlx, persist_message_with_tx};
 pub use queries::{
     get_messages_by_context, get_messages_by_task, get_next_sequence_number,
@@ -58,6 +58,7 @@ impl MessageRepository {
         user_id: Option<&UserId>,
         session_id: &SessionId,
         trace_id: &TraceId,
+        upload_ctx: Option<&FileUploadContext<'_>>,
     ) -> Result<(), RepositoryError> {
         persist_message_sqlx(
             tx,
@@ -68,6 +69,7 @@ impl MessageRepository {
             user_id,
             session_id,
             trace_id,
+            upload_ctx,
         )
         .await
     }
