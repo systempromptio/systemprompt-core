@@ -10,6 +10,7 @@ description = "File management module for SystemPrompt"
 workspace = true
 
 [dependencies]
+systemprompt-cloud = { path = "../../infra/cloud" }
 systemprompt-core-database = { path = "../../infra/database" }
 systemprompt-core-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }

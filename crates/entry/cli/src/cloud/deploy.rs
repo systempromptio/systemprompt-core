@@ -88,25 +88,15 @@ impl DeployConfig {
     }
 
     fn validate_images_structure(&self) -> Result<()> {
-        let required_subdirs = ["blog", "social", "logos"];
-        let mut missing = Vec::new();
-
-        for subdir in required_subdirs {
-            let path = self.web_images.join(subdir);
-            if !path.exists() {
-                missing.push(subdir);
-            }
-        }
-
-        if !missing.is_empty() {
-            return Err(anyhow!(
-                "Web images missing required subdirectories: {}\n\nRequired structure:\n  \
-                 {}/\n    blog/\n    social/\n    logos/",
-                missing.join(", "),
+        let logos_path = self.web_images.join("logos");
+        if !logos_path.exists() {
+            bail!(
+                "Web images missing logos/ subdirectory: {}\n\nRequired structure:\n  {}/\n    \
+                 logos/",
+                logos_path.display(),
                 self.web_images.display()
-            ));
+            );
         }
-
         Ok(())
     }
 }

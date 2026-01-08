@@ -1,10 +1,9 @@
 use anyhow::{bail, Result};
 use std::path::Path;
 
-use systemprompt_cloud::constants::container;
+use systemprompt_cloud::constants::{container, storage};
 use systemprompt_loader::ExtensionLoader;
 
-/// Builder for generating Dockerfile content with MCP binary detection.
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
     profile_name: Option<&'a str>,
@@ -46,7 +45,7 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/images/blog {storage}/images/social {storage}/images/logos {storage}/images/generated {storage}/files/audio {storage}/files/video {storage}/files/documents {storage}/files/uploads
+RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
@@ -83,6 +82,13 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
             services = container::SERVICES,
             web = container::WEB,
             profiles = container::PROFILES,
+            images = storage::IMAGES,
+            generated = storage::GENERATED,
+            logos = storage::LOGOS,
+            audio = storage::AUDIO,
+            video = storage::VIDEO,
+            documents = storage::DOCUMENTS,
+            uploads = storage::UPLOADS,
             mcp_section = mcp_section,
             env_section = env_section,
         )

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use systemprompt_cloud::constants::storage;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();
@@ -73,18 +74,7 @@ impl FilesConfig {
         }
 
         let images_dir = self.images();
-        if images_dir.exists() {
-            let required_image_subdirs = ["blog", "social", "logos"];
-            for subdir in required_image_subdirs {
-                let path = images_dir.join(subdir);
-                if !path.exists() {
-                    errors.push(format!(
-                        "Required images subdirectory not found: {}",
-                        path.display()
-                    ));
-                }
-            }
-        } else {
+        if !images_dir.exists() {
             errors.push(format!(
                 "Images directory not found: {}",
                 images_dir.display()
@@ -92,18 +82,7 @@ impl FilesConfig {
         }
 
         let files_dir = self.files();
-        if files_dir.exists() {
-            let required_file_subdirs = ["audio", "video", "documents", "uploads"];
-            for subdir in required_file_subdirs {
-                let path = files_dir.join(subdir);
-                if !path.exists() {
-                    errors.push(format!(
-                        "Required files subdirectory not found: {}",
-                        path.display()
-                    ));
-                }
-            }
-        } else {
+        if !files_dir.exists() {
             errors.push(format!(
                 "Files directory not found: {}",
                 files_dir.display()
@@ -118,36 +97,35 @@ impl FilesConfig {
     }
 
     pub fn generated_images(&self) -> PathBuf {
-        self.storage_root.join("images/generated")
+        self.storage_root.join(storage::GENERATED)
     }
 
-    /// Get the path to images for a content source (e.g., "blog", "docs", etc.)
     pub fn content_images(&self, source: &str) -> PathBuf {
-        self.storage_root.join(format!("images/{}", source))
+        self.storage_root.join(storage::IMAGES).join(source)
     }
 
     pub fn images(&self) -> PathBuf {
-        self.storage_root.join("images")
+        self.storage_root.join(storage::IMAGES)
     }
 
     pub fn files(&self) -> PathBuf {
-        self.storage_root.join("files")
+        self.storage_root.join(storage::FILES)
     }
 
     pub fn audio(&self) -> PathBuf {
-        self.storage_root.join("files/audio")
+        self.storage_root.join(storage::AUDIO)
     }
 
     pub fn video(&self) -> PathBuf {
-        self.storage_root.join("files/video")
+        self.storage_root.join(storage::VIDEO)
     }
 
     pub fn documents(&self) -> PathBuf {
-        self.storage_root.join("files/documents")
+        self.storage_root.join(storage::DOCUMENTS)
     }
 
     pub fn uploads(&self) -> PathBuf {
-        self.storage_root.join("files/uploads")
+        self.storage_root.join(storage::UPLOADS)
     }
 
     pub fn url_prefix(&self) -> &str {
@@ -169,7 +147,6 @@ impl FilesConfig {
         format!("{}/images/generated/{}", self.url_prefix, name)
     }
 
-    /// Get the URL for an image in a content source's directory
     pub fn content_image_url(&self, source: &str, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
         format!("{}/images/{}/{}", self.url_prefix, source, name)

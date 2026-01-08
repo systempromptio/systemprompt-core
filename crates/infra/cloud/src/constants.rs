@@ -85,9 +85,6 @@ pub mod profile {
     pub const TENANTS_PATH: &str = "../../tenants.json";
 }
 
-/// Docker container path constants - used by Dockerfile generation and profile
-/// builders. Keep these in sync to ensure runtime binary resolution works
-/// correctly.
 pub mod container {
     use super::profile::CLOUD_APP_PATH;
 
@@ -98,4 +95,15 @@ pub mod container {
     pub const STORAGE: &str = "/app/storage";
     pub const WEB: &str = "/app/web";
     pub const PROFILES: &str = "/app/services/profiles";
+}
+
+pub mod storage {
+    pub const FILES: &str = "files";
+    pub const IMAGES: &str = "files/images";
+    pub const GENERATED: &str = "files/images/generated";
+    pub const LOGOS: &str = "files/images/logos";
+    pub const AUDIO: &str = "files/audio";
+    pub const VIDEO: &str = "files/video";
+    pub const DOCUMENTS: &str = "files/documents";
+    pub const UPLOADS: &str = "files/uploads";
 }
