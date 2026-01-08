@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS message_parts (
     file_mime_type TEXT,
     file_uri TEXT,
     file_bytes TEXT,
+    file_id UUID,
 
     data_content JSONB,
 
@@ -34,3 +35,4 @@ CREATE INDEX IF NOT EXISTS idx_message_parts_message_id ON message_parts(message
 CREATE INDEX IF NOT EXISTS idx_message_parts_task_id ON message_parts(task_id);
 CREATE INDEX IF NOT EXISTS idx_message_parts_kind ON message_parts(part_kind);
 CREATE INDEX IF NOT EXISTS idx_message_parts_sequence ON message_parts(message_id, sequence_number);
+CREATE INDEX IF NOT EXISTS idx_message_parts_file_id ON message_parts(file_id) WHERE file_id IS NOT NULL;

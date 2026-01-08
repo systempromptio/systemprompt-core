@@ -224,6 +224,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
         user_id: None,
         session_id: None,
         trace_id: None,
+        context_id: None,
         created_at: now,
         updated_at: now,
         deleted_at: None,

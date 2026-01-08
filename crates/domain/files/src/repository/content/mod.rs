@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::Utc;
-use systemprompt_identifiers::{ContentId, FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
 use super::file::FileRepository;
 use crate::models::{ContentFile, File, FileRole};
@@ -75,7 +75,7 @@ impl FileRepository {
             r#"
             SELECT
                 f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                f.metadata, f.user_id, f.session_id, f.trace_id, f.created_at, f.updated_at, f.deleted_at,
+                f.metadata, f.user_id, f.session_id, f.trace_id, f.context_id, f.created_at, f.updated_at, f.deleted_at,
                 cf.id as cf_id, cf.content_id, cf.file_id as cf_file_id, cf.role, cf.display_order, cf.created_at as cf_created_at
             FROM files f
             INNER JOIN content_files cf ON cf.file_id = f.id
@@ -102,6 +102,7 @@ impl FileRepository {
                     user_id: row.user_id.map(UserId::new),
                     session_id: row.session_id.map(SessionId::new),
                     trace_id: row.trace_id.map(TraceId::new),
+                    context_id: row.context_id.map(ContextId::new),
                     created_at: row.created_at,
                     updated_at: row.updated_at,
                     deleted_at: row.deleted_at,
@@ -128,7 +129,7 @@ impl FileRepository {
             File,
             r#"
             SELECT f.id, f.path, f.public_url, f.mime_type, f.size_bytes, f.ai_content,
-                   f.metadata, f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.created_at, f.updated_at, f.deleted_at
+                   f.metadata, f.user_id as "user_id: UserId", f.session_id as "session_id: SessionId", f.trace_id as "trace_id: TraceId", f.context_id as "context_id: ContextId", f.created_at, f.updated_at, f.deleted_at
             FROM files f
             INNER JOIN content_files cf ON cf.file_id = f.id
             WHERE cf.content_id = $1
