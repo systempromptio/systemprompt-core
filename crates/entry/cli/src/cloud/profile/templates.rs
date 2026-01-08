@@ -80,13 +80,76 @@ CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
     Ok(())
 }
 
+pub fn save_entrypoint(path: &Path) -> Result<()> {
+    let content = r#"#!/bin/sh
+set -e
+
+echo "Running database migrations..."
+/app/bin/systemprompt services db migrate
+
+echo "Starting services..."
+exec /app/bin/systemprompt services serve --foreground
+"#;
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
+    }
+
+    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = std::fs::Permissions::from_mode(0o755);
+        std::fs::set_permissions(path, permissions)
+            .with_context(|| format!("Failed to set permissions on {}", path.display()))?;
+    }
+
+    Ok(())
+}
+
+pub fn save_dockerignore(path: &Path) -> Result<()> {
+    let content = r".git
+.gitignore
+.gitmodules
+target/debug
+.cargo
+.systemprompt/credentials.json
+.systemprompt/tenants.json
+.systemprompt/**/secrets.json
+.systemprompt/docker
+.systemprompt/storage
+.env*
+backup
+docs
+instructions
+*.md
+core/web/node_modules
+.vscode
+.idea
+logs
+*.log
+plan
+";
+
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)
+            .with_context(|| format!("Failed to create directory {}", parent.display()))?;
+    }
+
+    std::fs::write(path, content).with_context(|| format!("Failed to write {}", path.display()))?;
+
+    Ok(())
+}
+
 pub struct DatabaseUrls<'a> {
     pub external: &'a str,
     pub internal: Option<&'a str>,
 }
 
 pub fn save_secrets(
-    db_urls: DatabaseUrls<'_>,
+    db_urls: &DatabaseUrls<'_>,
     api_keys: &super::api_keys::ApiKeys,
     secrets_path: &Path,
 ) -> Result<()> {
