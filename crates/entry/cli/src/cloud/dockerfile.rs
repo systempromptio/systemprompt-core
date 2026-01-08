@@ -1,72 +1,155 @@
 use anyhow::{bail, Result};
 use std::path::Path;
 
+use systemprompt_cloud::constants::container;
 use systemprompt_loader::ExtensionLoader;
 
-const DOCKERFILE_HEADER: &str = r"# SystemPrompt Cloud Image
+/// Builder for generating Dockerfile content with MCP binary detection.
+pub struct DockerfileBuilder<'a> {
+    project_root: &'a Path,
+    profile_name: Option<&'a str>,
+}
+
+impl<'a> DockerfileBuilder<'a> {
+    pub const fn new(project_root: &'a Path) -> Self {
+        Self {
+            project_root,
+            profile_name: None,
+        }
+    }
+
+    pub const fn with_profile(mut self, name: &'a str) -> Self {
+        self.profile_name = Some(name);
+        self
+    }
+
+    pub fn build(&self) -> String {
+        let mcp_section = self.mcp_copy_section();
+        let env_section = self.env_section();
+
+        format!(
+            r#"# SystemPrompt Application Dockerfile
+# Built by: systemprompt cloud profile create
+# Used by: systemprompt cloud deploy
+
 FROM debian:bookworm-slim
 
+# Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     ca-certificates \
     curl \
-    libpq5 \
     libssl3 \
+    libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -u 1000 app
-WORKDIR /app
+WORKDIR {app}
 
-RUN mkdir -p /app/bin /app/data /app/logs /app/storage/images/blog /app/storage/images/social /app/storage/images/logos /app/storage/images/generated /app/storage/files/audio /app/storage/files/video /app/storage/files/documents /app/storage/files/uploads
+RUN mkdir -p {bin} {storage}/images/blog {storage}/images/social {storage}/images/logos {storage}/images/generated {storage}/files/audio {storage}/files/video {storage}/files/documents {storage}/files/uploads
 
-COPY target/release/systemprompt /app/bin/
-";
+# Copy pre-built binaries
+COPY target/release/systemprompt {bin}/
+{mcp_section}
+# Copy web assets
+COPY core/web/dist {web}/dist
 
-#[allow(clippy::needless_raw_string_hashes)]
-const DOCKERFILE_FOOTER: &str = r#"
-COPY services /app/services
-COPY .systemprompt/profiles /app/services/profiles
-COPY .systemprompt/entrypoint.sh /app/entrypoint.sh
-COPY core/web/dist /app/web/dist
-COPY core/web/src/assets/images /app/storage/images
+# Copy storage assets (images, etc.)
+COPY storage {storage}
 
-RUN chmod +x /app/bin/* /app/entrypoint.sh && chown -R app:app /app
+# Copy services configuration
+COPY services {services}
+
+# Copy profiles
+COPY .systemprompt/profiles {profiles}
+
+RUN chmod +x {bin}/* && chown -R app:app {app}
 
 USER app
 EXPOSE 8080
 
+# Environment configuration
+{env_section}
+
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-ENV HOST=0.0.0.0 \
+CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
+"#,
+            app = container::APP,
+            bin = container::BIN,
+            storage = container::STORAGE,
+            services = container::SERVICES,
+            web = container::WEB,
+            profiles = container::PROFILES,
+            mcp_section = mcp_section,
+            env_section = env_section,
+        )
+    }
+
+    fn mcp_copy_section(&self) -> String {
+        let binaries = ExtensionLoader::get_mcp_binary_names(self.project_root);
+        if binaries.is_empty() {
+            return String::new();
+        }
+
+        let lines: Vec<String> = binaries
+            .iter()
+            .map(|bin| format!("COPY target/release/{} {}/", bin, container::BIN))
+            .collect();
+
+        format!("\n# Copy MCP server binaries\n{}\n", lines.join("\n"))
+    }
+
+    fn env_section(&self) -> String {
+        let profile_env = self
+            .profile_name
+            .map(|name| {
+                format!(
+                    "    SYSTEMPROMPT_PROFILE={}/{}/profile.yaml \\",
+                    container::PROFILES,
+                    name
+                )
+            })
+            .unwrap_or_default();
+
+        if profile_env.is_empty() {
+            format!(
+                r#"ENV HOST=0.0.0.0 \
     PORT=8080 \
     RUST_LOG=info \
-    PATH="/app/bin:$PATH" \
-    SYSTEMPROMPT_SERVICES_PATH=/app/services \
-    WEB_DIR=/app/web
-
-CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
-"#;
+    PATH="{}:$PATH" \
+    SYSTEMPROMPT_SERVICES_PATH={} \
+    WEB_DIR={}"#,
+                container::BIN,
+                container::SERVICES,
+                container::WEB
+            )
+        } else {
+            format!(
+                r#"ENV HOST=0.0.0.0 \
+    PORT=8080 \
+    RUST_LOG=info \
+    PATH="{}:$PATH" \
+{}
+    SYSTEMPROMPT_SERVICES_PATH={} \
+    WEB_DIR={}"#,
+                container::BIN,
+                profile_env,
+                container::SERVICES,
+                container::WEB
+            )
+        }
+    }
+}
 
 pub fn generate_dockerfile_content(project_root: &Path) -> String {
-    let mcp_binaries = ExtensionLoader::get_mcp_binary_names(project_root);
-
-    let mcp_section = if mcp_binaries.is_empty() {
-        String::new()
-    } else {
-        mcp_binaries
-            .iter()
-            .map(|bin| format!("COPY target/release/{} /app/bin/", bin))
-            .collect::<Vec<_>>()
-            .join("\n")
-    };
-
-    format!("{}{}{}", DOCKERFILE_HEADER, mcp_section, DOCKERFILE_FOOTER)
+    DockerfileBuilder::new(project_root).build()
 }
 
 pub fn get_required_mcp_copy_lines(project_root: &Path) -> Vec<String> {
     ExtensionLoader::get_mcp_binary_names(project_root)
         .iter()
-        .map(|bin| format!("COPY target/release/{} /app/bin/", bin))
+        .map(|bin| format!("COPY target/release/{} {}/", bin, container::BIN))
         .collect()
 }
 

@@ -103,7 +103,7 @@ pub async fn execute(name: &str) -> Result<()> {
         .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
 
     let dockerfile_path = ctx.profile_dockerfile(name);
-    save_dockerfile(&dockerfile_path, name)?;
+    save_dockerfile(&dockerfile_path, name, ctx.root())?;
     CliService::success(&format!("Created: {}", dockerfile_path.display()));
 
     let entrypoint_path = ctx.profile_entrypoint(name);
@@ -213,7 +213,7 @@ pub fn create_profile_for_tenant(
         .with_context(|| format!("Failed to create docker directory {}", docker_dir.display()))?;
 
     let dockerfile_path = ctx.profile_dockerfile(&name);
-    save_dockerfile(&dockerfile_path, &name)?;
+    save_dockerfile(&dockerfile_path, &name, ctx.root())?;
     CliService::success(&format!("Created: {}", dockerfile_path.display()));
 
     let entrypoint_path = ctx.profile_entrypoint(&name);

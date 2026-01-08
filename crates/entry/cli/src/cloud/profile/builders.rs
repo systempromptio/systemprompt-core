@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use systemprompt_cloud::constants::profile as consts;
+use systemprompt_cloud::constants::{container, profile as consts};
 use systemprompt_cloud::ProjectContext;
 use systemprompt_identifiers::TenantId;
 use systemprompt_models::auth::JwtAudience;
@@ -151,7 +151,6 @@ impl CloudProfileBuilder {
             .external_url
             .unwrap_or_else(|| consts::DEFAULT_CLOUD_URL.to_string());
         let internal_url = format!("http://localhost:{}", consts::DEFAULT_PORT);
-        let app = consts::CLOUD_APP_PATH;
 
         Profile {
             name: self.name,
@@ -175,12 +174,12 @@ impl CloudProfileBuilder {
                 cors_allowed_origins: vec![external],
             },
             paths: PathsConfig {
-                system: app.to_string(),
-                services: format!("{}/services", app),
-                bin: format!("{}/bin", app),
-                storage: Some(format!("{}/storage", app)),
+                system: container::APP.to_string(),
+                services: container::SERVICES.to_string(),
+                bin: container::BIN.to_string(),
+                storage: Some(container::STORAGE.to_string()),
                 geoip_database: None,
-                web_path: Some(format!("{}/web", app)),
+                web_path: Some(container::WEB.to_string()),
             },
             security: SecurityConfig {
                 issuer: consts::CLOUD_ISSUER.to_string(),
