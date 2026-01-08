@@ -24,6 +24,7 @@ core = [
     "dep:systemprompt-models",
     "dep:systemprompt-identifiers",
     "dep:systemprompt-extension",
+    "dep:systemprompt-template-provider",
 ]
 
 # Database support
@@ -84,6 +85,7 @@ systemprompt-traits = { path = "../crates/shared/traits", optional = true }
 systemprompt-models = { path = "../crates/shared/models", optional = true }
 systemprompt-identifiers = { path = "../crates/shared/identifiers", optional = true }
 systemprompt-extension = { path = "../crates/shared/extension", optional = true }
+systemprompt-template-provider = { path = "../crates/shared/template-provider", optional = true }
 
 # Infrastructure
 systemprompt-core-database = { path = "../crates/infra/database", optional = true }

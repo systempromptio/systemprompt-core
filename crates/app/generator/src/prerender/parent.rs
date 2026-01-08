@@ -1,15 +1,14 @@
-use anyhow::{Context, Result};
 use std::path::Path;
-use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
-use tokio::fs;
 
+use anyhow::{Context, Result};
 use systemprompt_core_content::models::ContentError;
+use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_templates::TemplateRegistry;
+use tokio::fs;
 
 use crate::content::{generate_content_card, CardData};
 use crate::templates::navigation::generate_footer_html;
-use crate::templates::TemplateEngine;
 
-#[derive(Debug)]
 pub struct RenderParentParams<'a> {
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
@@ -17,7 +16,7 @@ pub struct RenderParentParams<'a> {
     pub web_config: &'a serde_yaml::Value,
     pub parent_config: &'a systemprompt_models::ParentRoute,
     pub source_name: &'a str,
-    pub templates: &'a TemplateEngine,
+    pub template_registry: &'a TemplateRegistry,
     pub dist_dir: &'a Path,
 }
 
@@ -29,19 +28,15 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
         web_config,
         parent_config,
         source_name,
-        templates,
+        template_registry,
         dist_dir,
     } = params;
-    // Use source-specific template if available, fall back to generic
-    let template_name = match source_name {
-        "papers" => "paper-list",
-        name => format!("{}-list", name).leak(), // e.g., "blog-list", "docs-list"
-    };
+
+    let template_name = resolve_list_template_name(source_name);
 
     let mut posts_html = Vec::new();
 
     for item in items {
-        // Extract slug early for error context
         let item_slug = item
             .get("slug")
             .and_then(|v| v.as_str())
@@ -94,8 +89,8 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
         source_name,
     })?;
 
-    let parent_html = templates
-        .render(template_name, &parent_data)
+    let parent_html = template_registry
+        .render(&template_name, &parent_data)
         .context("Failed to render parent route")?;
 
     let parent_dir = dist_dir.join(parent_config.url.trim_start_matches('/'));
@@ -184,4 +179,11 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         "HEADER_CTA_URL": "/",
         "DISPLAY_SITENAME": display_sitename,
     }))
+}
+
+fn resolve_list_template_name(source_name: &str) -> String {
+    match source_name {
+        "papers" => "paper-list".to_string(),
+        name => format!("{}-list", name),
+    }
 }
