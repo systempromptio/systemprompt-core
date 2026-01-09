@@ -10,9 +10,9 @@ use crate::models::providers::openai::{
 use crate::models::tools::{McpTool, ToolCall};
 use systemprompt_identifiers::AiToolCallId;
 
-use super::converters;
 use super::provider::OpenAiProvider;
 use super::response_builder::build_response;
+use super::{converters, reasoning};
 
 pub struct SchemaGenerationParams<'a> {
     pub messages: &'a [AiMessage],
@@ -44,6 +44,8 @@ pub async fn generate(
             )
         });
 
+    let reasoning_config = reasoning::build_reasoning_config(model);
+
     let request = OpenAiRequest {
         model: model.to_string(),
         messages: openai_messages,
@@ -54,6 +56,7 @@ pub async fn generate(
         max_tokens: None,
         tools: None,
         response_format: None,
+        reasoning_effort: reasoning_config,
     };
 
     let response = provider
@@ -98,6 +101,8 @@ pub async fn generate_with_tools(
             )
         });
 
+    let reasoning_config = reasoning::build_reasoning_config(model);
+
     let request = OpenAiRequest {
         model: model.to_string(),
         messages: openai_messages,
@@ -108,6 +113,7 @@ pub async fn generate_with_tools(
         max_tokens: None,
         tools: Some(openai_tools),
         response_format: None,
+        reasoning_effort: reasoning_config,
     };
 
     let response = provider
@@ -175,6 +181,8 @@ pub async fn generate_structured(
             )
         });
 
+    let reasoning_config = reasoning::build_reasoning_config(model);
+
     let request = OpenAiRequest {
         model: model.to_string(),
         messages: openai_messages,
@@ -185,6 +193,7 @@ pub async fn generate_structured(
         max_tokens: None,
         tools: None,
         response_format: converters::convert_response_format(response_format)?,
+        reasoning_effort: reasoning_config,
     };
 
     let response = provider
@@ -218,6 +227,8 @@ pub async fn generate_with_schema(
         .sampling
         .map_or((None, None), |s| (s.temperature, s.top_p));
 
+    let reasoning_config = reasoning::build_reasoning_config(params.model);
+
     let request = OpenAiRequest {
         model: params.model.to_string(),
         messages: openai_messages,
@@ -234,6 +245,7 @@ pub async fn generate_with_schema(
                 strict: Some(true),
             },
         }),
+        reasoning_effort: reasoning_config,
     };
 
     let response = provider

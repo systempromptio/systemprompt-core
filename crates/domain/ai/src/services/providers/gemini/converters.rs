@@ -1,5 +1,5 @@
-use crate::models::ai::{AiMessage, MessageRole};
-use crate::models::providers::gemini::{GeminiContent, GeminiPart};
+use crate::models::ai::{AiContentPart, AiMessage, MessageRole};
+use crate::models::providers::gemini::{GeminiContent, GeminiInlineData, GeminiPart};
 use crate::models::tools::CallToolResult;
 use rmcp::model::RawContent;
 use serde_json::json;
@@ -19,12 +19,8 @@ pub fn convert_messages(messages: &[AiMessage]) -> Vec<GeminiContent> {
         }
         .to_string();
 
-        contents.push(GeminiContent {
-            role,
-            parts: vec![GeminiPart::Text {
-                text: message.content.clone(),
-            }],
-        });
+        let parts = convert_message_parts(message);
+        contents.push(GeminiContent { role, parts });
     }
 
     if !system_content.is_empty() {
@@ -40,6 +36,30 @@ pub fn convert_messages(messages: &[AiMessage]) -> Vec<GeminiContent> {
     }
 
     contents
+}
+
+fn convert_message_parts(message: &AiMessage) -> Vec<GeminiPart> {
+    if message.parts.is_empty() {
+        return vec![GeminiPart::Text {
+            text: message.content.clone(),
+        }];
+    }
+
+    message
+        .parts
+        .iter()
+        .map(|part| match part {
+            AiContentPart::Text { text } => GeminiPart::Text { text: text.clone() },
+            AiContentPart::Image { mime_type, data } | AiContentPart::Audio { mime_type, data } => {
+                GeminiPart::InlineData {
+                    inline_data: GeminiInlineData {
+                        mime_type: mime_type.clone(),
+                        data: data.clone(),
+                    },
+                }
+            },
+        })
+        .collect()
 }
 
 pub fn convert_tool_result_to_json(tool_result: &CallToolResult) -> serde_json::Value {
@@ -67,10 +87,10 @@ pub fn convert_tool_result_to_json(tool_result: &CallToolResult) -> serde_json::
             RawContent::Text(text_content) => json!({"type": "text", "text": text_content.text}),
             RawContent::Image(image_content) => {
                 json!({"type": "image", "data": image_content.data, "mimeType": image_content.mime_type})
-            }
+            },
             RawContent::ResourceLink(resource) => {
                 json!({"type": "resource", "uri": resource.uri, "mimeType": resource.mime_type})
-            }
+            },
             _ => json!({"type": "unknown"}),
         })
         .collect();

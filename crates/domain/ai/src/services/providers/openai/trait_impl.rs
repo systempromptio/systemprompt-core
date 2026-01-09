@@ -31,7 +31,16 @@ impl AiProvider for OpenAiProvider {
     fn supports_model(&self, model: &str) -> bool {
         matches!(
             model,
-            "gpt-4-turbo" | "gpt-4" | "gpt-3.5-turbo" | "gpt-4o" | "gpt-4o-mini"
+            "gpt-4-turbo"
+                | "gpt-4"
+                | "gpt-3.5-turbo"
+                | "gpt-4o"
+                | "gpt-4o-mini"
+                | "o1"
+                | "o1-mini"
+                | "o1-preview"
+                | "o3"
+                | "o3-mini"
         )
     }
 

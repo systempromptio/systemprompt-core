@@ -9,8 +9,8 @@ use crate::models::providers::anthropic::{
 use crate::models::tools::{McpTool, ToolCall};
 use systemprompt_identifiers::AiToolCallId;
 
-use super::converters;
 use super::provider::AnthropicProvider;
+use super::{converters, thinking};
 
 pub struct ToolGenerationParams<'a> {
     pub messages: &'a [AiMessage],
@@ -45,6 +45,8 @@ pub async fn generate(
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
+    let thinking_config = thinking::build_thinking_config(model);
+
     let request = AnthropicRequest {
         model: model.to_string(),
         messages: anthropic_messages,
@@ -56,6 +58,8 @@ pub async fn generate(
         system: system_prompt,
         tools: None,
         tool_choice: None,
+        stream: None,
+        thinking: thinking_config,
     };
 
     let response = provider
@@ -98,6 +102,8 @@ pub async fn generate_with_tools(
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
+    let thinking_config = thinking::build_thinking_config(params.model);
+
     let request = AnthropicRequest {
         model: params.model.to_string(),
         messages: anthropic_messages,
@@ -109,6 +115,8 @@ pub async fn generate_with_tools(
         system: system_prompt,
         tools: Some(anthropic_tools),
         tool_choice: None,
+        stream: None,
+        thinking: thinking_config,
     };
 
     let response = provider
@@ -143,7 +151,7 @@ pub async fn generate_with_tools(
                     arguments: input.clone(),
                 });
             },
-            AnthropicContentBlock::ToolResult { .. } => {},
+            AnthropicContentBlock::Image { .. } | AnthropicContentBlock::ToolResult { .. } => {},
         }
     }
 
@@ -192,6 +200,8 @@ pub async fn generate_with_schema(
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
+    let thinking_config = thinking::build_thinking_config(params.model);
+
     let request = AnthropicRequest {
         model: params.model.to_string(),
         messages: anthropic_messages,
@@ -205,6 +215,8 @@ pub async fn generate_with_schema(
         tool_choice: Some(AnthropicToolChoice::Tool {
             name: "structured_output".to_string(),
         }),
+        stream: None,
+        thinking: thinking_config,
     };
 
     let response = provider

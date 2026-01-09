@@ -4,10 +4,44 @@ use super::tools::McpTool;
 use crate::execution::context::RequestContext;
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum AiContentPart {
+    Text { text: String },
+    Image { mime_type: String, data: String },
+    Audio { mime_type: String, data: String },
+}
+
+impl AiContentPart {
+    pub fn text(text: impl Into<String>) -> Self {
+        Self::Text { text: text.into() }
+    }
+
+    pub fn image(mime_type: impl Into<String>, data: impl Into<String>) -> Self {
+        Self::Image {
+            mime_type: mime_type.into(),
+            data: data.into(),
+        }
+    }
+
+    pub fn audio(mime_type: impl Into<String>, data: impl Into<String>) -> Self {
+        Self::Audio {
+            mime_type: mime_type.into(),
+            data: data.into(),
+        }
+    }
+
+    pub const fn is_media(&self) -> bool {
+        matches!(self, Self::Image { .. } | Self::Audio { .. })
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiMessage {
     pub role: MessageRole,
     pub content: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub parts: Vec<AiContentPart>,
 }
 
 impl AiMessage {
@@ -15,6 +49,7 @@ impl AiMessage {
         Self {
             role: MessageRole::User,
             content: content.into(),
+            parts: Vec::new(),
         }
     }
 
@@ -22,6 +57,7 @@ impl AiMessage {
         Self {
             role: MessageRole::Assistant,
             content: content.into(),
+            parts: Vec::new(),
         }
     }
 
@@ -29,7 +65,20 @@ impl AiMessage {
         Self {
             role: MessageRole::System,
             content: content.into(),
+            parts: Vec::new(),
         }
+    }
+
+    pub fn user_with_parts(content: impl Into<String>, parts: Vec<AiContentPart>) -> Self {
+        Self {
+            role: MessageRole::User,
+            content: content.into(),
+            parts,
+        }
+    }
+
+    pub fn has_media(&self) -> bool {
+        self.parts.iter().any(AiContentPart::is_media)
     }
 }
 

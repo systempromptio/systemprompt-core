@@ -282,6 +282,104 @@ paths:
 
 ---
 
+### File Upload System
+
+The file upload system handles file attachments in A2A messages, persisting them to storage and database.
+
+**Core Components:**
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `FileUploadService` | `domain/files/src/services/upload/mod.rs` | File upload orchestration |
+| `FileUploadRequest` | Same file | Request builder with validation |
+| `FileRepository` | `domain/files/src/repository/file/mod.rs` | Database persistence |
+
+**Persistence Modes:**
+
+| Mode | Storage Path Pattern | Use Case |
+|------|---------------------|----------|
+| `ContextScoped` (default) | `contexts/{context_id}/{category}/{filename}` | Chat file attachments |
+| `UserLibrary` | `users/{user_id}/{category}/{filename}` | User's permanent files |
+| `Disabled` | N/A | Skip file persistence |
+
+**Upload Flow:**
+
+```
+User uploads file → Base64 in message → FileUploadService
+                                         ↓
+                                    Validate (MIME, size)
+                                         ↓
+                                    Generate UUID + path
+                                         ↓
+                                    Write to disk
+                                         ↓
+                                    Calculate SHA256
+                                         ↓
+                                    Store metadata in DB
+                                         ↓
+                                    Return public_url
+```
+
+**Message Parts Storage:**
+
+Files attached to messages are stored in `message_parts` table:
+
+| Column | Purpose |
+|--------|---------|
+| `file_name` | Original filename |
+| `file_mime_type` | MIME type (image/png, audio/wav) |
+| `file_uri` | Public URL to uploaded file |
+| `file_bytes` | Base64-encoded bytes (fallback) |
+| `file_id` | UUID reference to file record |
+
+---
+
+### Multimodal AI Integration
+
+The system supports sending images and audio to AI providers (currently Gemini).
+
+**Supported Media Types:**
+
+| Category | MIME Types | Max Size |
+|----------|------------|----------|
+| Images | image/jpeg, image/png, image/gif, image/webp | 20MB |
+| Audio | audio/wav, audio/mp3, audio/mpeg, audio/aiff, audio/aac, audio/ogg, audio/flac | 25MB |
+
+**Content Flow:**
+
+```
+Message with file parts → ConversationService.extract_message_content()
+                                ↓
+                          Create AiContentPart::Image or AiContentPart::Audio
+                                ↓
+                          AiMessage { content, parts: Vec<AiContentPart> }
+                                ↓
+                          Gemini converter → GeminiPart::InlineData
+                                ↓
+                          Gemini API receives multimodal content
+```
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `shared/models/src/ai/request.rs` | `AiContentPart` enum (Text, Image, Audio) |
+| `domain/agent/src/services/a2a_server/processing/conversation_service.rs` | Extract file parts from messages |
+| `domain/ai/src/services/providers/gemini/converters.rs` | Convert to `GeminiPart::InlineData` |
+
+**Usage Pattern:**
+
+```rust
+let (text, parts) = ConversationService::extract_message_content(&message);
+let ai_message = AiMessage {
+    role: MessageRole::User,
+    content: text,
+    parts,  // Vec<AiContentPart> - includes images/audio
+};
+```
+
+---
+
 ### Product Binary Pattern
 
 Template/product repositories must own the final binary to include extension jobs. Core provides reusable entry points; products compose them with extensions.

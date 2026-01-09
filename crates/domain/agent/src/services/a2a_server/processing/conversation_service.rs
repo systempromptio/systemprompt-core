@@ -1,10 +1,22 @@
 use anyhow::{anyhow, Result};
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::ContextId;
-use systemprompt_models::{AiMessage, MessageRole};
+use systemprompt_models::{AiContentPart, AiMessage, MessageRole};
 
-use crate::models::{Artifact, Message, Part};
+use crate::models::a2a::{FilePart, Part};
+use crate::models::{Artifact, Message};
 use crate::repository::task::TaskRepository;
+
+const SUPPORTED_IMAGE_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
+const SUPPORTED_AUDIO_TYPES: &[&str] = &[
+    "audio/wav",
+    "audio/mp3",
+    "audio/mpeg",
+    "audio/aiff",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+];
 
 #[derive(Debug)]
 pub struct ConversationService {
@@ -31,11 +43,11 @@ impl ConversationService {
         for task in tasks {
             if let Some(task_history) = task.history {
                 for msg in task_history {
-                    let text = match self.extract_message_text(&msg) {
-                        Ok(t) if !t.is_empty() => t,
+                    let (text, parts) = match self.extract_message_content(&msg) {
+                        Ok((t, p)) if !t.is_empty() || !p.is_empty() => (t, p),
                         Ok(_) => continue,
                         Err(e) => {
-                            tracing::warn!(error = %e, "Failed to extract message text");
+                            tracing::warn!(error = %e, "Failed to extract message content");
                             continue;
                         },
                     };
@@ -49,6 +61,7 @@ impl ConversationService {
                     history_messages.push(AiMessage {
                         role,
                         content: text,
+                        parts,
                     });
                 }
             }
@@ -59,6 +72,7 @@ impl ConversationService {
                         history_messages.push(AiMessage {
                             role: MessageRole::Assistant,
                             content: artifact_content,
+                            parts: Vec::new(),
                         });
                     }
                 }
@@ -68,27 +82,66 @@ impl ConversationService {
         Ok(history_messages)
     }
 
-    fn extract_message_text(&self, message: &Message) -> Result<String> {
+    fn extract_message_content(&self, message: &Message) -> Result<(String, Vec<AiContentPart>)> {
+        let mut text_content = String::new();
+        let mut content_parts = Vec::new();
+
         for part in &message.parts {
-            if let Part::Text(text_part) = part {
-                return Ok(text_part.text.clone());
+            match part {
+                Part::Text(text_part) => {
+                    if text_content.is_empty() {
+                        text_content.clone_from(&text_part.text);
+                    }
+                    content_parts.push(AiContentPart::text(&text_part.text));
+                },
+                Part::File(file_part) => {
+                    if let Some(content_part) = self.file_to_content_part(file_part) {
+                        content_parts.push(content_part);
+                    }
+                },
+                Part::Data(_) => {},
             }
         }
-        Err(anyhow!("No text content found in message"))
+
+        Ok((text_content, content_parts))
+    }
+
+    fn file_to_content_part(&self, file_part: &FilePart) -> Option<AiContentPart> {
+        let mime_type = file_part.file.mime_type.as_deref()?;
+
+        if Self::is_supported_image(mime_type) {
+            return Some(AiContentPart::image(mime_type, &file_part.file.bytes));
+        }
+
+        if Self::is_supported_audio(mime_type) {
+            return Some(AiContentPart::audio(mime_type, &file_part.file.bytes));
+        }
+
+        None
+    }
+
+    fn is_supported_image(mime_type: &str) -> bool {
+        SUPPORTED_IMAGE_TYPES
+            .iter()
+            .any(|&t| mime_type.starts_with(t))
+    }
+
+    fn is_supported_audio(mime_type: &str) -> bool {
+        SUPPORTED_AUDIO_TYPES
+            .iter()
+            .any(|&t| mime_type.starts_with(t))
     }
 
     fn serialize_artifact_for_context(&self, artifact: &Artifact) -> Result<String> {
-        let mut content = String::new();
-
         let artifact_name = artifact
             .name
             .clone()
             .unwrap_or_else(|| "unnamed".to_string());
 
-        content.push_str(&format!(
+        let mut content = format!(
             "[Artifact: {} (type: {})]\n",
             artifact_name, artifact.metadata.artifact_type
-        ));
+        );
 
         for part in &artifact.parts {
             match part {

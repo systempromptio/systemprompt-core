@@ -38,10 +38,12 @@ pub async fn synthesize_tool_results_with_artifacts(
     synthesis_messages.push(AiMessage {
         role: MessageRole::Assistant,
         content: initial_response.to_string(),
+        parts: Vec::new(),
     });
     synthesis_messages.push(AiMessage {
         role: MessageRole::User,
         content: synthesis_prompt,
+        parts: Vec::new(),
     });
 
     tracing::info!(
