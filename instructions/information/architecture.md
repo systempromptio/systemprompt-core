@@ -336,7 +336,7 @@ Files attached to messages are stored in `message_parts` table:
 
 ### Multimodal AI Integration
 
-The system supports sending images and audio to AI providers (currently Gemini).
+The system supports sending images, audio, and video to AI providers (currently Gemini).
 
 **Supported Media Types:**
 
@@ -344,6 +344,7 @@ The system supports sending images and audio to AI providers (currently Gemini).
 |----------|------------|----------|
 | Images | image/jpeg, image/png, image/gif, image/webp | 20MB |
 | Audio | audio/wav, audio/mp3, audio/mpeg, audio/aiff, audio/aac, audio/ogg, audio/flac | 25MB |
+| Video | video/mp4, video/mpeg, video/mov, video/avi, video/x-flv, video/mpg, video/webm, video/wmv, video/3gpp | 2GB |
 
 **Content Flow:**
 
@@ -363,7 +364,8 @@ Message with file parts → ConversationService.extract_message_content()
 
 | File | Purpose |
 |------|---------|
-| `shared/models/src/ai/request.rs` | `AiContentPart` enum (Text, Image, Audio) |
+| `shared/models/src/ai/media_types.rs` | Supported MIME types and helper functions |
+| `shared/models/src/ai/request.rs` | `AiContentPart` enum (Text, Image, Audio, Video) |
 | `domain/agent/src/services/a2a_server/processing/conversation_service.rs` | Extract file parts from messages |
 | `domain/ai/src/services/providers/gemini/converters.rs` | Convert to `GeminiPart::InlineData` |
 
