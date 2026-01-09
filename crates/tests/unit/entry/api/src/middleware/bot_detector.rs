@@ -82,6 +82,7 @@ fn test_bot_marker_known_bot() {
         is_bot: true,
         bot_type: BotType::KnownBot,
         user_agent: "Googlebot/2.1".to_string(),
+        ip_address: None,
     };
 
     assert!(marker.is_bot);
@@ -95,6 +96,7 @@ fn test_bot_marker_human() {
         is_bot: false,
         bot_type: BotType::Human,
         user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64)".to_string(),
+        ip_address: None,
     };
 
     assert!(!marker.is_bot);
@@ -107,6 +109,7 @@ fn test_bot_marker_scanner() {
         is_bot: false,
         bot_type: BotType::Scanner,
         user_agent: "nmap scripting engine".to_string(),
+        ip_address: None,
     };
 
     assert!(!marker.is_bot);
@@ -119,6 +122,7 @@ fn test_bot_marker_suspicious() {
         is_bot: false,
         bot_type: BotType::Suspicious,
         user_agent: "suspicious-client".to_string(),
+        ip_address: None,
     };
 
     assert!(!marker.is_bot);
@@ -131,6 +135,7 @@ fn test_bot_marker_empty_user_agent() {
         is_bot: false,
         bot_type: BotType::Human,
         user_agent: String::new(),
+        ip_address: None,
     };
 
     assert!(marker.user_agent.is_empty());
@@ -142,6 +147,7 @@ fn test_bot_marker_clone() {
         is_bot: true,
         bot_type: BotType::KnownBot,
         user_agent: "bingbot".to_string(),
+        ip_address: None,
     };
 
     let cloned = original.clone();
@@ -156,6 +162,7 @@ fn test_bot_marker_clone_independence() {
         is_bot: true,
         bot_type: BotType::KnownBot,
         user_agent: "original".to_string(),
+        ip_address: None,
     };
 
     let mut cloned = original.clone();
@@ -174,6 +181,7 @@ fn test_bot_marker_debug() {
         is_bot: true,
         bot_type: BotType::Scanner,
         user_agent: "test-agent".to_string(),
+        ip_address: None,
     };
 
     let debug_str = format!("{:?}", marker);
@@ -202,6 +210,7 @@ fn test_bot_marker_common_bots() {
             is_bot,
             bot_type: BotType::KnownBot,
             user_agent: user_agent.to_string(),
+            ip_address: None,
         };
         assert!(marker.is_bot);
         assert_eq!(marker.bot_type, BotType::KnownBot);
@@ -221,6 +230,7 @@ fn test_bot_marker_common_browsers() {
             is_bot: false,
             bot_type: BotType::Human,
             user_agent: user_agent.to_string(),
+            ip_address: None,
         };
         assert!(!marker.is_bot);
         assert_eq!(marker.bot_type, BotType::Human);

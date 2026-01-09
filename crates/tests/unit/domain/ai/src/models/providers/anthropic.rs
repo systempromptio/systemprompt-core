@@ -189,6 +189,8 @@ mod anthropic_request_tests {
             system: None,
             tools: None,
             tool_choice: None,
+            stream: None,
+            thinking: None,
         };
 
         assert_eq!(request.model, "claude-3-opus");
@@ -208,6 +210,8 @@ mod anthropic_request_tests {
             system: Some("You are a helpful assistant.".to_string()),
             tools: None,
             tool_choice: None,
+            stream: None,
+            thinking: None,
         };
 
         assert_eq!(
@@ -240,6 +244,8 @@ mod anthropic_request_tests {
             system: None,
             tools: Some(vec![tool]),
             tool_choice: Some(AnthropicToolChoice::Auto),
+            stream: None,
+            thinking: None,
         };
 
         assert!(request.tools.is_some());
@@ -262,6 +268,8 @@ mod anthropic_request_tests {
             system: None,
             tools: None,
             tool_choice: None,
+            stream: None,
+            thinking: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();

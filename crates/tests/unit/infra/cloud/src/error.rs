@@ -128,46 +128,6 @@ fn test_tenant_not_found_display() {
 }
 
 // ============================================================================
-// Helper Methods Tests
-// ============================================================================
-
-#[test]
-fn test_missing_cargo_target() {
-    let error = CloudError::missing_cargo_target();
-    match error {
-        CloudError::MissingProfileField { field, example } => {
-            assert_eq!(field, "paths.cargo_target");
-            assert!(example.contains("cargo_target"));
-        },
-        _ => panic!("Expected MissingProfileField variant"),
-    }
-}
-
-#[test]
-fn test_missing_web_dist() {
-    let error = CloudError::missing_web_dist();
-    match error {
-        CloudError::MissingProfileField { field, example } => {
-            assert_eq!(field, "paths.web_dist");
-            assert!(example.contains("web_dist"));
-        },
-        _ => panic!("Expected MissingProfileField variant"),
-    }
-}
-
-#[test]
-fn test_missing_dockerfile() {
-    let error = CloudError::missing_dockerfile();
-    match error {
-        CloudError::MissingProfileField { field, example } => {
-            assert_eq!(field, "paths.dockerfile");
-            assert!(example.contains("dockerfile"));
-        },
-        _ => panic!("Expected MissingProfileField variant"),
-    }
-}
-
-// ============================================================================
 // user_message() Tests
 // ============================================================================
 

@@ -2,8 +2,8 @@
 
 use systemprompt_core_ai::models::providers::openai::{
     OpenAiChoice, OpenAiFunction, OpenAiFunctionCall, OpenAiJsonSchema, OpenAiMessage,
-    OpenAiModels, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat, OpenAiResponseMessage,
-    OpenAiTool, OpenAiToolCall, OpenAiUsage,
+    OpenAiMessageContent, OpenAiModels, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
+    OpenAiResponseMessage, OpenAiTool, OpenAiToolCall, OpenAiUsage,
 };
 
 mod openai_models_tests {
@@ -47,22 +47,29 @@ mod openai_models_tests {
 mod openai_message_tests {
     use super::*;
 
+    fn assert_text_content(content: &OpenAiMessageContent, expected: &str) {
+        match content {
+            OpenAiMessageContent::Text(text) => assert_eq!(text, expected),
+            OpenAiMessageContent::Parts(_) => panic!("Expected Text, got Parts"),
+        }
+    }
+
     #[test]
     fn create_user_message() {
         let msg = OpenAiMessage {
             role: "user".to_string(),
-            content: "Hello!".to_string(),
+            content: OpenAiMessageContent::Text("Hello!".to_string()),
         };
 
         assert_eq!(msg.role, "user");
-        assert_eq!(msg.content, "Hello!");
+        assert_text_content(&msg.content, "Hello!");
     }
 
     #[test]
     fn message_serialization() {
         let msg = OpenAiMessage {
             role: "assistant".to_string(),
-            content: "Hi there!".to_string(),
+            content: OpenAiMessageContent::Text("Hi there!".to_string()),
         };
 
         let json = serde_json::to_string(&msg).unwrap();
@@ -76,7 +83,7 @@ mod openai_message_tests {
         let msg: OpenAiMessage = serde_json::from_str(json).unwrap();
 
         assert_eq!(msg.role, "system");
-        assert_eq!(msg.content, "You are helpful.");
+        assert_text_content(&msg.content, "You are helpful.");
     }
 }
 
@@ -89,7 +96,7 @@ mod openai_request_tests {
             model: "gpt-4".to_string(),
             messages: vec![OpenAiMessage {
                 role: "user".to_string(),
-                content: "Hello".to_string(),
+                content: OpenAiMessageContent::Text("Hello".to_string()),
             }],
             temperature: None,
             top_p: None,
@@ -98,6 +105,7 @@ mod openai_request_tests {
             max_tokens: None,
             tools: None,
             response_format: None,
+            reasoning_effort: None,
         };
 
         assert_eq!(request.model, "gpt-4");
@@ -116,6 +124,7 @@ mod openai_request_tests {
             max_tokens: Some(4096),
             tools: None,
             response_format: None,
+            reasoning_effort: None,
         };
 
         assert_eq!(request.temperature, Some(0.7));
@@ -149,6 +158,7 @@ mod openai_request_tests {
             max_tokens: None,
             tools: Some(vec![tool]),
             response_format: None,
+            reasoning_effort: None,
         };
 
         assert!(request.tools.is_some());
@@ -161,7 +171,7 @@ mod openai_request_tests {
             model: "gpt-4".to_string(),
             messages: vec![OpenAiMessage {
                 role: "user".to_string(),
-                content: "Test".to_string(),
+                content: OpenAiMessageContent::Text("Test".to_string()),
             }],
             temperature: Some(0.5),
             top_p: None,
@@ -170,6 +180,7 @@ mod openai_request_tests {
             max_tokens: Some(1000),
             tools: None,
             response_format: None,
+            reasoning_effort: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();

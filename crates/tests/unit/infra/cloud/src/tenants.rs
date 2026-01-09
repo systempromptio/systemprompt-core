@@ -1,20 +1,8 @@
 //! Unit tests for tenant storage types
-//!
-//! Tests cover:
-//! - TenantType enum variants and default
-//! - StoredTenant creation (new, new_local, new_cloud, from_tenant_info)
-//! - StoredTenant validation and has_database_url
-//! - TenantStore creation and operations
-//! - TenantStore serialization/deserialization
-//! - TenantStore find_tenant, is_empty, len, is_stale
 
-use chrono::{Duration, Utc};
-use systemprompt_cloud::{StoredTenant, TenantInfo, TenantStore, TenantType};
+use chrono::{TimeDelta, Utc};
 use systemprompt_cloud::tenants::NewCloudTenantParams;
-
-// ============================================================================
-// TenantType Tests
-// ============================================================================
+use systemprompt_cloud::{StoredTenant, TenantInfo, TenantStore, TenantType};
 
 #[test]
 fn test_tenant_type_default_is_local() {
@@ -50,10 +38,6 @@ fn test_tenant_type_deserialization() {
     assert_eq!(cloud, TenantType::Cloud);
 }
 
-// ============================================================================
-// StoredTenant::new Tests
-// ============================================================================
-
 #[test]
 fn test_stored_tenant_new() {
     let tenant = StoredTenant::new("tenant-123".to_string(), "My Tenant".to_string());
@@ -79,10 +63,6 @@ fn test_stored_tenant_new_with_empty_name() {
     assert_eq!(tenant.name, "");
 }
 
-// ============================================================================
-// StoredTenant::new_local Tests
-// ============================================================================
-
 #[test]
 fn test_stored_tenant_new_local() {
     let tenant = StoredTenant::new_local(
@@ -101,10 +81,6 @@ fn test_stored_tenant_new_local() {
     assert!(tenant.app_id.is_none());
 }
 
-// ============================================================================
-// StoredTenant::new_cloud Tests
-// ============================================================================
-
 #[test]
 fn test_stored_tenant_new_cloud() {
     let params = NewCloudTenantParams {
@@ -113,7 +89,8 @@ fn test_stored_tenant_new_cloud() {
         app_id: Some("app-456".to_string()),
         hostname: Some("prod.systemprompt.io".to_string()),
         region: Some("iad".to_string()),
-        database_url: "postgres://cloud/prod".to_string(),
+        database_url: Some("postgres://cloud/prod".to_string()),
+        internal_database_url: "postgres://internal/prod".to_string(),
         external_db_access: false,
     };
 
@@ -124,10 +101,6 @@ fn test_stored_tenant_new_cloud() {
     assert_eq!(tenant.app_id, Some("app-456".to_string()));
     assert_eq!(tenant.hostname, Some("prod.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("iad".to_string()));
-    assert_eq!(
-        tenant.database_url,
-        Some("postgres://cloud/prod".to_string())
-    );
     assert_eq!(tenant.tenant_type, TenantType::Cloud);
 }
 
@@ -139,7 +112,8 @@ fn test_stored_tenant_new_cloud_minimal() {
         app_id: None,
         hostname: None,
         region: None,
-        database_url: "postgres://minimal".to_string(),
+        database_url: None,
+        internal_database_url: "postgres://minimal".to_string(),
         external_db_access: false,
     };
 
@@ -150,10 +124,6 @@ fn test_stored_tenant_new_cloud_minimal() {
     assert!(tenant.region.is_none());
     assert_eq!(tenant.tenant_type, TenantType::Cloud);
 }
-
-// ============================================================================
-// StoredTenant::from_tenant_info Tests
-// ============================================================================
 
 #[test]
 fn test_stored_tenant_from_tenant_info() {
@@ -166,6 +136,9 @@ fn test_stored_tenant_from_tenant_info() {
         hostname: Some("info.systemprompt.io".to_string()),
         region: Some("lhr".to_string()),
         plan: None,
+        status: None,
+        external_db_access: false,
+        database_url: "postgres://info".to_string(),
     };
 
     let tenant = StoredTenant::from_tenant_info(&info);
@@ -175,7 +148,6 @@ fn test_stored_tenant_from_tenant_info() {
     assert_eq!(tenant.app_id, Some("app-789".to_string()));
     assert_eq!(tenant.hostname, Some("info.systemprompt.io".to_string()));
     assert_eq!(tenant.region, Some("lhr".to_string()));
-    assert!(tenant.database_url.is_none()); // from_tenant_info doesn't set database_url
     assert_eq!(tenant.tenant_type, TenantType::Cloud);
 }
 
@@ -190,6 +162,9 @@ fn test_stored_tenant_from_tenant_info_minimal() {
         hostname: None,
         region: None,
         plan: None,
+        status: None,
+        external_db_access: false,
+        database_url: "postgres://minimal".to_string(),
     };
 
     let tenant = StoredTenant::from_tenant_info(&info);
@@ -199,10 +174,6 @@ fn test_stored_tenant_from_tenant_info_minimal() {
     assert!(tenant.hostname.is_none());
     assert!(tenant.region.is_none());
 }
-
-// ============================================================================
-// StoredTenant::has_database_url Tests
-// ============================================================================
 
 #[test]
 fn test_stored_tenant_has_database_url_true() {
@@ -227,10 +198,6 @@ fn test_stored_tenant_has_database_url_false_empty() {
     assert!(!tenant.has_database_url());
 }
 
-// ============================================================================
-// StoredTenant Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_stored_tenant_serialization() {
     let tenant = StoredTenant::new("ser-123".to_string(), "Serialize Me".to_string());
@@ -246,7 +213,6 @@ fn test_stored_tenant_serialization_skips_none() {
     let tenant = StoredTenant::new("id".to_string(), "name".to_string());
 
     let json = serde_json::to_string(&tenant).unwrap();
-    // Optional fields should be skipped when None
     assert!(!json.contains("\"app_id\""));
     assert!(!json.contains("\"hostname\""));
     assert!(!json.contains("\"region\""));
@@ -286,10 +252,6 @@ fn test_stored_tenant_deserialization_with_optional_fields() {
     assert_eq!(tenant.database_url, Some("postgres://full".to_string()));
 }
 
-// ============================================================================
-// TenantStore::new Tests
-// ============================================================================
-
 #[test]
 fn test_tenant_store_new() {
     let tenants = vec![
@@ -321,10 +283,6 @@ fn test_tenant_store_synced_at() {
     assert!(store.synced_at <= after);
 }
 
-// ============================================================================
-// TenantStore::from_tenant_infos Tests
-// ============================================================================
-
 #[test]
 fn test_tenant_store_from_tenant_infos() {
     let infos = vec![
@@ -337,6 +295,9 @@ fn test_tenant_store_from_tenant_infos() {
             hostname: None,
             region: None,
             plan: None,
+            status: None,
+            external_db_access: false,
+            database_url: "postgres://i1".to_string(),
         },
         TenantInfo {
             id: "i2".to_string(),
@@ -347,6 +308,9 @@ fn test_tenant_store_from_tenant_infos() {
             hostname: None,
             region: None,
             plan: None,
+            status: None,
+            external_db_access: false,
+            database_url: "postgres://i2".to_string(),
         },
     ];
 
@@ -356,10 +320,6 @@ fn test_tenant_store_from_tenant_infos() {
     assert!(store.find_tenant("i1").is_some());
     assert!(store.find_tenant("i2").is_some());
 }
-
-// ============================================================================
-// TenantStore::find_tenant Tests
-// ============================================================================
 
 #[test]
 fn test_tenant_store_find_tenant_found() {
@@ -391,50 +351,34 @@ fn test_tenant_store_find_tenant_empty_store() {
     assert!(found.is_none());
 }
 
-// ============================================================================
-// TenantStore::is_stale Tests
-// ============================================================================
-
 #[test]
 fn test_tenant_store_is_stale_fresh() {
     let store = TenantStore::new(vec![]);
-
-    // Just created, should not be stale
-    assert!(!store.is_stale(Duration::hours(1)));
+    assert!(!store.is_stale(TimeDelta::hours(1)));
 }
 
 #[test]
 fn test_tenant_store_is_stale_old() {
     let mut store = TenantStore::new(vec![]);
-    store.synced_at = Utc::now() - Duration::hours(2);
-
-    // Older than 1 hour max age, should be stale
-    assert!(store.is_stale(Duration::hours(1)));
+    store.synced_at = Utc::now() - TimeDelta::hours(2);
+    assert!(store.is_stale(TimeDelta::hours(1)));
 }
 
 #[test]
 fn test_tenant_store_is_stale_at_boundary() {
     let mut store = TenantStore::new(vec![]);
-    // Use slightly less than 1 hour to ensure we're under the boundary
-    // (accounting for test execution time)
-    store.synced_at = Utc::now() - Duration::minutes(59);
-
-    // Just under 1 hour should not be stale
-    assert!(!store.is_stale(Duration::hours(1)));
+    store.synced_at = Utc::now() - TimeDelta::minutes(59);
+    assert!(!store.is_stale(TimeDelta::hours(1)));
 }
 
 #[test]
 fn test_tenant_store_is_stale_with_days() {
     let mut store = TenantStore::new(vec![]);
-    store.synced_at = Utc::now() - Duration::days(7);
+    store.synced_at = Utc::now() - TimeDelta::days(7);
 
-    assert!(store.is_stale(Duration::days(1)));
-    assert!(!store.is_stale(Duration::days(30)));
+    assert!(store.is_stale(TimeDelta::days(1)));
+    assert!(!store.is_stale(TimeDelta::days(30)));
 }
-
-// ============================================================================
-// TenantStore Default Tests
-// ============================================================================
 
 #[test]
 fn test_tenant_store_default() {
@@ -443,10 +387,6 @@ fn test_tenant_store_default() {
     assert!(store.is_empty());
     assert_eq!(store.len(), 0);
 }
-
-// ============================================================================
-// TenantStore Serialization Tests
-// ============================================================================
 
 #[test]
 fn test_tenant_store_serialization() {
@@ -479,7 +419,11 @@ fn test_tenant_store_deserialization() {
 fn test_tenant_store_roundtrip() {
     let tenants = vec![
         StoredTenant::new("rt1".to_string(), "Roundtrip 1".to_string()),
-        StoredTenant::new_local("rt2".to_string(), "Roundtrip 2".to_string(), "postgres://rt2".to_string()),
+        StoredTenant::new_local(
+            "rt2".to_string(),
+            "Roundtrip 2".to_string(),
+            "postgres://rt2".to_string(),
+        ),
     ];
     let original = TenantStore::new(tenants);
 

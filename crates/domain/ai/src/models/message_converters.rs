@@ -50,6 +50,9 @@ fn convert_to_openai_parts(message: &AiMessage) -> Vec<OpenAiContentPart> {
             AiContentPart::Audio { .. } => {
                 tracing::warn!("Audio content not supported by OpenAI vision, skipping");
             },
+            AiContentPart::Video { .. } => {
+                tracing::warn!("Video content not supported by OpenAI vision, skipping");
+            },
         }
     }
 
@@ -104,6 +107,9 @@ fn convert_to_anthropic_blocks(
             },
             AiContentPart::Audio { .. } => {
                 tracing::warn!("Audio content not supported by Anthropic, skipping");
+            },
+            AiContentPart::Video { .. } => {
+                tracing::warn!("Video content not supported by Anthropic, skipping");
             },
         }
     }
