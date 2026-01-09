@@ -22,6 +22,16 @@ pub const SUPPORTED_VIDEO_TYPES: &[&str] = &[
     "video/3gpp",
 ];
 
+pub const SUPPORTED_TEXT_TYPES: &[&str] = &[
+    "text/plain",
+    "text/markdown",
+    "text/csv",
+    "text/html",
+    "text/xml",
+    "application/json",
+    "application/xml",
+];
+
 pub fn is_supported_image(mime_type: &str) -> bool {
     SUPPORTED_IMAGE_TYPES
         .iter()
@@ -40,6 +50,15 @@ pub fn is_supported_video(mime_type: &str) -> bool {
         .any(|&t| mime_type.starts_with(t))
 }
 
+pub fn is_supported_text(mime_type: &str) -> bool {
+    SUPPORTED_TEXT_TYPES
+        .iter()
+        .any(|&t| mime_type.starts_with(t))
+}
+
 pub fn is_supported_media(mime_type: &str) -> bool {
-    is_supported_image(mime_type) || is_supported_audio(mime_type) || is_supported_video(mime_type)
+    is_supported_image(mime_type)
+        || is_supported_audio(mime_type)
+        || is_supported_video(mime_type)
+        || is_supported_text(mime_type)
 }

@@ -345,6 +345,9 @@ The system supports sending images, audio, and video to AI providers (currently 
 | Images | image/jpeg, image/png, image/gif, image/webp | 20MB |
 | Audio | audio/wav, audio/mp3, audio/mpeg, audio/aiff, audio/aac, audio/ogg, audio/flac | 25MB |
 | Video | video/mp4, video/mpeg, video/mov, video/avi, video/x-flv, video/mpg, video/webm, video/wmv, video/3gpp | 2GB |
+| Text | text/plain, text/markdown, text/csv, text/html, text/xml, application/json, application/xml | N/A |
+
+**Note:** Text files are base64-decoded and included as text content with filename metadata. Unsupported file types log a warning and are not sent to the AI.
 
 **Content Flow:**
 
