@@ -14,7 +14,7 @@ pub use execution_plan::{
     ExecutionState, PlannedToolCall, PlanningResult, TemplateRef, ToolCallResult,
 };
 pub use models::{ModelConfig, ToolModelConfig, ToolModelOverrides};
-pub use request::{AiMessage, AiRequest, AiRequestBuilder, MessageRole};
+pub use request::{AiContentPart, AiMessage, AiRequest, AiRequestBuilder, MessageRole};
 pub use response::{AiResponse, SearchGroundedResponse, UrlMetadata, WebSource};
 pub use response_format::{ResponseFormat, StructuredOutputOptions};
 pub use sampling::{ModelHint, ModelPreferences, ProviderConfig, SamplingParams};

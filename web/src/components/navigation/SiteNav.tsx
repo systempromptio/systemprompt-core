@@ -26,9 +26,17 @@ export const SiteNav: React.FC = () => {
         <div className="flex items-center justify-between h-16">
           <Link to="/" className="flex items-center gap-sm">
             <picture>
-              <source srcSet="/files/images/logos/logo.webp" type="image/webp" />
-              <source srcSet="/files/images/logos/logo.svg" type="image/svg+xml" />
-              <img src="/files/images/logos/logo.svg" alt={theme.branding.name} className="h-8" />
+              {theme.branding.logo.primary.webp && (
+                <source srcSet={theme.branding.logo.primary.webp} type="image/webp" />
+              )}
+              {theme.branding.logo.primary.svg && (
+                <source srcSet={theme.branding.logo.primary.svg} type="image/svg+xml" />
+              )}
+              <img
+                src={theme.branding.logo.primary.svg || theme.branding.logo.primary.png}
+                alt={theme.branding.name}
+                className="h-8"
+              />
             </picture>
           </Link>
 

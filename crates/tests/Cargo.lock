@@ -3894,6 +3894,7 @@ dependencies = [
  "serde",
  "serde_json",
  "systemprompt-core-logging",
+ "systemprompt-identifiers",
  "systemprompt-models",
  "thiserror 2.0.17",
  "tokio",
@@ -3975,6 +3976,7 @@ dependencies = [
  "systemprompt-core-config",
  "systemprompt-core-database",
  "systemprompt-core-events",
+ "systemprompt-core-files",
  "systemprompt-core-logging",
  "systemprompt-core-mcp",
  "systemprompt-core-oauth",
@@ -4216,16 +4218,21 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
+ "base64 0.22.1",
  "chrono",
+ "hex",
  "inventory",
  "serde",
  "serde_json",
+ "sha2",
  "sqlx",
+ "systemprompt-cloud",
  "systemprompt-core-database",
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-traits",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
  "uuid",
@@ -4436,6 +4443,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
+ "systemprompt-template-provider",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -4494,6 +4502,8 @@ dependencies = [
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-template-provider",
+ "systemprompt-templates",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -4689,6 +4699,36 @@ dependencies = [
  "systemprompt-traits",
  "tempfile",
  "tokio",
+]
+
+[[package]]
+name = "systemprompt-template-provider"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-templates"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "handlebars",
+ "indexmap",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "systemprompt-template-provider",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

@@ -54,10 +54,10 @@ pub use agui::{
     ToolCallResultPayload, ToolCallStartPayload,
 };
 pub use ai::{
-    AiMessage, AiProvider, AiRequest, AiRequestBuilder, AiResponse, CallToolResult, DynAiProvider,
-    McpTool, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig, ResponseFormat,
-    SamplingParams, SearchGroundedResponse, StructuredOutputOptions, ToolCall, ToolExecution,
-    ToolResultFormatter,
+    AiContentPart, AiMessage, AiProvider, AiRequest, AiRequestBuilder, AiResponse, CallToolResult,
+    DynAiProvider, McpTool, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig,
+    ResponseFormat, SamplingParams, SearchGroundedResponse, StructuredOutputOptions, ToolCall,
+    ToolExecution, ToolResultFormatter,
 };
 pub use api::{
     AcceptedResponse, ApiError, ApiQuery, ApiResponse, CheckoutEvent, CheckoutRequest,

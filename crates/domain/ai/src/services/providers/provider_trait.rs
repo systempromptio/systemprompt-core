@@ -192,6 +192,7 @@ pub trait AiProvider: Send + Sync {
                 "Based on the tool results above, please provide a helpful response to the \
                  original question:\n\n{tool_summary}"
             ),
+            parts: Vec::new(),
         });
 
         let gen_params = GenerationParams {

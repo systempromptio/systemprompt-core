@@ -61,6 +61,7 @@ impl SynthesisPromptBuilder {
                  question\n- Any important insights from the data\n\nBe concise but informative. \
                  Do not repeat the raw tool data - synthesize it into a helpful response."
             ),
+            parts: Vec::new(),
         }
     }
 }

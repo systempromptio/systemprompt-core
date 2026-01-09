@@ -53,6 +53,7 @@ mod generation_params_tests {
             AiMessage {
                 role: MessageRole::User,
                 content: "Hello".to_string(),
+                parts: Vec::new(),
             },
         ]
     }
@@ -114,6 +115,7 @@ mod tool_generation_params_tests {
         vec![AiMessage {
             role: MessageRole::User,
             content: "Use a tool".to_string(),
+            parts: Vec::new(),
         }]
     }
 
@@ -174,6 +176,7 @@ mod tool_results_params_tests {
         vec![AiMessage {
             role: MessageRole::User,
             content: "Process results".to_string(),
+            parts: Vec::new(),
         }]
     }
 
@@ -242,6 +245,7 @@ mod schema_generation_params_tests {
         vec![AiMessage {
             role: MessageRole::User,
             content: "Generate structured".to_string(),
+            parts: Vec::new(),
         }]
     }
 
@@ -294,6 +298,7 @@ mod structured_generation_params_tests {
         vec![AiMessage {
             role: MessageRole::User,
             content: "Get JSON".to_string(),
+            parts: Vec::new(),
         }]
     }
 
@@ -341,6 +346,7 @@ mod search_generation_params_tests {
         vec![AiMessage {
             role: MessageRole::User,
             content: "Search something".to_string(),
+            parts: Vec::new(),
         }]
     }
 

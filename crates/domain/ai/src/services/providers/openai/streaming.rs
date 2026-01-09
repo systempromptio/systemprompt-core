@@ -7,6 +7,7 @@ use crate::models::ai::{AiMessage, SamplingParams};
 use crate::models::providers::openai::OpenAiTool;
 
 use super::provider::OpenAiProvider;
+use super::reasoning;
 
 pub struct StreamRequestParams<'a> {
     pub messages: &'a [AiMessage],
@@ -36,6 +37,10 @@ impl OpenAiProvider {
 
         if let Some(tools) = params.tools {
             request_body["tools"] = json!(tools);
+        }
+
+        if let Some(reasoning_effort) = reasoning::build_reasoning_config(params.model) {
+            request_body["reasoning_effort"] = json!(reasoning_effort);
         }
 
         let response = self

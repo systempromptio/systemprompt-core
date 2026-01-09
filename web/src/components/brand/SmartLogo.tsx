@@ -15,14 +15,16 @@ export const SmartLogo: React.FC<SmartLogoProps> = ({
   width = 200,
   height = 60,
   alt,
+  variant = 'primary',
   preferSvg = false,
 }) => {
   const logoAlt = alt || theme.branding.name;
+  const logoConfig = theme.branding.logo[variant] || theme.branding.logo.primary;
 
-  if (preferSvg) {
+  if (preferSvg && logoConfig.svg) {
     return (
       <img
-        src="/files/images/logos/logo.svg"
+        src={logoConfig.svg}
         alt={logoAlt}
         width={width}
         height={height}
@@ -34,10 +36,10 @@ export const SmartLogo: React.FC<SmartLogoProps> = ({
 
   return (
     <picture>
-      <source srcSet="/files/images/logos/logo.webp" type="image/webp" />
-      <source srcSet="/files/images/logos/logo.png" type="image/png" />
+      {logoConfig.webp && <source srcSet={logoConfig.webp} type="image/webp" />}
+      {logoConfig.svg && <source srcSet={logoConfig.svg} type="image/svg+xml" />}
       <img
-        src="/files/images/logos/logo.svg"
+        src={logoConfig.png || logoConfig.svg}
         alt={logoAlt}
         width={width}
         height={height}

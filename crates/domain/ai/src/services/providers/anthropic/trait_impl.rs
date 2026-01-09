@@ -1,5 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use futures::Stream;
+use std::pin::Pin;
 
 use crate::models::ai::{AiResponse, SamplingParams};
 use crate::models::tools::ToolCall;
@@ -8,8 +10,9 @@ use crate::services::providers::{
 };
 use crate::services::schema::ProviderCapabilities;
 
-use super::generation;
 use super::provider::AnthropicProvider;
+use super::streaming::StreamRequestParams;
+use super::{converters, generation};
 
 #[async_trait]
 impl AiProvider for AnthropicProvider {
@@ -92,6 +95,39 @@ impl AiProvider for AnthropicProvider {
                 model: params.base.model,
             },
         )
+        .await
+    }
+
+    fn supports_streaming(&self) -> bool {
+        true
+    }
+
+    async fn generate_stream(
+        &self,
+        params: GenerationParams<'_>,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+        self.create_stream_request(StreamRequestParams {
+            messages: params.messages,
+            sampling: params.sampling,
+            max_output_tokens: params.max_output_tokens,
+            model: params.model,
+            tools: None,
+        })
+        .await
+    }
+
+    async fn generate_with_tools_stream(
+        &self,
+        params: ToolGenerationParams<'_>,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+        let anthropic_tools = converters::convert_tools(params.tools);
+        self.create_stream_request(StreamRequestParams {
+            messages: params.base.messages,
+            sampling: params.base.sampling,
+            max_output_tokens: params.base.max_output_tokens,
+            model: params.base.model,
+            tools: Some(anthropic_tools),
+        })
         .await
     }
 }

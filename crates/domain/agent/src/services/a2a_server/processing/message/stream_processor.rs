@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use super::StreamEvent;
-use crate::models::a2a::{Artifact, Message, Part};
+use crate::models::a2a::{Artifact, FilePart, Message, Part};
 use crate::models::AgentRuntimeInfo;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::a2a_server::processing::artifact::ArtifactBuilder;
@@ -13,7 +13,18 @@ use crate::services::a2a_server::processing::strategies::{
 use crate::services::{ContextService, SkillService};
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::{AgentName, TaskId};
-use systemprompt_models::{AiMessage, AiProvider, MessageRole, RequestContext};
+use systemprompt_models::{AiContentPart, AiMessage, AiProvider, MessageRole, RequestContext};
+
+const SUPPORTED_IMAGE_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
+const SUPPORTED_AUDIO_TYPES: &[&str] = &[
+    "audio/wav",
+    "audio/mp3",
+    "audio/mpeg",
+    "audio/aiff",
+    "audio/aac",
+    "audio/ogg",
+    "audio/flac",
+];
 
 #[allow(missing_debug_implementations)]
 pub struct StreamProcessor {
@@ -34,6 +45,56 @@ impl StreamProcessor {
         Err(anyhow!("No text content found in message"))
     }
 
+    pub fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
+        let mut text_content = String::new();
+        let mut content_parts = Vec::new();
+
+        for part in &message.parts {
+            match part {
+                Part::Text(text_part) => {
+                    if text_content.is_empty() {
+                        text_content.clone_from(&text_part.text);
+                    }
+                    content_parts.push(AiContentPart::text(&text_part.text));
+                },
+                Part::File(file_part) => {
+                    if let Some(content_part) = Self::file_to_content_part(file_part) {
+                        content_parts.push(content_part);
+                    }
+                },
+                Part::Data(_) => {},
+            }
+        }
+
+        (text_content, content_parts)
+    }
+
+    fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
+        let mime_type = file_part.file.mime_type.as_deref()?;
+
+        if Self::is_supported_image(mime_type) {
+            return Some(AiContentPart::image(mime_type, &file_part.file.bytes));
+        }
+
+        if Self::is_supported_audio(mime_type) {
+            return Some(AiContentPart::audio(mime_type, &file_part.file.bytes));
+        }
+
+        None
+    }
+
+    fn is_supported_image(mime_type: &str) -> bool {
+        SUPPORTED_IMAGE_TYPES
+            .iter()
+            .any(|&t| mime_type.starts_with(t))
+    }
+
+    fn is_supported_audio(mime_type: &str) -> bool {
+        SUPPORTED_AUDIO_TYPES
+            .iter()
+            .any(|&t| mime_type.starts_with(t))
+    }
+
     pub async fn process_message_stream(
         &self,
         a2a_message: &Message,
@@ -48,7 +109,7 @@ impl StreamProcessor {
         let agent_runtime = agent_runtime.clone();
         let agent_name_string = agent_name.to_string();
         let agent_name_typed = AgentName::new(agent_name);
-        let user_text = Self::extract_message_text(a2a_message)?;
+        let (user_text, user_parts) = Self::extract_message_content(a2a_message);
 
         let context_id = &a2a_message.context_id;
         let conversation_history = self
@@ -118,6 +179,7 @@ impl StreamProcessor {
                 ai_messages.push(AiMessage {
                     role: MessageRole::System,
                     content: skills_prompt,
+                    parts: Vec::new(),
                 });
 
                 tracing::info!("Skills injected into agent context");
@@ -127,6 +189,7 @@ impl StreamProcessor {
                 ai_messages.push(AiMessage {
                     role: MessageRole::System,
                     content: system_prompt.clone(),
+                    parts: Vec::new(),
                 });
             }
 
@@ -135,6 +198,7 @@ impl StreamProcessor {
             ai_messages.push(AiMessage {
                 role: MessageRole::User,
                 content: user_text,
+                parts: user_parts,
             });
 
             let ai_messages_for_synthesis = ai_messages.clone();
