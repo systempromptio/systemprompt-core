@@ -3,22 +3,30 @@
 use systemprompt_core_ai::models::ai::{AiMessage, MessageRole};
 use systemprompt_core_ai::models::providers::anthropic::AnthropicMessage;
 use systemprompt_core_ai::models::providers::gemini::GeminiContent;
-use systemprompt_core_ai::models::providers::openai::OpenAiMessage;
+use systemprompt_core_ai::models::providers::openai::{OpenAiMessage, OpenAiMessageContent};
 
 mod openai_converter_tests {
     use super::*;
+
+    fn assert_openai_text_content(content: &OpenAiMessageContent, expected: &str) {
+        match content {
+            OpenAiMessageContent::Text(text) => assert_eq!(text, expected),
+            OpenAiMessageContent::Parts(_) => panic!("Expected Text, got Parts"),
+        }
+    }
 
     #[test]
     fn user_message_converts_to_openai_user_role() {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: "Hello, world!".to_string(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
         assert_eq!(openai_msg.role, "user");
-        assert_eq!(openai_msg.content, "Hello, world!");
+        assert_openai_text_content(&openai_msg.content, "Hello, world!");
     }
 
     #[test]
@@ -26,12 +34,13 @@ mod openai_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::Assistant,
             content: "How can I help you?".to_string(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
         assert_eq!(openai_msg.role, "assistant");
-        assert_eq!(openai_msg.content, "How can I help you?");
+        assert_openai_text_content(&openai_msg.content, "How can I help you?");
     }
 
     #[test]
@@ -39,12 +48,13 @@ mod openai_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::System,
             content: "You are a helpful assistant.".to_string(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
         assert_eq!(openai_msg.role, "system");
-        assert_eq!(openai_msg.content, "You are a helpful assistant.");
+        assert_openai_text_content(&openai_msg.content, "You are a helpful assistant.");
     }
 
     #[test]
@@ -53,11 +63,12 @@ mod openai_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: content.to_string(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
-        assert_eq!(openai_msg.content, content);
+        assert_openai_text_content(&openai_msg.content, content);
     }
 
     #[test]
@@ -65,11 +76,12 @@ mod openai_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: String::new(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
-        assert_eq!(openai_msg.content, "");
+        assert_openai_text_content(&openai_msg.content, "");
     }
 
     #[test]
@@ -78,11 +90,12 @@ mod openai_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::Assistant,
             content: content.to_string(),
+            parts: Vec::new(),
         };
 
         let openai_msg: OpenAiMessage = (&ai_message).into();
 
-        assert_eq!(openai_msg.content, content);
+        assert_openai_text_content(&openai_msg.content, content);
     }
 }
 
@@ -95,6 +108,7 @@ mod anthropic_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: "Hello!".to_string(),
+            parts: Vec::new(),
         };
 
         let anthropic_msg: AnthropicMessage = (&ai_message).into();
@@ -111,6 +125,7 @@ mod anthropic_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::Assistant,
             content: "I'm here to help.".to_string(),
+            parts: Vec::new(),
         };
 
         let anthropic_msg: AnthropicMessage = (&ai_message).into();
@@ -128,6 +143,7 @@ mod anthropic_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::System,
             content: "System instruction".to_string(),
+            parts: Vec::new(),
         };
 
         let anthropic_msg: AnthropicMessage = (&ai_message).into();
@@ -145,6 +161,7 @@ mod anthropic_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: content.to_string(),
+            parts: Vec::new(),
         };
 
         let anthropic_msg: AnthropicMessage = (&ai_message).into();
@@ -165,6 +182,7 @@ mod gemini_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: "Hello Gemini!".to_string(),
+            parts: Vec::new(),
         };
 
         let gemini_content: GeminiContent = (&ai_message).into();
@@ -182,6 +200,7 @@ mod gemini_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::Assistant,
             content: "Hello from the model!".to_string(),
+            parts: Vec::new(),
         };
 
         let gemini_content: GeminiContent = (&ai_message).into();
@@ -196,6 +215,7 @@ mod gemini_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::System,
             content: "System prompt".to_string(),
+            parts: Vec::new(),
         };
 
         let gemini_content: GeminiContent = (&ai_message).into();
@@ -213,6 +233,7 @@ mod gemini_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: content.to_string(),
+            parts: Vec::new(),
         };
 
         let gemini_content: GeminiContent = (&ai_message).into();
@@ -228,6 +249,7 @@ mod gemini_converter_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: "Single text content".to_string(),
+            parts: Vec::new(),
         };
 
         let gemini_content: GeminiContent = (&ai_message).into();
@@ -241,11 +263,19 @@ mod role_mapping_comparison_tests {
     use systemprompt_core_ai::models::providers::anthropic::AnthropicContent;
     use systemprompt_core_ai::models::providers::gemini::GeminiPart;
 
+    fn assert_openai_text_content(content: &OpenAiMessageContent, expected: &str) {
+        match content {
+            OpenAiMessageContent::Text(text) => assert_eq!(text, expected),
+            OpenAiMessageContent::Parts(_) => panic!("Expected Text, got Parts"),
+        }
+    }
+
     #[test]
     fn all_providers_handle_user_role() {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: "Test".to_string(),
+            parts: Vec::new(),
         };
 
         let openai: OpenAiMessage = (&ai_message).into();
@@ -262,6 +292,7 @@ mod role_mapping_comparison_tests {
         let ai_message = AiMessage {
             role: MessageRole::Assistant,
             content: "Test".to_string(),
+            parts: Vec::new(),
         };
 
         let openai: OpenAiMessage = (&ai_message).into();
@@ -278,6 +309,7 @@ mod role_mapping_comparison_tests {
         let ai_message = AiMessage {
             role: MessageRole::System,
             content: "System instruction".to_string(),
+            parts: Vec::new(),
         };
 
         let openai: OpenAiMessage = (&ai_message).into();
@@ -298,13 +330,14 @@ mod role_mapping_comparison_tests {
         let ai_message = AiMessage {
             role: MessageRole::User,
             content: content.to_string(),
+            parts: Vec::new(),
         };
 
         let openai: OpenAiMessage = (&ai_message).into();
         let anthropic: AnthropicMessage = (&ai_message).into();
         let gemini: GeminiContent = (&ai_message).into();
 
-        assert_eq!(openai.content, content);
+        assert_openai_text_content(&openai.content, content);
         match anthropic.content {
             AnthropicContent::Text(text) => assert_eq!(text, content),
             _ => panic!("Expected text content"),

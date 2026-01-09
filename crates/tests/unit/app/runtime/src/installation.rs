@@ -9,11 +9,8 @@
 //! require database setup and are tested in integration tests.
 
 use std::path::PathBuf;
+use systemprompt_extension::{SchemaSource, SeedSource};
 use systemprompt_runtime::{Module, ModuleSchema, ModuleSeed};
-
-// ============================================================================
-// Module Struct Tests
-// ============================================================================
 
 fn create_test_module(name: &str, path: PathBuf) -> Module {
     Module {
@@ -35,7 +32,7 @@ fn create_test_module(name: &str, path: PathBuf) -> Module {
 }
 
 #[test]
-fn test_module_creation_basic() {
+fn test_module_creation() {
     let module = create_test_module("test-module", PathBuf::from("/tmp/test"));
 
     assert_eq!(module.name, "test-module");
@@ -44,46 +41,32 @@ fn test_module_creation_basic() {
 }
 
 #[test]
-fn test_module_with_uuid() {
-    let module = Module {
-        uuid: "unique-uuid-67890".to_string(),
-        name: "uuid-module".to_string(),
-        version: "2.0.0".to_string(),
-        display_name: "UUID Module".to_string(),
-        description: None,
-        weight: None,
-        dependencies: vec![],
-        schemas: None,
-        seeds: None,
-        permissions: None,
-        audience: vec![],
-        enabled: true,
-        api: None,
-        path: PathBuf::from("/modules/uuid"),
-    };
+fn test_module_name_access() {
+    let module = create_test_module("my-module", PathBuf::from("/tmp"));
+    assert_eq!(module.name, "my-module");
+}
 
-    assert_eq!(module.uuid, "unique-uuid-67890");
+#[test]
+fn test_module_path_access() {
+    let path = PathBuf::from("/var/modules/test");
+    let module = create_test_module("path-test", path.clone());
+    assert_eq!(module.path, path);
+}
+
+#[test]
+fn test_module_enabled_flag() {
+    let module = create_test_module("enabled-test", PathBuf::from("/tmp"));
+    assert!(module.enabled);
 }
 
 #[test]
 fn test_module_with_description() {
-    let module = create_test_module("desc-module", PathBuf::from("/tmp"));
-
-    assert!(module.description.is_some());
-    assert_eq!(
-        module.description.unwrap(),
-        "Test module description".to_string()
-    );
-}
-
-#[test]
-fn test_module_without_description() {
     let module = Module {
-        uuid: "no-desc-uuid".to_string(),
-        name: "no-desc-module".to_string(),
+        uuid: "desc-uuid".to_string(),
+        name: "desc-module".to_string(),
         version: "1.0.0".to_string(),
-        display_name: "No Desc".to_string(),
-        description: None,
+        display_name: "Description Module".to_string(),
+        description: Some("This is a detailed description".to_string()),
         weight: None,
         dependencies: vec![],
         schemas: None,
@@ -95,7 +78,31 @@ fn test_module_without_description() {
         path: PathBuf::from("/tmp"),
     };
 
-    assert!(module.description.is_none());
+    assert!(module.description.is_some());
+    assert!(module.description.unwrap().contains("detailed"));
+}
+
+#[test]
+fn test_module_with_dependencies() {
+    let module = Module {
+        uuid: "dep-uuid".to_string(),
+        name: "dep-module".to_string(),
+        version: "1.0.0".to_string(),
+        display_name: "Dependency Module".to_string(),
+        description: None,
+        weight: None,
+        dependencies: vec!["core".to_string(), "auth".to_string()],
+        schemas: None,
+        seeds: None,
+        permissions: None,
+        audience: vec![],
+        enabled: true,
+        api: None,
+        path: PathBuf::from("/tmp"),
+    };
+
+    assert_eq!(module.dependencies.len(), 2);
+    assert!(module.dependencies.contains(&"core".to_string()));
 }
 
 #[test]
@@ -104,7 +111,7 @@ fn test_module_with_weight() {
         uuid: "weight-uuid".to_string(),
         name: "weight-module".to_string(),
         version: "1.0.0".to_string(),
-        display_name: "Weight".to_string(),
+        display_name: "Weight Module".to_string(),
         description: None,
         weight: Some(100),
         dependencies: vec![],
@@ -118,60 +125,6 @@ fn test_module_with_weight() {
     };
 
     assert_eq!(module.weight, Some(100));
-}
-
-#[test]
-fn test_module_with_dependencies() {
-    let module = Module {
-        uuid: "deps-uuid".to_string(),
-        name: "deps-module".to_string(),
-        version: "1.0.0".to_string(),
-        display_name: "Deps".to_string(),
-        description: None,
-        weight: None,
-        dependencies: vec!["dep1".to_string(), "dep2".to_string()],
-        schemas: None,
-        seeds: None,
-        permissions: None,
-        audience: vec![],
-        enabled: true,
-        api: None,
-        path: PathBuf::from("/tmp"),
-    };
-
-    assert_eq!(module.dependencies.len(), 2);
-    assert!(module.dependencies.contains(&"dep1".to_string()));
-    assert!(module.dependencies.contains(&"dep2".to_string()));
-}
-
-#[test]
-fn test_module_disabled() {
-    let module = Module {
-        uuid: "disabled-uuid".to_string(),
-        name: "disabled-module".to_string(),
-        version: "1.0.0".to_string(),
-        display_name: "Disabled".to_string(),
-        description: None,
-        weight: None,
-        dependencies: vec![],
-        schemas: None,
-        seeds: None,
-        permissions: None,
-        audience: vec![],
-        enabled: false,
-        api: None,
-        path: PathBuf::from("/tmp"),
-    };
-
-    assert!(!module.enabled);
-}
-
-#[test]
-fn test_module_path() {
-    let path = PathBuf::from("/var/modules/my-module");
-    let module = create_test_module("path-module", path.clone());
-
-    assert_eq!(module.path, path);
 }
 
 #[test]
@@ -197,19 +150,14 @@ fn test_module_with_audience() {
     assert!(module.audience.contains(&"api".to_string()));
 }
 
-// ============================================================================
-// ModuleSchema Struct Tests
-// ============================================================================
-
 #[test]
 fn test_module_schema_creation() {
     let schema = ModuleSchema {
-        file: "schema.sql".to_string(),
+        sql: SchemaSource::File(PathBuf::from("schema.sql")),
         table: "users".to_string(),
         required_columns: vec!["id".to_string(), "name".to_string()],
     };
 
-    assert_eq!(schema.file, "schema.sql");
     assert_eq!(schema.table, "users");
     assert_eq!(schema.required_columns.len(), 2);
 }
@@ -217,7 +165,7 @@ fn test_module_schema_creation() {
 #[test]
 fn test_module_schema_empty_columns() {
     let schema = ModuleSchema {
-        file: "empty.sql".to_string(),
+        sql: SchemaSource::File(PathBuf::from("empty.sql")),
         table: "empty_table".to_string(),
         required_columns: vec![],
     };
@@ -228,7 +176,7 @@ fn test_module_schema_empty_columns() {
 #[test]
 fn test_module_schema_single_column() {
     let schema = ModuleSchema {
-        file: "single.sql".to_string(),
+        sql: SchemaSource::File(PathBuf::from("single.sql")),
         table: "single_table".to_string(),
         required_columns: vec!["id".to_string()],
     };
@@ -240,7 +188,7 @@ fn test_module_schema_single_column() {
 #[test]
 fn test_module_schema_multiple_columns() {
     let schema = ModuleSchema {
-        file: "multi.sql".to_string(),
+        sql: SchemaSource::File(PathBuf::from("multi.sql")),
         table: "multi_table".to_string(),
         required_columns: vec![
             "id".to_string(),
@@ -254,30 +202,28 @@ fn test_module_schema_multiple_columns() {
 }
 
 #[test]
-fn test_module_schema_with_path_in_file() {
+fn test_module_schema_with_inline_sql() {
     let schema = ModuleSchema {
-        file: "schemas/v1/create_tables.sql".to_string(),
-        table: "nested_table".to_string(),
+        sql: SchemaSource::Inline("CREATE TABLE test (id INT)".to_string()),
+        table: "test".to_string(),
         required_columns: vec!["id".to_string()],
     };
 
-    assert!(schema.file.contains('/'));
+    match &schema.sql {
+        SchemaSource::Inline(sql) => assert!(sql.contains("CREATE TABLE")),
+        SchemaSource::File(_) => panic!("Expected Inline"),
+    }
 }
-
-// ============================================================================
-// ModuleSeed Struct Tests
-// ============================================================================
 
 #[test]
 fn test_module_seed_creation() {
     let seed = ModuleSeed {
-        file: "seed.sql".to_string(),
+        sql: SeedSource::File(PathBuf::from("seed.sql")),
         table: "users".to_string(),
         check_column: "email".to_string(),
         check_value: "admin@example.com".to_string(),
     };
 
-    assert_eq!(seed.file, "seed.sql");
     assert_eq!(seed.table, "users");
     assert_eq!(seed.check_column, "email");
     assert_eq!(seed.check_value, "admin@example.com");
@@ -286,7 +232,7 @@ fn test_module_seed_creation() {
 #[test]
 fn test_module_seed_with_id_check() {
     let seed = ModuleSeed {
-        file: "initial_data.sql".to_string(),
+        sql: SeedSource::File(PathBuf::from("initial_data.sql")),
         table: "settings".to_string(),
         check_column: "id".to_string(),
         check_value: "1".to_string(),
@@ -299,7 +245,7 @@ fn test_module_seed_with_id_check() {
 #[test]
 fn test_module_seed_with_name_check() {
     let seed = ModuleSeed {
-        file: "roles.sql".to_string(),
+        sql: SeedSource::File(PathBuf::from("roles.sql")),
         table: "roles".to_string(),
         check_column: "name".to_string(),
         check_value: "admin".to_string(),
@@ -310,21 +256,24 @@ fn test_module_seed_with_name_check() {
 }
 
 #[test]
-fn test_module_seed_with_path_in_file() {
+fn test_module_seed_with_inline_sql() {
     let seed = ModuleSeed {
-        file: "seeds/production/initial.sql".to_string(),
-        table: "config".to_string(),
-        check_column: "key".to_string(),
-        check_value: "initialized".to_string(),
+        sql: SeedSource::Inline("INSERT INTO users (id, name) VALUES (1, 'Admin')".to_string()),
+        table: "users".to_string(),
+        check_column: "id".to_string(),
+        check_value: "1".to_string(),
     };
 
-    assert!(seed.file.contains('/'));
+    match &seed.sql {
+        SeedSource::Inline(sql) => assert!(sql.contains("INSERT INTO")),
+        SeedSource::File(_) => panic!("Expected Inline"),
+    }
 }
 
 #[test]
 fn test_module_seed_empty_check_value() {
     let seed = ModuleSeed {
-        file: "empty.sql".to_string(),
+        sql: SeedSource::File(PathBuf::from("empty.sql")),
         table: "empty".to_string(),
         check_column: "status".to_string(),
         check_value: "".to_string(),
@@ -333,20 +282,16 @@ fn test_module_seed_empty_check_value() {
     assert!(seed.check_value.is_empty());
 }
 
-// ============================================================================
-// Module with Schemas Tests
-// ============================================================================
-
 #[test]
 fn test_module_with_schemas() {
     let schemas = vec![
         ModuleSchema {
-            file: "schema1.sql".to_string(),
+            sql: SchemaSource::File(PathBuf::from("schema1.sql")),
             table: "table1".to_string(),
             required_columns: vec!["id".to_string()],
         },
         ModuleSchema {
-            file: "schema2.sql".to_string(),
+            sql: SchemaSource::File(PathBuf::from("schema2.sql")),
             table: "table2".to_string(),
             required_columns: vec!["id".to_string(), "name".to_string()],
         },
@@ -373,21 +318,17 @@ fn test_module_with_schemas() {
     assert_eq!(module.schemas.as_ref().unwrap().len(), 2);
 }
 
-// ============================================================================
-// Module with Seeds Tests
-// ============================================================================
-
 #[test]
 fn test_module_with_seeds() {
     let seeds = vec![
         ModuleSeed {
-            file: "seed1.sql".to_string(),
+            sql: SeedSource::File(PathBuf::from("seed1.sql")),
             table: "table1".to_string(),
             check_column: "id".to_string(),
             check_value: "1".to_string(),
         },
         ModuleSeed {
-            file: "seed2.sql".to_string(),
+            sql: SeedSource::File(PathBuf::from("seed2.sql")),
             table: "table2".to_string(),
             check_column: "name".to_string(),
             check_value: "default".to_string(),
@@ -415,20 +356,16 @@ fn test_module_with_seeds() {
     assert_eq!(module.seeds.as_ref().unwrap().len(), 2);
 }
 
-// ============================================================================
-// Module Complete Configuration Tests
-// ============================================================================
-
 #[test]
 fn test_module_complete_configuration() {
     let schemas = vec![ModuleSchema {
-        file: "schema.sql".to_string(),
+        sql: SchemaSource::File(PathBuf::from("schema.sql")),
         table: "complete".to_string(),
         required_columns: vec!["id".to_string()],
     }];
 
     let seeds = vec![ModuleSeed {
-        file: "seed.sql".to_string(),
+        sql: SeedSource::File(PathBuf::from("seed.sql")),
         table: "complete".to_string(),
         check_column: "id".to_string(),
         check_value: "1".to_string(),

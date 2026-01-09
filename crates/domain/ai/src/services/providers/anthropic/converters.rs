@@ -59,7 +59,7 @@ fn convert_to_blocks(message: &AiMessage) -> Vec<AnthropicContentBlock> {
                     },
                 });
             },
-            AiContentPart::Audio { .. } => {},
+            AiContentPart::Audio { .. } | AiContentPart::Video { .. } => {},
         }
     }
 

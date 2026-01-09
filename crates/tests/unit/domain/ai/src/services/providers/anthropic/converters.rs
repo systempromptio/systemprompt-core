@@ -33,6 +33,7 @@ mod convert_messages_tests {
         let messages = vec![AiMessage {
             role: MessageRole::System,
             content: "You are a helpful assistant.".to_string(),
+            parts: Vec::new(),
         }];
 
         let (system_prompt, anthropic_messages) = convert_messages(&messages);
@@ -49,6 +50,7 @@ mod convert_messages_tests {
         let messages = vec![AiMessage {
             role: MessageRole::User,
             content: "Hello!".to_string(),
+            parts: Vec::new(),
         }];
 
         let (system_prompt, anthropic_messages) = convert_messages(&messages);
@@ -67,6 +69,7 @@ mod convert_messages_tests {
         let messages = vec![AiMessage {
             role: MessageRole::Assistant,
             content: "Hi there!".to_string(),
+            parts: Vec::new(),
         }];
 
         let (system_prompt, anthropic_messages) = convert_messages(&messages);
@@ -86,18 +89,22 @@ mod convert_messages_tests {
             AiMessage {
                 role: MessageRole::System,
                 content: "Be helpful.".to_string(),
+                parts: Vec::new(),
             },
             AiMessage {
                 role: MessageRole::User,
                 content: "Hello!".to_string(),
+                parts: Vec::new(),
             },
             AiMessage {
                 role: MessageRole::Assistant,
                 content: "Hi!".to_string(),
+                parts: Vec::new(),
             },
             AiMessage {
                 role: MessageRole::User,
                 content: "How are you?".to_string(),
+                parts: Vec::new(),
             },
         ];
 
@@ -126,6 +133,7 @@ mod convert_messages_tests {
         let messages = vec![AiMessage {
             role: MessageRole::User,
             content: content_with_special_chars.to_string(),
+            parts: Vec::new(),
         }];
 
         let (_, anthropic_messages) = convert_messages(&messages);

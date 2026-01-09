@@ -17,33 +17,33 @@ use tempfile::TempDir;
 
 #[test]
 fn test_resolve_path_absolute_path() {
-    let path = SecretsLoader::resolve_path("/absolute/path/to/secrets.json", None);
+    let path = SecretsLoader::resolve_path("/absolute/path/to/secrets.json", None).unwrap();
     assert_eq!(path, PathBuf::from("/absolute/path/to/secrets.json"));
 }
 
 #[test]
 fn test_resolve_path_relative_path_no_base() {
-    let path = SecretsLoader::resolve_path("relative/path/secrets.json", None);
+    let path = SecretsLoader::resolve_path("relative/path/secrets.json", None).unwrap();
     assert_eq!(path, PathBuf::from("relative/path/secrets.json"));
 }
 
 #[test]
 fn test_resolve_path_relative_path_with_base() {
     let base = Path::new("/base/dir");
-    let path = SecretsLoader::resolve_path("relative/secrets.json", Some(base));
+    let path = SecretsLoader::resolve_path("relative/secrets.json", Some(base)).unwrap();
     assert_eq!(path, PathBuf::from("/base/dir/relative/secrets.json"));
 }
 
 #[test]
 fn test_resolve_path_home_expansion() {
-    let path = SecretsLoader::resolve_path("~/secrets.json", None);
+    let path = SecretsLoader::resolve_path("~/secrets.json", None).unwrap();
     // Should expand to home directory
     assert!(!path.to_string_lossy().starts_with("~/"));
 }
 
 #[test]
 fn test_resolve_path_home_expansion_with_subdir() {
-    let path = SecretsLoader::resolve_path("~/.config/secrets.json", None);
+    let path = SecretsLoader::resolve_path("~/.config/secrets.json", None).unwrap();
     assert!(!path.to_string_lossy().starts_with("~"));
     assert!(path.to_string_lossy().contains(".config/secrets.json"));
 }
@@ -51,7 +51,7 @@ fn test_resolve_path_home_expansion_with_subdir() {
 #[test]
 fn test_resolve_path_absolute_ignores_base() {
     let base = Path::new("/should/be/ignored");
-    let path = SecretsLoader::resolve_path("/absolute/secrets.json", Some(base));
+    let path = SecretsLoader::resolve_path("/absolute/secrets.json", Some(base)).unwrap();
     assert_eq!(path, PathBuf::from("/absolute/secrets.json"));
 }
 

@@ -37,8 +37,8 @@ server:
 
 paths:
   system: /tmp/system
-  core: /tmp/core
   services: /tmp/services
+  bin: /tmp/bin
 
 security:
   jwt_issuer: test-issuer
@@ -93,8 +93,8 @@ server:
 
 paths:
   system: /tmp/system
-  core: /tmp/core
   services: /tmp/services
+  bin: /tmp/bin
 
 security:
   jwt_issuer: minimal-issuer
@@ -131,8 +131,8 @@ fn test_load_from_path_valid() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     let profile_content = format!(
         r#"
@@ -154,8 +154,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: test
@@ -180,15 +180,18 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = temp_dir.path().join("test.profile.yaml");
     std::fs::write(&profile_path, profile_content).expect("Failed to write profile");
 
     let result = ProfileLoader::load_from_path(&profile_path);
-    assert!(result.is_ok());
+    if let Err(ref e) = result {
+        eprintln!("Profile load error: {}", e);
+    }
+    assert!(result.is_ok(), "Profile load failed: {:?}", result.err());
 
     let profile = result.expect("Should load profile");
     assert_eq!(profile.name, "test");
@@ -243,7 +246,7 @@ fn test_load_by_name() {
 
     // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
 
     let profile_content = format!(
@@ -266,8 +269,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: dev
@@ -292,8 +295,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = profiles_dir.join("dev.secrets.profile.yaml");
@@ -399,7 +402,7 @@ fn test_save_profile() {
 
     // Create required directories first
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
 
     let profile_content = format!(
@@ -422,8 +425,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: save-test
@@ -448,8 +451,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     // Load the profile first
@@ -480,8 +483,8 @@ fn test_save_creates_profiles_directory() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     let profile_content = format!(
         r#"
@@ -503,8 +506,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: auto-dir
@@ -529,8 +532,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = temp_dir.path().join("profile.yaml");
@@ -557,7 +560,7 @@ fn test_load_from_path_and_validate_valid() {
 
     // Create the paths directories for validation
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
 
     let profile_content = format!(
@@ -580,8 +583,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: valid
@@ -606,8 +609,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = temp_dir.path().join("valid.profile.yaml");
@@ -623,7 +626,7 @@ fn test_load_from_path_and_validate_invalid_port() {
 
     // Create the paths directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
 
     let profile_content = format!(
@@ -646,8 +649,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: test
@@ -672,8 +675,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = temp_dir.path().join("invalid.profile.yaml");
@@ -694,8 +697,8 @@ fn test_load_with_env_var_substitution() {
 
     // Create required directories
     std::fs::create_dir_all(temp_dir.path().join("system")).expect("Failed to create system dir");
-    std::fs::create_dir_all(temp_dir.path().join("core")).expect("Failed to create core dir");
     std::fs::create_dir_all(temp_dir.path().join("services")).expect("Failed to create services dir");
+    std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     // Set environment variable for test
     std::env::set_var("TEST_PROFILE_HOST", "env-host.example.com");
@@ -720,8 +723,8 @@ server:
 
 paths:
   system: {}
-  core: {}
   services: {}
+  bin: {}
 
 security:
   jwt_issuer: env-test
@@ -746,8 +749,8 @@ rate_limits:
   burst_multiplier: 2
 "#,
         temp_dir.path().join("system").display(),
-        temp_dir.path().join("core").display(),
-        temp_dir.path().join("services").display()
+        temp_dir.path().join("services").display(),
+        temp_dir.path().join("bin").display()
     );
 
     let profile_path = temp_dir.path().join("env-test.yaml");
