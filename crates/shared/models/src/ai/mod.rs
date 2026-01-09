@@ -15,8 +15,9 @@ pub use execution_plan::{
     ExecutionState, PlannedToolCall, PlanningResult, TemplateRef, ToolCallResult,
 };
 pub use media_types::{
-    is_supported_audio, is_supported_image, is_supported_media, is_supported_video,
-    SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_VIDEO_TYPES,
+    is_supported_audio, is_supported_image, is_supported_media, is_supported_text,
+    is_supported_video, SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES,
+    SUPPORTED_VIDEO_TYPES,
 };
 pub use models::{ModelConfig, ToolModelConfig, ToolModelOverrides};
 pub use request::{AiContentPart, AiMessage, AiRequest, AiRequestBuilder, MessageRole};
