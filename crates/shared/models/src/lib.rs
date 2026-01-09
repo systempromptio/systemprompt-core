@@ -54,10 +54,11 @@ pub use agui::{
     ToolCallResultPayload, ToolCallStartPayload,
 };
 pub use ai::{
-    AiContentPart, AiMessage, AiProvider, AiRequest, AiRequestBuilder, AiResponse, CallToolResult,
-    DynAiProvider, McpTool, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig,
-    ResponseFormat, SamplingParams, SearchGroundedResponse, StructuredOutputOptions, ToolCall,
-    ToolExecution, ToolResultFormatter,
+    is_supported_audio, is_supported_image, is_supported_media, is_supported_video, AiContentPart,
+    AiMessage, AiProvider, AiRequest, AiRequestBuilder, AiResponse, CallToolResult, DynAiProvider,
+    McpTool, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig, ResponseFormat,
+    SamplingParams, SearchGroundedResponse, StructuredOutputOptions, ToolCall, ToolExecution,
+    ToolResultFormatter, SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_VIDEO_TYPES,
 };
 pub use api::{
     AcceptedResponse, ApiError, ApiQuery, ApiResponse, CheckoutEvent, CheckoutRequest,

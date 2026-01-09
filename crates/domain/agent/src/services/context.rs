@@ -1,20 +1,12 @@
 use anyhow::{anyhow, Result};
 use systemprompt_core_database::DbPool;
-use systemprompt_models::{AiContentPart, AiMessage, MessageRole};
+use systemprompt_models::{
+    is_supported_audio, is_supported_image, is_supported_video, AiContentPart, AiMessage,
+    MessageRole,
+};
 
 use crate::models::a2a::{Artifact, FilePart, Message, Part};
 use crate::repository::task::TaskRepository;
-
-const SUPPORTED_IMAGE_TYPES: &[&str] = &["image/jpeg", "image/png", "image/gif", "image/webp"];
-const SUPPORTED_AUDIO_TYPES: &[&str] = &[
-    "audio/wav",
-    "audio/mp3",
-    "audio/mpeg",
-    "audio/aiff",
-    "audio/aac",
-    "audio/ogg",
-    "audio/flac",
-];
 
 #[derive(Debug, Clone)]
 pub struct ContextService {
@@ -107,27 +99,19 @@ impl ContextService {
     fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
         let mime_type = file_part.file.mime_type.as_deref()?;
 
-        if Self::is_supported_image(mime_type) {
+        if is_supported_image(mime_type) {
             return Some(AiContentPart::image(mime_type, &file_part.file.bytes));
         }
 
-        if Self::is_supported_audio(mime_type) {
+        if is_supported_audio(mime_type) {
             return Some(AiContentPart::audio(mime_type, &file_part.file.bytes));
         }
 
+        if is_supported_video(mime_type) {
+            return Some(AiContentPart::video(mime_type, &file_part.file.bytes));
+        }
+
         None
-    }
-
-    fn is_supported_image(mime_type: &str) -> bool {
-        SUPPORTED_IMAGE_TYPES
-            .iter()
-            .any(|&t| mime_type.starts_with(t))
-    }
-
-    fn is_supported_audio(mime_type: &str) -> bool {
-        SUPPORTED_AUDIO_TYPES
-            .iter()
-            .any(|&t| mime_type.starts_with(t))
     }
 
     fn serialize_artifact_for_context(artifact: &Artifact) -> Result<String> {

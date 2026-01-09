@@ -10,6 +10,7 @@ pub enum AiContentPart {
     Text { text: String },
     Image { mime_type: String, data: String },
     Audio { mime_type: String, data: String },
+    Video { mime_type: String, data: String },
 }
 
 impl AiContentPart {
@@ -31,8 +32,18 @@ impl AiContentPart {
         }
     }
 
+    pub fn video(mime_type: impl Into<String>, data: impl Into<String>) -> Self {
+        Self::Video {
+            mime_type: mime_type.into(),
+            data: data.into(),
+        }
+    }
+
     pub const fn is_media(&self) -> bool {
-        matches!(self, Self::Image { .. } | Self::Audio { .. })
+        matches!(
+            self,
+            Self::Image { .. } | Self::Audio { .. } | Self::Video { .. }
+        )
     }
 }
 

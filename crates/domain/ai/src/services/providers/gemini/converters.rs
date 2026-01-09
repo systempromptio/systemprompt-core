@@ -50,13 +50,13 @@ fn convert_message_parts(message: &AiMessage) -> Vec<GeminiPart> {
         .iter()
         .map(|part| match part {
             AiContentPart::Text { text } => GeminiPart::Text { text: text.clone() },
-            AiContentPart::Image { mime_type, data } | AiContentPart::Audio { mime_type, data } => {
-                GeminiPart::InlineData {
-                    inline_data: GeminiInlineData {
-                        mime_type: mime_type.clone(),
-                        data: data.clone(),
-                    },
-                }
+            AiContentPart::Image { mime_type, data }
+            | AiContentPart::Audio { mime_type, data }
+            | AiContentPart::Video { mime_type, data } => GeminiPart::InlineData {
+                inline_data: GeminiInlineData {
+                    mime_type: mime_type.clone(),
+                    data: data.clone(),
+                },
             },
         })
         .collect()
