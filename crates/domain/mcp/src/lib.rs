@@ -44,6 +44,7 @@ use rmcp::ServerHandler;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_runtime::AppContext;
+use tokio_util::sync::CancellationToken;
 
 use crate::middleware::DatabaseSessionManager;
 
@@ -54,6 +55,7 @@ where
     let config = StreamableHttpServerConfig {
         stateful_mode: true,
         sse_keep_alive: Some(Duration::from_secs(30)),
+        cancellation_token: CancellationToken::new(),
     };
 
     let session_manager = DatabaseSessionManager::new(Arc::clone(app_context.db_pool()));

@@ -116,6 +116,7 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
                     mime_type: mime_type.clone(),
                     size: None,
                     icons: None,
+                    meta: None,
                 }),
                 annotations: None,
             },
