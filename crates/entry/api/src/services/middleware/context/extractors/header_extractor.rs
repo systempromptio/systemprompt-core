@@ -86,7 +86,7 @@ impl ContextExtractor for HeaderContextExtractor {
             AgentName::new(agent_name_str),
         )
         .with_user_id(UserId::new(user_id_str))
-        .with_user_type(UserType::Standard);
+        .with_user_type(UserType::User);
 
         Ok(context)
     }

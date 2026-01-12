@@ -15,6 +15,9 @@ pub enum UserError {
     #[error("Invalid role: {0}")]
     InvalidRole(String),
 
+    #[error("Invalid roles: {0:?}")]
+    InvalidRoles(Vec<String>),
+
     #[error("Database error: {0}")]
     Database(#[from] sqlx::Error),
 

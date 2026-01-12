@@ -153,7 +153,7 @@ fn test_inject_from_request_context_success() {
         AgentName::new("ctx_agent".to_string()),
     )
     .with_user_id(UserId::new("ctx_user".to_string()))
-    .with_user_type(UserType::Standard);
+    .with_user_type(UserType::User);
 
     let result = HeaderInjector::inject_from_request_context(&mut headers, &ctx);
     assert!(result.is_ok());
@@ -191,7 +191,7 @@ fn test_inject_from_request_context_empty_context_id() {
         AgentName::new("agent".to_string()),
     )
     .with_user_id(UserId::new("user".to_string()))
-    .with_user_type(UserType::Standard);
+    .with_user_type(UserType::User);
 
     let result = HeaderInjector::inject_from_request_context(&mut headers, &ctx);
     assert!(result.is_ok());

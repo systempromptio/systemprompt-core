@@ -167,6 +167,7 @@ http = "1.0"
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
+governor = "0.8"
 
 # CLI (for system crate)
 clap = { version = "4.4", features = ["derive", "env"] }

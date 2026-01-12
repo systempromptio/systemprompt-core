@@ -1,5 +1,6 @@
 //! Cloud Management API types shared between CLI and API server.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -53,7 +54,7 @@ pub struct CloudPlanInfo {
     pub volume_gb: i32,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudPlan {
     pub id: String,
     pub name: String,
@@ -98,7 +99,7 @@ pub struct CloudTenantInfo {
     pub database_url: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenant {
     pub id: String,
     pub name: String,
@@ -106,7 +107,7 @@ pub struct CloudTenant {
     pub fly_hostname: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenantStatusResponse {
     pub status: String,
     #[serde(default)]
@@ -178,7 +179,7 @@ pub struct DeployResponse {
     pub app_url: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudStatusResponse {
     pub status: String,
 }
@@ -247,7 +248,7 @@ pub struct CheckoutEvent {
     pub fly_app_name: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudLogEntry {
     pub timestamp: String,
     pub message: String,

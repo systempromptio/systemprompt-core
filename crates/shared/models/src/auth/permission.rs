@@ -3,6 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
+use super::enums::UserType;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum Permission {
@@ -15,6 +17,9 @@ pub enum Permission {
 }
 
 impl Permission {
+    pub const ALL_VARIANTS: &'static [&'static str] =
+        &["admin", "user", "anonymous", "a2a", "mcp", "service"];
+
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",
@@ -23,6 +28,46 @@ impl Permission {
             Self::A2a => "a2a",
             Self::Mcp => "mcp",
             Self::Service => "service",
+        }
+    }
+
+    pub fn is_valid_role(role: &str) -> bool {
+        Self::ALL_VARIANTS.contains(&role)
+    }
+
+    pub fn validate_roles(roles: &[String]) -> std::result::Result<(), Vec<String>> {
+        let invalid: Vec<String> = roles
+            .iter()
+            .filter(|r| !Self::is_valid_role(r))
+            .cloned()
+            .collect();
+
+        if invalid.is_empty() {
+            Ok(())
+        } else {
+            Err(invalid)
+        }
+    }
+
+    pub const fn as_user_type(self) -> UserType {
+        match self {
+            Self::Admin => UserType::Admin,
+            Self::User => UserType::User,
+            Self::A2a => UserType::A2a,
+            Self::Mcp => UserType::Mcp,
+            Self::Service => UserType::Service,
+            Self::Anonymous => UserType::Anon,
+        }
+    }
+
+    pub const fn from_user_type(user_type: UserType) -> Self {
+        match user_type {
+            UserType::Admin => Self::Admin,
+            UserType::User => Self::User,
+            UserType::A2a => Self::A2a,
+            UserType::Mcp => Self::Mcp,
+            UserType::Service => Self::Service,
+            UserType::Anon | UserType::Unknown => Self::Anonymous,
         }
     }
 

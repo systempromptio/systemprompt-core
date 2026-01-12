@@ -193,10 +193,10 @@ fn test_request_context_only_one_constructor() {
     let authenticated_ctx = ctx
         .with_auth_token("test_token")
         .with_user_id(systemprompt_identifiers::UserId::new("user_123".to_string()))
-        .with_user_type(UserType::Standard);
+        .with_user_type(UserType::User);
 
     assert!(!authenticated_ctx.auth.auth_token.as_str().is_empty());
-    assert_eq!(authenticated_ctx.auth.user_type, UserType::Standard);
+    assert_eq!(authenticated_ctx.auth.user_type, UserType::User);
 
     println!("✅ RequestContext has only one constructor with builder pattern");
 }

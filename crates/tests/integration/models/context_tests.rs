@@ -149,12 +149,12 @@ fn test_component_separation() {
         AgentName::new("test-agent".to_string()),
     )
     .with_user_id(UserId::new("user_123".to_string()))
-    .with_user_type(UserType::Standard)
+    .with_user_type(UserType::User)
     .with_client_id(ClientId::new("client_123".to_string()))
     .with_task_id(TaskId::new("task_456".to_string()));
 
     assert_eq!(ctx.auth.user_id.as_str(), "user_123");
-    assert_eq!(ctx.auth.user_type, UserType::Standard);
+    assert_eq!(ctx.auth.user_type, UserType::User);
     assert_eq!(ctx.request.session_id.as_str(), "sess_123");
     assert_eq!(
         ctx.request.client_id.as_ref().unwrap().as_str(),

@@ -3,47 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{SessionId, UserId};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UserStatus {
-    Active,
-    Inactive,
-    Suspended,
-    Pending,
-    Deleted,
-    Temporary,
-}
-
-impl UserStatus {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Active => "active",
-            Self::Inactive => "inactive",
-            Self::Suspended => "suspended",
-            Self::Pending => "pending",
-            Self::Deleted => "deleted",
-            Self::Temporary => "temporary",
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum UserRole {
-    Admin,
-    User,
-    Anonymous,
-}
-
-impl UserRole {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Admin => "admin",
-            Self::User => "user",
-            Self::Anonymous => "anonymous",
-        }
-    }
-}
+pub use systemprompt_models::auth::{UserRole, UserStatus};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct User {

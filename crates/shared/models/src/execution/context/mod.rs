@@ -11,7 +11,7 @@ pub use context_types::{
 };
 
 use crate::ai::ToolModelConfig;
-use crate::auth::{AuthenticatedUser, UserType};
+use crate::auth::{AuthenticatedUser, RateLimitTier, UserType};
 use anyhow::anyhow;
 use axum::http::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
@@ -73,7 +73,7 @@ impl RequestContext {
     /// )
     /// .with_user_id(UserId::new("user_123".to_string()))
     /// .with_auth_token("jwt_token_here")
-    /// .with_user_type(UserType::Standard);
+    /// .with_user_type(UserType::User);
     /// ```
     pub fn new(
         session_id: SessionId,
@@ -221,6 +221,10 @@ impl RequestContext {
 
     pub const fn user_type(&self) -> UserType {
         self.auth.user_type
+    }
+
+    pub const fn rate_limit_tier(&self) -> RateLimitTier {
+        self.auth.user_type.rate_tier()
     }
 
     pub const fn task_id(&self) -> Option<&TaskId> {

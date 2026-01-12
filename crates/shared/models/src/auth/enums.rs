@@ -57,9 +57,11 @@ impl FromStr for JwtAudience {
 #[serde(rename_all = "lowercase")]
 pub enum UserType {
     Admin,
-    Standard,
-    Anon,
+    User,
+    A2a,
+    Mcp,
     Service,
+    Anon,
     Unknown,
 }
 
@@ -67,9 +69,11 @@ impl UserType {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",
-            Self::Standard => "standard",
-            Self::Anon => "anon",
+            Self::User => "user",
+            Self::A2a => "a2a",
+            Self::Mcp => "mcp",
             Self::Service => "service",
+            Self::Anon => "anon",
             Self::Unknown => "unknown",
         }
     }
@@ -77,7 +81,9 @@ impl UserType {
     pub const fn rate_tier(&self) -> RateLimitTier {
         match self {
             Self::Admin => RateLimitTier::Admin,
-            Self::Standard => RateLimitTier::Standard,
+            Self::User => RateLimitTier::User,
+            Self::A2a => RateLimitTier::A2a,
+            Self::Mcp => RateLimitTier::Mcp,
             Self::Service => RateLimitTier::Service,
             Self::Anon | Self::Unknown => RateLimitTier::Anon,
         }
@@ -95,9 +101,11 @@ impl FromStr for UserType {
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "admin" => Ok(Self::Admin),
-            "standard" => Ok(Self::Standard),
-            "anon" => Ok(Self::Anon),
+            "user" => Ok(Self::User),
+            "a2a" => Ok(Self::A2a),
+            "mcp" => Ok(Self::Mcp),
             "service" => Ok(Self::Service),
+            "anon" => Ok(Self::Anon),
             "unknown" => Ok(Self::Unknown),
             _ => Err(anyhow!("Invalid user type: {s}")),
         }
@@ -128,18 +136,22 @@ impl fmt::Display for TokenType {
 #[serde(rename_all = "lowercase")]
 pub enum RateLimitTier {
     Admin,
-    Standard,
-    Anon,
+    User,
+    A2a,
+    Mcp,
     Service,
+    Anon,
 }
 
 impl RateLimitTier {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Admin => "admin",
-            Self::Standard => "standard",
-            Self::Anon => "anon",
+            Self::User => "user",
+            Self::A2a => "a2a",
+            Self::Mcp => "mcp",
             Self::Service => "service",
+            Self::Anon => "anon",
         }
     }
 }
@@ -155,9 +167,11 @@ impl FromStr for RateLimitTier {
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "admin" => Ok(Self::Admin),
-            "standard" => Ok(Self::Standard),
-            "anon" => Ok(Self::Anon),
+            "user" => Ok(Self::User),
+            "a2a" => Ok(Self::A2a),
+            "mcp" => Ok(Self::Mcp),
             "service" => Ok(Self::Service),
+            "anon" => Ok(Self::Anon),
             _ => Err(anyhow!("Invalid rate limit tier: {s}")),
         }
     }
@@ -193,7 +207,7 @@ impl FromStr for UserRole {
         match s {
             "admin" => Ok(Self::Admin),
             "user" => Ok(Self::User),
-            "anonymous" | "anon" => Ok(Self::Anonymous),
+            "anonymous" => Ok(Self::Anonymous),
             _ => Err(anyhow!("Invalid user role: {s}")),
         }
     }
@@ -203,18 +217,22 @@ impl FromStr for UserRole {
 #[serde(rename_all = "lowercase")]
 pub enum UserStatus {
     Active,
-    Temporary,
     Inactive,
     Suspended,
+    Pending,
+    Deleted,
+    Temporary,
 }
 
 impl UserStatus {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Active => "active",
-            Self::Temporary => "temporary",
             Self::Inactive => "inactive",
             Self::Suspended => "suspended",
+            Self::Pending => "pending",
+            Self::Deleted => "deleted",
+            Self::Temporary => "temporary",
         }
     }
 
@@ -234,9 +252,11 @@ impl FromStr for UserStatus {
     fn from_str(s: &str) -> Result<Self> {
         match s {
             "active" => Ok(Self::Active),
-            "temporary" => Ok(Self::Temporary),
             "inactive" => Ok(Self::Inactive),
             "suspended" => Ok(Self::Suspended),
+            "pending" => Ok(Self::Pending),
+            "deleted" => Ok(Self::Deleted),
+            "temporary" => Ok(Self::Temporary),
             _ => Err(anyhow!("Invalid user status: {s}")),
         }
     }
