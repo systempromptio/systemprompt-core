@@ -52,6 +52,9 @@ pub enum ProxyError {
     #[error("Authentication required for service '{service}'")]
     AuthenticationRequired { service: String },
 
+    #[error("OAuth challenge response")]
+    AuthChallenge(Response<Body>),
+
     #[error("Access forbidden for service '{service}'")]
     Forbidden { service: String },
 
@@ -60,7 +63,7 @@ pub enum ProxyError {
 }
 
 impl ProxyError {
-    pub const fn to_status_code(&self) -> StatusCode {
+    pub fn to_status_code(&self) -> StatusCode {
         match self {
             Self::ServiceNotFound { .. } => StatusCode::NOT_FOUND,
             Self::ServiceNotRunning { .. } => StatusCode::SERVICE_UNAVAILABLE,
@@ -75,6 +78,7 @@ impl ProxyError {
             Self::AuthenticationRequired { .. } | Self::MissingContext { .. } => {
                 StatusCode::UNAUTHORIZED
             },
+            Self::AuthChallenge(response) => response.status(),
             Self::Forbidden { .. } => StatusCode::FORBIDDEN,
         }
     }
@@ -88,9 +92,14 @@ impl From<ProxyError> for StatusCode {
 
 impl IntoResponse for ProxyError {
     fn into_response(self) -> Response {
-        let status = self.to_status_code();
-        let message = self.to_string();
-        (status, message).into_response()
+        match self {
+            Self::AuthChallenge(response) => response.into_response(),
+            other => {
+                let status = other.to_status_code();
+                let message = other.to_string();
+                (status, message).into_response()
+            },
+        }
     }
 }
 

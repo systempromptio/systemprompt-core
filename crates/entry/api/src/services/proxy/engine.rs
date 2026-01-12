@@ -1,7 +1,7 @@
 use axum::body::Body;
 use axum::extract::{Path, Request, State};
 use axum::http::StatusCode;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -116,11 +116,12 @@ impl ProxyEngine {
         path_params: Path<(String,)>,
         State(ctx): State<AppContext>,
         request: Request<Body>,
-    ) -> Result<Response<Body>, StatusCode> {
+    ) -> Response<Body> {
         let Path((service_name,)) = path_params;
-        self.proxy_request(&service_name, "", request, ctx)
-            .await
-            .map_err(|e| e.to_status_code())
+        match self.proxy_request(&service_name, "", request, ctx).await {
+            Ok(response) => response,
+            Err(e) => e.into_response(),
+        }
     }
 
     pub async fn handle_mcp_request_with_path(
@@ -128,11 +129,12 @@ impl ProxyEngine {
         path_params: Path<(String, String)>,
         State(ctx): State<AppContext>,
         request: Request<Body>,
-    ) -> Result<Response<Body>, StatusCode> {
+    ) -> Response<Body> {
         let Path((service_name, path)) = path_params;
-        self.proxy_request(&service_name, &path, request, ctx)
-            .await
-            .map_err(|e| e.to_status_code())
+        match self.proxy_request(&service_name, &path, request, ctx).await {
+            Ok(response) => response,
+            Err(e) => e.into_response(),
+        }
     }
 
     pub async fn handle_agent_request(
