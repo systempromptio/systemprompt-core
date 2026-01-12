@@ -99,7 +99,9 @@ pub use execution::{
     ExecutionStep, PlannedTool, RequestContext, StepContent, StepId, StepStatus, StepType,
     TrackedStep,
 };
-pub use extension::{BuildType, DiscoveredExtension, Extension, ExtensionManifest, ExtensionType};
+pub use extension::{
+    BuildType, DiscoveredExtension, Extension, ExtensionManifest, ExtensionType, ManifestRole,
+};
 pub use mcp::{
     Deployment, DeploymentConfig, DynMcpDeploymentProvider, DynMcpRegistry, DynMcpToolProvider,
     McpAuthState, McpDeploymentProvider, McpProvider, McpRegistry, McpServerConfig, McpServerState,
