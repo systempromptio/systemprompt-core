@@ -117,7 +117,7 @@ urlencoding = { workspace = true, optional = true }
 nix = { workspace = true }
 
 # File walking
-walkdir = "2"
+walkdir = { workspace = true }
 
 [dev-dependencies]
 tokio-test = { workspace = true }

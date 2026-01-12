@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::Row;
 use std::net::ToSocketAddrs;
@@ -28,7 +28,7 @@ impl PostgresConfig {
 }
 
 pub fn generate_password() -> String {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     (0..16)
         .map(|_| rng.sample(Alphanumeric))
         .map(char::from)

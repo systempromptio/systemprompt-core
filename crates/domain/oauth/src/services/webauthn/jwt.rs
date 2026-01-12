@@ -58,7 +58,7 @@ impl TokenValidator for JwtTokenValidator {
         Ok(AuthenticatedUser::new_with_roles(
             user_id,
             claims.username.clone(),
-            Some(claims.email),
+            claims.email,
             permissions,
             roles,
         ))

@@ -143,7 +143,7 @@ impl StoredTenant {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]
 pub struct TenantStore {
-    #[validate]
+    #[validate(nested)]
     pub tenants: Vec<StoredTenant>,
 
     pub synced_at: DateTime<Utc>,

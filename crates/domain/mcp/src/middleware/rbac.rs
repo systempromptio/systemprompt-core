@@ -195,7 +195,7 @@ fn build_authenticated_context(
     let authenticated_user = AuthenticatedUser::new_with_roles(
         user_id,
         claims.username.clone(),
-        Some(claims.email.clone()),
+        claims.email.clone(),
         claims.get_permissions(),
         claims.roles().to_vec(),
     );

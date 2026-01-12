@@ -208,16 +208,10 @@ async fn load_authenticated_user(
     let user_uuid = uuid::Uuid::parse_str(user.id.as_ref())
         .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
 
-    let email = if user.email.is_empty() {
-        None
-    } else {
-        Some(user.email.clone())
-    };
-
     Ok(AuthenticatedUser::new_with_roles(
         user_uuid,
         user.name,
-        email,
+        user.email,
         permissions,
         user.roles,
     ))

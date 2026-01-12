@@ -66,18 +66,18 @@ inventory = { workspace = true }
 dotenvy = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
-atty = "0.2"
+atty = { workspace = true }
 dialoguer = { workspace = true }
-dirs = "5"
-base64 = "0.22"
+dirs = { workspace = true }
+base64 = { workspace = true }
 sha2 = { workspace = true }
 walkdir = { workspace = true }
 axum = { workspace = true }
-open = "5"
+open = { workspace = true }
 urlencoding = { workspace = true }
 url = { workspace = true }
 rand = { workspace = true }
-toml = "0.8"
+toml = { workspace = true }
 indicatif = { workspace = true }
 
 [[test]]
@@ -96,15 +96,15 @@ path = "tests/integration/a2a_integration_tests.rs"
 harness = true
 
 [dev-dependencies]
-reqwest = { version = "0.12", features = ["json", "cookies", "stream"] }
+reqwest = { workspace = true }
 systemprompt-runtime = { path = "../../app/runtime" }
 systemprompt-core-ai = { path = "../../domain/ai" }
-uuid = { version = "1.0", features = ["v4", "serde"] }
-serde_json = "1.0"
-tokio = { version = "1", features = ["full"] }
-futures = "0.3"
-base64 = "0.22"
-rand = "0.8"
-jsonwebtoken = "9.0"
-chrono = { version = "0.4", features = ["serde"] }
+uuid = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+futures = { workspace = true }
+base64 = { workspace = true }
+rand = { workspace = true }
+jsonwebtoken = { workspace = true }
+chrono = { workspace = true }
 tempfile = { workspace = true }

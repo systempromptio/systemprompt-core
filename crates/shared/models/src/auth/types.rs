@@ -10,7 +10,7 @@ pub const BEARER_PREFIX: &str = "Bearer ";
 pub struct AuthenticatedUser {
     pub id: Uuid,
     pub username: String,
-    pub email: Option<String>,
+    pub email: String,
     pub permissions: Vec<Permission>,
     #[serde(default)]
     pub roles: Vec<String>,
@@ -20,7 +20,7 @@ impl AuthenticatedUser {
     pub const fn new(
         id: Uuid,
         username: String,
-        email: Option<String>,
+        email: String,
         permissions: Vec<Permission>,
     ) -> Self {
         Self {
@@ -35,7 +35,7 @@ impl AuthenticatedUser {
     pub const fn new_with_roles(
         id: Uuid,
         username: String,
-        email: Option<String>,
+        email: String,
         permissions: Vec<Permission>,
         roles: Vec<String>,
     ) -> Self {
@@ -81,11 +81,6 @@ impl AuthenticatedUser {
         }
     }
 
-    pub fn email_or_default(&self) -> String {
-        self.email
-            .clone()
-            .unwrap_or_else(|| format!("{}@systemprompt.local", self.username))
-    }
 }
 
 #[derive(Debug, thiserror::Error)]
