@@ -200,17 +200,27 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
         }
     }
 
-    async fn handle_mcp_with_headers(&self, mut request: Request, next: Next) -> Response {
+    async fn handle_mcp_with_headers(&self, request: Request, next: Next) -> Response {
         let headers = request.headers();
+
         match self.extractor.extract_from_headers(headers).await {
             Ok(context) => {
                 let span = create_request_span(&context);
-                request.extensions_mut().insert(context);
-                next.run(request).instrument(span).await
+                let mut req = request;
+                req.extensions_mut().insert(context);
+                next.run(req).instrument(span).await
             },
-            Err(e) => {
-                let (status, message) = Self::error_response(&e);
-                (status, message).into_response()
+            Err(_) => match request.extensions().get::<RequestContext>().cloned() {
+                Some(ctx) => {
+                    let span = create_request_span(&ctx);
+                    next.run(request).instrument(span).await
+                },
+                None => (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "Middleware configuration error: SessionMiddleware must run before \
+                     ContextMiddleware",
+                )
+                    .into_response(),
             },
         }
     }
