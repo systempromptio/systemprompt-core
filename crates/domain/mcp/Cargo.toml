@@ -12,6 +12,7 @@ workspace = true
 [dependencies]
 # Core dependencies
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 serde = { workspace = true }

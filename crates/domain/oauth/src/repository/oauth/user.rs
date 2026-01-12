@@ -57,12 +57,14 @@ impl OAuthRepository {
         let user_uuid = Uuid::parse_str(&row.id)
             .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", row.id))?;
 
-        Ok(systemprompt_models::auth::AuthenticatedUser::new_with_roles(
-            user_uuid,
-            row.name,
-            Some(row.email),
-            permissions,
-            row.roles,
-        ))
+        Ok(
+            systemprompt_models::auth::AuthenticatedUser::new_with_roles(
+                user_uuid,
+                row.name,
+                Some(row.email),
+                permissions,
+                row.roles,
+            ),
+        )
     }
 }
