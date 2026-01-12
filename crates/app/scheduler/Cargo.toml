@@ -28,7 +28,7 @@ uuid = { workspace = true }
 
 # URL parsing
 url = { workspace = true }
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
 systemprompt-runtime = { path = "../runtime" }
@@ -48,9 +48,9 @@ async-trait = { workspace = true }
 thiserror = { workspace = true }
 
 [dev-dependencies]
-wiremock = "0.5"             # HTTP mocking for tests
+wiremock = { workspace = true }
 tokio-test = { workspace = true }
-tempfile = "3"               # Temporary directories for tests
+tempfile = { workspace = true }
 serde_json = { workspace = true }
 
 [features]

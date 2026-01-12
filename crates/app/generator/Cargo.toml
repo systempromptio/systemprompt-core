@@ -44,11 +44,11 @@ serde_yaml = { workspace = true }
 tracing = { workspace = true }
 
 # Template engine
-handlebars = "4.1"
+handlebars = { workspace = true }
 
 # Markdown processing
-pulldown-cmark = "0.12"
-comrak = "0.17"
+pulldown-cmark = { workspace = true }
+comrak = { workspace = true }
 
 # XML generation (sitemap)
 quick-xml = { version = "0.31", features = ["serialize"] }
@@ -73,10 +73,10 @@ uuid = { workspace = true }
 
 # URL handling
 url = { workspace = true }
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 
 # Random
-rand = "0.8"
+rand = { workspace = true }
 
 # Hashing
 sha2 = { workspace = true }

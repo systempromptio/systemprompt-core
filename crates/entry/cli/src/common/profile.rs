@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use std::path::Path;
 use systemprompt_models::Profile;
 
@@ -24,7 +24,7 @@ fn capitalize_first(name: &str) -> String {
 }
 
 pub fn generate_jwt_secret() -> String {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     (0..64)
         .map(|_| rng.sample(Alphanumeric))
         .map(char::from)

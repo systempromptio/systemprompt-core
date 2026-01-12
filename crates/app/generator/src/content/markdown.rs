@@ -1,4 +1,4 @@
-use comrak::{markdown_to_html, ComrakOptions};
+use comrak::{markdown_to_html, Options};
 
 fn strip_first_h1(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();
@@ -18,7 +18,7 @@ fn strip_first_h1(content: &str) -> String {
 }
 
 pub fn render_markdown(content: &str) -> String {
-    let mut options = ComrakOptions::default();
+    let mut options = Options::default();
 
     options.extension.strikethrough = true;
     options.extension.table = true;
@@ -26,7 +26,7 @@ pub fn render_markdown(content: &str) -> String {
     options.extension.tasklist = true;
     options.extension.superscript = true;
 
-    options.render.unsafe_ = false;
+    options.render.r#unsafe = false;
 
     let content_without_h1 = strip_first_h1(content);
     markdown_to_html(&content_without_h1, &options)

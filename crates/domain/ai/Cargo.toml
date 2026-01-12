@@ -30,7 +30,6 @@ thiserror = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
-config = { workspace = true }
 clap = { workspace = true }
 colored = { workspace = true }
 jsonwebtoken = { workspace = true }

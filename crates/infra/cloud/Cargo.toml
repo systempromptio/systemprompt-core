@@ -31,16 +31,16 @@ chrono = { workspace = true }
 validator = { workspace = true }
 
 # Security
-base64 = "0.22"
+base64 = { workspace = true }
 
 # Utilities
 tokio = { workspace = true }
-open = "5"
+open = { workspace = true }
 urlencoding = { workspace = true }
 tracing = { workspace = true }
 futures = { workspace = true }
-reqwest-eventsource = "0.6"
-async-stream = "0.3"
+reqwest-eventsource = { workspace = true }
+async-stream = { workspace = true }
 
 # CLI
 clap = { workspace = true }

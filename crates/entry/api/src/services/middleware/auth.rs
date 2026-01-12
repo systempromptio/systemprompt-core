@@ -79,7 +79,6 @@ pub async fn auth_middleware(
 
 fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::AuthenticatedUser> {
     use systemprompt_core_oauth::validate_jwt_token;
-    use systemprompt_models::auth::UserType;
     use systemprompt_models::SecretsBootstrap;
     use uuid::Uuid;
 
@@ -106,19 +105,13 @@ fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::Aut
 
     let user_id = Uuid::parse_str(&claims.sub).ok()?;
 
-    let email = if claims.email.is_empty() || claims.user_type == UserType::Anon {
-        None
-    } else {
-        Some(claims.email.clone())
-    };
-
     let permissions = claims.scope;
     let roles = claims.roles;
 
     Some(systemprompt_models::AuthenticatedUser::new_with_roles(
         user_id,
         claims.username,
-        email,
+        claims.email,
         permissions,
         roles,
     ))

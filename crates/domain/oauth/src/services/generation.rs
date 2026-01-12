@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use rand::distributions::Alphanumeric;
-use rand::{thread_rng, Rng};
+use rand::distr::Alphanumeric;
+use rand::{rng, Rng};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
@@ -36,7 +36,7 @@ impl Default for JwtConfig {
 }
 
 pub fn generate_secure_token(prefix: &str) -> String {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let token: String = (0..32)
         .map(|_| rng.sample(Alphanumeric))
         .map(char::from)
@@ -77,7 +77,7 @@ pub fn generate_jwt(
         jti,
         scope: config.permissions,
         username: user.username.clone(),
-        email: user.email_or_default(),
+        email: user.email.clone(),
         user_type,
         roles: user.roles().to_vec(),
         client_id: None,
@@ -98,7 +98,7 @@ pub fn generate_jwt(
 }
 
 pub fn generate_client_secret() -> String {
-    let mut rng = thread_rng();
+    let mut rng = rng();
     let secret: String = (0..64)
         .map(|_| rng.sample(Alphanumeric))
         .map(char::from)

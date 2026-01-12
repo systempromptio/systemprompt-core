@@ -121,7 +121,7 @@ pub async fn generate_client_tokens(
     let client_user = AuthenticatedUser::new_with_roles(
         client_uuid,
         format!("client:{client_id}"),
-        None,
+        format!("{client_id}@client.local"),
         vec![Permission::Admin],
         vec!["admin".to_string()],
     );

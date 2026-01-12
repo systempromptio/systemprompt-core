@@ -32,7 +32,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 
 # Markdown processing
-pulldown-cmark = "0.12"
+pulldown-cmark = { workspace = true }
 
 # Environment
 dotenvy = { workspace = true }
@@ -53,8 +53,8 @@ systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-core-config = { path = "../../infra/config" }
 
 # Static content generation
-comrak = "0.17"
-handlebars = "4.1"
+comrak = { workspace = true }
+handlebars = { workspace = true }
 quick-xml = { version = "0.31", features = ["serialize"] }
 indicatif = { workspace = true }
 
@@ -65,11 +65,11 @@ reqwest = { workspace = true }
 hex = { workspace = true }
 
 # URL handling
-urlencoding = "2.1"
+urlencoding = { workspace = true }
 url = { workspace = true }
 
 # Random number generation
-rand = "0.8"
+rand = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

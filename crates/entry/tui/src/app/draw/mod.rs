@@ -3,7 +3,6 @@ mod panels;
 
 use anyhow::Result;
 use ratatui::prelude::*;
-use ratatui::style::Stylize;
 use ratatui::widgets::{Block, Borders, Paragraph};
 use systemprompt_identifiers::SessionToken;
 

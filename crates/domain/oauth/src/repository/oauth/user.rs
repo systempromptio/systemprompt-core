@@ -61,7 +61,7 @@ impl OAuthRepository {
             systemprompt_models::auth::AuthenticatedUser::new_with_roles(
                 user_uuid,
                 row.name,
-                Some(row.email),
+                row.email,
                 permissions,
                 row.roles,
             ),
