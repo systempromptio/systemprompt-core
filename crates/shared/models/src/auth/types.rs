@@ -32,7 +32,7 @@ impl AuthenticatedUser {
         }
     }
 
-    pub fn new_with_roles(
+    pub const fn new_with_roles(
         id: Uuid,
         username: String,
         email: Option<String>,
