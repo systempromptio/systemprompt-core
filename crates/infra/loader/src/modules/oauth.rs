@@ -149,6 +149,23 @@ pub fn define() -> Module {
                 check_column: "client_id".into(),
                 check_value: "sp_web".into(),
             },
+            ModuleSeed {
+                sql: SeedSource::Inline(
+                    include_str!("../../../../domain/oauth/src/queries/seed/tui_client.sql").into(),
+                ),
+                table: "oauth_clients".into(),
+                check_column: "client_id".into(),
+                check_value: "sp_tui".into(),
+            },
+            ModuleSeed {
+                sql: SeedSource::Inline(
+                    include_str!("../../../../domain/oauth/src/queries/seed/tui_client_config.sql")
+                        .into(),
+                ),
+                table: "oauth_client_redirect_uris".into(),
+                check_column: "client_id".into(),
+                check_value: "sp_tui".into(),
+            },
         ]),
         permissions: None,
         audience: vec![],

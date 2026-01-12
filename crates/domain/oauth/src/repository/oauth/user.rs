@@ -45,7 +45,19 @@ impl OAuthRepository {
         let permissions: Vec<Permission> = row
             .roles
             .iter()
-            .filter_map(|s| Permission::from_str(s).ok())
+            .filter_map(|s| {
+                Permission::from_str(s)
+                    .map_err(|e| {
+                        tracing::warn!(
+                            user_id = %row.id,
+                            role = %s,
+                            error = %e,
+                            "Invalid role in database"
+                        );
+                        e
+                    })
+                    .ok()
+            })
             .collect();
 
         if permissions.is_empty() {

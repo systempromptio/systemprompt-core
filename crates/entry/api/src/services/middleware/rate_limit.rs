@@ -1,6 +1,17 @@
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
+use axum::extract::Request;
+use axum::http::StatusCode;
+use axum::middleware::Next;
+use axum::response::{IntoResponse, Response};
 use axum::Router;
+use governor::clock::DefaultClock;
+use governor::state::keyed::DefaultKeyedStateStore;
+use governor::{Quota, RateLimiter};
+use std::num::NonZeroU32;
+use std::sync::Arc;
+use systemprompt_models::auth::RateLimitTier;
 use systemprompt_models::config::RateLimitConfig;
+use systemprompt_models::RequestContext;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
 
@@ -43,5 +54,129 @@ where
             let middleware = middleware.clone();
             async move { middleware.handle(req, next).await }
         }))
+    }
+}
+
+type KeyedRateLimiter = RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock>;
+
+#[derive(Clone, Debug)]
+pub struct TieredRateLimiter {
+    admin_limiter: Arc<KeyedRateLimiter>,
+    user_limiter: Arc<KeyedRateLimiter>,
+    a2a_limiter: Arc<KeyedRateLimiter>,
+    mcp_limiter: Arc<KeyedRateLimiter>,
+    service_limiter: Arc<KeyedRateLimiter>,
+    anon_limiter: Arc<KeyedRateLimiter>,
+    disabled: bool,
+}
+
+impl TieredRateLimiter {
+    pub fn new(config: &RateLimitConfig, base_per_second: u64) -> Self {
+        let create_limiter = |tier: RateLimitTier| -> Arc<KeyedRateLimiter> {
+            let effective = config.effective_limit(base_per_second, tier);
+            let burst = effective.saturating_mul(config.burst_multiplier);
+            let effective_u32 = u32::try_from(effective).unwrap_or(u32::MAX);
+            let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX);
+            let quota = Quota::per_second(
+                NonZeroU32::new(effective_u32)
+                    .expect("effective_limit guarantees minimum of 1"),
+            )
+            .allow_burst(
+                NonZeroU32::new(burst_u32.max(1))
+                    .expect("burst clamped to minimum of 1"),
+            );
+            Arc::new(RateLimiter::keyed(quota))
+        };
+
+        Self {
+            admin_limiter: create_limiter(RateLimitTier::Admin),
+            user_limiter: create_limiter(RateLimitTier::User),
+            a2a_limiter: create_limiter(RateLimitTier::A2a),
+            mcp_limiter: create_limiter(RateLimitTier::Mcp),
+            service_limiter: create_limiter(RateLimitTier::Service),
+            anon_limiter: create_limiter(RateLimitTier::Anon),
+            disabled: config.disabled,
+        }
+    }
+
+    pub fn disabled() -> Self {
+        let quota = Quota::per_second(NonZeroU32::MAX);
+        let limiter = Arc::new(RateLimiter::keyed(quota));
+        Self {
+            admin_limiter: Arc::clone(&limiter),
+            user_limiter: Arc::clone(&limiter),
+            a2a_limiter: Arc::clone(&limiter),
+            mcp_limiter: Arc::clone(&limiter),
+            service_limiter: Arc::clone(&limiter),
+            anon_limiter: Arc::clone(&limiter),
+            disabled: true,
+        }
+    }
+
+    fn limiter_for_tier(&self, tier: RateLimitTier) -> &KeyedRateLimiter {
+        match tier {
+            RateLimitTier::Admin => &self.admin_limiter,
+            RateLimitTier::User => &self.user_limiter,
+            RateLimitTier::A2a => &self.a2a_limiter,
+            RateLimitTier::Mcp => &self.mcp_limiter,
+            RateLimitTier::Service => &self.service_limiter,
+            RateLimitTier::Anon => &self.anon_limiter,
+        }
+    }
+
+    pub fn check(&self, tier: RateLimitTier, key: &str) -> bool {
+        if self.disabled {
+            return true;
+        }
+        self.limiter_for_tier(tier)
+            .check_key(&key.to_string())
+            .is_ok()
+    }
+}
+
+pub async fn tiered_rate_limit_middleware(
+    limiter: axum::extract::State<TieredRateLimiter>,
+    request: Request,
+    next: Next,
+) -> Response {
+    if limiter.disabled {
+        return next.run(request).await;
+    }
+
+    let (tier, key) = request
+        .extensions()
+        .get::<RequestContext>()
+        .map(|ctx| {
+            let tier = ctx.rate_limit_tier();
+            let key = ctx.user_id().to_string();
+            (tier, key)
+        })
+        .unwrap_or_else(|| {
+            let ip = request
+                .headers()
+                .get("x-forwarded-for")
+                .and_then(|h| h.to_str().ok())
+                .and_then(|s| s.split(',').next())
+                .map_or_else(|| "unknown".to_string(), ToString::to_string);
+            (RateLimitTier::Anon, ip)
+        });
+
+    if limiter.check(tier, &key) {
+        next.run(request).await
+    } else {
+        warn!(
+            tier = %tier.as_str(),
+            key = %key,
+            "Rate limit exceeded"
+        );
+        (
+            StatusCode::TOO_MANY_REQUESTS,
+            [
+                ("Retry-After", "1"),
+                ("X-Rate-Limit-Tier", tier.as_str()),
+            ],
+            "Rate limit exceeded",
+        )
+            .into_response()
     }
 }

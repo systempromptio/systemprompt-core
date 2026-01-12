@@ -15,9 +15,11 @@ pub use cloud::{CloudConfig, CloudValidationMode};
 pub use database::DatabaseConfig;
 pub use paths::{expand_home, resolve_path, resolve_with_home, PathsConfig};
 pub use rate_limits::{
-    default_agent_registry, default_agents, default_artifacts, default_burst, default_content,
-    default_contexts, default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public,
-    default_stream, default_tasks, RateLimitsConfig,
+    default_a2a_multiplier, default_admin_multiplier, default_agent_registry, default_agents,
+    default_anon_multiplier, default_artifacts, default_burst, default_content, default_contexts,
+    default_mcp, default_mcp_multiplier, default_mcp_registry, default_oauth_auth,
+    default_oauth_public, default_service_multiplier, default_stream, default_tasks,
+    default_user_multiplier, RateLimitsConfig, TierMultipliers,
 };
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
@@ -450,6 +452,7 @@ impl Profile {
             stream_per_second: parse_rate("RATE_LIMIT_STREAM_PER_SECOND", default_stream),
             content_per_second: parse_rate("RATE_LIMIT_CONTENT_PER_SECOND", default_content),
             burst_multiplier: parse_rate("RATE_LIMIT_BURST_MULTIPLIER", default_burst),
+            tier_multipliers: TierMultipliers::default(),
         }
     }
 

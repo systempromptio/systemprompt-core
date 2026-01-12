@@ -139,7 +139,7 @@ impl AuthValidationService {
             AgentName::new("test-agent".to_string()),
         )
         .with_user_id(UserId::new("test-user".to_string()))
-        .with_user_type(UserType::Standard)
+        .with_user_type(UserType::User)
     }
 
     fn extract_trace_id(headers: &HeaderMap) -> TraceId {
