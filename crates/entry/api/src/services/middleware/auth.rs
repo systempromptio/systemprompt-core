@@ -113,11 +113,13 @@ fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::Aut
     };
 
     let permissions = claims.scope;
+    let roles = claims.roles;
 
-    Some(systemprompt_models::AuthenticatedUser::new(
+    Some(systemprompt_models::AuthenticatedUser::new_with_roles(
         user_id,
         claims.username,
         email,
         permissions,
+        roles,
     ))
 }

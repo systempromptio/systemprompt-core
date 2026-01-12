@@ -192,11 +192,12 @@ fn build_authenticated_context(
         McpError::internal_error(format!("Invalid user ID in JWT: {e}"), None)
     })?;
 
-    let authenticated_user = AuthenticatedUser::new(
+    let authenticated_user = AuthenticatedUser::new_with_roles(
         user_id,
         claims.username.clone(),
         Some(claims.email.clone()),
         claims.get_permissions(),
+        claims.roles().to_vec(),
     );
 
     let context = request_context

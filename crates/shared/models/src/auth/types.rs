@@ -12,6 +12,8 @@ pub struct AuthenticatedUser {
     pub username: String,
     pub email: Option<String>,
     pub permissions: Vec<Permission>,
+    #[serde(default)]
+    pub roles: Vec<String>,
 }
 
 impl AuthenticatedUser {
@@ -26,6 +28,23 @@ impl AuthenticatedUser {
             username,
             email,
             permissions,
+            roles: Vec::new(),
+        }
+    }
+
+    pub fn new_with_roles(
+        id: Uuid,
+        username: String,
+        email: Option<String>,
+        permissions: Vec<Permission>,
+        roles: Vec<String>,
+    ) -> Self {
+        Self {
+            id,
+            username,
+            email,
+            permissions,
+            roles,
         }
     }
 
@@ -40,6 +59,14 @@ impl AuthenticatedUser {
 
     pub fn permissions(&self) -> &[Permission] {
         &self.permissions
+    }
+
+    pub fn has_role(&self, role: &str) -> bool {
+        self.roles.iter().any(|r| r == role)
+    }
+
+    pub fn roles(&self) -> &[String] {
+        &self.roles
     }
 
     pub fn user_type(&self) -> UserType {

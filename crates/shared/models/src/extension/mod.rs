@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -16,6 +17,14 @@ pub enum BuildType {
     #[default]
     Workspace,
     Submodule,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ManifestRole {
+    pub display_name: String,
+    pub description: String,
+    #[serde(default)]
+    pub permissions: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,6 +53,9 @@ pub struct Extension {
 
     #[serde(default = "default_true")]
     pub enabled: bool,
+
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub roles: HashMap<String, ManifestRole>,
 }
 
 const fn default_true() -> bool {

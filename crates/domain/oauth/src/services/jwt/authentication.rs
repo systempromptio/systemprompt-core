@@ -26,12 +26,14 @@ impl AuthenticationService {
 
         let user_id = Uuid::parse_str(&claims.sub).map_err(|_| StatusCode::UNAUTHORIZED)?;
         let permissions = claims.get_permissions();
+        let roles = claims.roles().to_vec();
 
-        Ok(AuthenticatedUser::new(
+        Ok(AuthenticatedUser::new_with_roles(
             user_id,
             claims.username.clone(),
             Some(claims.email),
             permissions,
+            roles,
         ))
     }
 }
