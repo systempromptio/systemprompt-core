@@ -171,10 +171,8 @@ impl AccessValidator {
                     )
                     .await
                     {
-                        Ok(_response) => {
-                            return Err(ProxyError::AuthenticationRequired {
-                                service: service_name.to_string(),
-                            });
+                        Ok(challenge_response) => {
+                            return Err(ProxyError::AuthChallenge(challenge_response));
                         },
                         Err(status) => {
                             return Err(if status == StatusCode::UNAUTHORIZED {
