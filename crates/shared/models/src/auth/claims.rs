@@ -37,6 +37,10 @@ pub struct JwtClaims {
     pub email: String,
     pub user_type: UserType,
 
+    // User roles (extension-defined roles as strings)
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub roles: Vec<String>,
+
     // Enhanced Security Claims
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
@@ -119,5 +123,13 @@ impl JwtClaims {
 
     pub fn has_audience(&self, aud: JwtAudience) -> bool {
         self.aud.contains(&aud)
+    }
+
+    pub fn has_role(&self, role: &str) -> bool {
+        self.roles.iter().any(|r| r == role)
+    }
+
+    pub fn roles(&self) -> &[String] {
+        &self.roles
     }
 }

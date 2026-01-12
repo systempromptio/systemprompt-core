@@ -53,12 +53,14 @@ impl TokenValidator for JwtTokenValidator {
             })?;
 
         let permissions = claims.get_permissions();
+        let roles = claims.roles().to_vec();
 
-        Ok(AuthenticatedUser::new(
+        Ok(AuthenticatedUser::new_with_roles(
             user_id,
             claims.username.clone(),
             Some(claims.email),
             permissions,
+            roles,
         ))
     }
 }

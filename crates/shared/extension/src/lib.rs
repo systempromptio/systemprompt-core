@@ -73,6 +73,37 @@ pub enum SeedSource {
     File(PathBuf),
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtensionRole {
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    #[serde(default)]
+    pub permissions: Vec<String>,
+}
+
+impl ExtensionRole {
+    #[must_use]
+    pub fn new(
+        name: impl Into<String>,
+        display_name: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            display_name: display_name.into(),
+            description: description.into(),
+            permissions: Vec::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_permissions(mut self, permissions: Vec<String>) -> Self {
+        self.permissions = permissions;
+        self
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
     pub router: axum::Router,
@@ -153,6 +184,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn roles(&self) -> Vec<ExtensionRole> {
+        vec![]
+    }
+
     fn priority(&self) -> u32 {
         100
     }
@@ -200,6 +235,10 @@ pub trait Extension: Send + Sync + 'static {
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }
+
+    fn has_roles(&self) -> bool {
+        !self.roles().is_empty()
+    }
 }
 
 #[macro_export]
@@ -225,8 +264,8 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        register_extension, Extension, ExtensionMetadata, ExtensionRouter, SchemaDefinition,
-        SchemaSource,
+        register_extension, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
+        SchemaDefinition, SchemaSource,
     };
 
     pub use crate::any::AnyExtension;

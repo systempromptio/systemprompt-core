@@ -211,14 +211,15 @@ async fn load_authenticated_user(
     let email = if user.email.is_empty() {
         None
     } else {
-        Some(user.email)
+        Some(user.email.clone())
     };
 
-    Ok(AuthenticatedUser::new(
+    Ok(AuthenticatedUser::new_with_roles(
         user_uuid,
         user.name,
         email,
         permissions,
+        user.roles,
     ))
 }
 

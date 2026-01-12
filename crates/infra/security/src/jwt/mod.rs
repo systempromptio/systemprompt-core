@@ -35,6 +35,7 @@ impl JwtService {
             username: params.email.to_string(),
             email: params.email.to_string(),
             user_type: UserType::Admin,
+            roles: vec!["admin".to_string(), "user".to_string()],
             client_id: Some("sp_tui".to_string()),
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),

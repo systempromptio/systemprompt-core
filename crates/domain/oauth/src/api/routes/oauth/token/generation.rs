@@ -118,11 +118,12 @@ pub async fn generate_client_tokens(
     uuid_bytes.copy_from_slice(&hash[..16]);
     let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
 
-    let client_user = AuthenticatedUser::new(
+    let client_user = AuthenticatedUser::new_with_roles(
         client_uuid,
         format!("client:{client_id}"),
         None,
         vec![Permission::Admin],
+        vec!["admin".to_string()],
     );
 
     let config = JwtConfig {
