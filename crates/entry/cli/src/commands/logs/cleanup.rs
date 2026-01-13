@@ -1,10 +1,11 @@
 use anyhow::{anyhow, Result};
-use chrono::{Duration, Utc};
+use chrono::Utc;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
 use systemprompt_runtime::AppContext;
 
+use super::duration::parse_duration;
 use super::LogCleanupOutput;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
@@ -25,50 +26,17 @@ pub struct CleanupArgs {
     )]
     pub keep_last_days: Option<i64>,
 
+    #[arg(long, help = "Preview what would be deleted without making changes")]
+    pub dry_run: bool,
+
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
 }
 
-fn parse_duration(s: &str) -> Result<Duration> {
-    let s = s.trim().to_lowercase();
-
-    if let Some(days) = s.strip_suffix('d') {
-        let num: i64 = days
-            .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
-        return Ok(Duration::days(num));
-    }
-
-    if let Some(hours) = s.strip_suffix('h') {
-        let num: i64 = hours
-            .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
-        return Ok(Duration::hours(num));
-    }
-
-    if let Some(mins) = s.strip_suffix('m') {
-        let num: i64 = mins
-            .parse()
-            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
-        return Ok(Duration::minutes(num));
-    }
-
-    // Try parsing as plain number of days
-    if let Ok(num) = s.parse::<i64>() {
-        return Ok(Duration::days(num));
-    }
-
-    Err(anyhow!(
-        "Invalid duration format: {}. Use formats like '7d', '24h', '30m'",
-        s
-    ))
-}
-
 pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
-    // Require either --older-than or --keep-last-days
     let cutoff_duration = match (&args.older_than, args.keep_last_days) {
         (Some(duration_str), None) => parse_duration(duration_str)?,
-        (None, Some(days)) => Duration::days(days),
+        (None, Some(days)) => chrono::Duration::days(days),
         (None, None) => {
             return Err(anyhow!(
                 "Either --older-than or --keep-last-days is required"
@@ -84,7 +52,27 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
     let cutoff_date = Utc::now() - cutoff_duration;
     let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
-    // Require --yes for destructive operation
+    let ctx = AppContext::new().await?;
+    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+
+    if args.dry_run {
+        let count = service
+            .count_logs_before(cutoff_date)
+            .await
+            .map_err(|e| anyhow!("Failed to count logs: {}", e))?;
+
+        let output = LogCleanupOutput {
+            deleted_count: count,
+            dry_run: true,
+            cutoff_date: cutoff_str,
+            vacuum_performed: false,
+        };
+
+        let result = CommandResult::card(output).with_title("Cleanup Preview (Dry Run)");
+        render_result(&result);
+        return Ok(());
+    }
+
     if !args.yes {
         if config.is_interactive() {
             let msg = format!(
@@ -100,9 +88,6 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
         }
     }
 
-    let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
-
     let deleted_count = service
         .cleanup_old_logs(cutoff_date)
         .await
@@ -116,7 +101,6 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
     };
 
     let result = CommandResult::card(output).with_title("Logs Cleaned Up");
-
     render_result(&result);
 
     Ok(())

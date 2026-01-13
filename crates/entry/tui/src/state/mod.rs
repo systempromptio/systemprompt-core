@@ -23,7 +23,7 @@ pub use chat::{
     InlineToolCall, InputRequest, InputType, LoadingState, ProgressState, StepStatusDisplay,
     TaskDisplay, TaskMetadataDisplay, TaskState, ToolCallStatus,
 };
-pub use commands::{CommandItem, CommandsState};
+pub use commands::{CommandItem, CommandsState, ParameterModalState};
 pub use conversations::{ConversationDisplay, ConversationsState};
 pub use logs::LogsState;
 pub use services::{RuntimeStatus, ServiceListItem, ServiceStatus, ServiceType, ServicesState};

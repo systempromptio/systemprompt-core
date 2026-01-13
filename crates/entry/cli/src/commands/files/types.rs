@@ -3,10 +3,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
-// ============================================================================
-// File List Output
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileListOutput {
     pub files: Vec<FileSummary>,
@@ -25,10 +21,6 @@ pub struct FileSummary {
     pub ai_content: bool,
     pub created_at: DateTime<Utc>,
 }
-
-// ============================================================================
-// File Detail Output
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileDetailOutput {
@@ -113,10 +105,6 @@ pub struct VideoMetadataOutput {
     pub frame_rate: Option<f32>,
 }
 
-// ============================================================================
-// File Upload Output
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileUploadOutput {
     pub file_id: FileId,
@@ -127,19 +115,11 @@ pub struct FileUploadOutput {
     pub checksum_sha256: String,
 }
 
-// ============================================================================
-// File Delete Output
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileDeleteOutput {
     pub file_id: FileId,
     pub message: String,
 }
-
-// ============================================================================
-// File Validation Output
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileValidationOutput {
@@ -150,10 +130,6 @@ pub struct FileValidationOutput {
     pub max_size_bytes: u64,
     pub errors: Vec<String>,
 }
-
-// ============================================================================
-// File Config Output
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileConfigOutput {
@@ -182,10 +158,6 @@ pub struct StoragePathsOutput {
     pub audio: String,
     pub video: String,
 }
-
-// ============================================================================
-// Content Files Output
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentFilesOutput {
@@ -224,10 +196,6 @@ pub struct FeaturedImageOutput {
     pub file: Option<FileSummary>,
     pub message: String,
 }
-
-// ============================================================================
-// AI Files Output
-// ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AiFilesListOutput {

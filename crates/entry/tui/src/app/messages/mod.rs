@@ -114,6 +114,22 @@ pub enum Message {
     CommandError(String),
     CommandExecuting,
 
+    CommandTreeToggle,
+    CommandTreeExpand,
+    CommandTreeCollapse,
+
+    CommandModalOpen,
+    CommandModalClose,
+    CommandModalSubmit,
+
+    CommandCliOutput(String),
+    CommandCliError(String),
+
+    CommandRequestAiParams {
+        command_path: Vec<String>,
+        description: String,
+    },
+
     ToolApprove(Uuid),
     ToolReject(Uuid),
     ToolExecutionComplete(Uuid, ToolExecutionResult),
@@ -180,9 +196,18 @@ impl Message {
             | Self::LogsSetFilter(_)
             | Self::LogsClear => MessageDomain::Logs,
 
-            Self::CommandOutput(_) | Self::CommandError(_) | Self::CommandExecuting => {
-                MessageDomain::Commands
-            },
+            Self::CommandOutput(_)
+            | Self::CommandError(_)
+            | Self::CommandExecuting
+            | Self::CommandTreeToggle
+            | Self::CommandTreeExpand
+            | Self::CommandTreeCollapse
+            | Self::CommandModalOpen
+            | Self::CommandModalClose
+            | Self::CommandModalSubmit
+            | Self::CommandCliOutput(_)
+            | Self::CommandCliError(_)
+            | Self::CommandRequestAiParams { .. } => MessageDomain::Commands,
 
             Self::ToolApprove(_) | Self::ToolReject(_) | Self::ToolExecutionComplete(_, _) => {
                 MessageDomain::Tools
