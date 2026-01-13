@@ -1,3 +1,17 @@
+mod create;
+mod crud;
+mod docker;
+mod rotate;
+mod select;
+mod validation;
+
+pub use create::{create_cloud_tenant, create_local_tenant};
+pub use crud::{delete_tenant, edit_tenant, list_tenants, show_tenant};
+pub use docker::wait_for_postgres_healthy;
+pub use rotate::{rotate_credentials, rotate_sync_token};
+pub use select::{get_credentials, resolve_tenant_id};
+pub use validation::{check_build_ready, find_services_config};
+
 use anyhow::Result;
 use clap::{Args, Subcommand};
 use dialoguer::theme::ColorfulTheme;
@@ -5,10 +19,6 @@ use dialoguer::Select;
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_core_logging::CliService;
 
-use super::tenant_ops::{
-    check_build_ready, create_cloud_tenant, create_local_tenant, delete_tenant, edit_tenant,
-    get_credentials, list_tenants, rotate_credentials, rotate_sync_token, show_tenant,
-};
 use crate::cli_settings::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -78,7 +88,7 @@ pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<
 
 async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool> {
     match cmd {
-        TenantCommands::Create { region } => create(&region, config).await.map(|()| true),
+        TenantCommands::Create { region } => tenant_create(&region, config).await.map(|()| true),
         TenantCommands::List => list_tenants().await.map(|()| false),
         TenantCommands::Show { id } => show_tenant(id).await.map(|()| false),
         TenantCommands::Delete(args) => delete_tenant(args, config).await.map(|()| false),
@@ -149,7 +159,7 @@ fn select_operation() -> Result<Option<TenantCommands>> {
     Ok(cmd)
 }
 
-async fn create(default_region: &str, config: &CliConfig) -> Result<()> {
+async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant creation requires interactive mode.\nUse specific tenant type commands in \

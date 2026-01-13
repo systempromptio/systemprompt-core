@@ -56,23 +56,23 @@ impl<T> CommandResult<T> {
         }
     }
 
-    pub fn table(data: T) -> Self {
+    pub const fn table(data: T) -> Self {
         Self::new(data, ArtifactType::Table)
     }
 
-    pub fn list(data: T) -> Self {
+    pub const fn list(data: T) -> Self {
         Self::new(data, ArtifactType::List)
     }
 
-    pub fn card(data: T) -> Self {
+    pub const fn card(data: T) -> Self {
         Self::new(data, ArtifactType::PresentationCard)
     }
 
-    pub fn text(data: T) -> Self {
+    pub const fn text(data: T) -> Self {
         Self::new(data, ArtifactType::Text)
     }
 
-    pub fn copy_paste(data: T) -> Self {
+    pub const fn copy_paste(data: T) -> Self {
         Self::new(data, ArtifactType::CopyPasteText)
     }
 
@@ -85,11 +85,11 @@ impl<T> CommandResult<T> {
         result
     }
 
-    pub fn form(data: T) -> Self {
+    pub const fn form(data: T) -> Self {
         Self::new(data, ArtifactType::Form)
     }
 
-    pub fn dashboard(data: T) -> Self {
+    pub const fn dashboard(data: T) -> Self {
         Self::new(data, ArtifactType::Dashboard)
     }
 

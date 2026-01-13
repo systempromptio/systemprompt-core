@@ -35,7 +35,7 @@ pub struct CreateArgs {
     pub enabled: Option<bool>,
 }
 
-pub async fn execute(
+pub fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SkillCreateOutput>> {

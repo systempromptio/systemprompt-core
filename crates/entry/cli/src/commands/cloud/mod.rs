@@ -1,18 +1,15 @@
 pub mod auth;
-pub mod checkout;
 mod deploy;
-pub mod deploy_select;
 pub mod dockerfile;
 mod init;
 mod init_templates;
-mod oauth;
 pub mod profile;
 mod restart;
 mod secrets;
 mod status;
 pub mod sync;
+pub mod templates;
 pub mod tenant;
-mod tenant_ops;
 
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 

@@ -4,7 +4,7 @@ use dialoguer::Confirm;
 use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore, TenantType};
 use systemprompt_core_logging::CliService;
 
-use super::tenant_ops::{get_credentials, resolve_tenant_id};
+use super::tenant::{get_credentials, resolve_tenant_id};
 use crate::cli_settings::CliConfig;
 
 pub async fn execute(tenant_id: Option<String>, yes: bool, config: &CliConfig) -> Result<()> {

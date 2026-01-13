@@ -23,7 +23,7 @@ pub struct ViewArgs {
     #[arg(
         long,
         short = 'n',
-        visible_alias = "limit",
+        alias = "limit",
         default_value = "20",
         help = "Number of log entries to show"
     )]

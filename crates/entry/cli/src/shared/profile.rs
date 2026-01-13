@@ -1,8 +1,58 @@
+use std::path::{Path, PathBuf};
+
 use anyhow::{Context, Result};
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
-use std::path::Path;
+use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
+
+#[derive(Debug)]
+pub struct DiscoveredProfile {
+    pub name: String,
+    pub path: PathBuf,
+    pub profile: Profile,
+}
+
+pub fn discover_profiles() -> Result<Vec<DiscoveredProfile>> {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+
+    if !profiles_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let entries = std::fs::read_dir(&profiles_dir).with_context(|| {
+        format!(
+            "Failed to read profiles directory: {}",
+            profiles_dir.display()
+        )
+    })?;
+
+    let profiles = entries
+        .filter_map(std::result::Result::ok)
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| build_discovered_profile(&e))
+        .collect();
+
+    Ok(profiles)
+}
+
+fn build_discovered_profile(entry: &std::fs::DirEntry) -> Option<DiscoveredProfile> {
+    let profile_yaml = ProfilePath::Config.resolve(&entry.path());
+    if !profile_yaml.exists() {
+        return None;
+    }
+
+    let name = entry.file_name().to_string_lossy().to_string();
+    let profile = ProfileLoader::load_from_path(&profile_yaml).ok()?;
+
+    Some(DiscoveredProfile {
+        name,
+        path: profile_yaml,
+        profile,
+    })
+}
 
 pub fn generate_display_name(name: &str) -> String {
     match name.to_lowercase().as_str() {

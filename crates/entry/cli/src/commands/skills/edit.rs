@@ -36,7 +36,7 @@ pub struct EditArgs {
     pub instructions_file: Option<String>,
 }
 
-pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<SkillEditOutput>> {
+pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<SkillEditOutput>> {
     let skills_path = get_skills_path()?;
 
     let name = resolve_input(args.name.clone(), "name", config, || {
@@ -50,13 +50,13 @@ pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult
         if !alt_dir.exists() {
             return Err(anyhow!("Skill '{}' not found", name));
         }
-        return edit_skill(&alt_dir, &alt_name, &args).await;
+        return edit_skill(&alt_dir, &alt_name, args);
     }
 
-    edit_skill(&skill_dir, &name, &args).await
+    edit_skill(&skill_dir, &name, args)
 }
 
-async fn edit_skill(
+fn edit_skill(
     skill_dir: &Path,
     name: &str,
     args: &EditArgs,

@@ -19,7 +19,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
     let skills_path = get_skills_path()?;
 
     if let Some(name) = args.name {

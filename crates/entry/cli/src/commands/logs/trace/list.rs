@@ -1,4 +1,5 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use clap::Args;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -29,83 +30,46 @@ pub struct ListArgs {
     pub status: Option<String>,
 }
 
+struct TraceRow {
+    trace_id: String,
+    first_timestamp: DateTime<Utc>,
+    last_timestamp: DateTime<Utc>,
+    agent: Option<String>,
+    status: Option<String>,
+    ai_requests: Option<i64>,
+    mcp_calls: Option<i64>,
+}
+
 pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let query = r"
+    let rows = sqlx::query_as!(
+        TraceRow,
+        r#"
         SELECT DISTINCT
-            l.trace_id,
-            MIN(l.timestamp) as first_timestamp,
-            MAX(l.timestamp) as last_timestamp,
-            (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as agent,
-            (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as status,
-            (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as ai_requests,
-            (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as mcp_calls
+            l.trace_id as "trace_id!",
+            MIN(l.timestamp) as "first_timestamp!",
+            MAX(l.timestamp) as "last_timestamp!",
+            (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
+            (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
+            (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
+            (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
         FROM logs l
         WHERE l.trace_id IS NOT NULL
         GROUP BY l.trace_id
         ORDER BY MIN(l.timestamp) DESC
         LIMIT $1
-    ";
-
-    let rows = sqlx::query_as::<
-        _,
-        (
-            String,
-            chrono::DateTime<chrono::Utc>,
-            chrono::DateTime<chrono::Utc>,
-            Option<String>,
-            Option<String>,
-            i64,
-            i64,
-        ),
-    >(query)
-    .bind(args.limit)
+        "#,
+        args.limit
+    )
     .fetch_all(pool.as_ref())
     .await?;
 
     let traces: Vec<TraceListRow> = rows
         .into_iter()
-        .filter(|r| {
-            // Apply agent filter
-            if let Some(ref agent_filter) = args.agent {
-                if let Some(ref agent) = r.3 {
-                    if !agent.contains(agent_filter) {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-            // Apply status filter
-            if let Some(ref status_filter) = args.status {
-                if let Some(ref status) = r.4 {
-                    if status.to_lowercase() != status_filter.to_lowercase() {
-                        return false;
-                    }
-                } else {
-                    return false;
-                }
-            }
-            true
-        })
-        .map(|r| {
-            let duration_ms = (r.2 - r.1).num_milliseconds();
-            TraceListRow {
-                trace_id: r.0,
-                timestamp: r.1.format("%Y-%m-%d %H:%M:%S").to_string(),
-                agent: r.3,
-                status: r.4.unwrap_or_else(|| "unknown".to_string()),
-                duration_ms: if duration_ms > 0 {
-                    Some(duration_ms)
-                } else {
-                    None
-                },
-                ai_requests: r.5,
-                mcp_calls: r.6,
-            }
-        })
+        .filter(|r| matches_filters(r, &args))
+        .map(row_to_trace_list)
         .collect();
 
     let output = TraceListOutput {
@@ -133,4 +97,36 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     render_result(&result);
 
     Ok(())
+}
+
+fn matches_filters(row: &TraceRow, args: &ListArgs) -> bool {
+    if let Some(ref agent_filter) = args.agent {
+        match &row.agent {
+            Some(agent) if agent.contains(agent_filter) => {}
+            _ => return false,
+        }
+    }
+
+    if let Some(ref status_filter) = args.status {
+        match &row.status {
+            Some(status) if status.eq_ignore_ascii_case(status_filter) => {}
+            _ => return false,
+        }
+    }
+
+    true
+}
+
+fn row_to_trace_list(r: TraceRow) -> TraceListRow {
+    let duration_ms = (r.last_timestamp - r.first_timestamp).num_milliseconds();
+
+    TraceListRow {
+        trace_id: r.trace_id,
+        timestamp: r.first_timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+        agent: r.agent,
+        status: r.status.unwrap_or_else(|| "unknown".to_string()),
+        duration_ms: (duration_ms > 0).then_some(duration_ms),
+        ai_requests: r.ai_requests.unwrap_or(0),
+        mcp_calls: r.mcp_calls.unwrap_or(0),
+    }
 }
