@@ -7,6 +7,36 @@ use systemprompt_core_logging::CliService;
 
 use super::postgres::{generate_password, PostgresConfig};
 
+pub async fn setup_docker_postgres_non_interactive(
+    config: &PostgresConfig,
+    env_name: &str,
+) -> Result<PostgresConfig> {
+    if !is_docker_available() {
+        anyhow::bail!("Docker is not installed or not in PATH.");
+    }
+    if !is_compose_available() {
+        anyhow::bail!("Docker Compose is not available.");
+    }
+
+    let compose_dir = std::env::current_dir()?.join(COMPOSE_PATH);
+    let container = container_name(env_name);
+    create_compose_files_if_missing(&compose_dir, &container, config.port)?;
+
+    if is_container_running(&container) {
+        if !super::postgres::test_connection(config).await {
+            create_database_in_docker(config, &container).await?;
+        }
+        super::postgres::enable_extensions(config).await?;
+        return Ok(config.clone());
+    }
+
+    start_compose(config, &compose_dir, &container)?;
+    wait_for_postgres_ready(config, &container);
+    super::postgres::enable_extensions(config).await?;
+
+    Ok(config.clone())
+}
+
 pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
 

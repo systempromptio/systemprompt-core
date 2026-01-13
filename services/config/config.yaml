@@ -1,0 +1,7 @@
+# SystemPrompt Services Configuration
+settings:
+  agent_port_range: [3100, 3199]
+  mcp_port_range: [3200, 3299]
+  auto_start_enabled: true
+  validation_strict: false
+  schema_validation_mode: "warn"

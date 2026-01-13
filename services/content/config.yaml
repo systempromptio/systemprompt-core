@@ -1,0 +1,15 @@
+# Content Configuration
+content_sources:
+  blog:
+    enabled: true
+    path: "content/blog"
+    source_id: "blog"
+    category_id: "articles"
+    description: "Blog posts"
+
+  legal:
+    enabled: true
+    path: "content/legal"
+    source_id: "legal"
+    category_id: "legal"
+    description: "Legal documents"

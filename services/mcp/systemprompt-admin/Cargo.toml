@@ -1,0 +1,53 @@
+[package]
+name = "systemprompt-admin"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "systemprompt-admin"
+path = "src/main.rs"
+
+[dependencies]
+# Core facade
+systemprompt = { workspace = true, features = ["full"] }
+
+# Runtime
+anyhow.workspace = true
+tokio.workspace = true
+
+# MCP Protocol
+rmcp.workspace = true
+
+# Web framework
+axum.workspace = true
+
+# Serialization
+serde.workspace = true
+serde_json.workspace = true
+serde_yaml.workspace = true
+
+# Time handling
+chrono.workspace = true
+
+# Database
+sqlx.workspace = true
+
+# UUID generation
+uuid.workspace = true
+
+# Cryptographic hashing
+sha2.workspace = true
+
+# Logging/tracing
+tracing.workspace = true
+
+[dev-dependencies]
+tokio-test.workspace = true
+serial_test.workspace = true
+once_cell.workspace = true
+fake.workspace = true
+
+[lints]
+workspace = true

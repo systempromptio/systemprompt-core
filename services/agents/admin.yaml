@@ -1,0 +1,19 @@
+# Admin Agent Configuration
+endpoint: admin
+port: 3101
+enabled: true
+default: false
+
+card:
+  display_name: "Admin Agent"
+  description: "Administrative agent for system management"
+  version: "1.0.0"
+
+metadata:
+  mcp_servers:
+    - systemprompt-admin
+  skills: []
+
+prompt:
+  system: |
+    You are an administrative assistant with access to system tools.
