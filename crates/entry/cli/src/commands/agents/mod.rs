@@ -4,6 +4,7 @@ mod create;
 mod delete;
 mod edit;
 mod list;
+mod logs;
 mod run;
 mod show;
 mod status;
@@ -38,6 +39,9 @@ pub enum AgentsCommands {
 
     #[command(about = "Show agent process status")]
     Status(status::StatusArgs),
+
+    #[command(about = "View agent logs")]
+    Logs(logs::LogsArgs),
 
     #[command(about = "Run an agent server (internal use)", hide = true)]
     Run(run::RunArgs),
@@ -96,6 +100,13 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             let result = status::execute(args, config)
                 .await
                 .context("Failed to get agent status")?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Logs(args) => {
+            let result = logs::execute(args, config)
+                .await
+                .context("Failed to get agent logs")?;
             render_result(&result);
             Ok(())
         },

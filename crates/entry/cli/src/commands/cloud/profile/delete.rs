@@ -7,7 +7,7 @@ use systemprompt_core_logging::CliService;
 use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
 
-pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
+pub fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<()> {
     CliService::section(&format!("Delete Profile: {}", args.name));
 
     let ctx = ProjectContext::discover();

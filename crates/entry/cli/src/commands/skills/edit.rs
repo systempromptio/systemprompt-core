@@ -16,7 +16,11 @@ pub struct EditArgs {
     #[arg(help = "Skill name to edit")]
     pub name: Option<String>,
 
-    #[arg(long = "set", value_name = "KEY=VALUE", help = "Set a configuration value")]
+    #[arg(
+        long = "set",
+        value_name = "KEY=VALUE",
+        help = "Set a configuration value"
+    )]
     pub set_values: Vec<String>,
 
     #[arg(long, help = "Enable the skill", conflicts_with = "disable")]
@@ -65,10 +69,7 @@ async fn edit_skill(
     } else if skill_md_path.exists() {
         skill_md_path
     } else {
-        return Err(anyhow!(
-            "Skill '{}' has no index.md or SKILL.md file",
-            name
-        ));
+        return Err(anyhow!("Skill '{}' has no index.md or SKILL.md file", name));
     };
 
     let content = fs::read_to_string(&md_path)
@@ -133,7 +134,7 @@ async fn edit_skill(
         changes,
     };
 
-    Ok(CommandResult::text(output).with_title(&format!("Edit Skill: {}", name)))
+    Ok(CommandResult::text(output).with_title(format!("Edit Skill: {}", name)))
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
@@ -147,8 +148,8 @@ fn parse_markdown(content: &str) -> Result<(serde_yaml::Mapping, String)> {
         return Err(anyhow!("Invalid frontmatter format"));
     }
 
-    let frontmatter: serde_yaml::Mapping = serde_yaml::from_str(parts[1])
-        .context("Invalid YAML frontmatter")?;
+    let frontmatter: serde_yaml::Mapping =
+        serde_yaml::from_str(parts[1]).context("Invalid YAML frontmatter")?;
 
     Ok((frontmatter, parts[2].trim().to_string()))
 }
@@ -159,30 +160,26 @@ fn rebuild_markdown(frontmatter: &serde_yaml::Mapping, instructions: &str) -> Re
     Ok(format!("---\n{}---\n\n{}\n", yaml, instructions))
 }
 
-fn apply_set_value(
-    frontmatter: &mut serde_yaml::Mapping,
-    key: &str,
-    value: &str,
-) -> Result<()> {
+fn apply_set_value(frontmatter: &mut serde_yaml::Mapping, key: &str, value: &str) -> Result<()> {
     match key {
         "title" | "name" => {
             frontmatter.insert(
                 serde_yaml::Value::String("title".to_string()),
                 serde_yaml::Value::String(value.to_string()),
             );
-        }
+        },
         "description" => {
             frontmatter.insert(
                 serde_yaml::Value::String("description".to_string()),
                 serde_yaml::Value::String(value.to_string()),
             );
-        }
+        },
         "category" => {
             frontmatter.insert(
                 serde_yaml::Value::String("category".to_string()),
                 serde_yaml::Value::String(value.to_string()),
             );
-        }
+        },
         "tags" | "keywords" => {
             let tags: Vec<serde_yaml::Value> = value
                 .split(',')
@@ -192,22 +189,26 @@ fn apply_set_value(
                 serde_yaml::Value::String("keywords".to_string()),
                 serde_yaml::Value::Sequence(tags),
             );
-        }
+        },
         "enabled" => {
             let enabled = value.parse::<bool>().map_err(|_| {
-                anyhow!("Invalid boolean value for enabled: '{}'. Use true or false", value)
+                anyhow!(
+                    "Invalid boolean value for enabled: '{}'. Use true or false",
+                    value
+                )
             })?;
             frontmatter.insert(
                 serde_yaml::Value::String("enabled".to_string()),
                 serde_yaml::Value::Bool(enabled),
             );
-        }
+        },
         _ => {
             return Err(anyhow!(
-                "Unknown configuration key: '{}'. Supported: title, description, category, tags, enabled",
+                "Unknown configuration key: '{}'. Supported: title, description, category, tags, \
+                 enabled",
                 key
             ));
-        }
+        },
     }
     Ok(())
 }
@@ -238,8 +239,7 @@ fn prompt_skill_selection(skills_path: &Path) -> Result<String> {
                 continue;
             }
 
-            let has_skill_file =
-                path.join("index.md").exists() || path.join("SKILL.md").exists();
+            let has_skill_file = path.join("index.md").exists() || path.join("SKILL.md").exists();
 
             if has_skill_file {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

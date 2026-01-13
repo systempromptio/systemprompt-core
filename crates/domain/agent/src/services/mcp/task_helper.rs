@@ -27,27 +27,31 @@ pub async fn ensure_task_exists(
         });
     }
 
-    let context_repo = ContextRepository::new(db_pool.clone());
+    let context_id = request_context.context_id();
+    if context_id.is_empty() {
+        tracing::error!("contextId is required for tool execution");
+        return Err(McpError::invalid_params(
+            "contextId is required. Create a context first via POST /api/v1/core/contexts",
+            None,
+        ));
+    }
 
-    let context_id = context_repo
-        .ensure_context_exists(
-            request_context.context_id(),
-            request_context.user_id(),
-            Some(request_context.session_id()),
-        )
+    let context_repo = ContextRepository::new(db_pool.clone());
+    context_repo
+        .validate_context_ownership(context_id, request_context.user_id())
         .await
         .map_err(|e| {
             tracing::error!(
-                context_id = %request_context.context_id(),
+                context_id = %context_id,
+                user_id = %request_context.user_id(),
                 error = %e,
-                "Context creation/validation failed"
+                "Context validation failed"
             );
-            McpError::internal_error(format!("Failed to ensure context: {e}"), None)
+            McpError::invalid_params(
+                format!("Invalid contextId: {e}. Ensure context exists and belongs to user."),
+                None,
+            )
         })?;
-
-    if context_id.as_str() != request_context.context_id().as_str() {
-        request_context.execution.context_id = context_id.clone();
-    }
 
     let task_repo = TaskRepository::new(db_pool.clone());
 

@@ -94,7 +94,7 @@ pub async fn setup_interactive(args: &SetupArgs, env_name: &str) -> Result<Postg
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("How would you like to set up PostgreSQL?")
         .items(&options)
-        .default(if args.docker { 1 } else { 0 })
+        .default(usize::from(args.docker))
         .interact()?;
 
     match selection {

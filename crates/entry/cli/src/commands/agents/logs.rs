@@ -1,13 +1,11 @@
-use std::path::{Path, PathBuf};
-use std::process::Command;
-use std::sync::Arc;
-
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
-use super::types::McpLogsOutput;
+use super::types::AgentLogsOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_core_logging::LoggingRepository;
@@ -18,8 +16,8 @@ const DEFAULT_LOGS_DIR: &str = "/var/www/html/tyingshoelaces/logs";
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
-    #[arg(help = "MCP server name (optional - shows all MCP logs if not specified)")]
-    pub service: Option<String>,
+    #[arg(help = "Agent name (optional - shows all agent logs if not specified)")]
+    pub agent: Option<String>,
 
     #[arg(
         long,
@@ -39,7 +37,7 @@ pub struct LogsArgs {
     pub logs_dir: Option<String>,
 }
 
-pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {
+pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<AgentLogsOutput>> {
     let logs_dir = args.logs_dir.as_deref().unwrap_or(DEFAULT_LOGS_DIR);
     let logs_path = PathBuf::from(logs_dir);
 
@@ -63,13 +61,13 @@ pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult
 async fn execute_db_mode(
     args: &LogsArgs,
     _config: &CliConfig,
-) -> Result<CommandResult<McpLogsOutput>> {
+) -> Result<CommandResult<AgentLogsOutput>> {
     let ctx = Arc::new(AppContext::new().await.context("Failed to initialize app context")?);
     let repo = LoggingRepository::new(ctx.db_pool().clone());
 
-    let patterns = match &args.service {
-        Some(service) => build_service_patterns(service),
-        None => build_all_mcp_patterns()?,
+    let patterns = match &args.agent {
+        Some(agent) => build_agent_patterns(agent),
+        None => build_all_agent_patterns()?,
     };
 
     let entries = repo
@@ -78,7 +76,7 @@ async fn execute_db_mode(
         .context("Failed to query logs from database")?;
 
     if entries.is_empty() {
-        return Err(anyhow!("No logs found in database for MCP services"));
+        return Err(anyhow!("No logs found in database for agents"));
     }
 
     let logs: Vec<String> = entries
@@ -94,35 +92,37 @@ async fn execute_db_mode(
         })
         .collect();
 
-    let service_label = args.service.clone().unwrap_or_else(|| "all".to_string());
+    let agent_label = args.agent.clone().unwrap_or_else(|| "all".to_string());
 
-    Ok(CommandResult::text(McpLogsOutput {
-        service: Some(service_label.clone()),
+    Ok(CommandResult::text(AgentLogsOutput {
+        agent: Some(agent_label.clone()),
         source: "database".to_string(),
         logs,
         log_files: vec![],
     })
-    .with_title(format!("MCP Logs (DB): {}", service_label)))
+    .with_title(format!("Agent Logs (DB): {}", agent_label)))
 }
 
-fn build_service_patterns(service: &str) -> Vec<String> {
+fn build_agent_patterns(agent: &str) -> Vec<String> {
     vec![
-        format!("%{}%", service),
-        format!("%rmcp%"),
+        format!("%{}%", agent),
+        "%agent%".to_string(),
+        "%a2a%".to_string(),
     ]
 }
 
-fn build_all_mcp_patterns() -> Result<Vec<String>> {
+fn build_all_agent_patterns() -> Result<Vec<String>> {
     let services_config = ConfigLoader::load().context("Failed to load services config")?;
 
     let mut patterns: Vec<String> = services_config
-        .mcp_servers
+        .agents
         .keys()
         .flat_map(|name| vec![format!("%{}%", name)])
         .collect();
 
-    patterns.push("%rmcp%".to_string());
-    patterns.push("%mcp%".to_string());
+    patterns.push("%agent%".to_string());
+    patterns.push("%a2a%".to_string());
+    patterns.push("%orchestration%".to_string());
 
     Ok(patterns)
 }
@@ -131,53 +131,54 @@ async fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<McpLogsOutput>> {
+) -> Result<CommandResult<AgentLogsOutput>> {
     if !logs_path.exists() {
         return Err(anyhow!("Logs directory does not exist: {}", logs_path.display()));
     }
 
-    if args.service.is_none() && !config.is_interactive() {
-        let log_files = list_mcp_log_files(logs_path)?;
-        return Ok(CommandResult::list(McpLogsOutput {
-            service: None,
+    if args.agent.is_none() && !config.is_interactive() {
+        let log_files = list_agent_log_files(logs_path)?;
+        return Ok(CommandResult::list(AgentLogsOutput {
+            agent: None,
             source: "disk".to_string(),
             logs: vec![],
             log_files,
         })
-        .with_title("Available MCP Log Files"));
+        .with_title("Available Agent Log Files"));
     }
 
-    let service = resolve_input(args.service.clone(), "service", config, || {
+    let agent = resolve_input(args.agent.clone(), "agent", config, || {
         prompt_log_selection(logs_path)
     })?;
 
-    let log_file = find_log_file(logs_path, &service)?;
+    let log_file = find_log_file(logs_path, &agent)?;
     let logs = read_log_lines(&log_file, args.lines)?;
 
-    Ok(CommandResult::text(McpLogsOutput {
-        service: Some(service.clone()),
+    Ok(CommandResult::text(AgentLogsOutput {
+        agent: Some(agent.clone()),
         source: "disk".to_string(),
         logs,
         log_files: vec![],
     })
-    .with_title(format!("MCP Logs (Disk): {}", service)))
+    .with_title(format!("Agent Logs (Disk): {}", agent)))
 }
 
 async fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
-) -> Result<CommandResult<McpLogsOutput>> {
+) -> Result<CommandResult<AgentLogsOutput>> {
     if !logs_path.exists() {
         return Err(anyhow!("Logs directory does not exist: {}", logs_path.display()));
     }
 
-    let service = resolve_input(args.service.clone(), "service", config, || {
+    let agent = resolve_input(args.agent.clone(), "agent", config, || {
         prompt_log_selection(logs_path)
     })?;
 
-    let log_file = find_log_file(logs_path, &service)?;
+    let log_file = find_log_file(logs_path, &agent)?;
 
+    use std::process::Command;
     let status = Command::new("tail")
         .arg("-f")
         .arg(&log_file)
@@ -188,16 +189,16 @@ async fn execute_follow_mode(
         return Err(anyhow!("tail -f exited with non-zero status"));
     }
 
-    Ok(CommandResult::text(McpLogsOutput {
-        service: Some(service),
+    Ok(CommandResult::text(AgentLogsOutput {
+        agent: Some(agent),
         source: "disk".to_string(),
         logs: vec![],
         log_files: vec![],
     })
-    .with_title("MCP Logs"))
+    .with_title("Agent Logs"))
 }
 
-fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {
+fn list_agent_log_files(logs_dir: &Path) -> Result<Vec<String>> {
     let mut files = std::fs::read_dir(logs_dir)
         .context("Failed to read logs directory")?
         .filter_map(Result::ok)
@@ -206,7 +207,7 @@ fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {
             path.file_name()
                 .and_then(|n| n.to_str())
                 .filter(|name| {
-                    name.starts_with("mcp-")
+                    name.starts_with("agent-")
                         && path
                             .extension()
                             .is_some_and(|ext| ext.eq_ignore_ascii_case("log"))
@@ -219,26 +220,26 @@ fn list_mcp_log_files(logs_dir: &Path) -> Result<Vec<String>> {
     Ok(files)
 }
 
-fn find_log_file(logs_dir: &Path, service: &str) -> Result<PathBuf> {
-    let exact_path = logs_dir.join(format!("{}.log", service));
+fn find_log_file(logs_dir: &Path, agent: &str) -> Result<PathBuf> {
+    let exact_path = logs_dir.join(format!("{}.log", agent));
     if exact_path.exists() {
         return Ok(exact_path);
     }
 
-    let prefixed_path = logs_dir.join(format!("mcp-{}.log", service));
+    let prefixed_path = logs_dir.join(format!("agent-{}.log", agent));
     if prefixed_path.exists() {
         return Ok(prefixed_path);
     }
 
-    let log_files = list_mcp_log_files(logs_dir)?;
+    let log_files = list_agent_log_files(logs_dir)?;
     log_files
         .iter()
-        .find(|file| file.contains(service))
+        .find(|file| file.contains(agent))
         .map(|file| logs_dir.join(file))
         .ok_or_else(|| {
             anyhow!(
-                "Log file not found for service '{}'. Available: {:?}",
-                service,
+                "Log file not found for agent '{}'. Available: {:?}",
+                agent,
                 log_files
             )
         })
@@ -261,16 +262,16 @@ fn read_log_lines(log_file: &Path, lines: usize) -> Result<Vec<String>> {
 }
 
 fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
-    let log_files = list_mcp_log_files(logs_dir)?;
+    let log_files = list_agent_log_files(logs_dir)?;
 
     if log_files.is_empty() {
-        return Err(anyhow!("No MCP log files found in {}", logs_dir.display()));
+        return Err(anyhow!("No agent log files found in {}", logs_dir.display()));
     }
 
-    let services: Vec<String> = log_files
+    let agents: Vec<String> = log_files
         .iter()
         .map(|f| {
-            f.strip_prefix("mcp-")
+            f.strip_prefix("agent-")
                 .unwrap_or(f)
                 .strip_suffix(".log")
                 .unwrap_or(f)
@@ -279,11 +280,11 @@ fn prompt_log_selection(logs_dir: &Path) -> Result<String> {
         .collect();
 
     let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select MCP server logs to view")
-        .items(&services)
+        .with_prompt("Select agent logs to view")
+        .items(&agents)
         .default(0)
         .interact()
-        .context("Failed to get log selection")?;
+        .context("Failed to get agent selection")?;
 
-    Ok(services[selection].clone())
+    Ok(agents[selection].clone())
 }

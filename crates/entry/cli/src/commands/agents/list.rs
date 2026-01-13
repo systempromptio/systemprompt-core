@@ -56,7 +56,7 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
         };
 
         return Ok(CommandResult::card(ListOrDetail::Detail(output))
-            .with_title(&format!("Agent: {}", name)));
+            .with_title(format!("Agent: {}", name)));
     }
 
     let mut agents: Vec<AgentSummary> = services_config

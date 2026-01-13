@@ -134,7 +134,7 @@ pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult
         changes,
     };
 
-    Ok(CommandResult::text(output).with_title(&format!("Edit Agent: {}", name)))
+    Ok(CommandResult::text(output).with_title(format!("Edit Agent: {}", name)))
 }
 
 fn apply_set_value(

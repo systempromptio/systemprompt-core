@@ -163,3 +163,31 @@ async fn fetch_filtered_count(
     .context("Failed to count logs")
     .map_err(Into::into)
 }
+
+pub async fn list_logs_by_module_patterns(
+    db_pool: &DbPool,
+    patterns: &[String],
+    limit: i64,
+) -> Result<Vec<LogEntry>, LoggingError> {
+    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
+
+    let rows = sqlx::query_as!(
+        LogRow,
+        r#"
+        SELECT
+            id as "id!", timestamp as "timestamp!", level as "level!", module as "module!",
+            message as "message!", metadata, user_id as "user_id!", session_id as "session_id!",
+            task_id, trace_id as "trace_id!", context_id, client_id
+        FROM logs
+        WHERE module LIKE ANY($1)
+        ORDER BY timestamp DESC LIMIT $2
+        "#,
+        patterns,
+        limit
+    )
+    .fetch_all(pool.as_ref())
+    .await
+    .context("Failed to list logs by module patterns")?;
+
+    Ok(rows.into_iter().map(row_to_entry).collect())
+}

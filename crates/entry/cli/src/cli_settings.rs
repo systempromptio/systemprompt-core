@@ -118,7 +118,7 @@ impl CliConfig {
         self.interactive && atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
     }
 
-    pub fn output_format(&self) -> OutputFormat {
+    pub const fn output_format(&self) -> OutputFormat {
         self.output_format
     }
 }

@@ -65,10 +65,7 @@ pub async fn setup_docker_postgres_interactive(
         .default(default_user)
         .interact_text()?;
 
-    let password = args
-        .db_password
-        .clone()
-        .unwrap_or_else(|| generate_password());
+    let password = args.db_password.clone().unwrap_or_else(generate_password);
     CliService::success(&format!("Generated password: {}", password));
 
     let default_db = args.effective_db_name(env_name);

@@ -56,7 +56,6 @@ impl SecretsData {
     }
 }
 
-/// Non-interactive secrets collection from CLI args
 pub fn collect_non_interactive(args: &SetupArgs) -> Result<SecretsData> {
     CliService::section("Secrets Setup");
 
@@ -79,7 +78,6 @@ pub fn collect_non_interactive(args: &SetupArgs) -> Result<SecretsData> {
     Ok(secrets)
 }
 
-/// Interactive secrets collection with prompts
 pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsData> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
@@ -92,12 +90,11 @@ pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsDa
         ..Default::default()
     };
 
-    // If args already provide keys, use them
     if args.has_ai_provider() {
-        secrets.gemini = args.gemini_key.clone();
-        secrets.anthropic = args.anthropic_key.clone();
-        secrets.openai = args.openai_key.clone();
-        secrets.github = args.github_token.clone();
+        args.gemini_key.clone_into(&mut secrets.gemini);
+        args.anthropic_key.clone_into(&mut secrets.anthropic);
+        args.openai_key.clone_into(&mut secrets.openai);
+        args.github_token.clone_into(&mut secrets.github);
         CliService::success(&format!("Using provided keys: {}", secrets.summary()));
         return Ok(secrets);
     }
