@@ -1,5 +1,4 @@
 use axum::response::sse::Event;
-use serde_json::json;
 use systemprompt_identifiers::TaskId;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -9,6 +8,8 @@ use crate::models::AgentRuntimeInfo;
 use crate::repository::task::TaskRepository;
 use crate::services::registry::AgentRegistry;
 
+use super::initialization::create_jsonrpc_error_event;
+
 pub async fn load_agent_runtime(
     agent_name: &str,
     task_id: &TaskId,
@@ -16,43 +17,33 @@ pub async fn load_agent_runtime(
     tx: &UnboundedSender<Event>,
     request_id: &NumberOrString,
 ) -> Result<AgentRuntimeInfo, ()> {
-    match AgentRegistry::new().await {
-        Ok(registry) => match registry.get_agent(agent_name).await {
-            Ok(agent_config) => Ok(agent_config.into()),
-            Err(e) => {
-                tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
-
-                mark_task_failed(task_id, task_repo).await;
-
-                let error_event = json!({
-                    "jsonrpc": "2.0",
-                    "error": {
-                        "code": -32603,
-                        "message": "Agent not found"
-                    },
-                    "id": request_id
-                });
-                let _ = tx.send(Event::default().data(error_event.to_string()));
-                Err(())
-            },
-        },
+    let registry = match AgentRegistry::new().await {
+        Ok(r) => r,
         Err(e) => {
             tracing::error!(
                 error = %e,
-                "Failed to load agent registry - check if config files exist and services are properly configured"
+                "Failed to load agent registry - check if config files exist"
             );
-
             mark_task_failed(task_id, task_repo).await;
+            let _ = tx.send(create_jsonrpc_error_event(
+                -32603,
+                "Failed to load agent registry - check system logs for details",
+                request_id,
+            ));
+            return Err(());
+        },
+    };
 
-            let error_event = json!({
-                "jsonrpc": "2.0",
-                "error": {
-                    "code": -32603,
-                    "message": "Failed to load agent registry - check system logs for details"
-                },
-                "id": request_id
-            });
-            let _ = tx.send(Event::default().data(error_event.to_string()));
+    match registry.get_agent(agent_name).await {
+        Ok(agent_config) => Ok(agent_config.into()),
+        Err(e) => {
+            tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
+            mark_task_failed(task_id, task_repo).await;
+            let _ = tx.send(create_jsonrpc_error_event(
+                -32603,
+                "Agent not found",
+                request_id,
+            ));
             Err(())
         },
     }
