@@ -1,14 +1,7 @@
-//! Command result types for CLI output
-//!
-//! All CLI commands should return `CommandResult<T>` where T is a type that
-//! derives `Serialize, Deserialize, JsonSchema`. The result includes metadata
-//! about how to render the output.
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// The type of artifact to render
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ArtifactType {
@@ -22,7 +15,6 @@ pub enum ArtifactType {
     Dashboard,
 }
 
-/// Chart type for Chart artifacts
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ChartType {
@@ -32,7 +24,6 @@ pub enum ChartType {
     Area,
 }
 
-/// Rendering hints for artifact display
 #[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
 pub struct RenderingHints {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,7 +36,6 @@ pub struct RenderingHints {
     pub extra: HashMap<String, serde_json::Value>,
 }
 
-/// A command result that wraps output data with metadata
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CommandResult<T> {
     pub data: T,
@@ -57,7 +47,6 @@ pub struct CommandResult<T> {
 }
 
 impl<T> CommandResult<T> {
-    /// Create a new command result with the given artifact type
     fn new(data: T, artifact_type: ArtifactType) -> Self {
         Self {
             data,
@@ -67,32 +56,26 @@ impl<T> CommandResult<T> {
         }
     }
 
-    /// Create a table artifact for multi-row data
     pub fn table(data: T) -> Self {
         Self::new(data, ArtifactType::Table)
     }
 
-    /// Create a list artifact for simple item arrays
     pub fn list(data: T) -> Self {
         Self::new(data, ArtifactType::List)
     }
 
-    /// Create a presentation card artifact for single entity detail
     pub fn card(data: T) -> Self {
         Self::new(data, ArtifactType::PresentationCard)
     }
 
-    /// Create a text artifact for plain text messages
     pub fn text(data: T) -> Self {
         Self::new(data, ArtifactType::Text)
     }
 
-    /// Create a copy-paste text artifact for tokens/keys
     pub fn copy_paste(data: T) -> Self {
         Self::new(data, ArtifactType::CopyPasteText)
     }
 
-    /// Create a chart artifact for metrics/analytics
     pub fn chart(data: T, chart_type: ChartType) -> Self {
         let mut result = Self::new(data, ArtifactType::Chart);
         result.hints = Some(RenderingHints {
@@ -102,29 +85,24 @@ impl<T> CommandResult<T> {
         result
     }
 
-    /// Create a form artifact for configuration view
     pub fn form(data: T) -> Self {
         Self::new(data, ArtifactType::Form)
     }
 
-    /// Create a dashboard artifact for multi-panel view
     pub fn dashboard(data: T) -> Self {
         Self::new(data, ArtifactType::Dashboard)
     }
 
-    /// Add a title for human display
     pub fn with_title(mut self, title: impl Into<String>) -> Self {
         self.title = Some(title.into());
         self
     }
 
-    /// Add rendering hints
     pub fn with_hints(mut self, hints: RenderingHints) -> Self {
         self.hints = Some(hints);
         self
     }
 
-    /// Add column hints for table rendering
     pub fn with_columns(mut self, columns: Vec<String>) -> Self {
         let mut hints = self.hints.unwrap_or_default();
         hints.columns = Some(columns);
@@ -133,9 +111,6 @@ impl<T> CommandResult<T> {
     }
 }
 
-// Common output types
-
-/// Simple text output
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TextOutput {
     pub message: String,
@@ -149,7 +124,6 @@ impl TextOutput {
     }
 }
 
-/// Success message output
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SuccessOutput {
     pub message: String,
@@ -171,7 +145,6 @@ impl SuccessOutput {
     }
 }
 
-/// Key-value pair output
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct KeyValueOutput {
     pub items: Vec<KeyValueItem>,
@@ -203,7 +176,6 @@ impl Default for KeyValueOutput {
     }
 }
 
-/// Table row for generic table output
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TableOutput<T> {
     pub rows: Vec<T>,
@@ -224,7 +196,6 @@ impl<T> Default for TableOutput<T> {
 use crate::cli_settings::{get_global_config, OutputFormat};
 use systemprompt_core_logging::CliService;
 
-/// Render a command result based on the current output format
 pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
     let config = get_global_config();
 
@@ -236,12 +207,9 @@ pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
             CliService::yaml(result);
         }
         OutputFormat::Table => {
-            // For table format, we render the title and then the data
             if let Some(title) = &result.title {
                 CliService::section(title);
             }
-            // The actual rendering is type-specific, so we just output JSON for now
-            // Individual commands can implement custom table rendering
             CliService::json(&result.data);
         }
     }

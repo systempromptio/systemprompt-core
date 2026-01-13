@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use systemprompt_core_logging::CliService;
 
+use super::SetupArgs;
 use crate::shared::profile::generate_jwt_secret;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -55,7 +56,31 @@ impl SecretsData {
     }
 }
 
-pub fn collect_interactive(env_name: &str) -> Result<SecretsData> {
+/// Non-interactive secrets collection from CLI args
+pub fn collect_non_interactive(args: &SetupArgs) -> Result<SecretsData> {
+    CliService::section("Secrets Setup");
+
+    let jwt_secret = generate_jwt_secret();
+    CliService::success("Generated secure JWT secret (64 characters)");
+
+    let secrets = SecretsData {
+        jwt_secret,
+        database_url: None, // Set later by caller
+        gemini: args.gemini_key.clone(),
+        anthropic: args.anthropic_key.clone(),
+        openai: args.openai_key.clone(),
+        github: args.github_token.clone(),
+    };
+
+    validate_secrets(&secrets)?;
+
+    CliService::success(&format!("Configured keys: {}", secrets.summary()));
+
+    Ok(secrets)
+}
+
+/// Interactive secrets collection with prompts
+pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsData> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
 
@@ -66,6 +91,16 @@ pub fn collect_interactive(env_name: &str) -> Result<SecretsData> {
         jwt_secret,
         ..Default::default()
     };
+
+    // If args already provide keys, use them
+    if args.has_ai_provider() {
+        secrets.gemini = args.gemini_key.clone();
+        secrets.anthropic = args.anthropic_key.clone();
+        secrets.openai = args.openai_key.clone();
+        secrets.github = args.github_token.clone();
+        CliService::success(&format!("Using provided keys: {}", secrets.summary()));
+        return Ok(secrets);
+    }
 
     let providers = vec![
         "Google AI (Gemini) - https://aistudio.google.com/app/apikey",
@@ -150,7 +185,15 @@ fn validate_secrets(secrets: &SecretsData) -> Result<()> {
     }
 
     if !secrets.has_ai_provider() {
-        anyhow::bail!("At least one AI provider API key is required");
+        anyhow::bail!(
+            "At least one AI provider API key is required.\n\n\
+             Provide one of:\n\
+             --gemini-key <KEY>     Google AI (Gemini)\n\
+             --anthropic-key <KEY>  Anthropic (Claude)\n\
+             --openai-key <KEY>     OpenAI (GPT)\n\n\
+             Or set environment variables:\n\
+             GEMINI_API_KEY, ANTHROPIC_API_KEY, or OPENAI_API_KEY"
+        );
     }
 
     Ok(())

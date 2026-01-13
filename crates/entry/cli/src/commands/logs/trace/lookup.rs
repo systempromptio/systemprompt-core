@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Args;
 use systemprompt_core_logging::{AiTraceService, CliService};
 use systemprompt_runtime::AppContext;
@@ -24,7 +24,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     // Query the AI request details
-    let query = r#"
+    let query = r"
         SELECT
             id,
             provider,
@@ -36,15 +36,22 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
         FROM ai_requests
         WHERE id = $1 OR id LIKE $2
         LIMIT 1
-    "#;
+    ";
 
     let partial_match = format!("{}%", args.request_id);
-    let row = sqlx::query_as::<_, (String, String, String, Option<i32>, Option<i32>, i32, Option<i64>)>(query)
+    let row = match sqlx::query_as::<_, (String, String, String, Option<i32>, Option<i32>, i32, Option<i64>)>(query)
         .bind(&args.request_id)
         .bind(&partial_match)
         .fetch_optional(pool.as_ref())
         .await?
-        .ok_or_else(|| anyhow!("AI request not found: {}", args.request_id))?;
+    {
+        Some(r) => r,
+        None => {
+            CliService::warning(&format!("AI request not found: {}", args.request_id));
+            CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
+            return Ok(());
+        }
+    };
 
     let request_id = row.0.clone();
     let cost_dollars = f64::from(row.5) / 1_000_000.0;
@@ -66,7 +73,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
 
     let mut linked_mcp_calls = Vec::new();
     if args.show_linked {
-        let linked_query = r#"
+        let linked_query = r"
             SELECT
                 mte.tool_name,
                 mte.server_name,
@@ -75,7 +82,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
             FROM mcp_tool_executions mte
             JOIN ai_request_mcp_links arml ON arml.mcp_execution_id = mte.id
             WHERE arml.ai_request_id = $1
-        "#;
+        ";
 
         let linked_rows = sqlx::query_as::<_, (String, String, String, Option<i64>)>(linked_query)
             .bind(&request_id)

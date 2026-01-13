@@ -22,18 +22,17 @@ pub struct ListArgs {
     pub status: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    // Query recent traces from the database
-    let query = r#"
+    let query = r"
         SELECT DISTINCT
             l.trace_id,
             MIN(l.timestamp) as first_timestamp,
             MAX(l.timestamp) as last_timestamp,
-            (SELECT t.agent_name FROM execution_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as agent,
-            (SELECT t.status FROM execution_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as status,
+            (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as agent,
+            (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as status,
             (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as ai_requests,
             (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as mcp_calls
         FROM logs l
@@ -41,7 +40,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
         GROUP BY l.trace_id
         ORDER BY MIN(l.timestamp) DESC
         LIMIT $1
-    "#;
+    ";
 
     let rows = sqlx::query_as::<_, (String, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Option<String>, Option<String>, i64, i64)>(query)
         .bind(args.limit)

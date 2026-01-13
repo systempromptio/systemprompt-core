@@ -1,0 +1,18 @@
+# Assistant Agent Configuration
+endpoint: assistant
+port: 3100
+enabled: true
+default: true
+
+card:
+  display_name: "systemprompt-core Assistant"
+  description: "AI assistant powered by SystemPrompt"
+  version: "1.0.0"
+
+metadata:
+  mcp_servers: []
+  skills: []
+
+prompt:
+  system: |
+    You are a helpful AI assistant.

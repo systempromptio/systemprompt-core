@@ -20,7 +20,7 @@ pub struct ViewArgs {
     #[arg(long, help = "Filter by module name (partial match)")]
     pub module: Option<String>,
 
-    #[arg(long, default_value = "20", help = "Number of log entries to show")]
+    #[arg(long, short = 'n', visible_alias = "limit", default_value = "20", help = "Number of log entries to show")]
     pub tail: i64,
 
     #[arg(long, short = 's', help = "Stream logs in real-time")]

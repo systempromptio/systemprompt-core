@@ -1,0 +1,11 @@
+# SystemPrompt Admin MCP Server
+endpoint: systemprompt-admin
+port: 3200
+enabled: true
+binary: "cargo"
+path: "services/mcp/systemprompt-admin"
+display_in_web: false
+
+oauth:
+  required: true
+  scopes: ["admin"]

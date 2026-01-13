@@ -15,11 +15,6 @@ use anyhow::{anyhow, Result};
 
 use crate::CliConfig;
 
-/// Resolve an optional input value, falling back to interactive prompt if available.
-///
-/// If the value is `Some`, returns it.
-/// If the value is `None` and interactive mode is available, calls `prompt_fn`.
-/// If the value is `None` and non-interactive mode, returns an error.
 pub fn resolve_input<T, F>(
     value: Option<T>,
     flag_name: &str,
