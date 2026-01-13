@@ -5056,6 +5056,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "systemprompt-core-ai",
  "systemprompt-core-analytics",
  "systemprompt-core-config",
  "systemprompt-core-database",

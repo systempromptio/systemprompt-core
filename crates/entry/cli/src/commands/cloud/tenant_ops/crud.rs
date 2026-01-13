@@ -202,8 +202,8 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
 pub async fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
-            "Tenant edit requires interactive mode.\n\
-             Use specific commands to modify tenant settings in non-interactive mode."
+            "Tenant edit requires interactive mode.\nUse specific commands to modify tenant \
+             settings in non-interactive mode."
         ));
     }
 

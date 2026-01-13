@@ -112,11 +112,11 @@ async fn migrate_standalone() -> Result<()> {
 
     for module in all_modules {
         match install_module_with_db(module, database.as_ref()).await {
-            Ok(()) => {}
+            Ok(()) => {},
             Err(e) => {
                 CliService::error(&format!("{} failed: {}", module.name, e));
                 error_count += 1;
-            }
+            },
         }
     }
 
@@ -133,11 +133,11 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
             Ok(()) => {
                 CliService::success("Database migration completed");
                 Ok(())
-            }
+            },
             Err(e) => {
                 CliService::error(&format!("Migration failed: {}", e));
                 Err(e)
-            }
+            },
         };
     }
 
@@ -155,13 +155,13 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                         ));
                     }
                     DatabaseTool::print_result(&result, &format);
-                }
+                },
                 Err(e) => {
                     CliService::error(&format!("Query failed: {}", e));
                     return Err(anyhow!("{}", e));
-                }
+                },
             }
-        }
+        },
         DbCommands::Execute { sql, format } => {
             match db.query_executor.execute_query(&sql, false).await {
                 Ok(result) => {
@@ -172,13 +172,13 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                         ));
                     }
                     DatabaseTool::print_result(&result, &format);
-                }
+                },
                 Err(e) => {
                     CliService::error(&format!("Execution failed: {}", e));
                     return Err(anyhow!("{}", e));
-                }
+                },
             }
-        }
+        },
         DbCommands::Tables => match db.admin_service.list_tables().await {
             Ok(tables) => {
                 if config.is_json_output() {
@@ -186,11 +186,11 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                 } else {
                     tables.display_with_cli();
                 }
-            }
+            },
             Err(e) => {
                 CliService::error(&format!("Failed to list tables: {}", e));
                 return Err(e);
-            }
+            },
         },
         DbCommands::Describe { table_name } => {
             match db.admin_service.describe_table(&table_name).await {
@@ -205,13 +205,13 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                         CliService::info(&format!("Table: {} ({} rows)", table_name, row_count));
                         (columns, row_count).display_with_cli();
                     }
-                }
+                },
                 Err(e) => {
                     CliService::error(&format!("Failed to describe table: {}", e));
                     return Err(e);
-                }
+                },
             }
-        }
+        },
         DbCommands::Info => match db.admin_service.get_database_info().await {
             Ok(info) => {
                 if config.is_json_output() {
@@ -219,11 +219,11 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                 } else {
                     info.display_with_cli();
                 }
-            }
+            },
             Err(e) => {
                 CliService::error(&format!("Failed to get database info: {}", e));
                 return Err(e);
-            }
+            },
         },
         DbCommands::Migrate => unreachable!("Migrate is handled earlier"),
         DbCommands::AssignAdmin { user } => {
@@ -239,40 +239,38 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
                         u.name, u.email
                     ));
                     CliService::info(&format!("   Roles: {:?}", new_roles));
-                }
+                },
                 PromoteResult::AlreadyAdmin(u) => {
                     CliService::warning(&format!("User '{}' already has admin role", u.name));
-                }
+                },
                 PromoteResult::UserNotFound => {
                     CliService::error(&format!("User '{}' not found", user));
                     return Err(anyhow!("User not found"));
-                }
+                },
             }
-        }
-        DbCommands::Status => {
-            match db.admin_service.get_database_info().await {
-                Ok(info) => {
-                    CliService::success("Database connection: OK");
-                    if config.is_json_output() {
-                        CliService::json(&serde_json::json!({
-                            "status": "connected",
-                            "version": info.version,
-                            "tables": info.tables.len(),
-                            "size": info.size
-                        }));
-                    } else {
-                        CliService::info(&format!("  Version: {}", info.version));
-                        CliService::info(&format!("  Tables: {}", info.tables.len()));
-                        CliService::info(&format!("  Size: {}", info.size));
-                    }
+        },
+        DbCommands::Status => match db.admin_service.get_database_info().await {
+            Ok(info) => {
+                CliService::success("Database connection: OK");
+                if config.is_json_output() {
+                    CliService::json(&serde_json::json!({
+                        "status": "connected",
+                        "version": info.version,
+                        "tables": info.tables.len(),
+                        "size": info.size
+                    }));
+                } else {
+                    CliService::info(&format!("  Version: {}", info.version));
+                    CliService::info(&format!("  Tables: {}", info.tables.len()));
+                    CliService::info(&format!("  Size: {}", info.size));
                 }
-                Err(e) => {
-                    CliService::error("Database connection: FAILED");
-                    CliService::error(&format!("  Error: {}", e));
-                    return Err(e);
-                }
-            }
-        }
+            },
+            Err(e) => {
+                CliService::error("Database connection: FAILED");
+                CliService::error(&format!("  Error: {}", e));
+                return Err(e);
+            },
+        },
         DbCommands::Reset { yes } => {
             if !yes && !config.interactive {
                 CliService::warning("This will drop ALL tables and recreate the schema!");
@@ -283,7 +281,7 @@ pub async fn execute(cmd: DbCommands, _config: &CliConfig) -> Result<()> {
             CliService::warning("Resetting database...");
             migrate_standalone().await?;
             CliService::success("Database reset completed");
-        }
+        },
     }
 
     Ok(())

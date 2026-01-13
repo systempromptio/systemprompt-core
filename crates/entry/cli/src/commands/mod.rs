@@ -5,3 +5,4 @@ pub mod logs;
 pub mod mcp;
 pub mod services;
 pub mod setup;
+pub mod skills;

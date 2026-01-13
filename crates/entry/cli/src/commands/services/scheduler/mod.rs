@@ -46,7 +46,7 @@ pub async fn execute(
         SchedulerCommands::List => {
             list_jobs();
             Ok(())
-        }
+        },
     }
 }
 
@@ -89,18 +89,18 @@ async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
                 CliService::info(&format!("  {}", msg));
             }
             Ok(())
-        }
+        },
         Ok(result) => {
             let msg = result
                 .message
                 .unwrap_or_else(|| "Unknown error".to_string());
             CliService::error(&format!("Job failed: {}", msg));
             anyhow::bail!("Job failed: {msg}")
-        }
+        },
         Err(e) => {
             CliService::error(&format!("Job failed: {}", e));
             Err(e)
-        }
+        },
     }
 }
 

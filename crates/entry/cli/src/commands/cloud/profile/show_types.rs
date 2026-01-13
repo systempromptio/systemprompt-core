@@ -163,15 +163,24 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
             api_external_url: config.api_external_url.clone(),
             use_https: config.use_https,
             github_link: config.github_link.clone(),
-            github_token: config.github_token.clone().map(|_| "[REDACTED]".to_string()),
+            github_token: config
+                .github_token
+                .clone()
+                .map(|_| "[REDACTED]".to_string()),
             cors_allowed_origins: config.cors_allowed_origins.clone(),
         },
         systemprompt: SystemPromptEnvVars {
             env: format!("{:?}", env),
             verbosity: format!("{:?}", verbosity),
-            services_path: AppPaths::get().ok().map(|p| p.system().services().display().to_string()),
-            skills_path: AppPaths::get().ok().map(|p| p.system().skills().display().to_string()),
-            config_path: AppPaths::get().ok().map(|p| p.system().settings().display().to_string()),
+            services_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().services().display().to_string()),
+            skills_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().skills().display().to_string()),
+            config_path: AppPaths::get()
+                .ok()
+                .map(|p| p.system().settings().display().to_string()),
         },
         database: DatabaseEnvVars {
             database_type: config.database_type.clone(),
@@ -188,10 +197,18 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
             burst_multiplier: config.rate_limits.burst_multiplier,
         },
         paths: PathsEnvVars {
-            system_path: AppPaths::get().map(|p| p.system().root().display().to_string()).unwrap_or_default(),
-            services: AppPaths::get().map(|p| p.system().services().display().to_string()).unwrap_or_default(),
-            skills: AppPaths::get().map(|p| p.system().skills().display().to_string()).unwrap_or_default(),
-            services_config: AppPaths::get().map(|p| p.system().settings().display().to_string()).unwrap_or_default(),
+            system_path: AppPaths::get()
+                .map(|p| p.system().root().display().to_string())
+                .unwrap_or_default(),
+            services: AppPaths::get()
+                .map(|p| p.system().services().display().to_string())
+                .unwrap_or_default(),
+            skills: AppPaths::get()
+                .map(|p| p.system().skills().display().to_string())
+                .unwrap_or_default(),
+            services_config: AppPaths::get()
+                .map(|p| p.system().settings().display().to_string())
+                .unwrap_or_default(),
         },
     }
 }

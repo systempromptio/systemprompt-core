@@ -27,16 +27,16 @@ pub fn execute(cmd: BuildCommands, config: &CliConfig) -> Result<()> {
             let result = core::execute(args, config).context("Failed to build core")?;
             render_result(&result);
             Ok(())
-        }
+        },
         BuildCommands::Web(args) => {
             let result = web::execute(args, config).context("Failed to build web")?;
             render_result(&result);
             Ok(())
-        }
+        },
         BuildCommands::Mcp(args) => {
             let result = mcp::execute(args, config).context("Failed to build MCP extensions")?;
             render_result(&result);
             Ok(())
-        }
+        },
     }
 }

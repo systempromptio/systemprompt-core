@@ -30,7 +30,7 @@ pub fn execute(
             } else {
                 None
             }
-        }
+        },
     };
 
     let loader = EnhancedConfigLoader::from_env().ok();

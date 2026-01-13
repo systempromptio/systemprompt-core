@@ -52,7 +52,11 @@ pub struct StartupOptions {
     pub skip_migrate: bool,
 }
 
-pub async fn execute(target: ServiceTarget, options: StartupOptions, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    target: ServiceTarget,
+    options: StartupOptions,
+    config: &CliConfig,
+) -> Result<()> {
     let start_time = Instant::now();
 
     let (tx, rx) = startup_channel();
@@ -90,9 +94,7 @@ async fn run_startup(
                     events.info("Cloud features enabled with valid credentials");
                 },
                 Ok(None) | Err(_) => {
-                    events.warning(
-                        "Cloud credentials not found. Run 'systemprompt cloud login'",
-                    );
+                    events.warning("Cloud credentials not found. Run 'systemprompt cloud login'");
                 },
             }
         }

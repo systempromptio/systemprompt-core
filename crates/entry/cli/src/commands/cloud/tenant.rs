@@ -21,7 +21,8 @@ pub enum TenantCommands {
 
     #[command(
         about = "List all tenants",
-        after_help = "EXAMPLES:\n  systemprompt cloud tenant list\n  systemprompt cloud tenant list --json"
+        after_help = "EXAMPLES:\n  systemprompt cloud tenant list\n  systemprompt cloud tenant \
+                      list --json"
     )]
     List,
 
@@ -137,7 +138,10 @@ fn select_operation() -> Result<Option<TenantCommands>> {
             return Ok(Some(TenantCommands::List));
         },
         2 => Some(TenantCommands::Edit { id: None }),
-        3 => Some(TenantCommands::Delete(TenantDeleteArgs { id: None, yes: false })),
+        3 => Some(TenantCommands::Delete(TenantDeleteArgs {
+            id: None,
+            yes: false,
+        })),
         4 => None,
         _ => unreachable!(),
     };
@@ -148,8 +152,8 @@ fn select_operation() -> Result<Option<TenantCommands>> {
 async fn create(default_region: &str, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
-            "Tenant creation requires interactive mode.\n\
-             Use specific tenant type commands in non-interactive mode (not yet implemented)."
+            "Tenant creation requires interactive mode.\nUse specific tenant type commands in \
+             non-interactive mode (not yet implemented)."
         ));
     }
 

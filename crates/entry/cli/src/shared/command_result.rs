@@ -202,15 +202,15 @@ pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
     match config.output_format() {
         OutputFormat::Json => {
             CliService::json(result);
-        }
+        },
         OutputFormat::Yaml => {
             CliService::yaml(result);
-        }
+        },
         OutputFormat::Table => {
             if let Some(title) = &result.title {
                 CliService::section(title);
             }
             CliService::json(&result.data);
-        }
+        },
     }
 }

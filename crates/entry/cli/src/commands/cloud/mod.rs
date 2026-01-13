@@ -104,7 +104,7 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
         CloudCommands::Profile { command } => profile::execute(command, config).await,
         CloudCommands::Deploy { skip_push, profile } => {
             deploy::execute(skip_push, profile, config).await
-        }
+        },
         CloudCommands::Status => status::execute(config).await,
         CloudCommands::Restart { tenant, yes } => restart::execute(tenant, yes, config).await,
         CloudCommands::Sync { command } => sync::execute(command, config).await,

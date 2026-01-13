@@ -39,18 +39,29 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
     ";
 
     let partial_match = format!("{}%", args.request_id);
-    let row = match sqlx::query_as::<_, (String, String, String, Option<i32>, Option<i32>, i32, Option<i64>)>(query)
-        .bind(&args.request_id)
-        .bind(&partial_match)
-        .fetch_optional(pool.as_ref())
-        .await?
+    let row = match sqlx::query_as::<
+        _,
+        (
+            String,
+            String,
+            String,
+            Option<i32>,
+            Option<i32>,
+            i32,
+            Option<i64>,
+        ),
+    >(query)
+    .bind(&args.request_id)
+    .bind(&partial_match)
+    .fetch_optional(pool.as_ref())
+    .await?
     {
         Some(r) => r,
         None => {
             CliService::warning(&format!("AI request not found: {}", args.request_id));
             CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
             return Ok(());
-        }
+        },
     };
 
     let request_id = row.0.clone();
@@ -124,7 +135,10 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
         if !output.messages.is_empty() {
             CliService::section("Messages");
             for msg in &output.messages {
-                CliService::info(&format!("[{}] #{}: {}", msg.role.to_uppercase(), msg.sequence,
+                CliService::info(&format!(
+                    "[{}] #{}: {}",
+                    msg.role.to_uppercase(),
+                    msg.sequence,
                     if msg.content.len() > 200 {
                         format!("{}...", &msg.content[..200])
                     } else {
@@ -142,13 +156,13 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
                     call.tool_name,
                     call.server,
                     call.status,
-                    call.duration_ms.map_or_else(String::new, |ms| format!("({}ms)", ms))
+                    call.duration_ms
+                        .map_or_else(String::new, |ms| format!("({}ms)", ms))
                 ));
             }
         }
     } else {
-        let result = CommandResult::card(output)
-            .with_title("AI Request Details");
+        let result = CommandResult::card(output).with_title("AI Request Details");
         render_result(&result);
     }
 

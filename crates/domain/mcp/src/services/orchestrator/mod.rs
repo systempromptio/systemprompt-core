@@ -229,6 +229,13 @@ impl McpOrchestrator {
         self.database.get_running_servers().await
     }
 
+    pub async fn get_service_info(
+        &self,
+        service_name: &str,
+    ) -> Result<Option<super::database::ServiceInfo>> {
+        self.database.get_service_by_name(service_name).await
+    }
+
     async fn get_target_servers(
         &self,
         service_name: Option<String>,

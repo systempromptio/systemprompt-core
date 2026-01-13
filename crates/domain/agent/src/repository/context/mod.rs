@@ -81,40 +81,34 @@ impl ContextRepository {
         }
     }
 
-    /// Ensures a context exists for the user, creating one if needed.
-    /// Returns the context_id that should be used.
     pub async fn ensure_context_exists(
         &self,
         context_id: &ContextId,
         user_id: &UserId,
         session_id: Option<&SessionId>,
     ) -> Result<ContextId, RepositoryError> {
-        // If context_id is empty, create a new context
         if context_id.as_str().is_empty() {
-            tracing::info!(user_id = %user_id, "Creating new context for user (empty context_id)");
+            tracing::info!(user_id = %user_id, "Creating new context for empty context_id");
             return self
                 .create_context(user_id, session_id, "Auto-created context")
                 .await;
         }
 
-        // Check if context exists
         match self.validate_context_ownership(context_id, user_id).await {
             Ok(()) => Ok(context_id.clone()),
             Err(RepositoryError::NotFound(_)) => {
-                // Context doesn't exist, create it with the requested ID
                 tracing::info!(
                     context_id = %context_id,
                     user_id = %user_id,
-                    "Context not found, creating new context"
+                    "Context not found, creating"
                 );
                 self.create_context_with_id(context_id, user_id, session_id, "Auto-created context")
                     .await
-            }
+            },
             Err(e) => Err(e),
         }
     }
 
-    /// Creates a context with a specific ID (used when ensuring context exists)
     async fn create_context_with_id(
         &self,
         context_id: &ContextId,

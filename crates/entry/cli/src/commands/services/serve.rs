@@ -114,8 +114,7 @@ async fn handle_port_conflict(
 
     let should_kill = kill_port_process
         || (config.is_interactive()
-            && CliService::confirm(&format!("Kill process {} and restart?", pid))
-                .unwrap_or(false));
+            && CliService::confirm(&format!("Kill process {} and restart?", pid)).unwrap_or(false));
 
     if should_kill {
         if events.is_none() {

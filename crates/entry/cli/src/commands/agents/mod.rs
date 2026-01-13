@@ -4,6 +4,7 @@ mod create;
 mod delete;
 mod edit;
 mod list;
+mod run;
 mod show;
 mod status;
 mod validate;
@@ -37,6 +38,9 @@ pub enum AgentsCommands {
 
     #[command(about = "Show agent process status")]
     Status(status::StatusArgs),
+
+    #[command(about = "Run an agent server (internal use)", hide = true)]
+    Run(run::RunArgs),
 }
 
 pub async fn execute(command: AgentsCommands) -> Result<()> {
@@ -52,48 +56,52 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
                 .context("Failed to list agents")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Show(args) => {
             let result = show::execute(args, config)
                 .await
                 .context("Failed to show agent")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Validate(args) => {
             let result = validate::execute(args, config)
                 .await
                 .context("Failed to validate agents")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Create(args) => {
             let result = create::execute(args, config)
                 .await
                 .context("Failed to create agent")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Edit(args) => {
             let result = edit::execute(args, config)
                 .await
                 .context("Failed to edit agent")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Delete(args) => {
             let result = delete::execute(args, config)
                 .await
                 .context("Failed to delete agent")?;
             render_result(&result);
             Ok(())
-        }
+        },
         AgentsCommands::Status(args) => {
             let result = status::execute(args, config)
                 .await
                 .context("Failed to get agent status")?;
             render_result(&result);
             Ok(())
-        }
+        },
+        AgentsCommands::Run(args) => {
+            run::execute(args).await.context("Failed to run agent")?;
+            Ok(())
+        },
     }
 }

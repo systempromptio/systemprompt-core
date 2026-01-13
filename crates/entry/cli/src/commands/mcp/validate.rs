@@ -2,7 +2,8 @@
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use std::sync::Arc;
 
 use super::types::McpValidateOutput;
@@ -23,8 +24,7 @@ pub async fn execute(
     args: ValidateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<McpValidateOutput>> {
-    let services_config =
-        ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let service = resolve_input(args.service, "service", config, || {
         prompt_server_selection(&services_config)

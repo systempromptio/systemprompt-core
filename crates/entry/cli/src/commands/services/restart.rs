@@ -22,7 +22,11 @@ pub fn execute_api(_ctx: &Arc<AppContext>, _config: &CliConfig) {
     CliService::info("  2. Run: just api");
 }
 
-pub async fn execute_agent(ctx: &Arc<AppContext>, agent_id: &str, _config: &CliConfig) -> Result<()> {
+pub async fn execute_agent(
+    ctx: &Arc<AppContext>,
+    agent_id: &str,
+    _config: &CliConfig,
+) -> Result<()> {
     CliService::section(&format!("Restarting Agent: {}", agent_id));
 
     let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
@@ -40,7 +44,11 @@ pub async fn execute_agent(ctx: &Arc<AppContext>, agent_id: &str, _config: &CliC
     Ok(())
 }
 
-pub async fn execute_mcp(ctx: &Arc<AppContext>, server_name: &str, _config: &CliConfig) -> Result<()> {
+pub async fn execute_mcp(
+    ctx: &Arc<AppContext>,
+    server_name: &str,
+    _config: &CliConfig,
+) -> Result<()> {
     CliService::section(&format!("Restarting MCP Server: {}", server_name));
 
     let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;

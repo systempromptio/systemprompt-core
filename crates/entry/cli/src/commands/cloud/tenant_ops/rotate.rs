@@ -104,7 +104,8 @@ pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result
     if !skip_confirm {
         let confirm = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(format!(
-                "Rotate sync token for '{}'? This will generate a new token for file synchronization.",
+                "Rotate sync token for '{}'? This will generate a new token for file \
+                 synchronization.",
                 tenant.name
             ))
             .default(false)

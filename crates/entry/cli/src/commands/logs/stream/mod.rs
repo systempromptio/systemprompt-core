@@ -13,7 +13,8 @@ use crate::CliConfig;
 pub enum StreamCommands {
     #[command(
         about = "View log entries",
-        after_help = "EXAMPLES:\n  systemprompt logs stream view --limit 20\n  systemprompt logs stream view --level error"
+        after_help = "EXAMPLES:\n  systemprompt logs stream view --limit 20\n  systemprompt logs \
+                      stream view --level error"
     )]
     View(view::ViewArgs),
 

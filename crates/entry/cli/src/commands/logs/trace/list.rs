@@ -9,10 +9,17 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    #[arg(long, default_value = "20", help = "Maximum number of traces to return")]
+    #[arg(
+        long,
+        default_value = "20",
+        help = "Maximum number of traces to return"
+    )]
     pub limit: i64,
 
-    #[arg(long, help = "Only show traces since this duration (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        help = "Only show traces since this duration (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "Filter by agent name")]
@@ -42,10 +49,21 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
         LIMIT $1
     ";
 
-    let rows = sqlx::query_as::<_, (String, chrono::DateTime<chrono::Utc>, chrono::DateTime<chrono::Utc>, Option<String>, Option<String>, i64, i64)>(query)
-        .bind(args.limit)
-        .fetch_all(pool.as_ref())
-        .await?;
+    let rows = sqlx::query_as::<
+        _,
+        (
+            String,
+            chrono::DateTime<chrono::Utc>,
+            chrono::DateTime<chrono::Utc>,
+            Option<String>,
+            Option<String>,
+            i64,
+            i64,
+        ),
+    >(query)
+    .bind(args.limit)
+    .fetch_all(pool.as_ref())
+    .await?;
 
     let traces: Vec<TraceListRow> = rows
         .into_iter()
@@ -79,7 +97,11 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
                 timestamp: r.1.format("%Y-%m-%d %H:%M:%S").to_string(),
                 agent: r.3,
                 status: r.4.unwrap_or_else(|| "unknown".to_string()),
-                duration_ms: if duration_ms > 0 { Some(duration_ms) } else { None },
+                duration_ms: if duration_ms > 0 {
+                    Some(duration_ms)
+                } else {
+                    None
+                },
                 ai_requests: r.5,
                 mcp_calls: r.6,
             }

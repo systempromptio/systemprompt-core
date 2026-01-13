@@ -16,8 +16,12 @@ struct AgentFileContent {
 impl ConfigWriter {
     pub fn create_agent(agent: &AgentConfig, services_dir: &Path) -> Result<PathBuf> {
         let agents_dir = services_dir.join("agents");
-        fs::create_dir_all(&agents_dir)
-            .with_context(|| format!("Failed to create agents directory: {}", agents_dir.display()))?;
+        fs::create_dir_all(&agents_dir).with_context(|| {
+            format!(
+                "Failed to create agents directory: {}",
+                agents_dir.display()
+            )
+        })?;
 
         let agent_file = agents_dir.join(format!("{}.yaml", agent.name));
 
@@ -73,7 +77,9 @@ impl ConfigWriter {
         {
             let path = entry?.path();
 
-            if path.extension().is_some_and(|ext| ext == "yaml" || ext == "yml")
+            if path
+                .extension()
+                .is_some_and(|ext| ext == "yaml" || ext == "yml")
                 && Self::file_contains_agent(&path, name)?
             {
                 return Ok(Some(path));
@@ -99,13 +105,11 @@ impl ConfigWriter {
 
         let content = AgentFileContent { agents };
 
-        let yaml = serde_yaml::to_string(&content)
-            .context("Failed to serialize agent to YAML")?;
+        let yaml = serde_yaml::to_string(&content).context("Failed to serialize agent to YAML")?;
 
         let header = format!(
             "# {} Configuration\n# {}\n\n",
-            agent.card.display_name,
-            agent.card.description
+            agent.card.display_name, agent.card.description
         );
 
         fs::write(path, format!("{}{}", header, yaml))
@@ -141,13 +145,17 @@ impl ConfigWriter {
                     .chain(lines[insert_pos..].iter().copied())
                     .collect();
 
-                return fs::write(config_path, new_lines.join("\n"))
-                    .with_context(|| format!("Failed to write config file: {}", config_path.display()));
+                return fs::write(config_path, new_lines.join("\n")).with_context(|| {
+                    format!("Failed to write config file: {}", config_path.display())
+                });
             }
         }
 
-        fs::write(config_path, format!("includes:\n  - {}\n\n{}", include_path, content))
-            .with_context(|| format!("Failed to write config file: {}", config_path.display()))
+        fs::write(
+            config_path,
+            format!("includes:\n  - {}\n\n{}", include_path, content),
+        )
+        .with_context(|| format!("Failed to write config file: {}", config_path.display()))
     }
 
     fn remove_include(include_path: &str, config_path: &Path) -> Result<()> {

@@ -29,8 +29,6 @@ pub async fn ensure_task_exists(
 
     let context_repo = ContextRepository::new(db_pool.clone());
 
-    // Ensure context exists for all users (including Anon)
-    // This auto-creates the context if it doesn't exist
     let context_id = context_repo
         .ensure_context_exists(
             request_context.context_id(),
@@ -39,16 +37,14 @@ pub async fn ensure_task_exists(
         )
         .await
         .map_err(|e| {
-            let error_msg = format!(
-                "Failed to ensure context exists for context_id '{}': {}",
-                request_context.context_id().as_str(),
-                e
+            tracing::error!(
+                context_id = %request_context.context_id(),
+                error = %e,
+                "Context creation/validation failed"
             );
-            tracing::error!(error = %error_msg, "Context creation/validation failed");
-            McpError::internal_error(error_msg, None)
+            McpError::internal_error(format!("Failed to ensure context: {e}"), None)
         })?;
 
-    // Update request context with the (potentially new) context_id
     if context_id.as_str() != request_context.context_id().as_str() {
         request_context.execution.context_id = context_id.clone();
     }

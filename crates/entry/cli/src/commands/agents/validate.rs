@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use clap::Args;
 
+use super::types::{ValidationIssue, ValidationOutput, ValidationSeverity};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use super::types::{ValidationOutput, ValidationIssue, ValidationSeverity};
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Args)]
@@ -16,8 +16,7 @@ pub async fn execute(
     args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
-    let services_config = ConfigLoader::load()
-        .context("Failed to load services configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let mut issues = Vec::new();
     let mut agents_checked = 0;
@@ -29,7 +28,7 @@ pub async fn execute(
                 .get(name)
                 .ok_or_else(|| anyhow::anyhow!("Agent '{}' not found", name))?;
             vec![(name, agent)]
-        }
+        },
         None => services_config.agents.iter().collect(),
     };
 
@@ -87,7 +86,9 @@ pub async fn execute(
         }
     }
 
-    let valid = issues.iter().all(|i| matches!(i.severity, ValidationSeverity::Warning));
+    let valid = issues
+        .iter()
+        .all(|i| matches!(i.severity, ValidationSeverity::Warning));
 
     let output = ValidationOutput {
         valid,

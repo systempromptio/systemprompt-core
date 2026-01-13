@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use dialoguer::{theme::ColorfulTheme, Input};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Input;
 use std::path::Path;
 
+use super::types::AgentCreateOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use super::types::AgentCreateOutput;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -41,21 +42,11 @@ pub async fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentCreateOutput>> {
-    let name = resolve_input(
-        args.name,
-        "name",
-        config,
-        || prompt_name(),
-    )?;
+    let name = resolve_input(args.name, "name", config, || prompt_name())?;
 
     validate_agent_name(&name)?;
 
-    let port = resolve_input(
-        args.port,
-        "port",
-        config,
-        || prompt_port(),
-    )?;
+    let port = resolve_input(args.port, "port", config, || prompt_port())?;
 
     validate_port(port)?;
 
