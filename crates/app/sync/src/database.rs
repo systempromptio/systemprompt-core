@@ -3,9 +3,8 @@ use serde::{Deserialize, Serialize};
 use sqlx::prelude::FromRow;
 use sqlx::PgPool;
 
-use crate::api_client::SyncApiClient;
 use crate::error::SyncResult;
-use crate::{SyncConfig, SyncDirection, SyncOperationResult};
+use crate::{SyncDirection, SyncOperationResult};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseExport {
@@ -48,32 +47,39 @@ pub struct ImportResult {
 
 #[derive(Debug)]
 pub struct DatabaseSyncService {
-    config: SyncConfig,
-    api_client: SyncApiClient,
-    database_url: String,
+    direction: SyncDirection,
+    dry_run: bool,
+    local_database_url: String,
+    cloud_database_url: String,
 }
 
 impl DatabaseSyncService {
-    pub fn new(config: SyncConfig, api_client: SyncApiClient, database_url: &str) -> Self {
+    pub fn new(
+        direction: SyncDirection,
+        dry_run: bool,
+        local_database_url: &str,
+        cloud_database_url: &str,
+    ) -> Self {
         Self {
-            config,
-            api_client,
-            database_url: database_url.to_string(),
+            direction,
+            dry_run,
+            local_database_url: local_database_url.to_string(),
+            cloud_database_url: cloud_database_url.to_string(),
         }
     }
 
     pub async fn sync(&self) -> SyncResult<SyncOperationResult> {
-        match self.config.direction {
+        match self.direction {
             SyncDirection::Push => self.push().await,
             SyncDirection::Pull => self.pull().await,
         }
     }
 
     async fn push(&self) -> SyncResult<SyncOperationResult> {
-        let export = self.export_local().await?;
+        let export = export_from_database(&self.local_database_url).await?;
         let count = export.skills.len() + export.contexts.len();
 
-        if self.config.dry_run {
+        if self.dry_run {
             return Ok(SyncOperationResult::dry_run(
                 "database_push",
                 count,
@@ -84,22 +90,15 @@ impl DatabaseSyncService {
             ));
         }
 
-        self.api_client
-            .import_database(&self.config.tenant_id, &export)
-            .await?;
-
+        import_to_database(&self.cloud_database_url, &export).await?;
         Ok(SyncOperationResult::success("database_push", count))
     }
 
     async fn pull(&self) -> SyncResult<SyncOperationResult> {
-        let export = self
-            .api_client
-            .export_database(&self.config.tenant_id)
-            .await?;
-
+        let export = export_from_database(&self.cloud_database_url).await?;
         let count = export.skills.len() + export.contexts.len();
 
-        if self.config.dry_run {
+        if self.dry_run {
             return Ok(SyncOperationResult::dry_run(
                 "database_pull",
                 count,
@@ -110,60 +109,60 @@ impl DatabaseSyncService {
             ));
         }
 
-        self.import_local(&export).await?;
+        import_to_database(&self.local_database_url, &export).await?;
         Ok(SyncOperationResult::success("database_pull", count))
     }
+}
 
-    async fn export_local(&self) -> SyncResult<DatabaseExport> {
-        let pool = PgPool::connect(&self.database_url).await?;
+async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> {
+    let pool = PgPool::connect(database_url).await?;
 
-        let skills = sqlx::query_as!(
-            SkillExport,
-            r#"SELECT skill_id, file_path, name, description, instructions, enabled,
-                      tags, category_id, source_id, created_at, updated_at
-               FROM agent_skills"#
-        )
-        .fetch_all(&pool)
-        .await?;
+    let skills = sqlx::query_as!(
+        SkillExport,
+        r#"SELECT skill_id, file_path, name, description, instructions, enabled,
+                  tags, category_id, source_id, created_at, updated_at
+           FROM agent_skills"#
+    )
+    .fetch_all(&pool)
+    .await?;
 
-        let contexts = sqlx::query_as!(
-            ContextExport,
-            r#"SELECT context_id, user_id, session_id, name, created_at, updated_at
-               FROM user_contexts"#
-        )
-        .fetch_all(&pool)
-        .await?;
+    let contexts = sqlx::query_as!(
+        ContextExport,
+        r#"SELECT context_id, user_id, session_id, name, created_at, updated_at
+           FROM user_contexts"#
+    )
+    .fetch_all(&pool)
+    .await?;
 
-        Ok(DatabaseExport {
-            skills,
-            contexts,
-            timestamp: Utc::now(),
-        })
+    Ok(DatabaseExport {
+        skills,
+        contexts,
+        timestamp: Utc::now(),
+    })
+}
+
+async fn import_to_database(database_url: &str, export: &DatabaseExport) -> SyncResult<ImportResult> {
+    let pool = PgPool::connect(database_url).await?;
+    let mut created = 0;
+    let mut updated = 0;
+
+    for skill in &export.skills {
+        let (c, u) = upsert_skill(&pool, skill).await?;
+        created += c;
+        updated += u;
     }
 
-    async fn import_local(&self, export: &DatabaseExport) -> SyncResult<ImportResult> {
-        let pool = PgPool::connect(&self.database_url).await?;
-        let mut created = 0;
-        let mut updated = 0;
-
-        for skill in &export.skills {
-            let (c, u) = upsert_skill(&pool, skill).await?;
-            created += c;
-            updated += u;
-        }
-
-        for context in &export.contexts {
-            let (c, u) = upsert_context(&pool, context).await?;
-            created += c;
-            updated += u;
-        }
-
-        Ok(ImportResult {
-            created,
-            updated,
-            skipped: 0,
-        })
+    for context in &export.contexts {
+        let (c, u) = upsert_context(&pool, context).await?;
+        created += c;
+        updated += u;
     }
+
+    Ok(ImportResult {
+        created,
+        updated,
+        skipped: 0,
+    })
 }
 
 async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, usize)> {

@@ -61,7 +61,6 @@ pub struct SyncConfig {
     pub api_url: String,
     pub api_token: String,
     pub services_path: String,
-    pub database_url: Option<String>,
 }
 
 #[derive(Debug)]
@@ -73,7 +72,6 @@ pub struct SyncConfigBuilder {
     api_url: String,
     api_token: String,
     services_path: String,
-    database_url: Option<String>,
 }
 
 impl SyncConfigBuilder {
@@ -91,7 +89,6 @@ impl SyncConfigBuilder {
             api_url: api_url.into(),
             api_token: api_token.into(),
             services_path: services_path.into(),
-            database_url: None,
         }
     }
 
@@ -110,11 +107,6 @@ impl SyncConfigBuilder {
         self
     }
 
-    pub fn with_database_url(mut self, database_url: impl Into<String>) -> Self {
-        self.database_url = Some(database_url.into());
-        self
-    }
-
     pub fn build(self) -> SyncConfig {
         SyncConfig {
             direction: self.direction,
@@ -124,7 +116,6 @@ impl SyncConfigBuilder {
             api_url: self.api_url,
             api_token: self.api_token,
             services_path: self.services_path,
-            database_url: self.database_url,
         }
     }
 }
@@ -196,17 +187,6 @@ impl SyncService {
         service.sync().await
     }
 
-    pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
-        let database_url = self
-            .config
-            .database_url
-            .as_ref()
-            .ok_or(SyncError::DatabaseUrlMissing)?;
-        let service =
-            DatabaseSyncService::new(self.config.clone(), self.api_client.clone(), database_url);
-        service.sync().await
-    }
-
     pub async fn deploy_crate(
         &self,
         skip_build: bool,
@@ -214,21 +194,5 @@ impl SyncService {
     ) -> SyncResult<SyncOperationResult> {
         let service = CrateDeployService::new(self.config.clone(), self.api_client.clone());
         service.deploy(skip_build, tag).await
-    }
-
-    pub async fn sync_all(&self) -> SyncResult<Vec<SyncOperationResult>> {
-        let mut results = vec![];
-
-        results.push(self.sync_files().await?);
-
-        if self.config.database_url.is_some() {
-            results.push(self.sync_database().await?);
-        }
-
-        if self.config.direction == SyncDirection::Push {
-            results.push(self.deploy_crate(false, None).await?);
-        }
-
-        Ok(results)
     }
 }
