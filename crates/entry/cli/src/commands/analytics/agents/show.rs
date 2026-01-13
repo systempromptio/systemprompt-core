@@ -213,8 +213,7 @@ async fn fetch_top_errors(
     .bind(start)
     .bind(end)
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     Ok(rows
         .into_iter()

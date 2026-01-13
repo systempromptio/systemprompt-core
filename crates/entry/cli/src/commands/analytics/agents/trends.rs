@@ -43,7 +43,7 @@ pub struct TrendsArgs {
 struct TaskRow {
     started_at: DateTime<Utc>,
     status: Option<String>,
-    execution_time_ms: Option<i64>,
+    execution_time_ms: Option<i32>,
 }
 
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
@@ -129,7 +129,7 @@ async fn fetch_trends(
         if row.status.as_deref() == Some("completed") {
             entry.1 += 1;
         }
-        entry.2 += row.execution_time_ms.unwrap_or(0);
+        entry.2 += i64::from(row.execution_time_ms.unwrap_or(0));
     }
 
     let mut points: Vec<AgentTrendPoint> = buckets

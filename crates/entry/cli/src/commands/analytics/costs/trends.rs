@@ -39,8 +39,8 @@ pub struct TrendsArgs {
 
 struct CostRow {
     created_at: DateTime<Utc>,
-    cost_cents: Option<i64>,
-    tokens_used: Option<i64>,
+    cost_cents: Option<i32>,
+    tokens_used: Option<i32>,
 }
 
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
@@ -98,10 +98,10 @@ async fn fetch_trends(
         let period_key =
             format_period_label(truncate_to_period(row.created_at, group_by), group_by);
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
-        let cost = row.cost_cents.unwrap_or(0);
+        let cost = i64::from(row.cost_cents.unwrap_or(0));
         entry.0 += cost;
         entry.1 += 1;
-        entry.2 += row.tokens_used.unwrap_or(0);
+        entry.2 += i64::from(row.tokens_used.unwrap_or(0));
         total_cost += cost;
     }
 

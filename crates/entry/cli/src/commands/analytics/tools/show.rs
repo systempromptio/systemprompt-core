@@ -207,8 +207,7 @@ async fn fetch_top_errors(
     .bind(start)
     .bind(end)
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     Ok(rows
         .into_iter()
@@ -243,8 +242,7 @@ async fn fetch_usage_by_agent(
     .bind(start)
     .bind(end)
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     let total: i64 = rows.iter().map(|(_, c)| c).sum();
 

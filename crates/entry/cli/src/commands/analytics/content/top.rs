@@ -93,8 +93,7 @@ async fn fetch_top(
     .bind(end)
     .bind(limit)
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     let content: Vec<TopContentRow> = rows
         .into_iter()

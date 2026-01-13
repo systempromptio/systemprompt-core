@@ -78,8 +78,7 @@ async fn fetch_trends(
         end
     )
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     let mut buckets: HashMap<String, (i64, std::collections::HashSet<String>)> = HashMap::new();
 

@@ -1,11 +1,9 @@
-//! Link-related identifier types.
-
 use crate::{DbValue, ToDbValue};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Link identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct LinkId(String);
@@ -60,8 +58,7 @@ impl ToDbValue for &LinkId {
     }
 }
 
-/// Campaign identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct CampaignId(String);
@@ -112,8 +109,7 @@ impl ToDbValue for &CampaignId {
     }
 }
 
-/// Link click identifier
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct LinkClickId(String);
