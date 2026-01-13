@@ -56,7 +56,7 @@ pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");
             execute_disk_mode(&args, config, &logs_path)
-        }
+        },
     }
 }
 
@@ -64,7 +64,11 @@ async fn execute_db_mode(
     args: &LogsArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<McpLogsOutput>> {
-    let ctx = Arc::new(AppContext::new().await.context("Failed to initialize app context")?);
+    let ctx = Arc::new(
+        AppContext::new()
+            .await
+            .context("Failed to initialize app context")?,
+    );
     let repo = LoggingRepository::new(Arc::clone(ctx.db_pool()));
 
     let patterns = match &args.service {
@@ -106,10 +110,7 @@ async fn execute_db_mode(
 }
 
 fn build_service_patterns(service: &str) -> Vec<String> {
-    vec![
-        format!("%{}%", service),
-        format!("%rmcp%"),
-    ]
+    vec![format!("%{}%", service), format!("%rmcp%")]
 }
 
 fn build_all_mcp_patterns() -> Result<Vec<String>> {
@@ -133,7 +134,10 @@ fn execute_disk_mode(
     logs_path: &Path,
 ) -> Result<CommandResult<McpLogsOutput>> {
     if !logs_path.exists() {
-        return Err(anyhow!("Logs directory does not exist: {}", logs_path.display()));
+        return Err(anyhow!(
+            "Logs directory does not exist: {}",
+            logs_path.display()
+        ));
     }
 
     if args.service.is_none() && !config.is_interactive() {
@@ -169,7 +173,10 @@ fn execute_follow_mode(
     logs_path: &Path,
 ) -> Result<CommandResult<McpLogsOutput>> {
     if !logs_path.exists() {
-        return Err(anyhow!("Logs directory does not exist: {}", logs_path.display()));
+        return Err(anyhow!(
+            "Logs directory does not exist: {}",
+            logs_path.display()
+        ));
     }
 
     let service = resolve_input(args.service.clone(), "service", config, || {

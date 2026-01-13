@@ -7,7 +7,7 @@ use systemprompt_cloud::ProjectContext;
 use systemprompt_core_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
-use crate::cloud::tenant_ops::wait_for_postgres_healthy;
+use crate::cloud::tenant::wait_for_postgres_healthy;
 
 pub async fn handle_local_tenant_setup(
     cloud_user: &crate::cloud::sync::admin_user::CloudUser,

@@ -18,8 +18,7 @@ pub async fn run_standalone(agent_name: &str, port: u16) -> Result<()> {
 
     let services_config = ConfigLoader::load().context("Failed to load services config")?;
 
-    let tool_provider: Arc<dyn ToolProvider> =
-        Arc::new(McpToolProvider::new(&app_context));
+    let tool_provider: Arc<dyn ToolProvider> = Arc::new(McpToolProvider::new(&app_context));
 
     let ai_service: Arc<dyn systemprompt_models::AiProvider> = Arc::new(
         AiService::new(&app_context, &services_config.ai, tool_provider)

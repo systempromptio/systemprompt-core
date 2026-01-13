@@ -6,7 +6,7 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::ServicesConfig;
 
-use super::tenant_ops::find_services_config;
+use super::tenant::find_services_config;
 
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {

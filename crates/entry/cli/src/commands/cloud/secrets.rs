@@ -6,7 +6,7 @@ use systemprompt_cloud::{CloudApiClient, ProfilePath};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-use super::tenant_ops::get_credentials;
+use super::tenant::get_credentials;
 use crate::cli_settings::CliConfig;
 
 #[derive(Debug, Subcommand)]

@@ -9,12 +9,12 @@ use systemprompt_cloud::{
 };
 use systemprompt_core_logging::CliService;
 
-use select::resolve_profile;
 use super::dockerfile::validate_profile_dockerfile;
-use super::tenant_ops::{find_services_config, get_credentials};
+use super::tenant::{find_services_config, get_credentials};
 use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
+use select::resolve_profile;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug)]

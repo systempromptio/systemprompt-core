@@ -14,10 +14,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentDetailOutput>> {
+pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<AgentDetailOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_input(args.name, "name", config, || {

@@ -100,8 +100,10 @@ fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult
         instructions_preview,
     };
 
-    Ok(CommandResult::card(ListOrDetail::Detail(output))
-        .with_title(format!("Skill: {}", skill_id)))
+    Ok(
+        CommandResult::card(ListOrDetail::Detail(output))
+            .with_title(format!("Skill: {}", skill_id)),
+    )
 }
 
 fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
