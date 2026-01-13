@@ -18,6 +18,7 @@ pub struct NewCloudTenantParams {
     pub database_url: Option<String>,
     pub internal_database_url: String,
     pub external_db_access: bool,
+    pub sync_token: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
@@ -56,6 +57,9 @@ pub struct StoredTenant {
 
     #[serde(default)]
     pub external_db_access: bool,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sync_token: Option<String>,
 }
 
 impl StoredTenant {
@@ -71,6 +75,7 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::default(),
             external_db_access: false,
+            sync_token: None,
         }
     }
 
@@ -86,6 +91,7 @@ impl StoredTenant {
             internal_database_url: None,
             tenant_type: TenantType::Local,
             external_db_access: false,
+            sync_token: None,
         }
     }
 
@@ -101,6 +107,7 @@ impl StoredTenant {
             internal_database_url: Some(params.internal_database_url),
             tenant_type: TenantType::Cloud,
             external_db_access: params.external_db_access,
+            sync_token: params.sync_token,
         }
     }
 
@@ -116,6 +123,7 @@ impl StoredTenant {
             internal_database_url: Some(info.database_url.clone()),
             tenant_type: TenantType::Cloud,
             external_db_access: info.external_db_access,
+            sync_token: None,
         }
     }
 

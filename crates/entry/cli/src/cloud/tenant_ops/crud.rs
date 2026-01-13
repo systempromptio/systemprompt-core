@@ -323,3 +323,64 @@ pub async fn rotate_credentials(id: Option<String>) -> Result<()> {
 
     Ok(())
 }
+
+pub async fn rotate_sync_token(id: Option<String>) -> Result<()> {
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+
+    let tenant_id = if let Some(id) = id {
+        id
+    } else {
+        if store.tenants.is_empty() {
+            bail!("No tenants configured.");
+        }
+        select_tenant(&store.tenants)?.id.clone()
+    };
+
+    let tenant = store
+        .tenants
+        .iter()
+        .find(|t| t.id == tenant_id)
+        .ok_or_else(|| anyhow!("Tenant not found: {}", tenant_id))?;
+
+    if tenant.tenant_type != TenantType::Cloud {
+        bail!("Sync token rotation is only available for cloud tenants");
+    }
+
+    let confirm = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!(
+            "Rotate sync token for '{}'? This will generate a new token for file synchronization.",
+            tenant.name
+        ))
+        .default(false)
+        .interact()?;
+
+    if !confirm {
+        CliService::info("Cancelled");
+        return Ok(());
+    }
+
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    let spinner = CliService::spinner("Rotating sync token...");
+    let response = client.rotate_sync_token(&tenant_id).await?;
+    spinner.finish_and_clear();
+
+    let tenant = store
+        .tenants
+        .iter_mut()
+        .find(|t| t.id == tenant_id)
+        .ok_or_else(|| anyhow!("Tenant not found after rotation"))?;
+
+    tenant.sync_token = Some(response.sync_token.clone());
+
+    store.save_to_path(&tenants_path)?;
+
+    CliService::success("Sync token rotated");
+    CliService::key_value("Status", &response.status);
+    CliService::info("New sync token has been saved locally.");
+
+    Ok(())
+}
