@@ -93,6 +93,27 @@ impl ProfileBootstrap {
         Self::init()
     }
 
+    pub fn init_from_path(path: &Path) -> Result<&'static Profile> {
+        if PROFILE.get().is_some() {
+            anyhow::bail!(ProfileBootstrapError::AlreadyInitialized);
+        }
+
+        let profile = Self::load_from_path_and_validate(path)
+            .with_context(|| format!("Failed to initialize profile from: {}", path.display()))?;
+
+        PROFILE_PATH
+            .set(path.to_string_lossy().to_string())
+            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+
+        PROFILE
+            .set(profile)
+            .map_err(|_| ProfileBootstrapError::AlreadyInitialized)?;
+
+        PROFILE
+            .get()
+            .ok_or_else(|| anyhow::anyhow!(ProfileBootstrapError::NotInitialized))
+    }
+
     fn load_from_path_and_validate(path: &Path) -> Result<Profile> {
         let content = std::fs::read_to_string(path)
             .with_context(|| format!("Failed to read profile: {}", path.display()))?;

@@ -266,7 +266,7 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
                 missing.join(", "),
                 get_required_mcp_copy_lines(project_root).join("\n")
             );
-        }
+        },
         (true, false) => {
             bail!(
                 "Dockerfile at {} has COPY commands for binaries that no longer \
@@ -275,7 +275,7 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
                 dockerfile_path.display(),
                 stale.join(", ")
             );
-        }
+        },
         (false, false) => {
             bail!(
                 "Dockerfile at {} has issues:\n\nMissing binaries: {}\nStale binaries: \
@@ -284,6 +284,6 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
                 missing.join(", "),
                 stale.join(", ")
             );
-        }
+        },
     }
 }
