@@ -46,9 +46,11 @@ pub struct Content {
     pub category_id: Option<CategoryId>,
     pub source_id: SourceId,
     pub version_hash: String,
+    pub public: bool,
     #[serde(default)]
     pub links: JsonValue,
-    pub updated_at: Option<DateTime<Utc>>,
+    pub image_optimization_status: Option<String>,
+    pub updated_at: DateTime<Utc>,
 }
 
 impl Content {

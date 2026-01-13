@@ -5,12 +5,7 @@ use std::path::Path;
 use systemprompt_core_content::models::Content;
 
 pub fn generate_content_markdown(content: &Content) -> String {
-    let public_str = "true";
     let image_str = content.image.as_deref().unwrap_or("");
-    let updated_at_str = content
-        .updated_at
-        .map(|d| d.format("%Y-%m-%d").to_string())
-        .unwrap_or_default();
 
     format!(
         r#"---
@@ -35,9 +30,9 @@ updated_at: "{}"
         escape_yaml(&content.keywords),
         image_str,
         &content.kind,
-        public_str,
+        content.public,
         content.published_at.format("%Y-%m-%d"),
-        updated_at_str,
+        content.updated_at.format("%Y-%m-%d"),
         &content.body
     )
 }

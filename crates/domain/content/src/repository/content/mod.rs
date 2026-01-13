@@ -36,7 +36,8 @@ impl ContentRepository {
                       published_at, keywords, kind, image,
                       category_id as "category_id: CategoryId",
                       source_id as "source_id: SourceId",
-                      version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                      version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                      image_optimization_status, updated_at
             "#,
             id.as_str(),
             params.slug,
@@ -66,7 +67,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             WHERE id = $1
             "#,
@@ -84,7 +86,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             WHERE slug = $1
             "#,
@@ -106,7 +109,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             WHERE source_id = $1 AND slug = $2
             "#,
@@ -125,7 +129,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             ORDER BY published_at DESC
             LIMIT $1 OFFSET $2
@@ -145,7 +150,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             WHERE source_id = $1
             ORDER BY published_at DESC
@@ -169,7 +175,8 @@ impl ContentRepository {
                       published_at, keywords, kind, image,
                       category_id as "category_id: CategoryId",
                       source_id as "source_id: SourceId",
-                      version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                      version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                      image_optimization_status, updated_at
             "#,
             params.title,
             params.description,
@@ -209,7 +216,8 @@ impl ContentRepository {
                    published_at, keywords, kind, image,
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
-                   version_hash, COALESCE(links, '[]'::jsonb) as "links!", updated_at
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   image_optimization_status, updated_at
             FROM markdown_content
             ORDER BY published_at DESC
             LIMIT $1 OFFSET $2
