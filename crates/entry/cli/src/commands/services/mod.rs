@@ -13,7 +13,7 @@ use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
     #[command(about = "Start services")]
     Start {
@@ -97,7 +97,7 @@ pub enum ServicesCommands {
     Scheduler(scheduler::SchedulerCommands),
 }
 
-#[derive(Subcommand, Clone)]
+#[derive(Debug, Clone, Subcommand)]
 pub enum RestartTarget {
     Api,
     Agent { agent_id: String },

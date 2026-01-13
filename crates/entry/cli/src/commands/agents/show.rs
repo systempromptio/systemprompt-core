@@ -7,7 +7,7 @@ use crate::CliConfig;
 use super::types::AgentDetailOutput;
 use systemprompt_loader::ConfigLoader;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ShowArgs {
     #[arg(help = "Agent name (required in non-interactive mode)")]
     pub name: Option<String>,

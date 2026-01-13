@@ -8,7 +8,7 @@ use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
     /// Show only enabled servers
     #[arg(long, help = "Show only enabled servers")]

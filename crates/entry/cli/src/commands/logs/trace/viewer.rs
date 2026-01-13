@@ -10,7 +10,7 @@ use super::summary::{print_summary, SummaryContext};
 use super::json::print_json;
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct TraceOptions {
     #[arg(long, help = "Specify agent name")]
     pub agent: Option<String>,

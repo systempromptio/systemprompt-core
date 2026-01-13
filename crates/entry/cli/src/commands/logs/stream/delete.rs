@@ -8,7 +8,7 @@ use super::LogDeleteOutput;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct DeleteArgs {
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,

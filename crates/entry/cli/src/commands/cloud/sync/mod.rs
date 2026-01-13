@@ -14,13 +14,13 @@ use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncServ
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant_ops::get_credentials;
 
-#[derive(Clone, Copy, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum CliLocalSyncDirection {
     ToDb,
     ToDisk,
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum SyncCommands {
     Push(SyncArgs),
 
@@ -30,14 +30,14 @@ pub enum SyncCommands {
     Local(LocalSyncCommands),
 }
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum LocalSyncCommands {
     Content(ContentSyncArgs),
 
     Skills(SkillsSyncArgs),
 }
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct SyncArgs {
     #[arg(long)]
     pub dry_run: bool,
@@ -49,7 +49,7 @@ pub struct SyncArgs {
     pub verbose: bool,
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ContentSyncArgs {
     #[arg(long, value_enum)]
     pub direction: Option<CliLocalSyncDirection>,
@@ -67,7 +67,7 @@ pub struct ContentSyncArgs {
     pub delete_orphans: bool,
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct SkillsSyncArgs {
     #[arg(long, value_enum)]
     pub direction: Option<CliLocalSyncDirection>,

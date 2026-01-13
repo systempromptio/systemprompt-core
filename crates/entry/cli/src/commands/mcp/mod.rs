@@ -12,7 +12,7 @@ use crate::cli_settings::get_global_config;
 use crate::shared::render_result;
 use crate::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum McpCommands {
     /// List MCP server configs
     List(list::ListArgs),

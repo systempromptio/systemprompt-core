@@ -8,12 +8,14 @@ use systemprompt_core_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
+#[derive(Debug)]
 pub struct DiscoveredProfile {
     pub name: String,
     pub path: PathBuf,
     pub profile: Profile,
 }
 
+#[derive(Debug)]
 pub struct DeployableProfile {
     pub name: String,
     pub path: PathBuf,

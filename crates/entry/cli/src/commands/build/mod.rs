@@ -13,7 +13,7 @@ use crate::shared::command_result::{render_result, CommandResult};
 use crate::shared::project::ProjectRoot;
 use crate::CliConfig;
 
-#[derive(Subcommand, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Subcommand)]
 pub enum BuildCommands {
     #[command(about = "Build MCP extensions")]
     Mcp {

@@ -8,7 +8,7 @@ use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_core_mcp::services::registry::RegistryManager;
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct ListPackagesArgs {
     /// Output as space-separated string (for shell scripts)
     #[arg(long, help = "Output as space-separated string")]

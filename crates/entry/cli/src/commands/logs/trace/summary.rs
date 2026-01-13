@@ -4,6 +4,7 @@ use systemprompt_core_logging::{
     AiRequestSummary, CliService, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 
+#[derive(Debug)]
 pub struct SummaryContext<'a> {
     pub events: &'a [TraceEvent],
     pub first: Option<DateTime<Utc>>,

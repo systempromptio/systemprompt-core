@@ -8,6 +8,7 @@ use systemprompt_models::ServicesConfig;
 
 use super::tenant_ops::find_services_config;
 
+#[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
     profile_name: Option<&'a str>,

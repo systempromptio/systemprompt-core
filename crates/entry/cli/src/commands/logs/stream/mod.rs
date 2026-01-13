@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum StreamCommands {
     #[command(about = "View log entries")]
     View(view::ViewArgs),
@@ -51,7 +51,7 @@ pub struct LogViewOutput {
     pub filters: LogFilters,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct LogDeleteOutput {
     pub deleted_count: u64,
     pub vacuum_performed: bool,

@@ -15,7 +15,7 @@ use crate::cli_settings::get_global_config;
 use crate::shared::render_result;
 use crate::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
     #[command(about = "List all agents from config")]
     List(list::ListArgs),

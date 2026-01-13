@@ -8,7 +8,7 @@ use super::types::AgentDeleteOutput;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::ConfigLoader;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct DeleteArgs {
     #[arg(help = "Agent name (required in non-interactive mode)")]
     pub name: Option<String>,

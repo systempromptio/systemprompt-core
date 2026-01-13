@@ -7,7 +7,7 @@ use super::{AiLookupOutput, MessageRow, ToolCallRow};
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct LookupArgs {
     #[arg(help = "AI request ID to lookup")]
     pub request_id: String,

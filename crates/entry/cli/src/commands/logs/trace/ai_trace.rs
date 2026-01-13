@@ -11,14 +11,14 @@ use super::ai_display::{
 use super::ai_mcp::print_mcp_executions;
 use crate::CliConfig;
 
-#[derive(Clone, Copy, Default, ValueEnum)]
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum TraceOutput {
     #[default]
     Text,
     Json,
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct AiTraceOptions {
     #[arg(help = "Task ID (can be partial, will match prefix)")]
     pub task_id: String,
@@ -33,7 +33,7 @@ pub struct AiTraceOptions {
     pub include: Vec<TraceSection>,
 }
 
-#[derive(Clone, Copy, ValueEnum, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum TraceSection {
     History,
     Artifact,

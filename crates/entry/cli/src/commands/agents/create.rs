@@ -7,7 +7,7 @@ use crate::CliConfig;
 use super::types::AgentCreateOutput;
 use systemprompt_core_logging::CliService;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct CreateArgs {
     #[arg(long, help = "Agent name")]
     pub name: Option<String>,

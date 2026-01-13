@@ -8,7 +8,7 @@ use clap::{Args, Subcommand};
 
 use super::Environment;
 
-#[derive(Subcommand)]
+#[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AuthCommands {
     #[command(about = "Authenticate with SystemPrompt Cloud via OAuth")]
     Login {
@@ -23,7 +23,7 @@ pub enum AuthCommands {
     Whoami,
 }
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct LogoutArgs {
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,

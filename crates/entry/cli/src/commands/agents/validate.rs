@@ -6,7 +6,7 @@ use crate::CliConfig;
 use super::types::{ValidationOutput, ValidationIssue, ValidationSeverity};
 use systemprompt_loader::ConfigLoader;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ValidateArgs {
     #[arg(help = "Agent name to validate (optional)")]
     pub name: Option<String>,

@@ -3,6 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
 use systemprompt_core_logging::CliService;
 
+#[derive(Debug)]
 pub struct ApiKeys {
     pub gemini: Option<String>,
     pub anthropic: Option<String>,

@@ -12,7 +12,7 @@ use super::{LogEntryRow, LogFilters, LogViewOutput};
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ViewArgs {
     #[arg(long, help = "Filter by log level (error, warn, info, debug, trace)")]
     pub level: Option<String>,
