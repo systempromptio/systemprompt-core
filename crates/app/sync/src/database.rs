@@ -208,6 +208,28 @@ async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, 
 }
 
 async fn upsert_context(pool: &PgPool, context: &ContextExport) -> SyncResult<(usize, usize)> {
+    let session_id = match &context.session_id {
+        Some(sid) => {
+            let exists: Option<bool> =
+                sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM user_sessions WHERE session_id = $1)")
+                    .bind(sid)
+                    .fetch_one(pool)
+                    .await?;
+
+            if exists.unwrap_or(false) {
+                Some(sid.clone())
+            } else {
+                tracing::debug!(
+                    session_id = %sid,
+                    context_id = %context.context_id,
+                    "Session not found in target database, setting session_id to NULL"
+                );
+                None
+            }
+        }
+        None => None,
+    };
+
     let result = sqlx::query!(
         r#"INSERT INTO user_contexts (context_id, user_id, session_id, name, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6)
@@ -218,7 +240,7 @@ async fn upsert_context(pool: &PgPool, context: &ContextExport) -> SyncResult<(u
              updated_at = EXCLUDED.updated_at"#,
         context.context_id,
         context.user_id,
-        context.session_id,
+        session_id,
         context.name,
         context.created_at,
         context.updated_at
