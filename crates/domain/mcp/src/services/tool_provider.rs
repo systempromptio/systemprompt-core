@@ -77,7 +77,9 @@ impl McpToolProvider {
         }
     }
 
-    fn create_request_context(ctx: &ToolContext) -> systemprompt_models::RequestContext {
+    fn create_request_context(
+        ctx: &ToolContext,
+    ) -> Result<systemprompt_models::RequestContext, ToolProviderError> {
         use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 
         let session_id = ctx
@@ -94,13 +96,25 @@ impl McpToolProvider {
             .headers
             .get("x-context-id")
             .filter(|s| !s.is_empty())
-            .map_or_else(ContextId::generate, |s| ContextId::new(s.clone()));
+            .map(|s| ContextId::new(s.clone()))
+            .ok_or_else(|| {
+                ToolProviderError::ConfigurationError(
+                    "Missing x-context-id header - context must be propagated from parent request"
+                        .into(),
+                )
+            })?;
 
         let agent_name = ctx
             .headers
             .get("x-agent-name")
             .filter(|s| !s.is_empty())
-            .map_or_else(AgentName::system, |s| AgentName::new(s.clone()));
+            .map(|s| AgentName::new(s.clone()))
+            .ok_or_else(|| {
+                ToolProviderError::ConfigurationError(
+                    "Missing x-agent-name header - agent context must be propagated from parent request"
+                        .into(),
+                )
+            })?;
 
         let mut request_ctx =
             systemprompt_models::RequestContext::new(session_id, trace_id, context_id, agent_name)
@@ -118,7 +132,7 @@ impl McpToolProvider {
             request_ctx = request_ctx.with_ai_tool_call_id(ai_tool_call_id.clone().into());
         }
 
-        request_ctx
+        Ok(request_ctx)
     }
 
     fn load_agent_servers(agent_name: &str) -> Result<Vec<String>> {
@@ -151,7 +165,7 @@ impl ToolProvider for McpToolProvider {
             "Listing tools for agent from MCP servers"
         );
 
-        let request_ctx = Self::create_request_context(context);
+        let request_ctx = Self::create_request_context(context)?;
         let mut all_tools = Vec::new();
 
         for server_name in &assigned_servers {
@@ -191,7 +205,7 @@ impl ToolProvider for McpToolProvider {
         service_id: &str,
         context: &ToolContext,
     ) -> ToolProviderResult<ToolCallResult> {
-        let request_ctx = Self::create_request_context(context);
+        let request_ctx = Self::create_request_context(context)?;
 
         info!(
             tool = &request.name,

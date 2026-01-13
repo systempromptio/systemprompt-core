@@ -50,8 +50,9 @@ struct DisplayOpts {
 
 #[derive(Parser)]
 #[command(name = "systemprompt")]
-#[command(about = "SystemPrompt CLI for agent orchestration and AI operations")]
+#[command(about = "Agent orchestration and AI operations")]
 #[command(version = "0.1.0")]
+#[command(before_help = "</SYSTEMPROMPT.io>")]
 #[command(after_help = "\
 GLOBAL OPTIONS (apply to all commands):
   -v, --verbose         Increase verbosity
