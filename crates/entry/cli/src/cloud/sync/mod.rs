@@ -8,7 +8,6 @@ use anyhow::{anyhow, bail, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cloud::tenant_ops::get_credentials;
@@ -21,37 +20,29 @@ pub enum CliLocalSyncDirection {
 
 #[derive(Subcommand)]
 pub enum SyncCommands {
-    /// Push files and database to cloud
     Push(SyncArgs),
 
-    /// Pull files and database from cloud
     Pull(SyncArgs),
 
-    /// Sync between local disk and database
     #[command(subcommand)]
     Local(LocalSyncCommands),
 }
 
 #[derive(Subcommand)]
 pub enum LocalSyncCommands {
-    /// Sync content (blog, legal) between disk and local database
     Content(ContentSyncArgs),
 
-    /// Sync skills between disk and local database
     Skills(SkillsSyncArgs),
 }
 
 #[derive(Args)]
 pub struct SyncArgs {
-    /// Preview changes without executing
     #[arg(long)]
     pub dry_run: bool,
 
-    /// Skip confirmation prompts
     #[arg(long)]
     pub force: bool,
 
-    /// Show detailed output
     #[arg(short, long)]
     pub verbose: bool,
 }
@@ -128,8 +119,6 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
 
     let services_path = profile.paths.services.clone();
 
-    let database_url = SecretsBootstrap::get().ok().map(|s| s.database_url.clone());
-
     let config = SyncConfig {
         direction,
         dry_run: args.dry_run,
@@ -138,22 +127,25 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path,
-        database_url,
     };
 
     print_header(&direction, args.dry_run);
 
     let service = SyncService::new(config);
+    let mut results = Vec::new();
 
-    let spinner_msg = match direction {
-        SyncDirection::Push => "Pushing to cloud...",
-        SyncDirection::Pull => "Pulling from cloud...",
-    };
-    let spinner = CliService::spinner(spinner_msg);
-
-    let results = service.sync_all().await?;
-
+    let spinner = CliService::spinner("Syncing files...");
+    let files_result = service.sync_files().await?;
     spinner.finish_and_clear();
+    results.push(files_result);
+
+    if direction == SyncDirection::Push {
+        let spinner = CliService::spinner("Deploying...");
+        let deploy_result = service.deploy_crate(false, None).await?;
+        spinner.finish_and_clear();
+        results.push(deploy_result);
+    }
+
     print_results(&results);
 
     Ok(())

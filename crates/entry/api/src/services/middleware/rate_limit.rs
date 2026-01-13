@@ -78,13 +78,9 @@ impl TieredRateLimiter {
             let effective_u32 = u32::try_from(effective).unwrap_or(u32::MAX);
             let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX);
             let quota = Quota::per_second(
-                NonZeroU32::new(effective_u32)
-                    .expect("effective_limit guarantees minimum of 1"),
+                NonZeroU32::new(effective_u32).expect("effective_limit guarantees minimum of 1"),
             )
-            .allow_burst(
-                NonZeroU32::new(burst_u32.max(1))
-                    .expect("burst clamped to minimum of 1"),
-            );
+            .allow_burst(NonZeroU32::new(burst_u32.max(1)).expect("burst clamped to minimum of 1"));
             Arc::new(RateLimiter::keyed(quota))
         };
 
@@ -171,10 +167,7 @@ pub async fn tiered_rate_limit_middleware(
         );
         (
             StatusCode::TOO_MANY_REQUESTS,
-            [
-                ("Retry-After", "1"),
-                ("X-Rate-Limit-Tier", tier.as_str()),
-            ],
+            [("Retry-After", "1"), ("X-Rate-Limit-Tier", tier.as_str())],
             "Rate limit exceeded",
         )
             .into_response()

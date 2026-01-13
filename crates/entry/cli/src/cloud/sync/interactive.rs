@@ -138,7 +138,7 @@ fn discover_profiles() -> Result<Vec<ProfileSelection>> {
 
 async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> Result<()> {
     use systemprompt_cloud::CredentialsBootstrap;
-    use systemprompt_sync::{SyncConfig, SyncDirection, SyncService};
+    use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
     let creds = CredentialsBootstrap::require()
         .context("Cloud sync requires credentials. Run 'systemprompt cloud auth login'")?;
@@ -164,20 +164,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         _ => bail!("Invalid sync type for cloud sync"),
     };
 
-    let secrets_path = source
-        .path
-        .parent()
-        .map(|p| ProfilePath::Secrets.resolve(p));
-
-    let database_url = secrets_path
-        .and_then(|p| std::fs::read_to_string(&p).ok())
-        .and_then(|content| serde_json::from_str::<serde_json::Value>(&content).ok())
-        .and_then(|v| {
-            v.get("database_url")
-                .and_then(|u| u.as_str())
-                .map(String::from)
-        });
-
     let config = SyncConfig {
         direction,
         dry_run: false,
@@ -186,7 +172,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path: source.profile.paths.services.clone(),
-        database_url,
     };
 
     let dir_label = match direction {
@@ -196,16 +181,19 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     CliService::key_value("Direction", dir_label);
 
     let service = SyncService::new(config);
+    let mut results: Vec<SyncOperationResult> = Vec::new();
 
-    let spinner_msg = match direction {
-        SyncDirection::Push => "Pushing to cloud...",
-        SyncDirection::Pull => "Pulling from cloud...",
-    };
-    let spinner = CliService::spinner(spinner_msg);
-
-    let results = service.sync_all().await?;
-
+    let spinner = CliService::spinner("Syncing files...");
+    let files_result = service.sync_files().await?;
     spinner.finish_and_clear();
+    results.push(files_result);
+
+    if direction == SyncDirection::Push {
+        let spinner = CliService::spinner("Deploying...");
+        let deploy_result = service.deploy_crate(false, None).await?;
+        spinner.finish_and_clear();
+        results.push(deploy_result);
+    }
 
     for result in &results {
         if result.success {
