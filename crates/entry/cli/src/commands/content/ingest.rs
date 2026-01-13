@@ -30,11 +30,17 @@ pub struct IngestArgs {
 
 pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandResult<IngestOutput>> {
     if !args.directory.exists() {
-        return Err(anyhow!("Directory does not exist: {}", args.directory.display()));
+        return Err(anyhow!(
+            "Directory does not exist: {}",
+            args.directory.display()
+        ));
     }
 
     if !args.directory.is_dir() {
-        return Err(anyhow!("Path is not a directory: {}", args.directory.display()));
+        return Err(anyhow!(
+            "Path is not a directory: {}",
+            args.directory.display()
+        ));
     }
 
     let ctx = AppContext::new().await?;
@@ -48,7 +54,9 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
         .with_recursive(args.recursive)
         .with_override(args.r#override);
 
-    let report = service.ingest_directory(&args.directory, &source, options).await?;
+    let report = service
+        .ingest_directory(&args.directory, &source, options)
+        .await?;
 
     let output = IngestOutput {
         files_found: report.files_found,

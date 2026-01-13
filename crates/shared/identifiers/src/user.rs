@@ -1,11 +1,11 @@
 //! User identifier type.
 
 use crate::{DbValue, ToDbValue};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// User identifier (always has a value, even if "anonymous" or "system")
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct UserId(String);

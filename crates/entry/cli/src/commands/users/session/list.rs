@@ -57,7 +57,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let summaries: Vec<SessionSummary> = sessions
         .into_iter()
         .map(|s| SessionSummary {
-            session_id: s.session_id,
+            session_id: s.session_id.to_string(),
             ip_address: s.ip_address,
             user_agent: s.user_agent,
             device_type: s.device_type,

@@ -2,7 +2,7 @@ pub mod export;
 pub mod output;
 pub mod time;
 
-pub use export::{export_to_csv, CsvBuilder};
+pub use export::{export_single_to_csv, export_to_csv, CsvBuilder};
 pub use output::{
     format_change, format_cost, format_number, format_percent, format_tokens, BreakdownData,
     BreakdownItem, MetricCard, StatsSummary, TrendData, TrendPoint,

@@ -15,13 +15,22 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ModelsArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
     pub until: Option<String>,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Maximum number of models")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Maximum number of models"
+    )]
     pub limit: i64,
 
     #[arg(long, help = "Export results to CSV file")]
@@ -100,23 +109,25 @@ async fn fetch_models(
 
     let models: Vec<ModelUsageRow> = rows
         .into_iter()
-        .map(|(provider, model, request_count, total_tokens, total_cost, avg_latency)| {
-            let percentage = if total_requests > 0 {
-                (request_count as f64 / total_requests as f64) * 100.0
-            } else {
-                0.0
-            };
+        .map(
+            |(provider, model, request_count, total_tokens, total_cost, avg_latency)| {
+                let percentage = if total_requests > 0 {
+                    (request_count as f64 / total_requests as f64) * 100.0
+                } else {
+                    0.0
+                };
 
-            ModelUsageRow {
-                provider,
-                model,
-                request_count,
-                total_tokens: total_tokens.unwrap_or(0),
-                total_cost_cents: total_cost.unwrap_or(0),
-                avg_latency_ms: avg_latency.map(|v| v as i64).unwrap_or(0),
-                percentage,
-            }
-        })
+                ModelUsageRow {
+                    provider,
+                    model,
+                    request_count,
+                    total_tokens: total_tokens.unwrap_or(0),
+                    total_cost_cents: total_cost.unwrap_or(0),
+                    avg_latency_ms: avg_latency.map(|v| v as i64).unwrap_or(0),
+                    percentage,
+                }
+            },
+        )
         .collect();
 
     Ok(ModelsOutput {

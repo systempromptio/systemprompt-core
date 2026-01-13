@@ -15,7 +15,11 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -57,10 +61,17 @@ async fn fetch_stats(
     end: DateTime<Utc>,
     model_filter: &Option<String>,
 ) -> Result<RequestStatsOutput> {
-    let row: (i64, Option<i64>, Option<i64>, Option<i64>, Option<i64>, Option<f64>, i64) =
-        if let Some(model) = model_filter {
-            sqlx::query_as(
-                r#"
+    let row: (
+        i64,
+        Option<i64>,
+        Option<i64>,
+        Option<i64>,
+        Option<i64>,
+        Option<f64>,
+        i64,
+    ) = if let Some(model) = model_filter {
+        sqlx::query_as(
+            r#"
                 SELECT
                     COUNT(*) as total,
                     SUM(tokens_used) as total_tokens,
@@ -73,15 +84,15 @@ async fn fetch_stats(
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
                 "#,
-            )
-            .bind(start)
-            .bind(end)
-            .bind(format!("%{}%", model))
-            .fetch_one(pool.as_ref())
-            .await?
-        } else {
-            sqlx::query_as(
-                r#"
+        )
+        .bind(start)
+        .bind(end)
+        .bind(format!("%{}%", model))
+        .fetch_one(pool.as_ref())
+        .await?
+    } else {
+        sqlx::query_as(
+            r#"
                 SELECT
                     COUNT(*) as total,
                     SUM(tokens_used) as total_tokens,
@@ -93,12 +104,12 @@ async fn fetch_stats(
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                 "#,
-            )
-            .bind(start)
-            .bind(end)
-            .fetch_one(pool.as_ref())
-            .await?
-        };
+        )
+        .bind(start)
+        .bind(end)
+        .fetch_one(pool.as_ref())
+        .await?
+    };
 
     let cache_hit_rate = if row.0 > 0 {
         (row.6 as f64 / row.0 as f64) * 100.0

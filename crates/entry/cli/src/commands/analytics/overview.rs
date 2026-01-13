@@ -16,7 +16,11 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct OverviewArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -321,23 +325,33 @@ fn render_overview(output: &OverviewOutput) {
     CliService::section(&format!("Analytics Overview ({})", output.period));
 
     let cards = vec![
-        MetricCard::new("Conversations", format_number(output.conversations.total))
-            .with_change(
-                output
-                    .conversations
-                    .change_percent
-                    .map(|c| format_change(output.conversations.total, 0).unwrap_or_default())
-                    .unwrap_or_default(),
-            ),
-        MetricCard::new("Active Agents", format_number(output.agents.active_count))
-            .with_secondary(format!("{} tasks", format_number(output.agents.total_tasks))),
-        MetricCard::new("AI Requests", format_number(output.requests.total)).with_secondary(
-            format!("avg {}ms", format_duration_ms(output.requests.avg_latency_ms)),
+        MetricCard::new("Conversations", format_number(output.conversations.total)).with_change(
+            output
+                .conversations
+                .change_percent
+                .map(|c| format_change(output.conversations.total, 0).unwrap_or_default())
+                .unwrap_or_default(),
         ),
-        MetricCard::new("Tool Executions", format_number(output.tools.total_executions))
-            .with_secondary(format!("{} success", format_percent(output.tools.success_rate))),
-        MetricCard::new("Active Sessions", format_number(output.sessions.active))
-            .with_secondary(format!("{} total", format_number(output.sessions.total_today))),
+        MetricCard::new("Active Agents", format_number(output.agents.active_count)).with_secondary(
+            format!("{} tasks", format_number(output.agents.total_tasks)),
+        ),
+        MetricCard::new("AI Requests", format_number(output.requests.total)).with_secondary(
+            format!(
+                "avg {}ms",
+                format_duration_ms(output.requests.avg_latency_ms)
+            ),
+        ),
+        MetricCard::new(
+            "Tool Executions",
+            format_number(output.tools.total_executions),
+        )
+        .with_secondary(format!(
+            "{} success",
+            format_percent(output.tools.success_rate)
+        )),
+        MetricCard::new("Active Sessions", format_number(output.sessions.active)).with_secondary(
+            format!("{} total", format_number(output.sessions.total_today)),
+        ),
         MetricCard::new("Total Cost", format_cost(output.costs.total_cents)).with_change(
             output
                 .costs

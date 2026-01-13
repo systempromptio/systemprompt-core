@@ -52,7 +52,13 @@ async fn fetch_stats(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<ContentStatsOutput> {
-    let row: (Option<i64>, Option<i64>, Option<f64>, Option<f64>, Option<i64>) = sqlx::query_as(
+    let row: (
+        Option<i64>,
+        Option<i64>,
+        Option<f64>,
+        Option<f64>,
+        Option<i64>,
+    ) = sqlx::query_as(
         r#"
         SELECT
             SUM(total_views),
@@ -99,9 +105,6 @@ fn render_stats(output: &ContentStatsOutput) {
         "Avg Time on Page",
         &format!("{}s", output.avg_time_on_page_seconds),
     );
-    CliService::key_value(
-        "Avg Scroll Depth",
-        &format_percent(output.avg_scroll_depth),
-    );
+    CliService::key_value("Avg Scroll Depth", &format_percent(output.avg_scroll_depth));
     CliService::key_value("Total Clicks", &format_number(output.total_clicks));
 }

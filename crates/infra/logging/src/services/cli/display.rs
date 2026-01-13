@@ -28,6 +28,10 @@ impl DisplayUtils {
         println!("\n{}", Theme::color(title, EmphasisType::Underlined));
     }
 
+    pub fn subsection_header(title: &str) {
+        println!("\n  {}", Theme::color(title, EmphasisType::Bold));
+    }
+
     pub fn item(icon_type: impl Into<IconType>, name: &str, detail: Option<&str>) {
         match detail {
             Some(detail) => println!(

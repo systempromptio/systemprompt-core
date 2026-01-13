@@ -20,7 +20,7 @@ pub async fn execute(args: PromoteArgs, config: &CliConfig) -> Result<()> {
     match admin_service.promote_to_admin(&args.identifier).await? {
         PromoteResult::Promoted(user, new_roles) => {
             let output = RoleAssignOutput {
-                id: user.id.clone(),
+                id: user.id.to_string(),
                 name: user.name.clone(),
                 roles: new_roles.clone(),
                 message: format!("User '{}' promoted to admin", user.name),

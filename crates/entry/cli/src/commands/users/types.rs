@@ -1,9 +1,7 @@
 use chrono::{DateTime, Utc};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{SessionId, UserId};
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserListOutput {
     pub users: Vec<UserSummary>,
     pub total: i64,
@@ -11,9 +9,9 @@ pub struct UserListOutput {
     pub offset: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSummary {
-    pub id: UserId,
+    pub id: String,
     pub name: String,
     pub email: String,
     pub status: Option<String>,
@@ -21,9 +19,9 @@ pub struct UserSummary {
     pub created_at: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserDetailOutput {
-    pub id: UserId,
+    pub id: String,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
@@ -41,9 +39,9 @@ pub struct UserDetailOutput {
     pub activity: Option<UserActivityOutput>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionSummary {
-    pub session_id: SessionId,
+    pub session_id: String,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub device_type: Option<String>,
@@ -52,69 +50,69 @@ pub struct SessionSummary {
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserActivityOutput {
-    pub user_id: UserId,
+    pub user_id: String,
     pub last_active: Option<DateTime<Utc>>,
     pub session_count: i64,
     pub task_count: i64,
     pub message_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserCountOutput {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserCreatedOutput {
-    pub id: UserId,
+    pub id: String,
     pub name: String,
     pub email: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserUpdatedOutput {
-    pub id: UserId,
+    pub id: String,
     pub name: String,
     pub email: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserDeletedOutput {
-    pub id: UserId,
+    pub id: String,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleAssignOutput {
-    pub id: UserId,
+    pub id: String,
     pub name: String,
     pub roles: Vec<String>,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionListOutput {
     pub sessions: Vec<SessionSummary>,
     pub total: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionCleanupOutput {
     pub cleaned: u64,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanListOutput {
     pub bans: Vec<BanSummary>,
     pub total: usize,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanSummary {
     pub ip_address: String,
     pub reason: String,
@@ -125,7 +123,7 @@ pub struct BanSummary {
     pub ban_source: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanAddOutput {
     pub ip_address: String,
     pub reason: String,
@@ -134,14 +132,14 @@ pub struct BanAddOutput {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanRemoveOutput {
     pub ip_address: String,
     pub removed: bool,
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanCheckOutput {
     pub ip_address: String,
     pub is_banned: bool,
@@ -149,7 +147,7 @@ pub struct BanCheckOutput {
     pub ban_info: Option<BanSummary>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanCleanupOutput {
     pub cleaned: u64,
     pub message: String,

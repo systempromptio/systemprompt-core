@@ -244,9 +244,8 @@ impl TuiApp {
         use crate::state::ActiveTab;
 
         let prompt = format!(
-            "I want to run the CLI command: systemprompt {}\n\
-             Description: {}\n\n\
-             Please help me determine the appropriate parameters for this command.",
+            "I want to run the CLI command: systemprompt {}\nDescription: {}\n\nPlease help me \
+             determine the appropriate parameters for this command.",
             command_path.join(" "),
             description
         );

@@ -41,7 +41,7 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
         users: users
             .iter()
             .map(|u| UserSummary {
-                id: u.id.clone(),
+                id: u.id.to_string(),
                 name: u.name.clone(),
                 email: u.email.clone(),
                 status: u.status.clone(),

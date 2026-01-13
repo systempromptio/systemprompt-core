@@ -19,7 +19,10 @@ pub struct ListArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ContentListOutput>> {
+pub async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentListOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 

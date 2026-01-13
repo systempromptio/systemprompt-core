@@ -15,7 +15,11 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct SummaryArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -117,6 +121,9 @@ fn render_summary(output: &CostSummaryOutput) {
 
     if let Some(change) = output.change_percent {
         let sign = if change >= 0.0 { "+" } else { "" };
-        CliService::key_value("vs Previous Period", &format!("{}{}", sign, format_percent(change)));
+        CliService::key_value(
+            "vs Previous Period",
+            &format!("{}{}", sign, format_percent(change)),
+        );
     }
 }

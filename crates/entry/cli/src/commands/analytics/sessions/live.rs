@@ -17,7 +17,12 @@ pub struct LiveArgs {
     #[arg(long, help = "Show only once without refresh")]
     pub no_refresh: bool,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Maximum sessions to show")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Maximum sessions to show"
+    )]
     pub limit: i64,
 }
 
@@ -52,7 +57,14 @@ async fn fetch_live_sessions(
 ) -> Result<LiveSessionsOutput> {
     let cutoff = Utc::now() - Duration::minutes(30);
 
-    let rows: Vec<(String, String, chrono::DateTime<Utc>, Option<i64>, Option<i64>, chrono::DateTime<Utc>)> = sqlx::query_as(
+    let rows: Vec<(
+        String,
+        String,
+        chrono::DateTime<Utc>,
+        Option<i64>,
+        Option<i64>,
+        chrono::DateTime<Utc>,
+    )> = sqlx::query_as(
         r#"
         SELECT
             session_id,
@@ -75,18 +87,20 @@ async fn fetch_live_sessions(
 
     let sessions: Vec<ActiveSessionRow> = rows
         .into_iter()
-        .map(|(session_id, user_type, started_at, duration, requests, last_activity)| {
-            let current_duration = (Utc::now() - started_at).num_seconds();
+        .map(
+            |(session_id, user_type, started_at, duration, requests, last_activity)| {
+                let current_duration = (Utc::now() - started_at).num_seconds();
 
-            ActiveSessionRow {
-                session_id,
-                user_type,
-                started_at: started_at.format("%H:%M:%S").to_string(),
-                duration_seconds: duration.unwrap_or(current_duration),
-                request_count: requests.unwrap_or(0),
-                last_activity: last_activity.format("%H:%M:%S").to_string(),
-            }
-        })
+                ActiveSessionRow {
+                    session_id,
+                    user_type,
+                    started_at: started_at.format("%H:%M:%S").to_string(),
+                    duration_seconds: duration.unwrap_or(current_duration),
+                    request_count: requests.unwrap_or(0),
+                    last_activity: last_activity.format("%H:%M:%S").to_string(),
+                }
+            },
+        )
         .collect();
 
     let active_count: (i64,) = sqlx::query_as(

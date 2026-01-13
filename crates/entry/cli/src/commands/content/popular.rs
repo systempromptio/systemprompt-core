@@ -19,7 +19,10 @@ pub struct PopularArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: PopularArgs, _config: &CliConfig) -> Result<CommandResult<PopularOutput>> {
+pub async fn execute(
+    args: PopularArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<PopularOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 

@@ -15,13 +15,21 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
-    #[arg(long, default_value = "7d", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "7d",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
     pub until: Option<String>,
 
-    #[arg(long, default_value = "day", help = "Group by period (hour, day, week, month)")]
+    #[arg(
+        long,
+        default_value = "day",
+        help = "Group by period (hour, day, week, month)"
+    )]
     pub group_by: String,
 
     #[arg(long, help = "Export results to CSV file")]
@@ -118,11 +126,7 @@ async fn fetch_trends(
     points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
     Ok(SessionTrendsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d"),
-            end.format("%Y-%m-%d")
-        ),
+        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
         group_by: group_by.to_string(),
         points,
     })

@@ -1,11 +1,11 @@
 //! Session identifier type.
 
 use crate::{DbValue, ToDbValue};
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Session identifier (always required for tracing and analytics)
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct SessionId(String);

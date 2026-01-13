@@ -106,12 +106,14 @@ async fn fetch_trends(
 
     let mut points: Vec<ConversationTrendPoint> = buckets
         .into_iter()
-        .map(|(timestamp, (contexts, tasks, messages))| ConversationTrendPoint {
-            timestamp,
-            context_count: contexts,
-            task_count: tasks,
-            message_count: messages,
-        })
+        .map(
+            |(timestamp, (contexts, tasks, messages))| ConversationTrendPoint {
+                timestamp,
+                context_count: contexts,
+                task_count: tasks,
+                message_count: messages,
+            },
+        )
         .collect();
 
     points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));

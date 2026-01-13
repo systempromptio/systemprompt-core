@@ -1,6 +1,8 @@
 pub mod agents;
+pub mod analytics;
 pub mod build;
 pub mod cloud;
+pub mod content;
 pub mod db;
 pub mod files;
 pub mod jobs;

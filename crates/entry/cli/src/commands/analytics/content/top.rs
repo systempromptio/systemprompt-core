@@ -18,7 +18,12 @@ pub struct TopArgs {
     #[arg(long, help = "End time")]
     pub until: Option<String>,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Maximum content items")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Maximum content items"
+    )]
     pub limit: i64,
 
     #[arg(long, help = "Export to CSV")]
@@ -93,13 +98,15 @@ async fn fetch_top(
 
     let content: Vec<TopContentRow> = rows
         .into_iter()
-        .map(|(content_id, views, visitors, avg_time, trend)| TopContentRow {
-            content_id,
-            views,
-            unique_visitors: visitors,
-            avg_time_seconds: avg_time.map(|v| v as i64).unwrap_or(0),
-            trend: trend.unwrap_or_else(|| "stable".to_string()),
-        })
+        .map(
+            |(content_id, views, visitors, avg_time, trend)| TopContentRow {
+                content_id,
+                views,
+                unique_visitors: visitors,
+                avg_time_seconds: avg_time.map(|v| v as i64).unwrap_or(0),
+                trend: trend.unwrap_or_else(|| "stable".to_string()),
+            },
+        )
         .collect();
 
     Ok(TopContentOutput {

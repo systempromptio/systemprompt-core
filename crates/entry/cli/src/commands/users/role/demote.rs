@@ -20,7 +20,7 @@ pub async fn execute(args: DemoteArgs, config: &CliConfig) -> Result<()> {
     match admin_service.demote_from_admin(&args.identifier).await? {
         DemoteResult::Demoted(user, new_roles) => {
             let output = RoleAssignOutput {
-                id: user.id.clone(),
+                id: user.id.to_string(),
                 name: user.name.clone(),
                 roles: new_roles.clone(),
                 message: format!("User '{}' demoted from admin", user.name),

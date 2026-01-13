@@ -18,7 +18,12 @@ pub struct ListArgs {
     #[arg(long, help = "End time for range")]
     pub until: Option<String>,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Maximum conversations")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Maximum conversations"
+    )]
     pub limit: i64,
 
     #[arg(long, help = "Export results to CSV file")]
@@ -70,9 +75,15 @@ async fn fetch_list(
     end: DateTime<Utc>,
     limit: i64,
 ) -> Result<ConversationListOutput> {
-    let rows: Vec<(String, Option<String>, i64, i64, DateTime<Utc>, DateTime<Utc>)> =
-        sqlx::query_as(
-            r#"
+    let rows: Vec<(
+        String,
+        Option<String>,
+        i64,
+        i64,
+        DateTime<Utc>,
+        DateTime<Utc>,
+    )> = sqlx::query_as(
+        r#"
         SELECT
             uc.context_id,
             uc.name,
@@ -87,12 +98,12 @@ async fn fetch_list(
         ORDER BY uc.updated_at DESC
         LIMIT $3
         "#,
-        )
-        .bind(start)
-        .bind(end)
-        .bind(limit)
-        .fetch_all(pool.as_ref())
-        .await?;
+    )
+    .bind(start)
+    .bind(end)
+    .bind(limit)
+    .fetch_all(pool.as_ref())
+    .await?;
 
     let conversations: Vec<ConversationListRow> = rows
         .into_iter()
