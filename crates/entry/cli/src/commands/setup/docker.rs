@@ -6,6 +6,7 @@ use systemprompt_cloud::constants::docker::{container_name, COMPOSE_PATH};
 use systemprompt_core_logging::CliService;
 
 use super::postgres::{generate_password, PostgresConfig};
+use super::SetupArgs;
 
 pub async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
@@ -37,7 +38,10 @@ pub async fn setup_docker_postgres_non_interactive(
     Ok(config.clone())
 }
 
-pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
+pub async fn setup_docker_postgres_interactive(
+    args: &SetupArgs,
+    env_name: &str,
+) -> Result<PostgresConfig> {
     CliService::info("Setting up PostgreSQL with Docker...");
 
     if !is_docker_available() {
@@ -55,16 +59,19 @@ pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
 
     CliService::success("Docker and Docker Compose are available");
 
-    let default_user = format!("systemprompt_{}", env_name);
+    let default_user = args.effective_db_user(env_name);
     let user: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database user")
         .default(default_user)
         .interact_text()?;
 
-    let password = generate_password();
+    let password = args
+        .db_password
+        .clone()
+        .unwrap_or_else(|| generate_password());
     CliService::success(&format!("Generated password: {}", password));
 
-    let default_db = format!("systemprompt_{}", env_name);
+    let default_db = args.effective_db_name(env_name);
     let database: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database name")
         .default(default_db)
@@ -72,7 +79,7 @@ pub async fn setup_docker_postgres(env_name: &str) -> Result<PostgresConfig> {
 
     let port: u16 = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("PostgreSQL port")
-        .default(5432u16)
+        .default(args.db_port)
         .interact_text()?;
 
     let config = PostgresConfig {
