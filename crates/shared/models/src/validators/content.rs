@@ -2,13 +2,30 @@
 
 use super::ValidationConfigProvider;
 use crate::ContentConfigRaw;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
+#[derive(Debug)]
+struct LoadedContentConfig {
+    config: ContentConfigRaw,
+    services_path: PathBuf,
+}
+
+impl LoadedContentConfig {
+    fn resolve_path(&self, path: &str) -> PathBuf {
+        let path = Path::new(path);
+        if path.is_absolute() {
+            path.to_path_buf()
+        } else {
+            self.services_path.join(path)
+        }
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct ContentConfigValidator {
-    config: Option<ContentConfigRaw>,
+    loaded: Option<LoadedContentConfig>,
 }
 
 impl ContentConfigValidator {
@@ -36,26 +53,32 @@ impl DomainConfig for ContentConfigValidator {
                 )
             })?;
 
-        self.config = provider.content_config().cloned();
+        self.loaded = provider
+            .content_config()
+            .cloned()
+            .map(|config| LoadedContentConfig {
+                config,
+                services_path: PathBuf::from(&provider.config().services_path),
+            });
         Ok(())
     }
 
     fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
         let mut report = ValidationReport::new("content");
 
-        let Some(config) = self.config.as_ref() else {
+        let Some(loaded) = self.loaded.as_ref() else {
             return Ok(report);
         };
 
-        for (name, source) in &config.content_sources {
-            let source_path = Path::new(&source.path);
+        for (name, source) in &loaded.config.content_sources {
+            let source_path = loaded.resolve_path(&source.path);
             if !source_path.exists() {
                 report.add_error(
                     ValidationError::new(
                         format!("content_sources.{}", name),
                         "Content source directory does not exist",
                     )
-                    .with_path(&source.path)
+                    .with_path(source_path)
                     .with_suggestion("Create the directory or remove the source"),
                 );
             }
@@ -75,8 +98,12 @@ impl DomainConfig for ContentConfigValidator {
             }
         }
 
-        for (name, source) in &config.content_sources {
-            if !config.categories.contains_key(source.category_id.as_str()) {
+        for (name, source) in &loaded.config.content_sources {
+            if !loaded
+                .config
+                .categories
+                .contains_key(source.category_id.as_str())
+            {
                 report.add_error(
                     ValidationError::new(
                         format!("content_sources.{}.category_id", name),

@@ -141,7 +141,10 @@ async fn export_from_database(database_url: &str) -> SyncResult<DatabaseExport> 
     })
 }
 
-async fn import_to_database(database_url: &str, export: &DatabaseExport) -> SyncResult<ImportResult> {
+async fn import_to_database(
+    database_url: &str,
+    export: &DatabaseExport,
+) -> SyncResult<ImportResult> {
     let pool = PgPool::connect(database_url).await?;
     let mut created = 0;
     let mut updated = 0;
