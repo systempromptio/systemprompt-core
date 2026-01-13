@@ -3,18 +3,22 @@ use std::path::Path;
 
 use systemprompt_cloud::constants::{container, storage};
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_loader::ExtensionLoader;
+use systemprompt_loader::{ConfigLoader, ExtensionLoader};
+use systemprompt_models::ServicesConfig;
 
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
     profile_name: Option<&'a str>,
+    services_config: Option<ServicesConfig>,
 }
 
 impl<'a> DockerfileBuilder<'a> {
-    pub const fn new(project_root: &'a Path) -> Self {
+    pub fn new(project_root: &'a Path) -> Self {
+        let services_config = ConfigLoader::load().ok();
         Self {
             project_root,
             profile_name: None,
+            services_config,
         }
     }
 
@@ -115,7 +119,11 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
     }
 
     fn mcp_copy_section(&self) -> String {
-        let binaries = ExtensionLoader::get_mcp_binary_names(self.project_root);
+        let binaries = self.services_config.as_ref().map_or_else(
+            || ExtensionLoader::get_mcp_binary_names(self.project_root),
+            |config| ExtensionLoader::get_production_mcp_binary_names(self.project_root, config),
+        );
+
         if binaries.is_empty() {
             return String::new();
         }
@@ -174,28 +182,13 @@ pub fn generate_dockerfile_content(project_root: &Path) -> String {
     DockerfileBuilder::new(project_root).build()
 }
 
-pub fn get_required_mcp_copy_lines(project_root: &Path) -> Vec<String> {
-    ExtensionLoader::get_mcp_binary_names(project_root)
+pub fn get_required_mcp_copy_lines(
+    project_root: &Path,
+    services_config: &ServicesConfig,
+) -> Vec<String> {
+    ExtensionLoader::get_production_mcp_binary_names(project_root, services_config)
         .iter()
         .map(|bin| format!("COPY target/release/{} {}/", bin, container::BIN))
-        .collect()
-}
-
-pub fn validate_dockerfile_has_mcp_binaries(
-    dockerfile_content: &str,
-    project_root: &Path,
-) -> Vec<String> {
-    let has_wildcard = dockerfile_content.contains("target/release/systemprompt-*");
-    if has_wildcard {
-        return Vec::new();
-    }
-
-    ExtensionLoader::get_mcp_binary_names(project_root)
-        .into_iter()
-        .filter(|binary| {
-            let expected_pattern = format!("target/release/{}", binary);
-            !dockerfile_content.contains(&expected_pattern)
-        })
         .collect()
 }
 
@@ -218,9 +211,29 @@ fn extract_mcp_binary_names_from_dockerfile(dockerfile_content: &str) -> Vec<Str
         .collect()
 }
 
+pub fn validate_dockerfile_has_mcp_binaries(
+    dockerfile_content: &str,
+    project_root: &Path,
+    services_config: &ServicesConfig,
+) -> Vec<String> {
+    let has_wildcard = dockerfile_content.contains("target/release/systemprompt-*");
+    if has_wildcard {
+        return Vec::new();
+    }
+
+    ExtensionLoader::get_production_mcp_binary_names(project_root, services_config)
+        .into_iter()
+        .filter(|binary| {
+            let expected_pattern = format!("target/release/{}", binary);
+            !dockerfile_content.contains(&expected_pattern)
+        })
+        .collect()
+}
+
 pub fn validate_dockerfile_has_no_stale_binaries(
     dockerfile_content: &str,
     project_root: &Path,
+    services_config: &ServicesConfig,
 ) -> Vec<String> {
     let has_wildcard = dockerfile_content.contains("target/release/systemprompt-*");
     if has_wildcard {
@@ -229,7 +242,7 @@ pub fn validate_dockerfile_has_no_stale_binaries(
 
     let dockerfile_binaries = extract_mcp_binary_names_from_dockerfile(dockerfile_content);
     let current_binaries: std::collections::HashSet<String> =
-        ExtensionLoader::get_mcp_binary_names(project_root)
+        ExtensionLoader::get_production_mcp_binary_names(project_root, services_config)
             .into_iter()
             .collect();
 
@@ -243,7 +256,11 @@ pub fn print_dockerfile_suggestion(project_root: &Path) {
     systemprompt_core_logging::CliService::info(&generate_dockerfile_content(project_root));
 }
 
-pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) -> Result<()> {
+pub fn validate_profile_dockerfile(
+    dockerfile_path: &Path,
+    project_root: &Path,
+    services_config: &ServicesConfig,
+) -> Result<()> {
     if !dockerfile_path.exists() {
         bail!(
             "Dockerfile not found at {}\n\nCreate a profile first with: systemprompt cloud \
@@ -253,8 +270,8 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
     }
 
     let content = std::fs::read_to_string(dockerfile_path)?;
-    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
-    let stale = validate_dockerfile_has_no_stale_binaries(&content, project_root);
+    let missing = validate_dockerfile_has_mcp_binaries(&content, project_root, services_config);
+    let stale = validate_dockerfile_has_no_stale_binaries(&content, project_root, services_config);
 
     match (missing.is_empty(), stale.is_empty()) {
         (true, true) => Ok(()),
@@ -264,13 +281,13 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
                  lines:\n\n{}",
                 dockerfile_path.display(),
                 missing.join(", "),
-                get_required_mcp_copy_lines(project_root).join("\n")
+                get_required_mcp_copy_lines(project_root, services_config).join("\n")
             );
         },
         (true, false) => {
             bail!(
-                "Dockerfile at {} has COPY commands for binaries that no longer \
-                 exist:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
+                "Dockerfile at {} has COPY commands for dev-only or removed \
+                 binaries:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
                  profile create",
                 dockerfile_path.display(),
                 stale.join(", ")
@@ -278,7 +295,7 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
         },
         (false, false) => {
             bail!(
-                "Dockerfile at {} has issues:\n\nMissing binaries: {}\nStale binaries: \
+                "Dockerfile at {} has issues:\n\nMissing binaries: {}\nDev-only/stale binaries: \
                  {}\n\nRegenerate with: systemprompt cloud profile create",
                 dockerfile_path.display(),
                 missing.join(", "),

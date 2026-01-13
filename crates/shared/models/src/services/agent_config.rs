@@ -3,11 +3,14 @@ use super::super::auth::{JwtAudience, Permission};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct AgentConfig {
     pub name: String,
     pub port: u16,
     pub endpoint: String,
     pub enabled: bool,
+    #[serde(default)]
+    pub dev_only: bool,
     #[serde(default)]
     pub is_primary: bool,
     #[serde(default)]

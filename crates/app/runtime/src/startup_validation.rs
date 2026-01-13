@@ -270,6 +270,9 @@ impl StartupValidator {
             if !deployment.enabled {
                 continue;
             }
+            if deployment.dev_only && config.is_cloud {
+                continue;
+            }
 
             if let Err(e) = registry.get_path(&deployment.binary) {
                 mcp_errors.push(

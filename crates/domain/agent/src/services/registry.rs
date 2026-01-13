@@ -139,20 +139,26 @@ impl AgentRegistry {
 
     pub async fn list_enabled_agents(&self) -> Result<Vec<AgentConfig>> {
         let config = self.config.read().await;
+        let is_cloud = systemprompt_models::Config::get()
+            .map(|c| c.is_cloud)
+            .unwrap_or(false);
         Ok(config
             .agents
             .values()
-            .filter(|a| a.enabled)
+            .filter(|a| a.enabled && !(a.dev_only && is_cloud))
             .cloned()
             .collect())
     }
 
     pub async fn get_default_agent(&self) -> Result<AgentConfig> {
         let config = self.config.read().await;
+        let is_cloud = systemprompt_models::Config::get()
+            .map(|c| c.is_cloud)
+            .unwrap_or(false);
         config
             .agents
             .values()
-            .find(|a| a.default)
+            .find(|a| a.default && a.enabled && !(a.dev_only && is_cloud))
             .cloned()
             .ok_or_else(|| anyhow!("No default agent configured"))
     }

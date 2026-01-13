@@ -104,6 +104,24 @@ impl ExtensionLoader {
             .collect()
     }
 
+    pub fn get_production_mcp_binary_names(
+        project_root: &Path,
+        services_config: &systemprompt_models::ServicesConfig,
+    ) -> Vec<String> {
+        Self::get_enabled_mcp_extensions(project_root)
+            .iter()
+            .filter_map(|e| {
+                let binary = e.binary_name()?;
+                let is_dev_only = services_config
+                    .mcp_servers
+                    .values()
+                    .find(|d| d.binary == binary)
+                    .is_some_and(|d| d.dev_only);
+                (!is_dev_only).then(|| binary.to_string())
+            })
+            .collect()
+    }
+
     pub fn build_binary_map(project_root: &Path) -> HashMap<String, DiscoveredExtension> {
         Self::discover(project_root)
             .into_iter()
