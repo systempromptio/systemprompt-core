@@ -129,7 +129,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
             ));
         }
     } else {
-        CliService::raw(&content);
+        println!("{}", content);
     }
 
     Ok(())
