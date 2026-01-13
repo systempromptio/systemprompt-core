@@ -1,8 +1,0 @@
-extension:
-  type: mcp
-  name: systemprompt-admin
-  binary: systemprompt-admin
-  description: Admin analytics and user management MCP server
-  port: 5001
-  build_type: workspace
-  enabled: true
