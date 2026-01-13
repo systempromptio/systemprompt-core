@@ -13,9 +13,6 @@ pub struct CloudConfig {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
 
-    #[serde(default = "default_cli_enabled")]
-    pub cli_enabled: bool,
-
     #[serde(default)]
     pub validation: CloudValidationMode,
 }
@@ -35,8 +32,4 @@ fn default_credentials_path() -> String {
 
 fn default_tenants_path() -> String {
     "./tenants.json".to_string()
-}
-
-const fn default_cli_enabled() -> bool {
-    true
 }

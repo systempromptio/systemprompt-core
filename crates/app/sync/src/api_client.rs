@@ -119,6 +119,22 @@ impl SyncApiClient {
         info.fly_app_name.ok_or(SyncError::TenantNoApp)
     }
 
+    pub async fn get_database_url(&self, tenant_id: &str) -> SyncResult<String> {
+        #[derive(Deserialize)]
+        struct DatabaseInfo {
+            database_url: Option<String>,
+        }
+        let url = format!(
+            "{}/api/v1/cloud/tenants/{}/database",
+            self.api_url, tenant_id
+        );
+        let info: DatabaseInfo = self.get(&url).await?;
+        info.database_url.ok_or_else(|| SyncError::ApiError {
+            status: 404,
+            message: "Database URL not available for tenant".to_string(),
+        })
+    }
+
     async fn get<T: DeserializeOwned>(&self, url: &str) -> SyncResult<T> {
         let response = self
             .client

@@ -83,19 +83,16 @@ async fn run_startup(
     events.phase_started(Phase::PreFlight);
 
     if let Ok(profile) = ProfileBootstrap::get() {
-        if let Some(cloud) = &profile.cloud {
-            if cloud.cli_enabled {
-                match CredentialsBootstrap::get() {
-                    Ok(Some(_)) => {
-                        events.info("Cloud features enabled with valid credentials");
-                    },
-                    Ok(None) | Err(_) => {
-                        events.warning(
-                            "Cloud features enabled but no credentials. Run 'systemprompt cloud \
-                             login'",
-                        );
-                    },
-                }
+        if profile.cloud.is_some() {
+            match CredentialsBootstrap::get() {
+                Ok(Some(_)) => {
+                    events.info("Cloud features enabled with valid credentials");
+                },
+                Ok(None) | Err(_) => {
+                    events.warning(
+                        "Cloud credentials not found. Run 'systemprompt cloud login'",
+                    );
+                },
             }
         }
     }

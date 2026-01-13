@@ -96,7 +96,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             credentials_path: "../credentials.json".to_string(),
             tenants_path: "../tenants.json".to_string(),
             tenant_id: None,
-            cli_enabled: false,
             validation: CloudValidationMode::Skip,
         }),
         secrets: Some(SecretsConfig {

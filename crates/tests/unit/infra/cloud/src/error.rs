@@ -47,14 +47,6 @@ fn test_app_not_configured_display() {
 }
 
 #[test]
-fn test_cloud_disabled_display() {
-    let error = CloudError::CloudDisabled;
-    let msg = error.to_string();
-    assert!(msg.contains("Cloud features are disabled"));
-    assert!(msg.contains("cloud.cli_enabled: true"));
-}
-
-#[test]
 fn test_profile_required_display() {
     let error = CloudError::ProfileRequired {
         message: "Profile not found".to_string(),
@@ -252,12 +244,6 @@ fn test_recovery_hint_tenant_not_configured() {
 fn test_recovery_hint_app_not_configured() {
     let error = CloudError::AppNotConfigured;
     assert!(error.recovery_hint().contains("systemprompt cloud setup"));
-}
-
-#[test]
-fn test_recovery_hint_cloud_disabled() {
-    let error = CloudError::CloudDisabled;
-    assert!(error.recovery_hint().contains("cloud.cli_enabled: true"));
 }
 
 #[test]

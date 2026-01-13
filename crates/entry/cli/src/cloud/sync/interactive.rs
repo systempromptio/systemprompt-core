@@ -74,13 +74,11 @@ fn select_profile(prompt: &str) -> Result<ProfileSelection> {
     let options: Vec<String> = profiles
         .iter()
         .map(|p| {
-            let cloud_status = p.profile.cloud.as_ref().map_or("local", |c| {
-                if c.cli_enabled {
-                    "cloud"
-                } else {
-                    "local"
-                }
-            });
+            let cloud_status = if p.profile.cloud.is_some() {
+                "cloud"
+            } else {
+                "local"
+            };
             format!("{} ({})", p.name, cloud_status)
         })
         .collect();
@@ -149,10 +147,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("Profile has no cloud configuration"))?;
 
-    if !cloud.cli_enabled {
-        bail!("Cloud features are disabled in this profile");
-    }
-
     let tenant_id = cloud
         .tenant_id
         .as_ref()
@@ -197,13 +191,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     let files_result = service.sync_files().await?;
     spinner.finish_and_clear();
     results.push(files_result);
-
-    if direction == SyncDirection::Push {
-        let spinner = CliService::spinner("Deploying...");
-        let deploy_result = service.deploy_crate(false, None).await?;
-        spinner.finish_and_clear();
-        results.push(deploy_result);
-    }
 
     for result in &results {
         if result.success {

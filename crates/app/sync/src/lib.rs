@@ -31,7 +31,6 @@ pub mod models;
 use serde::{Deserialize, Serialize};
 
 pub use api_client::SyncApiClient;
-pub use crate_deploy::CrateDeployService;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
 pub use diff::{compute_content_hash, ContentDiffCalculator, SkillsDiffCalculator};
 pub use error::{SyncError, SyncResult};
@@ -206,12 +205,51 @@ impl SyncService {
         service.sync().await
     }
 
-    pub async fn deploy_crate(
-        &self,
-        skip_build: bool,
-        tag: Option<String>,
-    ) -> SyncResult<SyncOperationResult> {
-        let service = CrateDeployService::new(self.config.clone(), self.api_client.clone());
-        service.deploy(skip_build, tag).await
+    pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
+        let local_db_url = std::env::var("DATABASE_URL").map_err(|_| {
+            SyncError::Database(sqlx::Error::Configuration("DATABASE_URL not set".into()))
+        })?;
+
+        let cloud_db_url = self
+            .api_client
+            .get_database_url(&self.config.tenant_id)
+            .await
+            .map_err(|e| SyncError::ApiError {
+                status: 500,
+                message: format!("Failed to get cloud database URL: {e}"),
+            })?;
+
+        let service = DatabaseSyncService::new(
+            self.config.direction,
+            self.config.dry_run,
+            &local_db_url,
+            &cloud_db_url,
+        );
+
+        service.sync().await
+    }
+
+    pub async fn sync_all(&self) -> SyncResult<Vec<SyncOperationResult>> {
+        let mut results = Vec::new();
+
+        let files_result = self.sync_files().await?;
+        results.push(files_result);
+
+        match self.sync_database().await {
+            Ok(db_result) => results.push(db_result),
+            Err(e) => {
+                tracing::warn!(error = %e, "Database sync failed");
+                results.push(SyncOperationResult {
+                    operation: "database".to_string(),
+                    success: false,
+                    items_synced: 0,
+                    items_skipped: 0,
+                    errors: vec![e.to_string()],
+                    details: None,
+                });
+            },
+        }
+
+        Ok(results)
     }
 }
