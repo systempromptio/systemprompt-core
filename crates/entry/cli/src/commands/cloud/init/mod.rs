@@ -4,13 +4,15 @@ use std::process::Command;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_core_logging::CliService;
 
+mod templates;
+
 use super::dockerfile;
-use super::init_templates::{
+use crate::cli_settings::CliConfig;
+use templates::{
     admin_agent_config, admin_mcp_config, agent_config, ai_config, blog_list_template,
     blog_post_template, content_config, cookie_policy, page_list_template, page_template,
     privacy_policy, root_config, scheduler_config, web_config, web_metadata, welcome_blog_post,
 };
-use crate::cli_settings::CliConfig;
 
 const ADMIN_MCP_REPO: &str = "https://github.com/systempromptio/systemprompt-mcp-admin.git";
 

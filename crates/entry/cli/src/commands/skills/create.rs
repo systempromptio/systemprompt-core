@@ -35,10 +35,7 @@ pub struct CreateArgs {
     pub enabled: Option<bool>,
 }
 
-pub fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SkillCreateOutput>> {
+pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<SkillCreateOutput>> {
     let name = resolve_input(args.name, "name", config, prompt_name)?;
     validate_skill_name(&name)?;
 
@@ -140,9 +137,9 @@ fn title_case(s: &str) -> String {
     s.split('-')
         .map(|word| {
             let mut chars = word.chars();
-            chars
-                .next()
-                .map_or_else(String::new, |first| first.to_uppercase().chain(chars).collect())
+            chars.next().map_or_else(String::new, |first| {
+                first.to_uppercase().chain(chars).collect()
+            })
         })
         .collect::<Vec<_>>()
         .join(" ")

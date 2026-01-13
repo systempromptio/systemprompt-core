@@ -39,10 +39,7 @@ pub struct CreateArgs {
     pub model: Option<String>,
 }
 
-pub fn execute(
-    args: CreateArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentCreateOutput>> {
+pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<AgentCreateOutput>> {
     let name = resolve_input(args.name, "name", config, prompt_name)?;
 
     validate_agent_name(&name)?;
@@ -155,7 +152,12 @@ fn build_agent_config(params: &AgentConfigParams<'_>) -> AgentConfig {
             mcp_servers: vec![],
             skills: vec![],
             provider: Some(params.provider.unwrap_or("anthropic").to_string()),
-            model: Some(params.model.unwrap_or("claude-3-5-sonnet-20241022").to_string()),
+            model: Some(
+                params
+                    .model
+                    .unwrap_or("claude-3-5-sonnet-20241022")
+                    .to_string(),
+            ),
             tool_model_overrides: HashMap::default(),
         },
         oauth: OAuthConfig::default(),

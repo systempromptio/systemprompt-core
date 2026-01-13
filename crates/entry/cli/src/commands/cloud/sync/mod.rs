@@ -12,7 +12,7 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;
-use crate::cloud::tenant_ops::get_credentials;
+use crate::cloud::tenant::get_credentials;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum CliLocalSyncDirection {

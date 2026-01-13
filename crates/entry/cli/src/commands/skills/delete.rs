@@ -23,10 +23,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<SkillDeleteOutput>> {
+pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<SkillDeleteOutput>> {
     let skills_path = get_skills_path()?;
 
     let skills_to_delete: Vec<String> = if args.all {

@@ -9,10 +9,17 @@ use clap::Args;
 
 #[derive(Debug, Args)]
 pub struct SetupArgs {
-    #[arg(short, long, help = "Target environment name (e.g., dev, staging, prod)")]
+    #[arg(
+        short,
+        long,
+        help = "Target environment name (e.g., dev, staging, prod)"
+    )]
     pub environment: Option<String>,
 
-    #[arg(long, help = "Use Docker for PostgreSQL (default: use existing installation)")]
+    #[arg(
+        long,
+        help = "Use Docker for PostgreSQL (default: use existing installation)"
+    )]
     pub docker: bool,
 
     #[arg(long, default_value = "localhost", help = "PostgreSQL host")]
@@ -27,7 +34,10 @@ pub struct SetupArgs {
     #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
     pub db_password: Option<String>,
 
-    #[arg(long, help = "PostgreSQL database name (default: systemprompt_`<env>`)")]
+    #[arg(
+        long,
+        help = "PostgreSQL database name (default: systemprompt_`<env>`)"
+    )]
     pub db_name: Option<String>,
 
     #[arg(long, env = "GEMINI_API_KEY", help = "Google AI (Gemini) API key")]
@@ -45,7 +55,11 @@ pub struct SetupArgs {
     #[arg(long, help = "Run database migrations after setup")]
     pub migrate: bool,
 
-    #[arg(long, conflicts_with = "migrate", help = "Skip migrations (non-interactive default)")]
+    #[arg(
+        long,
+        conflicts_with = "migrate",
+        help = "Skip migrations (non-interactive default)"
+    )]
     pub no_migrate: bool,
 }
 

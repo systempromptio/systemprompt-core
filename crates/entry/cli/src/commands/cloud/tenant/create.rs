@@ -12,9 +12,9 @@ use systemprompt_cloud::{
 use systemprompt_core_logging::CliService;
 use url::Url;
 
-use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 use crate::cloud::deploy::deploy_with_secrets;
 use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
+use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
     generate_postgres_compose, is_port_in_use, nanoid, stop_container_on_port,

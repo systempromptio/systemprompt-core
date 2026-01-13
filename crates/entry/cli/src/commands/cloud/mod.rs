@@ -2,7 +2,6 @@ pub mod auth;
 mod deploy;
 pub mod dockerfile;
 mod init;
-mod init_templates;
 pub mod profile;
 mod restart;
 mod secrets;

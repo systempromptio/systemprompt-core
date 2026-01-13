@@ -23,10 +23,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub fn execute(
-    args: DeleteArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentDeleteOutput>> {
+pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<AgentDeleteOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete: Vec<String> = if args.all {

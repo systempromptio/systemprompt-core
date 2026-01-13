@@ -23,13 +23,15 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
     let mut servers: Vec<McpServerSummary> = services_config
         .mcp_servers
         .iter()
-        .filter(|(_, server)| {
-            if args.enabled {
-                server.enabled
-            } else {
-                true
-            }
-        })
+        .filter(
+            |(_, server)| {
+                if args.enabled {
+                    server.enabled
+                } else {
+                    true
+                }
+            },
+        )
         .map(|(name, server)| {
             let binary_name = if server.binary.is_empty() {
                 name.clone()
@@ -84,7 +86,11 @@ fn get_binary_info(
     };
 
     let profile = if release { "release" } else { "debug" };
-    let binary_path: PathBuf = root.as_path().join("target").join(profile).join(binary_name);
+    let binary_path: PathBuf = root
+        .as_path()
+        .join("target")
+        .join(profile)
+        .join(binary_name);
 
     if !binary_path.exists() {
         return (None, None);
