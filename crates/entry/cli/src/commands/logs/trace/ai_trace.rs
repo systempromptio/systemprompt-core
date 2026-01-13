@@ -61,13 +61,10 @@ pub async fn execute(options: AiTraceOptions, config: &CliConfig) -> Result<()> 
 
     let service = AiTraceService::new(pool);
 
-    let task_id = match service.resolve_task_id(&options.task_id).await {
-        Ok(id) => id,
-        Err(_) => {
-            CliService::warning(&format!("No task found matching: {}", options.task_id));
-            CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
-            return Ok(());
-        },
+    let Ok(task_id) = service.resolve_task_id(&options.task_id).await else {
+        CliService::warning(&format!("No task found matching: {}", options.task_id));
+        CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
+        return Ok(());
     };
 
     CliService::section(&format!("AI TRACE: {task_id}"));

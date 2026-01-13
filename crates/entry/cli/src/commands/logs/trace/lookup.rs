@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_logging::{AiTraceService, CliService};
@@ -39,7 +41,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
     ";
 
     let partial_match = format!("{}%", args.request_id);
-    let row = match sqlx::query_as::<
+    let Some(row) = sqlx::query_as::<
         _,
         (
             String,
@@ -55,13 +57,10 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
     .bind(&partial_match)
     .fetch_optional(pool.as_ref())
     .await?
-    {
-        Some(r) => r,
-        None => {
-            CliService::warning(&format!("AI request not found: {}", args.request_id));
-            CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
-            return Ok(());
-        },
+    else {
+        CliService::warning(&format!("AI request not found: {}", args.request_id));
+        CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
+        return Ok(());
     };
 
     let request_id = row.0.clone();
@@ -69,7 +68,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
 
     let mut messages = Vec::new();
     if args.show_messages {
-        let service = AiTraceService::new(pool.clone());
+        let service = AiTraceService::new(Arc::clone(&pool));
         if let Ok(msgs) = service.get_conversation_messages(&request_id).await {
             messages = msgs
                 .into_iter()
@@ -82,8 +81,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
         }
     }
 
-    let mut linked_mcp_calls = Vec::new();
-    if args.show_linked {
+    let linked_mcp_calls = if args.show_linked {
         let linked_query = r"
             SELECT
                 mte.tool_name,
@@ -100,7 +98,7 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
             .fetch_all(pool.as_ref())
             .await?;
 
-        linked_mcp_calls = linked_rows
+        linked_rows
             .into_iter()
             .map(|r| ToolCallRow {
                 tool_name: r.0,
@@ -108,8 +106,10 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
                 status: r.2,
                 duration_ms: r.3,
             })
-            .collect();
-    }
+            .collect()
+    } else {
+        Vec::new()
+    };
 
     let output = AiLookupOutput {
         request_id,
@@ -123,7 +123,10 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
         linked_mcp_calls,
     };
 
-    if !config.is_json_output() {
+    if config.is_json_output() {
+        let result = CommandResult::card(output).with_title("AI Request Details");
+        render_result(&result);
+    } else {
         CliService::section(&format!("AI Request: {}", output.request_id));
         CliService::key_value("Provider", &output.provider);
         CliService::key_value("Model", &output.model);
@@ -161,9 +164,6 @@ pub async fn execute(args: LookupArgs, config: &CliConfig) -> Result<()> {
                 ));
             }
         }
-    } else {
-        let result = CommandResult::card(output).with_title("AI Request Details");
-        render_result(&result);
     }
 
     Ok(())

@@ -106,7 +106,7 @@ async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<boo
             json,
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml, config).map(|()| false),
-        ProfileCommands::Delete(args) => delete::execute(args, config).map(|()| false),
+        ProfileCommands::Delete(args) => delete::execute(&args, config).map(|()| false),
         ProfileCommands::Edit { name } => {
             edit::execute(name.as_deref(), config).await.map(|()| false)
         },

@@ -109,3 +109,13 @@ pub struct McpValidateOutput {
 pub struct McpPackagesOutput {
     pub packages: Vec<String>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentLogsOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub agent: Option<String>,
+    pub source: String,
+    pub logs: Vec<String>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub log_files: Vec<String>,
+}

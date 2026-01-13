@@ -40,8 +40,9 @@ pub async fn execute(
 ) -> Result<()> {
     match cmd {
         SchedulerCommands::Run { job_name } => run_job(&job_name, ctx).await,
-        SchedulerCommands::CleanupSessions { hours } => cleanup_sessions(hours, ctx).await,
-        SchedulerCommands::SessionCleanup { hours } => cleanup_sessions(hours, ctx).await,
+        SchedulerCommands::CleanupSessions { hours } | SchedulerCommands::SessionCleanup { hours } => {
+            cleanup_sessions(hours, ctx).await
+        },
         SchedulerCommands::LogCleanup { days } => cleanup_logs(days, ctx).await,
         SchedulerCommands::List => {
             list_jobs();

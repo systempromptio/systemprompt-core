@@ -99,6 +99,14 @@ impl LoggingRepository {
         operations::list_logs(&self.db_pool, limit).await
     }
 
+    pub async fn get_logs_by_module_patterns(
+        &self,
+        patterns: &[String],
+        limit: i64,
+    ) -> Result<Vec<LogEntry>, LoggingError> {
+        operations::list_logs_by_module_patterns(&self.db_pool, patterns, limit).await
+    }
+
     pub async fn cleanup_old_logs(&self, older_than: DateTime<Utc>) -> Result<u64, LoggingError> {
         operations::cleanup_logs_before(&self.db_pool, older_than).await
     }

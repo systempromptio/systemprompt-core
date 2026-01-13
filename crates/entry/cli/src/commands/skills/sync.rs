@@ -78,21 +78,19 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
             if !config.is_interactive() {
                 anyhow::bail!("--direction is required in non-interactive mode");
             }
-            match prompt_sync_direction()? {
-                Some(dir) => dir,
-                None => {
-                    CliService::info("Sync cancelled");
-                    return Ok(CommandResult::text(SkillSyncOutput {
-                        direction: "cancelled".to_string(),
-                        synced: 0,
-                        skipped: 0,
-                        deleted: 0,
-                        errors: vec![],
-                    })
-                    .with_title("Skills Sync"));
-                }
-            }
-        }
+            let Some(dir) = prompt_sync_direction()? else {
+                CliService::info("Sync cancelled");
+                return Ok(CommandResult::text(SkillSyncOutput {
+                    direction: "cancelled".to_string(),
+                    synced: 0,
+                    skipped: 0,
+                    deleted: 0,
+                    errors: vec![],
+                })
+                .with_title("Skills Sync"));
+            };
+            dir
+        },
     };
 
     if args.dry_run {

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use systemprompt_core_logging::CliService;
 
 use super::postgres::PostgresConfig;
@@ -147,7 +147,7 @@ fn detect_project_root() -> Result<PathBuf> {
     Ok(cwd)
 }
 
-fn print_summary(env_name: &str, profile_path: &PathBuf) {
+fn print_summary(env_name: &str, profile_path: &Path) {
     CliService::section("Setup Complete!");
 
     CliService::info(&format!(

@@ -53,7 +53,7 @@ pub async fn execute(
         skills_count: agent.card.skills.len(),
     };
 
-    Ok(CommandResult::card(output).with_title(&format!("Agent: {}", name)))
+    Ok(CommandResult::card(output).with_title(format!("Agent: {}", name)))
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

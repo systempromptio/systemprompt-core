@@ -47,7 +47,7 @@ pub struct CommandResult<T> {
 }
 
 impl<T> CommandResult<T> {
-    fn new(data: T, artifact_type: ArtifactType) -> Self {
+    const fn new(data: T, artifact_type: ArtifactType) -> Self {
         Self {
             data,
             artifact_type,
@@ -157,7 +157,7 @@ pub struct KeyValueItem {
 }
 
 impl KeyValueOutput {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { items: Vec::new() }
     }
 
@@ -182,7 +182,7 @@ pub struct TableOutput<T> {
 }
 
 impl<T> TableOutput<T> {
-    pub fn new(rows: Vec<T>) -> Self {
+    pub const fn new(rows: Vec<T>) -> Self {
         Self { rows }
     }
 }

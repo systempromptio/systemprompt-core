@@ -43,20 +43,26 @@ pub async fn execute(
     validate_skill_name(&name)?;
 
     let display_name = args.display_name.unwrap_or_else(|| {
-        config
-            .is_interactive()
-            .then(|| prompt_display_name(&name).unwrap_or_else(|_| title_case(&name)))
-            .unwrap_or_else(|| title_case(&name))
+        if config.is_interactive() {
+            prompt_display_name(&name).unwrap_or_else(|_| title_case(&name))
+        } else {
+            title_case(&name)
+        }
     });
 
     let description = args.description.unwrap_or_else(|| {
-        config
-            .is_interactive()
-            .then(|| prompt_description().unwrap_or_default())
-            .unwrap_or_default()
+        if config.is_interactive() {
+            prompt_description().unwrap_or_default()
+        } else {
+            String::new()
+        }
     });
 
-    let instructions = resolve_instructions(&args.instructions, &args.instructions_file, config)?;
+    let instructions = resolve_instructions(
+        args.instructions.as_deref(),
+        args.instructions_file.as_deref(),
+        config,
+    )?;
 
     let tags: Vec<String> = args
         .tags
@@ -134,22 +140,21 @@ fn title_case(s: &str) -> String {
     s.split('-')
         .map(|word| {
             let mut chars = word.chars();
-            match chars.next() {
-                None => String::new(),
-                Some(first) => first.to_uppercase().chain(chars).collect(),
-            }
+            chars
+                .next()
+                .map_or_else(String::new, |first| first.to_uppercase().chain(chars).collect())
         })
         .collect::<Vec<_>>()
         .join(" ")
 }
 
 fn resolve_instructions(
-    instructions: &Option<String>,
-    instructions_file: &Option<String>,
+    instructions: Option<&str>,
+    instructions_file: Option<&str>,
     config: &CliConfig,
 ) -> Result<String> {
     if let Some(i) = instructions {
-        return Ok(i.clone());
+        return Ok(i.to_string());
     }
 
     if let Some(file) = instructions_file {

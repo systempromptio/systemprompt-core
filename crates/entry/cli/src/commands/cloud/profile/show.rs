@@ -22,16 +22,13 @@ pub fn execute(
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
-    let config = match Config::get() {
-        Ok(cfg) => Some(cfg),
-        Err(_) => {
-            if let Ok(()) = initialize_config_from_profile(&profile_path) {
-                Config::get().ok()
-            } else {
-                None
-            }
-        },
-    };
+    let config = Config::get().ok().or_else(|| {
+        if initialize_config_from_profile(&profile_path).is_ok() {
+            Config::get().ok()
+        } else {
+            None
+        }
+    });
 
     let loader = EnhancedConfigLoader::from_env().ok();
     let services_config = loader.and_then(|l| l.load().ok());
@@ -123,13 +120,9 @@ fn build_config_for_filter(
             }
             full
         },
-        ShowFilter::Env => {
-            if let Some(cfg) = config {
-                FullConfig::empty().with_environment(build_env_config(cfg))
-            } else {
-                FullConfig::empty()
-            }
-        },
+        ShowFilter::Env => config.map_or_else(FullConfig::empty, |cfg| {
+            FullConfig::empty().with_environment(build_env_config(cfg))
+        }),
         ShowFilter::Settings => {
             let mut full = FullConfig::empty();
             if let Some(settings) = services_config.map(build_settings_output) {

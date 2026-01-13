@@ -19,10 +19,7 @@ pub struct ListArgs {
     pub disabled: bool,
 }
 
-pub async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ListOrDetail>> {
+pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
     let skills_path = get_skills_path()?;
 
     if let Some(name) = args.name {
@@ -58,8 +55,7 @@ pub async fn execute(
 }
 
 fn get_skills_path() -> Result<std::path::PathBuf> {
-    let profile = systemprompt_models::ProfileBootstrap::get()
-        .context("Failed to get profile")?;
+    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
@@ -86,11 +82,7 @@ fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult
 
     let parsed = parse_skill_markdown(&md_path)?;
 
-    let instructions_preview = parsed
-        .instructions
-        .chars()
-        .take(200)
-        .collect::<String>()
+    let instructions_preview = parsed.instructions.chars().take(200).collect::<String>()
         + if parsed.instructions.len() > 200 {
             "..."
         } else {
@@ -109,7 +101,7 @@ fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult
     };
 
     Ok(CommandResult::card(ListOrDetail::Detail(output))
-        .with_title(&format!("Skill: {}", skill_id)))
+        .with_title(format!("Skill: {}", skill_id)))
 }
 
 fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
@@ -152,14 +144,14 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
                     tags: parsed.tags,
                     file_path: md_path.to_string_lossy().to_string(),
                 });
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     path = %skill_path.display(),
                     error = %e,
                     "Failed to parse skill"
                 );
-            }
+            },
         }
     }
 
@@ -182,7 +174,10 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
 
     let parts: Vec<&str> = content.splitn(3, "---").collect();
     if parts.len() < 3 {
-        return Err(anyhow!("Invalid frontmatter format in {}", md_path.display()));
+        return Err(anyhow!(
+            "Invalid frontmatter format in {}",
+            md_path.display()
+        ));
     }
 
     let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])
@@ -202,7 +197,7 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
 
     let enabled = frontmatter
         .get("enabled")
-        .and_then(|v| v.as_bool())
+        .and_then(serde_yaml::Value::as_bool)
         .unwrap_or(true);
 
     let tags = frontmatter

@@ -50,8 +50,7 @@ pub async fn execute(
         let status = all_statuses.iter().find(|(n, _)| n == name);
         let (is_running, pid) = match status {
             Some((_, AgentStatus::Running { pid, .. })) => (true, Some(*pid)),
-            Some((_, AgentStatus::Failed { .. })) => (false, None),
-            None => (false, None),
+            Some((_, AgentStatus::Failed { .. })) | None => (false, None),
         };
 
         agents.push(AgentStatusRow {

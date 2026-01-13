@@ -23,8 +23,16 @@ impl ContextId {
         Self(uuid::Uuid::new_v4().to_string())
     }
 
+    pub const fn empty() -> Self {
+        Self(String::new())
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn is_system(&self) -> bool {

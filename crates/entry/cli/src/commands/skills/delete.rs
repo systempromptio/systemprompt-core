@@ -36,7 +36,7 @@ pub async fn execute(
             prompt_skill_selection(&skills_path)
         })?;
 
-        let skill_dir = find_skill_dir(&skills_path, &name)?;
+        let skill_dir = find_skill_dir(&skills_path, &name);
         if skill_dir.is_none() {
             return Err(anyhow!("Skill '{}' not found", name));
         }
@@ -76,7 +76,6 @@ pub async fn execute(
     }
 
     let mut deleted = Vec::new();
-    let mut errors = Vec::new();
 
     for skill_name in &skills_to_delete {
         CliService::info(&format!("Deleting skill '{}'...", skill_name));
@@ -85,11 +84,10 @@ pub async fn execute(
             Ok(()) => {
                 CliService::success(&format!("Skill '{}' deleted", skill_name));
                 deleted.push(skill_name.clone());
-            }
+            },
             Err(e) => {
                 CliService::error(&format!("Failed to delete skill '{}': {}", skill_name, e));
-                errors.push(format!("{}: {}", skill_name, e));
-            }
+            },
         }
     }
 
@@ -108,23 +106,23 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
-fn find_skill_dir(skills_path: &Path, name: &str) -> Result<Option<std::path::PathBuf>> {
+fn find_skill_dir(skills_path: &Path, name: &str) -> Option<std::path::PathBuf> {
     let direct = skills_path.join(name);
     if direct.exists() && direct.is_dir() {
-        return Ok(Some(direct));
+        return Some(direct);
     }
 
     let with_hyphens = skills_path.join(name.replace('_', "-"));
     if with_hyphens.exists() && with_hyphens.is_dir() {
-        return Ok(Some(with_hyphens));
+        return Some(with_hyphens);
     }
 
-    Ok(None)
+    None
 }
 
 fn delete_skill(skills_path: &Path, name: &str) -> Result<()> {
-    let skill_dir = find_skill_dir(skills_path, name)?
-        .ok_or_else(|| anyhow!("Skill '{}' not found", name))?;
+    let skill_dir =
+        find_skill_dir(skills_path, name).ok_or_else(|| anyhow!("Skill '{}' not found", name))?;
 
     fs::remove_dir_all(&skill_dir)
         .with_context(|| format!("Failed to remove skill directory: {}", skill_dir.display()))

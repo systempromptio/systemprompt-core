@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use std::collections::HashMap;
 use std::path::Path;
 
 use super::types::AgentCreateOutput;
@@ -42,11 +43,11 @@ pub async fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentCreateOutput>> {
-    let name = resolve_input(args.name, "name", config, || prompt_name())?;
+    let name = resolve_input(args.name, "name", config, prompt_name)?;
 
     validate_agent_name(&name)?;
 
-    let port = resolve_input(args.port, "port", config, || prompt_port())?;
+    let port = resolve_input(args.port, "port", config, prompt_port)?;
 
     validate_port(port)?;
 
@@ -71,15 +72,15 @@ pub async fn execute(
         name, port, display_name
     ));
 
-    let agent_config = build_agent_config(
-        &name,
+    let agent_config = build_agent_config(&AgentConfigParams {
+        name: &name,
         port,
-        &display_name,
-        &description,
-        args.enabled,
-        args.provider.as_deref(),
-        args.model.as_deref(),
-    );
+        display_name: &display_name,
+        description: &description,
+        enabled: args.enabled,
+        provider: args.provider.as_deref(),
+        model: args.model.as_deref(),
+    });
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let services_dir = Path::new(&profile.paths.services);
@@ -112,28 +113,30 @@ pub async fn execute(
     Ok(CommandResult::text(output).with_title("Agent Created"))
 }
 
-fn build_agent_config(
-    name: &str,
+struct AgentConfigParams<'a> {
+    name: &'a str,
     port: u16,
-    display_name: &str,
-    description: &str,
+    display_name: &'a str,
+    description: &'a str,
     enabled: bool,
-    provider: Option<&str>,
-    model: Option<&str>,
-) -> AgentConfig {
+    provider: Option<&'a str>,
+    model: Option<&'a str>,
+}
+
+fn build_agent_config(params: &AgentConfigParams<'_>) -> AgentConfig {
     AgentConfig {
-        name: name.to_string(),
-        port,
-        endpoint: format!("/api/v1/agents/{}", name),
-        enabled,
+        name: params.name.to_string(),
+        port: params.port,
+        endpoint: format!("/api/v1/agents/{}", params.name),
+        enabled: params.enabled,
         dev_only: false,
         is_primary: false,
         default: false,
         card: AgentCardConfig {
             protocol_version: "0.3.0".to_string(),
-            name: Some(name.to_string()),
-            display_name: display_name.to_string(),
-            description: description.to_string(),
+            name: Some(params.name.to_string()),
+            display_name: params.display_name.to_string(),
+            description: params.description.to_string(),
             version: "1.0.0".to_string(),
             preferred_transport: "JSONRPC".to_string(),
             icon_url: None,
@@ -151,9 +154,9 @@ fn build_agent_config(
             system_prompt: None,
             mcp_servers: vec![],
             skills: vec![],
-            provider: Some(provider.unwrap_or("anthropic").to_string()),
-            model: Some(model.unwrap_or("claude-3-5-sonnet-20241022").to_string()),
-            tool_model_overrides: Default::default(),
+            provider: Some(params.provider.unwrap_or("anthropic").to_string()),
+            model: Some(params.model.unwrap_or("claude-3-5-sonnet-20241022").to_string()),
+            tool_model_overrides: HashMap::default(),
         },
         oauth: OAuthConfig::default(),
     }

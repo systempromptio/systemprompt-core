@@ -9,56 +9,43 @@ use clap::Args;
 
 #[derive(Debug, Args)]
 pub struct SetupArgs {
-    /// Target environment name (e.g., dev, staging, prod)
-    #[arg(short, long)]
+    #[arg(short, long, help = "Target environment name (e.g., dev, staging, prod)")]
     pub environment: Option<String>,
 
-    /// Use Docker for PostgreSQL (default: use existing installation)
-    #[arg(long)]
+    #[arg(long, help = "Use Docker for PostgreSQL (default: use existing installation)")]
     pub docker: bool,
 
-    /// PostgreSQL host
-    #[arg(long, default_value = "localhost")]
+    #[arg(long, default_value = "localhost", help = "PostgreSQL host")]
     pub db_host: String,
 
-    /// PostgreSQL port
-    #[arg(long, default_value = "5432")]
+    #[arg(long, default_value = "5432", help = "PostgreSQL port")]
     pub db_port: u16,
 
-    /// PostgreSQL user (default: systemprompt_<env>)
-    #[arg(long)]
+    #[arg(long, help = "PostgreSQL user (default: systemprompt_`<env>`)")]
     pub db_user: Option<String>,
 
-    /// PostgreSQL password (auto-generated if not provided)
-    #[arg(long)]
+    #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
     pub db_password: Option<String>,
 
-    /// PostgreSQL database name (default: systemprompt_<env>)
-    #[arg(long)]
+    #[arg(long, help = "PostgreSQL database name (default: systemprompt_`<env>`)")]
     pub db_name: Option<String>,
 
-    /// Google AI (Gemini) API key
-    #[arg(long, env = "GEMINI_API_KEY")]
+    #[arg(long, env = "GEMINI_API_KEY", help = "Google AI (Gemini) API key")]
     pub gemini_key: Option<String>,
 
-    /// Anthropic (Claude) API key
-    #[arg(long, env = "ANTHROPIC_API_KEY")]
+    #[arg(long, env = "ANTHROPIC_API_KEY", help = "Anthropic (Claude) API key")]
     pub anthropic_key: Option<String>,
 
-    /// OpenAI (GPT) API key
-    #[arg(long, env = "OPENAI_API_KEY")]
+    #[arg(long, env = "OPENAI_API_KEY", help = "OpenAI (GPT) API key")]
     pub openai_key: Option<String>,
 
-    /// GitHub token (optional)
-    #[arg(long, env = "GITHUB_TOKEN")]
+    #[arg(long, env = "GITHUB_TOKEN", help = "GitHub token (optional)")]
     pub github_token: Option<String>,
 
-    /// Run database migrations after setup
-    #[arg(long)]
+    #[arg(long, help = "Run database migrations after setup")]
     pub migrate: bool,
 
-    /// Skip migrations (non-interactive default)
-    #[arg(long, conflicts_with = "migrate")]
+    #[arg(long, conflicts_with = "migrate", help = "Skip migrations (non-interactive default)")]
     pub no_migrate: bool,
 }
 
@@ -75,7 +62,7 @@ impl SetupArgs {
             .unwrap_or_else(|| format!("systemprompt_{}", env_name))
     }
 
-    pub fn has_ai_provider(&self) -> bool {
+    pub const fn has_ai_provider(&self) -> bool {
         self.gemini_key.is_some() || self.anthropic_key.is_some() || self.openai_key.is_some()
     }
 }

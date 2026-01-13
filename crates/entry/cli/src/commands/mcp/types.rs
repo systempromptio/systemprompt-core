@@ -1,5 +1,3 @@
-//! MCP command output types
-
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -14,6 +12,14 @@ pub struct McpServerSummary {
     pub port: u16,
     pub enabled: bool,
     pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debug_binary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub debug_created_at: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_binary: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub release_created_at: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -61,6 +67,7 @@ pub struct McpStatusSummary {
 pub struct McpLogsOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub service: Option<String>,
+    pub source: String,
     pub logs: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub log_files: Vec<String>,
