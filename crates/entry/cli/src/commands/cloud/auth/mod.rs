@@ -1,0 +1,38 @@
+mod login;
+mod logout;
+mod whoami;
+
+use crate::cli_settings::CliConfig;
+use anyhow::Result;
+use clap::{Args, Subcommand};
+
+use super::Environment;
+
+#[derive(Subcommand)]
+pub enum AuthCommands {
+    #[command(about = "Authenticate with SystemPrompt Cloud via OAuth")]
+    Login {
+        #[arg(value_enum, default_value_t = Environment::default())]
+        environment: Environment,
+    },
+
+    #[command(about = "Clear saved cloud credentials")]
+    Logout(LogoutArgs),
+
+    #[command(about = "Show current authenticated user and token status")]
+    Whoami,
+}
+
+#[derive(Args)]
+pub struct LogoutArgs {
+    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+    pub yes: bool,
+}
+
+pub async fn execute(cmd: AuthCommands, config: &CliConfig) -> Result<()> {
+    match cmd {
+        AuthCommands::Login { environment } => login::execute(environment, config).await,
+        AuthCommands::Logout(args) => logout::execute(args, config),
+        AuthCommands::Whoami => whoami::execute(config).await,
+    }
+}

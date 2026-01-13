@@ -113,6 +113,14 @@ impl CliConfig {
     pub fn should_show_verbose(&self) -> bool {
         self.verbosity >= VerbosityLevel::Verbose
     }
+
+    pub fn is_interactive(&self) -> bool {
+        self.interactive && atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
+    }
+
+    pub fn output_format(&self) -> OutputFormat {
+        self.output_format
+    }
 }
 
 thread_local! {

@@ -1,14 +1,11 @@
-mod agents;
-mod build;
+mod commands;
 pub mod cli_settings;
-mod cloud;
-pub mod common;
-mod logs;
 mod presentation;
-mod services;
-mod setup;
+pub mod shared;
 mod tui;
 
+// Re-export command modules at crate root for backwards compatibility
+pub use commands::{agents, build, cloud, logs, mcp, services, setup};
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
 use anyhow::{Context, Result};
@@ -85,8 +82,11 @@ enum Commands {
     #[command(subcommand, about = "Cloud deployment, sync, and setup")]
     Cloud(cloud::CloudCommands),
 
-    #[command(subcommand, about = "Agent and MCP server management")]
+    #[command(subcommand, about = "Agent management")]
     Agents(agents::AgentsCommands),
+
+    #[command(subcommand, about = "MCP server management")]
+    Mcp(mcp::McpCommands),
 
     #[command(subcommand, about = "Log streaming and tracing")]
     Logs(logs::LogsCommands),
@@ -152,13 +152,16 @@ pub async fn run() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Services(cmd)) => services::execute(cmd).await?,
-        Some(Commands::Cloud(cmd)) => cloud::execute(cmd).await?,
+        Some(Commands::Services(cmd)) => services::execute(cmd, &cli_config).await?,
+        Some(Commands::Cloud(cmd)) => cloud::execute(cmd, &cli_config).await?,
         Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
-        Some(Commands::Logs(cmd)) => logs::execute(cmd).await?,
-        Some(Commands::Build(cmd)) => build::execute(cmd)?,
+        Some(Commands::Mcp(cmd)) => mcp::execute(cmd).await?,
+        Some(Commands::Logs(cmd)) => logs::execute(cmd, &cli_config).await?,
+        Some(Commands::Build(cmd)) => {
+            build::execute(cmd, &cli_config)?;
+        }
         Some(Commands::Setup(args)) => setup::execute(args).await?,
-        None => tui::execute().await?,
+        None => tui::execute(&cli_config).await?,
     }
 
     Ok(())

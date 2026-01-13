@@ -16,6 +16,7 @@ use systemprompt_identifiers::CloudAuthToken;
 use systemprompt_models::ApiPaths;
 
 use crate::cloud::deploy_select::{discover_profiles, DiscoveredProfile};
+use crate::CliConfig;
 
 async fn check_local_api(api_url: &str) -> Result<(), String> {
     let client = reqwest::Client::builder()
@@ -104,7 +105,17 @@ async fn fetch_admin_user_by_email(database_url: &str, email: &str) -> Result<Us
     Ok(user)
 }
 
-pub async fn execute() -> Result<()> {
+pub async fn execute(config: &CliConfig) -> Result<()> {
+    if !config.is_interactive() {
+        anyhow::bail!(
+            "TUI requires interactive mode.\n\n\
+             Use specific commands instead:\n\
+             - systemprompt services status\n\
+             - systemprompt cloud status\n\
+             - systemprompt agents agent list"
+        );
+    }
+
     CredentialsBootstrap::try_init()?;
 
     let creds = CredentialsBootstrap::require()
