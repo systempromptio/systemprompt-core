@@ -61,6 +61,8 @@ pub struct SyncConfig {
     pub api_url: String,
     pub api_token: String,
     pub services_path: String,
+    pub hostname: Option<String>,
+    pub sync_token: Option<String>,
 }
 
 #[derive(Debug)]
@@ -72,6 +74,8 @@ pub struct SyncConfigBuilder {
     api_url: String,
     api_token: String,
     services_path: String,
+    hostname: Option<String>,
+    sync_token: Option<String>,
 }
 
 impl SyncConfigBuilder {
@@ -89,6 +93,8 @@ impl SyncConfigBuilder {
             api_url: api_url.into(),
             api_token: api_token.into(),
             services_path: services_path.into(),
+            hostname: None,
+            sync_token: None,
         }
     }
 
@@ -107,6 +113,16 @@ impl SyncConfigBuilder {
         self
     }
 
+    pub fn with_hostname(mut self, hostname: Option<String>) -> Self {
+        self.hostname = hostname;
+        self
+    }
+
+    pub fn with_sync_token(mut self, sync_token: Option<String>) -> Self {
+        self.sync_token = sync_token;
+        self
+    }
+
     pub fn build(self) -> SyncConfig {
         SyncConfig {
             direction: self.direction,
@@ -116,6 +132,8 @@ impl SyncConfigBuilder {
             api_url: self.api_url,
             api_token: self.api_token,
             services_path: self.services_path,
+            hostname: self.hostname,
+            sync_token: self.sync_token,
         }
     }
 }
@@ -178,7 +196,8 @@ pub struct SyncService {
 
 impl SyncService {
     pub fn new(config: SyncConfig) -> Self {
-        let api_client = SyncApiClient::new(&config.api_url, &config.api_token);
+        let api_client = SyncApiClient::new(&config.api_url, &config.api_token)
+            .with_direct_sync(config.hostname.clone(), config.sync_token.clone());
         Self { config, api_client }
     }
 

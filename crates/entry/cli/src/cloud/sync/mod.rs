@@ -6,6 +6,7 @@ pub mod skills;
 
 use anyhow::{anyhow, bail, Result};
 use clap::{Args, Subcommand, ValueEnum};
+use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
@@ -117,6 +118,14 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         .and_then(|c| c.tenant_id.as_ref())
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud profile create'"))?;
 
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let tenant = store.find_tenant(tenant_id);
+
+    let (hostname, sync_token) =
+        tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
+
     let services_path = profile.paths.services.clone();
 
     let config = SyncConfig {
@@ -127,6 +136,8 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path,
+        hostname,
+        sync_token,
     };
 
     print_header(&direction, args.dry_run);

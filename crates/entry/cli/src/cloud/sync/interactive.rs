@@ -137,7 +137,7 @@ fn discover_profiles() -> Result<Vec<ProfileSelection>> {
 }
 
 async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> Result<()> {
-    use systemprompt_cloud::CredentialsBootstrap;
+    use systemprompt_cloud::{get_cloud_paths, CloudPath, CredentialsBootstrap, TenantStore};
     use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
     let creds = CredentialsBootstrap::require()
@@ -158,6 +158,14 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("No tenant configured in profile"))?;
 
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let tenant = store.find_tenant(tenant_id);
+
+    let (hostname, sync_token) =
+        tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
+
     let direction = match sync_type {
         SyncType::Push => SyncDirection::Push,
         SyncType::Pull => SyncDirection::Pull,
@@ -172,6 +180,8 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path: source.profile.paths.services.clone(),
+        hostname,
+        sync_token,
     };
 
     let dir_label = match direction {

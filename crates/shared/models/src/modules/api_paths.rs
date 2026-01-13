@@ -114,6 +114,10 @@ impl ApiPaths {
         format!("{}/{}/rotate-credentials", Self::CLOUD_TENANTS, tenant_id)
     }
 
+    pub fn tenant_rotate_sync_token(tenant_id: &str) -> String {
+        format!("{}/{}/rotate-sync-token", Self::CLOUD_TENANTS, tenant_id)
+    }
+
     pub fn mcp_server_endpoint(server_name: &str) -> String {
         format!("{}/{}/mcp", Self::MCP_BASE, server_name)
     }

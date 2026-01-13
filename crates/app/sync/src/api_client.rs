@@ -9,6 +9,8 @@ pub struct SyncApiClient {
     client: Client,
     api_url: String,
     token: String,
+    hostname: Option<String>,
+    sync_token: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -30,15 +32,43 @@ impl SyncApiClient {
             client: Client::new(),
             api_url: api_url.to_string(),
             token: token.to_string(),
+            hostname: None,
+            sync_token: None,
+        }
+    }
+
+    pub fn with_direct_sync(
+        mut self,
+        hostname: Option<String>,
+        sync_token: Option<String>,
+    ) -> Self {
+        self.hostname = hostname;
+        self.sync_token = sync_token;
+        self
+    }
+
+    fn direct_sync_credentials(&self) -> Option<(String, String)> {
+        match (&self.hostname, &self.sync_token) {
+            (Some(hostname), Some(token)) => {
+                let url = format!("https://{}/api/v1/sync/files", hostname);
+                Some((url, token.clone()))
+            },
+            _ => None,
         }
     }
 
     pub async fn upload_files(&self, tenant_id: &str, data: Vec<u8>) -> SyncResult<()> {
-        let url = format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id);
+        let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
+            (
+                format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
+                self.token.clone(),
+            )
+        });
+
         let response = self
             .client
             .post(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Authorization", format!("Bearer {}", token))
             .header("Content-Type", "application/octet-stream")
             .body(data)
             .send()
@@ -48,11 +78,17 @@ impl SyncApiClient {
     }
 
     pub async fn download_files(&self, tenant_id: &str) -> SyncResult<Vec<u8>> {
-        let url = format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id);
+        let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
+            (
+                format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
+                self.token.clone(),
+            )
+        });
+
         let response = self
             .client
             .get(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
+            .header("Authorization", format!("Bearer {}", token))
             .send()
             .await?;
 

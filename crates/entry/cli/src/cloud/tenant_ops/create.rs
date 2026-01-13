@@ -326,24 +326,24 @@ pub async fn create_cloud_tenant(
     CliService::success("Tenant provisioned successfully");
 
     let spinner = CliService::spinner("Fetching database credentials...");
-    let database_url = match client.get_tenant_status(&result.tenant_id).await {
+    let (database_url, sync_token) = match client.get_tenant_status(&result.tenant_id).await {
         Ok(status) => {
             if let Some(secrets_url) = status.secrets_url {
                 match client.fetch_secrets(&secrets_url).await {
-                    Ok(secrets) => Some(secrets.database_url),
+                    Ok(secrets) => (Some(secrets.database_url), secrets.sync_token),
                     Err(e) => {
                         tracing::warn!(error = %e, "Failed to fetch secrets");
-                        None
+                        (None, None)
                     },
                 }
             } else {
                 tracing::warn!("No secrets URL available for tenant {}", result.tenant_id);
-                None
+                (None, None)
             }
         },
         Err(e) => {
             tracing::warn!(error = %e, "Failed to get tenant status");
-            None
+            (None, None)
         },
     };
     spinner.finish_and_clear();
@@ -406,6 +406,7 @@ pub async fn create_cloud_tenant(
         database_url: external_database_url,
         internal_database_url: Some(internal_database_url),
         external_db_access,
+        sync_token,
     };
 
     CliService::section("Profile Setup");
