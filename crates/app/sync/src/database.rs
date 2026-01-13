@@ -205,6 +205,25 @@ async fn import_to_database(
 }
 
 async fn upsert_user(pool: &PgPool, user: &UserExport) -> SyncResult<(usize, usize)> {
+    let conflict_exists: Option<bool> = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM users WHERE (name = $1 OR email = $2) AND id != $3)",
+        user.name,
+        user.email,
+        user.id
+    )
+    .fetch_one(pool)
+    .await?;
+
+    if conflict_exists.unwrap_or(false) {
+        tracing::debug!(
+            user_id = %user.id,
+            name = %user.name,
+            email = %user.email,
+            "User with same name or email exists with different id, skipping"
+        );
+        return Ok((0, 0));
+    }
+
     let result = sqlx::query!(
         r#"INSERT INTO users (id, name, email, full_name, display_name, status, email_verified,
                               roles, is_bot, is_scanner, avatar_url, created_at, updated_at)
