@@ -25,7 +25,7 @@ pub mod paths;
 pub mod tenants;
 
 pub use api_client::{
-    CheckoutEvent, CheckoutResponse, CloudApiClient, DeployResponse, LogEntry, Plan,
+    CheckoutEvent, CheckoutResponse, CloudApiClient, DeployResponse, ListSecretsResponse, Plan,
     ProvisioningEvent, ProvisioningEventType, RegistryToken, StatusResponse, SubscriptionStatus,
     Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };

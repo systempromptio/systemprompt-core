@@ -94,10 +94,6 @@ impl ApiPaths {
         format!("{}/{}/events", Self::CLOUD_TENANTS, tenant_id)
     }
 
-    pub fn tenant_logs(tenant_id: &str) -> String {
-        format!("{}/{}/logs", Self::CLOUD_TENANTS, tenant_id)
-    }
-
     pub fn tenant_restart(tenant_id: &str) -> String {
         format!("{}/{}/restart", Self::CLOUD_TENANTS, tenant_id)
     }

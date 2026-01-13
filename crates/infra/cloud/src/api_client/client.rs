@@ -6,7 +6,7 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
     ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
-    ExternalDbAccessResponse, ListResponse, LogEntry, LogsResponse, Plan, RegistryToken,
+    ExternalDbAccessResponse, ListResponse, ListSecretsResponse, Plan, RegistryToken,
     RotateCredentialsResponse, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse,
     Tenant, TenantSecrets, TenantStatus, UserMeResponse,
 };
@@ -256,12 +256,6 @@ impl CloudApiClient {
         self.delete(&ApiPaths::tenant(tenant_id)).await
     }
 
-    pub async fn get_logs(&self, tenant_id: &str, lines: u32) -> Result<Vec<LogEntry>> {
-        let path = format!("{}?lines={}", ApiPaths::tenant_logs(tenant_id), lines);
-        let response: LogsResponse = self.get(&path).await?;
-        Ok(response.logs)
-    }
-
     pub async fn restart_tenant(&self, tenant_id: &str) -> Result<StatusResponse> {
         self.post_empty(&ApiPaths::tenant_restart(tenant_id)).await
     }
@@ -303,5 +297,9 @@ impl CloudApiClient {
     pub async fn rotate_credentials(&self, tenant_id: &str) -> Result<RotateCredentialsResponse> {
         self.post_empty(&ApiPaths::tenant_rotate_credentials(tenant_id))
             .await
+    }
+
+    pub async fn list_secrets(&self, tenant_id: &str) -> Result<ListSecretsResponse> {
+        self.get(&ApiPaths::tenant_secrets(tenant_id)).await
     }
 }
