@@ -36,7 +36,7 @@ async fn test_request_count_increments_with_multiple_requests() -> Result<()> {
         .db
         .fetch_all(
             &"SELECT session_id, request_count, duration_seconds, landing_page, started_at, \
-              last_activity_at FROM analytics_sessions WHERE fingerprint_hash = $1",
+              last_activity_at FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -95,7 +95,7 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
         .db
         .fetch_all(
             &"SELECT session_id, request_count, duration_seconds, landing_page, started_at, \
-              last_activity_at FROM analytics_sessions WHERE fingerprint_hash = $1",
+              last_activity_at FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -131,13 +131,19 @@ async fn test_duration_seconds_calculated_after_activity() -> Result<()> {
                  Session tracking may not be updating properly."
             );
 
+            // Compute traffic summary inline from user_sessions
             let traffic_rows = ctx
                 .db
                 .fetch_all(
-                    &"SELECT total_sessions, total_requests, unique_users, \
-                      avg_session_duration_secs FROM analytics_traffic_summary WHERE period_days \
-                      = $1",
-                    &[&"30"],
+                    &"SELECT \
+                        COUNT(*) as total_sessions, \
+                        SUM(request_count) as total_requests, \
+                        COUNT(DISTINCT user_id) as unique_users, \
+                        AVG(EXTRACT(EPOCH FROM (last_activity_at - started_at))) as avg_session_duration_secs \
+                      FROM user_sessions \
+                      WHERE started_at >= NOW() - INTERVAL '30 days' \
+                        AND is_bot = false AND is_scanner = false",
+                    &[],
                 )
                 .await?;
 
@@ -195,7 +201,7 @@ async fn test_landing_page_not_null() -> Result<()> {
         .db
         .fetch_all(
             &"SELECT session_id, request_count, duration_seconds, landing_page, started_at, \
-              last_activity_at FROM analytics_sessions WHERE fingerprint_hash = $1",
+              last_activity_at FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -246,12 +252,19 @@ async fn test_traffic_summary_query_returns_nonzero_metrics() -> Result<()> {
 
     wait_for_async_processing().await;
 
+    // Compute traffic summary inline from user_sessions (no analytics_traffic_summary view)
     let traffic_rows = ctx
         .db
         .fetch_all(
-            &"SELECT total_sessions, total_requests, unique_users, avg_session_duration_secs FROM \
-              analytics_traffic_summary WHERE period_days = $1",
-            &[&"30"],
+            &"SELECT \
+                COUNT(*) as total_sessions, \
+                SUM(request_count) as total_requests, \
+                COUNT(DISTINCT user_id) as unique_users, \
+                AVG(EXTRACT(EPOCH FROM (last_activity_at - started_at))) as avg_session_duration_secs \
+              FROM user_sessions \
+              WHERE started_at >= NOW() - INTERVAL '30 days' \
+                AND is_bot = false AND is_scanner = false",
+            &[],
         )
         .await?;
 
@@ -351,7 +364,7 @@ async fn test_landing_pages_query_not_showing_not_set() -> Result<()> {
     let landing_rows = ctx
         .db
         .fetch_all(
-            &"SELECT landing_page, COUNT(*) as visit_count FROM analytics_sessions WHERE \
+            &"SELECT landing_page, COUNT(*) as visit_count FROM user_sessions WHERE \
               landing_page IS NOT NULL GROUP BY landing_page ORDER BY visit_count DESC LIMIT 100",
             &[],
         )

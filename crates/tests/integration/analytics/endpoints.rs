@@ -17,7 +17,7 @@ async fn test_endpoint_requests_recorded() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -86,7 +86,7 @@ async fn test_response_time_measured() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;

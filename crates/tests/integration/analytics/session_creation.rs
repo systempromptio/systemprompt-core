@@ -23,7 +23,7 @@ async fn test_anonymous_session_created_on_homepage() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -66,7 +66,7 @@ async fn test_session_fingerprint_deduplication() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -107,7 +107,7 @@ async fn test_session_with_utm_parameters() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -146,7 +146,7 @@ async fn test_landing_page_captured_on_first_request() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -205,7 +205,7 @@ async fn test_landing_page_preserved_across_multiple_requests() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source FROM analytics_sessions WHERE fingerprint_hash = $1",
+              referrer_source FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;

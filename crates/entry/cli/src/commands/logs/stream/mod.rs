@@ -11,7 +11,10 @@ use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum StreamCommands {
-    #[command(about = "View log entries")]
+    #[command(
+        about = "View log entries",
+        after_help = "EXAMPLES:\n  systemprompt logs stream view --limit 20\n  systemprompt logs stream view --level error"
+    )]
     View(view::ViewArgs),
 
     #[command(about = "Delete all log entries")]
@@ -20,10 +23,6 @@ pub enum StreamCommands {
     #[command(about = "Clean up old log entries")]
     Cleanup(cleanup::CleanupArgs),
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output Types
-// ═══════════════════════════════════════════════════════════════════════════════
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogEntryRow {
@@ -64,10 +63,6 @@ pub struct LogCleanupOutput {
     pub cutoff_date: String,
     pub vacuum_performed: bool,
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Execute
-// ═══════════════════════════════════════════════════════════════════════════════
 
 pub async fn execute(cmd: StreamCommands, config: &CliConfig) -> Result<()> {
     match cmd {

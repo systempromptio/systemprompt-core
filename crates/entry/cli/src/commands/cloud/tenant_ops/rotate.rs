@@ -6,7 +6,7 @@ use systemprompt_core_logging::CliService;
 
 use super::select::{get_credentials, select_tenant};
 
-pub async fn rotate_credentials(id: Option<String>) -> Result<()> {
+pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
@@ -16,6 +16,9 @@ pub async fn rotate_credentials(id: Option<String>) -> Result<()> {
     } else {
         if store.tenants.is_empty() {
             bail!("No tenants configured.");
+        }
+        if skip_confirm {
+            bail!("Tenant ID required in non-interactive mode");
         }
         select_tenant(&store.tenants)?.id.clone()
     };
@@ -30,17 +33,19 @@ pub async fn rotate_credentials(id: Option<String>) -> Result<()> {
         bail!("Credential rotation is only available for cloud tenants");
     }
 
-    let confirm = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
-            "Rotate database credentials for '{}'? This will generate a new password.",
-            tenant.name
-        ))
-        .default(false)
-        .interact()?;
+    if !skip_confirm {
+        let confirm = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!(
+                "Rotate database credentials for '{}'? This will generate a new password.",
+                tenant.name
+            ))
+            .default(false)
+            .interact()?;
 
-    if !confirm {
-        CliService::info("Cancelled");
-        return Ok(());
+        if !confirm {
+            CliService::info("Cancelled");
+            return Ok(());
+        }
     }
 
     let creds = get_credentials()?;
@@ -69,7 +74,7 @@ pub async fn rotate_credentials(id: Option<String>) -> Result<()> {
     Ok(())
 }
 
-pub async fn rotate_sync_token(id: Option<String>) -> Result<()> {
+pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
@@ -79,6 +84,9 @@ pub async fn rotate_sync_token(id: Option<String>) -> Result<()> {
     } else {
         if store.tenants.is_empty() {
             bail!("No tenants configured.");
+        }
+        if skip_confirm {
+            bail!("Tenant ID required in non-interactive mode");
         }
         select_tenant(&store.tenants)?.id.clone()
     };
@@ -93,17 +101,19 @@ pub async fn rotate_sync_token(id: Option<String>) -> Result<()> {
         bail!("Sync token rotation is only available for cloud tenants");
     }
 
-    let confirm = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt(format!(
-            "Rotate sync token for '{}'? This will generate a new token for file synchronization.",
-            tenant.name
-        ))
-        .default(false)
-        .interact()?;
+    if !skip_confirm {
+        let confirm = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!(
+                "Rotate sync token for '{}'? This will generate a new token for file synchronization.",
+                tenant.name
+            ))
+            .default(false)
+            .interact()?;
 
-    if !confirm {
-        CliService::info("Cancelled");
-        return Ok(());
+        if !confirm {
+            CliService::info("Cancelled");
+            return Ok(());
+        }
     }
 
     let creds = get_credentials()?;

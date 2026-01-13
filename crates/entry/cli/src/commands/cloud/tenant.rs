@@ -19,7 +19,10 @@ pub enum TenantCommands {
         region: String,
     },
 
-    #[command(about = "List all tenants")]
+    #[command(
+        about = "List all tenants",
+        after_help = "EXAMPLES:\n  systemprompt cloud tenant list\n  systemprompt cloud tenant list --json"
+    )]
     List,
 
     #[command(about = "Show tenant details")]
@@ -32,10 +35,18 @@ pub enum TenantCommands {
     Edit { id: Option<String> },
 
     #[command(about = "Rotate database credentials")]
-    RotateCredentials { id: Option<String> },
+    RotateCredentials(TenantRotateArgs),
 
-    #[command(about = "Rotate sync token for file synchronization")]
-    RotateSyncToken { id: Option<String> },
+    #[command(about = "Rotate sync token")]
+    RotateSyncToken(TenantRotateArgs),
+}
+
+#[derive(Debug, Args)]
+pub struct TenantRotateArgs {
+    pub id: Option<String>,
+
+    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+    pub yes: bool,
 }
 
 #[derive(Debug, Args)]
@@ -71,8 +82,16 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
         TenantCommands::Show { id } => show_tenant(id).await.map(|()| false),
         TenantCommands::Delete(args) => delete_tenant(args, config).await.map(|()| false),
         TenantCommands::Edit { id } => edit_tenant(id, config).await.map(|()| false),
-        TenantCommands::RotateCredentials { id } => rotate_credentials(id).await.map(|()| false),
-        TenantCommands::RotateSyncToken { id } => rotate_sync_token(id).await.map(|()| false),
+        TenantCommands::RotateCredentials(args) => {
+            rotate_credentials(args.id, args.yes || !config.is_interactive())
+                .await
+                .map(|()| false)
+        },
+        TenantCommands::RotateSyncToken(args) => {
+            rotate_sync_token(args.id, args.yes || !config.is_interactive())
+                .await
+                .map(|()| false)
+        },
     }
 }
 

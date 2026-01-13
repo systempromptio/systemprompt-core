@@ -1,11 +1,17 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::{theme::ColorfulTheme, Input};
+use std::path::Path;
 
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use super::types::AgentCreateOutput;
 use systemprompt_core_logging::CliService;
+use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_models::services::{
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,
+};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -51,6 +57,8 @@ pub async fn execute(
         || prompt_port(),
     )?;
 
+    validate_port(port)?;
+
     let display_name = args.display_name.unwrap_or_else(|| {
         if config.is_interactive() {
             prompt_display_name(&name).unwrap_or_else(|_| name.clone())
@@ -72,42 +80,92 @@ pub async fn execute(
         name, port, display_name
     ));
 
-    CliService::warning(
-        "Agent creation modifies configuration files. \
-         Please add the agent configuration to your services.yaml manually for now."
+    let agent_config = build_agent_config(
+        &name,
+        port,
+        &display_name,
+        &description,
+        args.enabled,
+        args.provider.as_deref(),
+        args.model.as_deref(),
     );
+
+    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let services_dir = Path::new(&profile.paths.services);
+
+    let agent_file = ConfigWriter::create_agent(&agent_config, services_dir)
+        .with_context(|| format!("Failed to create agent '{}'", name))?;
+
+    ConfigLoader::load().with_context(|| {
+        format!(
+            "Agent file created at {} but validation failed. Please check the configuration.",
+            agent_file.display()
+        )
+    })?;
+
+    CliService::success(&format!(
+        "Agent '{}' created at {}",
+        name,
+        agent_file.display()
+    ));
 
     let output = AgentCreateOutput {
         name: name.clone(),
         message: format!(
-            "Agent '{}' configuration prepared. Add to services.yaml:\n\n\
-             agents:\n  \
-               {}:\n    \
-                 name: {}\n    \
-                 port: {}\n    \
-                 endpoint: /\n    \
-                 enabled: {}\n    \
-                 card:\n      \
-                   protocolVersion: \"1.0\"\n      \
-                   displayName: \"{}\"\n      \
-                   description: \"{}\"\n      \
-                   version: \"1.0.0\"\n    \
-                 metadata:\n      \
-                   provider: {}\n      \
-                   model: {}",
+            "Agent '{}' created successfully at {}",
             name,
-            name,
-            name,
-            port,
-            args.enabled,
-            display_name,
-            description,
-            args.provider.as_deref().unwrap_or("anthropic"),
-            args.model.as_deref().unwrap_or("claude-3-5-sonnet-20241022")
+            agent_file.display()
         ),
     };
 
     Ok(CommandResult::text(output).with_title("Agent Created"))
+}
+
+fn build_agent_config(
+    name: &str,
+    port: u16,
+    display_name: &str,
+    description: &str,
+    enabled: bool,
+    provider: Option<&str>,
+    model: Option<&str>,
+) -> AgentConfig {
+    AgentConfig {
+        name: name.to_string(),
+        port,
+        endpoint: format!("/api/v1/agents/{}", name),
+        enabled,
+        dev_only: false,
+        is_primary: false,
+        default: false,
+        card: AgentCardConfig {
+            protocol_version: "0.3.0".to_string(),
+            name: Some(name.to_string()),
+            display_name: display_name.to_string(),
+            description: description.to_string(),
+            version: "1.0.0".to_string(),
+            preferred_transport: "JSONRPC".to_string(),
+            icon_url: None,
+            documentation_url: None,
+            provider: None,
+            capabilities: CapabilitiesConfig::default(),
+            default_input_modes: vec!["text/plain".to_string()],
+            default_output_modes: vec!["text/plain".to_string()],
+            security_schemes: None,
+            security: None,
+            skills: vec![],
+            supports_authenticated_extended_card: false,
+        },
+        metadata: AgentMetadataConfig {
+            system_prompt: None,
+            mcp_servers: vec![],
+            skills: vec![],
+            provider: Some(provider.unwrap_or("anthropic").to_string()),
+            model: Some(model.unwrap_or("claude-3-5-sonnet-20241022").to_string()),
+            tool_model_overrides: Default::default(),
+        },
+        oauth: OAuthConfig::default(),
+    }
 }
 
 fn validate_agent_name(name: &str) -> Result<()> {
@@ -124,6 +182,16 @@ fn validate_agent_name(name: &str) -> Result<()> {
         ));
     }
 
+    Ok(())
+}
+
+fn validate_port(port: u16) -> Result<()> {
+    if port == 0 {
+        return Err(anyhow!("Port cannot be 0"));
+    }
+    if port < 1024 {
+        return Err(anyhow!("Port must be >= 1024 (non-privileged)"));
+    }
     Ok(())
 }
 

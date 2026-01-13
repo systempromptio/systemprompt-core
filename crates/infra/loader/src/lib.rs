@@ -1,3 +1,4 @@
+mod config_writer;
 mod extension_loader;
 mod extension_registry;
 mod include_resolver;
@@ -7,6 +8,7 @@ mod profile_loader;
 mod secrets_loader;
 mod services_loader;
 
+pub use config_writer::ConfigWriter;
 pub use extension_loader::{ExtensionLoader, ExtensionValidationResult};
 pub use extension_registry::ExtensionRegistry;
 pub use include_resolver::IncludeResolver;

@@ -8,10 +8,10 @@ use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum LogsCommands {
-    #[command(subcommand, about = "View and manage logs")]
+    #[command(subcommand, about = "Real-time log viewer")]
     Stream(stream::StreamCommands),
 
-    #[command(subcommand, about = "Trace message execution")]
+    #[command(subcommand, about = "Debug AI request traces")]
     Trace(trace::TraceCommands),
 }
 

@@ -156,10 +156,8 @@ impl AuthValidationService {
         headers
             .get("x-context-id")
             .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || ContextId::new(String::new()),
-                |s| ContextId::new(s.to_string()),
-            )
+            .filter(|s| !s.is_empty())
+            .map_or_else(ContextId::generate, |s| ContextId::new(s.to_string()))
     }
 
     fn extract_agent_name(headers: &HeaderMap) -> AgentName {

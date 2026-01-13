@@ -55,7 +55,7 @@ async fn test_session_created_on_login() -> Result<()> {
     let sessions = ctx
         .db
         .fetch_all(
-            &"SELECT session_id FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -135,7 +135,7 @@ async fn test_session_expiration() -> Result<()> {
     let sessions = ctx
         .db
         .fetch_all(
-            &"SELECT session_id FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;

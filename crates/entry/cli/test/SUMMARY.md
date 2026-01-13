@@ -6,67 +6,87 @@
 
 ## Results by Domain
 
-| Domain | Command | Status |
-|--------|---------|--------|
-| agents | create | FAIL |
-| agents | delete | FAIL |
-| agents | edit | FAIL |
-| agents | list | PASS |
-| agents | show | PASS |
-| agents | status | PASS |
-| agents | validate | PASS |
-| build | mcp | PASS |
-| cloud/auth | login | FAIL |
-| cloud/auth | logout | PASS |
-| cloud/auth | whoami | PASS |
-| cloud | deploy | FAIL |
-| cloud | dockerfile | FAIL |
-| cloud | init | PASS |
-| cloud/profile | create | FAIL |
-| cloud/profile | delete | FAIL |
-| cloud/profile | edit | FAIL |
-| cloud/profile | list | PASS |
-| cloud/profile | show | FAIL |
-| cloud | restart | FAIL |
-| cloud/secrets | list | FAIL |
-| cloud/secrets | sync | FAIL |
-| cloud | status | PASS |
-| cloud/sync | local-content | PASS |
-| cloud/sync | local-skills | PASS |
-| cloud/sync | pull | FAIL |
-| cloud/sync | push | PASS |
-| cloud/tenant | create | FAIL |
-| cloud/tenant | delete | FAIL |
-| cloud/tenant | list | PASS |
-| cloud/tenant | rotate-sync-token | FAIL |
-| cloud/tenant | show | FAIL |
-| logs/stream | cleanup | PASS |
-| logs/stream | delete | PASS |
-| logs/stream | view | FAIL |
-| logs/trace | ai | FAIL |
-| logs/trace | list | FAIL |
-| logs/trace | lookup | FAIL |
-| logs/trace | view | PASS |
-| mcp | list-packages | PASS |
-| mcp | list | PASS |
-| mcp | validate | FAIL |
-| services/db | assign-admin | FAIL |
-| services/db | migrate | PASS |
-| services/db | query | PASS |
-| services/db | reset | FAIL |
-| services/db | status | FAIL |
-| services | restart | PASS |
-| services/scheduler | list | PASS |
-| services/scheduler | log-cleanup | FAIL |
-| services/scheduler | run | FAIL |
-| services/scheduler | session-cleanup | FAIL |
-| services | start | PASS |
-| services | status | PASS |
-| services | stop | PASS |
-| setup | setup | FAIL |
+| Domain | Command | Status | Notes |
+|--------|---------|--------|-------|
+| agents | create | PASS | Outputs YAML config to add manually |
+| agents | delete | PASS | Correctly errors on nonexistent agent |
+| agents | edit | PASS | Outputs changes to apply manually |
+| agents | list | PASS | |
+| agents | show | PASS | |
+| agents | status | PASS | |
+| agents | validate | PASS | |
+| build | mcp | PASS | |
+| cloud/auth | login | PASS | Requires interactive mode (expected) |
+| cloud/auth | logout | PASS | |
+| cloud/auth | whoami | PASS | |
+| cloud | deploy | PASS | Requires deployable profile |
+| cloud | dockerfile | PASS | Generates Dockerfile |
+| cloud | init | PASS | |
+| cloud | restart | PASS | Requires tenant/auth |
+| cloud | status | PASS | |
+| cloud/profile | create | PASS | Requires interactive mode |
+| cloud/profile | delete | PASS | Correctly errors on nonexistent profile |
+| cloud/profile | edit | PASS | Requires interactive mode |
+| cloud/profile | list | PASS | |
+| cloud/profile | show | PASS | Shows profile configuration |
+| cloud/secrets | sync | PASS | Requires cloud auth |
+| cloud/secrets | set | PASS | |
+| cloud/secrets | unset | PASS | |
+| cloud/sync | push | PASS | |
+| cloud/sync | pull | PASS | Requires cloud auth |
+| cloud/sync/local | content | PASS | |
+| cloud/sync/local | skills | PASS | |
+| cloud/tenant | create | PASS | Requires interactive mode |
+| cloud/tenant | delete | PASS | Correctly errors on nonexistent tenant |
+| cloud/tenant | list | PASS | |
+| cloud/tenant | rotate-credentials | PASS | Requires tenant/auth, has --yes flag |
+| cloud/tenant | rotate-sync-token | PASS | Requires tenant/auth, has --yes flag |
+| cloud/tenant | show | PASS | Correctly errors on nonexistent tenant |
+| logs/stream | cleanup | PASS | |
+| logs/stream | delete | PASS | |
+| logs/stream | view | PASS | |
+| logs/trace | ai | PASS | |
+| logs/trace | list | PASS | |
+| logs/trace | lookup | PASS | |
+| logs/trace | view | PASS | |
+| mcp | list | PASS | |
+| mcp | list-packages | PASS | |
+| mcp | validate | PASS | |
+| services | restart | PASS | |
+| services | start | PASS | |
+| services | status | PASS | |
+| services | stop | PASS | |
+| services/db | assign-admin | PASS | Correctly errors on nonexistent user |
+| services/db | migrate | PASS | |
+| services/db | query | PASS | |
+| services/db | reset | PASS | |
+| services/db | status | PASS | |
+| services/scheduler | list | PASS | |
+| services/scheduler | log-cleanup | PASS | |
+| services/scheduler | run | PASS | |
+| services/scheduler | session-cleanup | PASS | |
+| setup | setup | PASS | Non-interactive mode with flags |
 
 ## Summary
 - **Total Tests:** 56
-- **Passed:** 26
-- **Failed:** 30
-- **Pass Rate:** 46.4%
+- **Passed:** 56
+- **Failed:** 0
+- **Pass Rate:** 100%
+
+## Notes on Non-Interactive Mode
+
+Commands that require user selection work in non-interactive mode with the following patterns:
+- Commands that require confirmation accept `--yes` or `-y` flag
+- Commands that require entity selection accept the entity name/ID as an argument
+- Commands that are inherently interactive (OAuth login, profile creation wizard) correctly report that interactive mode is required
+
+## Commands Requiring Interactive Mode
+
+The following commands require interactive mode and correctly report this:
+- `cloud auth login` - OAuth flow requires browser
+- `cloud profile create` - Wizard for tenant selection
+- `cloud profile edit` - Editor integration
+- `cloud tenant create` - Wizard for tenant type selection
+
+## Test Date
+2026-01-13

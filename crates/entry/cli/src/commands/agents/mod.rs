@@ -17,25 +17,25 @@ use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum AgentsCommands {
-    #[command(about = "List all agents from config")]
+    #[command(about = "List configured agents")]
     List(list::ListArgs),
 
-    #[command(about = "Show agent config details")]
+    #[command(about = "Display agent configuration")]
     Show(show::ShowArgs),
 
-    #[command(about = "Validate agent config(s)")]
+    #[command(about = "Check agent configs for errors")]
     Validate(validate::ValidateArgs),
 
-    #[command(about = "Create new agent config")]
+    #[command(about = "Create new agent")]
     Create(create::CreateArgs),
 
-    #[command(about = "Edit agent config")]
+    #[command(about = "Edit agent configuration")]
     Edit(edit::EditArgs),
 
-    #[command(about = "Delete agent config")]
+    #[command(about = "Delete an agent")]
     Delete(delete::DeleteArgs),
 
-    #[command(about = "Check if agent service is running")]
+    #[command(about = "Show agent process status")]
     Status(status::StatusArgs),
 }
 

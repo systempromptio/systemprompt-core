@@ -15,7 +15,10 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
-    #[command(about = "Start services")]
+    #[command(
+        about = "Start API, agents, and MCP servers",
+        after_help = "EXAMPLES:\n  systemprompt services start\n  systemprompt services start --api\n  systemprompt services start --agents --mcp"
+    )]
     Start {
         #[arg(long, help = "Start all services")]
         all: bool,
@@ -39,7 +42,7 @@ pub enum ServicesCommands {
         skip_migrate: bool,
     },
 
-    #[command(about = "Stop services")]
+    #[command(about = "Stop running services gracefully")]
     Stop {
         #[arg(long, help = "Stop all services")]
         all: bool,

@@ -71,7 +71,7 @@ async fn test_landing_page_set_for_homepage() -> Result<()> {
     let rows = ctx
         .db
         .fetch_all(
-            &"SELECT session_id, landing_page FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id, landing_page FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -118,7 +118,7 @@ async fn test_landing_page_set_for_blog_post() -> Result<()> {
     let rows = ctx
         .db
         .fetch_all(
-            &"SELECT session_id, landing_page FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id, landing_page FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -167,7 +167,7 @@ async fn test_landing_page_not_set_for_api_requests() -> Result<()> {
     let rows = ctx
         .db
         .fetch_all(
-            &"SELECT session_id, landing_page FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id, landing_page FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;
@@ -205,7 +205,7 @@ async fn test_landing_page_set_for_legal_pages() -> Result<()> {
     let rows = ctx
         .db
         .fetch_all(
-            &"SELECT session_id, landing_page FROM analytics_sessions WHERE fingerprint_hash = $1",
+            &"SELECT session_id, landing_page FROM user_sessions WHERE fingerprint_hash = $1",
             &[&fingerprint],
         )
         .await?;

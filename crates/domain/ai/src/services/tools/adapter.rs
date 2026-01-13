@@ -135,13 +135,19 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
 }
 
 pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {
-    let mut tool_ctx = ToolContext::new(ctx.auth_token().as_str());
-
-    tool_ctx = tool_ctx.with_session_id(ctx.session_id().to_string());
-    tool_ctx = tool_ctx.with_trace_id(ctx.trace_id().to_string());
+    let mut tool_ctx = ToolContext::new(ctx.auth_token().as_str())
+        .with_session_id(ctx.session_id().to_string())
+        .with_trace_id(ctx.trace_id().to_string())
+        .with_header("x-context-id", ctx.context_id().as_str())
+        .with_header("x-user-id", ctx.user_id().as_str())
+        .with_header("x-agent-name", ctx.agent_name().as_str());
 
     if let Some(ai_tool_call_id) = ctx.ai_tool_call_id() {
         tool_ctx = tool_ctx.with_ai_tool_call_id(ai_tool_call_id.to_string());
+    }
+
+    if let Some(task_id) = ctx.task_id() {
+        tool_ctx = tool_ctx.with_header("x-task-id", task_id.as_str());
     }
 
     tool_ctx

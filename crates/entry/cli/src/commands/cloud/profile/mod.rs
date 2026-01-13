@@ -32,7 +32,10 @@ pub enum ProfileCommands {
     #[command(about = "List all profiles")]
     List,
 
-    #[command(about = "Show profile configuration")]
+    #[command(
+        about = "Show profile configuration",
+        after_help = "EXAMPLES:\n  systemprompt cloud profile show\n  systemprompt cloud profile show --filter agents\n  systemprompt cloud profile show --json"
+    )]
     Show {
         name: Option<String>,
 
