@@ -55,44 +55,32 @@ pub async fn execute(command: AgentsCommands) -> Result<()> {
 pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) -> Result<()> {
     match command {
         AgentsCommands::List(args) => {
-            let result = list::execute(args, config)
-                .await
-                .context("Failed to list agents")?;
+            let result = list::execute(args, config).context("Failed to list agents")?;
             render_result(&result);
             Ok(())
         },
         AgentsCommands::Show(args) => {
-            let result = show::execute(args, config)
-                .await
-                .context("Failed to show agent")?;
+            let result = show::execute(args, config).context("Failed to show agent")?;
             render_result(&result);
             Ok(())
         },
         AgentsCommands::Validate(args) => {
-            let result = validate::execute(args, config)
-                .await
-                .context("Failed to validate agents")?;
+            let result = validate::execute(args, config).context("Failed to validate agents")?;
             render_result(&result);
             Ok(())
         },
         AgentsCommands::Create(args) => {
-            let result = create::execute(args, config)
-                .await
-                .context("Failed to create agent")?;
+            let result = create::execute(args, config).context("Failed to create agent")?;
             render_result(&result);
             Ok(())
         },
         AgentsCommands::Edit(args) => {
-            let result = edit::execute(args, config)
-                .await
-                .context("Failed to edit agent")?;
+            let result = edit::execute(args, config).context("Failed to edit agent")?;
             render_result(&result);
             Ok(())
         },
         AgentsCommands::Delete(args) => {
-            let result = delete::execute(args, config)
-                .await
-                .context("Failed to delete agent")?;
+            let result = delete::execute(args, config).context("Failed to delete agent")?;
             render_result(&result);
             Ok(())
         },

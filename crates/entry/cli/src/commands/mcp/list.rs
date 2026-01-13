@@ -16,7 +16,7 @@ pub struct ListArgs {
     pub enabled: bool,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
+pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let project_root = ProjectRoot::discover().ok();
 
