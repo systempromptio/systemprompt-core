@@ -15,6 +15,8 @@ src/
 ├── build/              # systemprompt build [...]
 ├── cloud/              # systemprompt cloud [...]
 ├── common/             # Common utilities
+├── db/                 # systemprompt db [...]
+├── jobs/               # systemprompt jobs [...]
 ├── logs/               # systemprompt logs [...]
 ├── presentation/       # Output formatting
 ├── services/           # systemprompt services [...]
@@ -349,7 +351,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<()> {
 
 ## 2.5 services/
 
-**Commands:** `systemprompt services [start|stop|restart|status|cleanup|serve|db|scheduler]`
+**Commands:** `systemprompt services [start|stop|restart|status|cleanup|serve]`
 
 ### Requirements
 
@@ -357,19 +359,16 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<()> {
 |-------------|--------|
 | All `execute` functions accept `config: &CliConfig` | Required |
 | Port conflict handling has flag | Required |
-| `db reset` has `--yes` | Required |
 
 ### Required Flags
 
 | Command | Required Flags |
 |---------|---------------|
 | `services serve` | `--kill-port-process` (for port conflicts) |
-| `services db reset` | `--yes` |
 
 ### Port Conflict Handling
 
 ```rust
-// services/serve.rs
 let should_kill = args.kill_port_process ||
     (config.is_interactive() && CliService::confirm("Kill process using port?")?);
 
@@ -385,7 +384,52 @@ if should_kill {
 
 ---
 
-## 2.6 setup/
+## 2.6 db/
+
+**Commands:** `systemprompt db [query|execute|tables|describe|info|status|migrate|assign-admin|reset]`
+
+### Requirements
+
+| Requirement | Status |
+|-------------|--------|
+| All `execute` functions accept `config: &CliConfig` | Required |
+| `db reset` has `--yes` | Required |
+
+### Required Flags
+
+| Command | Required Flags |
+|---------|---------------|
+| `db reset` | `--yes` |
+
+### JSON Output Required
+
+| Command | JSON Structure |
+|---------|---------------|
+| `db tables` | `[{"name": "...", "row_count": ...}]` |
+| `db info` | `{"version": "...", "tables": [...], "size": "..."}` |
+| `db status` | `{"status": "connected", "version": "...", ...}` |
+
+---
+
+## 2.7 jobs/
+
+**Commands:** `systemprompt jobs [list|run|cleanup-sessions|session-cleanup|log-cleanup]`
+
+### Requirements
+
+| Requirement | Status |
+|-------------|--------|
+| All `execute` functions accept `config: &CliConfig` | Required |
+
+### JSON Output Required
+
+| Command | JSON Structure |
+|---------|---------------|
+| `jobs list` | `[{"name": "...", "description": "...", "schedule": "...", "enabled": true}]` |
+
+---
+
+## 2.8 setup/
 
 **Commands:** `systemprompt setup`
 
@@ -462,7 +506,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
 
 ---
 
-## 2.7 tui/
+## 2.9 tui/
 
 **Commands:** `systemprompt` (no subcommand)
 

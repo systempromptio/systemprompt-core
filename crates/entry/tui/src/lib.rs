@@ -1,4 +1,5 @@
 mod app;
+pub mod cli_registry;
 
 pub mod components;
 pub mod events;

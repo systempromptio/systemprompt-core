@@ -1,0 +1,218 @@
+use chrono::{DateTime, Utc};
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{
+    CampaignId, CategoryId, ContentId, LinkId, SessionId, SourceId, UserId,
+};
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ContentListOutput {
+    pub items: Vec<ContentSummary>,
+    pub total: i64,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ContentSummary {
+    pub id: ContentId,
+    pub slug: String,
+    pub title: String,
+    pub kind: String,
+    pub source_id: SourceId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<CategoryId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ContentDetailOutput {
+    pub id: ContentId,
+    pub slug: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    pub body: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<DateTime<Utc>>,
+    pub keywords: Vec<String>,
+    pub kind: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<CategoryId>,
+    pub source_id: SourceId,
+    pub version_hash: String,
+    pub is_public: bool,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SearchOutput {
+    pub results: Vec<SearchResultRow>,
+    pub total: i64,
+    pub query: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SearchResultRow {
+    pub id: ContentId,
+    pub slug: String,
+    pub title: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image: Option<String>,
+    pub source_id: SourceId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub category_id: Option<CategoryId>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct IngestOutput {
+    pub files_found: usize,
+    pub files_processed: usize,
+    pub errors: Vec<String>,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteOutput {
+    pub deleted: bool,
+    pub content_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DeleteSourceOutput {
+    pub deleted_count: u64,
+    pub source_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PopularOutput {
+    pub items: Vec<ContentSummary>,
+    pub source_id: String,
+    pub days: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct GenerateLinkOutput {
+    pub link_id: LinkId,
+    pub short_code: String,
+    pub short_url: String,
+    pub target_url: String,
+    pub full_url: String,
+    pub link_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub utm_params: Option<UtmParamsOutput>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UtmParamsOutput {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub medium: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub term: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub content: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LinkDetailOutput {
+    pub id: LinkId,
+    pub short_code: String,
+    pub target_url: String,
+    pub full_url: String,
+    pub link_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign_id: Option<CampaignId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub source_content_id: Option<ContentId>,
+    pub click_count: i32,
+    pub unique_click_count: i32,
+    pub conversion_count: i32,
+    pub is_active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LinkListOutput {
+    pub links: Vec<LinkSummary>,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LinkSummary {
+    pub id: LinkId,
+    pub short_code: String,
+    pub target_url: String,
+    pub link_type: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub campaign_name: Option<String>,
+    pub click_count: i32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub created_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LinkPerformanceOutput {
+    pub link_id: LinkId,
+    pub click_count: i64,
+    pub unique_click_count: i64,
+    pub conversion_count: i64,
+    pub conversion_rate: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ClicksOutput {
+    pub link_id: String,
+    pub clicks: Vec<ClickRow>,
+    pub total: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ClickRow {
+    pub click_id: String,
+    pub session_id: SessionId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub user_id: Option<UserId>,
+    pub clicked_at: DateTime<Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub referrer_page: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub device_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub country: Option<String>,
+    pub is_conversion: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CampaignAnalyticsOutput {
+    pub campaign_id: CampaignId,
+    pub total_clicks: i64,
+    pub link_count: i64,
+    pub unique_visitors: i64,
+    pub conversion_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct JourneyOutput {
+    pub nodes: Vec<JourneyNode>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct JourneyNode {
+    pub source_content_id: ContentId,
+    pub target_url: String,
+    pub click_count: i32,
+}
