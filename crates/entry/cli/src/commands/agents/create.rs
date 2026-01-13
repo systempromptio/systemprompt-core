@@ -39,7 +39,7 @@ pub struct CreateArgs {
     pub model: Option<String>,
 }
 
-pub async fn execute(
+pub fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentCreateOutput>> {

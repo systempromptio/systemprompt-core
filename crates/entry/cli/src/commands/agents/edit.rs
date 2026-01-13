@@ -39,7 +39,7 @@ pub struct EditArgs {
     pub model: Option<String>,
 }
 
-pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
+pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = resolve_input(args.name, "name", config, || {
