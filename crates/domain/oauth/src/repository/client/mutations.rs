@@ -105,6 +105,7 @@ impl ClientRepository {
         self.get_by_client_id(&params.client_id).await
     }
 
+    #[inline(never)]
     async fn delete_related_data(
         tx: &mut Transaction<'_, Postgres>,
         client_id: &str,
@@ -142,6 +143,7 @@ impl ClientRepository {
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_related_data(
         tx: &mut Transaction<'_, Postgres>,
         data: InsertRelatedData<'_>,
@@ -154,26 +156,28 @@ impl ClientRepository {
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_redirect_uris(
         conn: &mut PgConnection,
         client_id: &str,
         redirect_uris: &[String],
     ) -> Result<()> {
-        for (idx, uri) in redirect_uris.iter().enumerate() {
-            let is_primary = idx == 0;
-            sqlx::query!(
-                "INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
-                 VALUES ($1, $2, $3)",
-                client_id,
-                uri,
-                is_primary
-            )
-            .execute(&mut *conn)
-            .await?;
+        if redirect_uris.is_empty() {
+            return Ok(());
         }
+        sqlx::query!(
+            "INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
+             SELECT $1, u.uri, u.ord = 1
+             FROM unnest($2::text[]) WITH ORDINALITY AS u(uri, ord)",
+            client_id,
+            redirect_uris
+        )
+        .execute(&mut *conn)
+        .await?;
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_grant_types(
         conn: &mut PgConnection,
         client_id: &str,
@@ -184,18 +188,21 @@ impl ClientRepository {
             .map(|s| (*s).to_string())
             .collect();
         let grant_types_list = grant_types.unwrap_or(&default_grant_types);
-        for grant_type in grant_types_list {
-            sqlx::query!(
-                "INSERT INTO oauth_client_grant_types (client_id, grant_type) VALUES ($1, $2)",
-                client_id,
-                grant_type
-            )
-            .execute(&mut *conn)
-            .await?;
+        if grant_types_list.is_empty() {
+            return Ok(());
         }
+        sqlx::query!(
+            "INSERT INTO oauth_client_grant_types (client_id, grant_type)
+             SELECT $1, unnest($2::text[])",
+            client_id,
+            grant_types_list
+        )
+        .execute(&mut *conn)
+        .await?;
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_response_types(
         conn: &mut PgConnection,
         client_id: &str,
@@ -203,36 +210,41 @@ impl ClientRepository {
     ) -> Result<()> {
         let default_response_types = vec![ResponseType::Code.to_string()];
         let response_types_list = response_types.unwrap_or(&default_response_types);
-        for response_type in response_types_list {
-            sqlx::query!(
-                "INSERT INTO oauth_client_response_types (client_id, response_type) VALUES ($1, \
-                 $2)",
-                client_id,
-                response_type
-            )
-            .execute(&mut *conn)
-            .await?;
+        if response_types_list.is_empty() {
+            return Ok(());
         }
+        sqlx::query!(
+            "INSERT INTO oauth_client_response_types (client_id, response_type)
+             SELECT $1, unnest($2::text[])",
+            client_id,
+            response_types_list
+        )
+        .execute(&mut *conn)
+        .await?;
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_scopes(
         conn: &mut PgConnection,
         client_id: &str,
         scopes: &[String],
     ) -> Result<()> {
-        for scope in scopes {
-            sqlx::query!(
-                "INSERT INTO oauth_client_scopes (client_id, scope) VALUES ($1, $2)",
-                client_id,
-                scope
-            )
-            .execute(&mut *conn)
-            .await?;
+        if scopes.is_empty() {
+            return Ok(());
         }
+        sqlx::query!(
+            "INSERT INTO oauth_client_scopes (client_id, scope)
+             SELECT $1, unnest($2::text[])",
+            client_id,
+            scopes
+        )
+        .execute(&mut *conn)
+        .await?;
         Ok(())
     }
 
+    #[inline(never)]
     async fn insert_contacts(
         conn: &mut PgConnection,
         client_id: &str,
@@ -241,15 +253,17 @@ impl ClientRepository {
         let Some(contact_list) = contacts else {
             return Ok(());
         };
-        for contact in contact_list {
-            sqlx::query!(
-                "INSERT INTO oauth_client_contacts (client_id, contact_email) VALUES ($1, $2)",
-                client_id,
-                contact
-            )
-            .execute(&mut *conn)
-            .await?;
+        if contact_list.is_empty() {
+            return Ok(());
         }
+        sqlx::query!(
+            "INSERT INTO oauth_client_contacts (client_id, contact_email)
+             SELECT $1, unnest($2::text[])",
+            client_id,
+            contact_list
+        )
+        .execute(&mut *conn)
+        .await?;
         Ok(())
     }
 
