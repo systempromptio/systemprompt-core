@@ -6,7 +6,7 @@ use clap::Subcommand;
 
 use crate::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum LogsCommands {
     #[command(subcommand, about = "View and manage logs")]
     Stream(stream::StreamCommands),

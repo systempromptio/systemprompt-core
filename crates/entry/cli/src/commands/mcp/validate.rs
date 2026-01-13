@@ -12,7 +12,7 @@ use systemprompt_core_mcp::services::McpManager;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ValidateArgs {
     /// MCP server name to validate
     #[arg(help = "MCP server name (required in non-interactive mode)")]

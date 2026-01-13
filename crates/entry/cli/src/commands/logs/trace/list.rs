@@ -7,7 +7,7 @@ use super::{TraceListOutput, TraceListRow};
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct ListArgs {
     #[arg(long, default_value = "20", help = "Maximum number of traces to return")]
     pub limit: i64,

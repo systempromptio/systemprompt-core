@@ -7,7 +7,7 @@ mod wizard;
 use anyhow::Result;
 use clap::Args;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct SetupArgs {
     /// Target environment name (e.g., dev, staging, prod)
     #[arg(short, long)]

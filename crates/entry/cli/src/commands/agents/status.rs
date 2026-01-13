@@ -9,7 +9,7 @@ use systemprompt_core_agent::services::agent_orchestration::{AgentOrchestrator, 
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct StatusArgs {
     #[arg(help = "Agent name to check (optional)")]
     pub name: Option<String>,

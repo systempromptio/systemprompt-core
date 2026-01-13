@@ -44,7 +44,7 @@ pub struct ValidationIssue {
     pub message: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ValidationSeverity {
     Error,

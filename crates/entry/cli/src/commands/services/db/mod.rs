@@ -9,7 +9,7 @@ use systemprompt_core_logging::CliService;
 use systemprompt_core_users::{PromoteResult, UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum DbCommands {
     #[command(about = "Execute SQL query")]
     Query {

@@ -9,7 +9,7 @@ use super::LogCleanupOutput;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct CleanupArgs {
     #[arg(
         long,

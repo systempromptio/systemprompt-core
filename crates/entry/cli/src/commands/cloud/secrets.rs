@@ -9,7 +9,7 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use super::tenant_ops::get_credentials;
 use crate::cli_settings::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum SecretsCommands {
     #[command(about = "Sync secrets from profile secrets.json to cloud")]
     Sync,

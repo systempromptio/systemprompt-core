@@ -11,7 +11,7 @@ use super::tenant_ops::{
 };
 use crate::cli_settings::CliConfig;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum TenantCommands {
     #[command(about = "Create a new tenant (local or cloud)")]
     Create {
@@ -38,7 +38,7 @@ pub enum TenantCommands {
     RotateSyncToken { id: Option<String> },
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct TenantDeleteArgs {
     pub id: Option<String>,
 

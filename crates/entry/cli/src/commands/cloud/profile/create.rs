@@ -148,6 +148,7 @@ pub async fn execute(name: &str, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct CreatedProfile {
     pub name: String,
 }

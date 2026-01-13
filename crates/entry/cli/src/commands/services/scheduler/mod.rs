@@ -10,7 +10,7 @@ use tracing_subscriber::EnvFilter;
 
 use systemprompt_generator as _;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum SchedulerCommands {
     #[command(about = "Run a scheduled job manually")]
     Run { job_name: String },

@@ -25,7 +25,7 @@ pub use viewer::TraceOptions;
 // Commands
 // ═══════════════════════════════════════════════════════════════════════════════
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum TraceCommands {
     #[command(about = "View trace for a message or trace ID")]
     View {
@@ -58,7 +58,7 @@ pub struct TraceEventRow {
     pub latency_ms: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct AiSummaryRow {
     pub request_count: i64,
     pub total_tokens: i64,
@@ -68,13 +68,13 @@ pub struct AiSummaryRow {
     pub total_latency_ms: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct McpSummaryRow {
     pub execution_count: i64,
     pub total_execution_time_ms: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct StepSummaryRow {
     pub total: i64,
     pub completed: i64,

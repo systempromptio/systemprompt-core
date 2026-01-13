@@ -6,7 +6,7 @@ use crate::CliConfig;
 use super::types::{AgentListOutput, AgentSummary};
 use systemprompt_loader::ConfigLoader;
 
-#[derive(Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
     #[arg(long, help = "Show only enabled agents")]
     pub enabled: bool,

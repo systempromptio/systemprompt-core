@@ -24,7 +24,7 @@ use dialoguer::{Input, Select};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum ProfileCommands {
     #[command(about = "Create a new profile")]
     Create { name: String },
@@ -53,7 +53,7 @@ pub enum ProfileCommands {
     Edit { name: Option<String> },
 }
 
-#[derive(Args)]
+#[derive(Debug, Args)]
 pub struct DeleteArgs {
     pub name: String,
 

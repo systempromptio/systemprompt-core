@@ -20,7 +20,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Subcommand;
 
-#[derive(Subcommand)]
+#[derive(Debug, Subcommand)]
 pub enum CloudCommands {
     #[command(subcommand, about = "Authentication (login, logout, whoami)")]
     Auth(auth::AuthCommands),
