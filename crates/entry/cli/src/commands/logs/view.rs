@@ -39,7 +39,7 @@ pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
 
-    let since_timestamp = parse_since(&args.since)?;
+    let since_timestamp = parse_since(args.since.as_ref())?;
     let logs = get_logs(&service, &args, since_timestamp).await?;
     let output = build_output(&logs, &args);
 

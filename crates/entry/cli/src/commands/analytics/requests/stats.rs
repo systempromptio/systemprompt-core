@@ -37,7 +37,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(&pool, start, end, &args.model).await?;
+    let output = fetch_stats(&pool, start, end, args.model.as_ref()).await?;
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -59,7 +59,7 @@ async fn fetch_stats(
     pool: &std::sync::Arc<sqlx::PgPool>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
-    model_filter: &Option<String>,
+    model_filter: Option<&String>,
 ) -> Result<RequestStatsOutput> {
     let row: (
         i64,

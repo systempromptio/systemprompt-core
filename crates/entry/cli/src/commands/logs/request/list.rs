@@ -46,7 +46,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let since_timestamp = parse_since(&args.since)?;
+    let since_timestamp = parse_since(args.since.as_ref())?;
 
     let rows = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(

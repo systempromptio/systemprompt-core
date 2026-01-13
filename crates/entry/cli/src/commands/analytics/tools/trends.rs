@@ -51,7 +51,7 @@ pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_trends(&pool, start, end, &args.group_by, &args.tool).await?;
+    let output = fetch_trends(&pool, start, end, &args.group_by, args.tool.as_ref()).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.points, path)?;
@@ -79,7 +79,7 @@ async fn fetch_trends(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     group_by: &str,
-    tool_filter: &Option<String>,
+    tool_filter: Option<&String>,
 ) -> Result<ToolTrendsOutput> {
     let rows: Vec<ExecutionRow> = if let Some(tool) = tool_filter {
         sqlx::query_as!(
@@ -154,7 +154,7 @@ async fn fetch_trends(
     points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
 
     Ok(ToolTrendsOutput {
-        tool: tool_filter.clone(),
+        tool: tool_filter.cloned(),
         period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
         group_by: group_by.to_string(),
         points,

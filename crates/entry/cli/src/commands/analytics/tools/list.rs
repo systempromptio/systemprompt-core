@@ -44,7 +44,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_tools(&pool, start, end, args.limit, &args.server).await?;
+    let output = fetch_tools(&pool, start, end, args.limit, args.server.as_ref()).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.tools, path)?;
@@ -84,7 +84,7 @@ async fn fetch_tools(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     limit: i64,
-    server_filter: &Option<String>,
+    server_filter: Option<&String>,
 ) -> Result<ToolListOutput> {
     let base_query = r"
         SELECT

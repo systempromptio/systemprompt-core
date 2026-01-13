@@ -15,6 +15,7 @@ use super::json::print_json;
 use super::summary::{print_summary, SummaryContext};
 use crate::CliConfig;
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 pub struct ShowArgs {
     #[arg(help = "Trace ID or Task ID (can be partial)")]

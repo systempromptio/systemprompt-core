@@ -142,6 +142,7 @@ pub struct FileConfigOutput {
     pub storage_paths: StoragePathsOutput,
 }
 
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AllowedTypesOutput {
     pub images: bool,

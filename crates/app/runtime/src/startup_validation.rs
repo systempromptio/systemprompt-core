@@ -4,6 +4,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
 use systemprompt_core_files::FilesConfig;
+use systemprompt_core_logging::is_startup_mode;
 use systemprompt_core_logging::services::cli::{
     render_phase_success, render_phase_warning, BrandColors,
 };
@@ -41,22 +42,25 @@ impl StartupValidator {
 
     pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
+        let verbose = is_startup_mode();
 
         if let Ok(path) = ProfileBootstrap::get_path() {
             report = report.with_profile_path(path);
         }
 
-        CliService::section("Validating configuration");
+        if verbose {
+            CliService::section("Validating configuration");
+        }
 
-        let Some(validation_provider) = Self::load_configs(config, &mut report) else {
+        let Some(validation_provider) = Self::load_configs(config, &mut report, verbose) else {
             return report;
         };
 
-        if self.load_domain_validators(&validation_provider, &mut report) {
+        if self.load_domain_validators(&validation_provider, &mut report, verbose) {
             return report;
         }
 
-        self.run_domain_validations(&mut report);
+        self.run_domain_validations(&mut report, verbose);
 
         Self::validate_mcp_manifests(config, validation_provider.services_config(), &mut report);
 
@@ -64,9 +68,11 @@ impl StartupValidator {
             return report;
         }
 
-        Self::validate_extensions(config, &mut report);
+        Self::validate_extensions(config, &mut report, verbose);
 
-        println!();
+        if verbose {
+            println!();
+        }
 
         report
     }
@@ -74,16 +80,27 @@ impl StartupValidator {
     fn load_configs(
         config: &Config,
         report: &mut StartupValidationReport,
+        verbose: bool,
     ) -> Option<ValidationConfigProvider> {
-        let spinner = create_spinner("Loading services config");
+        let spinner = if verbose {
+            Some(create_spinner("Loading services config"))
+        } else {
+            None
+        };
         let services_config = match ConfigLoader::load() {
             Ok(cfg) => {
-                spinner.finish_and_clear();
-                CliService::phase_success("Services config", Some("includes merged"));
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_success("Services config", Some("includes merged"));
+                }
                 cfg
             },
             Err(e) => {
-                spinner.finish_and_clear();
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
                 CliService::error(&format!("Services config: {}", e));
                 let mut domain_report = ValidationReport::new("services");
                 domain_report.add_error(ValidationError::new(
@@ -97,9 +114,9 @@ impl StartupValidator {
 
         let mut provider = ValidationConfigProvider::new(config.clone(), services_config);
 
-        provider = load_content_config(config, provider);
-        provider = load_web_config(config, provider);
-        provider = load_web_metadata(config, provider);
+        provider = load_content_config(config, provider, verbose);
+        provider = load_web_config(config, provider, verbose);
+        provider = load_web_metadata(config, provider, verbose);
 
         Some(provider)
     }
@@ -108,24 +125,35 @@ impl StartupValidator {
         &mut self,
         provider: &ValidationConfigProvider,
         report: &mut StartupValidationReport,
+        verbose: bool,
     ) -> bool {
-        println!();
-        println!(
-            "{} {}",
-            BrandColors::primary("▸"),
-            BrandColors::white_bold("Validating domains")
-        );
+        if verbose {
+            println!();
+            println!(
+                "{} {}",
+                BrandColors::primary("▸"),
+                BrandColors::white_bold("Validating domains")
+            );
+        }
 
         for validator in self.registry.validators_mut() {
             let domain_id = validator.domain_id();
-            let spinner = create_spinner(&format!("Loading {}", domain_id));
+            let spinner = if verbose {
+                Some(create_spinner(&format!("Loading {}", domain_id)))
+            } else {
+                None
+            };
 
             match validator.load(provider) {
                 Ok(()) => {
-                    spinner.finish_and_clear();
+                    if let Some(s) = spinner {
+                        s.finish_and_clear();
+                    }
                 },
                 Err(e) => {
-                    spinner.finish_and_clear();
+                    if let Some(s) = spinner {
+                        s.finish_and_clear();
+                    }
                     println!("  {} [{}] {}", BrandColors::stopped("✗"), domain_id, e);
 
                     let mut domain_report = ValidationReport::new(domain_id);
@@ -141,19 +169,29 @@ impl StartupValidator {
         report.has_errors()
     }
 
-    fn run_domain_validations(&self, report: &mut StartupValidationReport) {
+    fn run_domain_validations(&self, report: &mut StartupValidationReport, verbose: bool) {
         for validator in self.registry.validators_sorted() {
             let domain_id = validator.domain_id();
-            let spinner = create_spinner(&format!("Validating {}", domain_id));
+            let spinner = if verbose {
+                Some(create_spinner(&format!("Validating {}", domain_id)))
+            } else {
+                None
+            };
 
             match validator.validate() {
                 Ok(domain_report) => {
-                    spinner.finish_and_clear();
-                    Self::print_domain_result(&domain_report, domain_id);
+                    if let Some(s) = spinner {
+                        s.finish_and_clear();
+                    }
+                    if verbose {
+                        Self::print_domain_result(&domain_report, domain_id);
+                    }
                     report.add_domain(domain_report);
                 },
                 Err(e) => {
-                    spinner.finish_and_clear();
+                    if let Some(s) = spinner {
+                        s.finish_and_clear();
+                    }
                     println!("  {} [{}] {}", BrandColors::stopped("✗"), domain_id, e);
 
                     let mut domain_report = ValidationReport::new(domain_id);
@@ -185,7 +223,7 @@ impl StartupValidator {
         }
     }
 
-    fn validate_extensions(config: &Config, report: &mut StartupValidationReport) {
+    fn validate_extensions(config: &Config, report: &mut StartupValidationReport, verbose: bool) {
         let extensions = ExtensionRegistry::discover();
         let config_extensions = extensions.config_extensions();
 
@@ -193,15 +231,17 @@ impl StartupValidator {
             return;
         }
 
-        println!();
-        println!(
-            "{} {}",
-            BrandColors::primary("▸"),
-            BrandColors::white_bold("Validating extensions")
-        );
+        if verbose {
+            println!();
+            println!(
+                "{} {}",
+                BrandColors::primary("▸"),
+                BrandColors::white_bold("Validating extensions")
+            );
+        }
 
         for ext in config_extensions {
-            Self::validate_single_extension(config, ext.as_ref(), report);
+            Self::validate_single_extension(config, ext.as_ref(), report, verbose);
         }
     }
 
@@ -209,6 +249,7 @@ impl StartupValidator {
         config: &Config,
         ext: &dyn systemprompt_extension::Extension,
         report: &mut StartupValidationReport,
+        verbose: bool,
     ) {
         let ext_id = ext.id();
         let Some(prefix) = ext.config_prefix() else {
@@ -239,7 +280,9 @@ impl StartupValidator {
 
         match ext.validate_config(&config_json) {
             Ok(()) => {
-                render_phase_success(&format!("[ext:{}]", ext_id), Some("valid"));
+                if verbose {
+                    render_phase_success(&format!("[ext:{}]", ext_id), Some("valid"));
+                }
             },
             Err(e) => {
                 let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
@@ -365,18 +408,31 @@ impl systemprompt_traits::DomainConfig for FilesConfigValidator {
 fn load_content_config(
     config: &Config,
     mut provider: ValidationConfigProvider,
+    verbose: bool,
 ) -> ValidationConfigProvider {
     if let Some(content_config_path) = config.get("content_config_path") {
-        let spinner = create_spinner("Loading content config");
+        let spinner = if verbose {
+            Some(create_spinner("Loading content config"))
+        } else {
+            None
+        };
         match load_yaml_config::<ContentConfigRaw>(Path::new(&content_config_path)) {
             Ok(cfg) => {
-                spinner.finish_and_clear();
-                CliService::phase_success("Content config", None);
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_success("Content config", None);
+                }
                 provider = provider.with_content_config(cfg);
             },
             Err(e) => {
-                spinner.finish_and_clear();
-                CliService::phase_warning("Content config", Some(&e));
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_warning("Content config", Some(&e));
+                }
             },
         }
     }
@@ -386,18 +442,31 @@ fn load_content_config(
 fn load_web_config(
     config: &Config,
     mut provider: ValidationConfigProvider,
+    verbose: bool,
 ) -> ValidationConfigProvider {
     if let Some(web_config_path) = config.get("web_config_path") {
-        let spinner = create_spinner("Loading web config");
+        let spinner = if verbose {
+            Some(create_spinner("Loading web config"))
+        } else {
+            None
+        };
         match load_yaml_config::<WebConfigRaw>(Path::new(&web_config_path)) {
             Ok(cfg) => {
-                spinner.finish_and_clear();
-                CliService::phase_success("Web config", None);
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_success("Web config", None);
+                }
                 provider = provider.with_web_config(cfg);
             },
             Err(e) => {
-                spinner.finish_and_clear();
-                CliService::phase_warning("Web config", Some(&e));
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_warning("Web config", Some(&e));
+                }
             },
         }
     }
@@ -407,18 +476,31 @@ fn load_web_config(
 fn load_web_metadata(
     config: &Config,
     mut provider: ValidationConfigProvider,
+    verbose: bool,
 ) -> ValidationConfigProvider {
     if let Some(web_metadata_path) = config.get("web_metadata_path") {
-        let spinner = create_spinner("Loading web metadata");
+        let spinner = if verbose {
+            Some(create_spinner("Loading web metadata"))
+        } else {
+            None
+        };
         match load_yaml_config::<WebMetadataRaw>(Path::new(&web_metadata_path)) {
             Ok(cfg) => {
-                spinner.finish_and_clear();
-                CliService::phase_success("Web metadata", None);
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_success("Web metadata", None);
+                }
                 provider = provider.with_web_metadata(cfg);
             },
             Err(e) => {
-                spinner.finish_and_clear();
-                CliService::phase_warning("Web metadata", Some(&e));
+                if let Some(s) = spinner {
+                    s.finish_and_clear();
+                }
+                if verbose {
+                    CliService::phase_warning("Web metadata", Some(&e));
+                }
             },
         }
     }
