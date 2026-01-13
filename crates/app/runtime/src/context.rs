@@ -47,7 +47,10 @@ impl AppContext {
         AppContextBuilder::new()
     }
 
-    async fn new_internal(extension_registry: Option<ExtensionRegistry>) -> Result<Self> {
+    async fn new_internal(
+        extension_registry: Option<ExtensionRegistry>,
+        show_startup_warnings: bool,
+    ) -> Result<Self> {
         let profile = ProfileBootstrap::get()?;
         AppPaths::init(&profile.paths)?;
         systemprompt_core_files::FilesConfig::init()?;
@@ -63,7 +66,7 @@ impl AppContext {
 
         let extension_registry = Arc::new(registry);
 
-        let geoip_reader = Self::load_geoip_database(&config);
+        let geoip_reader = Self::load_geoip_database(&config, show_startup_warnings);
         let content_config = Self::load_content_config(&config);
 
         #[allow(trivial_casts)]
@@ -90,30 +93,36 @@ impl AppContext {
         })
     }
 
-    fn load_geoip_database(config: &Config) -> Option<GeoIpReader> {
+    fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
         let Some(geoip_path) = &config.geoip_database_path else {
-            CliService::warning(
-                "GeoIP database not configured - geographic data will not be available",
-            );
-            CliService::info("  To enable geographic data:");
-            CliService::info("  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data");
-            CliService::info(
-                "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
-            );
+            if show_warnings {
+                CliService::warning(
+                    "GeoIP database not configured - geographic data will not be available",
+                );
+                CliService::info("  To enable geographic data:");
+                CliService::info("  1. Download MaxMind GeoLite2-City database from: https://dev.maxmind.com/geoip/geolite2-free-geolocation-data");
+                CliService::info(
+                    "  2. Add paths.geoip_database to your profile pointing to the .mmdb file",
+                );
+            }
             return None;
         };
 
         match maxminddb::Reader::open_readfile(geoip_path) {
             Ok(reader) => Some(Arc::new(reader)),
             Err(e) => {
-                CliService::warning(&format!(
-                    "Could not load GeoIP database from {geoip_path}: {e}"
-                ));
-                CliService::info("  Geographic data (country/region/city) will not be available.");
-                CliService::info(
-                    "  To fix: Ensure the path is correct and the file is a valid MaxMind .mmdb \
-                     database",
-                );
+                if show_warnings {
+                    CliService::warning(&format!(
+                        "Could not load GeoIP database from {geoip_path}: {e}"
+                    ));
+                    CliService::info(
+                        "  Geographic data (country/region/city) will not be available.",
+                    );
+                    CliService::info(
+                        "  To fix: Ensure the path is correct and the file is a valid MaxMind \
+                         .mmdb database",
+                    );
+                }
                 None
             },
         }
@@ -258,6 +267,7 @@ impl ExtensionContext for AppContext {
 #[derive(Debug, Default)]
 pub struct AppContextBuilder {
     extension_registry: Option<ExtensionRegistry>,
+    show_startup_warnings: bool,
 }
 
 impl AppContextBuilder {
@@ -272,7 +282,13 @@ impl AppContextBuilder {
         self
     }
 
+    #[must_use]
+    pub const fn with_startup_warnings(mut self, show: bool) -> Self {
+        self.show_startup_warnings = show;
+        self
+    }
+
     pub async fn build(self) -> Result<AppContext> {
-        AppContext::new_internal(self.extension_registry).await
+        AppContext::new_internal(self.extension_registry, self.show_startup_warnings).await
     }
 }
