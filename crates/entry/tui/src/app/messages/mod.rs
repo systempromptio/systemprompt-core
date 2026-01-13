@@ -70,7 +70,9 @@ pub enum Message {
     ContextLifecycle(ContextLifecycleEvent),
     ContextSnapshot(SnapshotData),
 
-    TaskProgressStarted { task_id: TaskId },
+    TaskProgressStarted {
+        task_id: TaskId,
+    },
     TaskProgressFinished,
     TaskProgressError(String),
     TaskDeleted(String),

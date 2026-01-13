@@ -1,5 +1,7 @@
 mod cleanup;
 mod delete;
+pub mod duration;
+mod export;
 pub mod request;
 mod search;
 mod stream;
@@ -17,21 +19,32 @@ use crate::CliConfig;
 pub enum LogsCommands {
     #[command(
         about = "View log entries",
-        after_help = "EXAMPLES:\n  systemprompt logs view --tail 20\n  systemprompt logs view --level error\n  systemprompt logs view --since 1h"
+        after_help = "EXAMPLES:\n  systemprompt logs view --tail 20\n  systemprompt logs view \
+                      --level error\n  systemprompt logs view --since 1h"
     )]
     View(view::ViewArgs),
 
     #[command(
         about = "Search logs by pattern",
-        after_help = "EXAMPLES:\n  systemprompt logs search \"error\"\n  systemprompt logs search \"timeout\" --level error --since 1h"
+        after_help = "EXAMPLES:\n  systemprompt logs search \"error\"\n  systemprompt logs search \
+                      \"timeout\" --level error --since 1h"
     )]
     Search(search::SearchArgs),
 
     #[command(
-        about = "Stream logs in real-time",
-        after_help = "EXAMPLES:\n  systemprompt logs stream\n  systemprompt logs stream --level error --module agent"
+        about = "Stream logs in real-time (like tail -f)",
+        visible_alias = "follow",
+        after_help = "EXAMPLES:\n  systemprompt logs stream\n  systemprompt logs stream --level \
+                      error --module agent\n  systemprompt logs follow"
     )]
     Stream(stream::StreamArgs),
+
+    #[command(
+        about = "Export logs to file",
+        after_help = "EXAMPLES:\n  systemprompt logs export --format json --since 24h\n  \
+                      systemprompt logs export --format csv -o logs.csv"
+    )]
+    Export(export::ExportArgs),
 
     #[command(about = "Clean up old log entries")]
     Cleanup(cleanup::CleanupArgs),
@@ -45,10 +58,6 @@ pub enum LogsCommands {
     #[command(subcommand, about = "Inspect AI requests")]
     Request(request::RequestCommands),
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output Types
-// ═══════════════════════════════════════════════════════════════════════════════
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogEntryRow {
@@ -94,15 +103,20 @@ pub struct LogCleanupOutput {
     pub vacuum_performed: bool,
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Execute
-// ═══════════════════════════════════════════════════════════════════════════════
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LogExportOutput {
+    pub exported_count: u64,
+    pub format: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file_path: Option<String>,
+}
 
 pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
     match command {
         LogsCommands::View(args) => view::execute(args, config).await,
         LogsCommands::Search(args) => search::execute(args, config).await,
         LogsCommands::Stream(args) => stream::execute(args, config).await,
+        LogsCommands::Export(args) => export::execute(args, config).await,
         LogsCommands::Cleanup(args) => cleanup::execute(args, config).await,
         LogsCommands::Delete(args) => delete::execute(args, config).await,
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,

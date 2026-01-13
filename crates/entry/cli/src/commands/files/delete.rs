@@ -18,7 +18,10 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<FileDeleteOutput>> {
+pub async fn execute(
+    args: DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<FileDeleteOutput>> {
     let file_id = FileId::new(args.file_id.clone());
 
     let db = DbPool::from_env().await?;

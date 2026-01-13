@@ -36,7 +36,11 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 
     let bans = match args.source {
-        Some(ref source) => ban_repository.list_bans_by_source(source, args.limit).await?,
+        Some(ref source) => {
+            ban_repository
+                .list_bans_by_source(source, args.limit)
+                .await?
+        },
         None => ban_repository.list_active_bans(args.limit).await?,
     };
 

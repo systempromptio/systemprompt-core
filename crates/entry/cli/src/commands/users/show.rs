@@ -102,10 +102,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
             CliService::key_value("Display Name", display_name);
         }
 
-        CliService::key_value(
-            "Status",
-            output.status.as_deref().unwrap_or("unknown"),
-        );
+        CliService::key_value("Status", output.status.as_deref().unwrap_or("unknown"));
         CliService::key_value("Roles", &output.roles.join(", "));
         CliService::key_value(
             "Email Verified",

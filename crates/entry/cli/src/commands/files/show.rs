@@ -17,7 +17,10 @@ pub struct ShowArgs {
     pub identifier: String,
 }
 
-pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<FileDetailOutput>> {
+pub async fn execute(
+    args: ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileDetailOutput>> {
     let db = DbPool::from_env().await?;
     let service = FileService::new(&db)?;
 

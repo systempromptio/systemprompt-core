@@ -76,12 +76,10 @@ fn build_services_commands() -> CliCommandInfo {
                 .with_path(extend_path(&path, "stop"))
                 .with_description("Stop running services gracefully")
                 .with_execution_mode(ExecutionMode::Deterministic)
-                .with_arguments(vec![
-                    CliArgumentInfo::new("all")
-                        .with_type(CliArgType::Bool)
-                        .with_long("all")
-                        .with_help("Stop all services"),
-                ]),
+                .with_arguments(vec![CliArgumentInfo::new("all")
+                    .with_type(CliArgType::Bool)
+                    .with_long("all")
+                    .with_help("Stop all services")]),
             CliCommandInfo::new("restart")
                 .with_path(extend_path(&path, "restart"))
                 .with_description("Restart services")

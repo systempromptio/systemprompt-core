@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::FileService;
 use systemprompt_identifiers::{FileId, UserId};
 
+use super::create_db_pool;
 use super::types::{FileListOutput, FileSummary};
 use crate::shared::CommandResult;
 use crate::CliConfig;
@@ -24,7 +24,7 @@ pub struct ListArgs {
 }
 
 pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<FileListOutput>> {
-    let db = DbPool::from_env().await?;
+    let db = create_db_pool().await?;
     let service = FileService::new(&db)?;
 
     let files = match &args.user {

@@ -56,7 +56,8 @@ pub fn parse_since(since: &Option<String>) -> Result<Option<DateTime<Utc>>> {
     }
 
     Err(anyhow!(
-        "Invalid --since format: {}. Use formats like '1h', '24h', '7d', '2026-01-13', or '2026-01-13T10:00:00'",
+        "Invalid --since format: {}. Use formats like '1h', '24h', '7d', '2026-01-13', or \
+         '2026-01-13T10:00:00'",
         s
     ))
 }

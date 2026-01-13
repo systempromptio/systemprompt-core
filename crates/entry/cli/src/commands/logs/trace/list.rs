@@ -1,10 +1,11 @@
-use anyhow::{anyhow, Result};
-use chrono::{DateTime, Duration, Utc};
+use anyhow::Result;
+use chrono::{DateTime, Utc};
 use clap::Args;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::{TraceListOutput, TraceListRow};
+use crate::commands::logs::duration::parse_since;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -128,62 +129,17 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn parse_since(since: &Option<String>) -> Result<Option<DateTime<Utc>>> {
-    let Some(s) = since else {
-        return Ok(None);
-    };
-
-    let s = s.trim().to_lowercase();
-
-    if let Some(duration) = parse_duration(&s) {
-        return Ok(Some(Utc::now() - duration));
-    }
-
-    if let Ok(date) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
-        let datetime = date.and_hms_opt(0, 0, 0).unwrap();
-        return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
-    }
-
-    if let Ok(datetime) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
-    }
-
-    Err(anyhow!(
-        "Invalid --since format: {}. Use formats like '1h', '24h', '7d', '2026-01-13'",
-        s
-    ))
-}
-
-fn parse_duration(s: &str) -> Option<Duration> {
-    if let Some(days) = s.strip_suffix('d') {
-        let num: i64 = days.parse().ok()?;
-        return Some(Duration::days(num));
-    }
-
-    if let Some(hours) = s.strip_suffix('h') {
-        let num: i64 = hours.parse().ok()?;
-        return Some(Duration::hours(num));
-    }
-
-    if let Some(mins) = s.strip_suffix('m') {
-        let num: i64 = mins.parse().ok()?;
-        return Some(Duration::minutes(num));
-    }
-
-    None
-}
-
 fn matches_filters(row: &TraceRow, args: &ListArgs) -> bool {
     if let Some(ref agent_filter) = args.agent {
         match &row.agent {
-            Some(agent) if agent.contains(agent_filter) => {}
+            Some(agent) if agent.contains(agent_filter) => {},
             _ => return false,
         }
     }
 
     if let Some(ref status_filter) = args.status {
         match &row.status {
-            Some(status) if status.eq_ignore_ascii_case(status_filter) => {}
+            Some(status) if status.eq_ignore_ascii_case(status_filter) => {},
             _ => return false,
         }
     }

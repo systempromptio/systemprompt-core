@@ -132,6 +132,41 @@ impl TuiApp {
         vec![Command::None]
     }
 
+    pub(crate) fn handle_command_cli_output(&mut self, output: String) -> Vec<Command> {
+        self.state.commands.set_output(output);
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_cli_error(&mut self, error: String) -> Vec<Command> {
+        self.state.commands.set_error(&error);
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_tree_toggle(&mut self) -> Vec<Command> {
+        self.state.commands.toggle_expanded();
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_tree_expand(&mut self) -> Vec<Command> {
+        self.state.commands.expand_current();
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_tree_collapse(&mut self) -> Vec<Command> {
+        self.state.commands.collapse_current();
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_modal_open(&mut self) -> Vec<Command> {
+        self.state.commands.open_parameter_modal();
+        vec![Command::None]
+    }
+
+    pub(crate) fn handle_command_modal_close(&mut self) -> Vec<Command> {
+        self.state.commands.close_modal();
+        vec![Command::None]
+    }
+
     pub(crate) fn handle_agents_refresh(&mut self) -> Vec<Command> {
         self.state.agents.set_loading(true);
         self.state.agents.set_error(None);

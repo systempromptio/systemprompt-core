@@ -32,7 +32,10 @@ pub struct UploadArgs {
     pub ai: bool,
 }
 
-pub async fn execute(args: UploadArgs, _config: &CliConfig) -> Result<CommandResult<FileUploadOutput>> {
+pub async fn execute(
+    args: UploadArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileUploadOutput>> {
     let db = DbPool::from_env().await?;
     let files_config = FilesConfig::get()?;
     let service = FileUploadService::new(&db, files_config.clone())?;

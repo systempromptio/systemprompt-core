@@ -88,7 +88,6 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
         user_service.list(args.limit, args.offset).await?
     };
 
-    // Apply status filter if provided
     let users: Vec<_> = if let Some(status_filter) = args.status {
         let status: UserStatus = status_filter.into();
         let status_str = status.as_str();

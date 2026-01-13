@@ -12,8 +12,13 @@ pub enum Command {
     CancelAiStream,
     CreateNewContext,
     ExecuteTool(Uuid),
-    SendInputResponse { request_id: String, value: String },
-    CancelInputRequest { request_id: String },
+    SendInputResponse {
+        request_id: String,
+        value: String,
+    },
+    CancelInputRequest {
+        request_id: String,
+    },
     DeleteTask(String),
 
     DeleteArtifact(String),
@@ -25,11 +30,17 @@ pub enum Command {
     RestartService(String),
 
     RefreshUsers,
-    UpdateUserRole { user_id: UserId, role: String },
+    UpdateUserRole {
+        user_id: UserId,
+        role: String,
+    },
 
     RefreshConversations,
     SelectConversation(ContextId),
-    RenameConversation { context_id: ContextId, name: String },
+    RenameConversation {
+        context_id: ContextId,
+        name: String,
+    },
     DeleteConversation(String),
     CreateConversation(String),
 

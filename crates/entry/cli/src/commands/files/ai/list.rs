@@ -20,7 +20,10 @@ pub struct ListArgs {
     pub user: Option<String>,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<AiFilesListOutput>> {
+pub async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AiFilesListOutput>> {
     let db = DbPool::from_env().await?;
     let service = AiService::new(&db)?;
 
