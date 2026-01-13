@@ -1,14 +1,11 @@
 mod ai_artifacts;
 mod ai_display;
 mod ai_mcp;
-mod ai_trace;
-mod client;
 mod display;
 mod json;
 mod list;
-mod lookup;
+mod show;
 mod summary;
-mod viewer;
 
 pub use summary::{print_summary, SummaryContext};
 
@@ -19,29 +16,23 @@ use serde::{Deserialize, Serialize};
 
 use crate::CliConfig;
 
-pub use viewer::TraceOptions;
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // Commands
 // ═══════════════════════════════════════════════════════════════════════════════
 
 #[derive(Debug, Subcommand)]
 pub enum TraceCommands {
-    #[command(about = "View trace for a message or trace ID")]
-    View {
-        trace_id: Option<String>,
-        #[command(flatten)]
-        options: TraceOptions,
-    },
-
-    #[command(about = "AI task trace - inspect task execution details")]
-    Ai(ai_trace::AiTraceOptions),
-
-    #[command(about = "List recent traces")]
+    #[command(
+        about = "List recent traces",
+        after_help = "EXAMPLES:\n  systemprompt logs trace list\n  systemprompt logs trace list --limit 50 --since 1h\n  systemprompt logs trace list --agent researcher --status completed"
+    )]
     List(list::ListArgs),
 
-    #[command(about = "Lookup a specific AI request")]
-    Lookup(lookup::LookupArgs),
+    #[command(
+        about = "Show trace details",
+        after_help = "EXAMPLES:\n  systemprompt logs trace show abc123\n  systemprompt logs trace show abc123 --verbose\n  systemprompt logs trace show abc123 --steps --ai --mcp"
+    )]
+    Show(show::ShowArgs),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -210,11 +201,7 @@ pub struct AiLookupOutput {
 
 pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
     match command {
-        TraceCommands::View { trace_id, options } => {
-            viewer::execute(trace_id.as_deref(), options, config).await
-        },
-        TraceCommands::Ai(options) => ai_trace::execute(options, config).await,
         TraceCommands::List(args) => list::execute(args, config).await,
-        TraceCommands::Lookup(args) => lookup::execute(args, config).await,
+        TraceCommands::Show(args) => show::execute(args, config).await,
     }
 }

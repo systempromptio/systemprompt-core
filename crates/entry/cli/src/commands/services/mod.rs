@@ -1,7 +1,5 @@
 mod cleanup;
-pub mod db;
 pub mod restart;
-pub mod scheduler;
 pub mod serve;
 mod start;
 mod status;
@@ -93,12 +91,6 @@ pub enum ServicesCommands {
         #[arg(long, help = "Kill process using the port if occupied")]
         kill_port_process: bool,
     },
-
-    #[command(subcommand, about = "Database operations")]
-    Db(db::DbCommands),
-
-    #[command(subcommand, about = "Scheduler and background jobs")]
-    Scheduler(scheduler::SchedulerCommands),
 }
 
 #[derive(Debug, Clone, Subcommand)]
@@ -186,17 +178,6 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             foreground,
             kill_port_process,
         } => serve::execute(foreground, kill_port_process, config).await,
-
-        ServicesCommands::Db(cmd) => db::execute(cmd, config).await,
-
-        ServicesCommands::Scheduler(cmd) => {
-            let ctx = Arc::new(
-                AppContext::new()
-                    .await
-                    .context("Failed to initialize application context")?,
-            );
-            scheduler::execute(cmd, ctx, config).await
-        },
     }
 }
 

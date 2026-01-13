@@ -38,7 +38,9 @@ pub async fn execute_with_events(
     register_modules(events);
 
     let ctx = Arc::new(
-        AppContext::new()
+        AppContext::builder()
+            .with_startup_warnings(true)
+            .build()
             .await
             .context("Failed to initialize application context")?,
     );

@@ -108,7 +108,7 @@ async fn run_startup(
 
     if !options.skip_migrate {
         events.phase_started(Phase::Database);
-        super::db::execute(super::db::DbCommands::Migrate, config).await?;
+        crate::db::execute(crate::db::DbCommands::Migrate, config).await?;
         events.phase_completed(Phase::Database);
     }
 

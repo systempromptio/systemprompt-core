@@ -1,5 +1,5 @@
-use anyhow::Result;
-use chrono::{DateTime, Utc};
+use anyhow::{anyhow, Result};
+use chrono::{DateTime, Duration, Utc};
 use clap::Args;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -12,6 +12,7 @@ use crate::CliConfig;
 pub struct ListArgs {
     #[arg(
         long,
+        short = 'n',
         default_value = "20",
         help = "Maximum number of traces to return"
     )]
@@ -19,7 +20,7 @@ pub struct ListArgs {
 
     #[arg(
         long,
-        help = "Only show traces since this duration (e.g., '1h', '24h', '7d')"
+        help = "Only show traces since this duration (e.g., '1h', '24h', '7d') or datetime"
     )]
     pub since: Option<String>,
 
@@ -44,27 +45,55 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let rows = sqlx::query_as!(
-        TraceRow,
-        r#"
-        SELECT DISTINCT
-            l.trace_id as "trace_id!",
-            MIN(l.timestamp) as "first_timestamp!",
-            MAX(l.timestamp) as "last_timestamp!",
-            (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
-            (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
-            (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
-            (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
-        FROM logs l
-        WHERE l.trace_id IS NOT NULL
-        GROUP BY l.trace_id
-        ORDER BY MIN(l.timestamp) DESC
-        LIMIT $1
-        "#,
-        args.limit
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
+    let since_timestamp = parse_since(&args.since)?;
+
+    let rows = if let Some(since_ts) = since_timestamp {
+        sqlx::query_as!(
+            TraceRow,
+            r#"
+            SELECT DISTINCT
+                l.trace_id as "trace_id!",
+                MIN(l.timestamp) as "first_timestamp!",
+                MAX(l.timestamp) as "last_timestamp!",
+                (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
+                (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
+                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
+                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
+            FROM logs l
+            WHERE l.trace_id IS NOT NULL
+              AND l.timestamp >= $1
+            GROUP BY l.trace_id
+            ORDER BY MIN(l.timestamp) DESC
+            LIMIT $2
+            "#,
+            since_ts,
+            args.limit
+        )
+        .fetch_all(pool.as_ref())
+        .await?
+    } else {
+        sqlx::query_as!(
+            TraceRow,
+            r#"
+            SELECT DISTINCT
+                l.trace_id as "trace_id!",
+                MIN(l.timestamp) as "first_timestamp!",
+                MAX(l.timestamp) as "last_timestamp!",
+                (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
+                (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
+                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
+                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
+            FROM logs l
+            WHERE l.trace_id IS NOT NULL
+            GROUP BY l.trace_id
+            ORDER BY MIN(l.timestamp) DESC
+            LIMIT $1
+            "#,
+            args.limit
+        )
+        .fetch_all(pool.as_ref())
+        .await?
+    };
 
     let traces: Vec<TraceListRow> = rows
         .into_iter()
@@ -97,6 +126,51 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     render_result(&result);
 
     Ok(())
+}
+
+fn parse_since(since: &Option<String>) -> Result<Option<DateTime<Utc>>> {
+    let Some(s) = since else {
+        return Ok(None);
+    };
+
+    let s = s.trim().to_lowercase();
+
+    if let Some(duration) = parse_duration(&s) {
+        return Ok(Some(Utc::now() - duration));
+    }
+
+    if let Ok(date) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
+        let datetime = date.and_hms_opt(0, 0, 0).unwrap();
+        return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
+    }
+
+    if let Ok(datetime) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S") {
+        return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
+    }
+
+    Err(anyhow!(
+        "Invalid --since format: {}. Use formats like '1h', '24h', '7d', '2026-01-13'",
+        s
+    ))
+}
+
+fn parse_duration(s: &str) -> Option<Duration> {
+    if let Some(days) = s.strip_suffix('d') {
+        let num: i64 = days.parse().ok()?;
+        return Some(Duration::days(num));
+    }
+
+    if let Some(hours) = s.strip_suffix('h') {
+        let num: i64 = hours.parse().ok()?;
+        return Some(Duration::hours(num));
+    }
+
+    if let Some(mins) = s.strip_suffix('m') {
+        let num: i64 = mins.parse().ok()?;
+        return Some(Duration::minutes(num));
+    }
+
+    None
 }
 
 fn matches_filters(row: &TraceRow, args: &ListArgs) -> bool {

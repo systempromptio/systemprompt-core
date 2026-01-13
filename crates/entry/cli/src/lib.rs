@@ -5,7 +5,7 @@ pub mod shared;
 mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-pub use commands::{agents, build, cloud, logs, mcp, services, setup, skills};
+pub use commands::{agents, build, cloud, db, jobs, logs, mcp, services, setup, skills};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -100,11 +100,14 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(
-        subcommand,
-        about = "Service lifecycle management (start, stop, db, scheduler)"
-    )]
+    #[command(subcommand, about = "Service lifecycle management (start, stop, status)")]
     Services(services::ServicesCommands),
+
+    #[command(subcommand, about = "Database operations and administration")]
+    Db(db::DbCommands),
+
+    #[command(subcommand, about = "Background jobs and scheduling")]
+    Jobs(jobs::JobsCommands),
 
     #[command(subcommand, about = "Cloud deployment, sync, and setup")]
     Cloud(cloud::CloudCommands),
@@ -184,6 +187,8 @@ pub async fn run() -> Result<()> {
 
     match cli.command {
         Some(Commands::Services(cmd)) => services::execute(cmd, &cli_config).await?,
+        Some(Commands::Db(cmd)) => db::execute(cmd, &cli_config).await?,
+        Some(Commands::Jobs(cmd)) => jobs::execute(cmd, &cli_config).await?,
         Some(Commands::Cloud(cmd)) => cloud::execute(cmd, &cli_config).await?,
         Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
         Some(Commands::Mcp(cmd)) => mcp::execute(cmd).await?,
