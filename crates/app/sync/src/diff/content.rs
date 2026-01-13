@@ -67,7 +67,7 @@ impl ContentDiffCalculator {
                             disk_hash: Some(disk_hash),
                             db_hash: Some(db_item.version_hash.clone()),
                             disk_updated_at: None,
-                            db_updated_at: db_item.updated_at,
+                            db_updated_at: Some(db_item.updated_at),
                             title: Some(disk_item.title.clone()),
                         });
                     } else {
@@ -86,7 +86,7 @@ impl ContentDiffCalculator {
                     disk_hash: None,
                     db_hash: Some(db_item.version_hash.clone()),
                     disk_updated_at: None,
-                    db_updated_at: db_item.updated_at,
+                    db_updated_at: Some(db_item.updated_at),
                     title: Some(db_item.title.clone()),
                 });
             }

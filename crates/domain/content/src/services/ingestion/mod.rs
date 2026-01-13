@@ -249,8 +249,10 @@ impl IngestionService {
             category_id: Some(CategoryId::new(category_id)),
             source_id: SourceId::new(source_id),
             version_hash: String::new(),
+            public: true,
             links,
-            updated_at: Some(chrono::Utc::now()),
+            image_optimization_status: None,
+            updated_at: chrono::Utc::now(),
         })
     }
 

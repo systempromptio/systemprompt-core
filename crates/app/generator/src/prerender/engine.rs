@@ -202,7 +202,7 @@ fn contents_to_json(contents: &[Content]) -> Vec<serde_json::Value> {
                 "content": c.body,
                 "author": c.author,
                 "published_at": c.published_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
-                "updated_at": c.updated_at.map(|dt| dt.format("%Y-%m-%dT%H:%M:%SZ").to_string()),
+                "updated_at": c.updated_at.format("%Y-%m-%dT%H:%M:%SZ").to_string(),
                 "keywords": c.keywords,
                 "content_type": c.kind,
                 "image": c.image,
