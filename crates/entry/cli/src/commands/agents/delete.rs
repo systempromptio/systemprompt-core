@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::{theme::ColorfulTheme, Select};
+use std::path::Path;
 
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use super::types::AgentDeleteOutput;
 use systemprompt_core_logging::CliService;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -71,21 +73,49 @@ pub async fn execute(
         }
     }
 
-    CliService::warning(
-        "Agent deletion modifies configuration files. \
-         Please remove the agent configuration from your services.yaml manually for now."
-    );
+    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let services_dir = Path::new(&profile.paths.services);
+
+    let mut deleted = Vec::new();
+    let mut errors = Vec::new();
+
+    for agent_name in &agents_to_delete {
+        CliService::info(&format!("Deleting agent '{}'...", agent_name));
+
+        match ConfigWriter::delete_agent(agent_name, services_dir) {
+            Ok(()) => {
+                CliService::success(&format!("Agent '{}' deleted", agent_name));
+                deleted.push(agent_name.clone());
+            }
+            Err(e) => {
+                CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
+                errors.push(format!("{}: {}", agent_name, e));
+            }
+        }
+    }
+
+    if !errors.is_empty() && deleted.is_empty() {
+        return Err(anyhow!(
+            "Failed to delete agents:\n{}",
+            errors.join("\n")
+        ));
+    }
+
+    if !deleted.is_empty() {
+        ConfigLoader::load().with_context(|| {
+            "Agent(s) deleted but configuration validation failed. Please check the configuration."
+        })?;
+    }
+
+    let message = if deleted.len() == 1 {
+        format!("Agent '{}' deleted successfully", deleted[0])
+    } else {
+        format!("{} agent(s) deleted successfully", deleted.len())
+    };
 
     let output = AgentDeleteOutput {
-        deleted: agents_to_delete.clone(),
-        message: format!(
-            "Agent(s) prepared for deletion. Remove the following from services.yaml:\n\n{}",
-            agents_to_delete
-                .iter()
-                .map(|n| format!("agents:\n  {}: # Remove this entire block", n))
-                .collect::<Vec<_>>()
-                .join("\n\n")
-        ),
+        deleted,
+        message,
     };
 
     Ok(CommandResult::text(output).with_title("Delete Agent"))

@@ -54,7 +54,7 @@ impl TestCleanup {
         let rows = self
             .db
             .fetch_all(
-                &"SELECT session_id FROM analytics_sessions WHERE fingerprint_hash = $1",
+                &"SELECT session_id FROM user_sessions WHERE fingerprint_hash = $1",
                 &[&fingerprint],
             )
             .await?;
@@ -63,7 +63,7 @@ impl TestCleanup {
             if let Some(session_id) = row.get("session_id").and_then(|v| v.as_str()) {
                 self.db
                     .execute(
-                        &"DELETE FROM analytics_sessions WHERE session_id = $1",
+                        &"DELETE FROM user_sessions WHERE session_id = $1",
                         &[&session_id],
                     )
                     .await?;
@@ -80,7 +80,7 @@ impl TestCleanup {
     async fn cleanup_session(&self, session_id: &str) -> Result<()> {
         self.db
             .execute(
-                &"DELETE FROM analytics_sessions WHERE session_id = $1",
+                &"DELETE FROM user_sessions WHERE session_id = $1",
                 &[&session_id],
             )
             .await?;

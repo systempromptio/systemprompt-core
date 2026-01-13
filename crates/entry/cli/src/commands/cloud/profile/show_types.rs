@@ -147,3 +147,61 @@ pub struct SettingsOutput {
     pub validation_strict: bool,
     pub schema_validation_mode: String,
 }
+
+pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConfig {
+    use systemprompt_models::AppPaths;
+
+    let env = systemprompt_models::config::Environment::detect();
+    let verbosity = systemprompt_models::config::VerbosityLevel::resolve();
+
+    EnvironmentConfig {
+        core: CoreEnvVars {
+            sitename: config.sitename.clone(),
+            host: config.host.clone(),
+            port: config.port,
+            api_server_url: config.api_server_url.clone(),
+            api_external_url: config.api_external_url.clone(),
+            use_https: config.use_https,
+            github_link: config.github_link.clone(),
+            github_token: config.github_token.clone().map(|_| "[REDACTED]".to_string()),
+            cors_allowed_origins: config.cors_allowed_origins.clone(),
+        },
+        systemprompt: SystemPromptEnvVars {
+            env: format!("{:?}", env),
+            verbosity: format!("{:?}", verbosity),
+            services_path: AppPaths::get().ok().map(|p| p.system().services().display().to_string()),
+            skills_path: AppPaths::get().ok().map(|p| p.system().skills().display().to_string()),
+            config_path: AppPaths::get().ok().map(|p| p.system().settings().display().to_string()),
+        },
+        database: DatabaseEnvVars {
+            database_type: config.database_type.clone(),
+            database_url: redact_database_url(&config.database_url),
+        },
+        jwt: JwtEnvVars {
+            issuer: config.jwt_issuer.clone(),
+            secret: "[REDACTED]".to_string(),
+            access_token_expiration: config.jwt_access_token_expiration,
+            refresh_token_expiration: config.jwt_refresh_token_expiration,
+        },
+        rate_limits: RateLimitEnvVars {
+            disabled: config.rate_limits.disabled,
+            burst_multiplier: config.rate_limits.burst_multiplier,
+        },
+        paths: PathsEnvVars {
+            system_path: AppPaths::get().map(|p| p.system().root().display().to_string()).unwrap_or_default(),
+            services: AppPaths::get().map(|p| p.system().services().display().to_string()).unwrap_or_default(),
+            skills: AppPaths::get().map(|p| p.system().skills().display().to_string()).unwrap_or_default(),
+            services_config: AppPaths::get().map(|p| p.system().settings().display().to_string()).unwrap_or_default(),
+        },
+    }
+}
+
+fn redact_database_url(url: &str) -> String {
+    let Some(at_pos) = url.find('@') else {
+        return url.to_string();
+    };
+    let Some(proto_end) = url.find("://") else {
+        return url.to_string();
+    };
+    format!("{}[REDACTED]{}", &url[..proto_end + 3], &url[at_pos..])
+}

@@ -4,7 +4,6 @@ mod presentation;
 pub mod shared;
 mod tui;
 
-// Re-export command modules at crate root for backwards compatibility
 pub use commands::{agents, build, cloud, logs, mcp, services, setup};
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 
@@ -21,42 +20,47 @@ use systemprompt_runtime::{
 
 #[derive(clap::Args)]
 struct VerbosityOpts {
-    #[arg(long, short = 'v', global = true)]
+    #[arg(long, short = 'v', global = true, hide = true, help = "Increase verbosity")]
     verbose: bool,
 
-    #[arg(long, short = 'q', global = true, conflicts_with = "verbose")]
+    #[arg(long, short = 'q', global = true, hide = true, conflicts_with = "verbose", help = "Suppress output")]
     quiet: bool,
 
-    #[arg(long, global = true)]
+    #[arg(long, global = true, hide = true, help = "Debug logging")]
     debug: bool,
 }
 
 #[derive(clap::Args)]
 struct OutputOpts {
-    #[arg(long, global = true)]
+    #[arg(long, global = true, hide = true, help = "JSON output")]
     json: bool,
 
-    #[arg(long, global = true, conflicts_with = "json")]
+    #[arg(long, global = true, hide = true, conflicts_with = "json", help = "YAML output")]
     yaml: bool,
 }
 
 #[derive(clap::Args)]
 struct DisplayOpts {
-    #[arg(long, global = true)]
+    #[arg(long, global = true, hide = true, help = "Disable colors")]
     no_color: bool,
 
-    #[arg(long, global = true)]
+    #[arg(long, global = true, hide = true, help = "Non-interactive mode")]
     non_interactive: bool,
 }
 
 #[derive(Parser)]
 #[command(name = "systemprompt")]
-#[command(
-    about = "SystemPrompt OS - Unified CLI for agent orchestration, AI operations, and system \
-             management"
-)]
+#[command(about = "SystemPrompt CLI for agent orchestration and AI operations")]
 #[command(version = "0.1.0")]
-#[command(long_about = None)]
+#[command(after_help = "\
+GLOBAL OPTIONS (apply to all commands):
+  -v, --verbose         Increase verbosity
+  -q, --quiet           Suppress output
+      --debug           Debug logging
+      --json            JSON output
+      --yaml            YAML output
+      --no-color        Disable colors
+      --non-interactive Non-interactive mode")]
 struct Cli {
     #[command(flatten)]
     verbosity: VerbosityOpts,
@@ -110,7 +114,8 @@ pub async fn run() -> Result<()> {
 
     let (requires_profile, requires_secrets) = match &cli.command {
         Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
-        Some(Commands::Setup(_) | Commands::Build(_)) => (false, false),
+        Some(Commands::Setup(_)) => (false, false),
+        Some(Commands::Build(_)) => (true, false),
         Some(_) | None => (true, true),
     };
 

@@ -1,12 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::{theme::ColorfulTheme, Select};
+use std::path::Path;
 
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use super::types::AgentEditOutput;
 use systemprompt_core_logging::CliService;
-use systemprompt_loader::ConfigLoader;
+use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct EditArgs {
@@ -46,30 +48,42 @@ pub async fn execute(
         || prompt_agent_selection(&services_config),
     )?;
 
-    let _agent = services_config
+    let mut agent = services_config
         .agents
         .get(&name)
-        .ok_or_else(|| anyhow!("Agent '{}' not found", name))?;
+        .ok_or_else(|| anyhow!("Agent '{}' not found", name))?
+        .clone();
 
     let mut changes = Vec::new();
 
     if args.enable {
+        agent.enabled = true;
         changes.push("enabled: true".to_string());
     }
 
     if args.disable {
+        agent.enabled = false;
         changes.push("enabled: false".to_string());
     }
 
     if let Some(port) = args.port {
+        if port == 0 {
+            return Err(anyhow!("Port cannot be 0"));
+        }
+        if port < 1024 {
+            return Err(anyhow!("Port must be >= 1024 (non-privileged)"));
+        }
+        agent.port = port;
         changes.push(format!("port: {}", port));
     }
 
     if let Some(provider) = &args.provider {
+        agent.metadata.provider = Some(provider.clone());
         changes.push(format!("metadata.provider: {}", provider));
     }
 
     if let Some(model) = &args.model {
+        agent.metadata.model = Some(model.clone());
         changes.push(format!("metadata.model: {}", model));
     }
 
@@ -78,7 +92,11 @@ pub async fn execute(
         if parts.len() != 2 {
             return Err(anyhow!("Invalid --set format: '{}'. Expected key=value", set_value));
         }
-        changes.push(format!("{}: {}", parts[0], parts[1]));
+        let key = parts[0];
+        let value = parts[1];
+
+        apply_set_value(&mut agent, key, value)?;
+        changes.push(format!("{}: {}", key, value));
     }
 
     if changes.is_empty() {
@@ -87,22 +105,74 @@ pub async fn execute(
         ));
     }
 
-    CliService::warning(
-        "Agent editing modifies configuration files. \
-         Please update the agent configuration in your services.yaml manually for now."
-    );
+    CliService::info(&format!("Updating agent '{}'...", name));
+
+    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let services_dir = Path::new(&profile.paths.services);
+
+    ConfigWriter::update_agent(&name, &agent, services_dir)
+        .with_context(|| format!("Failed to update agent '{}'", name))?;
+
+    ConfigLoader::load().with_context(|| {
+        format!("Agent '{}' updated but validation failed. Please check the configuration.", name)
+    })?;
+
+    CliService::success(&format!("Agent '{}' updated successfully", name));
 
     let output = AgentEditOutput {
         name: name.clone(),
         message: format!(
-            "Agent '{}' edit prepared. Apply the following changes to services.yaml:\n\n{}",
+            "Agent '{}' updated successfully with {} change(s)",
             name,
-            changes.join("\n")
+            changes.len()
         ),
         changes,
     };
 
     Ok(CommandResult::text(output).with_title(&format!("Edit Agent: {}", name)))
+}
+
+fn apply_set_value(
+    agent: &mut systemprompt_models::services::AgentConfig,
+    key: &str,
+    value: &str,
+) -> Result<()> {
+    match key {
+        "card.displayName" | "card.display_name" => {
+            agent.card.display_name = value.to_string();
+        }
+        "card.description" => {
+            agent.card.description = value.to_string();
+        }
+        "card.version" => {
+            agent.card.version = value.to_string();
+        }
+        "endpoint" => {
+            agent.endpoint = value.to_string();
+        }
+        "is_primary" => {
+            agent.is_primary = value.parse().map_err(|_| {
+                anyhow!("Invalid boolean value for is_primary: '{}'", value)
+            })?;
+        }
+        "default" => {
+            agent.default = value.parse().map_err(|_| {
+                anyhow!("Invalid boolean value for default: '{}'", value)
+            })?;
+        }
+        "dev_only" => {
+            agent.dev_only = value.parse().map_err(|_| {
+                anyhow!("Invalid boolean value for dev_only: '{}'", value)
+            })?;
+        }
+        _ => {
+            return Err(anyhow!(
+                "Unknown configuration key: '{}'. Supported keys: card.displayName, card.description, card.version, endpoint, is_primary, default, dev_only",
+                key
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn prompt_agent_selection(

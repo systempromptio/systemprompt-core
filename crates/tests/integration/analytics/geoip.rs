@@ -24,7 +24,7 @@ async fn test_geoip_location_enriched() -> Result<()> {
         .fetch_all(
             &"SELECT session_id, user_id, started_at, request_count, user_type, fingerprint_hash, \
               landing_page, entry_url, utm_source, utm_medium, utm_campaign, referrer_url, \
-              referrer_source, ip_address, country FROM analytics_sessions WHERE fingerprint_hash \
+              referrer_source, ip_address, country FROM user_sessions WHERE fingerprint_hash \
               = $1",
             &[&fingerprint],
         )

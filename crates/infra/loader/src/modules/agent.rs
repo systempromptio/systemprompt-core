@@ -25,7 +25,7 @@ pub fn define() -> Module {
                 sql: SchemaSource::Inline(
                     include_str!("../../../../domain/agent/schema/agent_tasks.sql").into(),
                 ),
-                required_columns: vec!["id".into(), "uuid".into()],
+                required_columns: vec!["task_id".into(), "context_id".into()],
             },
             ModuleSchema {
                 table: "task_messages".into(),

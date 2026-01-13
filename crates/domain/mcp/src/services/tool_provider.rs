@@ -78,22 +78,41 @@ impl McpToolProvider {
     }
 
     fn create_request_context(ctx: &ToolContext) -> systemprompt_models::RequestContext {
-        use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
+        use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 
         let session_id = ctx
             .session_id
             .as_ref()
             .map_or_else(SessionId::system, |s| SessionId::new(s.clone()));
+
         let trace_id = ctx
             .trace_id
             .as_ref()
             .map_or_else(TraceId::generate, |t| TraceId::new(t.clone()));
-        let context_id = ContextId::generate();
-        let agent_name = AgentName::system();
+
+        let context_id = ctx
+            .headers
+            .get("x-context-id")
+            .filter(|s| !s.is_empty())
+            .map_or_else(ContextId::generate, |s| ContextId::new(s.clone()));
+
+        let agent_name = ctx
+            .headers
+            .get("x-agent-name")
+            .filter(|s| !s.is_empty())
+            .map_or_else(AgentName::system, |s| AgentName::new(s.clone()));
 
         let mut request_ctx =
             systemprompt_models::RequestContext::new(session_id, trace_id, context_id, agent_name)
                 .with_auth_token(ctx.auth_token.clone());
+
+        if let Some(user_id) = ctx.headers.get("x-user-id").filter(|s| !s.is_empty()) {
+            request_ctx = request_ctx.with_user_id(UserId::new(user_id.clone()));
+        }
+
+        if let Some(task_id) = ctx.headers.get("x-task-id").filter(|s| !s.is_empty()) {
+            request_ctx = request_ctx.with_task_id(TaskId::new(task_id.clone()));
+        }
 
         if let Some(ai_tool_call_id) = &ctx.ai_tool_call_id {
             request_ctx = request_ctx.with_ai_tool_call_id(ai_tool_call_id.clone().into());
