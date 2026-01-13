@@ -12,6 +12,7 @@ use super::dockerfile::validate_profile_dockerfile;
 use super::tenant_ops::get_credentials;
 use crate::common::docker::{build_docker_image, docker_login, docker_push};
 use crate::common::project::ProjectRoot;
+use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug)]
 pub struct DeployConfig {
@@ -153,7 +154,8 @@ pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()
     CliService::key_value("Web images", &config.web_images.display().to_string());
     CliService::key_value("Dockerfile", &config.dockerfile.display().to_string());
 
-    validate_profile_dockerfile(&config.dockerfile, project.as_path())?;
+    let services_config = ConfigLoader::load()?;
+    validate_profile_dockerfile(&config.dockerfile, project.as_path(), &services_config)?;
 
     let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
@@ -238,8 +240,9 @@ pub async fn deploy_with_secrets(
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let ctx = ProjectContext::new(project.as_path().to_path_buf());
     let dockerfile = ctx.profile_dockerfile(profile_name);
+    let services_config = ConfigLoader::load()?;
 
-    validate_profile_dockerfile(&dockerfile, project.as_path())?;
+    validate_profile_dockerfile(&dockerfile, project.as_path(), &services_config)?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
     let registry_token = client.get_registry_token(tenant_id).await?;

@@ -26,6 +26,8 @@ pub struct Deployment {
     pub enabled: bool,
     pub display_in_web: bool,
     #[serde(default)]
+    pub dev_only: bool,
+    #[serde(default)]
     pub schemas: Vec<SchemaDefinition>,
     pub oauth: OAuthRequirement,
     #[serde(default)]

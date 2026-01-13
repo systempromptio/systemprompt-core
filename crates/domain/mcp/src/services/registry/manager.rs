@@ -29,6 +29,9 @@ impl RegistryService {
             if !deployment.enabled {
                 continue;
             }
+            if deployment.dev_only && global_config.is_cloud {
+                continue;
+            }
 
             let crate_path = registry.get_path(&deployment.binary)?;
             let display_name = deployment

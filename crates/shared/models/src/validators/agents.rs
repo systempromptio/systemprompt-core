@@ -118,6 +118,22 @@ impl DomainConfig for AgentConfigValidator {
                             "Define the MCP server in mcp_servers or remove it from the agent",
                         ),
                     );
+                } else if let Some(mcp_config) = config.mcp_servers.get(mcp_server) {
+                    if mcp_config.dev_only && !agent.dev_only {
+                        report.add_error(
+                            ValidationError::new(
+                                format!("agents.{}.metadata.mcp_servers", name),
+                                format!(
+                                    "Production agent '{}' references dev-only MCP server '{}'",
+                                    name, mcp_server
+                                ),
+                            )
+                            .with_suggestion(
+                                "Either mark the agent as dev_only: true, or use a production MCP \
+                                 server",
+                            ),
+                        );
+                    }
                 }
             }
         }
