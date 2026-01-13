@@ -32,6 +32,15 @@ fn load_content_config() -> Result<ContentConfigRaw> {
     Ok(config)
 }
 
+fn resolve_source_path(path: &str, services_path: &std::path::Path) -> std::path::PathBuf {
+    let path = std::path::Path::new(path);
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        services_path.join(path)
+    }
+}
+
 async fn create_db_pool(database_url: Option<&str>) -> Result<DbPool> {
     let url = match database_url {
         Some(url) => url.to_string(),
@@ -79,9 +88,10 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
     let mut all_diffs: Vec<ContentDiffEntry> = Vec::new();
 
     let spinner = CliService::spinner("Calculating diff...");
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let services_path = paths.system().services();
     for (name, source) in sources {
-        let base_path = std::env::current_dir()?;
-        let source_path = base_path.join(&source.path);
+        let source_path = resolve_source_path(&source.path, services_path);
 
         let diff = sync
             .calculate_diff(

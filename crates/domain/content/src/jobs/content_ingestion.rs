@@ -113,11 +113,13 @@ async fn process_single_source(
 }
 
 fn resolve_content_path(path: &str) -> Result<PathBuf> {
-    Ok(if path.starts_with('/') {
-        PathBuf::from(path)
+    let path = Path::new(path);
+    if path.is_absolute() {
+        Ok(path.to_path_buf())
     } else {
-        std::env::current_dir()?.join(path)
-    })
+        let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
+        Ok(paths.system().services().join(path))
+    }
 }
 
 enum ValidationError {
