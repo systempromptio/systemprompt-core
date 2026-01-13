@@ -2,9 +2,6 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum SyncError {
-    #[error("Database URL not configured")]
-    DatabaseUrlMissing,
-
     #[error("API error {status}: {message}")]
     ApiError { status: u16, message: String },
 

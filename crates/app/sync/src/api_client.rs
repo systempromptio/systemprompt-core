@@ -2,7 +2,6 @@ use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-use crate::database::DatabaseExport;
 use crate::error::{SyncError, SyncResult};
 
 #[derive(Clone, Debug)]
@@ -58,30 +57,6 @@ impl SyncApiClient {
             .await?;
 
         self.handle_binary_response(response).await
-    }
-
-    pub async fn export_database(&self, tenant_id: &str) -> SyncResult<DatabaseExport> {
-        let url = format!(
-            "{}/api/v1/cloud/tenants/{}/database/export",
-            self.api_url, tenant_id
-        );
-        self.get(&url).await
-    }
-
-    pub async fn import_database(&self, tenant_id: &str, data: &DatabaseExport) -> SyncResult<()> {
-        let url = format!(
-            "{}/api/v1/cloud/tenants/{}/database/import",
-            self.api_url, tenant_id
-        );
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", self.token))
-            .json(data)
-            .send()
-            .await?;
-
-        self.handle_empty_response(response).await
     }
 
     pub async fn get_registry_token(&self, tenant_id: &str) -> SyncResult<RegistryToken> {
