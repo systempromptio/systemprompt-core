@@ -14,7 +14,10 @@ pub struct ShowArgs {
     pub short_code: String,
 }
 
-pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<LinkDetailOutput>> {
+pub async fn execute(
+    args: ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<LinkDetailOutput>> {
     let ctx = AppContext::new().await?;
     let service = LinkGenerationService::new(ctx.db_pool())?;
 
@@ -30,7 +33,11 @@ pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResul
         id: link.id,
         short_code: link.short_code,
         target_url: link.target_url,
-        full_url: if full_url != short_url { full_url } else { short_url },
+        full_url: if full_url != short_url {
+            full_url
+        } else {
+            short_url
+        },
         link_type: link.link_type,
         campaign_id: link.campaign_id,
         campaign_name: link.campaign_name,

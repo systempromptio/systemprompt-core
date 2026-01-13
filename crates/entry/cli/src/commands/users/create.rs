@@ -44,7 +44,7 @@ pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<()> {
         .await?;
 
     let output = UserCreatedOutput {
-        id: user.id.clone(),
+        id: user.id.to_string(),
         name: user.name.clone(),
         email: user.email.clone(),
         message: format!("User '{}' created successfully", user.name),
@@ -54,7 +54,7 @@ pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<()> {
         CliService::json(&output);
     } else {
         CliService::success(&output.message);
-        CliService::key_value("ID", &output.id.to_string());
+        CliService::key_value("ID", &output.id);
         CliService::key_value("Name", &output.name);
         CliService::key_value("Email", &output.email);
     }

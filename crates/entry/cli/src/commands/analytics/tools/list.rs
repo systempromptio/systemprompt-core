@@ -14,13 +14,22 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
     pub until: Option<String>,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Maximum number of tools")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Maximum number of tools"
+    )]
     pub limit: i64,
 
     #[arg(long, help = "Filter by server name")]
@@ -89,51 +98,53 @@ async fn fetch_tools(
         WHERE created_at >= $1 AND created_at < $2
     "#;
 
-    let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> = if let Some(server) =
-        server_filter
-    {
-        let query = format!(
-            "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY COUNT(*) DESC LIMIT $4",
-            base_query
-        );
-        sqlx::query_as(&query)
-            .bind(start)
-            .bind(end)
-            .bind(format!("%{}%", server))
-            .bind(limit)
-            .fetch_all(pool.as_ref())
-            .await?
-    } else {
-        let query = format!(
-            "{} GROUP BY tool_name, server_name ORDER BY COUNT(*) DESC LIMIT $3",
-            base_query
-        );
-        sqlx::query_as(&query)
-            .bind(start)
-            .bind(end)
-            .bind(limit)
-            .fetch_all(pool.as_ref())
-            .await?
-    };
+    let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> =
+        if let Some(server) = server_filter {
+            let query = format!(
+                "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY COUNT(*) \
+                 DESC LIMIT $4",
+                base_query
+            );
+            sqlx::query_as(&query)
+                .bind(start)
+                .bind(end)
+                .bind(format!("%{}%", server))
+                .bind(limit)
+                .fetch_all(pool.as_ref())
+                .await?
+        } else {
+            let query = format!(
+                "{} GROUP BY tool_name, server_name ORDER BY COUNT(*) DESC LIMIT $3",
+                base_query
+            );
+            sqlx::query_as(&query)
+                .bind(start)
+                .bind(end)
+                .bind(limit)
+                .fetch_all(pool.as_ref())
+                .await?
+        };
 
     let tools: Vec<ToolListRow> = rows
         .into_iter()
-        .map(|(tool_name, server_name, execution_count, success_count, avg_time, last_used)| {
-            let success_rate = if execution_count > 0 {
-                (success_count as f64 / execution_count as f64) * 100.0
-            } else {
-                0.0
-            };
+        .map(
+            |(tool_name, server_name, execution_count, success_count, avg_time, last_used)| {
+                let success_rate = if execution_count > 0 {
+                    (success_count as f64 / execution_count as f64) * 100.0
+                } else {
+                    0.0
+                };
 
-            ToolListRow {
-                tool_name,
-                server_name,
-                execution_count,
-                success_rate,
-                avg_execution_time_ms: avg_time as i64,
-                last_used: last_used.format("%Y-%m-%d %H:%M:%S").to_string(),
-            }
-        })
+                ToolListRow {
+                    tool_name,
+                    server_name,
+                    execution_count,
+                    success_rate,
+                    avg_execution_time_ms: avg_time as i64,
+                    last_used: last_used.format("%Y-%m-%d %H:%M:%S").to_string(),
+                }
+            },
+        )
         .collect();
 
     Ok(ToolListOutput {
@@ -149,10 +160,7 @@ fn render_list(output: &ToolListOutput) {
         CliService::subsection(&format!("{} ({})", tool.tool_name, tool.server_name));
         CliService::key_value("Executions", &format_number(tool.execution_count));
         CliService::key_value("Success Rate", &format_percent(tool.success_rate));
-        CliService::key_value(
-            "Avg Time",
-            &format_duration_ms(tool.avg_execution_time_ms),
-        );
+        CliService::key_value("Avg Time", &format_duration_ms(tool.avg_execution_time_ms));
         CliService::key_value("Last Used", &tool.last_used);
     }
 

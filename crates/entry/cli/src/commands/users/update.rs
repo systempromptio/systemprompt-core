@@ -2,7 +2,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
-use systemprompt_core_users::{UpdateUserParams, UserService, UserStatus};
+use systemprompt_core_users::{UserService, UserStatus};
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 
@@ -19,9 +19,6 @@ pub struct UpdateArgs {
     #[arg(long)]
     pub full_name: Option<String>,
 
-    #[arg(long)]
-    pub display_name: Option<String>,
-
     #[arg(long, value_enum)]
     pub status: Option<StatusFilter>,
 
@@ -36,14 +33,13 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
     let user_id = UserId::new(&args.user_id);
 
     let existing = user_service.find_by_id(&user_id).await?;
-    if existing.is_none() {
+    let Some(mut user) = existing else {
         CliService::error(&format!("User not found: {}", args.user_id));
         return Err(anyhow!("User not found"));
-    }
+    };
 
     let has_updates = args.email.is_some()
         || args.full_name.is_some()
-        || args.display_name.is_some()
         || args.status.is_some()
         || args.email_verified.is_some();
 
@@ -52,21 +48,27 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    let status: Option<UserStatus> = args.status.map(Into::into);
-    let status_str = status.map(|s| s.as_str().to_string());
+    if let Some(ref email) = args.email {
+        user = user_service.update_email(&user_id, email).await?;
+    }
 
-    let params = UpdateUserParams {
-        email: args.email.as_deref(),
-        full_name: args.full_name.as_deref(),
-        display_name: args.display_name.as_deref(),
-        status: status_str.as_deref(),
-        email_verified: args.email_verified,
-    };
+    if let Some(ref full_name) = args.full_name {
+        user = user_service.update_full_name(&user_id, full_name).await?;
+    }
 
-    let user = user_service.update_all_fields(&user_id, params).await?;
+    if let Some(status_filter) = args.status {
+        let status: UserStatus = status_filter.into();
+        user = user_service.update_status(&user_id, status).await?;
+    }
+
+    if let Some(verified) = args.email_verified {
+        user = user_service
+            .update_email_verified(&user_id, verified)
+            .await?;
+    }
 
     let output = UserUpdatedOutput {
-        id: user.id.clone(),
+        id: user.id.to_string(),
         name: user.name.clone(),
         email: user.email.clone(),
         message: format!("User '{}' updated successfully", user.name),
@@ -76,7 +78,7 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         CliService::json(&output);
     } else {
         CliService::success(&output.message);
-        CliService::key_value("ID", &output.id.to_string());
+        CliService::key_value("ID", &output.id);
         CliService::key_value("Name", &output.name);
         CliService::key_value("Email", &output.email);
     }

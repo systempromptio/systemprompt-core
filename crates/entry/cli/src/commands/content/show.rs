@@ -16,11 +16,16 @@ pub struct ShowArgs {
     pub source: Option<String>,
 }
 
-pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<ContentDetailOutput>> {
+pub async fn execute(
+    args: ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentDetailOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
-    let content = if args.identifier.starts_with("content_") || args.identifier.contains('-') && args.identifier.len() > 30 {
+    let content = if args.identifier.starts_with("content_")
+        || args.identifier.contains('-') && args.identifier.len() > 30
+    {
         let id = ContentId::new(args.identifier.clone());
         repo.get_by_id(&id)
             .await?
@@ -33,7 +38,13 @@ pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResul
         let source = SourceId::new(source_id.clone());
         repo.get_by_source_and_slug(&source, &args.identifier)
             .await?
-            .ok_or_else(|| anyhow!("Content not found: {} in source {}", args.identifier, source_id))?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Content not found: {} in source {}",
+                    args.identifier,
+                    source_id
+                )
+            })?
     };
 
     let keywords: Vec<String> = content

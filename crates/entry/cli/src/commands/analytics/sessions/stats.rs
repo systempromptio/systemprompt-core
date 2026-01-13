@@ -14,7 +14,11 @@ use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -103,10 +107,7 @@ fn render_stats(output: &SessionStatsOutput) {
     CliService::key_value("Total Sessions", &format_number(output.total_sessions));
     CliService::key_value("Active Sessions", &format_number(output.active_sessions));
     CliService::key_value("Unique Users", &format_number(output.unique_users));
-    CliService::key_value(
-        "Avg Duration",
-        &format!("{}s", output.avg_duration_seconds),
-    );
+    CliService::key_value("Avg Duration", &format!("{}s", output.avg_duration_seconds));
     CliService::key_value(
         "Avg Requests/Session",
         &format!("{:.1}", output.avg_requests_per_session),

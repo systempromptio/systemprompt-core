@@ -44,7 +44,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
 
     let delete_type = if args.hard { "hard" } else { "soft" };
     let output = UserDeletedOutput {
-        id: user_id.clone(),
+        id: user_id.to_string(),
         message: format!(
             "User '{}' {} deleted successfully",
             args.user_id, delete_type

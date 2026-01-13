@@ -21,13 +21,22 @@ pub enum BreakdownType {
 
 #[derive(Debug, Args)]
 pub struct BreakdownArgs {
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
     pub until: Option<String>,
 
-    #[arg(long, value_enum, default_value = "model", help = "Breakdown by (model, agent, provider)")]
+    #[arg(
+        long,
+        value_enum,
+        default_value = "model",
+        help = "Breakdown by (model, agent, provider)"
+    )]
     pub by: BreakdownType,
 
     #[arg(long, short = 'n', default_value = "20", help = "Maximum items")]
@@ -86,7 +95,10 @@ async fn fetch_breakdown(
 ) -> Result<CostBreakdownOutput> {
     let group_field = match by {
         BreakdownType::Model => "model",
-        BreakdownType::Agent => "COALESCE((SELECT agent_name FROM agent_tasks at WHERE at.task_id = ai_requests.task_id LIMIT 1), 'unknown')",
+        BreakdownType::Agent => {
+            "COALESCE((SELECT agent_name FROM agent_tasks at WHERE at.task_id = \
+             ai_requests.task_id LIMIT 1), 'unknown')"
+        },
         BreakdownType::Provider => "provider",
     };
 
@@ -157,7 +169,11 @@ fn render_breakdown(output: &CostBreakdownOutput) {
         CliService::subsection(&item.name);
         CliService::key_value(
             "Cost",
-            &format!("{} ({})", format_cost(item.cost_cents), format_percent(item.percentage)),
+            &format!(
+                "{} ({})",
+                format_cost(item.cost_cents),
+                format_percent(item.percentage)
+            ),
         );
         CliService::key_value("Requests", &format_number(item.request_count));
         CliService::key_value("Tokens", &format_tokens(item.tokens));

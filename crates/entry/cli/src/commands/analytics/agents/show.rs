@@ -21,7 +21,11 @@ pub struct ShowArgs {
     #[arg(help = "Agent name to analyze")]
     pub agent: String,
 
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -45,8 +49,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     }
 
     if config.is_json_output() {
-        let result =
-            CommandResult::card(output).with_title(&format!("Agent: {}", args.agent));
+        let result = CommandResult::card(output).with_title(&format!("Agent: {}", args.agent));
         render_result(&result);
     } else {
         render_agent_details(&output);
@@ -62,7 +65,8 @@ async fn fetch_agent_details(
     end: DateTime<Utc>,
 ) -> Result<AgentShowOutput> {
     let exists: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3"
+        "SELECT COUNT(*) FROM agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND \
+         started_at < $3",
     )
     .bind(format!("%{}%", agent_name))
     .bind(start)
@@ -267,7 +271,11 @@ fn render_agent_details(output: &AgentShowOutput) {
         for item in &output.status_breakdown {
             CliService::key_value(
                 &item.status,
-                &format!("{} ({})", format_number(item.count), format_percent(item.percentage)),
+                &format!(
+                    "{} ({})",
+                    format_number(item.count),
+                    format_percent(item.percentage)
+                ),
             );
         }
     }

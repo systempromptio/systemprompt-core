@@ -17,7 +17,11 @@ pub struct ShowArgs {
     #[arg(help = "Tool name to analyze")]
     pub tool: String,
 
-    #[arg(long, default_value = "24h", help = "Time range (e.g., '1h', '24h', '7d')")]
+    #[arg(
+        long,
+        default_value = "24h",
+        help = "Time range (e.g., '1h', '24h', '7d')"
+    )]
     pub since: Option<String>,
 
     #[arg(long, help = "End time for range")]
@@ -57,7 +61,8 @@ async fn fetch_tool_details(
     end: DateTime<Utc>,
 ) -> Result<ToolShowOutput> {
     let exists: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"
+        "SELECT COUNT(*) FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 \
+         AND created_at < $3",
     )
     .bind(format!("%{}%", tool_name))
     .bind(start)
@@ -261,7 +266,10 @@ fn render_tool_details(output: &ToolShowOutput) {
     CliService::section(&format!("Tool: {} ({})", output.tool_name, output.period));
 
     CliService::subsection("Summary");
-    CliService::key_value("Executions", &format_number(output.summary.total_executions));
+    CliService::key_value(
+        "Executions",
+        &format_number(output.summary.total_executions),
+    );
     CliService::key_value("Success Rate", &format_percent(output.summary.success_rate));
     CliService::key_value(
         "Avg Duration",

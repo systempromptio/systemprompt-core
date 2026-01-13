@@ -23,11 +23,13 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
             "This will permanently delete content: {}",
             args.content_id
         ));
-        if !CliService::confirm("Are you sure you want to continue?") {
+        if !CliService::confirm("Are you sure you want to continue?")? {
             return Err(anyhow!("Operation cancelled"));
         }
     } else if !args.yes {
-        return Err(anyhow!("Use --yes to confirm deletion in non-interactive mode"));
+        return Err(anyhow!(
+            "Use --yes to confirm deletion in non-interactive mode"
+        ));
     }
 
     let ctx = AppContext::new().await?;

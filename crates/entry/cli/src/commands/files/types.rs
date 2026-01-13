@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ContentId, ContextId, FileId, SessionId, TraceId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileListOutput {
@@ -12,7 +13,7 @@ pub struct FileListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileSummary {
-    pub id: String,
+    pub id: FileId,
     pub path: String,
     pub public_url: String,
     pub mime_type: String,
@@ -23,16 +24,16 @@ pub struct FileSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileDetailOutput {
-    pub id: String,
+    pub id: FileId,
     pub path: String,
     pub public_url: String,
     pub mime_type: String,
     pub size_bytes: Option<i64>,
     pub ai_content: bool,
-    pub user_id: Option<String>,
-    pub session_id: Option<String>,
-    pub trace_id: Option<String>,
-    pub context_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
+    pub trace_id: Option<TraceId>,
+    pub context_id: Option<ContextId>,
     pub metadata: FileMetadataOutput,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -106,7 +107,7 @@ pub struct VideoMetadataOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileUploadOutput {
-    pub file_id: String,
+    pub file_id: FileId,
     pub path: String,
     pub public_url: String,
     pub size_bytes: i64,
@@ -116,7 +117,7 @@ pub struct FileUploadOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FileDeleteOutput {
-    pub file_id: String,
+    pub file_id: FileId,
     pub message: String,
 }
 
@@ -160,13 +161,13 @@ pub struct StoragePathsOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentFilesOutput {
-    pub content_id: String,
+    pub content_id: ContentId,
     pub files: Vec<ContentFileRow>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentFileRow {
-    pub file_id: String,
+    pub file_id: FileId,
     pub path: String,
     pub mime_type: String,
     pub role: String,
@@ -175,22 +176,22 @@ pub struct ContentFileRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentLinkOutput {
-    pub file_id: String,
-    pub content_id: String,
+    pub file_id: FileId,
+    pub content_id: ContentId,
     pub role: String,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentUnlinkOutput {
-    pub file_id: String,
-    pub content_id: String,
+    pub file_id: FileId,
+    pub content_id: ContentId,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct FeaturedImageOutput {
-    pub content_id: String,
+    pub content_id: ContentId,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub file: Option<FileSummary>,
     pub message: String,
@@ -208,5 +209,5 @@ pub struct AiFilesListOutput {
 pub struct AiFilesCountOutput {
     pub count: i64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
 }
