@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
 use dialoguer::Confirm;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::FileService;
 use systemprompt_identifiers::FileId;
+use systemprompt_runtime::AppContext;
 
 use super::types::FileDeleteOutput;
 use crate::shared::CommandResult;
@@ -24,8 +24,8 @@ pub async fn execute(
 ) -> Result<CommandResult<FileDeleteOutput>> {
     let file_id = FileId::new(args.file_id.clone());
 
-    let db = DbPool::from_env().await?;
-    let service = FileService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = FileService::new(ctx.db_pool())?;
 
     let file = service
         .find_by_id(&file_id)

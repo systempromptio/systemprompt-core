@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::{Args, ValueEnum};
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{ContentService, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
+use systemprompt_runtime::AppContext;
 
 use crate::commands::files::types::ContentLinkOutput;
 use crate::shared::CommandResult;
@@ -48,8 +48,8 @@ pub async fn execute(
     args: LinkArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ContentLinkOutput>> {
-    let db = DbPool::from_env().await?;
-    let service = ContentService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = ContentService::new(ctx.db_pool())?;
 
     let file_id = FileId::new(args.file_id.clone());
     let content_id = ContentId::new(args.content.clone());

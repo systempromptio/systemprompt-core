@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{File, FileService, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
+use systemprompt_runtime::AppContext;
 
 use super::types::{
     AudioMetadataOutput, ChecksumsOutput, DocumentMetadataOutput, FileDetailOutput,
@@ -21,8 +21,8 @@ pub async fn execute(
     args: ShowArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
-    let db = DbPool::from_env().await?;
-    let service = FileService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = FileService::new(ctx.db_pool())?;
 
     let file = find_file(&service, &args.identifier).await?;
 

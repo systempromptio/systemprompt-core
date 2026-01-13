@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::AiService;
 use systemprompt_identifiers::{FileId, UserId};
+use systemprompt_runtime::AppContext;
 
 use crate::commands::files::types::{AiFilesListOutput, FileSummary};
 use crate::shared::CommandResult;
@@ -24,8 +24,8 @@ pub async fn execute(
     args: ListArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesListOutput>> {
-    let db = DbPool::from_env().await?;
-    let service = AiService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = AiService::new(ctx.db_pool())?;
 
     let files = match &args.user {
         Some(user_id) => {

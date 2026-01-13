@@ -330,7 +330,26 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<()> {
 
 ## 2.4 logs/
 
-**Commands:** `systemprompt logs [stream|trace]`
+**Commands:** `systemprompt logs [view|search|stream|export|cleanup|delete|trace|request]`
+
+### Command Structure
+
+```
+logs
+├── view [--tail N] [--level LEVEL] [--module MODULE] [--since DURATION]
+├── search <PATTERN> [--level LEVEL] [--module MODULE] [--since DURATION] [-n LIMIT]
+├── stream [--level LEVEL] [--module MODULE] [--interval MS] [--clear]
+│   └── (alias: follow)
+├── export [--format json|csv|jsonl] [--output FILE] [--since DURATION] [--limit N]
+├── cleanup [--older-than DURATION | --keep-last-days N] [--dry-run] [-y]
+├── delete [-y]
+├── trace
+│   ├── list [-n LIMIT] [--since DURATION] [--agent NAME] [--status STATUS]
+│   └── show <ID> [--verbose] [--json] [--steps] [--ai] [--mcp] [--artifacts] [--all]
+└── request
+    ├── list [--limit N] [--since DURATION] [--model MODEL] [--provider PROVIDER]
+    └── show <REQUEST_ID> [--messages] [--tools]
+```
 
 ### Requirements
 
@@ -344,8 +363,8 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<()> {
 
 | Command | Required Flags |
 |---------|---------------|
-| `logs stream clear-all` | `--yes` |
-| `logs stream cleanup` | `--yes`, `--dry-run` |
+| `logs cleanup` | `--older-than` or `--keep-last-days`, `--yes` (or `--dry-run`) |
+| `logs delete` | `--yes` |
 
 ---
 

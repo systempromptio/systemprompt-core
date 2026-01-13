@@ -5,9 +5,9 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use clap::Args;
 use sha2::{Digest, Sha256};
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{FileUploadRequest, FileUploadService, FilesConfig};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
+use systemprompt_runtime::AppContext;
 use tokio::fs;
 
 use super::types::FileUploadOutput;
@@ -36,9 +36,9 @@ pub async fn execute(
     args: UploadArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileUploadOutput>> {
-    let db = DbPool::from_env().await?;
+    let ctx = AppContext::new().await?;
     let files_config = FilesConfig::get()?;
-    let service = FileUploadService::new(&db, files_config.clone())?;
+    let service = FileUploadService::new(ctx.db_pool(), files_config.clone())?;
 
     if !service.is_enabled() {
         return Err(anyhow!("File uploads are disabled in configuration"));
@@ -51,7 +51,11 @@ pub async fn execute(
 
     let bytes = fs::read(&file_path).await?;
     let bytes_base64 = STANDARD.encode(&bytes);
-    let checksum_sha256 = hex::encode(Sha256::digest(&bytes));
+    let digest = Sha256::digest(&bytes);
+    let checksum_sha256 = digest
+        .iter()
+        .map(|b| format!("{:02x}", b))
+        .collect::<String>();
     let size_bytes = bytes.len() as i64;
 
     let mime_type = detect_mime_type(&file_path);
@@ -62,7 +66,7 @@ pub async fn execute(
 
     let context_id = ContextId::new(args.context);
 
-    let mut request = FileUploadRequest {
+    let request = FileUploadRequest {
         name: filename,
         mime_type: mime_type.clone(),
         bytes_base64,

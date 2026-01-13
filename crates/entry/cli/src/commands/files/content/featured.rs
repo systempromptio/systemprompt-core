@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::ContentService;
 use systemprompt_identifiers::{ContentId, FileId};
+use systemprompt_runtime::AppContext;
 
 use crate::commands::files::types::{FeaturedImageOutput, FileSummary};
 use crate::shared::CommandResult;
@@ -21,8 +21,8 @@ pub async fn execute(
     args: FeaturedArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FeaturedImageOutput>> {
-    let db = DbPool::from_env().await?;
-    let service = ContentService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = ContentService::new(ctx.db_pool())?;
 
     let content_id = ContentId::new(args.content_id.clone());
 
