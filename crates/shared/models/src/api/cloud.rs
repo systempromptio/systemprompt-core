@@ -105,6 +105,8 @@ pub struct CloudTenant {
     pub name: String,
     pub fly_app_name: Option<String>,
     pub fly_hostname: Option<String>,
+    #[serde(default)]
+    pub hostname: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

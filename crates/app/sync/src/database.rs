@@ -208,6 +208,22 @@ async fn upsert_skill(pool: &PgPool, skill: &SkillExport) -> SyncResult<(usize, 
 }
 
 async fn upsert_context(pool: &PgPool, context: &ContextExport) -> SyncResult<(usize, usize)> {
+    // Check if user exists - user_id is NOT NULL and has FK constraint
+    let user_exists: Option<bool> =
+        sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE id = $1)")
+            .bind(&context.user_id)
+            .fetch_one(pool)
+            .await?;
+
+    if !user_exists.unwrap_or(false) {
+        tracing::debug!(
+            user_id = %context.user_id,
+            context_id = %context.context_id,
+            "User not found in target database, skipping context"
+        );
+        return Ok((0, 0));
+    }
+
     let session_id = match &context.session_id {
         Some(sid) => {
             let exists: Option<bool> =
