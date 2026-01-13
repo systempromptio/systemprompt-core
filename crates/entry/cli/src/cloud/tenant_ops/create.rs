@@ -181,7 +181,7 @@ fn validate_build_ready() -> Result<BuildValidationResult> {
 }
 
 /// Find the services config file.
-fn find_services_config(root: &Path) -> Result<std::path::PathBuf> {
+pub fn find_services_config(root: &Path) -> Result<std::path::PathBuf> {
     let paths = [
         root.join("services/config/config.yaml"),
         root.join("core/services/config/config.yaml"),

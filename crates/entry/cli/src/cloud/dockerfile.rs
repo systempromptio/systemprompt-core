@@ -6,6 +6,8 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::ServicesConfig;
 
+use super::tenant_ops::find_services_config;
+
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
     profile_name: Option<&'a str>,
@@ -14,7 +16,9 @@ pub struct DockerfileBuilder<'a> {
 
 impl<'a> DockerfileBuilder<'a> {
     pub fn new(project_root: &'a Path) -> Self {
-        let services_config = ConfigLoader::load().ok();
+        let services_config = find_services_config(project_root)
+            .ok()
+            .and_then(|path| ConfigLoader::load_from_path(&path).ok());
         Self {
             project_root,
             profile_name: None,
