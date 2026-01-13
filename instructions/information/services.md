@@ -91,7 +91,6 @@ cloud:
   credentials_path: ../../credentials.json
   tenants_path: ../../tenants.json
   tenant_id: f800de73-2bdf-4c44-8b65-7b2f2bbad456
-  cli_enabled: false
   validation: strict                  # strict | warn | skip
 
 secrets:

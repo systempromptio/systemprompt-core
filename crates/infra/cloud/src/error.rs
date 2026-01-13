@@ -15,12 +15,6 @@ pub enum CloudError {
     AppNotConfigured,
 
     #[error(
-        "Cloud features are disabled in this profile.\n\nSet cloud.cli_enabled: true in your \
-         profile"
-    )]
-    CloudDisabled,
-
-    #[error(
         "Profile required: {message}\n\nSet SYSTEMPROMPT_PROFILE or run 'systemprompt cloud \
          config'"
     )]
@@ -69,7 +63,6 @@ impl CloudError {
             Self::TokenExpired => "Your session has expired",
             Self::TenantNotConfigured => "No project linked to this environment",
             Self::AppNotConfigured => "No deployment target configured",
-            Self::CloudDisabled => "Cloud features are disabled in this profile",
             Self::ProfileRequired { .. } => "Profile configuration required",
             Self::MissingProfileField { .. } => "Missing required profile field",
             Self::JwtDecode => "Failed to decode authentication token",
@@ -91,7 +84,6 @@ impl CloudError {
             Self::TenantNotConfigured | Self::AppNotConfigured => {
                 "Run 'systemprompt cloud setup' to configure your project"
             },
-            Self::CloudDisabled => "Set cloud.cli_enabled: true in your profile YAML",
             Self::ProfileRequired { .. } => {
                 "Set SYSTEMPROMPT_PROFILE or run 'systemprompt cloud config'"
             },

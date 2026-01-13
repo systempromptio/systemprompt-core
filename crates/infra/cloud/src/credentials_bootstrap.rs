@@ -67,14 +67,6 @@ impl CredentialsBootstrap {
             return Ok(None);
         };
 
-        if !cloud_config.cli_enabled {
-            tracing::debug!("Cloud features disabled in profile");
-            CREDENTIALS
-                .set(None)
-                .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
-            return Ok(None);
-        }
-
         let credentials_path = Self::resolve_credentials_path(cloud_config)?;
 
         match Self::load_credentials(&credentials_path, cloud_config.validation) {
@@ -168,10 +160,6 @@ impl CredentialsBootstrap {
             .cloud
             .as_ref()
             .ok_or(CredentialsBootstrapError::NotAvailable)?;
-
-        if !cloud_config.cli_enabled {
-            return Err(CredentialsBootstrapError::NotAvailable);
-        }
 
         let path = Self::resolve_credentials_path(cloud_config).map_err(|e| {
             CredentialsBootstrapError::InvalidCredentials {

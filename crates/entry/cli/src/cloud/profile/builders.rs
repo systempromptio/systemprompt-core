@@ -101,7 +101,6 @@ impl LocalProfileBuilder {
                 credentials_path: consts::CREDENTIALS_PATH.to_string(),
                 tenants_path: consts::TENANTS_PATH.to_string(),
                 tenant_id: self.tenant_id.map(|id| id.to_string()),
-                cli_enabled: true,
                 validation: CloudValidationMode::Warn,
             }),
             secrets: Some(SecretsConfig {
@@ -211,7 +210,6 @@ impl CloudProfileBuilder {
                 credentials_path: consts::CREDENTIALS_PATH.to_string(),
                 tenants_path: consts::TENANTS_PATH.to_string(),
                 tenant_id: self.tenant_id.map(|id| id.to_string()),
-                cli_enabled: false,
                 validation: CloudValidationMode::Strict,
             }),
             secrets: Some(SecretsConfig {

@@ -4,7 +4,7 @@ mod interactive;
 mod prompt;
 pub mod skills;
 
-use anyhow::{anyhow, bail, Result};
+use anyhow::{anyhow, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_core_logging::CliService;
@@ -106,12 +106,6 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
     let profile = ProfileBootstrap::get()
         .map_err(|_| anyhow!("Profile required for sync. Set SYSTEMPROMPT_PROFILE"))?;
 
-    if let Some(cloud) = &profile.cloud {
-        if !cloud.cli_enabled {
-            bail!("Cloud features are disabled in this profile. Set cloud.cli_enabled: true");
-        }
-    }
-
     let tenant_id = profile
         .cloud
         .as_ref()
@@ -149,13 +143,6 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
     let files_result = service.sync_files().await?;
     spinner.finish_and_clear();
     results.push(files_result);
-
-    if direction == SyncDirection::Push {
-        let spinner = CliService::spinner("Deploying...");
-        let deploy_result = service.deploy_crate(false, None).await?;
-        spinner.finish_and_clear();
-        results.push(deploy_result);
-    }
 
     print_results(&results);
 

@@ -197,9 +197,8 @@ fn validate_cloud_credentials() {
         return;
     };
 
-    let cloud_config = match &profile.cloud {
-        Some(config) if config.cli_enabled => config,
-        _ => return,
+    let Some(cloud_config) = &profile.cloud else {
+        return;
     };
 
     match CredentialsBootstrap::get() {
