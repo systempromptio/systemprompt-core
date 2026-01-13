@@ -82,7 +82,7 @@ async fn fetch_trends(
         SELECT
             started_at as "started_at!",
             user_id,
-            duration_seconds
+            duration_seconds::bigint as "duration_seconds: _"
         FROM user_sessions
         WHERE started_at >= $1 AND started_at < $2
         ORDER BY started_at

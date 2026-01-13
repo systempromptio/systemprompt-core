@@ -98,8 +98,7 @@ async fn fetch_bots(
     .bind(start)
     .bind(end)
     .fetch_all(pool.as_ref())
-    .await
-    .unwrap_or_default();
+    .await?;
 
     let bot_breakdown: Vec<BotRow> = bot_types
         .into_iter()

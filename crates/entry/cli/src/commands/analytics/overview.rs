@@ -321,17 +321,21 @@ fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     )
 }
 
+fn format_change_percent(change: Option<f64>) -> String {
+    change
+        .map(|c| {
+            let sign = if c >= 0.0 { "+" } else { "" };
+            format!("{}{:.1}%", sign, c)
+        })
+        .unwrap_or_else(String::new)
+}
+
 fn render_overview(output: &OverviewOutput) {
     CliService::section(&format!("Analytics Overview ({})", output.period));
 
     let cards = vec![
-        MetricCard::new("Conversations", format_number(output.conversations.total)).with_change(
-            output
-                .conversations
-                .change_percent
-                .map(|c| format_change(output.conversations.total, 0).unwrap_or_default())
-                .unwrap_or_default(),
-        ),
+        MetricCard::new("Conversations", format_number(output.conversations.total))
+            .with_change(format_change_percent(output.conversations.change_percent)),
         MetricCard::new("Active Agents", format_number(output.agents.active_count)).with_secondary(
             format!("{} tasks", format_number(output.agents.total_tasks)),
         ),
@@ -352,16 +356,8 @@ fn render_overview(output: &OverviewOutput) {
         MetricCard::new("Active Sessions", format_number(output.sessions.active)).with_secondary(
             format!("{} total", format_number(output.sessions.total_today)),
         ),
-        MetricCard::new("Total Cost", format_cost(output.costs.total_cents)).with_change(
-            output
-                .costs
-                .change_percent
-                .map(|c| {
-                    let sign = if c >= 0.0 { "+" } else { "" };
-                    format!("{}{:.1}%", sign, c)
-                })
-                .unwrap_or_default(),
-        ),
+        MetricCard::new("Total Cost", format_cost(output.costs.total_cents))
+            .with_change(format_change_percent(output.costs.change_percent)),
     ];
 
     for card in cards {

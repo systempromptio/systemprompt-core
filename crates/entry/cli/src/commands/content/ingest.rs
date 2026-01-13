@@ -58,11 +58,12 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
         .ingest_directory(&args.directory, &source, options)
         .await?;
 
+    let success = report.is_success();
     let output = IngestOutput {
         files_found: report.files_found,
         files_processed: report.files_processed,
         errors: report.errors,
-        success: report.is_success(),
+        success,
     };
 
     Ok(CommandResult::card(output).with_title("Ingestion Report"))

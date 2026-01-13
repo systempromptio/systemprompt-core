@@ -137,7 +137,7 @@ async fn fetch_agents(
                 last_active: row
                     .last_active
                     .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_default(),
+                    .unwrap_or_else(|| "N/A".to_string()),
             })
         })
         .collect();

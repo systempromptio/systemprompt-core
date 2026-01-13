@@ -1,11 +1,8 @@
-//! Content-related identifier types.
-
 use crate::{DbValue, ToDbValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Skill identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -61,7 +58,6 @@ impl ToDbValue for &SkillId {
     }
 }
 
-/// Source identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -113,7 +109,6 @@ impl ToDbValue for &SourceId {
     }
 }
 
-/// Category identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -165,7 +160,6 @@ impl ToDbValue for &CategoryId {
     }
 }
 
-/// Content identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -217,7 +211,6 @@ impl ToDbValue for &ContentId {
     }
 }
 
-/// Tag identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -269,7 +262,6 @@ impl ToDbValue for &TagId {
     }
 }
 
-/// File identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]

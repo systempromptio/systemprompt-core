@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Duration, Timelike, Utc};
+use chrono::{DateTime, Datelike, Duration, NaiveDate, Timelike, Utc};
 
 pub fn parse_duration(s: &str) -> Option<Duration> {
     let s = s.trim().to_lowercase();
@@ -110,7 +110,7 @@ pub fn truncate_to_period(dt: DateTime<Utc>, period: &str) -> DateTime<Utc> {
         "month" => dt
             .date_naive()
             .with_day(1)
-            .and_then(|d| d.and_hms_opt(0, 0, 0))
+            .and_then(|d: NaiveDate| d.and_hms_opt(0, 0, 0))
             .map(|naive| DateTime::from_naive_utc_and_offset(naive, Utc))
             .unwrap_or(dt),
         _ => dt,

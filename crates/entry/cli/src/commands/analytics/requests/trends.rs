@@ -39,9 +39,9 @@ pub struct TrendsArgs {
 
 struct RequestRow {
     created_at: DateTime<Utc>,
-    tokens_used: Option<i64>,
-    cost_cents: Option<i64>,
-    latency_ms: Option<i64>,
+    tokens_used: Option<i32>,
+    cost_cents: Option<i32>,
+    latency_ms: Option<i32>,
 }
 
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
@@ -103,9 +103,9 @@ async fn fetch_trends(
             format_period_label(truncate_to_period(row.created_at, group_by), group_by);
         let entry = buckets.entry(period_key).or_insert((0, 0, 0, 0));
         entry.0 += 1;
-        entry.1 += row.tokens_used.unwrap_or(0);
-        entry.2 += row.cost_cents.unwrap_or(0);
-        entry.3 += row.latency_ms.unwrap_or(0);
+        entry.1 += i64::from(row.tokens_used.unwrap_or(0));
+        entry.2 += i64::from(row.cost_cents.unwrap_or(0));
+        entry.3 += i64::from(row.latency_ms.unwrap_or(0));
     }
 
     let mut points: Vec<RequestTrendPoint> = buckets
