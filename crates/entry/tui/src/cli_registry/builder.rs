@@ -2,13 +2,6 @@ use std::borrow::Cow;
 
 use super::types::{CliArgType, CliArgumentInfo, CliCommandInfo, ExecutionMode};
 
-const AI_ASSISTED_COMMANDS: &[&[&str]] = &[
-    &["db", "query"],
-    &["agents", "create"],
-    &["agents", "edit"],
-    &["skills", "create"],
-    &["skills", "edit"],
-];
 
 pub fn build_command_tree() -> CliCommandInfo {
     CliCommandInfo::new("systemprompt")
@@ -24,23 +17,6 @@ pub fn build_command_tree() -> CliCommandInfo {
             build_build_commands(),
             build_skills_commands(),
         ])
-}
-
-fn determine_execution_mode(path: &[Cow<'static, str>]) -> ExecutionMode {
-    let path_strs: Vec<&str> = path.iter().map(|s| s.as_ref()).collect();
-
-    for ai_path in AI_ASSISTED_COMMANDS {
-        if path_strs.len() >= ai_path.len()
-            && path_strs[..ai_path.len()]
-                .iter()
-                .zip(ai_path.iter())
-                .all(|(a, b)| a == b)
-        {
-            return ExecutionMode::AiAssisted;
-        }
-    }
-
-    ExecutionMode::Deterministic
 }
 
 fn build_services_commands() -> CliCommandInfo {

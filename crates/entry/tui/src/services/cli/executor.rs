@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 
 use crate::messages::Message;
 
+#[derive(Debug)]
 pub struct CliExecutor {
     tx: mpsc::UnboundedSender<Message>,
 }

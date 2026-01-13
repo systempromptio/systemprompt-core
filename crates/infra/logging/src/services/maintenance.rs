@@ -26,6 +26,10 @@ impl LoggingMaintenanceService {
         self.repo.cleanup_old_logs(older_than).await
     }
 
+    pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
+        self.repo.count_logs_before(cutoff).await
+    }
+
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {
         self.repo.clear_all_logs().await
     }

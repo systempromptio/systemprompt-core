@@ -97,9 +97,13 @@ async fn execute_trace_view(args: &ShowArgs, pool: &std::sync::Arc<sqlx::PgPool>
                 CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
                 CliService::key_value(
                     "Total Tokens",
-                    &format!("{} in / {} out", ai_summary.input_tokens, ai_summary.output_tokens),
+                    &format!(
+                        "{} in / {} out",
+                        ai_summary.total_input_tokens, ai_summary.total_output_tokens
+                    ),
                 );
-                CliService::key_value("Cost", &format!("${:.6}", ai_summary.cost_dollars));
+                let cost_dollars = f64::from(ai_summary.total_cost_cents as i32) / 1_000_000.0;
+                CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
             }
             if mcp_summary.execution_count > 0 {
                 CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());

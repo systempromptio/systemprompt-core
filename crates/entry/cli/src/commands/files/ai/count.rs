@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_database::DbPool;
 use systemprompt_core_files::AiService;
 use systemprompt_identifiers::UserId;
+use systemprompt_runtime::AppContext;
 
 use crate::commands::files::types::AiFilesCountOutput;
 use crate::shared::CommandResult;
@@ -18,8 +18,8 @@ pub async fn execute(
     args: CountArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AiFilesCountOutput>> {
-    let db = DbPool::from_env().await?;
-    let service = AiService::new(&db)?;
+    let ctx = AppContext::new().await?;
+    let service = AiService::new(ctx.db_pool())?;
 
     let user_id = args.user.as_ref().map(|u| UserId::new(u.clone()));
 

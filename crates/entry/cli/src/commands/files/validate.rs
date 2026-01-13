@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_files::{FileValidator, FilesConfig};
-use tokio::fs;
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;

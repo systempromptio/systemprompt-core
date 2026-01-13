@@ -111,6 +111,10 @@ impl LoggingRepository {
         operations::cleanup_logs_before(&self.db_pool, older_than).await
     }
 
+    pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
+        operations::count_logs_before(&self.db_pool, cutoff).await
+    }
+
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {
         operations::clear_all_logs(&self.db_pool).await
     }

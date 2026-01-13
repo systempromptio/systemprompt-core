@@ -140,3 +140,20 @@ pub async fn cleanup_logs_before(
 
     Ok(result.rows_affected())
 }
+
+pub async fn count_logs_before(
+    db_pool: &DbPool,
+    cutoff: DateTime<Utc>,
+) -> Result<u64, LoggingError> {
+    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
+
+    let count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
+        cutoff
+    )
+    .fetch_one(pool.as_ref())
+    .await
+    .context("Failed to count logs before cutoff")?;
+
+    Ok(count as u64)
+}
