@@ -1,4 +1,4 @@
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
 use systemprompt_cloud::constants::{build, container, paths};
@@ -6,8 +6,6 @@ use systemprompt_cloud::{
     get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore,
 };
 use systemprompt_core_logging::CliService;
-use systemprompt_models::{Config, ProfileBootstrap, SecretsBootstrap};
-use systemprompt_runtime::{display_validation_report, StartupValidator};
 
 use super::deploy_select::resolve_profile;
 use super::dockerfile::validate_profile_dockerfile;
@@ -103,40 +101,11 @@ impl DeployConfig {
     }
 }
 
-fn validate_profile_config(profile_path: &Path) -> Result<()> {
-    if ProfileBootstrap::is_initialized() {
-        return Ok(());
-    }
-
-    ProfileBootstrap::init_from_path(profile_path)
-        .context("Failed to initialize profile for validation")?;
-
-    SecretsBootstrap::init().context("Failed to initialize secrets for validation")?;
-
-    Config::init().context("Failed to initialize config for validation")?;
-
-    let config = Config::get().context("Failed to get config for validation")?;
-
-    let mut validator = StartupValidator::new();
-    let report = validator.validate(config);
-
-    if report.has_errors() {
-        display_validation_report(&report);
-        bail!(
-            "Configuration validation failed with {} error(s). Fix errors before deploying.",
-            report.error_count()
-        );
-    }
-
-    Ok(())
-}
 
 pub async fn execute(skip_push: bool, profile_name: Option<String>) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
     let (profile, profile_path) = resolve_profile(profile_name.as_deref())?;
-
-    validate_profile_config(&profile_path)?;
 
     let cloud_config = profile
         .cloud
@@ -269,9 +238,7 @@ pub async fn deploy_with_secrets(
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
     let ctx = ProjectContext::new(project.as_path().to_path_buf());
     let dockerfile = ctx.profile_dockerfile(profile_name);
-    let profile_path = ctx.profile_path(profile_name, ProfilePath::Config);
 
-    validate_profile_config(&profile_path)?;
     validate_profile_dockerfile(&dockerfile, project.as_path())?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
