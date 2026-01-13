@@ -58,6 +58,14 @@ impl ConfigLoader {
     }
 
     fn load_include_file(path: &PathBuf) -> Result<PartialServicesConfig> {
+        if !path.exists() {
+            anyhow::bail!(
+                "Include file not found: {}\n\
+                 Either create the file or remove it from the includes list.",
+                path.display()
+            );
+        }
+
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read include: {}", path.display()))?;
 
@@ -183,6 +191,17 @@ impl EnhancedConfigLoader {
 
     fn load_include(&self, path: &str) -> Result<PartialServicesConfig> {
         let full_path = self.base_path.join(path);
+
+        if !full_path.exists() {
+            anyhow::bail!(
+                "Include file not found: {}\n\
+                 Referenced in: {}/config.yaml\n\
+                 Either create the file or remove it from the includes list.",
+                full_path.display(),
+                self.base_path.display()
+            );
+        }
+
         let content = fs::read_to_string(&full_path)
             .with_context(|| format!("Failed to read include: {}", full_path.display()))?;
 

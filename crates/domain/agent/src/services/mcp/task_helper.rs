@@ -5,7 +5,6 @@ use crate::services::MessageService;
 use rmcp::ErrorData as McpError;
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::auth::UserType;
 use systemprompt_models::{Config, TaskMetadata};
 
 #[derive(Debug)]
@@ -28,28 +27,30 @@ pub async fn ensure_task_exists(
         });
     }
 
-    if !matches!(
-        request_context.user_type(),
-        UserType::Unknown | UserType::Anon
-    ) {
-        let context_repo = ContextRepository::new(db_pool.clone());
+    let context_repo = ContextRepository::new(db_pool.clone());
 
-        if context_repo
-            .validate_context_ownership(request_context.context_id(), request_context.user_id())
-            .await
-            .is_err()
-        {
+    // Ensure context exists for all users (including Anon)
+    // This auto-creates the context if it doesn't exist
+    let context_id = context_repo
+        .ensure_context_exists(
+            request_context.context_id(),
+            request_context.user_id(),
+            Some(request_context.session_id()),
+        )
+        .await
+        .map_err(|e| {
             let error_msg = format!(
-                "Invalid context_id '{}'. Please select a valid context for this user. Create a \
-                 context via POST /api/v1/core/contexts or list existing contexts via GET \
-                 /api/v1/core/contexts",
-                request_context.context_id().as_str()
+                "Failed to ensure context exists for context_id '{}': {}",
+                request_context.context_id().as_str(),
+                e
             );
+            tracing::error!(error = %error_msg, "Context creation/validation failed");
+            McpError::internal_error(error_msg, None)
+        })?;
 
-            tracing::error!(error = %error_msg, "Context validation failed");
-
-            return Err(McpError::invalid_params(error_msg, None));
-        }
+    // Update request context with the (potentially new) context_id
+    if context_id.as_str() != request_context.context_id().as_str() {
+        request_context.execution.context_id = context_id.clone();
     }
 
     let task_repo = TaskRepository::new(db_pool.clone());
