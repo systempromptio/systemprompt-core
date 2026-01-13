@@ -14,7 +14,7 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub async fn execute(
+pub fn execute(
     args: ShowArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentDetailOutput>> {

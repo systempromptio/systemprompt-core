@@ -12,7 +12,7 @@ pub struct ValidateArgs {
     pub name: Option<String>,
 }
 
-pub async fn execute(
+pub fn execute(
     args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
