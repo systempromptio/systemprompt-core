@@ -94,16 +94,16 @@ pub fn detect_mime_type(path: &PathBuf) -> String {
     let extension = path
         .extension()
         .and_then(|e| e.to_str())
-        .map(|e| e.to_lowercase());
+        .map(str::to_lowercase);
 
     match extension.as_deref() {
-        Some("jpg") | Some("jpeg") => "image/jpeg".to_string(),
+        Some("jpg" | "jpeg") => "image/jpeg".to_string(),
         Some("png") => "image/png".to_string(),
         Some("gif") => "image/gif".to_string(),
         Some("webp") => "image/webp".to_string(),
         Some("svg") => "image/svg+xml".to_string(),
         Some("bmp") => "image/bmp".to_string(),
-        Some("tiff") | Some("tif") => "image/tiff".to_string(),
+        Some("tiff" | "tif") => "image/tiff".to_string(),
         Some("ico") => "image/x-icon".to_string(),
         Some("pdf") => "application/pdf".to_string(),
         Some("doc") => "application/msword".to_string(),
@@ -121,7 +121,7 @@ pub fn detect_mime_type(path: &PathBuf) -> String {
         Some("txt") => "text/plain".to_string(),
         Some("csv") => "text/csv".to_string(),
         Some("md") => "text/markdown".to_string(),
-        Some("html") | Some("htm") => "text/html".to_string(),
+        Some("html" | "htm") => "text/html".to_string(),
         Some("json") => "application/json".to_string(),
         Some("xml") => "application/xml".to_string(),
         Some("rtf") => "application/rtf".to_string(),

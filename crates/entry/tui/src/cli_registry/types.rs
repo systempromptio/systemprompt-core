@@ -7,18 +7,13 @@ pub enum ExecutionMode {
     AiAssisted,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum CliArgType {
+    #[default]
     String,
     Bool,
     Number,
     Path,
-}
-
-impl Default for CliArgType {
-    fn default() -> Self {
-        Self::String
-    }
 }
 
 #[derive(Debug, Clone)]
@@ -47,12 +42,12 @@ impl CliArgumentInfo {
         }
     }
 
-    pub fn with_type(mut self, arg_type: CliArgType) -> Self {
+    pub const fn with_type(mut self, arg_type: CliArgType) -> Self {
         self.arg_type = arg_type;
         self
     }
 
-    pub fn with_required(mut self, required: bool) -> Self {
+    pub const fn with_required(mut self, required: bool) -> Self {
         self.required = required;
         self
     }
@@ -67,7 +62,7 @@ impl CliArgumentInfo {
         self
     }
 
-    pub fn with_short(mut self, short: char) -> Self {
+    pub const fn with_short(mut self, short: char) -> Self {
         self.short = Some(short);
         self
     }
@@ -90,7 +85,7 @@ pub struct CliCommandInfo {
     pub description: Cow<'static, str>,
     pub arguments: Vec<CliArgumentInfo>,
     pub execution_mode: ExecutionMode,
-    pub subcommands: Vec<CliCommandInfo>,
+    pub subcommands: Vec<Self>,
 }
 
 impl CliCommandInfo {
@@ -120,12 +115,12 @@ impl CliCommandInfo {
         self
     }
 
-    pub fn with_execution_mode(mut self, mode: ExecutionMode) -> Self {
+    pub const fn with_execution_mode(mut self, mode: ExecutionMode) -> Self {
         self.execution_mode = mode;
         self
     }
 
-    pub fn with_subcommands(mut self, subcommands: Vec<CliCommandInfo>) -> Self {
+    pub fn with_subcommands(mut self, subcommands: Vec<Self>) -> Self {
         self.subcommands = subcommands;
         self
     }
@@ -167,7 +162,7 @@ pub enum CommandTreeItem {
 }
 
 impl CommandTreeItem {
-    pub fn depth(&self) -> usize {
+    pub const fn depth(&self) -> usize {
         match self {
             Self::Domain { depth, .. } | Self::Command { depth, .. } => *depth,
         }
@@ -180,11 +175,11 @@ impl CommandTreeItem {
         }
     }
 
-    pub fn is_domain(&self) -> bool {
+    pub const fn is_domain(&self) -> bool {
         matches!(self, Self::Domain { .. })
     }
 
-    pub fn is_command(&self) -> bool {
+    pub const fn is_command(&self) -> bool {
         matches!(self, Self::Command { .. })
     }
 }

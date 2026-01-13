@@ -43,7 +43,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_tools(&pool, start, end, args.limit, &args.server).await?;
 
     if let Some(ref path) = args.export {
@@ -86,17 +86,17 @@ async fn fetch_tools(
     limit: i64,
     server_filter: &Option<String>,
 ) -> Result<ToolListOutput> {
-    let base_query = r#"
+    let base_query = r"
         SELECT
             tool_name,
             server_name,
             COUNT(*) as execution_count,
             COUNT(*) FILTER (WHERE status = 'success') as success_count,
-            COALESCE(AVG(execution_time_ms), 0) as avg_time,
+            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time,
             MAX(created_at) as last_used
         FROM mcp_tool_executions
         WHERE created_at >= $1 AND created_at < $2
-    "#;
+    ";
 
     let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> =
         if let Some(server) = server_filter {

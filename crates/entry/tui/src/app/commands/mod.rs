@@ -45,7 +45,7 @@ impl TuiApp {
             Command::Sync(sub) => self.spawn_sync(sub),
             Command::Quit => self.state.should_quit = true,
             Command::DeleteTask(task_id) => self.spawn_delete_task(TaskId::new(&task_id)),
-            Command::ExecuteCliCommand(cmd_string) => self.spawn_cli_command(cmd_string),
+            Command::ExecuteCli(cmd_string) => self.spawn_cli_command(cmd_string),
             Command::RequestAiCommandParams {
                 command_path,
                 description,

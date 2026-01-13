@@ -14,7 +14,7 @@ pub fn export_to_csv<T: Serialize>(data: &[T], path: &Path) -> Result<()> {
 
     let json_value = serde_json::to_value(&data[0])?;
     if let serde_json::Value::Object(obj) = json_value {
-        let headers: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
+        let headers: Vec<&str> = obj.keys().map(String::as_str).collect();
         writeln!(writer, "{}", headers.join(","))?;
     }
 
@@ -43,7 +43,7 @@ pub fn export_single_to_csv<T: Serialize>(data: &T, path: &Path) -> Result<()> {
 
     let json = serde_json::to_value(data)?;
     if let serde_json::Value::Object(obj) = json {
-        let headers: Vec<&str> = obj.keys().map(|s| s.as_str()).collect();
+        let headers: Vec<&str> = obj.keys().map(String::as_str).collect();
         writeln!(writer, "{}", headers.join(","))?;
 
         let values: Vec<String> = obj
@@ -75,7 +75,7 @@ pub struct CsvBuilder {
 }
 
 impl CsvBuilder {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             headers: Vec::new(),
             rows: Vec::new(),

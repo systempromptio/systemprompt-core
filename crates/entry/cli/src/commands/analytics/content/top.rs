@@ -34,7 +34,7 @@ pub async fn execute(args: TopArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_top(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -76,7 +76,7 @@ async fn fetch_top(
     limit: i64,
 ) -> Result<TopContentOutput> {
     let rows: Vec<(String, i64, i64, Option<f64>, Option<String>)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             content_id,
             total_views,
@@ -87,7 +87,7 @@ async fn fetch_top(
         WHERE created_at >= $1 AND created_at < $2
         ORDER BY total_views DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -102,7 +102,7 @@ async fn fetch_top(
                 content_id,
                 views,
                 unique_visitors: visitors,
-                avg_time_seconds: avg_time.map(|v| v as i64).unwrap_or(0),
+                avg_time_seconds: avg_time.map_or(0, |v| v as i64),
                 trend: trend.unwrap_or_else(|| "stable".to_string()),
             },
         )

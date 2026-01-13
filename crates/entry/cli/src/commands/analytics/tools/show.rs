@@ -35,7 +35,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_tool_details(&pool, &args.tool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -45,7 +45,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     }
 
     if config.is_json_output() {
-        let result = CommandResult::card(output).with_title(&format!("Tool: {}", args.tool));
+        let result = CommandResult::card(output).with_title(format!("Tool: {}", args.tool));
         render_result(&result);
     } else {
         render_tool_details(&output);
@@ -103,18 +103,18 @@ async fn fetch_summary(
     end: DateTime<Utc>,
 ) -> Result<ToolStatsOutput> {
     let row: (i64, i64, i64, i64, f64, f64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) as total,
             COUNT(*) FILTER (WHERE status = 'success') as successful,
             COUNT(*) FILTER (WHERE status = 'failed') as failed,
             COUNT(*) FILTER (WHERE status = 'timeout') as timeout,
-            COALESCE(AVG(execution_time_ms), 0) as avg_time,
-            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms), 0) as p95_time
+            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time,
+            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as p95_time
         FROM mcp_tool_executions
         WHERE tool_name ILIKE $1
           AND created_at >= $2 AND created_at < $3
-        "#,
+        ",
     )
     .bind(format!("%{}%", tool_name))
     .bind(start)
@@ -152,14 +152,14 @@ async fn fetch_status_breakdown(
     end: DateTime<Utc>,
 ) -> Result<Vec<StatusBreakdownItem>> {
     let rows: Vec<(String, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT status, COUNT(*) as count
         FROM mcp_tool_executions
         WHERE tool_name ILIKE $1
           AND created_at >= $2 AND created_at < $3
         GROUP BY status
         ORDER BY count DESC
-        "#,
+        ",
     )
     .bind(format!("%{}%", tool_name))
     .bind(start)
@@ -190,7 +190,7 @@ async fn fetch_top_errors(
     end: DateTime<Utc>,
 ) -> Result<Vec<ErrorItem>> {
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COALESCE(SUBSTRING(error_message FROM 1 FOR 100), 'Unknown error') as error_msg,
             COUNT(*) as count
@@ -201,7 +201,7 @@ async fn fetch_top_errors(
         GROUP BY SUBSTRING(error_message FROM 1 FOR 100)
         ORDER BY count DESC
         LIMIT 10
-        "#,
+        ",
     )
     .bind(format!("%{}%", tool_name))
     .bind(start)
@@ -225,7 +225,7 @@ async fn fetch_usage_by_agent(
     end: DateTime<Utc>,
 ) -> Result<Vec<AgentUsageItem>> {
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             at.agent_name,
             COUNT(*) as count
@@ -236,7 +236,7 @@ async fn fetch_usage_by_agent(
         GROUP BY at.agent_name
         ORDER BY count DESC
         LIMIT 10
-        "#,
+        ",
     )
     .bind(format!("%{}%", tool_name))
     .bind(start)

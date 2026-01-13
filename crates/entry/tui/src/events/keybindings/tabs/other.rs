@@ -109,7 +109,7 @@ fn handle_commands_execute(state: &mut AppState) -> (Option<Message>, Command) {
         },
         crate::cli_registry::CommandTreeItem::Command { info, .. } => match info.execution_mode {
             ExecutionMode::AiAssisted => {
-                let command_path: Vec<String> = info.path.iter().map(|s| s.to_string()).collect();
+                let command_path: Vec<String> = info.path.iter().map(ToString::to_string).collect();
                 let description = info.description.to_string();
                 (
                     Some(Message::CommandRequestAiParams {
@@ -124,7 +124,7 @@ fn handle_commands_execute(state: &mut AppState) -> (Option<Message>, Command) {
                     let cmd_string = format!("systemprompt {}", info.path.join(" "));
                     (
                         Some(Message::CommandExecuting),
-                        Command::ExecuteCliCommand(cmd_string),
+                        Command::ExecuteCli(cmd_string),
                     )
                 } else {
                     state.commands.open_parameter_modal();
@@ -183,7 +183,7 @@ fn handle_commands_modal_keys(key: KeyEvent, state: &mut AppState) -> (Option<Me
                 state.commands.close_modal();
                 (
                     Some(Message::CommandExecuting),
-                    Command::ExecuteCliCommand(cmd_string),
+                    Command::ExecuteCli(cmd_string),
                 )
             } else {
                 (None, Command::None)

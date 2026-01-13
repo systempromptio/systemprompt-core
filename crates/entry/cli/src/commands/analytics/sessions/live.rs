@@ -65,7 +65,7 @@ async fn fetch_live_sessions(
         Option<i64>,
         chrono::DateTime<Utc>,
     )> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             session_id,
             COALESCE(user_type, 'unknown') as user_type,
@@ -78,7 +78,7 @@ async fn fetch_live_sessions(
           AND last_activity_at >= $1
         ORDER BY last_activity_at DESC
         LIMIT $2
-        "#,
+        ",
     )
     .bind(cutoff)
     .bind(limit)

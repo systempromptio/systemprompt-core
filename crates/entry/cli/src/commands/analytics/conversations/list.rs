@@ -34,7 +34,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_list(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -83,7 +83,7 @@ async fn fetch_list(
         DateTime<Utc>,
         DateTime<Utc>,
     )> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             uc.context_id,
             uc.name,
@@ -97,7 +97,7 @@ async fn fetch_list(
         WHERE uc.created_at >= $1 AND uc.created_at < $2
         ORDER BY uc.updated_at DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

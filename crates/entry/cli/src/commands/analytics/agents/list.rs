@@ -40,7 +40,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_agents(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -132,12 +132,10 @@ async fn fetch_agents(
                 agent_name,
                 task_count,
                 success_rate,
-                avg_execution_time_ms: row.avg_execution_time_ms.map(|v| v as i64).unwrap_or(0),
+                avg_execution_time_ms: row.avg_execution_time_ms.map_or(0, |v| v as i64),
                 total_cost_cents: row.total_cost_cents.unwrap_or(0),
                 last_active: row
-                    .last_active
-                    .map(|dt| dt.format("%Y-%m-%d %H:%M:%S").to_string())
-                    .unwrap_or_else(|| "N/A".to_string()),
+                    .last_active.map_or_else(|| "N/A".to_string(), |dt| dt.format("%Y-%m-%d %H:%M:%S").to_string()),
             })
         })
         .collect();

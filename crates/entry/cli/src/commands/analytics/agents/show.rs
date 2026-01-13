@@ -10,7 +10,7 @@ use super::{
     StatusBreakdownItem,
 };
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_cost, format_duration_ms, format_number, format_percent,
+    export_single_to_csv, format_duration_ms, format_number, format_percent,
     parse_time_range,
 };
 use crate::shared::{render_result, CommandResult};
@@ -39,7 +39,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_agent_details(&pool, &args.agent, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -49,7 +49,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     }
 
     if config.is_json_output() {
-        let result = CommandResult::card(output).with_title(&format!("Agent: {}", args.agent));
+        let result = CommandResult::card(output).with_title(format!("Agent: {}", args.agent));
         render_result(&result);
     } else {
         render_agent_details(&output);
@@ -107,16 +107,16 @@ async fn fetch_summary(
     end: DateTime<Utc>,
 ) -> Result<AgentStatsOutput> {
     let row: (i64, i64, i64, f64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) as total_tasks,
             COUNT(*) FILTER (WHERE status = 'completed') as completed,
             COUNT(*) FILTER (WHERE status = 'failed') as failed,
-            COALESCE(AVG(execution_time_ms), 0) as avg_time
+            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time
         FROM agent_tasks
         WHERE agent_name ILIKE $1
           AND started_at >= $2 AND started_at < $3
-        "#,
+        ",
     )
     .bind(format!("%{}%", agent_name))
     .bind(start)
@@ -154,14 +154,14 @@ async fn fetch_status_breakdown(
     end: DateTime<Utc>,
 ) -> Result<Vec<StatusBreakdownItem>> {
     let rows: Vec<(String, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT status, COUNT(*) as count
         FROM agent_tasks
         WHERE agent_name ILIKE $1
           AND started_at >= $2 AND started_at < $3
         GROUP BY status
         ORDER BY count DESC
-        "#,
+        ",
     )
     .bind(format!("%{}%", agent_name))
     .bind(start)
@@ -192,7 +192,7 @@ async fn fetch_top_errors(
     end: DateTime<Utc>,
 ) -> Result<Vec<ErrorBreakdownItem>> {
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COALESCE(
                 SUBSTRING(l.message FROM 1 FOR 100),
@@ -207,7 +207,7 @@ async fn fetch_top_errors(
         GROUP BY SUBSTRING(l.message FROM 1 FOR 100)
         ORDER BY count DESC
         LIMIT 10
-        "#,
+        ",
     )
     .bind(format!("%{}%", agent_name))
     .bind(start)
@@ -231,7 +231,7 @@ async fn fetch_hourly_distribution(
     end: DateTime<Utc>,
 ) -> Result<Vec<HourlyDistributionItem>> {
     let rows: Vec<(i32, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             EXTRACT(HOUR FROM started_at)::INTEGER as hour,
             COUNT(*) as count
@@ -240,7 +240,7 @@ async fn fetch_hourly_distribution(
           AND started_at >= $2 AND started_at < $3
         GROUP BY EXTRACT(HOUR FROM started_at)
         ORDER BY hour
-        "#,
+        ",
     )
     .bind(format!("%{}%", agent_name))
     .bind(start)

@@ -50,7 +50,7 @@ pub async fn execute(args: BreakdownArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_breakdown(&pool, start, end, &args.by, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -103,7 +103,7 @@ async fn fetch_breakdown(
     };
 
     let query = format!(
-        r#"
+        r"
         SELECT
             {} as name,
             COALESCE(SUM(cost_cents), 0) as cost,
@@ -114,7 +114,7 @@ async fn fetch_breakdown(
         GROUP BY {}
         ORDER BY SUM(cost_cents) DESC NULLS LAST
         LIMIT $3
-        "#,
+        ",
         group_field, group_field
     );
 

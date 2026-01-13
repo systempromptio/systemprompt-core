@@ -28,7 +28,7 @@ pub async fn execute(args: BotsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_bots(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -53,13 +53,13 @@ async fn fetch_bots(
     end: DateTime<Utc>,
 ) -> Result<BotsOutput> {
     let totals: (i64, i64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) FILTER (WHERE is_bot = false OR is_bot IS NULL) as human,
             COUNT(*) FILTER (WHERE is_bot = true) as bot
         FROM user_sessions
         WHERE started_at >= $1 AND started_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -74,7 +74,7 @@ async fn fetch_bots(
     };
 
     let bot_types: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COALESCE(
                 CASE
@@ -93,7 +93,7 @@ async fn fetch_bots(
           AND is_bot = true
         GROUP BY 1
         ORDER BY COUNT(*) DESC
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

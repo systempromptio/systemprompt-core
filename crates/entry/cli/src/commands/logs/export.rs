@@ -102,7 +102,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
         ExportFormat::Json => serde_json::to_string_pretty(&logs)?,
         ExportFormat::Jsonl => logs
             .iter()
-            .map(|l| serde_json::to_string(l))
+            .map(serde_json::to_string)
             .collect::<Result<Vec<_>, _>>()?
             .join("\n"),
         ExportFormat::Csv => format_csv(&logs)?,

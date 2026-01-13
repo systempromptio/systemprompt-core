@@ -31,7 +31,7 @@ pub async fn execute(args: GeoArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_geo(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -67,14 +67,14 @@ async fn fetch_geo(
     limit: i64,
 ) -> Result<GeoOutput> {
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT COALESCE(country, 'Unknown') as country, COUNT(*) as count
         FROM user_sessions
         WHERE started_at >= $1 AND started_at < $2
         GROUP BY country
         ORDER BY COUNT(*) DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

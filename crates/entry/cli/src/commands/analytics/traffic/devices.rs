@@ -31,7 +31,7 @@ pub async fn execute(args: DevicesArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_devices(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -67,7 +67,7 @@ async fn fetch_devices(
     limit: i64,
 ) -> Result<DevicesOutput> {
     let rows: Vec<(Option<String>, Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COALESCE(device_type, 'unknown') as device,
             COALESCE(browser, 'unknown') as browser,
@@ -77,7 +77,7 @@ async fn fetch_devices(
         GROUP BY device_type, browser
         ORDER BY COUNT(*) DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

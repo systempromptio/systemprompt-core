@@ -90,7 +90,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
         CliService::json(&output);
     } else {
         CliService::section("User Details");
-        CliService::key_value("ID", &output.id.to_string());
+        CliService::key_value("ID", &output.id);
         CliService::key_value("Name", &output.name);
         CliService::key_value("Email", &output.email);
 
@@ -127,7 +127,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
                 for session in sessions {
                     let status = if session.is_active { "active" } else { "ended" };
                     CliService::key_value(
-                        &session.session_id.to_string(),
+                        &session.session_id.clone(),
                         &format!(
                             "{} | {} | {}",
                             status,
