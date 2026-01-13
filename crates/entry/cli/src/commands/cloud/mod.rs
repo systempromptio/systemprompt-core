@@ -1,0 +1,123 @@
+pub mod auth;
+pub mod checkout;
+mod deploy;
+pub mod deploy_select;
+pub mod dockerfile;
+mod init;
+mod init_templates;
+mod oauth;
+pub mod profile;
+mod restart;
+mod secrets;
+mod status;
+pub mod sync;
+pub mod tenant;
+mod tenant_ops;
+
+pub use systemprompt_cloud::{Environment, OAuthProvider};
+
+use crate::cli_settings::CliConfig;
+use anyhow::Result;
+use clap::Subcommand;
+
+#[derive(Subcommand)]
+pub enum CloudCommands {
+    #[command(subcommand, about = "Authentication (login, logout, whoami)")]
+    Auth(auth::AuthCommands),
+
+    #[command(about = "Initialize project structure")]
+    Init {
+        #[arg(long)]
+        force: bool,
+    },
+
+    #[command(subcommand_required = false, about = "Manage tenants (local or cloud)")]
+    Tenant {
+        #[command(subcommand)]
+        command: Option<tenant::TenantCommands>,
+    },
+
+    #[command(subcommand_required = false, about = "Manage profiles")]
+    Profile {
+        #[command(subcommand)]
+        command: Option<profile::ProfileCommands>,
+    },
+
+    #[command(about = "Deploy to SystemPrompt Cloud")]
+    Deploy {
+        #[arg(long)]
+        skip_push: bool,
+
+        #[arg(long, short = 'p', help = "Profile name to deploy")]
+        profile: Option<String>,
+    },
+
+    #[command(about = "Check cloud deployment status")]
+    Status,
+
+    #[command(about = "Restart tenant machine")]
+    Restart {
+        #[arg(long)]
+        tenant: Option<String>,
+
+        #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+        yes: bool,
+    },
+
+    #[command(
+        subcommand_required = false,
+        about = "Sync between local and cloud environments"
+    )]
+    Sync {
+        #[command(subcommand)]
+        command: Option<sync::SyncCommands>,
+    },
+
+    #[command(subcommand, about = "Manage secrets for cloud tenant")]
+    Secrets(secrets::SecretsCommands),
+
+    #[command(about = "Generate Dockerfile based on discovered extensions")]
+    Dockerfile,
+}
+
+impl CloudCommands {
+    pub const fn requires_profile(&self) -> bool {
+        matches!(
+            self,
+            Self::Sync { command: Some(_) }
+                | Self::Status
+                | Self::Restart { .. }
+                | Self::Secrets { .. }
+        )
+    }
+
+    pub const fn requires_secrets(&self) -> bool {
+        matches!(self, Self::Sync { command: Some(_) } | Self::Secrets { .. })
+    }
+}
+
+pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
+    match cmd {
+        CloudCommands::Auth(cmd) => auth::execute(cmd, config).await,
+        CloudCommands::Init { force } => init::execute(force, config),
+        CloudCommands::Tenant { command } => tenant::execute(command, config).await,
+        CloudCommands::Profile { command } => profile::execute(command, config).await,
+        CloudCommands::Deploy { skip_push, profile } => {
+            deploy::execute(skip_push, profile, config).await
+        }
+        CloudCommands::Status => status::execute(config).await,
+        CloudCommands::Restart { tenant, yes } => restart::execute(tenant, yes, config).await,
+        CloudCommands::Sync { command } => sync::execute(command, config).await,
+        CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
+        CloudCommands::Dockerfile => execute_dockerfile(config),
+    }
+}
+
+fn execute_dockerfile(config: &CliConfig) -> Result<()> {
+    use crate::shared::project::ProjectRoot;
+
+    let _ = config; // Will be used for output format handling
+    let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
+    dockerfile::print_dockerfile_suggestion(project.as_path());
+    Ok(())
+}
