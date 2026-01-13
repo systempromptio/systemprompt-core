@@ -199,6 +199,46 @@ pub fn validate_dockerfile_has_mcp_binaries(
         .collect()
 }
 
+fn extract_mcp_binary_names_from_dockerfile(dockerfile_content: &str) -> Vec<String> {
+    dockerfile_content
+        .lines()
+        .filter_map(|line| {
+            let trimmed = line.trim();
+            if !trimmed.starts_with("COPY target/release/systemprompt-") {
+                return None;
+            }
+            let after_copy = trimmed.strip_prefix("COPY target/release/")?;
+            let binary_name = after_copy.split_whitespace().next()?;
+            if binary_name.starts_with("systemprompt-") && binary_name != "systemprompt-*" {
+                Some(binary_name.to_string())
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+pub fn validate_dockerfile_has_no_stale_binaries(
+    dockerfile_content: &str,
+    project_root: &Path,
+) -> Vec<String> {
+    let has_wildcard = dockerfile_content.contains("target/release/systemprompt-*");
+    if has_wildcard {
+        return Vec::new();
+    }
+
+    let dockerfile_binaries = extract_mcp_binary_names_from_dockerfile(dockerfile_content);
+    let current_binaries: std::collections::HashSet<String> =
+        ExtensionLoader::get_mcp_binary_names(project_root)
+            .into_iter()
+            .collect();
+
+    dockerfile_binaries
+        .into_iter()
+        .filter(|binary| !current_binaries.contains(binary))
+        .collect()
+}
+
 pub fn print_dockerfile_suggestion(project_root: &Path) {
     systemprompt_core_logging::CliService::info(&generate_dockerfile_content(project_root));
 }
@@ -214,16 +254,36 @@ pub fn validate_profile_dockerfile(dockerfile_path: &Path, project_root: &Path) 
 
     let content = std::fs::read_to_string(dockerfile_path)?;
     let missing = validate_dockerfile_has_mcp_binaries(&content, project_root);
+    let stale = validate_dockerfile_has_no_stale_binaries(&content, project_root);
 
-    if !missing.is_empty() {
-        bail!(
-            "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
-             lines:\n\n{}",
-            dockerfile_path.display(),
-            missing.join(", "),
-            get_required_mcp_copy_lines(project_root).join("\n")
-        );
+    match (missing.is_empty(), stale.is_empty()) {
+        (true, true) => Ok(()),
+        (false, true) => {
+            bail!(
+                "Dockerfile at {} is missing COPY commands for MCP binaries:\n\n{}\n\nAdd these \
+                 lines:\n\n{}",
+                dockerfile_path.display(),
+                missing.join(", "),
+                get_required_mcp_copy_lines(project_root).join("\n")
+            );
+        }
+        (true, false) => {
+            bail!(
+                "Dockerfile at {} has COPY commands for binaries that no longer \
+                 exist:\n\n{}\n\nRemove these lines or regenerate with: systemprompt cloud \
+                 profile create",
+                dockerfile_path.display(),
+                stale.join(", ")
+            );
+        }
+        (false, false) => {
+            bail!(
+                "Dockerfile at {} has issues:\n\nMissing binaries: {}\nStale binaries: \
+                 {}\n\nRegenerate with: systemprompt cloud profile create",
+                dockerfile_path.display(),
+                missing.join(", "),
+                stale.join(", ")
+            );
+        }
     }
-
-    Ok(())
 }
