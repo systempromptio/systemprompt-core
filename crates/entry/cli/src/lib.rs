@@ -160,7 +160,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Build(cmd)) => {
             build::execute(cmd, &cli_config)?;
         }
-        Some(Commands::Setup(args)) => setup::execute(args).await?,
+        Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
         None => tui::execute(&cli_config).await?,
     }
 

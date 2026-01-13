@@ -21,16 +21,32 @@ pub enum SchedulerCommands {
     },
     #[command(about = "List available jobs")]
     List,
+    #[command(about = "Clean up old log entries")]
+    LogCleanup {
+        #[arg(long, default_value = "30")]
+        days: i32,
+    },
+    #[command(about = "Clean up inactive sessions (alias)")]
+    SessionCleanup {
+        #[arg(long, default_value = "1")]
+        hours: i32,
+    },
 }
 
-pub async fn execute(cmd: SchedulerCommands, ctx: Arc<AppContext>, _config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    cmd: SchedulerCommands,
+    ctx: Arc<AppContext>,
+    _config: &CliConfig,
+) -> Result<()> {
     match cmd {
         SchedulerCommands::Run { job_name } => run_job(&job_name, ctx).await,
         SchedulerCommands::CleanupSessions { hours } => cleanup_sessions(hours, ctx).await,
+        SchedulerCommands::SessionCleanup { hours } => cleanup_sessions(hours, ctx).await,
+        SchedulerCommands::LogCleanup { days } => cleanup_logs(days, ctx).await,
         SchedulerCommands::List => {
             list_jobs();
             Ok(())
-        },
+        }
     }
 }
 
@@ -45,7 +61,7 @@ fn list_jobs() {
 #[tracing::instrument(name = "cli_scheduler", skip(ctx))]
 async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
     let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("warn"));
-    tracing_subscriber::fmt().with_env_filter(filter).init();
+    let _ = tracing_subscriber::fmt().with_env_filter(filter).try_init();
 
     CliService::info(&format!("Running job: {}", job_name));
 
@@ -73,18 +89,18 @@ async fn run_job(job_name: &str, ctx: Arc<AppContext>) -> Result<()> {
                 CliService::info(&format!("  {}", msg));
             }
             Ok(())
-        },
+        }
         Ok(result) => {
             let msg = result
                 .message
                 .unwrap_or_else(|| "Unknown error".to_string());
             CliService::error(&format!("Job failed: {}", msg));
             anyhow::bail!("Job failed: {msg}")
-        },
+        }
         Err(e) => {
             CliService::error(&format!("Job failed: {}", e));
             Err(e)
-        },
+        }
     }
 }
 
@@ -102,4 +118,15 @@ async fn cleanup_sessions(hours: i32, ctx: Arc<AppContext>) -> Result<()> {
     CliService::success(&format!("Closed {} inactive session(s)", closed_count));
 
     Ok(())
+}
+
+async fn cleanup_logs(days: i32, ctx: Arc<AppContext>) -> Result<()> {
+    CliService::section("Log Cleanup");
+
+    CliService::info(&format!(
+        "Cleaning up log entries older than {} day(s)...",
+        days
+    ));
+
+    run_job("database_cleanup", ctx).await
 }

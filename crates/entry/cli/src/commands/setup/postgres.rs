@@ -9,6 +9,8 @@ use std::net::ToSocketAddrs;
 use std::time::Duration;
 use systemprompt_core_logging::CliService;
 
+use super::SetupArgs;
+
 #[derive(Debug, Clone)]
 pub struct PostgresConfig {
     pub host: String,
@@ -35,7 +37,52 @@ pub fn generate_password() -> String {
         .collect()
 }
 
-pub async fn setup_interactive(env_name: &str) -> Result<PostgresConfig> {
+pub async fn setup_non_interactive(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
+    CliService::section(&format!("PostgreSQL Setup ({})", env_name));
+
+    let password = args.db_password.clone().unwrap_or_else(generate_password);
+    let config = PostgresConfig {
+        host: args.db_host.clone(),
+        port: args.db_port,
+        user: args.effective_db_user(env_name),
+        password,
+        database: args.effective_db_name(env_name),
+    };
+
+    CliService::key_value("Host", &config.host);
+    CliService::key_value("Port", &config.port.to_string());
+    CliService::key_value("User", &config.user);
+    CliService::key_value("Database", &config.database);
+
+    if args.docker {
+        CliService::info("Setting up PostgreSQL with Docker...");
+        return super::docker::setup_docker_postgres_non_interactive(&config, env_name).await;
+    }
+
+    if detect_postgresql(&config.host, config.port) {
+        CliService::success(&format!(
+            "PostgreSQL reachable at {}:{}",
+            config.host, config.port
+        ));
+    } else {
+        CliService::warning(&format!(
+            "PostgreSQL not reachable at {}:{}",
+            config.host, config.port
+        ));
+        CliService::info("Continuing with provided configuration...");
+    }
+
+    if test_connection(&config).await {
+        CliService::success("Database connection successful");
+        enable_extensions(&config).await?;
+    } else {
+        CliService::warning("Cannot connect to database - it may need to be created manually");
+    }
+
+    Ok(config)
+}
+
+pub async fn setup_interactive(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
     CliService::section(&format!("PostgreSQL Setup ({})", env_name));
     CliService::info("Configure PostgreSQL database for your local environment.");
 
@@ -47,27 +94,27 @@ pub async fn setup_interactive(env_name: &str) -> Result<PostgresConfig> {
     let selection = Select::with_theme(&ColorfulTheme::default())
         .with_prompt("How would you like to set up PostgreSQL?")
         .items(&options)
-        .default(0)
+        .default(if args.docker { 1 } else { 0 })
         .interact()?;
 
     match selection {
-        0 => setup_existing_postgres(env_name).await,
-        1 => super::docker::setup_docker_postgres(env_name).await,
+        0 => setup_existing_postgres(args, env_name).await,
+        1 => super::docker::setup_docker_postgres_interactive(args, env_name).await,
         _ => unreachable!(),
     }
 }
 
-async fn setup_existing_postgres(env_name: &str) -> Result<PostgresConfig> {
+async fn setup_existing_postgres(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
     CliService::info("Configuring existing PostgreSQL connection...");
 
     let host: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("PostgreSQL host")
-        .default("localhost".to_string())
+        .default(args.db_host.clone())
         .interact_text()?;
 
     let port: u16 = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("PostgreSQL port")
-        .default(5432u16)
+        .default(args.db_port)
         .interact_text()?;
 
     if detect_postgresql(&host, port) {
@@ -84,32 +131,36 @@ async fn setup_existing_postgres(env_name: &str) -> Result<PostgresConfig> {
         }
     }
 
-    let default_user = format!("systemprompt_{}", env_name);
+    let default_user = args.effective_db_user(env_name);
     let user: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database user")
         .default(default_user)
         .interact_text()?;
 
-    let use_generated = Confirm::with_theme(&ColorfulTheme::default())
-        .with_prompt("Generate a secure password automatically?")
-        .default(true)
-        .interact()?;
-
-    let password = if use_generated {
-        let generated = generate_password();
-        CliService::success(&format!("Generated password: {}", generated));
-        generated
+    let password = if let Some(ref pw) = args.db_password {
+        pw.clone()
     } else {
-        Password::with_theme(&ColorfulTheme::default())
-            .with_prompt("Database password")
-            .interact()?
+        let use_generated = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt("Generate a secure password automatically?")
+            .default(true)
+            .interact()?;
+
+        if use_generated {
+            let generated = generate_password();
+            CliService::success(&format!("Generated password: {}", generated));
+            generated
+        } else {
+            Password::with_theme(&ColorfulTheme::default())
+                .with_prompt("Database password")
+                .interact()?
+        }
     };
 
     if password.is_empty() {
         anyhow::bail!("Password is required");
     }
 
-    let default_db = format!("systemprompt_{}", env_name);
+    let default_db = args.effective_db_name(env_name);
     let database: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Database name")
         .default(default_db)

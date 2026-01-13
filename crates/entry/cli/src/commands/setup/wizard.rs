@@ -4,9 +4,11 @@ use dialoguer::{Confirm, Input};
 use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
 
-use super::{postgres, profile, secrets};
+use super::postgres::PostgresConfig;
+use super::{postgres, profile, secrets, SetupArgs};
+use crate::CliConfig;
 
-pub async fn execute(env_arg: Option<String>) -> Result<()> {
+pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
     CliService::section("SystemPrompt Setup Wizard");
 
     let project_root = detect_project_root()?;
@@ -23,62 +25,98 @@ pub async fn execute(env_arg: Option<String>) -> Result<()> {
 
     let systemprompt_dir = project_root.join(".systemprompt");
 
-    let selected_envs = if let Some(env) = env_arg {
-        vec![env]
-    } else {
-        select_environments()?
-    };
+    let env_name = get_environment_name(&args, config)?;
 
-    if selected_envs.is_empty() {
-        CliService::warning("No environments selected. Exiting.");
-        return Ok(());
+    CliService::info(&format!("Configuring environment: {}", env_name));
+    CliService::section(&format!("Setting up '{}' environment", env_name));
+
+    let pg_config = setup_postgres(&args, config, &env_name).await?;
+
+    let mut secrets_data = collect_secrets(&args, config, &env_name)?;
+    secrets_data.database_url = Some(pg_config.database_url());
+
+    let secrets_path = secrets::default_path(&systemprompt_dir, &env_name);
+    secrets::save(&secrets_data, &secrets_path)?;
+
+    let relative_secrets_path = format!("../secrets/{}.secrets.json", env_name);
+    let profile_data = profile::build(&env_name, &relative_secrets_path, &project_root)?;
+    let profile_path = profile::default_path(&systemprompt_dir, &env_name);
+    profile::save(&profile_data, &profile_path)?;
+
+    match profile_data.validate() {
+        Ok(()) => CliService::success("Profile validated successfully"),
+        Err(e) => CliService::warning(&format!("Profile validation warnings: {}", e)),
     }
 
-    CliService::info(&format!(
-        "Configuring {} environment(s): {}",
-        selected_envs.len(),
-        selected_envs.join(", ")
-    ));
-
-    let mut created_profiles = Vec::new();
-
-    for env_name in &selected_envs {
-        CliService::section(&format!("Setting up '{}' environment", env_name));
-
-        let pg_config = postgres::setup_interactive(env_name).await?;
-
-        let mut secrets_data = secrets::collect_interactive(env_name)?;
-        secrets_data.database_url = Some(pg_config.database_url());
-
-        let secrets_path = secrets::default_path(&systemprompt_dir, env_name);
-        secrets::save(&secrets_data, &secrets_path)?;
-
-        let relative_secrets_path = format!("../secrets/{}.secrets.json", env_name);
-
-        let profile_data = profile::build(env_name, &relative_secrets_path, &project_root)?;
-        let profile_path = profile::default_path(&systemprompt_dir, env_name);
-        profile::save(&profile_data, &profile_path)?;
-
-        match profile_data.validate() {
-            Ok(()) => CliService::success("Profile validated successfully"),
-            Err(e) => CliService::warning(&format!("Profile validation warnings: {}", e)),
-        }
-
-        created_profiles.push((env_name.clone(), profile_path.clone()));
-
-        let run_migrations = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Run database migrations now?")
-            .default(true)
-            .interact()?;
-
-        if run_migrations {
-            profile::run_migrations(&profile_path)?;
-        }
+    let run_migrations = should_run_migrations(&args, config)?;
+    if run_migrations {
+        profile::run_migrations(&profile_path)?;
     }
 
-    print_summary(&created_profiles);
+    print_summary(&env_name, &profile_path);
 
     Ok(())
+}
+
+fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
+    if let Some(ref env) = args.environment {
+        return Ok(env.clone());
+    }
+
+    if !config.is_interactive() {
+        return Ok("dev".to_string());
+    }
+
+    CliService::info("Enter environment name (e.g., 'dev', 'staging', 'prod')");
+    CliService::info("Press Enter for default: dev");
+
+    let input: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Environment name")
+        .default("dev".to_string())
+        .interact_text()?;
+
+    Ok(input.trim().to_lowercase())
+}
+
+async fn setup_postgres(
+    args: &SetupArgs,
+    config: &CliConfig,
+    env_name: &str,
+) -> Result<PostgresConfig> {
+    if !config.is_interactive() {
+        return postgres::setup_non_interactive(args, env_name).await;
+    }
+    postgres::setup_interactive(args, env_name).await
+}
+
+fn collect_secrets(
+    args: &SetupArgs,
+    config: &CliConfig,
+    env_name: &str,
+) -> Result<secrets::SecretsData> {
+    if !config.is_interactive() {
+        return secrets::collect_non_interactive(args);
+    }
+    secrets::collect_interactive(args, env_name)
+}
+
+fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
+    if args.migrate {
+        return Ok(true);
+    }
+    if args.no_migrate {
+        return Ok(false);
+    }
+    if !config.is_interactive() {
+        return Ok(false);
+    }
+
+    let run = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt("Run database migrations now?")
+        .default(true)
+        .interact()?;
+
+    Ok(run)
 }
 
 fn detect_project_root() -> Result<PathBuf> {
@@ -109,61 +147,30 @@ fn detect_project_root() -> Result<PathBuf> {
     Ok(cwd)
 }
 
-fn select_environments() -> Result<Vec<String>> {
-    CliService::info("Enter environment names (comma-separated, e.g., 'dev, staging, prod')");
-    CliService::info("Press Enter for default: dev");
-
-    let input: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Environment names")
-        .default("dev".to_string())
-        .interact_text()?;
-
-    let names: Vec<String> = input
-        .split(',')
-        .map(|s| s.trim().to_lowercase())
-        .filter(|s| !s.is_empty())
-        .collect();
-
-    Ok(names)
-}
-
-fn print_summary(profiles: &[(String, PathBuf)]) {
+fn print_summary(env_name: &str, profile_path: &PathBuf) {
     CliService::section("Setup Complete!");
 
-    CliService::info("Created profiles:");
-    for (env_name, path) in profiles {
-        CliService::info(&format!("  - {} → {}", env_name, path.display()));
-    }
+    CliService::info(&format!(
+        "Created profile: {} → {}",
+        env_name,
+        profile_path.display()
+    ));
 
     CliService::section("Next Steps");
 
-    if let Some((env_name, profile_path)) = profiles.first() {
-        CliService::info(&format!(
-            "1. Set your profile environment variable for '{}':",
-            env_name
-        ));
-        CliService::info(&format!(
-            "   export SYSTEMPROMPT_PROFILE={}",
-            profile_path.display()
-        ));
-        CliService::info("");
-        CliService::info("2. Start services:");
-        CliService::info("   just start");
-        CliService::info("");
-        CliService::info("3. (Optional) Configure cloud deployment:");
-        CliService::info("   systemprompt cloud login");
-        CliService::info("   systemprompt cloud config");
-    }
-
-    if profiles.len() > 1 {
-        CliService::info("");
-        CliService::info("To switch environments, update SYSTEMPROMPT_PROFILE:");
-        for (env_name, profile_path) in profiles.iter().skip(1) {
-            CliService::info(&format!(
-                "  # For {}:\n  export SYSTEMPROMPT_PROFILE={}",
-                env_name,
-                profile_path.display()
-            ));
-        }
-    }
+    CliService::info(&format!(
+        "1. Set your profile environment variable for '{}':",
+        env_name
+    ));
+    CliService::info(&format!(
+        "   export SYSTEMPROMPT_PROFILE={}",
+        profile_path.display()
+    ));
+    CliService::info("");
+    CliService::info("2. Start services:");
+    CliService::info("   just start");
+    CliService::info("");
+    CliService::info("3. (Optional) Configure cloud deployment:");
+    CliService::info("   systemprompt cloud login");
+    CliService::info("   systemprompt cloud config");
 }
