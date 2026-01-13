@@ -261,6 +261,11 @@ pub struct CloudLogsResponse {
     pub logs: Vec<CloudLogEntry>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ListSecretsResponse {
+    pub keys: Vec<String>,
+}
+
 pub type ApiResponse<T> = CloudApiResponse<T>;
 pub type ApiError = CloudApiError;
 pub type ApiErrorDetail = CloudApiErrorDetail;

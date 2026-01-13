@@ -5,7 +5,6 @@ pub mod deploy_select;
 pub mod dockerfile;
 mod init;
 mod init_templates;
-mod logs;
 mod oauth;
 pub mod profile;
 mod restart;
@@ -55,15 +54,6 @@ pub enum CloudCommands {
     #[command(about = "Check cloud deployment status")]
     Status,
 
-    #[command(about = "View tenant logs")]
-    Logs {
-        #[arg(long)]
-        tenant: Option<String>,
-
-        #[arg(long, short = 'n', default_value = "100")]
-        lines: u32,
-    },
-
     #[command(about = "Restart tenant machine")]
     Restart {
         #[arg(long)]
@@ -92,7 +82,6 @@ impl CloudCommands {
             self,
             Self::Sync { command: Some(_) }
                 | Self::Status
-                | Self::Logs { .. }
                 | Self::Restart { .. }
                 | Self::Secrets { .. }
         )
@@ -111,7 +100,6 @@ pub async fn execute(cmd: CloudCommands) -> Result<()> {
         CloudCommands::Profile { command } => profile::execute(command).await,
         CloudCommands::Deploy { skip_push, profile } => deploy::execute(skip_push, profile).await,
         CloudCommands::Status => status::execute().await,
-        CloudCommands::Logs { tenant, lines } => logs::execute(tenant, lines).await,
         CloudCommands::Restart { tenant } => restart::execute(tenant).await,
         CloudCommands::Sync { command } => sync::execute(command).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd).await,

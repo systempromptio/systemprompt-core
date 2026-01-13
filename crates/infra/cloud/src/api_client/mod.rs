@@ -4,7 +4,7 @@ mod types;
 
 pub use client::CloudApiClient;
 pub use types::{
-    CheckoutEvent, CheckoutResponse, DeployResponse, LogEntry, Plan, ProvisioningEvent,
-    ProvisioningEventType, RegistryToken, StatusResponse, SubscriptionStatus, Tenant, TenantInfo,
-    TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CheckoutEvent, CheckoutResponse, DeployResponse, ListSecretsResponse, Plan, ProvisioningEvent,
+    ProvisioningEventType, RegistryToken, RotateCredentialsResponse, StatusResponse,
+    SubscriptionStatus, Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };
