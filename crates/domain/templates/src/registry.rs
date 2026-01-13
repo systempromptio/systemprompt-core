@@ -1,12 +1,11 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde_json::Value;
 use systemprompt_template_provider::{
     DynComponentRenderer, DynTemplateDataExtender, DynTemplateLoader, DynTemplateProvider,
-    FileSystemLoader, TemplateDefinition,
+    TemplateDefinition,
 };
 use tracing::{debug, info, warn};
 
@@ -81,9 +80,10 @@ impl TemplateRegistry {
         );
 
         if self.loaders.is_empty() {
-            let cwd = std::env::current_dir().unwrap_or_default();
-            let loader: DynTemplateLoader = Arc::new(FileSystemLoader::with_path(cwd));
-            self.loaders.push(loader);
+            return Err(anyhow!(
+                "No template loaders registered. Use register_loader() or \
+                 TemplateRegistryBuilder::with_loader() to add a loader."
+            ));
         }
 
         let mut all_templates: Vec<(TemplateDefinition, &str)> = Vec::new();
