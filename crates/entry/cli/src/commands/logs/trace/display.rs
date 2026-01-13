@@ -55,15 +55,14 @@ pub fn extract_latency_from_metadata(metadata: Option<&str>, event_type: &str) -
                     if let Some(latency) = parsed.get("latency_ms").and_then(Value::as_i64) {
                         return format!("{}ms", latency);
                     }
-                }
+                },
                 "MCP" => {
-                    if let Some(exec_time) =
-                        parsed.get("execution_time_ms").and_then(Value::as_i64)
+                    if let Some(exec_time) = parsed.get("execution_time_ms").and_then(Value::as_i64)
                     {
                         return format!("{}ms", exec_time);
                     }
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
     }

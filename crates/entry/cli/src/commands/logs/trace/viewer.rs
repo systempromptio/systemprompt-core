@@ -6,8 +6,8 @@ use systemprompt_runtime::AppContext;
 
 use super::client::send_and_trace;
 use super::display::{print_event, print_table};
-use super::summary::{print_summary, SummaryContext};
 use super::json::print_json;
+use super::summary::{print_summary, SummaryContext};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -115,7 +115,11 @@ fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEve
         .collect()
 }
 
-pub async fn execute(trace_id: Option<&str>, options: TraceOptions, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    trace_id: Option<&str>,
+    options: TraceOptions,
+    config: &CliConfig,
+) -> Result<()> {
     let _ = config; // Will be used when we convert to CommandResult
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;

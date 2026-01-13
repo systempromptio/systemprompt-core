@@ -98,12 +98,7 @@ pub fn execute_command(
         })
 }
 
-pub async fn execute(
-    detailed: bool,
-    json: bool,
-    health: bool,
-    config: &CliConfig,
-) -> Result<()> {
+pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
     let configs = super::load_service_configs(&ctx)?;
     let state_manager = ServiceStateManager::new(Arc::clone(ctx.db_pool()));
@@ -130,14 +125,16 @@ fn render_table_output(states: &[VerifiedServiceState], include_health: bool) {
     }
 
     for service in &result.data.services {
-        let pid_str = service.pid.map_or_else(|| "-".to_string(), |p| p.to_string());
-        CliService::key_value(&service.name, &format!(
-            "{} | {} | PID: {} | {}",
-            service.service_type,
-            service.status,
-            pid_str,
-            service.action
-        ));
+        let pid_str = service
+            .pid
+            .map_or_else(|| "-".to_string(), |p| p.to_string());
+        CliService::key_value(
+            &service.name,
+            &format!(
+                "{} | {} | PID: {} | {}",
+                service.service_type, service.status, pid_str, service.action
+            ),
+        );
     }
 
     CliService::info(&format!(

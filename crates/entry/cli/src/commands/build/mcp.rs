@@ -64,7 +64,7 @@ pub fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildO
             Ok(()) => {
                 successful += 1;
                 "success".to_string()
-            }
+            },
             Err(e) => format!("failed: {}", e),
         };
 

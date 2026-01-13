@@ -28,13 +28,17 @@ pub fn execute(args: WebArgs, config: &CliConfig) -> Result<CommandResult<WebBui
 
     if !web_dir.exists() {
         bail!(
-            "Web directory not found: {}\n\
-             Configure paths.web_path in your profile, or ensure paths.system/web exists.",
+            "Web directory not found: {}\nConfigure paths.web_path in your profile, or ensure \
+             paths.system/web exists.",
             web_dir.display()
         );
     }
 
-    let mode = if args.release { "production" } else { "development" };
+    let mode = if args.release {
+        "production"
+    } else {
+        "development"
+    };
     let build_script = if args.release { "build:prod" } else { "build" };
 
     if !config.is_json_output() {

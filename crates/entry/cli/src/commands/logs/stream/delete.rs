@@ -40,8 +40,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
         vacuum_performed: false,
     };
 
-    let result = CommandResult::card(output)
-        .with_title("Logs Deleted");
+    let result = CommandResult::card(output).with_title("Logs Deleted");
 
     render_result(&result);
 

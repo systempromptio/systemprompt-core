@@ -60,8 +60,8 @@ impl ConfigLoader {
     fn load_include_file(path: &PathBuf) -> Result<PartialServicesConfig> {
         if !path.exists() {
             anyhow::bail!(
-                "Include file not found: {}\n\
-                 Either create the file or remove it from the includes list.",
+                "Include file not found: {}\nEither create the file or remove it from the \
+                 includes list.",
                 path.display()
             );
         }
@@ -194,9 +194,8 @@ impl EnhancedConfigLoader {
 
         if !full_path.exists() {
             anyhow::bail!(
-                "Include file not found: {}\n\
-                 Referenced in: {}/config.yaml\n\
-                 Either create the file or remove it from the includes list.",
+                "Include file not found: {}\nReferenced in: {}/config.yaml\nEither create the \
+                 file or remove it from the includes list.",
                 full_path.display(),
                 self.base_path.display()
             );

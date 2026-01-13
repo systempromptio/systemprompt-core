@@ -111,7 +111,8 @@ impl McpToolProvider {
             .map(|s| AgentName::new(s.clone()))
             .ok_or_else(|| {
                 ToolProviderError::ConfigurationError(
-                    "Missing x-agent-name header - agent context must be propagated from parent request"
+                    "Missing x-agent-name header - agent context must be propagated from parent \
+                     request"
                         .into(),
                 )
             })?;

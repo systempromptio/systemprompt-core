@@ -212,7 +212,7 @@ pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
     match command {
         TraceCommands::View { trace_id, options } => {
             viewer::execute(trace_id.as_deref(), options, config).await
-        }
+        },
         TraceCommands::Ai(options) => ai_trace::execute(options, config).await,
         TraceCommands::List(args) => list::execute(args, config).await,
         TraceCommands::Lookup(args) => lookup::execute(args, config).await,

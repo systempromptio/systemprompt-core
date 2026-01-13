@@ -2,9 +2,9 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 
+use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use super::types::{AgentStatusOutput, AgentStatusRow};
 use systemprompt_core_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
@@ -19,8 +19,7 @@ pub async fn execute(
     args: StatusArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<AgentStatusOutput>> {
-    let services_config = ConfigLoader::load()
-        .context("Failed to load services configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let ctx = Arc::new(
         AppContext::new()
@@ -41,7 +40,7 @@ pub async fn execute(
                 .get(name)
                 .ok_or_else(|| anyhow::anyhow!("Agent '{}' not found", name))?;
             vec![(name, agent)]
-        }
+        },
         None => services_config.agents.iter().collect(),
     };
 

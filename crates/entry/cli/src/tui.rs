@@ -108,11 +108,8 @@ async fn fetch_admin_user_by_email(database_url: &str, email: &str) -> Result<Us
 pub async fn execute(config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         anyhow::bail!(
-            "TUI requires interactive mode.\n\n\
-             Use specific commands instead:\n\
-             - systemprompt services status\n\
-             - systemprompt cloud status\n\
-             - systemprompt agents agent list"
+            "TUI requires interactive mode.\n\nUse specific commands instead:\n- systemprompt \
+             services status\n- systemprompt cloud status\n- systemprompt agents agent list"
         );
     }
 

@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 
+use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Clone, Args)]
@@ -25,12 +25,8 @@ pub enum ListOrDetail {
     Detail(AgentDetailOutput),
 }
 
-pub async fn execute(
-    args: ListArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<ListOrDetail>> {
-    let services_config = ConfigLoader::load()
-        .context("Failed to load services configuration")?;
+pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ListOrDetail>> {
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     if let Some(name) = args.name {
         let agent = services_config
@@ -45,8 +41,16 @@ pub async fn execute(
             port: agent.port,
             endpoint: agent.endpoint.clone(),
             enabled: agent.enabled,
-            provider: agent.metadata.provider.clone().unwrap_or_else(|| "-".to_string()),
-            model: agent.metadata.model.clone().unwrap_or_else(|| "-".to_string()),
+            provider: agent
+                .metadata
+                .provider
+                .clone()
+                .unwrap_or_else(|| "-".to_string()),
+            model: agent
+                .metadata
+                .model
+                .clone()
+                .unwrap_or_else(|| "-".to_string()),
             mcp_servers: agent.metadata.mcp_servers.clone(),
             skills_count: agent.card.skills.len(),
         };

@@ -16,19 +16,20 @@ pub struct ListArgs {
 }
 
 pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
-    let services_config =
-        ConfigLoader::load().context("Failed to load services configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let mut servers: Vec<McpServerSummary> = services_config
         .mcp_servers
         .iter()
-        .filter(|(_, server)| {
-            if args.enabled {
-                server.enabled
-            } else {
-                true
-            }
-        })
+        .filter(
+            |(_, server)| {
+                if args.enabled {
+                    server.enabled
+                } else {
+                    true
+                }
+            },
+        )
         .map(|(name, server)| McpServerSummary {
             name: name.clone(),
             port: server.port,

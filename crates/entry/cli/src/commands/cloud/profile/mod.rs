@@ -34,7 +34,8 @@ pub enum ProfileCommands {
 
     #[command(
         about = "Show profile configuration",
-        after_help = "EXAMPLES:\n  systemprompt cloud profile show\n  systemprompt cloud profile show --filter agents\n  systemprompt cloud profile show --json"
+        after_help = "EXAMPLES:\n  systemprompt cloud profile show\n  systemprompt cloud profile \
+                      show --filter agents\n  systemprompt cloud profile show --json"
     )]
     Show {
         name: Option<String>,
@@ -106,7 +107,9 @@ async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<boo
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml, config).map(|()| false),
         ProfileCommands::Delete(args) => delete::execute(args, config).map(|()| false),
-        ProfileCommands::Edit { name } => edit::execute(name.as_deref(), config).await.map(|()| false),
+        ProfileCommands::Edit { name } => {
+            edit::execute(name.as_deref(), config).await.map(|()| false)
+        },
     }
 }
 

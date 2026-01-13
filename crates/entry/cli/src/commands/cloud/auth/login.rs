@@ -14,9 +14,8 @@ use crate::cloud::{Environment, OAuthProvider};
 pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow!(
-            "OAuth login requires interactive mode.\n\n\
-             Alternatives:\n\
-             - Set SYSTEMPROMPT_CLOUD_TOKEN environment variable"
+            "OAuth login requires interactive mode.\n\nAlternatives:\n- Set \
+             SYSTEMPROMPT_CLOUD_TOKEN environment variable"
         ));
     }
 

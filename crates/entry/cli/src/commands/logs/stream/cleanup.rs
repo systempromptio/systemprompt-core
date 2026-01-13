@@ -33,17 +33,23 @@ fn parse_duration(s: &str) -> Result<Duration> {
     let s = s.trim().to_lowercase();
 
     if let Some(days) = s.strip_suffix('d') {
-        let num: i64 = days.parse().map_err(|_| anyhow!("Invalid duration: {}", s))?;
+        let num: i64 = days
+            .parse()
+            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::days(num));
     }
 
     if let Some(hours) = s.strip_suffix('h') {
-        let num: i64 = hours.parse().map_err(|_| anyhow!("Invalid duration: {}", s))?;
+        let num: i64 = hours
+            .parse()
+            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::hours(num));
     }
 
     if let Some(mins) = s.strip_suffix('m') {
-        let num: i64 = mins.parse().map_err(|_| anyhow!("Invalid duration: {}", s))?;
+        let num: i64 = mins
+            .parse()
+            .map_err(|_| anyhow!("Invalid duration: {}", s))?;
         return Ok(Duration::minutes(num));
     }
 
@@ -52,7 +58,10 @@ fn parse_duration(s: &str) -> Result<Duration> {
         return Ok(Duration::days(num));
     }
 
-    Err(anyhow!("Invalid duration format: {}. Use formats like '7d', '24h', '30m'", s))
+    Err(anyhow!(
+        "Invalid duration format: {}. Use formats like '7d', '24h', '30m'",
+        s
+    ))
 }
 
 pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
@@ -64,12 +73,12 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
             return Err(anyhow!(
                 "Either --older-than or --keep-last-days is required"
             ));
-        }
+        },
         (Some(_), Some(_)) => {
             return Err(anyhow!(
                 "--older-than and --keep-last-days are mutually exclusive"
             ));
-        }
+        },
     };
 
     let cutoff_date = Utc::now() - cutoff_duration;
@@ -106,8 +115,7 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
         vacuum_performed: false,
     };
 
-    let result = CommandResult::card(output)
-        .with_title("Logs Cleaned Up");
+    let result = CommandResult::card(output).with_title("Logs Cleaned Up");
 
     render_result(&result);
 

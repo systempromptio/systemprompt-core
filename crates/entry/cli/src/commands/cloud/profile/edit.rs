@@ -14,8 +14,8 @@ use crate::cli_settings::CliConfig;
 pub async fn execute(name: Option<&str>, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
-            "Profile edit requires interactive mode.\n\
-             Use specific commands to modify profile settings in non-interactive mode."
+            "Profile edit requires interactive mode.\nUse specific commands to modify profile \
+             settings in non-interactive mode."
         ));
     }
 

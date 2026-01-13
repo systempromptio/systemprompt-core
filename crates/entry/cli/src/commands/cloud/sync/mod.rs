@@ -97,7 +97,7 @@ pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()
                 ));
             }
             interactive::execute().await
-        }
+        },
     }
 }
 

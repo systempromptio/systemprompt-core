@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use std::path::Path;
 
+use super::types::AgentDeleteOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use super::types::AgentDeleteOutput;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -26,18 +27,14 @@ pub async fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<AgentDeleteOutput>> {
-    let services_config = ConfigLoader::load()
-        .context("Failed to load services configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete: Vec<String> = if args.all {
         services_config.agents.keys().cloned().collect()
     } else {
-        let name = resolve_input(
-            args.name,
-            "name",
-            config,
-            || prompt_agent_selection(&services_config),
-        )?;
+        let name = resolve_input(args.name, "name", config, || {
+            prompt_agent_selection(&services_config)
+        })?;
 
         if !services_config.agents.contains_key(&name) {
             return Err(anyhow!("Agent '{}' not found", name));
@@ -86,19 +83,16 @@ pub async fn execute(
             Ok(()) => {
                 CliService::success(&format!("Agent '{}' deleted", agent_name));
                 deleted.push(agent_name.clone());
-            }
+            },
             Err(e) => {
                 CliService::error(&format!("Failed to delete agent '{}': {}", agent_name, e));
                 errors.push(format!("{}: {}", agent_name, e));
-            }
+            },
         }
     }
 
     if !errors.is_empty() && deleted.is_empty() {
-        return Err(anyhow!(
-            "Failed to delete agents:\n{}",
-            errors.join("\n")
-        ));
+        return Err(anyhow!("Failed to delete agents:\n{}", errors.join("\n")));
     }
 
     if !deleted.is_empty() {
@@ -113,17 +107,12 @@ pub async fn execute(
         format!("{} agent(s) deleted successfully", deleted.len())
     };
 
-    let output = AgentDeleteOutput {
-        deleted,
-        message,
-    };
+    let output = AgentDeleteOutput { deleted, message };
 
     Ok(CommandResult::text(output).with_title("Delete Agent"))
 }
 
-fn prompt_agent_selection(
-    config: &systemprompt_models::ServicesConfig,
-) -> Result<String> {
+fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
     let mut agents: Vec<&String> = config.agents.keys().collect();
     agents.sort();
 

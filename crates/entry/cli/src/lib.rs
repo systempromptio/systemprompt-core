@@ -1,11 +1,11 @@
-mod commands;
 pub mod cli_settings;
+mod commands;
 mod presentation;
 pub mod shared;
 mod tui;
 
-pub use commands::{agents, build, cloud, logs, mcp, services, setup};
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+pub use commands::{agents, build, cloud, logs, mcp, services, setup, skills};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -20,10 +20,23 @@ use systemprompt_runtime::{
 
 #[derive(clap::Args)]
 struct VerbosityOpts {
-    #[arg(long, short = 'v', global = true, hide = true, help = "Increase verbosity")]
+    #[arg(
+        long,
+        short = 'v',
+        global = true,
+        hide = true,
+        help = "Increase verbosity"
+    )]
     verbose: bool,
 
-    #[arg(long, short = 'q', global = true, hide = true, conflicts_with = "verbose", help = "Suppress output")]
+    #[arg(
+        long,
+        short = 'q',
+        global = true,
+        hide = true,
+        conflicts_with = "verbose",
+        help = "Suppress output"
+    )]
     quiet: bool,
 
     #[arg(long, global = true, hide = true, help = "Debug logging")]
@@ -35,7 +48,13 @@ struct OutputOpts {
     #[arg(long, global = true, hide = true, help = "JSON output")]
     json: bool,
 
-    #[arg(long, global = true, hide = true, conflicts_with = "json", help = "YAML output")]
+    #[arg(
+        long,
+        global = true,
+        hide = true,
+        conflicts_with = "json",
+        help = "YAML output"
+    )]
     yaml: bool,
 }
 
@@ -52,7 +71,10 @@ struct DisplayOpts {
 #[command(name = "systemprompt")]
 #[command(about = "Agent orchestration and AI operations")]
 #[command(version = "0.1.0")]
-#[command(before_help = "</SYSTEMPROMPT.io>")]
+#[command(
+    before_help = "\x1b[38;5;208m</\x1b[1;37mSYSTEMPROMPT\x1b[38;5;208m.\x1b[0;37mio\x1b[38;5;\
+                   208m>\x1b[0m"
+)]
 #[command(after_help = "\
 GLOBAL OPTIONS (apply to all commands):
   -v, --verbose         Increase verbosity
@@ -98,6 +120,9 @@ enum Commands {
 
     #[command(subcommand, about = "Build MCP extensions")]
     Build(build::BuildCommands),
+
+    #[command(subcommand, about = "Skill management and database sync")]
+    Skills(skills::SkillsCommands),
 
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
@@ -165,7 +190,8 @@ pub async fn run() -> Result<()> {
         Some(Commands::Logs(cmd)) => logs::execute(cmd, &cli_config).await?,
         Some(Commands::Build(cmd)) => {
             build::execute(cmd, &cli_config)?;
-        }
+        },
+        Some(Commands::Skills(cmd)) => skills::execute(cmd).await?,
         Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
         None => tui::execute(&cli_config).await?,
     }

@@ -21,8 +21,8 @@ use crate::cli_settings::CliConfig;
 pub async fn execute(name: &str, config: &CliConfig) -> Result<()> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
-            "Profile creation requires interactive mode.\n\
-             Use --tenant-id and --anthropic-key flags in non-interactive mode (not yet implemented)."
+            "Profile creation requires interactive mode.\nUse --tenant-id and --anthropic-key \
+             flags in non-interactive mode (not yet implemented)."
         ));
     }
     CliService::section(&format!("Create Profile: {}", name));

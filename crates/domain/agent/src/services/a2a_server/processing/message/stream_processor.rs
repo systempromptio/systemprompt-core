@@ -160,7 +160,10 @@ impl StreamProcessor {
         let context_id_owned = context_id.clone();
         let task_id_str = task_id.to_string();
 
-        let request_ctx = context.clone().with_task_id(task_id.clone());
+        let request_ctx = context
+            .clone()
+            .with_task_id(task_id.clone())
+            .with_context_id(context_id.clone());
         let db_pool = self.db_pool.clone();
         let skill_service = self.skill_service.clone();
         let execution_step_repo = self.execution_step_repo.clone();

@@ -27,6 +27,9 @@ where
     match value {
         Some(v) => Ok(v),
         None if config.is_interactive() => prompt_fn(),
-        None => Err(anyhow!("--{} is required in non-interactive mode", flag_name)),
+        None => Err(anyhow!(
+            "--{} is required in non-interactive mode",
+            flag_name
+        )),
     }
 }

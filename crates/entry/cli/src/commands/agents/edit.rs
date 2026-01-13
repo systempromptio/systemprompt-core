@@ -1,11 +1,12 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use dialoguer::{theme::ColorfulTheme, Select};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use std::path::Path;
 
+use super::types::AgentEditOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use super::types::AgentEditOutput;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -15,7 +16,11 @@ pub struct EditArgs {
     #[arg(help = "Agent name (required in non-interactive mode)")]
     pub name: Option<String>,
 
-    #[arg(long = "set", value_name = "KEY=VALUE", help = "Set a configuration value")]
+    #[arg(
+        long = "set",
+        value_name = "KEY=VALUE",
+        help = "Set a configuration value"
+    )]
     pub set_values: Vec<String>,
 
     #[arg(long, help = "Enable the agent", conflicts_with = "disable")]
@@ -34,19 +39,12 @@ pub struct EditArgs {
     pub model: Option<String>,
 }
 
-pub async fn execute(
-    args: EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<AgentEditOutput>> {
-    let services_config = ConfigLoader::load()
-        .context("Failed to load services configuration")?;
+pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let name = resolve_input(
-        args.name,
-        "name",
-        config,
-        || prompt_agent_selection(&services_config),
-    )?;
+    let name = resolve_input(args.name, "name", config, || {
+        prompt_agent_selection(&services_config)
+    })?;
 
     let mut agent = services_config
         .agents
@@ -90,7 +88,10 @@ pub async fn execute(
     for set_value in &args.set_values {
         let parts: Vec<&str> = set_value.splitn(2, '=').collect();
         if parts.len() != 2 {
-            return Err(anyhow!("Invalid --set format: '{}'. Expected key=value", set_value));
+            return Err(anyhow!(
+                "Invalid --set format: '{}'. Expected key=value",
+                set_value
+            ));
         }
         let key = parts[0];
         let value = parts[1];
@@ -101,7 +102,8 @@ pub async fn execute(
 
     if changes.is_empty() {
         return Err(anyhow!(
-            "No changes specified. Use --enable, --disable, --port, --provider, --model, or --set key=value"
+            "No changes specified. Use --enable, --disable, --port, --provider, --model, or --set \
+             key=value"
         ));
     }
 
@@ -114,7 +116,10 @@ pub async fn execute(
         .with_context(|| format!("Failed to update agent '{}'", name))?;
 
     ConfigLoader::load().with_context(|| {
-        format!("Agent '{}' updated but validation failed. Please check the configuration.", name)
+        format!(
+            "Agent '{}' updated but validation failed. Please check the configuration.",
+            name
+        )
     })?;
 
     CliService::success(&format!("Agent '{}' updated successfully", name));
@@ -140,44 +145,43 @@ fn apply_set_value(
     match key {
         "card.displayName" | "card.display_name" => {
             agent.card.display_name = value.to_string();
-        }
+        },
         "card.description" => {
             agent.card.description = value.to_string();
-        }
+        },
         "card.version" => {
             agent.card.version = value.to_string();
-        }
+        },
         "endpoint" => {
             agent.endpoint = value.to_string();
-        }
+        },
         "is_primary" => {
-            agent.is_primary = value.parse().map_err(|_| {
-                anyhow!("Invalid boolean value for is_primary: '{}'", value)
-            })?;
-        }
+            agent.is_primary = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid boolean value for is_primary: '{}'", value))?;
+        },
         "default" => {
-            agent.default = value.parse().map_err(|_| {
-                anyhow!("Invalid boolean value for default: '{}'", value)
-            })?;
-        }
+            agent.default = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid boolean value for default: '{}'", value))?;
+        },
         "dev_only" => {
-            agent.dev_only = value.parse().map_err(|_| {
-                anyhow!("Invalid boolean value for dev_only: '{}'", value)
-            })?;
-        }
+            agent.dev_only = value
+                .parse()
+                .map_err(|_| anyhow!("Invalid boolean value for dev_only: '{}'", value))?;
+        },
         _ => {
             return Err(anyhow!(
-                "Unknown configuration key: '{}'. Supported keys: card.displayName, card.description, card.version, endpoint, is_primary, default, dev_only",
+                "Unknown configuration key: '{}'. Supported keys: card.displayName, \
+                 card.description, card.version, endpoint, is_primary, default, dev_only",
                 key
             ));
-        }
+        },
     }
     Ok(())
 }
 
-fn prompt_agent_selection(
-    config: &systemprompt_models::ServicesConfig,
-) -> Result<String> {
+fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {
     let mut agents: Vec<&String> = config.agents.keys().collect();
     agents.sort();
 

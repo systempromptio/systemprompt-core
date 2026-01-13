@@ -20,13 +20,23 @@ pub struct ViewArgs {
     #[arg(long, help = "Filter by module name (partial match)")]
     pub module: Option<String>,
 
-    #[arg(long, short = 'n', visible_alias = "limit", default_value = "20", help = "Number of log entries to show")]
+    #[arg(
+        long,
+        short = 'n',
+        visible_alias = "limit",
+        default_value = "20",
+        help = "Number of log entries to show"
+    )]
     pub tail: i64,
 
     #[arg(long, short = 's', help = "Stream logs in real-time")]
     pub stream: bool,
 
-    #[arg(long, default_value = "1000", help = "Polling interval in milliseconds")]
+    #[arg(
+        long,
+        default_value = "1000",
+        help = "Polling interval in milliseconds"
+    )]
     pub interval: u64,
 
     #[arg(long, help = "Clear screen between updates (streaming mode)")]
@@ -238,7 +248,12 @@ fn display_log_entry(log: &LogEntry) {
     };
 
     let line = log.metadata.as_ref().map_or_else(
-        || format!("{} {} [{}] {}", timestamp, level_str, log.module, log.message),
+        || {
+            format!(
+                "{} {} [{}] {}",
+                timestamp, level_str, log.module, log.message
+            )
+        },
         |metadata| {
             format!(
                 "{} {} [{}] {} {}",
@@ -265,7 +280,10 @@ fn display_log_row(log: &LogEntryRow) {
         &log.timestamp
     };
 
-    let line = format!("{} {} [{}] {}", time_part, log.level, log.module, log.message);
+    let line = format!(
+        "{} {} [{}] {}",
+        time_part, log.level, log.module, log.message
+    );
 
     match log.level.as_str() {
         "ERROR" => CliService::error(&line),

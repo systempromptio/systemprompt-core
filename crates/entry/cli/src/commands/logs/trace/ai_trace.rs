@@ -67,7 +67,7 @@ pub async fn execute(options: AiTraceOptions, config: &CliConfig) -> Result<()> 
             CliService::warning(&format!("No task found matching: {}", options.task_id));
             CliService::info("Tip: Use 'systemprompt logs trace list' to see available traces");
             return Ok(());
-        }
+        },
     };
 
     CliService::section(&format!("AI TRACE: {task_id}"));
