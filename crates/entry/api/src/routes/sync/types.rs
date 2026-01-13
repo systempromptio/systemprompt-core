@@ -2,71 +2,66 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize)]
-pub struct ExportQuery {
-    pub tables: Option<String>,
-}
-
 #[derive(Serialize)]
-pub struct DatabaseExport {
-    pub services: Vec<serde_json::Value>,
-    pub skills: Vec<serde_json::Value>,
-    pub contexts: Vec<serde_json::Value>,
-    pub exported_at: chrono::DateTime<chrono::Utc>,
-    pub record_counts: RecordCounts,
-}
-
-#[derive(Serialize)]
-pub struct RecordCounts {
-    pub services: usize,
-    pub skills: usize,
-    pub contexts: usize,
-}
-
-#[derive(Deserialize)]
-pub struct DatabaseImportRequest {
-    #[serde(default)]
-    pub services: Vec<serde_json::Value>,
-    #[serde(default)]
-    pub skills: Vec<serde_json::Value>,
-    #[serde(default)]
-    pub contexts: Vec<serde_json::Value>,
-    pub merge_strategy: Option<String>,
-}
-
-#[derive(Serialize)]
-pub struct ImportResult {
-    pub imported_at: chrono::DateTime<chrono::Utc>,
-    pub results: ImportResults,
-}
-
-#[derive(Serialize)]
-pub struct ImportResults {
-    pub services: TableResult,
-    pub skills: TableResult,
-    pub contexts: TableResult,
-}
-
-#[derive(Serialize, Default, Clone)]
-pub struct TableResult {
-    pub created: usize,
-    pub updated: usize,
-    pub skipped: usize,
-    pub deleted: usize,
-}
-
-#[derive(Serialize)]
-pub struct ExportError {
+pub struct SyncError {
     pub error: String,
 }
 
-pub type ApiResult<T> = Result<T, (StatusCode, Json<ExportError>)>;
+pub type ApiResult<T> = Result<T, (StatusCode, Json<SyncError>)>;
 
-pub fn to_api_error(e: impl std::fmt::Display) -> (StatusCode, Json<ExportError>) {
+pub fn to_api_error(e: impl std::fmt::Display) -> (StatusCode, Json<SyncError>) {
     (
         StatusCode::INTERNAL_SERVER_ERROR,
-        Json(ExportError {
+        Json(SyncError {
             error: e.to_string(),
         }),
     )
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FilesQuery {
+    pub filter: Option<String>,
+    #[serde(default)]
+    pub dry_run: bool,
+}
+
+impl FilesQuery {
+    pub fn directories(&self) -> Vec<&str> {
+        const ALL_DIRS: &[&str] = &[
+            "agents", "skills", "content", "mcp", "ai", "config", "profiles",
+        ];
+
+        match &self.filter {
+            Some(filter) => filter
+                .split(',')
+                .map(str::trim)
+                .filter(|d| ALL_DIRS.contains(d))
+                .collect(),
+            None => ALL_DIRS.to_vec(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileEntry {
+    pub path: String,
+    pub checksum: String,
+    pub size: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FileManifest {
+    pub files: Vec<FileEntry>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub checksum: String,
+    #[serde(default)]
+    pub total_size: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct UploadResult {
+    pub files_uploaded: usize,
+    pub uploaded_at: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub manifest: Option<FileManifest>,
 }
