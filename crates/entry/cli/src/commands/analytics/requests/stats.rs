@@ -36,7 +36,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end, &args.model).await?;
 
     if let Some(ref path) = args.export {
@@ -71,19 +71,19 @@ async fn fetch_stats(
         i64,
     ) = if let Some(model) = model_filter {
         sqlx::query_as(
-            r#"
+            r"
                 SELECT
                     COUNT(*) as total,
                     SUM(tokens_used) as total_tokens,
                     SUM(input_tokens) as input_tokens,
                     SUM(output_tokens) as output_tokens,
                     SUM(cost_cents) as cost,
-                    AVG(latency_ms) as avg_latency,
+                    AVG(latency_ms)::float8 as avg_latency,
                     COUNT(*) FILTER (WHERE cache_hit = true) as cache_hits
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
                   AND model ILIKE $3
-                "#,
+                ",
         )
         .bind(start)
         .bind(end)
@@ -92,18 +92,18 @@ async fn fetch_stats(
         .await?
     } else {
         sqlx::query_as(
-            r#"
+            r"
                 SELECT
                     COUNT(*) as total,
                     SUM(tokens_used) as total_tokens,
                     SUM(input_tokens) as input_tokens,
                     SUM(output_tokens) as output_tokens,
                     SUM(cost_cents) as cost,
-                    AVG(latency_ms) as avg_latency,
+                    AVG(latency_ms)::float8 as avg_latency,
                     COUNT(*) FILTER (WHERE cache_hit = true) as cache_hits
                 FROM ai_requests
                 WHERE created_at >= $1 AND created_at < $2
-                "#,
+                ",
         )
         .bind(start)
         .bind(end)
@@ -128,7 +128,7 @@ async fn fetch_stats(
         input_tokens: row.2.unwrap_or(0),
         output_tokens: row.3.unwrap_or(0),
         total_cost_cents: row.4.unwrap_or(0),
-        avg_latency_ms: row.5.map(|v| v as i64).unwrap_or(0),
+        avg_latency_ms: row.5.map_or(0, |v| v as i64),
         cache_hit_rate,
     })
 }

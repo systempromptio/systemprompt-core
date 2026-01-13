@@ -84,7 +84,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                 .sessions
                 .iter()
                 .map(|s| SessionRow {
-                    id: s.session_id.to_string(),
+                    id: s.session_id.clone(),
                     status: if s.is_active { "active" } else { "ended" }.to_string(),
                     ip: s
                         .ip_address
@@ -95,9 +95,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                         .clone()
                         .unwrap_or_else(|| "unknown".to_string()),
                     started: s
-                        .started_at
-                        .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
-                        .unwrap_or_else(|| "unknown".to_string()),
+                        .started_at.map_or_else(|| "unknown".to_string(), |t| t.format("%Y-%m-%d %H:%M").to_string()),
                 })
                 .collect();
 

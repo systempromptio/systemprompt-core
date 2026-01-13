@@ -135,7 +135,6 @@ impl TuiApp {
             Message::CommandTreeCollapse => self.handle_command_tree_collapse(),
             Message::CommandModalOpen => self.handle_command_modal_open(),
             Message::CommandModalClose => self.handle_command_modal_close(),
-            Message::CommandModalSubmit => vec![Command::None],
             Message::CommandCliOutput(output) => self.handle_command_cli_output(output),
             Message::CommandCliError(error) => self.handle_command_cli_error(error),
             Message::CommandRequestAiParams {

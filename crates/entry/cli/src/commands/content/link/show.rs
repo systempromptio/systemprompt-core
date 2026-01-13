@@ -33,10 +33,10 @@ pub async fn execute(
         id: link.id,
         short_code: link.short_code,
         target_url: link.target_url,
-        full_url: if full_url != short_url {
-            full_url
-        } else {
+        full_url: if full_url == short_url {
             short_url
+        } else {
+            full_url
         },
         link_type: link.link_type,
         campaign_id: link.campaign_id,

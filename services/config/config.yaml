@@ -1,0 +1,12 @@
+includes:
+  - ../ai/config.yaml
+
+agents: {}
+mcp_servers: {}
+
+settings:
+  agentPortRange: [9000, 9999]
+  mcpPortRange: [5000, 5999]
+  autoStartEnabled: false
+  validationStrict: false
+  schemaValidationMode: skip

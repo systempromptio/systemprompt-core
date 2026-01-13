@@ -221,7 +221,7 @@ impl CommandsState {
         self.modal_state = None;
     }
 
-    pub fn is_modal_open(&self) -> bool {
+    pub const fn is_modal_open(&self) -> bool {
         self.modal_state.is_some()
     }
 }
@@ -294,7 +294,7 @@ impl ParameterModalState {
     }
 
     pub fn insert_char(&mut self, c: char) {
-        let Some(field_name) = self.focused_field_name().map(|n| n.to_string()) else {
+        let Some(field_name) = self.focused_field_name().map(ToString::to_string) else {
             return;
         };
 
@@ -306,7 +306,7 @@ impl ParameterModalState {
     }
 
     pub fn delete_char(&mut self) {
-        let Some(field_name) = self.focused_field_name().map(|n| n.to_string()) else {
+        let Some(field_name) = self.focused_field_name().map(ToString::to_string) else {
             return;
         };
 
@@ -388,7 +388,7 @@ impl ParameterModalState {
         parts.join(" ")
     }
 
-    pub fn execution_mode(&self) -> ExecutionMode {
+    pub const fn execution_mode(&self) -> ExecutionMode {
         self.command.execution_mode
     }
 }

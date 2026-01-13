@@ -50,7 +50,7 @@ pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_trends(&pool, start, end, &args.group_by, &args.agent).await?;
 
     if let Some(ref path) = args.export {
@@ -164,9 +164,7 @@ async fn fetch_trends(
 fn render_trends(output: &AgentTrendsOutput) {
     let title = output
         .agent
-        .as_ref()
-        .map(|a| format!("Agent Trends: {} ({})", a, output.period))
-        .unwrap_or_else(|| format!("Agent Trends ({})", output.period));
+        .as_ref().map_or_else(|| format!("Agent Trends ({})", output.period), |a| format!("Agent Trends: {} ({})", a, output.period));
 
     CliService::section(&title);
     CliService::key_value("Grouped by", &output.group_by);

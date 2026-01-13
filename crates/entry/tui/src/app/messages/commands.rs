@@ -76,7 +76,7 @@ pub enum Command {
 
     Sync(SyncSubcommand),
 
-    ExecuteCliCommand(String),
+    ExecuteCli(String),
     RequestAiCommandParams {
         command_path: Vec<String>,
         description: String,

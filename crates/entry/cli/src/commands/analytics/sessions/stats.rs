@@ -32,7 +32,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -57,16 +57,16 @@ async fn fetch_stats(
     end: DateTime<Utc>,
 ) -> Result<SessionStatsOutput> {
     let row: (i64, i64, Option<f64>, Option<f64>, i64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) as total_sessions,
             COUNT(DISTINCT user_id) as unique_users,
-            AVG(duration_seconds) as avg_duration,
-            AVG(request_count) as avg_requests,
+            AVG(duration_seconds)::float8 as avg_duration,
+            AVG(request_count)::float8 as avg_requests,
             COUNT(*) FILTER (WHERE converted_at IS NOT NULL) as conversions
         FROM user_sessions
         WHERE started_at >= $1 AND started_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -95,7 +95,7 @@ async fn fetch_stats(
         total_sessions: row.0,
         active_sessions: active.0,
         unique_users: row.1,
-        avg_duration_seconds: row.2.map(|v| v as i64).unwrap_or(0),
+        avg_duration_seconds: row.2.map_or(0, |v| v as i64),
         avg_requests_per_session: row.3.unwrap_or(0.0),
         conversion_rate,
     })

@@ -18,9 +18,9 @@ pub enum RoleFilter {
 impl From<RoleFilter> for UserRole {
     fn from(filter: RoleFilter) -> Self {
         match filter {
-            RoleFilter::Admin => UserRole::Admin,
-            RoleFilter::User => UserRole::User,
-            RoleFilter::Anonymous => UserRole::Anonymous,
+            RoleFilter::Admin => Self::Admin,
+            RoleFilter::User => Self::User,
+            RoleFilter::Anonymous => Self::Anonymous,
         }
     }
 }
@@ -38,12 +38,12 @@ pub enum StatusFilter {
 impl From<StatusFilter> for UserStatus {
     fn from(filter: StatusFilter) -> Self {
         match filter {
-            StatusFilter::Active => UserStatus::Active,
-            StatusFilter::Inactive => UserStatus::Inactive,
-            StatusFilter::Suspended => UserStatus::Suspended,
-            StatusFilter::Pending => UserStatus::Pending,
-            StatusFilter::Deleted => UserStatus::Deleted,
-            StatusFilter::Temporary => UserStatus::Temporary,
+            StatusFilter::Active => Self::Active,
+            StatusFilter::Inactive => Self::Inactive,
+            StatusFilter::Suspended => Self::Suspended,
+            StatusFilter::Pending => Self::Pending,
+            StatusFilter::Deleted => Self::Deleted,
+            StatusFilter::Temporary => Self::Temporary,
         }
     }
 }

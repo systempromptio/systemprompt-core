@@ -35,7 +35,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end, &args.tool).await?;
 
     if let Some(ref path) = args.export {
@@ -60,18 +60,18 @@ async fn fetch_stats(
     end: DateTime<Utc>,
     tool_filter: &Option<String>,
 ) -> Result<ToolStatsOutput> {
-    let base_query = r#"
+    let base_query = r"
         SELECT
             COUNT(DISTINCT tool_name) as total_tools,
             COUNT(*) as total_executions,
             COUNT(*) FILTER (WHERE status = 'success') as successful,
             COUNT(*) FILTER (WHERE status = 'failed') as failed,
             COUNT(*) FILTER (WHERE status = 'timeout') as timeout,
-            COALESCE(AVG(execution_time_ms), 0) as avg_time,
-            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms), 0) as p95_time
+            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time,
+            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as p95_time
         FROM mcp_tool_executions
         WHERE created_at >= $1 AND created_at < $2
-    "#;
+    ";
 
     let row: (i64, i64, i64, i64, i64, f64, f64) = if let Some(tool) = tool_filter {
         let query = format!("{} AND tool_name ILIKE $3", base_query);

@@ -31,7 +31,7 @@ pub async fn execute(args: SourcesArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_sources(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -67,14 +67,14 @@ async fn fetch_sources(
     limit: i64,
 ) -> Result<TrafficSourcesOutput> {
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r#"
+        r"
         SELECT COALESCE(referrer_source, 'direct') as source, COUNT(*) as count
         FROM user_sessions
         WHERE started_at >= $1 AND started_at < $2
         GROUP BY referrer_source
         ORDER BY COUNT(*) DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

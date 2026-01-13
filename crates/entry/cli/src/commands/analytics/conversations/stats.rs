@@ -28,7 +28,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -61,11 +61,11 @@ async fn fetch_stats(
     .await?;
 
     let tasks: (i64, Option<f64>) = sqlx::query_as(
-        r#"
-        SELECT COUNT(*), AVG(execution_time_ms)
+        r"
+        SELECT COUNT(*), AVG(execution_time_ms)::float8
         FROM agent_tasks
         WHERE started_at >= $1 AND started_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -96,7 +96,7 @@ async fn fetch_stats(
         total_tasks: tasks.0,
         total_messages: messages.0,
         avg_messages_per_task: avg_messages,
-        avg_task_duration_ms: tasks.1.map(|v| v as i64).unwrap_or(0),
+        avg_task_duration_ms: tasks.1.map_or(0, |v| v as i64),
     })
 }
 

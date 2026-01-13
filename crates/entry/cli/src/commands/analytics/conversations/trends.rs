@@ -32,7 +32,7 @@ pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_trends(&pool, start, end, &args.group_by).await?;
 
     if let Some(ref path) = args.export {

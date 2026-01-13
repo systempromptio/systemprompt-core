@@ -33,7 +33,7 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_summary(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -61,11 +61,11 @@ async fn fetch_summary(
     let prev_start = start - period_duration;
 
     let current: (i64, Option<i64>, Option<i64>) = sqlx::query_as(
-        r#"
+        r"
         SELECT COUNT(*), SUM(cost_cents), SUM(tokens_used)
         FROM ai_requests
         WHERE created_at >= $1 AND created_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

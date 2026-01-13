@@ -20,9 +20,9 @@ pub enum LinkType {
 impl From<LinkType> for DomainLinkType {
     fn from(lt: LinkType) -> Self {
         match lt {
-            LinkType::Redirect => DomainLinkType::Redirect,
-            LinkType::Utm => DomainLinkType::Utm,
-            LinkType::Both => DomainLinkType::Both,
+            LinkType::Redirect => Self::Redirect,
+            LinkType::Utm => Self::Utm,
+            LinkType::Both => Self::Both,
         }
     }
 }

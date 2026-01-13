@@ -36,7 +36,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end, &args.agent).await?;
 
     if let Some(ref path) = args.export {
@@ -63,21 +63,20 @@ async fn fetch_stats(
 ) -> Result<AgentStatsOutput> {
     let (agent_condition, agent_param) = agent_filter
         .as_ref()
-        .map(|a| ("AND agent_name ILIKE $3", Some(format!("%{}%", a))))
-        .unwrap_or(("", None));
+        .map_or(("", None), |a| ("AND agent_name ILIKE $3", Some(format!("%{}%", a))));
 
     let query = format!(
-        r#"
+        r"
         SELECT
             COUNT(DISTINCT agent_name) as total_agents,
             COUNT(*) as total_tasks,
             COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks,
             COUNT(*) FILTER (WHERE status = 'failed') as failed_tasks,
-            COALESCE(AVG(execution_time_ms), 0) as avg_execution_time_ms
+            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_execution_time_ms
         FROM agent_tasks
         WHERE started_at >= $1 AND started_at < $2
         {}
-        "#,
+        ",
         agent_condition
     );
 
@@ -97,11 +96,11 @@ async fn fetch_stats(
     };
 
     let ai_stats: (i64, Option<i64>) = sqlx::query_as(
-        r#"
+        r"
         SELECT COUNT(*), SUM(cost_cents)
         FROM ai_requests
         WHERE created_at >= $1 AND created_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)

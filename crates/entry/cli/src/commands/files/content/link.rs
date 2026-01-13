@@ -20,11 +20,11 @@ pub enum FileRoleArg {
 impl From<FileRoleArg> for FileRole {
     fn from(role: FileRoleArg) -> Self {
         match role {
-            FileRoleArg::Featured => FileRole::Featured,
-            FileRoleArg::Attachment => FileRole::Attachment,
-            FileRoleArg::Inline => FileRole::Inline,
-            FileRoleArg::OgImage => FileRole::OgImage,
-            FileRoleArg::Thumbnail => FileRole::Thumbnail,
+            FileRoleArg::Featured => Self::Featured,
+            FileRoleArg::Attachment => Self::Attachment,
+            FileRoleArg::Inline => Self::Inline,
+            FileRoleArg::OgImage => Self::OgImage,
+            FileRoleArg::Thumbnail => Self::Thumbnail,
         }
     }
 }

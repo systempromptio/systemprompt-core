@@ -41,7 +41,7 @@ pub async fn execute(args: ModelsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_models(&pool, start, end, args.limit).await?;
 
     if let Some(ref path) = args.export {
@@ -84,20 +84,20 @@ async fn fetch_models(
     limit: i64,
 ) -> Result<ModelsOutput> {
     let rows: Vec<(String, String, i64, Option<i64>, Option<i64>, Option<f64>)> = sqlx::query_as(
-        r#"
+        r"
         SELECT
             provider,
             model,
             COUNT(*) as request_count,
             SUM(tokens_used) as total_tokens,
             SUM(cost_cents) as total_cost,
-            AVG(latency_ms) as avg_latency
+            AVG(latency_ms)::float8 as avg_latency
         FROM ai_requests
         WHERE created_at >= $1 AND created_at < $2
         GROUP BY provider, model
         ORDER BY COUNT(*) DESC
         LIMIT $3
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -123,7 +123,7 @@ async fn fetch_models(
                     request_count,
                     total_tokens: total_tokens.unwrap_or(0),
                     total_cost_cents: total_cost.unwrap_or(0),
-                    avg_latency_ms: avg_latency.map(|v| v as i64).unwrap_or(0),
+                    avg_latency_ms: avg_latency.map_or(0, |v| v as i64),
                     percentage,
                 }
             },

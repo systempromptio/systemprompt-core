@@ -6,7 +6,8 @@ mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{
-    agents, build, cloud, content, db, files, jobs, logs, mcp, services, setup, skills, users,
+    agents, analytics, build, cloud, content, db, files, jobs, logs, mcp, services, setup, skills,
+    users,
 };
 
 use anyhow::{Context, Result};
@@ -16,6 +17,7 @@ use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile::CloudValidationMode;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_core_logging::set_startup_mode;
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
@@ -141,12 +143,20 @@ enum Commands {
     #[command(subcommand, about = "Content management and analytics")]
     Content(content::ContentCommands),
 
+    #[command(subcommand, about = "Analytics and metrics reporting")]
+    Analytics(analytics::AnalyticsCommands),
+
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
 }
 
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
+
+    // Only show full validation output (success checkmarks, etc.) when launching TUI.
+    // For specific CLI commands, only errors should be displayed.
+    let is_tui_startup = cli.command.is_none();
+    set_startup_mode(is_tui_startup);
 
     let cli_config = build_cli_config(&cli);
     cli_settings::set_global_config(cli_config);
@@ -214,6 +224,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Users(cmd)) => users::execute(cmd, &cli_config).await?,
         Some(Commands::Files(cmd)) => files::execute(cmd, &cli_config).await?,
         Some(Commands::Content(cmd)) => content::execute(cmd).await?,
+        Some(Commands::Analytics(cmd)) => analytics::execute(cmd, &cli_config).await?,
         Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
         None => tui::execute(&cli_config).await?,
     }

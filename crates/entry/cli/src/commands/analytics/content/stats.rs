@@ -28,7 +28,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_stats(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -59,26 +59,26 @@ async fn fetch_stats(
         Option<f64>,
         Option<i64>,
     ) = sqlx::query_as(
-        r#"
+        r"
         SELECT
-            SUM(total_views),
-            SUM(unique_visitors),
-            AVG(avg_time_on_page_seconds),
-            AVG(avg_scroll_depth),
-            SUM(total_clicks)
+            SUM(total_views)::bigint,
+            SUM(unique_visitors)::bigint,
+            AVG(avg_time_on_page_seconds)::float8,
+            AVG(avg_scroll_depth)::float8,
+            SUM(total_clicks)::bigint
         FROM (
             SELECT
                 content_id,
                 COUNT(*) as total_views,
                 COUNT(DISTINCT session_id) as unique_visitors,
-                AVG(time_on_page_ms) / 1000.0 as avg_time_on_page_seconds,
-                AVG(max_scroll_depth) as avg_scroll_depth,
-                SUM(click_count) as total_clicks
+                (AVG(time_on_page_ms) / 1000.0)::float8 as avg_time_on_page_seconds,
+                AVG(max_scroll_depth)::float8 as avg_scroll_depth,
+                SUM(click_count)::bigint as total_clicks
             FROM engagement_events
             WHERE created_at >= $1 AND created_at < $2
             GROUP BY content_id
         ) subq
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -90,7 +90,7 @@ async fn fetch_stats(
         period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
         total_views: row.0.unwrap_or(0),
         unique_visitors: row.1.unwrap_or(0),
-        avg_time_on_page_seconds: row.2.map(|v| v as i64).unwrap_or(0),
+        avg_time_on_page_seconds: row.2.map_or(0, |v| v as i64),
         avg_scroll_depth: row.3.unwrap_or(0.0),
         total_clicks: row.4.unwrap_or(0),
     })

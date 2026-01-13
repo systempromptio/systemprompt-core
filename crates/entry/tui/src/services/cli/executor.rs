@@ -12,7 +12,7 @@ pub struct CliExecutor {
 }
 
 impl CliExecutor {
-    pub fn new(tx: mpsc::UnboundedSender<Message>) -> Self {
+    pub const fn new(tx: mpsc::UnboundedSender<Message>) -> Self {
         Self { tx }
     }
 

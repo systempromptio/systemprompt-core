@@ -8,7 +8,7 @@ use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::shared::{
-    export_to_csv, format_change, format_cost, format_duration_ms, format_number, format_percent,
+    export_to_csv, format_cost, format_duration_ms, format_number, format_percent,
     parse_time_range, MetricCard,
 };
 use crate::shared::{render_result, CommandResult, RenderingHints};
@@ -83,7 +83,7 @@ pub async fn execute(args: OverviewArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let (start, end) = parse_time_range(&args.since, &args.until)?;
+    let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_overview_data(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
@@ -165,14 +165,14 @@ async fn fetch_agent_metrics(
     end: DateTime<Utc>,
 ) -> Result<AgentMetrics> {
     let stats: (i64, i64, i64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(DISTINCT agent_name) as active_agents,
             COUNT(*) as total_tasks,
             COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks
         FROM agent_tasks
         WHERE started_at >= $1 AND started_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -198,14 +198,14 @@ async fn fetch_request_metrics(
     end: DateTime<Utc>,
 ) -> Result<RequestMetrics> {
     let stats: (i64, Option<i64>, Option<f64>) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) as total,
-            SUM(tokens_used) as total_tokens,
-            AVG(latency_ms) as avg_latency
+            SUM(tokens_used)::bigint as total_tokens,
+            AVG(latency_ms)::float8 as avg_latency
         FROM ai_requests
         WHERE created_at >= $1 AND created_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -215,7 +215,7 @@ async fn fetch_request_metrics(
     Ok(RequestMetrics {
         total: stats.0,
         total_tokens: stats.1.unwrap_or(0),
-        avg_latency_ms: stats.2.map(|v| v as i64).unwrap_or(0),
+        avg_latency_ms: stats.2.map_or(0, |v| v as i64),
     })
 }
 
@@ -225,13 +225,13 @@ async fn fetch_tool_metrics(
     end: DateTime<Utc>,
 ) -> Result<ToolMetrics> {
     let stats: (i64, i64) = sqlx::query_as(
-        r#"
+        r"
         SELECT
             COUNT(*) as total,
             COUNT(*) FILTER (WHERE status = 'success') as successful
         FROM mcp_tool_executions
         WHERE created_at >= $1 AND created_at < $2
-        "#,
+        ",
     )
     .bind(start)
     .bind(end)
@@ -256,12 +256,12 @@ async fn fetch_session_metrics(
     end: DateTime<Utc>,
 ) -> Result<SessionMetrics> {
     let active: (i64,) = sqlx::query_as(
-        r#"
+        r"
         SELECT COUNT(*)
         FROM user_sessions
         WHERE ended_at IS NULL
           AND last_activity_at >= $1
-        "#,
+        ",
     )
     .bind(start)
     .fetch_one(pool.as_ref())
@@ -327,7 +327,7 @@ fn format_change_percent(change: Option<f64>) -> String {
             let sign = if c >= 0.0 { "+" } else { "" };
             format!("{}{:.1}%", sign, c)
         })
-        .unwrap_or_else(String::new)
+        .unwrap_or_default()
 }
 
 fn render_overview(output: &OverviewOutput) {
@@ -365,7 +365,7 @@ fn render_overview(output: &OverviewOutput) {
         let secondary_str = card.secondary.as_deref().unwrap_or("");
         CliService::key_value(
             &card.label,
-            &format!("{} {} {}", card.value, change_str, secondary_str).trim(),
+            format!("{} {} {}", card.value, change_str, secondary_str).trim(),
         );
     }
 }
