@@ -87,7 +87,8 @@ pub async fn execute(name: &str) -> Result<()> {
         TenantType::Cloud => {
             let mut builder = CloudProfileBuilder::new(name)
                 .with_tenant_id(TenantId::new(&tenant.id))
-                .with_external_db_access(tenant.external_db_access);
+                .with_external_db_access(tenant.external_db_access)
+                .with_secrets_path(relative_secrets_path);
             if let Some(hostname) = &tenant.hostname {
                 builder = builder.with_external_url(format!("https://{}", hostname));
             }
@@ -199,7 +200,8 @@ pub fn create_profile_for_tenant(
 
     let mut builder = CloudProfileBuilder::new(&name)
         .with_tenant_id(TenantId::new(&tenant.id))
-        .with_external_db_access(tenant.external_db_access);
+        .with_external_db_access(tenant.external_db_access)
+        .with_secrets_path("./secrets.json");
     if let Some(hostname) = &tenant.hostname {
         builder = builder.with_external_url(format!("https://{}", hostname));
     }

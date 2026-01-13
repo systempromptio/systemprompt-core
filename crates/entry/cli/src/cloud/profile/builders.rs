@@ -118,6 +118,7 @@ pub struct CloudProfileBuilder {
     tenant_id: Option<TenantId>,
     external_url: Option<String>,
     external_db_access: bool,
+    secrets_path: Option<String>,
 }
 
 impl CloudProfileBuilder {
@@ -127,6 +128,7 @@ impl CloudProfileBuilder {
             tenant_id: None,
             external_url: None,
             external_db_access: false,
+            secrets_path: None,
         }
     }
 
@@ -142,6 +144,11 @@ impl CloudProfileBuilder {
 
     pub const fn with_external_db_access(mut self, enabled: bool) -> Self {
         self.external_db_access = enabled;
+        self
+    }
+
+    pub fn with_secrets_path(mut self, path: impl Into<String>) -> Self {
+        self.secrets_path = Some(path.into());
         self
     }
 
@@ -208,7 +215,7 @@ impl CloudProfileBuilder {
                 validation: CloudValidationMode::Strict,
             }),
             secrets: Some(SecretsConfig {
-                secrets_path: String::new(),
+                secrets_path: self.secrets_path.unwrap_or_default(),
                 validation: SecretsValidationMode::Strict,
                 source: SecretsSource::Env,
             }),
