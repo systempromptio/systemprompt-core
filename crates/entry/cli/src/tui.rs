@@ -15,7 +15,7 @@ use systemprompt_core_users::{User, UserService};
 use systemprompt_identifiers::CloudAuthToken;
 use systemprompt_models::ApiPaths;
 
-use crate::cloud::deploy_select::{discover_profiles, DiscoveredProfile};
+use crate::shared::profile::{discover_profiles, DiscoveredProfile};
 use crate::CliConfig;
 
 async fn check_local_api(api_url: &str) -> Result<(), String> {

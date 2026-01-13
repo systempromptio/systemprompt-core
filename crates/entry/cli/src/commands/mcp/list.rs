@@ -37,15 +37,19 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
                 server.binary.clone()
             };
             let (debug_binary, debug_created_at) =
-                get_binary_info(&project_root, &binary_name, false);
+                get_binary_info(project_root.as_ref(), &binary_name, false);
             let (release_binary, release_created_at) =
-                get_binary_info(&project_root, &binary_name, true);
+                get_binary_info(project_root.as_ref(), &binary_name, true);
 
             McpServerSummary {
                 name: name.clone(),
                 port: server.port,
                 enabled: server.enabled,
-                status: determine_status(server.enabled, &debug_binary, &release_binary),
+                status: determine_status(
+                    server.enabled,
+                    debug_binary.as_deref(),
+                    release_binary.as_deref(),
+                ),
                 debug_binary,
                 debug_created_at,
                 release_binary,
@@ -71,7 +75,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
 }
 
 fn get_binary_info(
-    project_root: &Option<ProjectRoot>,
+    project_root: Option<&ProjectRoot>,
     binary_name: &str,
     release: bool,
 ) -> (Option<String>, Option<String>) {
@@ -99,7 +103,7 @@ fn get_binary_info(
     (path_str, created_at)
 }
 
-fn determine_status(enabled: bool, debug: &Option<String>, release: &Option<String>) -> String {
+fn determine_status(enabled: bool, debug: Option<&str>, release: Option<&str>) -> String {
     if !enabled {
         return "disabled".to_string();
     }

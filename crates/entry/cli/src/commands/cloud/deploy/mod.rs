@@ -1,3 +1,5 @@
+mod select;
+
 use std::path::PathBuf;
 
 use anyhow::{anyhow, bail, Context, Result};
@@ -7,7 +9,7 @@ use systemprompt_cloud::{
 };
 use systemprompt_core_logging::CliService;
 
-use super::deploy_select::resolve_profile;
+use select::resolve_profile;
 use super::dockerfile::validate_profile_dockerfile;
 use super::tenant_ops::{find_services_config, get_credentials};
 use crate::cli_settings::CliConfig;

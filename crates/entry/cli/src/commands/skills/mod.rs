@@ -43,30 +43,22 @@ pub async fn execute(command: SkillsCommands) -> Result<()> {
 pub async fn execute_with_config(command: SkillsCommands, config: &CliConfig) -> Result<()> {
     match command {
         SkillsCommands::List(args) => {
-            let result = list::execute(args, config)
-                .await
-                .context("Failed to list skills")?;
+            let result = list::execute(args, config).context("Failed to list skills")?;
             render_result(&result);
             Ok(())
         },
         SkillsCommands::Create(args) => {
-            let result = create::execute(args, config)
-                .await
-                .context("Failed to create skill")?;
+            let result = create::execute(args, config).context("Failed to create skill")?;
             render_result(&result);
             Ok(())
         },
         SkillsCommands::Edit(args) => {
-            let result = edit::execute(args, config)
-                .await
-                .context("Failed to edit skill")?;
+            let result = edit::execute(&args, config).context("Failed to edit skill")?;
             render_result(&result);
             Ok(())
         },
         SkillsCommands::Delete(args) => {
-            let result = delete::execute(args, config)
-                .await
-                .context("Failed to delete skill")?;
+            let result = delete::execute(args, config).context("Failed to delete skill")?;
             render_result(&result);
             Ok(())
         },

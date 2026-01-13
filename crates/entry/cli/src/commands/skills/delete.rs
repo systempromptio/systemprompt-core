@@ -23,7 +23,7 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(
+pub fn execute(
     args: DeleteArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SkillDeleteOutput>> {

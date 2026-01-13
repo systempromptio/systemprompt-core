@@ -13,7 +13,7 @@ pub struct ValidateArgs {
 }
 
 pub fn execute(
-    args: ValidateArgs,
+    args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;

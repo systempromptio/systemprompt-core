@@ -8,7 +8,7 @@ use systemprompt_cloud::{
 use systemprompt_core_logging::CliService;
 
 use crate::cli_settings::CliConfig;
-use crate::cloud::oauth::{ERROR_HTML, SUCCESS_HTML};
+use crate::cloud::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
 use crate::cloud::{Environment, OAuthProvider};
 
 pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()> {
@@ -47,8 +47,8 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
     let provider = providers[selection];
 
     let templates = OAuthTemplates {
-        success_html: SUCCESS_HTML,
-        error_html: ERROR_HTML,
+        success_html: AUTH_SUCCESS_HTML,
+        error_html: AUTH_ERROR_HTML,
     };
     let token = run_oauth_flow(api_url, provider, templates).await?;
 

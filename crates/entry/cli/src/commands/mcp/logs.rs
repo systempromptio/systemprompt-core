@@ -44,18 +44,18 @@ pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult
     let logs_path = PathBuf::from(logs_dir);
 
     if args.follow {
-        return execute_follow_mode(&args, config, &logs_path).await;
+        return execute_follow_mode(&args, config, &logs_path);
     }
 
     if args.disk {
-        return execute_disk_mode(&args, config, &logs_path).await;
+        return execute_disk_mode(&args, config, &logs_path);
     }
 
     match execute_db_mode(&args, config).await {
         Ok(result) => Ok(result),
         Err(e) => {
             tracing::debug!(error = %e, "DB log query failed, falling back to disk");
-            execute_disk_mode(&args, config, &logs_path).await
+            execute_disk_mode(&args, config, &logs_path)
         }
     }
 }
@@ -65,7 +65,7 @@ async fn execute_db_mode(
     _config: &CliConfig,
 ) -> Result<CommandResult<McpLogsOutput>> {
     let ctx = Arc::new(AppContext::new().await.context("Failed to initialize app context")?);
-    let repo = LoggingRepository::new(ctx.db_pool().clone());
+    let repo = LoggingRepository::new(Arc::clone(ctx.db_pool()));
 
     let patterns = match &args.service {
         Some(service) => build_service_patterns(service),
@@ -127,7 +127,7 @@ fn build_all_mcp_patterns() -> Result<Vec<String>> {
     Ok(patterns)
 }
 
-async fn execute_disk_mode(
+fn execute_disk_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,
@@ -163,7 +163,7 @@ async fn execute_disk_mode(
     .with_title(format!("MCP Logs (Disk): {}", service)))
 }
 
-async fn execute_follow_mode(
+fn execute_follow_mode(
     args: &LogsArgs,
     config: &CliConfig,
     logs_path: &Path,

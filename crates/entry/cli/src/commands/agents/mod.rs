@@ -65,7 +65,7 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             Ok(())
         },
         AgentsCommands::Validate(args) => {
-            let result = validate::execute(args, config).context("Failed to validate agents")?;
+            let result = validate::execute(&args, config).context("Failed to validate agents")?;
             render_result(&result);
             Ok(())
         },
