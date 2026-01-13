@@ -66,7 +66,8 @@ impl CommandsState {
 
     pub fn rebuild_visible_items(&mut self) {
         self.visible_items.clear();
-        self.build_items_recursive(&self.command_tree.subcommands, 0);
+        let subcommands = self.command_tree.subcommands.clone();
+        self.build_items_recursive(&subcommands, 0);
     }
 
     fn build_items_recursive(&mut self, commands: &[CliCommandInfo], depth: usize) {

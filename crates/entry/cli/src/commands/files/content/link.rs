@@ -44,7 +44,10 @@ pub struct LinkArgs {
     pub order: i32,
 }
 
-pub async fn execute(args: LinkArgs, _config: &CliConfig) -> Result<CommandResult<ContentLinkOutput>> {
+pub async fn execute(
+    args: LinkArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentLinkOutput>> {
     let db = DbPool::from_env().await?;
     let service = ContentService::new(&db)?;
 

@@ -100,11 +100,10 @@ fn render_output_panel(frame: &mut Frame, area: Rect, state: &AppState, config: 
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let output_text = state
-        .commands
-        .output
-        .as_deref()
-        .unwrap_or("Select a command and press Enter to execute\n\n○ Deterministic - opens parameter form\n◆ AI-assisted - routes to chat for help");
+    let output_text = state.commands.output.as_deref().unwrap_or(
+        "Select a command and press Enter to execute\n\n○ Deterministic - opens parameter form\n◆ \
+         AI-assisted - routes to chat for help",
+    );
 
     let paragraph = Paragraph::new(output_text)
         .wrap(Wrap { trim: false })

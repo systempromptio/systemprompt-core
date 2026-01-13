@@ -14,7 +14,10 @@ pub struct ListArgs {
     pub content_id: String,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ContentFilesOutput>> {
+pub async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentFilesOutput>> {
     let db = DbPool::from_env().await?;
     let service = ContentService::new(&db)?;
 

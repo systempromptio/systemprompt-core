@@ -1,5 +1,6 @@
-use crossterm::event::{KeyCode, KeyEvent};
+use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
 
+use crate::cli_registry::ExecutionMode;
 use crate::messages::{Command, LogLevel, Message, ScrollDirection};
 use crate::state::AppState;
 
@@ -58,6 +59,10 @@ pub fn handle_services_keys(key: KeyEvent, state: &mut AppState) -> (Option<Mess
 }
 
 pub fn handle_commands_keys(key: KeyEvent, state: &mut AppState) -> (Option<Message>, Command) {
+    if state.commands.is_modal_open() {
+        return handle_commands_modal_keys(key, state);
+    }
+
     match key.code {
         KeyCode::Down | KeyCode::Char('j') => {
             state.commands.select_next();
@@ -67,10 +72,123 @@ pub fn handle_commands_keys(key: KeyEvent, state: &mut AppState) -> (Option<Mess
             state.commands.select_previous();
             (None, Command::None)
         },
-        KeyCode::Enter => state.commands.execute_selected().map_or_else(
-            || (None, Command::None),
-            |slash_cmd| (Some(Message::SlashCommand(slash_cmd)), Command::None),
-        ),
+        KeyCode::Right | KeyCode::Char('l') => {
+            state.commands.expand_current();
+            (None, Command::None)
+        },
+        KeyCode::Left | KeyCode::Char('h') => {
+            state.commands.collapse_current();
+            (None, Command::None)
+        },
+        KeyCode::Tab => {
+            state.commands.toggle_expanded();
+            (None, Command::None)
+        },
+        KeyCode::Enter => handle_commands_execute(state),
+        KeyCode::PageUp => {
+            state.commands.scroll_output_up(10);
+            (None, Command::None)
+        },
+        KeyCode::PageDown => {
+            state.commands.scroll_output_down(10);
+            (None, Command::None)
+        },
+        _ => (None, Command::None),
+    }
+}
+
+fn handle_commands_execute(state: &mut AppState) -> (Option<Message>, Command) {
+    let Some(item) = state.commands.selected_item().cloned() else {
+        return (None, Command::None);
+    };
+
+    match item {
+        crate::cli_registry::CommandTreeItem::Domain { .. } => {
+            state.commands.toggle_expanded();
+            (None, Command::None)
+        },
+        crate::cli_registry::CommandTreeItem::Command { info, .. } => match info.execution_mode {
+            ExecutionMode::AiAssisted => {
+                let command_path: Vec<String> = info.path.iter().map(|s| s.to_string()).collect();
+                let description = info.description.to_string();
+                (
+                    Some(Message::CommandRequestAiParams {
+                        command_path,
+                        description,
+                    }),
+                    Command::None,
+                )
+            },
+            ExecutionMode::Deterministic => {
+                if info.arguments.is_empty() {
+                    let cmd_string = format!("systemprompt {}", info.path.join(" "));
+                    (
+                        Some(Message::CommandExecuting),
+                        Command::ExecuteCliCommand(cmd_string),
+                    )
+                } else {
+                    state.commands.open_parameter_modal();
+                    (Some(Message::CommandModalOpen), Command::None)
+                }
+            },
+        },
+    }
+}
+
+fn handle_commands_modal_keys(key: KeyEvent, state: &mut AppState) -> (Option<Message>, Command) {
+    let Some(modal) = &mut state.commands.modal_state else {
+        return (None, Command::None);
+    };
+
+    match key.code {
+        KeyCode::Esc => {
+            state.commands.close_modal();
+            (Some(Message::CommandModalClose), Command::None)
+        },
+        KeyCode::Tab => {
+            if key.modifiers.contains(KeyModifiers::SHIFT) {
+                modal.prev_field();
+            } else {
+                modal.next_field();
+            }
+            (None, Command::None)
+        },
+        KeyCode::Down => {
+            modal.next_field();
+            (None, Command::None)
+        },
+        KeyCode::Up => {
+            modal.prev_field();
+            (None, Command::None)
+        },
+        KeyCode::Left => {
+            modal.move_cursor_left();
+            (None, Command::None)
+        },
+        KeyCode::Right => {
+            modal.move_cursor_right();
+            (None, Command::None)
+        },
+        KeyCode::Char(c) => {
+            modal.insert_char(c);
+            (None, Command::None)
+        },
+        KeyCode::Backspace => {
+            modal.delete_char();
+            (None, Command::None)
+        },
+        KeyCode::Enter => {
+            if modal.validate() {
+                let cmd_string = modal.build_command_string();
+                state.commands.close_modal();
+                (
+                    Some(Message::CommandExecuting),
+                    Command::ExecuteCliCommand(cmd_string),
+                )
+            } else {
+                (None, Command::None)
+            }
+        },
         _ => (None, Command::None),
     }
 }

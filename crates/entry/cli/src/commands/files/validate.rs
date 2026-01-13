@@ -16,7 +16,10 @@ pub struct ValidateArgs {
     pub file_path: PathBuf,
 }
 
-pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<FileValidationOutput>> {
+pub fn execute(
+    args: ValidateArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileValidationOutput>> {
     let file_path = args
         .file_path
         .canonicalize()
@@ -45,11 +48,7 @@ pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<
         errors,
     };
 
-    let title = if valid {
-        "File Valid"
-    } else {
-        "File Invalid"
-    };
+    let title = if valid { "File Valid" } else { "File Invalid" };
 
     Ok(CommandResult::card(output).with_title(title))
 }

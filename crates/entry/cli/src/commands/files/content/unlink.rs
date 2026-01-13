@@ -17,7 +17,10 @@ pub struct UnlinkArgs {
     pub content: String,
 }
 
-pub async fn execute(args: UnlinkArgs, _config: &CliConfig) -> Result<CommandResult<ContentUnlinkOutput>> {
+pub async fn execute(
+    args: UnlinkArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentUnlinkOutput>> {
     let db = DbPool::from_env().await?;
     let service = ContentService::new(&db)?;
 

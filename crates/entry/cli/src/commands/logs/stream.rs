@@ -126,10 +126,7 @@ fn display_filters(args: &StreamArgs) {
     if let Some(ref module) = args.module {
         CliService::key_value("Module filter", module);
     }
-    CliService::key_value(
-        "Polling interval",
-        &format!("{}ms", args.interval),
-    );
+    CliService::key_value("Polling interval", &format!("{}ms", args.interval));
 }
 
 fn display_log_entry(log: &LogEntry) {

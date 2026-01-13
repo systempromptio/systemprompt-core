@@ -17,7 +17,10 @@ pub struct FeaturedArgs {
     pub set: Option<String>,
 }
 
-pub async fn execute(args: FeaturedArgs, _config: &CliConfig) -> Result<CommandResult<FeaturedImageOutput>> {
+pub async fn execute(
+    args: FeaturedArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<FeaturedImageOutput>> {
     let db = DbPool::from_env().await?;
     let service = ContentService::new(&db)?;
 

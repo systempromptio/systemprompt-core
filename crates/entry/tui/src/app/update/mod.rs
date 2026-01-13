@@ -130,6 +130,23 @@ impl TuiApp {
             Message::CommandOutput(output) => self.handle_command_output(output),
             Message::CommandError(error) => self.handle_command_error(&error),
             Message::CommandExecuting => self.handle_command_executing(),
+            Message::CommandTreeToggle => self.handle_command_tree_toggle(),
+            Message::CommandTreeExpand => self.handle_command_tree_expand(),
+            Message::CommandTreeCollapse => self.handle_command_tree_collapse(),
+            Message::CommandModalOpen => self.handle_command_modal_open(),
+            Message::CommandModalClose => self.handle_command_modal_close(),
+            Message::CommandModalSubmit => vec![Command::None],
+            Message::CommandCliOutput(output) => self.handle_command_cli_output(output),
+            Message::CommandCliError(error) => self.handle_command_cli_error(error),
+            Message::CommandRequestAiParams {
+                command_path,
+                description,
+            } => {
+                vec![Command::RequestAiCommandParams {
+                    command_path,
+                    description,
+                }]
+            },
             _ => vec![Command::None],
         }
     }

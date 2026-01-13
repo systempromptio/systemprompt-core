@@ -49,7 +49,9 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let sessions = if args.active {
         user_service.list_active_sessions(&user_id).await?
     } else {
-        user_service.list_recent_sessions(&user_id, args.limit).await?
+        user_service
+            .list_recent_sessions(&user_id, args.limit)
+            .await?
     };
 
     let summaries: Vec<SessionSummary> = sessions
@@ -84,8 +86,14 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                 .map(|s| SessionRow {
                     id: s.session_id.to_string(),
                     status: if s.is_active { "active" } else { "ended" }.to_string(),
-                    ip: s.ip_address.clone().unwrap_or_else(|| "unknown".to_string()),
-                    device: s.device_type.clone().unwrap_or_else(|| "unknown".to_string()),
+                    ip: s
+                        .ip_address
+                        .clone()
+                        .unwrap_or_else(|| "unknown".to_string()),
+                    device: s
+                        .device_type
+                        .clone()
+                        .unwrap_or_else(|| "unknown".to_string()),
                     started: s
                         .started_at
                         .map(|t| t.format("%Y-%m-%d %H:%M").to_string())

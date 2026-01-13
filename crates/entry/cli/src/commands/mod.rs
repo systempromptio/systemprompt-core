@@ -2,6 +2,7 @@ pub mod agents;
 pub mod build;
 pub mod cloud;
 pub mod db;
+pub mod files;
 pub mod jobs;
 pub mod logs;
 pub mod mcp;

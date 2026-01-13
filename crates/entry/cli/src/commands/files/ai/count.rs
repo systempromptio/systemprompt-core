@@ -14,7 +14,10 @@ pub struct CountArgs {
     pub user: Option<String>,
 }
 
-pub async fn execute(args: CountArgs, _config: &CliConfig) -> Result<CommandResult<AiFilesCountOutput>> {
+pub async fn execute(
+    args: CountArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AiFilesCountOutput>> {
     let db = DbPool::from_env().await?;
     let service = AiService::new(&db)?;
 

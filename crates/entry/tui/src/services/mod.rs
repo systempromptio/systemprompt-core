@@ -1,5 +1,6 @@
 pub mod agent;
 pub mod analytics;
+pub mod cli;
 pub mod cloud;
 pub mod context;
 pub mod log;
@@ -9,6 +10,7 @@ pub mod user;
 
 pub use agent::discover_agents_with_token;
 pub use analytics::{AnalyticsPoller, AnalyticsSubscriber};
+pub use cli::CliExecutor;
 pub use cloud as cloud_api;
 pub use cloud::*;
 pub use context::{create_context_service, ContextService, ContextStreamSubscriber};

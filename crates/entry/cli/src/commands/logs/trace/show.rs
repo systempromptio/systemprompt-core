@@ -67,10 +67,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     execute_trace_view(&args, &pool).await
 }
 
-async fn execute_trace_view(
-    args: &ShowArgs,
-    pool: &std::sync::Arc<sqlx::PgPool>,
-) -> Result<()> {
+async fn execute_trace_view(args: &ShowArgs, pool: &std::sync::Arc<sqlx::PgPool>) -> Result<()> {
     let service = TraceQueryService::new(pool.clone());
 
     let (
@@ -93,8 +90,27 @@ async fn execute_trace_view(
     events.sort_by_key(|e| e.timestamp);
 
     if events.is_empty() {
+        if ai_summary.request_count > 0 || mcp_summary.execution_count > 0 {
+            CliService::section(&format!("Trace: {}", args.id));
+            CliService::info("No log events found, but trace has activity:");
+            if ai_summary.request_count > 0 {
+                CliService::key_value("AI Requests", &ai_summary.request_count.to_string());
+                CliService::key_value(
+                    "Total Tokens",
+                    &format!("{} in / {} out", ai_summary.input_tokens, ai_summary.output_tokens),
+                );
+                CliService::key_value("Cost", &format!("${:.6}", ai_summary.cost_dollars));
+            }
+            if mcp_summary.execution_count > 0 {
+                CliService::key_value("MCP Calls", &mcp_summary.execution_count.to_string());
+            }
+            CliService::info("Use --verbose to see all log entries, or --ai/--mcp for details");
+            return Ok(());
+        }
         CliService::warning(&format!("No events found for trace: {}", args.id));
-        CliService::info("Tip: The trace may take a moment to populate. Try again in a few seconds.");
+        CliService::info(
+            "Tip: The trace may take a moment to populate. Try again in a few seconds.",
+        );
         return Ok(());
     }
 
@@ -116,11 +132,7 @@ async fn execute_trace_view(
     Ok(())
 }
 
-async fn execute_ai_trace(
-    service: &AiTraceService,
-    task_id: &str,
-    args: &ShowArgs,
-) -> Result<()> {
+async fn execute_ai_trace(service: &AiTraceService, task_id: &str, args: &ShowArgs) -> Result<()> {
     CliService::section(&format!("Trace: {}", task_id));
 
     let task_info = service.get_task_info(task_id).await?;

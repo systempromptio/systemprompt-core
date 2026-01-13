@@ -5,7 +5,7 @@ use anyhow::Result;
 use systemprompt_identifiers::{ContextId, TaskId};
 
 use crate::messages::{Command, Message};
-use crate::services::cloud_api;
+use crate::services::{cloud_api, CliExecutor};
 
 use super::TuiApp;
 
@@ -45,6 +45,11 @@ impl TuiApp {
             Command::Sync(sub) => self.spawn_sync(sub),
             Command::Quit => self.state.should_quit = true,
             Command::DeleteTask(task_id) => self.spawn_delete_task(TaskId::new(&task_id)),
+            Command::ExecuteCliCommand(cmd_string) => self.spawn_cli_command(cmd_string),
+            Command::RequestAiCommandParams {
+                command_path,
+                description,
+            } => self.handle_ai_command_request(command_path, description),
             _ => {},
         }
         Ok(())
@@ -228,5 +233,26 @@ impl TuiApp {
                 },
             }
         });
+    }
+
+    fn spawn_cli_command(&self, cmd_string: String) {
+        let executor = CliExecutor::new(self.message_tx.clone());
+        executor.spawn_execution(cmd_string);
+    }
+
+    fn handle_ai_command_request(&mut self, command_path: Vec<String>, description: String) {
+        use crate::state::ActiveTab;
+
+        let prompt = format!(
+            "I want to run the CLI command: systemprompt {}\n\
+             Description: {}\n\n\
+             Please help me determine the appropriate parameters for this command.",
+            command_path.join(" "),
+            description
+        );
+
+        self.state.chat.input_buffer = prompt;
+        self.state.chat.cursor_position = self.state.chat.input_buffer.len();
+        let _ = self.message_tx.send(Message::SwitchTab(ActiveTab::Chat));
     }
 }

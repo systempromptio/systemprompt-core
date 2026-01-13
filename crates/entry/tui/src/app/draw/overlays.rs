@@ -5,7 +5,7 @@ use crate::components::chat::{
     render_input_request, render_task_detail, render_tool_panel, should_show_input_request,
     should_show_task_detail, should_show_tool_panel,
 };
-use crate::components::render_approval_dialog;
+use crate::components::{render_approval_dialog, render_parameter_modal};
 use crate::config::TuiConfig;
 use crate::layout::AppLayout;
 use crate::state::AppState;
@@ -35,6 +35,10 @@ pub fn render_overlays(
 
     if should_show_task_detail(state) {
         render_task_detail(frame, state, config);
+    }
+
+    if state.commands.is_modal_open() {
+        render_parameter_modal(frame, layout.full_area, state, config);
     }
 }
 

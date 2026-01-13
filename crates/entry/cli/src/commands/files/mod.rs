@@ -4,18 +4,29 @@ mod config;
 mod delete;
 mod list;
 mod show;
-mod upload;
+pub mod upload;
 mod validate;
 
 pub mod ai;
 pub mod content;
 
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use systemprompt_core_database::{Database, DbPool};
+use systemprompt_models::SecretsBootstrap;
 
-use crate::cli_settings::get_global_config;
 use crate::shared::render_result;
 use crate::CliConfig;
+
+pub async fn create_db_pool() -> Result<DbPool> {
+    let url = SecretsBootstrap::database_url()?.to_string();
+    let database = Database::from_config("postgres", &url)
+        .await
+        .context("Failed to connect to database")?;
+    Ok(Arc::new(database))
+}
 
 #[derive(Debug, Subcommand)]
 pub enum FilesCommands {

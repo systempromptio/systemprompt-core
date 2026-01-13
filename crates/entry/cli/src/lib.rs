@@ -5,7 +5,9 @@ pub mod shared;
 mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-pub use commands::{agents, build, cloud, db, jobs, logs, mcp, services, setup, skills, users};
+pub use commands::{
+    agents, build, cloud, db, files, jobs, logs, mcp, services, setup, skills, users,
+};
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
@@ -100,7 +102,10 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    #[command(subcommand, about = "Service lifecycle management (start, stop, status)")]
+    #[command(
+        subcommand,
+        about = "Service lifecycle management (start, stop, status)"
+    )]
     Services(services::ServicesCommands),
 
     #[command(subcommand, about = "Database operations and administration")]
@@ -129,6 +134,9 @@ enum Commands {
 
     #[command(subcommand, about = "User management and IP banning")]
     Users(users::UsersCommands),
+
+    #[command(subcommand, about = "File management and uploads")]
+    Files(files::FilesCommands),
 
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
@@ -201,6 +209,7 @@ pub async fn run() -> Result<()> {
         },
         Some(Commands::Skills(cmd)) => skills::execute(cmd).await?,
         Some(Commands::Users(cmd)) => users::execute(cmd, &cli_config).await?,
+        Some(Commands::Files(cmd)) => files::execute(cmd, &cli_config).await?,
         Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
         None => tui::execute(&cli_config).await?,
     }
