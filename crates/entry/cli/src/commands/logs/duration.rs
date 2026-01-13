@@ -35,7 +35,7 @@ pub fn parse_duration(s: &str) -> Result<Duration> {
     ))
 }
 
-pub fn parse_since(since: &Option<String>) -> Result<Option<DateTime<Utc>>> {
+pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
     let Some(s) = since else {
         return Ok(None);
     };
@@ -47,7 +47,9 @@ pub fn parse_since(since: &Option<String>) -> Result<Option<DateTime<Utc>>> {
     }
 
     if let Ok(date) = chrono::NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
-        let datetime = date.and_hms_opt(0, 0, 0).unwrap();
+        let datetime = date
+            .and_hms_opt(0, 0, 0)
+            .ok_or_else(|| anyhow!("Invalid date: {}", s))?;
         return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
     }
 

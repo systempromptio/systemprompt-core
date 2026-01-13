@@ -65,7 +65,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    let since_timestamp = parse_since(&args.since)?;
+    let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
 
     let rows = fetch_logs(&pool, since_timestamp, level_filter.as_deref(), args.limit).await?;

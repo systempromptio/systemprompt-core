@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use base64::engine::general_purpose::STANDARD;
@@ -52,10 +52,11 @@ pub async fn execute(
     let bytes = fs::read(&file_path).await?;
     let bytes_base64 = STANDARD.encode(&bytes);
     let digest = Sha256::digest(&bytes);
-    let checksum_sha256 = digest
-        .iter()
-        .map(|b| format!("{:02x}", b))
-        .collect::<String>();
+    let checksum_sha256 = digest.iter().fold(String::new(), |mut acc, b| {
+        use std::fmt::Write;
+        let _ = write!(acc, "{b:02x}");
+        acc
+    });
     let size_bytes = bytes.len() as i64;
 
     let mime_type = detect_mime_type(&file_path);
@@ -90,7 +91,7 @@ pub async fn execute(
     Ok(CommandResult::card(output).with_title("File Uploaded"))
 }
 
-pub fn detect_mime_type(path: &PathBuf) -> String {
+pub fn detect_mime_type(path: &Path) -> String {
     let extension = path
         .extension()
         .and_then(|e| e.to_str())
