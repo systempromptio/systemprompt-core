@@ -9,7 +9,7 @@ use std::time::Instant;
 use systemprompt_core_analytics::SessionCleanupService;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::{JobRepository, ScheduledJob};
+use systemprompt_core_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_traits::{Job, JobContext};
 use types::{
     BatchJobRunOutput, DryRunOutput, JobEnableOutput, JobHistoryEntry, JobHistoryOutput, JobInfo,
@@ -194,7 +194,7 @@ async fn show_job(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
     let repo = JobRepository::new(ctx.db_pool())?;
 
-    let db_job = repo.find_job(&args.job_name).await?;
+    let db_job: Option<ScheduledJob> = repo.find_job(&args.job_name).await?;
 
     let output = JobShowOutput {
         name: job.name().to_string(),
@@ -497,14 +497,14 @@ async fn cleanup_logs(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOu
     let pool = ctx.db_pool().pool_arc()?;
 
     if args.dry_run {
-        let count: i64 = sqlx::query_scalar!(
+        let count: i64 = sqlx::query_scalar::<_, i64>(
             r#"
-            SELECT COUNT(*) as "count!"
+            SELECT COUNT(*)
             FROM application_logs
             WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
             "#,
-            args.days.to_string()
         )
+        .bind(args.days.to_string())
         .fetch_one(&*pool)
         .await
         .unwrap_or(0);
@@ -522,13 +522,13 @@ async fn cleanup_logs(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOu
         return Ok(CommandResult::text(output).with_title("Log Cleanup (Dry Run)"));
     }
 
-    let deleted_count = sqlx::query!(
+    let deleted_count = sqlx::query(
         r#"
         DELETE FROM application_logs
         WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
         "#,
-        args.days.to_string()
     )
+    .bind(args.days.to_string())
     .execute(&*pool)
     .await?
     .rows_affected() as i64;

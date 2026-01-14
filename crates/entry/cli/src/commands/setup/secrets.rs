@@ -57,11 +57,15 @@ impl SecretsData {
     }
 }
 
-pub fn collect_non_interactive(args: &SetupArgs) -> Result<SecretsData> {
-    CliService::section("Secrets Setup");
+pub fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<SecretsData> {
+    if !config.is_json_output() {
+        CliService::section("Secrets Setup");
+    }
 
     let jwt_secret = generate_jwt_secret();
-    CliService::success("Generated secure JWT secret (64 characters)");
+    if !config.is_json_output() {
+        CliService::success("Generated secure JWT secret (64 characters)");
+    }
 
     let secrets = SecretsData {
         jwt_secret,
@@ -74,12 +78,18 @@ pub fn collect_non_interactive(args: &SetupArgs) -> Result<SecretsData> {
 
     validate_secrets(&secrets)?;
 
-    CliService::success(&format!("Configured keys: {}", secrets.summary()));
+    if !config.is_json_output() {
+        CliService::success(&format!("Configured keys: {}", secrets.summary()));
+    }
 
     Ok(secrets)
 }
 
-pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsData> {
+pub fn collect_interactive(
+    args: &SetupArgs,
+    env_name: &str,
+    _config: &CliConfig,
+) -> Result<SecretsData> {
     CliService::section(&format!("Secrets Setup ({})", env_name));
     CliService::info("At least one AI provider API key is required.");
 
@@ -117,15 +127,15 @@ pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsDa
         0 => {
             let key = prompt_api_key("Gemini API Key")?;
             secrets.gemini = Some(key);
-        },
+        }
         1 => {
             let key = prompt_api_key("Anthropic API Key")?;
             secrets.anthropic = Some(key);
-        },
+        }
         2 => {
             let key = prompt_api_key("OpenAI API Key")?;
             secrets.openai = Some(key);
-        },
+        }
         3 => {
             CliService::info("Enter API keys (press Enter to skip any):");
 
@@ -141,8 +151,8 @@ pub fn collect_interactive(args: &SetupArgs, env_name: &str) -> Result<SecretsDa
             if let Some(key) = prompt_optional_api_key("GitHub Token (optional)")? {
                 secrets.github = Some(key);
             }
-        },
-        _ => unreachable!(),
+        }
+        _ => return Err(anyhow!("Invalid AI provider option selected")),
     }
 
     validate_secrets(&secrets)?;

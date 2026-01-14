@@ -23,8 +23,9 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `mcp list` | List MCP server configurations | `Table` | No |
 | `mcp status` | Show running MCP server status | `Table` | No |
 | `mcp validate <name>` | Validate MCP server connection | `Card` | Yes |
+| `mcp validate --all` | Validate all MCP servers | `Card` | Yes |
 | `mcp logs <name>` | View MCP server logs | `Text` | No |
-| `mcp list-packages` | List package names for build | `Table` | No |
+| `mcp list-packages` | List package names for build | `List` | No |
 
 ---
 
@@ -55,25 +56,25 @@ sp mcp list --disabled
       "name": "filesystem",
       "port": 9001,
       "enabled": true,
-      "command": "./target/debug/mcp-filesystem",
-      "transport": "stdio",
-      "tools_count": 5
-    },
-    {
-      "name": "database",
-      "port": 9002,
-      "enabled": true,
-      "command": "./target/debug/mcp-database",
-      "transport": "stdio",
-      "tools_count": 8
+      "status": "ready",
+      "debug_binary": "/path/to/target/debug/mcp-filesystem",
+      "debug_created_at": "2024-01-15 10:30:00",
+      "release_binary": "/path/to/target/release/mcp-filesystem",
+      "release_created_at": "2024-01-15 10:00:00"
     }
-  ],
-  "total": 2
+  ]
 }
 ```
 
+**Status Values:**
+- `ready` - Both debug and release binaries exist
+- `debug-only` - Only debug binary exists
+- `release-only` - Only release binary exists
+- `not-built` - No binaries exist
+- `disabled` - Server is disabled in configuration
+
 **Artifact Type:** `Table`
-**Columns:** `name`, `port`, `enabled`, `transport`, `tools_count`
+**Columns:** `name`, `port`, `enabled`, `status`, `debug_binary`, `release_binary`
 
 ---
 
@@ -84,13 +85,15 @@ Show running MCP server status with binary information.
 ```bash
 sp mcp status
 sp --json mcp status
-sp mcp status --server filesystem
+sp mcp status --detailed
+sp mcp status --server content-manager
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--server` | All | Show status for specific server |
+| `--detailed`, `-d` | `false` | Show full binary paths instead of "exists" |
+| `--server` | All | Filter to specific server by name |
 
 **Output Structure:**
 ```json
@@ -102,75 +105,99 @@ sp mcp status --server filesystem
       "running": true,
       "pid": 12345,
       "port": 9001,
-      "binary_path": "/var/www/html/systemprompt-core/target/debug/mcp-filesystem",
-      "binary_exists": true,
-      "uptime_seconds": 3600
+      "binary": "mcp-filesystem",
+      "release_binary": "exists",
+      "debug_binary": "exists"
     }
   ],
   "summary": {
     "total": 3,
-    "running": 2,
-    "stopped": 1
+    "enabled": 2,
+    "running": 2
   }
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `name`, `enabled`, `running`, `pid`, `port`, `binary_exists`
+**Columns:** `name`, `port`, `enabled`, `running`, `pid`, `release_binary`, `debug_binary`
 
 ---
 
 ### mcp validate
 
-Validate MCP server connection and capabilities.
+Validate MCP server connection and capabilities. Returns rich validation data including tools count, latency, and server info.
 
 ```bash
 sp mcp validate <server-name>
 sp --json mcp validate filesystem
 sp mcp validate database --timeout 30
+sp mcp validate --all
+sp mcp validate --all --timeout 5
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | Yes | MCP server name to validate |
+| `<name>` | Yes* | MCP server name to validate (*not required if --all is used) |
 
-**Optional Flags:**
+**Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--timeout` | `10` | Connection timeout in seconds |
+| `--all` | `false` | Validate all configured servers |
 
 **Validation Checks:**
-- Binary exists and is executable
-- Server responds to initialization
+- Service is running (checked via database)
+- Connection can be established
+- MCP protocol handshake succeeds
 - Tools are properly registered
-- Connection is stable
+- Latency measurement
 
-**Output Structure:**
+**Output Structure (Single Server):**
 ```json
 {
-  "server": "filesystem",
-  "valid": true,
-  "binary_check": "passed",
-  "connection_check": "passed",
-  "tools_check": "passed",
-  "tools": [
+  "results": [
     {
-      "name": "read_file",
-      "description": "Read contents of a file",
-      "parameters": ["path"]
-    },
-    {
-      "name": "write_file",
-      "description": "Write contents to a file",
-      "parameters": ["path", "content"]
+      "server": "filesystem",
+      "valid": true,
+      "health_status": "healthy",
+      "validation_type": "mcp_validated",
+      "tools_count": 5,
+      "latency_ms": 15,
+      "server_info": {
+        "name": "filesystem",
+        "version": "1.0.0",
+        "protocol_version": "2024-11-05"
+      },
+      "issues": [],
+      "message": "MCP validated with 5 tools"
     }
   ],
-  "tools_count": 5,
-  "latency_ms": 15,
-  "message": "MCP server 'filesystem' validation passed"
+  "summary": {
+    "total": 1,
+    "valid": 1,
+    "invalid": 0,
+    "healthy": 1,
+    "unhealthy": 0
+  }
 }
 ```
+
+**Health Status Values:**
+- `healthy` - Connected with <1s latency
+- `slow` - Connected but >1s latency
+- `auth_required` - Port responding but OAuth needed
+- `unhealthy` - Connection failed or timeout
+- `stopped` - Service not running
+- `not_found` - Server not in configuration
+
+**Validation Type Values:**
+- `mcp_validated` - Full MCP handshake succeeded
+- `auth_required` - OAuth authentication needed
+- `not_running` - Service is not running
+- `timeout` - Connection timed out
+- `connection_error` - Failed to connect
+- `config_error` - Server not in configuration
 
 **Artifact Type:** `Card`
 
@@ -178,7 +205,7 @@ sp mcp validate database --timeout 30
 
 ### mcp logs
 
-View MCP server logs.
+View MCP server logs from database or disk files.
 
 ```bash
 sp mcp logs <server-name>
@@ -186,37 +213,40 @@ sp mcp logs filesystem
 sp mcp logs filesystem --lines 100
 sp mcp logs filesystem --follow
 sp mcp logs filesystem --level error
+sp mcp logs filesystem --disk
+sp mcp logs --logs-dir /custom/path
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<name>` | Yes | MCP server name |
+| `<name>` | No | MCP server name (shows all if not specified) |
 
-**Optional Flags:**
+**Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--lines`, `-n` | `50` | Number of lines to show |
-| `--follow`, `-f` | `false` | Follow log output continuously |
+| `--follow`, `-f` | `false` | Follow log output continuously (disk only) |
 | `--level` | All | Filter by log level: `debug`, `info`, `warn`, `error` |
+| `--disk` | `false` | Force reading from disk files instead of database |
+| `--logs-dir` | Profile path | Custom logs directory path |
+
+**Log Level Filtering:**
+- `debug` - Show all log levels
+- `info` - Show INFO, WARN, ERROR (exclude DEBUG)
+- `warn` - Show WARN and ERROR only
+- `error` - Show ERROR only
 
 **Output Structure:**
 ```json
 {
-  "server": "filesystem",
+  "service": "filesystem",
+  "source": "database",
   "logs": [
-    {
-      "timestamp": "2024-01-15T10:30:00Z",
-      "level": "INFO",
-      "message": "MCP server started on port 9001"
-    },
-    {
-      "timestamp": "2024-01-15T10:30:01Z",
-      "level": "INFO",
-      "message": "Registered 5 tools"
-    }
+    "2024-01-15 10:30:00 INFO [mcp-filesystem] Server started on port 9001",
+    "2024-01-15 10:30:01 INFO [mcp-filesystem] Registered 5 tools"
   ],
-  "total_lines": 50
+  "log_files": []
 }
 ```
 
@@ -231,7 +261,13 @@ List MCP package names for build commands.
 ```bash
 sp mcp list-packages
 sp --json mcp list-packages
+sp mcp list-packages --raw
 ```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--raw` | Output as space-separated string with raw_packages field |
 
 **Output Structure:**
 ```json
@@ -240,12 +276,22 @@ sp --json mcp list-packages
     "mcp-filesystem",
     "mcp-database",
     "mcp-search"
-  ],
-  "total": 3
+  ]
 }
 ```
 
-**Artifact Type:** `Table`
+**Output Structure (with --raw):**
+```json
+{
+  "packages": [
+    "mcp-filesystem",
+    "mcp-database"
+  ],
+  "raw_packages": "mcp-filesystem mcp-database"
+}
+```
+
+**Artifact Type:** `List` (or `CopyPasteText` with --raw)
 
 ---
 
@@ -263,18 +309,19 @@ sp build mcp --release
 
 # Phase 3: Check running status
 sp --json mcp status
+sp --json mcp status --server filesystem
 
-# Phase 4: Validate specific server
-sp --json mcp validate filesystem
+# Phase 4: Validate specific server with timeout
+sp --json mcp validate filesystem --timeout 30
 
-# Phase 5: Check logs
-sp mcp logs filesystem --lines 20
+# Phase 5: Validate all servers
+sp --json mcp validate --all
 
-# Phase 6: Validate all servers
-for server in $(sp --json mcp list | jq -r '.servers[].name'); do
-  echo "Validating $server..."
-  sp --json mcp validate "$server"
-done
+# Phase 6: Check logs with level filtering
+sp mcp logs filesystem --lines 20 --level error
+
+# Phase 7: Follow logs in real-time
+sp mcp logs filesystem --follow
 ```
 
 ---
@@ -290,18 +337,24 @@ mcp_servers:
     enabled: true
     port: 9001
     command: "./target/debug/mcp-filesystem"
+    binary: "mcp-filesystem"
     transport: stdio
     args: []
     env: {}
+    oauth:
+      required: false
 
   database:
     enabled: true
     port: 9002
     command: "./target/debug/mcp-database"
+    binary: "mcp-database"
     transport: stdio
     args: []
     env:
       DATABASE_URL: "${DATABASE_URL}"
+    oauth:
+      required: true
 ```
 
 ---
@@ -313,7 +366,7 @@ mcp_servers:
 ```bash
 # Check if binary exists
 sp --json mcp status --server filesystem
-# Look for "binary_exists": false
+# Look for "binary_exists": false or no debug/release binary
 
 # Build the server
 sp build mcp --server filesystem
@@ -325,8 +378,11 @@ sp --json mcp status --server filesystem
 ### Connection Issues
 
 ```bash
-# Validate connection
+# Validate connection with extended timeout
 sp mcp validate filesystem --timeout 30
+
+# Check validation type in response
+sp --json mcp validate filesystem | jq '.results[0].validation_type'
 
 # Check logs for errors
 sp mcp logs filesystem --level error --lines 100
@@ -335,8 +391,24 @@ sp mcp logs filesystem --level error --lines 100
 ### Tool Registration Issues
 
 ```bash
-# Validate and see tools
-sp --json mcp validate filesystem | jq '.tools'
+# Validate and check tools count
+sp --json mcp validate filesystem | jq '.results[0].tools_count'
+
+# Check server info
+sp --json mcp validate filesystem | jq '.results[0].server_info'
+```
+
+### Batch Validation
+
+```bash
+# Validate all servers at once
+sp --json mcp validate --all
+
+# Check summary
+sp --json mcp validate --all | jq '.summary'
+
+# Find unhealthy servers
+sp --json mcp validate --all | jq '.results[] | select(.health_status != "healthy")'
 ```
 
 ---
@@ -347,24 +419,35 @@ sp --json mcp validate filesystem | jq '.tools'
 
 ```bash
 sp mcp validate nonexistent
-# Error: MCP server 'nonexistent' not found in configuration
+# Error: MCP server 'nonexistent' not found
 
 sp mcp logs nonexistent
-# Error: MCP server 'nonexistent' not found
+# Error: Log file not found for service 'nonexistent'. Available: [...]
 ```
 
-### Binary Not Found
+### Service Not Running
 
 ```bash
 sp mcp validate filesystem
-# Error: Binary not found at /path/to/mcp-filesystem. Run 'build mcp' first.
+# Returns: health_status: "stopped", validation_type: "not_running"
 ```
 
-### Connection Errors
+### Connection Timeout
 
 ```bash
+sp mcp validate filesystem --timeout 5
+# Returns: health_status: "unhealthy", validation_type: "timeout"
+```
+
+### Non-Interactive Mode Requirements
+
+```bash
+sp mcp validate
+# Error: --service is required in non-interactive mode
+
+# Solution: Use --all flag or provide service name
+sp mcp validate --all
 sp mcp validate filesystem
-# Error: Failed to connect to MCP server 'filesystem'. Server may not be running.
 ```
 
 ---
@@ -380,11 +463,15 @@ sp --json mcp list | jq .
 # Extract specific fields
 sp --json mcp list | jq '.servers[].name'
 sp --json mcp status | jq '.servers[] | select(.running == true)'
-sp --json mcp validate filesystem | jq '.tools[].name'
+sp --json mcp validate --all | jq '.results[] | select(.valid == false)'
 sp --json mcp list-packages | jq '.packages[]'
 
 # Check all server health
 sp --json mcp status | jq '.summary'
+sp --json mcp validate --all | jq '.summary'
+
+# Get raw package list for shell scripts
+sp --json mcp list-packages --raw | jq -r '.raw_packages'
 ```
 
 ---
@@ -415,3 +502,9 @@ sp services stop --mcp
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing servers
+- [x] Interactive prompts have `--flag` equivalents
+- [x] All documented flags are implemented
+- [x] Log level filtering supported
+- [x] Batch validation with `--all` flag
+- [x] Configurable timeout for validation
+- [x] Logs path from profile config (not hardcoded)

@@ -7,7 +7,7 @@ mod wizard;
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_models::cli::CommandResult;
+use crate::shared::CommandResult;
 
 pub use types::*;
 
