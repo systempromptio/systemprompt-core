@@ -241,7 +241,10 @@ pub async fn run() -> Result<()> {
         Some(Commands::Web(cmd)) => web::execute(cmd)?,
         Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
         Some(Commands::System(cmd)) => system::execute(cmd).await?,
-        Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
+        Some(Commands::Setup(args)) => {
+            let result = setup::execute(args, &cli_config).await?;
+            shared::render_result(&result);
+        }
         None => tui::execute(&cli_config).await?,
     }
 

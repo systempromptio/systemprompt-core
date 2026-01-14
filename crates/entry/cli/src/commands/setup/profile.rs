@@ -152,7 +152,7 @@ pub fn run_migrations(profile_path: &Path) -> Result<()> {
     let profile_path_str = profile_path.to_string_lossy();
 
     let output = std::process::Command::new(&current_exe)
-        .args(["services", "db", "migrate"])
+        .args(["db", "migrate"])
         .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
         .output()
         .context("Failed to run migrations")?;
@@ -181,7 +181,7 @@ pub fn run_migrations(profile_path: &Path) -> Result<()> {
 
     CliService::info("Run manually with:");
     CliService::info(&format!(
-        "  SYSTEMPROMPT_PROFILE={} systemprompt services db migrate",
+        "  SYSTEMPROMPT_PROFILE={} systemprompt db migrate",
         profile_path_str
     ));
 

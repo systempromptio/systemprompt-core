@@ -78,7 +78,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     } else if config.is_json_output() {
         CliService::json(&output);
     } else {
-        println!("{}", json);
+        CliService::output(&json);
     }
 
     Ok(())
