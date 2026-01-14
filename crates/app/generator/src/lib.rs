@@ -12,7 +12,7 @@ pub mod templates;
 pub use assets::{copy_implementation_assets, organize_css_files};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, optimize_images, render_markdown};
-pub use prerender::prerender_content;
+pub use prerender::{prerender_content, prerender_homepage};
 pub use sitemap::{build_sitemap_index, build_sitemap_xml, generate_sitemap, SitemapUrl};
 pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
 pub use systemprompt_templates::TemplateRegistry;
