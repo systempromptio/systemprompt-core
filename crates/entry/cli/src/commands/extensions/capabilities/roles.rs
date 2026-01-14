@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -12,7 +11,7 @@ pub struct RolesArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: RolesArgs, _config: &CliConfig) -> Result<CommandResult<RolesListOutput>> {
+pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let roles: Vec<RoleWithExtension> = registry
@@ -42,12 +41,12 @@ pub fn execute(args: RolesArgs, _config: &CliConfig) -> Result<CommandResult<Rol
 
     let output = RolesListOutput { roles, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Roles Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "role_name".to_string(),
             "display_name".to_string(),
             "description".to_string(),
-        ]))
+        ])
 }

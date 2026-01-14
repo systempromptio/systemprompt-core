@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -12,7 +11,7 @@ pub struct TemplatesArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: TemplatesArgs, _config: &CliConfig) -> Result<CommandResult<TemplatesListOutput>> {
+pub fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandResult<TemplatesListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let templates: Vec<TemplateWithExtension> = registry
@@ -50,11 +49,11 @@ pub fn execute(args: TemplatesArgs, _config: &CliConfig) -> Result<CommandResult
 
     let output = TemplatesListOutput { templates, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Templates Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "template_name".to_string(),
             "description".to_string(),
-        ]))
+        ])
 }

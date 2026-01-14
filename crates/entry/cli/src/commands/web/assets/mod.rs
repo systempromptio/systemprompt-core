@@ -24,7 +24,7 @@ pub fn execute(command: AssetsCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         AssetsCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show asset")?;
+            let result = show::execute(&args, config).context("Failed to show asset")?;
             render_result(&result);
             Ok(())
         },

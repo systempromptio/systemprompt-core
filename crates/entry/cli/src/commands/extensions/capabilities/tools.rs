@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -12,7 +11,7 @@ pub struct ToolsArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: ToolsArgs, _config: &CliConfig) -> Result<CommandResult<ToolsListOutput>> {
+pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let tools: Vec<ToolWithExtension> = registry
@@ -40,10 +39,10 @@ pub fn execute(args: ToolsArgs, _config: &CliConfig) -> Result<CommandResult<Too
 
     let output = ToolsListOutput { tools, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Tools Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "tool_name".to_string(),
-        ]))
+        ])
 }

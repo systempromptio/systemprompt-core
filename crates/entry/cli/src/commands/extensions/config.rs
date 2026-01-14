@@ -12,7 +12,7 @@ pub struct ConfigArgs {
     pub id: String,
 }
 
-pub fn execute(args: ConfigArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionConfigOutput>> {
+pub fn execute(args: &ConfigArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionConfigOutput>> {
     let registry = ExtensionRegistry::discover();
 
     let ext = registry

@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::{ExtensionRegistry, SchemaSource};
 
@@ -12,7 +11,7 @@ pub struct SchemasArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: SchemasArgs, _config: &CliConfig) -> Result<CommandResult<SchemasListOutput>> {
+pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<SchemasListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let mut schemas: Vec<SchemaWithExtension> = registry
@@ -50,12 +49,12 @@ pub fn execute(args: SchemasArgs, _config: &CliConfig) -> Result<CommandResult<S
 
     let output = SchemasListOutput { schemas, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Schemas Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "table".to_string(),
             "migration_weight".to_string(),
             "source".to_string(),
-        ]))
+        ])
 }

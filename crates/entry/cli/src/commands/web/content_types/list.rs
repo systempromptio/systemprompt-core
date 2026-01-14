@@ -25,7 +25,7 @@ pub struct ListArgs {
     pub category: Option<String>,
 }
 
-pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ContentTypeListOutput>> {
+pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<ContentTypeListOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 
@@ -48,11 +48,9 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Cont
             }
         })
         .filter(|(_, source)| {
-            if let Some(ref category) = args.category {
-                source.category_id.as_str() == category
-            } else {
-                true
-            }
+            args.category
+                .as_ref()
+                .map_or(true, |category| source.category_id.as_str() == category)
         })
         .map(|(name, source)| ContentTypeSummary {
             name: name.clone(),

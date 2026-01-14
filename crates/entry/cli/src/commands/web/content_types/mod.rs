@@ -31,7 +31,7 @@ pub enum ContentTypesCommands {
 pub fn execute(command: ContentTypesCommands, config: &CliConfig) -> Result<()> {
     match command {
         ContentTypesCommands::List(args) => {
-            let result = list::execute(args, config).context("Failed to list content types")?;
+            let result = list::execute(&args, config).context("Failed to list content types")?;
             render_result(&result);
             Ok(())
         },

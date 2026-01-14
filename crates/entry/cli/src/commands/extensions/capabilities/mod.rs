@@ -5,7 +5,6 @@ mod schemas;
 mod templates;
 mod tools;
 
-use anyhow::{Context, Result};
 use clap::Subcommand;
 
 use crate::shared::render_result;
@@ -32,38 +31,25 @@ pub enum CapabilitiesCommands {
     LlmProviders(llm_providers::LlmProvidersArgs),
 }
 
-pub fn execute(cmd: CapabilitiesCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(cmd: CapabilitiesCommands, config: &CliConfig) {
     match cmd {
         CapabilitiesCommands::Jobs(args) => {
-            let result = jobs::execute(args, config).context("Failed to list jobs")?;
-            render_result(&result);
-            Ok(())
+            render_result(&jobs::execute(&args, config));
         },
         CapabilitiesCommands::Templates(args) => {
-            let result = templates::execute(args, config).context("Failed to list templates")?;
-            render_result(&result);
-            Ok(())
+            render_result(&templates::execute(&args, config));
         },
         CapabilitiesCommands::Schemas(args) => {
-            let result = schemas::execute(args, config).context("Failed to list schemas")?;
-            render_result(&result);
-            Ok(())
+            render_result(&schemas::execute(&args, config));
         },
         CapabilitiesCommands::Tools(args) => {
-            let result = tools::execute(args, config).context("Failed to list tools")?;
-            render_result(&result);
-            Ok(())
+            render_result(&tools::execute(&args, config));
         },
         CapabilitiesCommands::Roles(args) => {
-            let result = roles::execute(args, config).context("Failed to list roles")?;
-            render_result(&result);
-            Ok(())
+            render_result(&roles::execute(&args, config));
         },
         CapabilitiesCommands::LlmProviders(args) => {
-            let result =
-                llm_providers::execute(args, config).context("Failed to list LLM providers")?;
-            render_result(&result);
-            Ok(())
+            render_result(&llm_providers::execute(&args, config));
         },
     }
 }

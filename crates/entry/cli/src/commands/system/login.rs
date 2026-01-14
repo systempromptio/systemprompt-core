@@ -92,7 +92,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
 
     if args.token_only {
         println!("{}", session_token.as_str());
-        return Ok(CommandResult::text(output));
+        return Ok(CommandResult::text(output).with_skip_render());
     }
 
     CliService::success("Login successful");

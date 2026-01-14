@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -12,7 +11,7 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: LlmProvidersArgs, _config: &CliConfig) -> Result<CommandResult<LlmProvidersListOutput>> {
+pub fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandResult<LlmProvidersListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let providers: Vec<LlmProviderWithExtension> = registry
@@ -40,10 +39,10 @@ pub fn execute(args: LlmProvidersArgs, _config: &CliConfig) -> Result<CommandRes
 
     let output = LlmProvidersListOutput { providers, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("LLM Providers Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "provider_name".to_string(),
-        ]))
+        ])
 }

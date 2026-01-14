@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -12,7 +11,7 @@ pub struct ValidateArgs {
     pub verbose: bool,
 }
 
-pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionValidationOutput>> {
+pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> CommandResult<ExtensionValidationOutput> {
     let registry = ExtensionRegistry::discover();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -71,5 +70,5 @@ pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<
         warnings,
     };
 
-    Ok(CommandResult::card(output).with_title("Extension Validation"))
+    CommandResult::card(output).with_title("Extension Validation")
 }

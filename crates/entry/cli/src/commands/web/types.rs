@@ -153,12 +153,12 @@ pub enum AssetType {
 impl std::fmt::Display for AssetType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            AssetType::Css => write!(f, "css"),
-            AssetType::Logo => write!(f, "logo"),
-            AssetType::Favicon => write!(f, "favicon"),
-            AssetType::Font => write!(f, "font"),
-            AssetType::Image => write!(f, "image"),
-            AssetType::Other => write!(f, "other"),
+            Self::Css => write!(f, "css"),
+            Self::Logo => write!(f, "logo"),
+            Self::Favicon => write!(f, "favicon"),
+            Self::Font => write!(f, "font"),
+            Self::Image => write!(f, "image"),
+            Self::Other => write!(f, "other"),
         }
     }
 }
