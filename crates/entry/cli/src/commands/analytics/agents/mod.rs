@@ -93,7 +93,7 @@ pub struct ErrorBreakdownItem {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct HourlyDistributionItem {
     pub hour: i32,
     pub count: i64,

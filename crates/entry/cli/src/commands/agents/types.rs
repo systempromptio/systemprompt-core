@@ -1,6 +1,10 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+// ============================================================================
+// List/Show Output Types
+// ============================================================================
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
     pub agents: Vec<AgentSummary>,
@@ -118,4 +122,60 @@ pub struct AgentLogsOutput {
     pub logs: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub log_files: Vec<String>,
+}
+
+// ============================================================================
+// Registry Output Types (A2A Discovery)
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RegistryOutput {
+    pub gateway_url: String,
+    pub agents_count: usize,
+    pub agents: Vec<RegistryAgentInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct RegistryAgentInfo {
+    pub name: String,
+    pub description: String,
+    pub url: String,
+    pub version: String,
+    pub status: String,
+    pub streaming: bool,
+    pub skills_count: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub skills: Vec<String>,
+}
+
+// ============================================================================
+// Message Output Types (A2A Communication)
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct MessageOutput {
+    pub agent: String,
+    pub task: TaskInfo,
+    pub message_sent: String,
+    pub artifacts_count: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskInfo {
+    pub task_id: String,
+    pub context_id: String,
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskGetOutput {
+    pub task_id: String,
+    pub context_id: String,
+    pub state: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub timestamp: Option<String>,
+    pub history_count: usize,
+    pub artifacts_count: usize,
 }

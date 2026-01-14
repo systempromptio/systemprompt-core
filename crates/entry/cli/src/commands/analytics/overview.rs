@@ -41,39 +41,39 @@ pub struct OverviewOutput {
     pub costs: CostMetrics,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct ConversationMetrics {
     pub total: i64,
     pub change_percent: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct AgentMetrics {
     pub active_count: i64,
     pub total_tasks: i64,
     pub success_rate: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct RequestMetrics {
     pub total: i64,
     pub total_tokens: i64,
     pub avg_latency_ms: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct ToolMetrics {
     pub total_executions: i64,
     pub success_rate: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct SessionMetrics {
     pub active: i64,
     pub total_today: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct CostMetrics {
     pub total_cents: i64,
     pub change_percent: Option<f64>,

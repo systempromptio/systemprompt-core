@@ -86,7 +86,7 @@ async fn fetch_trends(
         let key = format_period_label(truncate_to_period(row.created_at, group_by), group_by);
         let entry = buckets
             .entry(key)
-            .or_insert((0, std::collections::HashSet::new()));
+            .or_insert_with(|| (0, std::collections::HashSet::new()));
         entry.0 += 1;
         if let Some(session_id) = row.session_id {
             entry.1.insert(session_id);

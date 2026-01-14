@@ -12,7 +12,7 @@ use crate::commands::analytics::shared::{
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum BreakdownType {
     Model,
     Agent,

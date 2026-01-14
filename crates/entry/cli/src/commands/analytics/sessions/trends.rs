@@ -101,7 +101,7 @@ async fn fetch_trends(
             format_period_label(truncate_to_period(row.started_at, group_by), group_by);
         let entry = buckets
             .entry(period_key)
-            .or_insert((0, std::collections::HashSet::new(), 0));
+            .or_insert_with(|| (0, std::collections::HashSet::new(), 0));
         entry.0 += 1;
         if let Some(user_id) = row.user_id {
             entry.1.insert(user_id);

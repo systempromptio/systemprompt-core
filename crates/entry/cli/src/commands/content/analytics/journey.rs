@@ -6,7 +6,7 @@ use clap::Args;
 use systemprompt_core_content::LinkAnalyticsService;
 use systemprompt_runtime::AppContext;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct JourneyArgs {
     #[arg(long, default_value = "20")]
     pub limit: i64,

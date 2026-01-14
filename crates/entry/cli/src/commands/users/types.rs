@@ -59,7 +59,7 @@ pub struct UserActivityOutput {
     pub message_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct UserCountOutput {
     pub count: i64,
 }

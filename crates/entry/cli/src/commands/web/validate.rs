@@ -1,0 +1,403 @@
+use anyhow::{Context, Result};
+use clap::{Args, ValueEnum};
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
+
+use crate::shared::CommandResult;
+use crate::CliConfig;
+use systemprompt_models::content_config::ContentConfigRaw;
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+
+use super::types::{TemplatesConfig, ValidationIssue, ValidationOutput};
+
+#[derive(Debug, Clone, Copy, ValueEnum, Default)]
+pub enum ValidationCategory {
+    #[default]
+    All,
+    Config,
+    Templates,
+    Assets,
+    Sitemap,
+}
+
+#[derive(Debug, Clone, Copy, Args)]
+pub struct ValidateArgs {
+    #[arg(long, value_enum, help = "Only check specific category")]
+    pub only: Option<ValidationCategory>,
+}
+
+pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult<ValidationOutput>> {
+    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
+
+    let category = args.only.unwrap_or(ValidationCategory::All);
+
+    // Config validation
+    if matches!(category, ValidationCategory::All | ValidationCategory::Config) {
+        validate_config(profile, &mut errors, &mut warnings)?;
+    }
+
+    // Templates validation
+    if matches!(
+        category,
+        ValidationCategory::All | ValidationCategory::Templates
+    ) {
+        validate_templates(profile, &mut errors, &mut warnings)?;
+    }
+
+    // Assets validation
+    if matches!(category, ValidationCategory::All | ValidationCategory::Assets) {
+        validate_assets(profile, &mut errors, &mut warnings)?;
+    }
+
+    // Sitemap validation
+    if matches!(
+        category,
+        ValidationCategory::All | ValidationCategory::Sitemap
+    ) {
+        validate_sitemap(profile, &mut errors, &mut warnings)?;
+    }
+
+    let valid = errors.is_empty();
+
+    let output = ValidationOutput {
+        valid,
+        errors,
+        warnings,
+    };
+
+    Ok(CommandResult::table(output).with_title("Web Configuration Validation"))
+}
+
+fn validate_config(
+    profile: &systemprompt_models::Profile,
+    errors: &mut Vec<ValidationIssue>,
+    warnings: &mut Vec<ValidationIssue>,
+) -> Result<()> {
+    // Check web config exists and parses
+    let web_config_path = profile.paths.web_config();
+    if !Path::new(&web_config_path).exists() {
+        errors.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Web config not found at {}", web_config_path),
+            suggestion: Some("Create a web config.yaml file".to_string()),
+        });
+    } else if let Err(e) = fs::read_to_string(&web_config_path) {
+        errors.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Failed to read web config: {}", e),
+            suggestion: None,
+        });
+    }
+
+    // Check content config exists and parses
+    let content_config_path = profile.paths.content_config();
+    if !Path::new(&content_config_path).exists() {
+        errors.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Content config not found at {}", content_config_path),
+            suggestion: Some("Create a content config.yaml file".to_string()),
+        });
+        return Ok(());
+    }
+
+    let content = match fs::read_to_string(&content_config_path) {
+        Ok(c) => c,
+        Err(e) => {
+            errors.push(ValidationIssue {
+                category: "config".to_string(),
+                message: format!("Failed to read content config: {}", e),
+                suggestion: None,
+            });
+            return Ok(());
+        },
+    };
+
+    let _content_config: ContentConfigRaw = match serde_yaml::from_str(&content) {
+        Ok(c) => c,
+        Err(e) => {
+            errors.push(ValidationIssue {
+                category: "config".to_string(),
+                message: format!("Failed to parse content config: {}", e),
+                suggestion: Some("Check YAML syntax".to_string()),
+            });
+            return Ok(());
+        },
+    };
+
+    // Check web path exists
+    let web_path = profile.paths.web_path_resolved();
+    if !Path::new(&web_path).exists() {
+        warnings.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Web path does not exist: {}", web_path),
+            suggestion: Some("Create the web directory structure".to_string()),
+        });
+    }
+
+    // Check templates directory
+    let templates_dir = Path::new(&web_path).join("templates");
+    if !templates_dir.exists() {
+        warnings.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Templates directory not found: {}", templates_dir.display()),
+            suggestion: Some("Create the templates directory".to_string()),
+        });
+    }
+
+    // Check assets directory
+    let assets_dir = Path::new(&web_path).join("assets");
+    if !assets_dir.exists() {
+        warnings.push(ValidationIssue {
+            category: "config".to_string(),
+            message: format!("Assets directory not found: {}", assets_dir.display()),
+            suggestion: Some("Create the assets directory".to_string()),
+        });
+    }
+
+    Ok(())
+}
+
+fn validate_templates(
+    profile: &systemprompt_models::Profile,
+    errors: &mut Vec<ValidationIssue>,
+    warnings: &mut Vec<ValidationIssue>,
+) -> Result<()> {
+    let web_path = profile.paths.web_path_resolved();
+    let templates_dir = Path::new(&web_path).join("templates");
+    let templates_yaml_path = templates_dir.join("templates.yaml");
+
+    if !templates_yaml_path.exists() {
+        warnings.push(ValidationIssue {
+            category: "templates".to_string(),
+            message: format!("templates.yaml not found at {}", templates_yaml_path.display()),
+            suggestion: Some("Create a templates.yaml file".to_string()),
+        });
+        return Ok(());
+    }
+
+    let content = match fs::read_to_string(&templates_yaml_path) {
+        Ok(c) => c,
+        Err(e) => {
+            errors.push(ValidationIssue {
+                category: "templates".to_string(),
+                message: format!("Failed to read templates.yaml: {}", e),
+                suggestion: None,
+            });
+            return Ok(());
+        },
+    };
+
+    let templates_config: TemplatesConfig = match serde_yaml::from_str(&content) {
+        Ok(c) => c,
+        Err(e) => {
+            errors.push(ValidationIssue {
+                category: "templates".to_string(),
+                message: format!("Failed to parse templates.yaml: {}", e),
+                suggestion: Some("Check YAML syntax".to_string()),
+            });
+            return Ok(());
+        },
+    };
+
+    // Check each template has an HTML file
+    for (name, _entry) in &templates_config.templates {
+        let html_path = templates_dir.join(format!("{}.html", name));
+        if !html_path.exists() {
+            errors.push(ValidationIssue {
+                category: "templates".to_string(),
+                message: format!("Missing HTML file for template '{}'", name),
+                suggestion: Some(format!("Create {}", html_path.display())),
+            });
+        }
+    }
+
+    // Load content config to check content type references
+    let content_config_path = profile.paths.content_config();
+    if let Ok(content) = fs::read_to_string(&content_config_path) {
+        if let Ok(content_config) = serde_yaml::from_str::<ContentConfigRaw>(&content) {
+            let content_type_names: HashSet<&String> = content_config.content_sources.keys().collect();
+
+            // Check template content types reference valid content sources
+            for (template_name, entry) in &templates_config.templates {
+                for ct in &entry.content_types {
+                    if !content_type_names.contains(ct) {
+                        warnings.push(ValidationIssue {
+                            category: "templates".to_string(),
+                            message: format!(
+                                "Template '{}' references unknown content type '{}'",
+                                template_name, ct
+                            ),
+                            suggestion: Some("Add the content type to content config".to_string()),
+                        });
+                    }
+                }
+            }
+
+            // Check for orphaned content types (no template)
+            let template_content_types: HashSet<&String> = templates_config
+                .templates
+                .values()
+                .flat_map(|e| e.content_types.iter())
+                .collect();
+
+            for name in content_type_names {
+                if !template_content_types.contains(name) {
+                    warnings.push(ValidationIssue {
+                        category: "templates".to_string(),
+                        message: format!("Content type '{}' has no associated template", name),
+                        suggestion: Some("Link a template to this content type".to_string()),
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_assets(
+    profile: &systemprompt_models::Profile,
+    errors: &mut Vec<ValidationIssue>,
+    _warnings: &mut Vec<ValidationIssue>,
+) -> Result<()> {
+    let web_config_path = profile.paths.web_config();
+    let web_path = profile.paths.web_path_resolved();
+    let assets_dir = Path::new(&web_path).join("assets");
+
+    if !assets_dir.exists() {
+        return Ok(());
+    }
+
+    // Read web config and check for asset references
+    if let Ok(config_content) = fs::read_to_string(&web_config_path) {
+        // Check branding logo references
+        let logo_refs = [
+            "logo.svg",
+            "logo.png",
+            "logo.webp",
+            "logo-dark.png",
+            "logo-512.png",
+        ];
+
+        for logo in logo_refs {
+            if config_content.contains(logo) {
+                let logo_path = assets_dir.join("logos").join(logo);
+                if !logo_path.exists() {
+                    errors.push(ValidationIssue {
+                        category: "assets".to_string(),
+                        message: format!("Referenced logo not found: {}", logo_path.display()),
+                        suggestion: Some("Add the missing logo file".to_string()),
+                    });
+                }
+            }
+        }
+
+        // Check favicon reference
+        if config_content.contains("favicon") {
+            let favicon_path = assets_dir.join("favicon.ico");
+            let favicon_svg = assets_dir.join("logos").join("logo.svg");
+            if !favicon_path.exists() && !favicon_svg.exists() {
+                errors.push(ValidationIssue {
+                    category: "assets".to_string(),
+                    message: "Referenced favicon not found".to_string(),
+                    suggestion: Some("Add a favicon.ico or logo.svg file".to_string()),
+                });
+            }
+        }
+    }
+
+    Ok(())
+}
+
+fn validate_sitemap(
+    profile: &systemprompt_models::Profile,
+    errors: &mut Vec<ValidationIssue>,
+    warnings: &mut Vec<ValidationIssue>,
+) -> Result<()> {
+    let content_config_path = profile.paths.content_config();
+
+    let content = match fs::read_to_string(&content_config_path) {
+        Ok(c) => c,
+        Err(_) => return Ok(()),
+    };
+
+    let content_config: ContentConfigRaw = match serde_yaml::from_str(&content) {
+        Ok(c) => c,
+        Err(_) => return Ok(()),
+    };
+
+    let valid_changefreq = [
+        "always", "hourly", "daily", "weekly", "monthly", "yearly", "never",
+    ];
+
+    for (name, source) in &content_config.content_sources {
+        if let Some(sitemap) = &source.sitemap {
+            // Validate priority
+            if sitemap.priority < 0.0 || sitemap.priority > 1.0 {
+                errors.push(ValidationIssue {
+                    category: "sitemap".to_string(),
+                    message: format!(
+                        "Invalid priority {} for '{}' (must be 0.0-1.0)",
+                        sitemap.priority, name
+                    ),
+                    suggestion: None,
+                });
+            }
+
+            // Validate changefreq
+            if !valid_changefreq.contains(&sitemap.changefreq.as_str()) {
+                warnings.push(ValidationIssue {
+                    category: "sitemap".to_string(),
+                    message: format!(
+                        "Invalid changefreq '{}' for '{}' (should be one of: {:?})",
+                        sitemap.changefreq, name, valid_changefreq
+                    ),
+                    suggestion: None,
+                });
+            }
+
+            // Check URL pattern format
+            if !sitemap.url_pattern.starts_with('/') {
+                warnings.push(ValidationIssue {
+                    category: "sitemap".to_string(),
+                    message: format!(
+                        "URL pattern for '{}' should start with '/'",
+                        name
+                    ),
+                    suggestion: Some(format!("Change to /{}", sitemap.url_pattern)),
+                });
+            }
+
+            // Validate parent route if present
+            if let Some(parent) = &sitemap.parent_route {
+                if parent.priority < 0.0 || parent.priority > 1.0 {
+                    errors.push(ValidationIssue {
+                        category: "sitemap".to_string(),
+                        message: format!(
+                            "Invalid parent route priority {} for '{}'",
+                            parent.priority, name
+                        ),
+                        suggestion: None,
+                    });
+                }
+
+                if !valid_changefreq.contains(&parent.changefreq.as_str()) {
+                    warnings.push(ValidationIssue {
+                        category: "sitemap".to_string(),
+                        message: format!(
+                            "Invalid parent route changefreq '{}' for '{}'",
+                            parent.changefreq, name
+                        ),
+                        suggestion: None,
+                    });
+                }
+            }
+        }
+    }
+
+    Ok(())
+}

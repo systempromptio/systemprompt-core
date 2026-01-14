@@ -94,8 +94,8 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Apply model and provider filters
-    let filtered_rows: Vec<_> = rows
+    // Apply model and provider filters and transform
+    let requests: Vec<RequestListRow> = rows
         .into_iter()
         .filter(|r| {
             if let Some(ref model) = args.model {
@@ -110,10 +110,6 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
             }
             true
         })
-        .collect();
-
-    let requests: Vec<RequestListRow> = filtered_rows
-        .into_iter()
         .map(|r| {
             let input = r.input_tokens.unwrap_or(0);
             let output = r.output_tokens.unwrap_or(0);

@@ -12,3 +12,4 @@ pub mod services;
 pub mod setup;
 pub mod skills;
 pub mod users;
+pub mod web;

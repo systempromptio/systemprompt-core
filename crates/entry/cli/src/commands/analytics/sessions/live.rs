@@ -9,7 +9,7 @@ use crate::commands::analytics::shared::format_number;
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct LiveArgs {
     #[arg(long, default_value = "5", help = "Refresh interval in seconds")]
     pub refresh: u64,
@@ -37,7 +37,7 @@ pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
     }
 
     loop {
-        print!("\x1B[2J\x1B[1;1H");
+        CliService::clear_screen();
 
         let output = fetch_live_sessions(&pool, args.limit).await?;
         render_output(&output, config);

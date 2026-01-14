@@ -196,6 +196,7 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
     request_ids
 }
 
+#[allow(dead_code)]
 pub fn print_system_prompt(prompt: Option<&String>) {
     if let Some(content) = prompt {
         print_section("SYSTEM PROMPT");
@@ -203,6 +204,7 @@ pub fn print_system_prompt(prompt: Option<&String>) {
     }
 }
 
+#[allow(dead_code)]
 pub fn print_conversation_history(messages_by_request: &[(usize, Vec<ConversationMessage>)]) {
     if messages_by_request.is_empty() {
         return;

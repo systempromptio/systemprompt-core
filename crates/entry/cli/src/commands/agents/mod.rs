@@ -5,6 +5,8 @@ mod delete;
 mod edit;
 mod list;
 mod logs;
+mod message;
+mod registry;
 mod run;
 mod show;
 mod status;
@@ -42,6 +44,12 @@ pub enum AgentsCommands {
 
     #[command(about = "View agent logs")]
     Logs(logs::LogsArgs),
+
+    #[command(about = "Get running agents from gateway registry (A2A discovery)")]
+    Registry(registry::RegistryArgs),
+
+    #[command(about = "Send a message to an agent via A2A protocol")]
+    Message(message::MessageArgs),
 
     #[command(about = "Run an agent server (internal use)", hide = true)]
     Run(run::RunArgs),
@@ -95,6 +103,20 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             let result = logs::execute(args, config)
                 .await
                 .context("Failed to get agent logs")?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Registry(args) => {
+            let result = registry::execute(args, config)
+                .await
+                .context("Failed to get agent registry")?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Message(args) => {
+            let result = message::execute(args, config)
+                .await
+                .context("Failed to send message to agent")?;
             render_result(&result);
             Ok(())
         },

@@ -53,7 +53,7 @@ pub async fn execute(
 
     let message = file_summary
         .as_ref()
-        .map_or("No featured image set".to_string(), |f| {
+        .map_or_else(|| "No featured image set".to_string(), |f| {
             format!("Featured image: {}", f.path)
         });
 

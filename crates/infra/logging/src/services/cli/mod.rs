@@ -93,6 +93,12 @@ impl CliService {
         print!("\x1B[2J\x1B[1;1H");
     }
 
+    pub fn output(content: &str) {
+        if is_console_output_enabled() {
+            println!("{content}");
+        }
+    }
+
     pub fn json<T: Serialize>(value: &T) {
         match serde_json::to_string_pretty(value) {
             Ok(json) => println!("{json}"),

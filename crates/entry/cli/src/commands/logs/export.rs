@@ -73,11 +73,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let logs: Vec<LogEntryRow> = rows
         .into_iter()
         .filter(|r| {
-            if let Some(ref module) = args.module {
-                r.module.contains(module)
-            } else {
-                true
-            }
+            args.module.as_ref().map_or(true, |module| r.module.contains(module))
         })
         .map(|r| LogEntryRow {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
@@ -105,7 +101,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
             .map(serde_json::to_string)
             .collect::<Result<Vec<_>, _>>()?
             .join("\n"),
-        ExportFormat::Csv => format_csv(&logs)?,
+        ExportFormat::Csv => format_csv(&logs),
     };
 
     if let Some(ref path) = args.output {
@@ -129,7 +125,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
             ));
         }
     } else {
-        println!("{}", content);
+        CliService::output(&content);
     }
 
     Ok(())
@@ -227,7 +223,7 @@ async fn fetch_logs(
     Ok(rows)
 }
 
-fn format_csv(logs: &[LogEntryRow]) -> Result<String> {
+fn format_csv(logs: &[LogEntryRow]) -> String {
     let mut output = String::from("timestamp,level,module,message\n");
 
     for log in logs {
@@ -238,5 +234,5 @@ fn format_csv(logs: &[LogEntryRow]) -> Result<String> {
         ));
     }
 
-    Ok(output)
+    output
 }

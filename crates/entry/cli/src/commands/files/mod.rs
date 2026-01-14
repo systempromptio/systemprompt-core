@@ -78,7 +78,7 @@ pub async fn execute_with_config(cmd: FilesCommands, config: &CliConfig) -> Resu
             Ok(())
         },
         FilesCommands::Validate(args) => {
-            let result = validate::execute(args, config).context("Failed to validate file")?;
+            let result = validate::execute(&args, config).context("Failed to validate file")?;
             render_result(&result);
             Ok(())
         },
