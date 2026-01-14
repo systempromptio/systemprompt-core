@@ -8,7 +8,7 @@ use super::types::{
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-pub fn execute(config: &CliConfig) -> Result<()> {
+pub fn execute(_config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let profile_path = ProfileBootstrap::get_path()?;
 

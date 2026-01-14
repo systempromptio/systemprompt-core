@@ -47,7 +47,7 @@ pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<Agent
         provider,
         model,
         mcp_servers: agent.metadata.mcp_servers.clone(),
-        skills_count: agent.card.skills.len(),
+        skills_count: agent.metadata.skills.len(),
     };
 
     Ok(CommandResult::card(output).with_title(format!("Agent: {}", name)))

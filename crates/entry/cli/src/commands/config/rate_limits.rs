@@ -424,7 +424,7 @@ pub fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     };
 
     save_profile(&profile, profile_path)?;
-    render_result(&CommandResult::text(output.clone()).with_title("Rate Limit Updated"));
+    render_result(&CommandResult::text(output).with_title("Rate Limit Updated"));
 
     if config.output_format() == OutputFormat::Table {
         CliService::warning("Restart services for changes to take effect");
@@ -585,7 +585,7 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
         warnings,
     };
 
-    render_result(&CommandResult::card(output.clone()).with_title("Rate Limits Validation"));
+    render_result(&CommandResult::card(output).with_title("Rate Limits Validation"));
 
     if config.output_format() == OutputFormat::Table {
         if valid {
@@ -1137,7 +1137,7 @@ fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
     let content =
         fs::read_to_string(&args.file).with_context(|| format!("Failed to read file: {}", args.file))?;
 
-    let is_json = std::path::Path::new(&args.file)
+    let is_json = Path::new(&args.file)
         .extension()
         .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
 
@@ -1189,7 +1189,7 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read file: {}", file_path))?;
 
-        let is_json = std::path::Path::new(file_path)
+        let is_json = Path::new(file_path)
             .extension()
             .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
 

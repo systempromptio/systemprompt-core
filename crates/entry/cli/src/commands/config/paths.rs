@@ -151,7 +151,7 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
         paths: validations,
     };
 
-    render_result(&CommandResult::table(output.clone()).with_title("Paths Validation"));
+    render_result(&CommandResult::table(output).with_title("Paths Validation"));
 
     if config.output_format() == OutputFormat::Table {
         if valid {

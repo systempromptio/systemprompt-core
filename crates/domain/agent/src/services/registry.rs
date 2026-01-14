@@ -1,7 +1,10 @@
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
+use std::fs;
+use std::path::Path;
 use std::sync::Arc;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::{AgentConfig, AgentOAuthConfig, ServicesConfig};
 use tokio::sync::RwLock;
 
@@ -110,6 +113,84 @@ fn override_oauth_urls(schemes: &mut HashMap<String, SecurityScheme>, api_extern
     }
 }
 
+fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentSkill> {
+    let skill_dir = skills_path.join(skill_id);
+    let index_path = skill_dir.join("index.md");
+
+    if !index_path.exists() {
+        anyhow::bail!("Skill directory or index.md not found: {}", index_path.display());
+    }
+
+    let content = fs::read_to_string(&index_path)?;
+    let frontmatter = parse_skill_frontmatter(&content)?;
+
+    Ok(AgentSkill {
+        id: skill_id.to_string(),
+        name: frontmatter.title.unwrap_or_else(|| skill_id.to_string()),
+        description: frontmatter.description.unwrap_or_default(),
+        tags: frontmatter.keywords.unwrap_or_default(),
+        examples: frontmatter.examples,
+        input_modes: frontmatter.input_modes,
+        output_modes: frontmatter.output_modes,
+        security: None,
+    })
+}
+
+#[derive(Debug, Default)]
+struct SkillFrontmatter {
+    title: Option<String>,
+    description: Option<String>,
+    keywords: Option<Vec<String>>,
+    examples: Option<Vec<String>>,
+    input_modes: Option<Vec<String>>,
+    output_modes: Option<Vec<String>>,
+}
+
+fn parse_skill_frontmatter(content: &str) -> Result<SkillFrontmatter> {
+    if !content.starts_with("---") {
+        return Ok(SkillFrontmatter::default());
+    }
+
+    let content_after_start = &content[3..];
+    let yaml_content = match content_after_start.find("\n---") {
+        Some(pos) => &content_after_start[..pos],
+        None => return Ok(SkillFrontmatter::default()),
+    };
+
+    let yaml: serde_yaml::Value = serde_yaml::from_str(yaml_content)
+        .map_err(|e| anyhow!("Failed to parse skill frontmatter: {}", e))?;
+
+    let title = yaml.get("title").and_then(|v| v.as_str()).map(String::from);
+    let description = yaml.get("description").and_then(|v| v.as_str()).map(String::from);
+
+    let keywords = yaml.get("keywords").and_then(|v| {
+        v.as_str()
+            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
+            .or_else(|| v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()))
+    });
+
+    let examples = yaml.get("examples").and_then(|v| {
+        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+    });
+
+    let input_modes = yaml.get("input_modes").and_then(|v| {
+        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+    });
+
+    let output_modes = yaml.get("output_modes").and_then(|v| {
+        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+    });
+
+    Ok(SkillFrontmatter {
+        title,
+        description,
+        keywords,
+        examples,
+        input_modes,
+        output_modes,
+    })
+}
+
 #[derive(Clone, Debug)]
 pub struct AgentRegistry {
     config: Arc<RwLock<ServicesConfig>>,
@@ -206,26 +287,24 @@ impl AgentRegistry {
 
         let mut all_skills = Vec::new();
 
-        for skill_config in &agent.card.skills {
-            let security = skill_config.security.as_ref().and_then(|sec_vec| {
-                let reqs: Result<Vec<HashMap<String, Vec<String>>>, _> = sec_vec
-                    .iter()
-                    .map(|v| serde_json::from_value::<HashMap<String, Vec<String>>>(v.clone()))
-                    .collect();
-                reqs.ok()
-            });
+        let skills_path = ProfileBootstrap::get()
+            .map(|p| p.paths.skills())
+            .unwrap_or_else(|_| String::new());
 
-            let skill = AgentSkill {
-                id: skill_config.id.clone(),
-                name: skill_config.name.clone(),
-                description: skill_config.description.clone(),
-                tags: skill_config.tags.clone(),
-                examples: skill_config.examples.clone(),
-                input_modes: skill_config.input_modes.clone(),
-                output_modes: skill_config.output_modes.clone(),
-                security,
-            };
-            all_skills.push(skill);
+        if !skills_path.is_empty() {
+            let skills_dir = Path::new(&skills_path);
+            for skill_id in &agent.metadata.skills {
+                match load_skill_from_disk(skills_dir, skill_id) {
+                    Ok(skill) => all_skills.push(skill),
+                    Err(e) => {
+                        tracing::warn!(
+                            skill_id = %skill_id,
+                            error = %e,
+                            "Failed to load skill for agent card, skipping"
+                        );
+                    }
+                }
+            }
         }
 
         Ok(AgentCard {

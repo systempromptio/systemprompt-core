@@ -52,7 +52,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<List
                 .clone()
                 .unwrap_or_else(|| "-".to_string()),
             mcp_servers: agent.metadata.mcp_servers.clone(),
-            skills_count: agent.card.skills.len(),
+            skills_count: agent.metadata.skills.len(),
         };
 
         return Ok(CommandResult::card(ListOrDetail::Detail(output))

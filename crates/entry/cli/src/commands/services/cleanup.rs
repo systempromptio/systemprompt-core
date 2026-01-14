@@ -39,15 +39,15 @@ pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()>
         for service in &running_services {
             if let Some(pid) = service.pid {
                 let pid_u32 = pid as u32;
-                if !ProcessCleanup::process_exists(pid_u32) {
-                    CliService::info(&format!(
-                        "  [stale] {} (PID {} not running)",
-                        service.name, pid
-                    ));
-                } else {
+                if ProcessCleanup::process_exists(pid_u32) {
                     CliService::info(&format!(
                         "  [running] {} (PID: {}, port: {})",
                         service.name, pid, service.port
+                    ));
+                } else {
+                    CliService::info(&format!(
+                        "  [stale] {} (PID {} not running)",
+                        service.name, pid
                     ));
                 }
             }

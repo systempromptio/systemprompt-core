@@ -47,7 +47,7 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
             CliService::error(&format!("{} failed: {}", module.name, e));
             error_count += 1;
         } else {
-            installed_modules.push(module.name.to_string());
+            installed_modules.push(module.name.clone());
         }
     }
 
