@@ -6,7 +6,7 @@ use systemprompt_core_database::DbPool;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
-use super::ImageOptimizationJob;
+use super::{CopyExtensionAssetsJob, ImageOptimizationJob};
 use crate::{generate_sitemap, organize_css_files, prerender_content, prerender_homepage};
 
 #[derive(Debug, Clone, Copy)]
@@ -47,6 +47,7 @@ impl PublishContentJob {
 
         tokio::time::sleep(Duration::from_millis(500)).await;
 
+        run_asset_copy(&mut stats).await;
         run_prerender(db_pool, &mut stats).await;
         run_homepage_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
@@ -83,6 +84,19 @@ async fn run_content_ingestion(db_pool: &DbPool, stats: &mut PublishStats) {
         Ok(_) => stats.record_success(),
         Err(e) => {
             tracing::error!(error = %e, "Content ingestion failed");
+            stats.record_failure();
+        },
+    }
+}
+
+async fn run_asset_copy(stats: &mut PublishStats) {
+    match CopyExtensionAssetsJob::execute_copy().await {
+        Ok(_) => {
+            tracing::debug!("Extension asset copy completed");
+            stats.record_success();
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "Extension asset copy failed");
             stats.record_failure();
         },
     }

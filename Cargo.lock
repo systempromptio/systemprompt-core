@@ -5591,6 +5591,7 @@ dependencies = [
  "systemprompt-core-database",
  "systemprompt-core-files",
  "systemprompt-core-logging",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-template-provider",

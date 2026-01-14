@@ -1,4 +1,5 @@
 pub mod any;
+mod asset;
 pub mod builder;
 pub mod capabilities;
 pub mod context;
@@ -17,6 +18,7 @@ use serde_json::Value as JsonValue;
 use systemprompt_template_provider::TemplateProvider;
 use systemprompt_traits::{Job, LlmProvider, ToolProvider};
 
+pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
@@ -239,6 +241,14 @@ pub trait Extension: Send + Sync + 'static {
     fn has_roles(&self) -> bool {
         !self.roles().is_empty()
     }
+
+    fn required_assets(&self) -> Vec<AssetDefinition> {
+        vec![]
+    }
+
+    fn has_assets(&self) -> bool {
+        !self.required_assets().is_empty()
+    }
 }
 
 #[macro_export]
@@ -260,6 +270,7 @@ macro_rules! register_extension {
 }
 
 pub mod prelude {
+    pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
