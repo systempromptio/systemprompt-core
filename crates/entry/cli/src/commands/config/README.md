@@ -21,8 +21,14 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
 | `config rate-limits show` | Show rate limit configuration | `Card` | No |
-| `config rate-limits list` | List all rate limit rules | `Table` | No |
-| `config rate-limits set` | Set rate limit value | `Text` | No |
+| `config rate-limits tier <TIER>` | Show effective limits for a tier | `Card` | No |
+| `config rate-limits docs` | Show rate limits documentation | `Table` | No |
+| `config rate-limits set` | Set a rate limit value | `Text` | No |
+| `config rate-limits enable` | Enable rate limiting | `Text` | No |
+| `config rate-limits disable` | Disable rate limiting | `Text` | No |
+| `config rate-limits validate` | Validate configuration | `Card` | No |
+| `config rate-limits compare` | Compare limits across tiers | `Table` | No |
+| `config rate-limits reset` | Reset to default values | `Table` | No |
 
 ---
 
@@ -30,7 +36,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ### config rate-limits show
 
-Show current rate limit configuration.
+Show current rate limit configuration from the profile.
 
 ```bash
 sp config rate-limits show
@@ -40,21 +46,26 @@ sp --json config rate-limits show
 **Output Structure:**
 ```json
 {
-  "enabled": true,
-  "global": {
-    "requests_per_minute": 60,
-    "requests_per_hour": 1000,
-    "requests_per_day": 10000
-  },
-  "per_user": {
-    "requests_per_minute": 30,
-    "requests_per_hour": 500,
-    "requests_per_day": 5000
-  },
-  "per_ip": {
-    "requests_per_minute": 20,
-    "requests_per_hour": 200,
-    "requests_per_day": 2000
+  "disabled": true,
+  "oauth_public_per_second": 2,
+  "oauth_auth_per_second": 2,
+  "contexts_per_second": 50,
+  "tasks_per_second": 10,
+  "artifacts_per_second": 15,
+  "agent_registry_per_second": 20,
+  "agents_per_second": 3,
+  "mcp_registry_per_second": 20,
+  "mcp_per_second": 100,
+  "stream_per_second": 1,
+  "content_per_second": 20,
+  "burst_multiplier": 2,
+  "tier_multipliers": {
+    "admin": 10.0,
+    "user": 1.0,
+    "a2a": 5.0,
+    "mcp": 5.0,
+    "service": 5.0,
+    "anon": 0.5
   }
 }
 ```
@@ -63,71 +74,112 @@ sp --json config rate-limits show
 
 ---
 
-### config rate-limits list
+### config rate-limits tier
 
-List all rate limit rules.
+Show effective limits for a specific tier (base rates multiplied by tier multiplier).
 
 ```bash
-sp config rate-limits list
-sp --json config rate-limits list
+sp config rate-limits tier admin
+sp config rate-limits tier user
+sp config rate-limits tier anon
+sp --json config rate-limits tier a2a
+```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<TIER>` | Yes | Tier name: `admin`, `user`, `a2a`, `mcp`, `service`, `anon` |
+
+**Output Structure:**
+```json
+{
+  "tier": "admin",
+  "multiplier": 10.0,
+  "effective_limits": {
+    "oauth_public_per_second": 20,
+    "oauth_auth_per_second": 20,
+    "contexts_per_second": 500,
+    "tasks_per_second": 100,
+    "artifacts_per_second": 150,
+    "agent_registry_per_second": 200,
+    "agents_per_second": 30,
+    "mcp_registry_per_second": 200,
+    "mcp_per_second": 1000,
+    "stream_per_second": 10,
+    "content_per_second": 200
+  }
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### config rate-limits docs
+
+Show comprehensive rate limits documentation including base rates, tier multipliers, and effective limits comparison.
+
+```bash
+sp config rate-limits docs
+sp --json config rate-limits docs
 ```
 
 **Output Structure:**
 ```json
 {
-  "rules": [
-    {
-      "scope": "global",
-      "window": "minute",
-      "limit": 60,
-      "enabled": true
-    },
-    {
-      "scope": "global",
-      "window": "hour",
-      "limit": 1000,
-      "enabled": true
-    },
-    {
-      "scope": "per_user",
-      "window": "minute",
-      "limit": 30,
-      "enabled": true
-    }
+  "base_rates": [
+    {"endpoint": "OAuth Public", "rate_per_second": 2},
+    {"endpoint": "Contexts", "rate_per_second": 50}
   ],
-  "total": 9
+  "tier_multipliers": [
+    {"tier": "Admin", "multiplier": 10.0},
+    {"tier": "User", "multiplier": 1.0}
+  ],
+  "effective_limits": [
+    {"endpoint": "Contexts", "admin": 500, "user": 50, "anon": 25}
+  ],
+  "burst_multiplier": 2,
+  "disabled": true
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `scope`, `window`, `limit`, `enabled`
 
 ---
 
 ### config rate-limits set
 
-Set a rate limit value.
+Set a rate limit value. Modifies the profile YAML file.
 
 ```bash
-sp config rate-limits set --scope global --window minute --limit 100
-sp config rate-limits set --scope per_user --window hour --limit 1000
-sp config rate-limits set --scope per_ip --window day --limit 5000
+# Set endpoint rate
+sp config rate-limits set --endpoint contexts --rate 100
+sp config rate-limits set --endpoint tasks --rate 20
+
+# Set tier multiplier
+sp config rate-limits set --tier admin --multiplier 15.0
+sp config rate-limits set --tier anon --multiplier 0.25
+
+# Set burst multiplier
+sp config rate-limits set --burst 3
 ```
 
-**Required Flags (non-interactive):**
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--scope` | Yes | Scope: `global`, `per_user`, `per_ip` |
-| `--window` | Yes | Time window: `minute`, `hour`, `day` |
-| `--limit` | Yes | Request limit value |
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `--endpoint <NAME>` | Endpoint: `oauth_public`, `oauth_auth`, `contexts`, `tasks`, `artifacts`, `agent_registry`, `agents`, `mcp_registry`, `mcp`, `stream`, `content` |
+| `--rate <VALUE>` | Rate per second (requires `--endpoint`) |
+| `--tier <NAME>` | Tier: `admin`, `user`, `a2a`, `mcp`, `service`, `anon` |
+| `--multiplier <VALUE>` | Multiplier value (requires `--tier`) |
+| `--burst <VALUE>` | Burst multiplier value |
 
 **Output Structure:**
 ```json
 {
-  "scope": "global",
-  "window": "minute",
-  "limit": 100,
-  "message": "Rate limit updated: global/minute = 100"
+  "field": "contexts_per_second",
+  "old_value": "50",
+  "new_value": "100",
+  "message": "Updated contexts rate: 50 -> 100/s"
 }
 ```
 
@@ -135,64 +187,205 @@ sp config rate-limits set --scope per_ip --window day --limit 5000
 
 ---
 
-## Complete Rate Limits Configuration Flow
+### config rate-limits enable
+
+Enable rate limiting.
 
 ```bash
-# Phase 1: View current configuration
-sp --json config rate-limits show
-
-# Phase 2: List all rules
-sp --json config rate-limits list
-
-# Phase 3: Update specific limits
-sp config rate-limits set --scope global --window minute --limit 100
-sp config rate-limits set --scope per_user --window hour --limit 1000
-
-# Phase 4: Verify changes
-sp --json config rate-limits show
+sp config rate-limits enable
+sp --json config rate-limits enable
 ```
+
+**Output Structure:**
+```json
+{
+  "enabled": true,
+  "message": "Rate limiting enabled"
+}
+```
+
+**Artifact Type:** `Text`
 
 ---
 
-## Rate Limit Scopes
+### config rate-limits disable
 
-| Scope | Description |
-|-------|-------------|
-| `global` | Applies to all requests system-wide |
-| `per_user` | Applies per authenticated user |
-| `per_ip` | Applies per IP address |
+Disable rate limiting.
 
-## Time Windows
+```bash
+sp config rate-limits disable
+sp --json config rate-limits disable
+```
 
-| Window | Description |
-|--------|-------------|
-| `minute` | Rolling 60-second window |
-| `hour` | Rolling 3600-second window |
-| `day` | Rolling 86400-second window |
+**Output Structure:**
+```json
+{
+  "enabled": false,
+  "message": "Rate limiting disabled"
+}
+```
+
+**Artifact Type:** `Text`
+
+---
+
+### config rate-limits validate
+
+Validate rate limit configuration for errors and warnings.
+
+```bash
+sp config rate-limits validate
+sp --json config rate-limits validate
+```
+
+**Validation Checks:**
+- No zero or negative rates
+- Positive tier multipliers
+- Tier hierarchy: `anon < user < admin`
+- Burst multiplier is reasonable (1-10x)
+
+**Output Structure:**
+```json
+{
+  "valid": true,
+  "errors": [],
+  "warnings": [
+    "Rate limiting is currently DISABLED"
+  ]
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### config rate-limits compare
+
+Compare effective limits across all tiers side-by-side.
+
+```bash
+sp config rate-limits compare
+sp --json config rate-limits compare
+```
+
+**Output Structure:**
+```json
+{
+  "endpoints": [
+    {
+      "endpoint": "Contexts",
+      "admin": 500,
+      "user": 50,
+      "a2a": 250,
+      "mcp": 250,
+      "service": 250,
+      "anon": 25
+    }
+  ]
+}
+```
+
+**Artifact Type:** `Table`
+
+---
+
+### config rate-limits reset
+
+Reset rate limits to default values.
+
+```bash
+# Preview changes (dry run)
+sp config rate-limits reset --dry-run
+
+# Reset all to defaults
+sp config rate-limits reset --yes
+
+# Reset specific endpoint
+sp config rate-limits reset --endpoint contexts --yes
+
+# Reset specific tier multiplier
+sp config rate-limits reset --tier admin --yes
+```
+
+**Flags:**
+| Flag | Description |
+|------|-------------|
+| `-y`, `--yes` | Skip confirmation (required in non-interactive mode) |
+| `--dry-run` | Preview changes without applying |
+| `--endpoint <NAME>` | Reset only this endpoint |
+| `--tier <NAME>` | Reset only this tier multiplier |
+
+**Output Structure:**
+```json
+{
+  "reset_type": "all",
+  "changes": [
+    {
+      "field": "contexts_per_second",
+      "old_value": "100",
+      "new_value": "50"
+    }
+  ],
+  "message": "Reset 1 value(s) to defaults"
+}
+```
+
+**Artifact Type:** `Table`
+
+---
+
+## Tier Reference
+
+| Tier | Description | Default Multiplier |
+|------|-------------|-------------------|
+| `admin` | Administrative users | 10.0x |
+| `user` | Authenticated users | 1.0x (baseline) |
+| `a2a` | Agent-to-agent communication | 5.0x |
+| `mcp` | MCP protocol requests | 5.0x |
+| `service` | Internal service calls | 5.0x |
+| `anon` | Anonymous/unauthenticated | 0.5x |
+
+---
+
+## Endpoint Reference
+
+| Endpoint | Description | Default Rate |
+|----------|-------------|--------------|
+| `oauth_public` | Public OAuth endpoints | 2/s |
+| `oauth_auth` | Authenticated OAuth endpoints | 2/s |
+| `contexts` | Context operations | 50/s |
+| `tasks` | Task operations | 10/s |
+| `artifacts` | Artifact operations | 15/s |
+| `agent_registry` | Agent registry operations | 20/s |
+| `agents` | Agent operations | 3/s |
+| `mcp_registry` | MCP registry operations | 20/s |
+| `mcp` | MCP operations | 100/s |
+| `stream` | SSE streaming | 10/s |
+| `content` | Content operations | 20/s |
 
 ---
 
 ## Error Handling
 
-### Invalid Scope
-
+### Invalid Tier
 ```bash
-sp config rate-limits set --scope invalid --window minute --limit 100
-# Error: Invalid scope 'invalid'. Valid scopes: global, per_user, per_ip
+sp config rate-limits tier invalid
+# Error: Unknown tier: invalid. Valid tiers: admin, user, a2a, mcp, service, anon
 ```
 
-### Invalid Window
-
+### Invalid Endpoint
 ```bash
-sp config rate-limits set --scope global --window invalid --limit 100
-# Error: Invalid window 'invalid'. Valid windows: minute, hour, day
+sp config rate-limits set --endpoint invalid --rate 100
+# Error: Unknown endpoint: invalid. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, artifacts, agent_registry, agents, mcp_registry, mcp, stream, content
 ```
 
-### Invalid Limit
-
+### Missing Required Flags
 ```bash
-sp config rate-limits set --scope global --window minute --limit -1
-# Error: Limit must be a positive integer
+sp config rate-limits set --endpoint contexts
+# Error: --rate is required when --endpoint is specified
+
+sp config rate-limits reset
+# Error: --yes or --dry-run is required in non-interactive mode
 ```
 
 ---
@@ -202,12 +395,47 @@ sp config rate-limits set --scope global --window minute --limit -1
 All commands support `--json` flag for structured output:
 
 ```bash
-# Verify JSON is valid
+# Get full rate limits as JSON
 sp --json config rate-limits show | jq .
 
-# Extract specific fields
-sp --json config rate-limits show | jq '.global.requests_per_minute'
-sp --json config rate-limits list | jq '.rules[] | select(.scope == "per_user")'
+# Get specific tier effective limits
+sp --json config rate-limits tier admin | jq '.effective_limits.contexts_per_second'
+
+# Check if rate limiting is disabled
+sp --json config rate-limits show | jq '.disabled'
+
+# Compare all tiers
+sp --json config rate-limits compare | jq '.endpoints[] | select(.endpoint == "Contexts")'
+
+# Validate and check for errors
+sp --json config rate-limits validate | jq '.errors'
+```
+
+---
+
+## Complete Configuration Workflow
+
+```bash
+# Phase 1: View current configuration
+sp --json config rate-limits show
+
+# Phase 2: Validate configuration
+sp --json config rate-limits validate
+
+# Phase 3: Compare across tiers
+sp --json config rate-limits compare
+
+# Phase 4: Make changes
+sp config rate-limits set --endpoint contexts --rate 100
+sp config rate-limits set --tier admin --multiplier 15.0
+sp config rate-limits enable
+
+# Phase 5: Verify changes
+sp --json config rate-limits show
+
+# Phase 6: Reset if needed
+sp config rate-limits reset --dry-run
+sp config rate-limits reset --yes
 ```
 
 ---
@@ -220,3 +448,5 @@ sp --json config rate-limits list | jq '.rules[] | select(.scope == "per_user")'
 - [x] No `println!` / `eprintln!` - uses `CliService`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
+- [x] Destructive operations (`reset`) require `--yes` in non-interactive mode
+- [x] `--dry-run` supported for preview

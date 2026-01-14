@@ -13,6 +13,7 @@ use crate::CliConfig;
 pub struct ListArgs {
     #[arg(
         long,
+        short = 'n',
         default_value = "20",
         help = "Maximum number of requests to return"
     )]

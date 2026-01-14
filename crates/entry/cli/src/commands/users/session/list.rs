@@ -2,8 +2,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
-use systemprompt_core_users::UserService;
-use systemprompt_identifiers::UserId;
+use systemprompt_core_users::{UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
 use tabled::{Table, Tabled};
 
@@ -37,20 +36,19 @@ struct SessionRow {
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
+    let admin_service = UserAdminService::new(user_service.clone());
 
-    let user_id = UserId::new(&args.user_id);
-
-    let existing = user_service.find_by_id(&user_id).await?;
-    if existing.is_none() {
+    let existing = admin_service.find_user(&args.user_id).await?;
+    let Some(user) = existing else {
         CliService::error(&format!("User not found: {}", args.user_id));
         return Err(anyhow!("User not found"));
-    }
+    };
 
     let sessions = if args.active {
-        user_service.list_active_sessions(&user_id).await?
+        user_service.list_active_sessions(&user.id).await?
     } else {
         user_service
-            .list_recent_sessions(&user_id, args.limit)
+            .list_recent_sessions(&user.id, args.limit)
             .await?
     };
 

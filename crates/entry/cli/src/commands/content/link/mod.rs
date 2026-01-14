@@ -1,3 +1,4 @@
+pub mod delete;
 pub mod generate;
 pub mod list;
 pub mod performance;
@@ -21,6 +22,9 @@ pub enum LinkCommands {
 
     #[command(about = "Show link performance metrics")]
     Performance(performance::PerformanceArgs),
+
+    #[command(about = "Delete a link")]
+    Delete(delete::DeleteArgs),
 }
 
 pub async fn execute(command: LinkCommands, config: &CliConfig) -> Result<()> {
@@ -47,6 +51,12 @@ pub async fn execute(command: LinkCommands, config: &CliConfig) -> Result<()> {
             let result = performance::execute(args, config)
                 .await
                 .context("Failed to get link performance")?;
+            render_result(&result);
+        },
+        LinkCommands::Delete(args) => {
+            let result = delete::execute(args, config)
+                .await
+                .context("Failed to delete link")?;
             render_result(&result);
         },
     }

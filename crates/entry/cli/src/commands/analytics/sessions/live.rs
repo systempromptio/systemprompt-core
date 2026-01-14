@@ -68,15 +68,18 @@ async fn fetch_live_sessions(
 ) -> Result<LiveSessionsOutput> {
     let cutoff = Utc::now() - Duration::minutes(30);
 
-    let rows: Vec<(
-        String,
-        String,
-        chrono::DateTime<Utc>,
-        Option<i64>,
-        Option<i64>,
-        chrono::DateTime<Utc>,
-    )> = sqlx::query_as(
-        r"
+    struct SessionRow {
+        session_id: String,
+        user_type: Option<String>,
+        started_at: chrono::DateTime<Utc>,
+        duration_seconds: Option<i32>,
+        request_count: Option<i32>,
+        last_activity_at: chrono::DateTime<Utc>,
+    }
+
+    let rows = sqlx::query_as!(
+        SessionRow,
+        r#"
         SELECT
             session_id,
             COALESCE(user_type, 'unknown') as user_type,
@@ -89,40 +92,38 @@ async fn fetch_live_sessions(
           AND last_activity_at >= $1
         ORDER BY last_activity_at DESC
         LIMIT $2
-        ",
+        "#,
+        cutoff,
+        limit
     )
-    .bind(cutoff)
-    .bind(limit)
     .fetch_all(pool.as_ref())
     .await?;
 
     let sessions: Vec<ActiveSessionRow> = rows
         .into_iter()
-        .map(
-            |(session_id, user_type, started_at, duration, requests, last_activity)| {
-                let current_duration = (Utc::now() - started_at).num_seconds();
+        .map(|row| {
+            let current_duration = (Utc::now() - row.started_at).num_seconds();
 
-                ActiveSessionRow {
-                    session_id,
-                    user_type,
-                    started_at: started_at.format("%H:%M:%S").to_string(),
-                    duration_seconds: duration.unwrap_or(current_duration),
-                    request_count: requests.unwrap_or(0),
-                    last_activity: last_activity.format("%H:%M:%S").to_string(),
-                }
-            },
-        )
+            ActiveSessionRow {
+                session_id: row.session_id,
+                user_type: row.user_type.unwrap_or_else(|| "unknown".to_string()),
+                started_at: row.started_at.format("%H:%M:%S").to_string(),
+                duration_seconds: row.duration_seconds.map_or(current_duration, |d| d as i64),
+                request_count: row.request_count.unwrap_or(0) as i64,
+                last_activity: row.last_activity_at.format("%H:%M:%S").to_string(),
+            }
+        })
         .collect();
 
-    let active_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1",
+    let active_count = sqlx::query_scalar!(
+        r#"SELECT COUNT(*) as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1"#,
+        cutoff
     )
-    .bind(cutoff)
     .fetch_one(pool.as_ref())
     .await?;
 
     Ok(LiveSessionsOutput {
-        active_count: active_count.0,
+        active_count,
         sessions,
         timestamp: Utc::now().format("%Y-%m-%d %H:%M:%S").to_string(),
     })

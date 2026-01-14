@@ -2,7 +2,7 @@ pub mod info;
 pub mod query;
 pub mod transaction;
 
-pub use info::{ColumnInfo, DatabaseInfo, TableInfo};
+pub use info::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 pub use query::{DatabaseQuery, FromDatabaseRow, QueryResult, QueryRow, QuerySelector};
 pub use systemprompt_identifiers::{
     ArtifactId, ClientId, ContentId, ContextId, ExecutionStepId, FileId, LogId, SessionId, SkillId,

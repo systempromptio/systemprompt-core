@@ -14,6 +14,9 @@ use systemprompt_loader::ConfigLoader;
 pub struct ListArgs {
     #[arg(long, help = "Show only enabled servers")]
     pub enabled: bool,
+
+    #[arg(long, help = "Show only disabled servers")]
+    pub disabled: bool,
 }
 
 pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpListOutput>> {
@@ -23,15 +26,17 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
     let mut servers: Vec<McpServerSummary> = services_config
         .mcp_servers
         .iter()
-        .filter(
-            |(_, server)| {
-                if args.enabled {
-                    server.enabled
-                } else {
-                    true
-                }
-            },
-        )
+        .filter(|(_, server)| {
+            if args.enabled && args.disabled {
+                true // Show all if both flags set
+            } else if args.enabled {
+                server.enabled
+            } else if args.disabled {
+                !server.enabled
+            } else {
+                true
+            }
+        })
         .map(|(name, server)| {
             let binary_name = if server.binary.is_empty() {
                 name.clone()

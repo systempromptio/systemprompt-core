@@ -2,6 +2,11 @@
 
 This document provides complete documentation for AI agents to use the users CLI commands. All commands support non-interactive mode for automation.
 
+**Important:** All user identifier arguments (`<USER>`) accept:
+- Username (e.g., `johndoe`)
+- UUID (e.g., `a602013b-f059-47eb-9169-df6e8f1372d4`)
+- Email (e.g., `john@example.com`)
+
 ---
 
 ## Prerequisites
@@ -18,23 +23,26 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ## Command Reference
 
-| Command | Description | Artifact Type | Requires Services |
-|---------|-------------|---------------|-------------------|
-| `users list` | List users with pagination | `Table` | No (DB only) |
-| `users show <id>` | Show detailed user information | `Card` | No (DB only) |
-| `users search <query>` | Search users by name/email | `Table` | No (DB only) |
-| `users create` | Create a new user | `Text` | No (DB only) |
-| `users update <id>` | Update user fields | `Text` | No (DB only) |
-| `users delete <id>` | Delete a user | `Text` | No (DB only) |
-| `users count` | Get total user count | `Card` | No (DB only) |
-| `users role assign` | Assign role to user | `Text` | No (DB only) |
-| `users role promote` | Promote user to admin | `Text` | No (DB only) |
-| `users role demote` | Demote user from admin | `Text` | No (DB only) |
-| `users session list` | List user sessions | `Table` | No (DB only) |
-| `users session end` | End user session | `Text` | No (DB only) |
-| `users ban add` | Ban IP address | `Text` | No (DB only) |
-| `users ban remove` | Remove IP ban | `Text` | No (DB only) |
-| `users ban check` | Check if IP is banned | `Card` | No (DB only) |
+| Command | Description | Requires `--yes` |
+|---------|-------------|------------------|
+| `users list` | List users with pagination | No |
+| `users show <USER>` | Show detailed user information | No |
+| `users search <QUERY>` | Search users by name/email | No |
+| `users create` | Create a new user | No |
+| `users update <USER>` | Update user fields | No |
+| `users delete <USER>` | Delete a user | **Yes** |
+| `users count` | Get total user count | No |
+| `users role assign <USER>` | Assign roles to user | No |
+| `users role promote <USER>` | Promote user to admin | No |
+| `users role demote <USER>` | Demote user from admin | No |
+| `users session list <USER>` | List user sessions | No |
+| `users session end` | End user session(s) | **Yes** |
+| `users session cleanup` | Clean up old anonymous users | **Yes** |
+| `users ban list` | List active IP bans | No |
+| `users ban add <IP>` | Ban IP address | No |
+| `users ban remove <IP>` | Remove IP ban | **Yes** |
+| `users ban check <IP>` | Check if IP is banned | No |
+| `users ban cleanup` | Clean up expired bans | **Yes** |
 
 ---
 
@@ -49,9 +57,7 @@ sp users list
 sp --json users list
 sp users list --limit 50 --offset 0
 sp users list --role admin
-sp users list --role user
 sp users list --status active
-sp users list --status suspended
 ```
 
 **Flags:**
@@ -67,7 +73,7 @@ sp users list --status suspended
 {
   "users": [
     {
-      "id": "user_abc123",
+      "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
       "name": "johndoe",
       "email": "john@example.com",
       "status": "active",
@@ -81,9 +87,6 @@ sp users list --status suspended
 }
 ```
 
-**Artifact Type:** `Table`
-**Columns:** `id`, `name`, `email`, `status`, `roles`
-
 ---
 
 ### users show
@@ -91,34 +94,44 @@ sp users list --status suspended
 Display detailed information for a specific user.
 
 ```bash
-sp users show <user-id>
-sp --json users show user_abc123
 sp users show johndoe
+sp users show john@example.com
+sp users show a602013b-f059-47eb-9169-df6e8f1372d4
+sp --json users show johndoe
+sp users show johndoe --sessions
+sp users show johndoe --activity
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<id>` | Yes | User ID or username |
+| `<USER>` | Yes | Username, email, or UUID |
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--sessions` | `false` | Include user sessions |
+| `--activity` | `false` | Include activity statistics |
 
 **Output Structure:**
 ```json
 {
-  "id": "user_abc123",
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
   "name": "johndoe",
   "email": "john@example.com",
   "full_name": "John Doe",
   "display_name": "John",
   "status": "active",
+  "email_verified": false,
   "roles": ["user"],
-  "sessions_count": 5,
-  "last_login": "2024-01-15T10:30:00Z",
+  "is_bot": false,
+  "is_scanner": false,
   "created_at": "2024-01-01T00:00:00Z",
-  "updated_at": "2024-01-15T10:30:00Z"
+  "updated_at": "2024-01-15T10:30:00Z",
+  "sessions": [...],
+  "activity": {...}
 }
 ```
-
-**Artifact Type:** `Card`
 
 ---
 
@@ -127,16 +140,15 @@ sp users show johndoe
 Search users by name, email, or full name.
 
 ```bash
-sp users search <query>
+sp users search "john"
 sp --json users search "john"
-sp users search "example.com"
-sp users search "doe" --limit 10
+sp users search "example.com" --limit 10
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<query>` | Yes | Search query (substring match) |
+| `<QUERY>` | Yes | Search query (substring match) |
 
 **Flags:**
 | Flag | Default | Description |
@@ -148,20 +160,19 @@ sp users search "doe" --limit 10
 {
   "users": [
     {
-      "id": "user_abc123",
+      "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
       "name": "johndoe",
       "email": "john@example.com",
-      "full_name": "John Doe",
-      "match_field": "name"
+      "status": "active",
+      "roles": ["user"],
+      "created_at": "2024-01-15T10:30:00Z"
     }
   ],
-  "query": "john",
-  "total": 1
+  "total": 1,
+  "limit": 20,
+  "offset": 0
 }
 ```
-
-**Artifact Type:** `Table`
-**Columns:** `id`, `name`, `email`, `full_name`, `match_field`
 
 ---
 
@@ -170,12 +181,11 @@ sp users search "doe" --limit 10
 Create a new user.
 
 ```bash
-sp users create --name <name> --email <email>
 sp users create --name "johndoe" --email "john@example.com"
 sp users create --name "johndoe" --email "john@example.com" --full-name "John Doe" --display-name "John"
 ```
 
-**Required Flags (non-interactive):**
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--name` | Yes | Username (unique) |
@@ -187,86 +197,82 @@ sp users create --name "johndoe" --email "john@example.com" --full-name "John Do
 | `--full-name` | None | Full name |
 | `--display-name` | None | Display name |
 
-**Validation Rules:**
-- Name: Non-empty, unique
-- Email: Non-empty, valid format, unique
-
 **Output Structure:**
 ```json
 {
-  "id": "user_abc123",
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
   "name": "johndoe",
   "email": "john@example.com",
   "message": "User 'johndoe' created successfully"
 }
 ```
 
-**Artifact Type:** `Text`
-
 ---
 
 ### users update
 
-Update user fields.
+Update user fields. Accepts username, email, or UUID.
 
 ```bash
-sp users update <user-id> --email <new-email>
-sp users update user_abc123 --email "newemail@example.com"
-sp users update user_abc123 --full-name "John Smith" --display-name "Johnny"
-sp users update user_abc123 --status suspended
+sp users update johndoe --email "newemail@example.com"
+sp users update johndoe --full-name "John Smith" --display-name "Johnny"
+sp users update johndoe --status suspended
+sp users update a602013b-f059-47eb-9169-df6e8f1372d4 --email-verified true
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<id>` | Yes | User ID to update |
-| At least one change | Yes | Must specify at least one modification |
+| `<USER>` | Yes | Username, email, or UUID |
 
-**Modification Flags:**
+**Modification Flags (at least one required):**
 | Flag | Description |
 |------|-------------|
 | `--email` | Update email address |
 | `--full-name` | Update full name |
 | `--display-name` | Update display name |
 | `--status` | Update status: `active`, `inactive`, `suspended` |
+| `--email-verified` | Set email verification status |
 
 **Output Structure:**
 ```json
 {
-  "id": "user_abc123",
-  "message": "User 'johndoe' updated successfully",
-  "changes": ["email: newemail@example.com", "status: suspended"]
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
+  "name": "johndoe",
+  "email": "newemail@example.com",
+  "message": "User 'johndoe' updated successfully"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
 ### users delete
 
-Delete a user permanently.
+Delete a user permanently. Requires `--yes` flag.
 
 ```bash
-sp users delete <user-id> --yes
-sp users delete user_abc123 --yes
+sp users delete johndoe --yes
+sp users delete john@example.com --yes
+sp users delete a602013b-f059-47eb-9169-df6e8f1372d4 --yes
 ```
 
-**Required Flags (non-interactive):**
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<USER>` | Yes | Username, email, or UUID |
+
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<id>` | Yes | User ID to delete |
-| `--yes` / `-y` | Yes | Skip confirmation (REQUIRED in non-interactive mode) |
+| `--yes` / `-y` | Yes | Confirm deletion |
 
 **Output Structure:**
 ```json
 {
-  "id": "user_abc123",
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
   "message": "User 'johndoe' deleted successfully"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
@@ -282,20 +288,9 @@ sp --json users count
 **Output Structure:**
 ```json
 {
-  "total": 150,
-  "by_status": {
-    "active": 120,
-    "inactive": 25,
-    "suspended": 5
-  },
-  "by_role": {
-    "admin": 3,
-    "user": 147
-  }
+  "count": 150
 }
 ```
-
-**Artifact Type:** `Card`
 
 ---
 
@@ -303,90 +298,85 @@ sp --json users count
 
 ### users role assign
 
-Assign a role to a user.
+Assign roles to a user. Accepts username, email, or UUID.
 
 ```bash
-sp users role assign --user <user-id> --role <role>
-sp users role assign --user user_abc123 --role admin
-sp users role assign --user user_abc123 --role user
+sp users role assign johndoe --roles admin,user
+sp users role assign john@example.com --roles admin
+sp users role assign a602013b-f059-47eb-9169-df6e8f1372d4 --roles user
 ```
 
-**Required Flags (non-interactive):**
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<USER>` | Yes | Username, email, or UUID |
+
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--user` | Yes | User ID |
-| `--role` | Yes | Role to assign: `admin`, `user` |
+| `--roles` | Yes | Comma-separated roles: `admin`, `user`, `anonymous` |
 
 **Output Structure:**
 ```json
 {
-  "user_id": "user_abc123",
-  "role": "admin",
-  "message": "Role 'admin' assigned to user successfully"
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
+  "name": "johndoe",
+  "roles": ["admin", "user"],
+  "message": "Roles assigned to user 'johndoe'"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
 ### users role promote
 
-Promote a user to admin.
+Promote a user to admin. Accepts username, email, or UUID.
 
 ```bash
-sp users role promote <user-id>
-sp users role promote user_abc123
 sp users role promote johndoe
+sp users role promote john@example.com
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<user>` | Yes | User ID or username |
+| `<USER>` | Yes | Username, email, or UUID |
 
 **Output Structure:**
 ```json
 {
-  "user_id": "user_abc123",
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
   "name": "johndoe",
-  "previous_roles": ["user"],
-  "new_roles": ["user", "admin"],
+  "roles": ["user", "admin"],
   "message": "User 'johndoe' promoted to admin"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
 ### users role demote
 
-Demote a user from admin.
+Demote a user from admin. Accepts username, email, or UUID.
 
 ```bash
-sp users role demote <user-id>
-sp users role demote user_abc123
 sp users role demote johndoe
+sp users role demote john@example.com
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<user>` | Yes | User ID or username |
+| `<USER>` | Yes | Username, email, or UUID |
 
 **Output Structure:**
 ```json
 {
-  "user_id": "user_abc123",
+  "id": "a602013b-f059-47eb-9169-df6e8f1372d4",
   "name": "johndoe",
-  "previous_roles": ["user", "admin"],
-  "new_roles": ["user"],
-  "message": "Admin role removed from user 'johndoe'"
+  "roles": ["user"],
+  "message": "User 'johndoe' demoted from admin"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
@@ -394,19 +384,23 @@ sp users role demote johndoe
 
 ### users session list
 
-List user sessions.
+List sessions for a specific user. Accepts username, email, or UUID.
 
 ```bash
-sp users session list
-sp --json users session list
-sp users session list --user user_abc123
-sp users session list --active
+sp users session list johndoe
+sp --json users session list johndoe
+sp users session list johndoe --active
+sp users session list johndoe --limit 10
 ```
+
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<USER>` | Yes | Username, email, or UUID |
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--user` | None | Filter by user ID |
 | `--active` | `false` | Show only active sessions |
 | `--limit` | `20` | Maximum number of results |
 
@@ -415,121 +409,183 @@ sp users session list --active
 {
   "sessions": [
     {
-      "session_id": "sess_abc123",
-      "user_id": "user_xyz789",
-      "started_at": "2024-01-15T10:30:00Z",
-      "last_activity": "2024-01-15T11:45:00Z",
+      "session_id": "sess_4460f4d4-57ab-4996-a70a-5b6c086e4ae5",
       "ip_address": "192.168.1.1",
       "user_agent": "Mozilla/5.0...",
-      "active": true
+      "device_type": "desktop",
+      "started_at": "2024-01-15T10:30:00Z",
+      "last_activity_at": "2024-01-15T11:45:00Z",
+      "is_active": true
     }
   ],
   "total": 1
 }
 ```
 
-**Artifact Type:** `Table`
-**Columns:** `session_id`, `user_id`, `started_at`, `last_activity`, `active`
-
 ---
 
 ### users session end
 
-End a user session.
+End a user session. Requires `--yes` flag.
 
 ```bash
-sp users session end <session-id> --yes
-sp users session end sess_abc123 --yes
-sp users session end --user user_abc123 --all --yes
+# End specific session
+sp users session end sess_4460f4d4-57ab-4996-a70a-5b6c086e4ae5 --yes
+
+# End all sessions for a user
+sp users session end --user johndoe --all --yes
+sp users session end --user john@example.com --all --yes
 ```
 
-**Required Flags (non-interactive):**
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<SESSION_ID>` | Yes* | Session ID to end (*unless using `--all`) |
+
+**Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<session-id>` | Yes* | Session ID (*unless using --all) |
-| `--yes` / `-y` | Yes | Skip confirmation |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--user` | None | End sessions for specific user |
-| `--all` | `false` | End all sessions for user (requires --user) |
+| `--yes` / `-y` | Yes | Confirm action |
+| `--user` | No | User identifier (required with `--all`) |
+| `--all` | No | End all sessions for user |
 
 **Output Structure:**
 ```json
 {
-  "ended": ["sess_abc123"],
+  "ended": ["sess_4460f4d4-57ab-4996-a70a-5b6c086e4ae5"],
   "count": 1,
   "message": "Session(s) ended successfully"
 }
 ```
 
-**Artifact Type:** `Text`
+---
+
+### users session cleanup
+
+Clean up old anonymous users. Requires `--yes` flag.
+
+```bash
+sp users session cleanup --days 30 --yes
+```
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--days` | Yes | Delete anonymous users older than N days |
+| `--yes` / `-y` | Yes | Confirm action |
+
+**Output Structure:**
+```json
+{
+  "cleaned": 15,
+  "message": "Cleaned up 15 old anonymous user(s)"
+}
+```
 
 ---
 
 ## IP Ban Management Commands
+
+### users ban list
+
+List active IP bans.
+
+```bash
+sp users ban list
+sp --json users ban list
+sp users ban list --limit 50
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | `100` | Maximum number of results |
+
+**Output Structure:**
+```json
+{
+  "bans": [
+    {
+      "ip_address": "192.168.1.100",
+      "reason": "Suspicious activity",
+      "banned_at": "2024-01-15T10:30:00Z",
+      "expires_at": "2024-01-22T10:30:00Z",
+      "is_permanent": false,
+      "ban_count": 1,
+      "ban_source": "cli"
+    }
+  ],
+  "total": 1
+}
+```
+
+---
 
 ### users ban add
 
 Ban an IP address.
 
 ```bash
-sp users ban add <ip-address>
-sp users ban add 192.168.1.100
 sp users ban add 192.168.1.100 --reason "Suspicious activity"
-sp users ban add 192.168.1.100 --expires "2024-02-15T00:00:00Z"
+sp users ban add 192.168.1.100 --reason "Abuse" --duration 7d
+sp users ban add 192.168.1.100 --reason "Permanent ban" --permanent
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<ip>` | Yes | IP address to ban |
+| `<IP>` | Yes | IP address to ban |
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--reason` | Yes | Reason for ban |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--reason` | None | Reason for ban |
-| `--expires` | None | Ban expiration (ISO datetime) |
+| `--duration` | `7d` | Ban duration (e.g., `1h`, `7d`, `30d`) |
+| `--permanent` | `false` | Make ban permanent |
 
 **Output Structure:**
 ```json
 {
   "ip_address": "192.168.1.100",
   "reason": "Suspicious activity",
-  "expires_at": "2024-02-15T00:00:00Z",
-  "message": "IP address '192.168.1.100' banned successfully"
+  "expires_at": "2024-01-22T10:30:00Z",
+  "is_permanent": false,
+  "message": "IP address '192.168.1.100' has been banned"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
 ### users ban remove
 
-Remove an IP ban.
+Remove an IP ban. Requires `--yes` flag.
 
 ```bash
-sp users ban remove <ip-address> --yes
 sp users ban remove 192.168.1.100 --yes
 ```
 
-**Required Flags (non-interactive):**
+**Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<IP>` | Yes | IP address to unban |
+
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<ip>` | Yes | IP address to unban |
-| `--yes` / `-y` | Yes | Skip confirmation |
+| `--yes` / `-y` | Yes | Confirm action |
 
 **Output Structure:**
 ```json
 {
   "ip_address": "192.168.1.100",
-  "message": "IP ban removed successfully"
+  "removed": true,
+  "message": "IP address '192.168.1.100' has been unbanned"
 }
 ```
-
-**Artifact Type:** `Text`
 
 ---
 
@@ -538,27 +594,54 @@ sp users ban remove 192.168.1.100 --yes
 Check if an IP address is banned.
 
 ```bash
-sp users ban check <ip-address>
+sp users ban check 192.168.1.100
 sp --json users ban check 192.168.1.100
 ```
 
-**Required Arguments:**
+**Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<ip>` | Yes | IP address to check |
+| `<IP>` | Yes | IP address to check |
 
 **Output Structure:**
 ```json
 {
   "ip_address": "192.168.1.100",
   "is_banned": true,
-  "reason": "Suspicious activity",
-  "banned_at": "2024-01-15T10:30:00Z",
-  "expires_at": "2024-02-15T00:00:00Z"
+  "ban_info": {
+    "ip_address": "192.168.1.100",
+    "reason": "Suspicious activity",
+    "banned_at": "2024-01-15T10:30:00Z",
+    "expires_at": "2024-01-22T10:30:00Z",
+    "is_permanent": false,
+    "ban_count": 1,
+    "ban_source": "cli"
+  }
 }
 ```
 
-**Artifact Type:** `Card`
+---
+
+### users ban cleanup
+
+Clean up expired bans. Requires `--yes` flag.
+
+```bash
+sp users ban cleanup --yes
+```
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--yes` / `-y` | Yes | Confirm action |
+
+**Output Structure:**
+```json
+{
+  "cleaned": 5,
+  "message": "Cleaned up 5 expired ban(s)"
+}
+```
 
 ---
 
@@ -592,7 +675,7 @@ sp --json users show newuser
 sp users role demote newuser
 
 # Phase 8: Check sessions
-sp --json users session list --user newuser
+sp --json users session list newuser
 
 # Phase 9: Delete user
 sp users delete newuser --yes
@@ -607,10 +690,13 @@ sp --json users list
 
 ```bash
 # Check for active sessions
-sp --json users session list --active
+sp --json users session list johndoe --active
 
-# End suspicious session
+# End specific session
 sp users session end sess_suspicious123 --yes
+
+# End all sessions for a user
+sp users session end --user johndoe --all --yes
 
 # Ban suspicious IP
 sp users ban add 10.0.0.100 --reason "Multiple failed login attempts"
@@ -618,8 +704,14 @@ sp users ban add 10.0.0.100 --reason "Multiple failed login attempts"
 # Check ban status
 sp --json users ban check 10.0.0.100
 
+# List all bans
+sp --json users ban list
+
 # Remove ban after investigation
 sp users ban remove 10.0.0.100 --yes
+
+# Cleanup expired bans
+sp users ban cleanup --yes
 ```
 
 ---
@@ -632,21 +724,14 @@ sp users ban remove 10.0.0.100 --yes
 sp users create --name test
 # Error: --email is required
 
-sp users delete user_abc123
+sp users delete johndoe
 # Error: --yes is required to delete users in non-interactive mode
 
-sp users role assign --user user_abc
-# Error: --role is required
-```
+sp users role assign johndoe
+# Error: At least one role must be specified
 
-### Validation Errors
-
-```bash
-sp users create --name "" --email "test@example.com"
-# Error: Name cannot be empty
-
-sp users create --name "test" --email "invalid-email"
-# Error: Invalid email format
+sp users ban add 10.0.0.1
+# Error: --reason is required
 ```
 
 ### Not Found Errors
@@ -678,13 +763,13 @@ sp --json users list | jq .
 
 # Extract specific fields
 sp --json users list | jq '.users[].email'
-sp --json users show user_abc | jq '.roles'
-sp --json users count | jq '.by_role.admin'
+sp --json users show johndoe | jq '.roles'
+sp --json users count | jq '.count'
 
 # Filter by criteria
 sp --json users list | jq '.users[] | select(.status == "active")'
 sp --json users list | jq '.users[] | select(.roles | contains(["admin"]))'
-sp --json users session list | jq '.sessions[] | select(.active == true)'
+sp --json users session list johndoe | jq '.sessions[] | select(.is_active == true)'
 ```
 
 ---
@@ -692,10 +777,10 @@ sp --json users session list | jq '.sessions[] | select(.active == true)'
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] `delete` commands require `--yes` / `-y` flag
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
+- [x] All destructive commands require `--yes` / `-y` flag
+- [x] All output types derive `Serialize`, `Deserialize`
 - [x] No `println!` / `eprintln!` - uses `CliService`
-- [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
+- [x] No `unwrap()` / `expect()` - uses `?` with proper error handling
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
+- [x] All user identifiers accept username, email, or UUID

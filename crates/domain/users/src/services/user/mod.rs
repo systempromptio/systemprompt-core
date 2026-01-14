@@ -1,11 +1,15 @@
 mod provider;
 
+use std::collections::HashMap;
 use systemprompt_core_database::DbPool;
-use systemprompt_identifiers::UserId;
+use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::Result;
-use crate::models::{User, UserActivity, UserRole, UserSession, UserStatus, UserWithSessions};
-use crate::repository::{UpdateUserParams, UserRepository};
+use crate::models::{
+    User, UserActivity, UserCountBreakdown, UserRole, UserSession, UserStats, UserStatus,
+    UserWithSessions,
+};
+use crate::repository::{MergeResult, UpdateUserParams, UserRepository};
 
 #[derive(Debug, Clone)]
 pub struct UserService {
@@ -100,6 +104,14 @@ impl UserService {
         self.repository.list_recent_sessions(user_id, limit).await
     }
 
+    pub async fn end_session(&self, session_id: &SessionId) -> Result<bool> {
+        self.repository.end_session(session_id).await
+    }
+
+    pub async fn end_all_sessions(&self, user_id: &UserId) -> Result<u64> {
+        self.repository.end_all_sessions(user_id).await
+    }
+
     pub async fn create(
         &self,
         name: &str,
@@ -132,6 +144,10 @@ impl UserService {
         self.repository.update_email_verified(id, verified).await
     }
 
+    pub async fn update_display_name(&self, id: &UserId, display_name: &str) -> Result<User> {
+        self.repository.update_display_name(id, display_name).await
+    }
+
     pub async fn update_all_fields(
         &self,
         id: &UserId,
@@ -150,5 +166,50 @@ impl UserService {
 
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {
         self.repository.cleanup_old_anonymous(days).await
+    }
+
+    pub async fn count_with_breakdown(&self) -> Result<UserCountBreakdown> {
+        let total = self.repository.count().await?;
+        let by_status_vec = self.repository.count_by_status().await?;
+        let by_role_vec = self.repository.count_by_role().await?;
+
+        let by_status: HashMap<String, i64> = by_status_vec.into_iter().collect();
+        let by_role: HashMap<String, i64> = by_role_vec.into_iter().collect();
+
+        Ok(UserCountBreakdown {
+            total,
+            by_status,
+            by_role,
+        })
+    }
+
+    pub async fn get_stats(&self) -> Result<UserStats> {
+        self.repository.get_stats().await
+    }
+
+    pub async fn list_by_filter(
+        &self,
+        status: Option<&str>,
+        role: Option<&str>,
+        older_than_days: Option<i64>,
+        limit: i64,
+    ) -> Result<Vec<User>> {
+        self.repository
+            .list_by_filter(status, role, older_than_days, limit)
+            .await
+    }
+
+    pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
+        self.repository
+            .bulk_update_status(user_ids, new_status)
+            .await
+    }
+
+    pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
+        self.repository.bulk_delete(user_ids).await
+    }
+
+    pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
+        self.repository.merge_users(source_id, target_id).await
     }
 }

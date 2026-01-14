@@ -708,13 +708,14 @@ sp analytics sessions trends --since 7d --group-by day
 
 ### analytics sessions live
 
-Real-time active sessions monitor. Unlike other commands, this is designed for live monitoring and does not support `--export`.
+Real-time active sessions monitor.
 
 ```bash
 sp analytics sessions live
 sp --json analytics sessions live
 sp analytics sessions live --limit 20
 sp analytics sessions live --no-refresh
+sp analytics sessions live --export sessions.csv
 ```
 
 **Flags:**
@@ -723,6 +724,7 @@ sp analytics sessions live --no-refresh
 | `--limit` | `20` | Maximum sessions to show |
 | `--refresh` | `5` | Refresh interval in seconds |
 | `--no-refresh` | - | Show once without auto-refresh |
+| `--export` | None | Export to CSV (single snapshot) |
 
 **Output Structure:**
 ```json
@@ -1098,7 +1100,7 @@ sp --json analytics agents show primary --since 7d
 
 # Phase 4: Review tool usage
 sp --json analytics tools stats --since 24h
-sp --json analytics tools list --sort-by success_rate
+sp --json analytics tools list --sort-by success-rate
 sp --json analytics tools show read_file
 
 # Phase 5: Examine AI requests

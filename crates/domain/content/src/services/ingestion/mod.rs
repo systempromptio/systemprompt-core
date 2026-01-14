@@ -39,7 +39,7 @@ impl IngestionService {
 
         for file_path in markdown_files {
             match self
-                .ingest_file(&file_path, source, options.override_existing)
+                .ingest_file(&file_path, source, options.override_existing, options.dry_run)
                 .await
             {
                 Ok(()) => {
@@ -61,6 +61,7 @@ impl IngestionService {
         path: &Path,
         source: &IngestionSource<'_>,
         override_existing: bool,
+        dry_run: bool,
     ) -> Result<(), ContentError> {
         let markdown_text = std::fs::read_to_string(path)?;
         let (metadata, content_text) =
@@ -83,6 +84,11 @@ impl IngestionService {
             source.source_id.to_string(),
             resolved_category_id,
         )?;
+
+        // In dry_run mode, skip database operations but validate everything
+        if dry_run {
+            return Ok(());
+        }
 
         let existing_content = self
             .content_repo

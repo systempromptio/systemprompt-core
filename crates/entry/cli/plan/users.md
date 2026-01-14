@@ -492,3 +492,68 @@ systemprompt users ban add 10.0.0.1 --reason "Testing" --duration 1h
 systemprompt users ban check 10.0.0.1
 systemprompt users ban remove 10.0.0.1
 ```
+
+## Known Issues & Remaining Work
+
+### Test Results (2026-01-14)
+
+**Commands Tested & Working:**
+- ✅ `users list` - Works with pagination, role/status filtering
+- ✅ `users show` - Works with username, UUID, and email
+- ✅ `users search` - Works (output differs from README)
+- ✅ `users create` - Works with all flags
+- ✅ `users update` - Works with username/UUID/email, all flags including --display-name
+- ✅ `users delete` - Works with username/UUID/email, requires --yes
+- ✅ `users count` - Works (output differs from README)
+- ✅ `users role assign` - Works with username/UUID/email
+- ✅ `users role promote` - Works
+- ✅ `users role demote` - Works
+- ✅ `users session list` - Works with username/UUID/email
+- ✅ `users session end` - Works with session ID or --user --all
+- ✅ `users ban add` - Works (--reason is required)
+- ✅ `users ban check` - Works (output differs from README)
+- ✅ `users ban remove` - Works (requires --yes)
+- ✅ `users ban list` - Works
+- ✅ `users ban cleanup` - Works
+
+**Bugs Fixed (this session):**
+1. ✅ `users update --display-name` - Was defined but not applied (FIXED)
+2. ✅ `users role assign` - Was using `find_by_id` instead of `find_user` (FIXED)
+3. ✅ `users session list` - Was using `find_by_id` instead of `find_user` (FIXED)
+4. ✅ `users delete` - Was using `find_by_id` instead of `find_user` (FIXED)
+5. ✅ `users ban remove` - Added missing `--yes` flag for non-interactive compliance (FIXED)
+6. ✅ `users session end` - Implemented missing command (FIXED)
+
+### Missing Commands
+
+All commands now implemented.
+
+### Documentation/Implementation Mismatches (README vs Actual)
+
+These are NOT bugs - the CLI works correctly, but README doesn't match implementation.
+
+| Issue | README Says | Actual Behavior | Recommendation |
+|-------|-------------|-----------------|----------------|
+| `users show` output | Has `sessions_count`, `last_login` | Has `email_verified`, `is_bot`, `is_scanner` | Update README |
+| `users search` output | Has `query`, `match_field` | Has `total`, `limit`, `offset` | Update README |
+| `users count` output | Has `by_status`, `by_role` breakdown | Just `{"count": N}` | Either enhance CLI or update README |
+| `users role assign` args | `--user`, `--role` | `<USER_ID>`, `--roles` | Update README |
+| `users session list` args | Optional `--user` flag | Required `<USER_ID>` positional | Update README |
+| `users ban add --reason` | Optional | Required | Update README |
+| `users ban check` output | Flat structure | Nested `ban_info` object | Update README |
+
+### Undocumented Features
+
+Add to README command reference table:
+- `users ban list` - List active IP bans
+- `users ban cleanup` - Clean up expired bans
+
+### Recommended Priority
+
+**Priority 1 - Functional:** ✅ COMPLETED
+- ~~Implement `users session end` command OR remove from README~~ DONE
+- ~~Add `--yes` flag to `users ban remove` for non-interactive mode compliance~~ DONE
+
+**Priority 2 - Documentation:**
+- Update README to match actual CLI behavior (preferred over changing working CLI)
+- Add documentation for `users ban list` and `users ban cleanup` commands

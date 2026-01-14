@@ -136,6 +136,7 @@ impl Default for IngestionReport {
 pub struct IngestionOptions {
     pub override_existing: bool,
     pub recursive: bool,
+    pub dry_run: bool,
 }
 
 impl IngestionOptions {
@@ -146,6 +147,11 @@ impl IngestionOptions {
 
     pub const fn with_recursive(mut self, recursive: bool) -> Self {
         self.recursive = recursive;
+        self
+    }
+
+    pub const fn with_dry_run(mut self, dry_run: bool) -> Self {
+        self.dry_run = dry_run;
         self
     }
 }

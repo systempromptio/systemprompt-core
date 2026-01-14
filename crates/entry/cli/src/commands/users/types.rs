@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserListOutput {
@@ -107,6 +108,13 @@ pub struct SessionCleanupOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SessionEndOutput {
+    pub ended: Vec<String>,
+    pub count: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanListOutput {
     pub bans: Vec<BanSummary>,
     pub total: usize,
@@ -150,5 +158,71 @@ pub struct BanCheckOutput {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BanCleanupOutput {
     pub cleaned: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserCountBreakdownOutput {
+    pub total: i64,
+    pub by_status: HashMap<String, i64>,
+    pub by_role: HashMap<String, i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserStatsOutput {
+    pub total: i64,
+    pub created_24h: i64,
+    pub created_7d: i64,
+    pub created_30d: i64,
+    pub active: i64,
+    pub suspended: i64,
+    pub admins: i64,
+    pub anonymous: i64,
+    pub bots: i64,
+    pub oldest_user: Option<DateTime<Utc>>,
+    pub newest_user: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserExportOutput {
+    pub users: Vec<UserExportItem>,
+    pub total: usize,
+    pub exported_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserExportItem {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub display_name: Option<String>,
+    pub status: Option<String>,
+    pub email_verified: Option<bool>,
+    pub roles: Vec<String>,
+    pub is_bot: bool,
+    pub is_scanner: bool,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkDeleteOutput {
+    pub deleted: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkUpdateOutput {
+    pub updated: u64,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserMergeOutput {
+    pub source_id: String,
+    pub target_id: String,
+    pub sessions_transferred: u64,
+    pub tasks_transferred: u64,
     pub message: String,
 }

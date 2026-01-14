@@ -12,6 +12,9 @@ pub struct ListArgs {
     #[arg(long, help = "Filter by source ID")]
     pub source: Option<String>,
 
+    #[arg(long, help = "Filter by category ID")]
+    pub category: Option<String>,
+
     #[arg(long, default_value = "20")]
     pub limit: i64,
 
@@ -36,6 +39,13 @@ pub async fn execute(
 
     let summaries: Vec<ContentSummary> = items
         .into_iter()
+        .filter(|c| {
+            if let Some(ref cat) = args.category {
+                c.category_id.as_ref().map_or(false, |cid| cid.as_str() == cat)
+            } else {
+                true
+            }
+        })
         .map(|c| ContentSummary {
             id: c.id,
             slug: c.slug,

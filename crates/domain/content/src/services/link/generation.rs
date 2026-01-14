@@ -193,6 +193,20 @@ impl LinkGenerationService {
         Ok(self.link_repo.get_link_by_short_code(short_code).await?)
     }
 
+    pub async fn get_link_by_id(
+        &self,
+        id: &systemprompt_identifiers::LinkId,
+    ) -> Result<Option<CampaignLink>, ContentError> {
+        Ok(self.link_repo.get_link_by_id(id).await?)
+    }
+
+    pub async fn delete_link(
+        &self,
+        id: &systemprompt_identifiers::LinkId,
+    ) -> Result<bool, ContentError> {
+        Ok(self.link_repo.delete_link(id).await?)
+    }
+
     pub fn build_trackable_url(link: &CampaignLink, base_url: &str) -> String {
         match link.link_type.as_str() {
             "redirect" | "both" => {

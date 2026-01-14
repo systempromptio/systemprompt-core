@@ -1,3 +1,5 @@
+use systemprompt_identifiers::UserId;
+
 use crate::error::Result;
 use crate::models::User;
 use crate::UserService;
@@ -13,11 +15,18 @@ impl UserAdminService {
     }
 
     pub async fn find_user(&self, identifier: &str) -> Result<Option<User>> {
-        if identifier.contains('@') {
-            self.user_service.find_by_email(identifier).await
-        } else {
-            self.user_service.find_by_name(identifier).await
+        if uuid::Uuid::parse_str(identifier).is_ok() {
+            let user_id = UserId::new(identifier);
+            if let Some(user) = self.user_service.find_by_id(&user_id).await? {
+                return Ok(Some(user));
+            }
         }
+
+        if identifier.contains('@') {
+            return self.user_service.find_by_email(identifier).await;
+        }
+
+        self.user_service.find_by_name(identifier).await
     }
 
     pub async fn promote_to_admin(&self, user_identifier: &str) -> Result<PromoteResult> {

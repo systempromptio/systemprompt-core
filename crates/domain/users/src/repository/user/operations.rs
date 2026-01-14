@@ -172,6 +172,27 @@ impl UserRepository {
         Ok(row)
     }
 
+    pub async fn update_display_name(&self, id: &UserId, display_name: &str) -> Result<User> {
+        let row = sqlx::query_as!(
+            User,
+            r#"
+            UPDATE users
+            SET display_name = $1, updated_at = $2
+            WHERE id = $3
+            RETURNING id, name, email, full_name, display_name, status, email_verified,
+                      roles, avatar_url, is_bot, is_scanner, created_at, updated_at
+            "#,
+            display_name,
+            Utc::now(),
+            id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await?
+        .ok_or_else(|| UserError::NotFound(id.clone()))?;
+
+        Ok(row)
+    }
+
     pub async fn update_all_fields(
         &self,
         id: &UserId,
@@ -259,4 +280,57 @@ impl UserRepository {
 
         Ok(result.rows_affected())
     }
+
+    /// Merge source user into target user:
+    /// - Transfer all sessions from source to target
+    /// - Transfer all tasks from source to target
+    /// - Delete source user
+    /// Returns the number of sessions transferred
+    pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
+        // Transfer sessions
+        let sessions_result = sqlx::query!(
+            r#"
+            UPDATE user_sessions
+            SET user_id = $1
+            WHERE user_id = $2
+            "#,
+            target_id.as_str(),
+            source_id.as_str()
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        // Transfer tasks (if table exists)
+        let tasks_result = sqlx::query!(
+            r#"
+            UPDATE agent_tasks
+            SET user_id = $1
+            WHERE user_id = $2
+            "#,
+            target_id.as_str(),
+            source_id.as_str()
+        )
+        .execute(&*self.pool)
+        .await
+        .unwrap_or_default();
+
+        // Delete source user
+        sqlx::query!(
+            r#"DELETE FROM users WHERE id = $1"#,
+            source_id.as_str()
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        Ok(MergeResult {
+            sessions_transferred: sessions_result.rows_affected(),
+            tasks_transferred: tasks_result.rows_affected(),
+        })
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MergeResult {
+    pub sessions_transferred: u64,
+    pub tasks_transferred: u64,
 }

@@ -22,13 +22,13 @@ alias sp="./target/debug/systemprompt --non-interactive"
 |---------|-------------|---------------|-------------------|
 | `db query <sql>` | Execute SQL query (read-only) | `Table` | No (DB only) |
 | `db execute <sql>` | Execute write operation | `Table` | No (DB only) |
-| `db tables` | List all tables | `Table` | No (DB only) |
-| `db describe <table>` | Describe table schema | `Table` | No (DB only) |
+| `db tables` | List all tables with sizes | `Table` | No (DB only) |
+| `db describe <table>` | Describe table schema with indexes | `Table` | No (DB only) |
 | `db info` | Database information | `Card` | No (DB only) |
 | `db migrate` | Run database migrations | `Text` | No (DB only) |
 | `db assign-admin <user>` | Assign admin role to user | `Text` | No (DB only) |
 | `db status` | Show database connection status | `Card` | No (DB only) |
-| `db reset` | Reset database (drop and recreate) | `Text` | No (DB only) |
+| `db validate` | Validate schema against expected tables | `Text` | No (DB only) |
 
 ---
 
@@ -83,7 +83,7 @@ Execute a write operation (INSERT, UPDATE, DELETE).
 ```bash
 sp db execute "UPDATE users SET status = 'active' WHERE id = 'user_abc'"
 sp db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '7 days'"
-sp db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')"
+sp --json db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')"
 ```
 
 **Required Arguments:**
@@ -101,7 +101,7 @@ sp db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')
 {
   "rows_affected": 5,
   "execution_time_ms": 25,
-  "message": "Query executed successfully"
+  "message": "Query executed successfully, 5 row(s) affected"
 }
 ```
 
@@ -111,7 +111,7 @@ sp db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')
 
 ### db tables
 
-List all tables in the database.
+List all tables in the database with row counts and sizes.
 
 ```bash
 sp db tables
@@ -140,13 +140,12 @@ sp --json db tables
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `name`, `schema`, `row_count`, `size_bytes`
 
 ---
 
 ### db describe
 
-Describe table schema.
+Describe table schema with columns and indexes.
 
 ```bash
 sp db describe <table-name>
@@ -167,36 +166,29 @@ sp db describe user_sessions
   "columns": [
     {
       "name": "id",
-      "type": "uuid",
+      "type": "text",
       "nullable": false,
-      "default": "gen_random_uuid()",
+      "default": null,
       "primary_key": true
     },
     {
       "name": "name",
-      "type": "varchar(255)",
+      "type": "character varying",
       "nullable": false,
       "default": null,
       "primary_key": false
     },
     {
       "name": "email",
-      "type": "varchar(255)",
+      "type": "character varying",
       "nullable": false,
       "default": null,
-      "primary_key": false
-    },
-    {
-      "name": "created_at",
-      "type": "timestamptz",
-      "nullable": false,
-      "default": "now()",
       "primary_key": false
     }
   ],
   "indexes": [
     {"name": "users_pkey", "columns": ["id"], "unique": true},
-    {"name": "users_email_idx", "columns": ["email"], "unique": true}
+    {"name": "users_email_key", "columns": ["email"], "unique": true}
   ]
 }
 ```
@@ -217,19 +209,11 @@ sp --json db info
 **Output Structure:**
 ```json
 {
-  "version": "PostgreSQL 15.4",
-  "host": "localhost",
-  "port": 5432,
-  "database": "systemprompt_dev",
-  "user": "systemprompt_dev",
-  "size": "125 MB",
-  "tables": 25,
-  "uptime": "15 days 4 hours",
-  "connections": {
-    "active": 5,
-    "idle": 10,
-    "max": 100
-  }
+  "version": "PostgreSQL 17.7 on x86_64-pc-linux-musl...",
+  "database": "PostgreSQL",
+  "size": "45.41 MB",
+  "table_count": 85,
+  "tables": ["users", "user_sessions", "..."]
 }
 ```
 
@@ -243,6 +227,7 @@ Run database migrations.
 
 ```bash
 sp db migrate
+sp --json db migrate
 ```
 
 **Migration Process:**
@@ -254,10 +239,7 @@ sp db migrate
 **Output Structure:**
 ```json
 {
-  "migrations_run": 15,
-  "tables_created": 3,
-  "tables_updated": 5,
-  "errors": [],
+  "modules_installed": ["database", "users", "mcp", "ai", "..."],
   "message": "Database migration completed successfully"
 }
 ```
@@ -272,8 +254,8 @@ Assign admin role to a user.
 
 ```bash
 sp db assign-admin <user>
-sp db assign-admin johndoe
-sp db assign-admin john@example.com
+sp --json db assign-admin johndoe
+sp --json db assign-admin john@example.com
 ```
 
 **Required Arguments:**
@@ -284,11 +266,12 @@ sp db assign-admin john@example.com
 **Output Structure:**
 ```json
 {
-  "user_id": "user_abc123",
+  "user_id": "5ee65aa3-4f0a-47af-ab90-ac91d21fc227",
   "name": "johndoe",
   "email": "john@example.com",
   "roles": ["user", "admin"],
-  "message": "Admin role assigned to user 'johndoe'"
+  "already_admin": false,
+  "message": "Admin role assigned to user 'johndoe' (john@example.com)"
 }
 ```
 
@@ -309,10 +292,9 @@ sp --json db status
 ```json
 {
   "status": "connected",
-  "version": "PostgreSQL 15.4",
-  "tables": 25,
-  "size": "125 MB",
-  "latency_ms": 5
+  "version": "PostgreSQL 17.7 on x86_64-pc-linux-musl...",
+  "tables": 85,
+  "size": "45.41 MB"
 }
 ```
 
@@ -320,26 +302,24 @@ sp --json db status
 
 ---
 
-### db reset
+### db validate
 
-Reset database (drop all tables and recreate).
+Validate database schema against expected tables.
 
 ```bash
-sp db reset --yes
+sp db validate
+sp --json db validate
 ```
-
-**Required Flags (non-interactive):**
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--yes` | Yes | Confirm reset (REQUIRED in non-interactive mode) |
 
 **Output Structure:**
 ```json
 {
-  "reset": true,
-  "tables_dropped": 25,
-  "migrations_run": 15,
-  "message": "Database reset completed successfully"
+  "valid": true,
+  "expected_tables": 25,
+  "actual_tables": 85,
+  "missing_tables": [],
+  "extra_tables": ["anomaly_thresholds", "banned_ips", "..."],
+  "message": "Database schema is valid"
 }
 ```
 
@@ -368,11 +348,11 @@ sp --json db query "SELECT COUNT(*) as count FROM users"
 # Phase 6: Run migrations
 sp db migrate
 
-# Phase 7: Assign admin role
-sp db assign-admin developer@example.com
+# Phase 7: Validate schema
+sp --json db validate
 
-# Phase 8: Verify admin assignment
-sp --json db query "SELECT * FROM users WHERE email = 'developer@example.com'"
+# Phase 8: Assign admin role
+sp --json db assign-admin developer@example.com
 ```
 
 ---
@@ -423,10 +403,10 @@ sp db status
 
 ```bash
 sp db query "SELECT * FROM nonexistent_table"
-# Error: relation "nonexistent_table" does not exist
+# Error: Table or column not found: nonexistent_table
 
 sp db query "INVALID SQL"
-# Error: syntax error at or near "INVALID"
+# Error: Query failed: Write query not allowed in read-only mode
 ```
 
 ### Table Not Found
@@ -434,14 +414,6 @@ sp db query "INVALID SQL"
 ```bash
 sp db describe nonexistent
 # Error: Table 'nonexistent' not found
-```
-
-### Reset Without Confirmation
-
-```bash
-sp db reset
-# Error: --yes is required to reset database in non-interactive mode
-# Warning: This will drop ALL tables and recreate the schema!
 ```
 
 ---
@@ -457,7 +429,7 @@ sp --json db tables | jq .
 # Extract specific fields
 sp --json db tables | jq '.tables[].name'
 sp --json db describe users | jq '.columns[].name'
-sp --json db info | jq '.connections'
+sp --json db info | jq '.table_count'
 
 # Query and process results
 sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
@@ -468,9 +440,11 @@ sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
-- [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] `reset` command requires `--yes` flag
-- [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
+- [x] All output types derive `Serialize`, `Deserialize`
 - [x] No `println!` / `eprintln!` - uses `CliService`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
+- [x] No destructive operations (reset removed for safety)
+- [x] User-friendly error messages
+- [x] Schema validation via `db validate`
+- [x] Table sizes and index information included

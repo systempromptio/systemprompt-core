@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use clap::Args;
 use systemprompt_core_files::AiService;
 use systemprompt_identifiers::UserId;
@@ -10,7 +10,7 @@ use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct CountArgs {
-    #[arg(long, help = "Filter by user ID")]
+    #[arg(long, help = "Filter by user ID (optional, counts all if not specified)")]
     pub user: Option<String>,
 }
 
@@ -25,11 +25,7 @@ pub async fn execute(
 
     let count = match &user_id {
         Some(uid) => service.count_ai_images_by_user(uid).await?,
-        None => {
-            return Err(anyhow!(
-                "User ID is required for counting AI images. Use --user flag."
-            ));
-        },
+        None => service.count_ai_images().await?,
     };
 
     let output = AiFilesCountOutput { count, user_id };

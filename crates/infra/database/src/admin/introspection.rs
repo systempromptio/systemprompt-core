@@ -4,12 +4,8 @@ use anyhow::Result;
 use sqlx::postgres::PgPool;
 use sqlx::Row;
 
-use crate::models::{ColumnInfo, DatabaseInfo, TableInfo};
+use crate::models::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
-/// Service for database introspection and schema queries.
-///
-/// Provides safe access to database metadata like tables, columns, and row
-/// counts.
 #[derive(Debug)]
 pub struct DatabaseAdminService {
     pool: Arc<PgPool>,
@@ -20,11 +16,18 @@ impl DatabaseAdminService {
         Self { pool }
     }
 
-    /// List all tables in the public schema.
     pub async fn list_tables(&self) -> Result<Vec<TableInfo>> {
         let rows = sqlx::query(
-            "SELECT table_name as name FROM information_schema.tables WHERE table_schema = \
-             'public' ORDER BY table_name",
+            r#"
+            SELECT
+                t.table_name as name,
+                COALESCE(s.n_live_tup, 0) as row_count,
+                COALESCE(pg_total_relation_size(quote_ident(t.table_name)::regclass), 0) as size_bytes
+            FROM information_schema.tables t
+            LEFT JOIN pg_stat_user_tables s ON t.table_name = s.relname
+            WHERE t.table_schema = 'public'
+            ORDER BY t.table_name
+            "#,
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -33,9 +36,12 @@ impl DatabaseAdminService {
             .iter()
             .map(|row| {
                 let name: String = row.get("name");
+                let row_count: i64 = row.get("row_count");
+                let size_bytes: i64 = row.get("size_bytes");
                 TableInfo {
                     name,
-                    row_count: 0,
+                    row_count,
+                    size_bytes,
                     columns: vec![],
                 }
             })
@@ -44,12 +50,9 @@ impl DatabaseAdminService {
         Ok(tables)
     }
 
-    /// Get schema information for a specific table.
-    ///
-    /// Returns column definitions and row count.
     pub async fn describe_table(&self, table_name: &str) -> Result<(Vec<ColumnInfo>, i64)> {
         if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return Err(anyhow::anyhow!("Invalid table name"));
+            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
         }
 
         let rows = sqlx::query(
@@ -60,6 +63,28 @@ impl DatabaseAdminService {
         .fetch_all(&*self.pool)
         .await?;
 
+        if rows.is_empty() {
+            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
+        }
+
+        let pk_rows = sqlx::query(
+            r#"
+            SELECT a.attname as column_name
+            FROM pg_index i
+            JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
+            WHERE i.indrelid = $1::regclass AND i.indisprimary
+            "#,
+        )
+        .bind(table_name)
+        .fetch_all(&*self.pool)
+        .await
+        .unwrap_or_default();
+
+        let pk_columns: Vec<String> = pk_rows
+            .iter()
+            .map(|row| row.get::<String, _>("column_name"))
+            .collect();
+
         let columns = rows
             .iter()
             .map(|row| {
@@ -68,13 +93,14 @@ impl DatabaseAdminService {
                 let nullable_str: String = row.get("is_nullable");
                 let nullable = nullable_str.to_uppercase() == "YES";
                 let default: Option<String> = row.get("column_default");
+                let primary_key = pk_columns.contains(&name);
 
                 ColumnInfo {
                     name,
                     data_type,
                     nullable,
                     default,
-                    primary_key: false,
+                    primary_key,
                 }
             })
             .collect();
@@ -84,10 +110,50 @@ impl DatabaseAdminService {
         Ok((columns, row_count))
     }
 
-    /// Count rows in a table.
+    pub async fn get_table_indexes(&self, table_name: &str) -> Result<Vec<IndexInfo>> {
+        if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
+        }
+
+        let rows = sqlx::query(
+            r#"
+            SELECT
+                i.relname as index_name,
+                ix.indisunique as is_unique,
+                array_agg(a.attname ORDER BY array_position(ix.indkey, a.attnum)) as columns
+            FROM pg_class t
+            JOIN pg_index ix ON t.oid = ix.indrelid
+            JOIN pg_class i ON i.oid = ix.indexrelid
+            JOIN pg_attribute a ON a.attrelid = t.oid AND a.attnum = ANY(ix.indkey)
+            WHERE t.relname = $1 AND t.relkind = 'r'
+            GROUP BY i.relname, ix.indisunique
+            ORDER BY i.relname
+            "#,
+        )
+        .bind(table_name)
+        .fetch_all(&*self.pool)
+        .await?;
+
+        let indexes = rows
+            .iter()
+            .map(|row| {
+                let name: String = row.get("index_name");
+                let unique: bool = row.get("is_unique");
+                let columns: Vec<String> = row.get("columns");
+                IndexInfo {
+                    name,
+                    columns,
+                    unique,
+                }
+            })
+            .collect();
+
+        Ok(indexes)
+    }
+
     pub async fn count_rows(&self, table_name: &str) -> Result<i64> {
         if !table_name.chars().all(|c| c.is_alphanumeric() || c == '_') {
-            return Err(anyhow::anyhow!("Invalid table name"));
+            return Err(anyhow::anyhow!("Table '{}' not found", table_name));
         }
 
         let quoted_table = quote_identifier(table_name);
@@ -99,18 +165,54 @@ impl DatabaseAdminService {
         Ok(row_count)
     }
 
-    /// Get database version and summary information.
     pub async fn get_database_info(&self) -> Result<DatabaseInfo> {
         let version: String = sqlx::query_scalar("SELECT version()")
             .fetch_one(&*self.pool)
             .await?;
 
+        let size: i64 = sqlx::query_scalar("SELECT pg_database_size(current_database())")
+            .fetch_one(&*self.pool)
+            .await
+            .unwrap_or(0);
+
+        let tables = self.list_tables().await?;
+
         Ok(DatabaseInfo {
-            path: "postgresql://database".to_string(),
-            size: 0,
+            path: "PostgreSQL".to_string(),
+            size: size as u64,
             version,
-            tables: vec![],
+            tables,
         })
+    }
+
+    pub fn get_expected_tables() -> Vec<&'static str> {
+        vec![
+            "users",
+            "user_sessions",
+            "user_contexts",
+            "agent_tasks",
+            "agent_skills",
+            "task_messages",
+            "task_artifacts",
+            "task_execution_steps",
+            "artifact_parts",
+            "message_parts",
+            "ai_requests",
+            "ai_request_messages",
+            "ai_request_tool_calls",
+            "mcp_tool_executions",
+            "logs",
+            "analytics_events",
+            "oauth_clients",
+            "oauth_auth_codes",
+            "oauth_refresh_tokens",
+            "scheduled_jobs",
+            "services",
+            "markdown_content",
+            "markdown_categories",
+            "files",
+            "content_files",
+        ]
     }
 }
 
