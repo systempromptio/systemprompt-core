@@ -81,7 +81,7 @@ pub async fn serve_vite_app(
         };
         let files_prefix = format!("{}/", files_config.url_prefix());
         let asset_path = if let Some(relative_path) = effective_path.strip_prefix(&files_prefix) {
-            files_config.storage().join(relative_path)
+            files_config.files().join(relative_path)
         } else {
             let trimmed_path = effective_path.trim_start_matches('/');
             effective_dist_dir.join(trimmed_path)
