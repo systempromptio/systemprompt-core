@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -15,7 +14,7 @@ pub struct ListArgs {
     pub capability: Option<String>,
 }
 
-pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionListOutput>> {
+pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let mut extensions: Vec<ExtensionSummary> = registry
@@ -76,7 +75,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<Ext
 
     let output = ExtensionListOutput { extensions, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Extensions")
         .with_columns(vec![
             "id".to_string(),
@@ -85,5 +84,5 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<Ext
             "priority".to_string(),
             "source".to_string(),
             "capabilities".to_string(),
-        ]))
+        ])
 }

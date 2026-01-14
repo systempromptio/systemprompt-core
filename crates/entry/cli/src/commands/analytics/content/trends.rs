@@ -46,14 +46,11 @@ pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    if output.points.is_empty() {
-        CliService::warning("No data found");
-        return Ok(());
-    }
-
     if config.is_json_output() {
         let result = CommandResult::chart(output, ChartType::Line).with_title("Content Trends");
         render_result(&result);
+    } else if output.points.is_empty() {
+        CliService::warning("No data found");
     } else {
         render_trends(&output);
     }

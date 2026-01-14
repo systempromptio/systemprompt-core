@@ -46,7 +46,7 @@ pub async fn execute(
         }
     }
 
-    service.soft_delete(&file_id).await?;
+    service.delete(&file_id).await?;
 
     let output = FileDeleteOutput {
         file_id,

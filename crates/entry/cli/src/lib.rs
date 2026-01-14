@@ -238,7 +238,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Content(cmd)) => content::execute(cmd).await?,
         Some(Commands::Config(cmd)) => config::execute(cmd, &cli_config)?,
         Some(Commands::Analytics(cmd)) => analytics::execute(cmd, &cli_config).await?,
-        Some(Commands::Web(cmd)) => web::execute(cmd).await?,
+        Some(Commands::Web(cmd)) => web::execute(cmd)?,
         Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
         Some(Commands::System(cmd)) => system::execute(cmd).await?,
         Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,

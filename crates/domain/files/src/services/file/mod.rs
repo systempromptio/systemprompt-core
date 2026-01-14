@@ -54,8 +54,8 @@ impl FileService {
         self.repository.list_all(limit, offset).await
     }
 
-    pub async fn soft_delete(&self, id: &FileId) -> Result<()> {
-        self.repository.soft_delete(id).await
+    pub async fn delete(&self, id: &FileId) -> Result<()> {
+        self.repository.delete(id).await
     }
 
     pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> Result<()> {

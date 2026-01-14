@@ -43,11 +43,6 @@ pub async fn execute(args: TopArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    if output.content.is_empty() {
-        CliService::warning("No content found");
-        return Ok(());
-    }
-
     if config.is_json_output() {
         let hints = RenderingHints {
             columns: Some(vec![
@@ -62,6 +57,8 @@ pub async fn execute(args: TopArgs, config: &CliConfig) -> Result<()> {
             .with_title("Top Content")
             .with_hints(hints);
         render_result(&result);
+    } else if output.content.is_empty() {
+        CliService::warning("No content found");
     } else {
         render_top(&output);
     }

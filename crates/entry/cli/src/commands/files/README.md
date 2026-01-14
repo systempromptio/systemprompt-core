@@ -23,7 +23,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `files list` | List files with pagination | `Table` | No (DB only) |
 | `files show <id>` | Show detailed file information | `Card` | No (DB only) |
 | `files upload <path>` | Upload a file | `Card` | No (DB only) |
-| `files delete <id>` | Delete a file (soft delete) | `Text` | No (DB only) |
+| `files delete <id>` | Delete a file | `Text` | No (DB only) |
 | `files validate <path>` | Validate a file before upload | `Card` | No |
 | `files config` | Show file upload configuration | `Card` | No |
 | `files content list` | List content-file links | `Table` | No (DB only) |
@@ -171,7 +171,7 @@ sp files upload ./generated.png --context ctx_abc123 --ai
 
 ### files delete
 
-Delete a file (soft delete).
+Delete a file permanently.
 
 ```bash
 sp files delete <file-id> --yes

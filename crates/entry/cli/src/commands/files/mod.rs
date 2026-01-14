@@ -27,7 +27,7 @@ pub enum FilesCommands {
     #[command(about = "Upload a file from the local filesystem")]
     Upload(upload::UploadArgs),
 
-    #[command(about = "Delete a file (soft delete)")]
+    #[command(about = "Delete a file")]
     Delete(delete::DeleteArgs),
 
     #[command(about = "Validate a file before upload")]

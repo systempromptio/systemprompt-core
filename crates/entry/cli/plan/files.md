@@ -210,7 +210,7 @@ pub struct FileUploadOutput {
 
 ### `files delete`
 
-Delete a file (soft delete).
+Delete a file permanently.
 
 ```bash
 files delete file_abc123 --yes
@@ -228,7 +228,7 @@ pub struct DeleteArgs {
 }
 ```
 
-**Service Call:** `FileService::soft_delete()`
+**Service Call:** `FileService::delete()`
 
 ### `files validate`
 

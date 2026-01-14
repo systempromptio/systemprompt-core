@@ -6,7 +6,7 @@ pub mod info;
 pub mod macros;
 pub mod service;
 
-pub use base::{PaginatedRepository, PgDbPool, Repository, SoftDeleteRepository};
+pub use base::{PaginatedRepository, PgDbPool, Repository};
 pub use cleanup::CleanupRepository;
 pub use entity::{Entity, EntityId, GenericRepository, RepositoryExt};
 pub use info::DatabaseInfoRepository;

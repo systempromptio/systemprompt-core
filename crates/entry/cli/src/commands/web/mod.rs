@@ -30,12 +30,12 @@ pub enum WebCommands {
     Validate(validate::ValidateArgs),
 }
 
-pub async fn execute(command: WebCommands) -> Result<()> {
+pub fn execute(command: WebCommands) -> Result<()> {
     let config = get_global_config();
-    execute_with_config(command, &config).await
+    execute_with_config(command, &config)
 }
 
-pub async fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<()> {
+pub fn execute_with_config(command: WebCommands, config: &CliConfig) -> Result<()> {
     match command {
         WebCommands::ContentTypes(cmd) => content_types::execute(cmd, config),
         WebCommands::Templates(cmd) => templates::execute(cmd, config),

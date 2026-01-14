@@ -46,7 +46,7 @@ File management module for SystemPrompt.
 
 | Service | Methods |
 |---------|---------|
-| `FileService` | insert, find_by_id, find_by_path, list_by_user, list_all, soft_delete, update_metadata |
+| `FileService` | insert, find_by_id, find_by_path, list_by_user, list_all, delete, update_metadata |
 | `ContentService` | link_to_content, unlink_from_content, list_files_by_content, find_featured_image, set_featured |
 | `AiService` | list_ai_images, list_ai_images_by_user, count_ai_images_by_user |
 | `LocalFileStorage` | store, retrieve, delete, metadata, exists (implements FileStorage trait) |

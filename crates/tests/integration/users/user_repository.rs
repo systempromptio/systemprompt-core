@@ -5,7 +5,7 @@
 //! - Finding users by ID, email, name, role
 //! - Updating user fields
 //! - Role assignment
-//! - User deletion (soft delete)
+//! - User deletion
 //! - Anonymous user cleanup
 
 use anyhow::Result;
@@ -564,7 +564,7 @@ async fn assign_roles_updates_roles() -> Result<()> {
 // ============================================================================
 
 #[tokio::test]
-async fn delete_soft_deletes_user() -> Result<()> {
+async fn delete_removes_user() -> Result<()> {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return Ok(());
@@ -572,7 +572,6 @@ async fn delete_soft_deletes_user() -> Result<()> {
 
     let db_pool = db.as_pool()?;
     let repo = UserRepository::new(&db_pool)?;
-    let pool = db.pool_arc()?;
 
     let unique_email = format!("delete_user_{}@example.com", uuid::Uuid::new_v4());
     let unique_name = format!("deleteuser_{}", &uuid::Uuid::new_v4().to_string()[..8]);
@@ -580,15 +579,9 @@ async fn delete_soft_deletes_user() -> Result<()> {
 
     repo.delete(&created.id).await?;
 
-    // Should not be found (deleted status is filtered out)
+    // Should be completely gone
     let found = repo.find_by_id(&created.id).await?;
     assert!(found.is_none());
-
-    // Cleanup (hard delete)
-    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
-        .bind(created.id.as_str())
-        .execute(pool.as_ref())
-        .await;
 
     Ok(())
 }
@@ -606,32 +599,6 @@ async fn delete_returns_error_for_nonexistent() -> Result<()> {
     let fake_id = UserId::new("nonexistent-delete-id".to_string());
     let result = repo.delete(&fake_id).await;
     assert!(result.is_err());
-
-    Ok(())
-}
-
-// ============================================================================
-// UserRepository::delete_anonymous Tests
-// ============================================================================
-
-#[tokio::test]
-async fn delete_anonymous_hard_deletes() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let repo = UserRepository::new(&db_pool)?;
-
-    let fingerprint = format!("delete_anon_{}", uuid::Uuid::new_v4());
-    let created = repo.create_anonymous(&fingerprint).await?;
-
-    repo.delete_anonymous(&created.id).await?;
-
-    // Should be completely gone
-    let found = repo.find_by_email(&created.email).await?;
-    assert!(found.is_none());
 
     Ok(())
 }

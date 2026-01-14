@@ -227,13 +227,13 @@ async fn fetch_usage_by_agent(
     let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
         r"
         SELECT
-            at.agent_name,
+            COALESCE(at.agent_name, CASE WHEN mte.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END) as agent_name,
             COUNT(*) as count
         FROM mcp_tool_executions mte
         LEFT JOIN agent_tasks at ON at.task_id = mte.task_id
         WHERE mte.tool_name ILIKE $1
           AND mte.created_at >= $2 AND mte.created_at < $3
-        GROUP BY at.agent_name
+        GROUP BY COALESCE(at.agent_name, CASE WHEN mte.task_id IS NULL THEN 'Direct Call' ELSE 'Unlinked Task' END)
         ORDER BY count DESC
         LIMIT 10
         ",
@@ -249,7 +249,7 @@ async fn fetch_usage_by_agent(
     Ok(rows
         .into_iter()
         .map(|(agent_name, count)| AgentUsageItem {
-            agent_name: agent_name.unwrap_or_else(|| "Unknown".to_string()),
+            agent_name: agent_name.unwrap_or_else(|| "Direct Call".to_string()),
             count,
             percentage: if total > 0 {
                 (count as f64 / total as f64) * 100.0

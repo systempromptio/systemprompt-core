@@ -33,7 +33,7 @@ pub enum UsersCommands {
     #[command(about = "Update user fields")]
     Update(update::UpdateArgs),
 
-    #[command(about = "Delete a user (soft delete by default)")]
+    #[command(about = "Delete a user")]
     Delete(delete::DeleteArgs),
 
     #[command(about = "Get total user count")]

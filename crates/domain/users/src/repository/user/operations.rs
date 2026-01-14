@@ -222,33 +222,9 @@ impl UserRepository {
     }
 
     pub async fn delete(&self, id: &UserId) -> Result<()> {
-        let deleted_status = UserStatus::Deleted.as_str();
         let result = sqlx::query!(
-            r#"
-            UPDATE users
-            SET status = $1, updated_at = $2
-            WHERE id = $3
-            "#,
-            deleted_status,
-            Utc::now(),
+            r#"DELETE FROM users WHERE id = $1"#,
             id.as_str()
-        )
-        .execute(&*self.pool)
-        .await?;
-
-        if result.rows_affected() == 0 {
-            return Err(UserError::NotFound(id.clone()));
-        }
-
-        Ok(())
-    }
-
-    pub async fn delete_anonymous(&self, id: &UserId) -> Result<()> {
-        let anonymous_role = UserRole::Anonymous.as_str();
-        let result = sqlx::query!(
-            r#"DELETE FROM users WHERE id = $1 AND $2 = ANY(roles)"#,
-            id.as_str(),
-            anonymous_role
         )
         .execute(&*self.pool)
         .await?;

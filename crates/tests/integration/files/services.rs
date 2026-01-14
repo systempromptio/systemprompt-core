@@ -80,7 +80,7 @@ async fn test_file_service_insert() {
     assert!(result.is_ok(), "FileService::insert should succeed");
 
     // Cleanup
-    let _ = service.soft_delete(&request.id).await;
+    let _ = service.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -99,7 +99,7 @@ async fn test_file_service_find_by_id() {
     assert!(file.is_some(), "File should be found");
 
     // Cleanup
-    let _ = service.soft_delete(&request.id).await;
+    let _ = service.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -120,7 +120,7 @@ async fn test_file_service_find_by_path() {
     assert!(file.is_some(), "File should be found by path");
 
     // Cleanup
-    let _ = service.soft_delete(&request.id).await;
+    let _ = service.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -148,7 +148,7 @@ async fn test_file_service_list_by_user() {
 
     // Cleanup
     for id in file_ids {
-        let _ = service.soft_delete(&id).await;
+        let _ = service.delete(&id).await;
     }
 }
 
@@ -166,7 +166,7 @@ async fn test_file_service_list_all() {
 }
 
 #[tokio::test]
-async fn test_file_service_soft_delete() {
+async fn test_file_service_delete() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
@@ -177,12 +177,12 @@ async fn test_file_service_soft_delete() {
 
     service.insert(request.clone()).await.expect("Insert should succeed");
 
-    // Soft delete
-    service.soft_delete(&request.id).await.expect("Delete should succeed");
+    // Delete
+    service.delete(&request.id).await.expect("Delete should succeed");
 
     // Verify file is gone
     let file = service.find_by_id(&request.id).await.expect("Find should succeed");
-    assert!(file.is_none(), "File should be soft deleted");
+    assert!(file.is_none(), "File should be deleted");
 }
 
 #[tokio::test]
@@ -203,7 +203,7 @@ async fn test_file_service_update_metadata() {
     service.update_metadata(&request.id, &metadata).await.expect("Update should succeed");
 
     // Cleanup
-    let _ = service.soft_delete(&request.id).await;
+    let _ = service.delete(&request.id).await;
 }
 
 // ============================================================================
@@ -258,7 +258,7 @@ async fn test_ai_service_list_ai_images() {
     }
 
     // Cleanup
-    let _ = file_service.soft_delete(&request.id).await;
+    let _ = file_service.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -284,7 +284,7 @@ async fn test_ai_service_list_ai_images_by_user() {
     assert!(!images.is_empty(), "Should have at least one AI image");
 
     // Cleanup
-    let _ = file_service.soft_delete(&request.id).await;
+    let _ = file_service.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -314,7 +314,7 @@ async fn test_ai_service_count_ai_images_by_user() {
 
     // Cleanup
     for id in file_ids {
-        let _ = file_service.soft_delete(&id).await;
+        let _ = file_service.delete(&id).await;
     }
 }
 
@@ -381,7 +381,7 @@ async fn test_content_service_link_operations() {
     }
 
     // Cleanup file
-    let _ = file_service.soft_delete(&file_request.id).await;
+    let _ = file_service.delete(&file_request.id).await;
 }
 
 #[tokio::test]

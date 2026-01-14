@@ -1,18 +1,7 @@
 use axum::body::Body;
 use axum::extract::Request;
 use serde_json::Value;
-use systemprompt_models::execution::ContextExtractionError;
-
-/// Result of context extraction from A2A payload.
-/// Per A2A spec, message methods include contextId directly,
-/// while task methods only have task ID (context resolved from storage).
-#[derive(Debug, Clone)]
-pub enum ContextIdSource {
-    /// contextId found directly in payload (message/send, message/stream)
-    Direct(String),
-    /// Task-based method - context should be resolved from task storage
-    FromTask { task_id: String },
-}
+use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PayloadSource;
@@ -58,25 +47,6 @@ impl PayloadSource {
             .and_then(|c| c.as_str())
             .map(|s| ContextIdSource::Direct(s.to_string()))
             .ok_or(ContextExtractionError::MissingContextId)
-    }
-
-    /// Legacy method for backwards compatibility - extracts contextId directly.
-    /// Prefer `extract_context_source` for A2A spec compliance.
-    pub fn extract_context_id(body_bytes: &[u8]) -> Result<String, ContextExtractionError> {
-        match Self::extract_context_source(body_bytes)? {
-            ContextIdSource::Direct(id) => Ok(id),
-            ContextIdSource::FromTask { task_id } => {
-                // For task-based methods, we need context resolution from storage
-                // This is handled by the TaskContextResolver
-                Err(ContextExtractionError::InvalidHeaderValue {
-                    header: "contextId".to_string(),
-                    reason: format!(
-                        "Task-based method requires context resolution from task storage (task_id: {})",
-                        task_id
-                    ),
-                })
-            }
-        }
     }
 
     pub async fn read_and_reconstruct(
