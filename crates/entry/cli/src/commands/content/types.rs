@@ -263,3 +263,42 @@ pub struct ContentStatusRow {
     pub http_status: Option<u16>,
     pub last_updated: DateTime<Utc>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PublishOutput {
+    pub content_id: String,
+    pub slug: String,
+    pub source_id: String,
+    pub action: String,
+    pub expected_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prerendered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UpdateOutput {
+    pub content_id: String,
+    pub slug: String,
+    pub updated_fields: Vec<String>,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExportOutput {
+    pub exported_count: i64,
+    pub output_directory: String,
+    pub files: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EnhancedIngestOutput {
+    pub files_found: usize,
+    pub created: Vec<String>,
+    pub updated: Vec<String>,
+    pub unchanged: Vec<String>,
+    pub errors: Vec<String>,
+    pub success: bool,
+}

@@ -117,17 +117,24 @@ async fn run_startup(
         return Ok(api_url);
     }
 
-    if target.agents {
+    if target.agents && !target.api {
         events.phase_started(Phase::Agents);
-        events.info("Agents start automatically with the API server");
+        events.warning("Standalone agent start not supported");
+        events.info("Agents are managed by the API server lifecycle");
+        events.info("Use 'services start' or 'services serve' to start all services");
         events.phase_completed(Phase::Agents);
     }
 
-    if target.mcp {
+    if target.mcp && !target.api {
         events.phase_started(Phase::McpServers);
-        events.info("MCP servers start automatically with the API server");
+        events.warning("Standalone MCP server start not supported");
+        events.info("MCP servers are managed by the API server lifecycle");
+        events.info("Use 'services start' or 'services serve' to start all services");
         events.phase_completed(Phase::McpServers);
     }
 
-    Ok("http://127.0.0.1:8080".to_string())
+    Ok(format!(
+        "http://127.0.0.1:{}",
+        ProfileBootstrap::get().map(|p| p.server.port).unwrap_or(8080)
+    ))
 }

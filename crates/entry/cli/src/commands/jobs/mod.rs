@@ -108,7 +108,7 @@ pub struct LogCleanupArgs {
     pub dry_run: bool,
 }
 
-pub async fn execute(cmd: JobsCommands, config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         JobsCommands::List => {
             let result = list_jobs().await?;

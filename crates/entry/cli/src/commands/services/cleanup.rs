@@ -3,16 +3,80 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 
-pub async fn execute(_config: &CliConfig) -> Result<()> {
+const DEFAULT_API_PORT: u16 = 8080;
+
+fn get_api_port() -> u16 {
+    ProfileBootstrap::get()
+        .map(|p| p.server.port)
+        .unwrap_or(DEFAULT_API_PORT)
+}
+
+pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()> {
     CliService::section("Cleaning Up Services");
 
     let ctx = Arc::new(AppContext::new().await?);
     let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
+    let api_port = get_api_port();
 
     CliService::info("Finding running services...");
     let running_services = service_mgmt.get_running_services_with_pid().await?;
+
+    // Check if there's anything to clean
+    let api_pid = ProcessCleanup::check_port(api_port);
+    let has_services = !running_services.is_empty() || api_pid.is_some();
+
+    if !has_services {
+        CliService::info("No running services found");
+        return Ok(());
+    }
+
+    // Show what will be cleaned
+    if dry_run {
+        CliService::section("Dry Run - Would clean the following:");
+        for service in &running_services {
+            if let Some(pid) = service.pid {
+                let pid_u32 = pid as u32;
+                if !ProcessCleanup::process_exists(pid_u32) {
+                    CliService::info(&format!(
+                        "  [stale] {} (PID {} not running)",
+                        service.name, pid
+                    ));
+                } else {
+                    CliService::info(&format!(
+                        "  [running] {} (PID: {}, port: {})",
+                        service.name, pid, service.port
+                    ));
+                }
+            }
+        }
+        if let Some(pid) = api_pid {
+            CliService::info(&format!(
+                "  [running] API server (PID: {}, port: {})",
+                pid, api_port
+            ));
+        }
+        CliService::info("Run without --dry-run to execute cleanup");
+        return Ok(());
+    }
+
+    // Confirm before cleanup unless --yes is provided
+    if !yes && config.is_interactive() {
+        let service_count = running_services.len() + if api_pid.is_some() { 1 } else { 0 };
+        if !CliService::confirm(&format!(
+            "This will stop {} service(s). Continue?",
+            service_count
+        ))? {
+            CliService::info("Cleanup cancelled");
+            return Ok(());
+        }
+    } else if !yes && !config.is_interactive() {
+        return Err(anyhow::anyhow!(
+            "Cleanup requires --yes flag in non-interactive mode"
+        ));
+    }
 
     let mut cleaned = 0;
 
@@ -41,14 +105,14 @@ pub async fn execute(_config: &CliConfig) -> Result<()> {
     }
 
     CliService::info("Stopping API server...");
-    let api_killed = ProcessCleanup::kill_port(8080);
+    let api_killed = ProcessCleanup::kill_port(api_port);
     if !api_killed.is_empty() {
         cleaned += 1;
     }
 
     ProcessCleanup::kill_by_pattern("systemprompt serve api");
 
-    ProcessCleanup::wait_for_port_free(8080, 3, 1000).await?;
+    ProcessCleanup::wait_for_port_free(api_port, 3, 1000).await?;
 
     let stale_count = service_mgmt.cleanup_stale_entries().await.unwrap_or(0);
     if stale_count > 0 {

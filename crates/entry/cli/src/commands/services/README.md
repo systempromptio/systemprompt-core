@@ -230,9 +230,17 @@ sp services status --health
 Clean up orphaned processes and stale entries.
 
 ```bash
-sp services cleanup
-sp --json services cleanup
+sp services cleanup              # Interactive mode prompts for confirmation
+sp services cleanup --yes        # Skip confirmation
+sp services cleanup --dry-run    # Preview what would be cleaned
+sp --json services cleanup --yes
 ```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--yes` / `-y` | `false` | Skip confirmation prompt |
+| `--dry-run` | `false` | Preview cleanup without executing |
 
 **Cleanup Actions:**
 - Terminate orphaned processes
