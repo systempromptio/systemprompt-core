@@ -75,7 +75,7 @@ impl JwtContextExtractor {
         headers: &HeaderMap,
     ) -> (
         TraceId,
-        Option<systemprompt_identifiers::TaskId>,
+        Option<TaskId>,
         Option<String>,
         AgentName,
     ) {
@@ -90,7 +90,7 @@ impl JwtContextExtractor {
         let task_id = headers
             .get("x-task-id")
             .and_then(|h| h.to_str().ok())
-            .map(|s| systemprompt_identifiers::TaskId::new(s.to_string()));
+            .map(|s| TaskId::new(s.to_string()));
 
         let auth_token = headers
             .get("authorization")
@@ -113,7 +113,7 @@ impl JwtContextExtractor {
         trace_id: TraceId,
         context_id: ContextId,
         agent_name: AgentName,
-        task_id: Option<systemprompt_identifiers::TaskId>,
+        task_id: Option<TaskId>,
         auth_token: Option<String>,
     ) -> RequestContext {
         let mut ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)

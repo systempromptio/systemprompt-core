@@ -102,17 +102,16 @@ pub fn execute_command(
 pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
 
-    let configs = match super::load_service_configs(&ctx) {
-        Ok(c) => c,
-        Err(_) => {
-            let mut validator = StartupValidator::new();
-            let report = validator.validate(ctx.config());
-            if report.has_errors() {
-                display_validation_report(&report);
-                std::process::exit(1);
-            }
-            return Err(anyhow::anyhow!("Failed to load service configs"));
-        },
+    let configs = if let Ok(c) = super::load_service_configs(&ctx) {
+        c
+    } else {
+        let mut validator = StartupValidator::new();
+        let report = validator.validate(ctx.config());
+        if report.has_errors() {
+            display_validation_report(&report);
+            return Err(anyhow::anyhow!("Startup validation failed"));
+        }
+        return Err(anyhow::anyhow!("Failed to load service configs"));
     };
 
     let state_manager = ServiceStateManager::new(Arc::clone(ctx.db_pool()));
