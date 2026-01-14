@@ -228,8 +228,11 @@ impl StartupValidator {
     fn validate_extensions(config: &Config, report: &mut StartupValidationReport, verbose: bool) {
         let extensions = ExtensionRegistry::discover();
         let config_extensions = extensions.config_extensions();
+        let asset_extensions = extensions.asset_extensions();
 
-        if config_extensions.is_empty() {
+        let has_extensions = !config_extensions.is_empty() || !asset_extensions.is_empty();
+
+        if !has_extensions {
             return;
         }
 
@@ -244,6 +247,45 @@ impl StartupValidator {
 
         for ext in config_extensions {
             Self::validate_single_extension(config, ext.as_ref(), report, verbose);
+        }
+
+        Self::validate_extension_assets(&extensions, report, verbose);
+    }
+
+    fn validate_extension_assets(
+        registry: &ExtensionRegistry,
+        report: &mut StartupValidationReport,
+        verbose: bool,
+    ) {
+        for ext in registry.asset_extensions() {
+            let ext_id = ext.id();
+            let mut has_errors = false;
+
+            for asset in ext.required_assets() {
+                if asset.is_required() && !asset.source().exists() {
+                    has_errors = true;
+                    let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));
+                    ext_report.add_error(
+                        ValidationError::new(
+                            "required_asset",
+                            format!("Missing required asset: {}", asset.source().display()),
+                        )
+                        .with_suggestion("Ensure the asset file exists at the specified path"),
+                    );
+                    report.add_extension(ext_report);
+
+                    println!(
+                        "  {} [ext:{}] Missing asset: {}",
+                        BrandColors::stopped("✗"),
+                        ext_id,
+                        asset.source().display()
+                    );
+                }
+            }
+
+            if !has_errors && verbose {
+                render_phase_success(&format!("[ext:{}]", ext_id), Some("assets valid"));
+            }
         }
     }
 

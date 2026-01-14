@@ -28,6 +28,9 @@ systemprompt-templates = { path = "../../domain/templates" }
 # Template provider traits
 systemprompt-template-provider = { path = "../../shared/template-provider" }
 
+# Extension system
+systemprompt-extension = { path = "../../shared/extension" }
+
 # Async runtime
 tokio = { workspace = true }
 
