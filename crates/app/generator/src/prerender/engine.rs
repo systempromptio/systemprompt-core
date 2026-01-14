@@ -80,20 +80,51 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
     let template_dir = get_templates_path(&web_config)?;
-    let template_path = PathBuf::from(&template_dir);
+    let extension_template_path = PathBuf::from(&template_dir);
+    let core_template_path = paths.system().default_templates();
 
-    let core_provider = CoreTemplateProvider::discover_from(&template_path)
-        .await
-        .context("Failed to discover core templates")?;
+    let extension_provider = CoreTemplateProvider::discover_with_priority(
+        &extension_template_path,
+        CoreTemplateProvider::EXTENSION_PRIORITY,
+    )
+    .await
+    .context("Failed to discover extension templates")?;
 
-    let loader = FileSystemLoader::with_path(&template_path);
+    let core_provider = if core_template_path.exists() {
+        Some(
+            CoreTemplateProvider::discover_with_priority(
+                &core_template_path,
+                CoreTemplateProvider::DEFAULT_PRIORITY,
+            )
+            .await
+            .context("Failed to discover core templates")?,
+        )
+    } else {
+        tracing::debug!(
+            path = %core_template_path.display(),
+            "Core templates directory not found, skipping fallback"
+        );
+        None
+    };
 
-    let provider: DynTemplateProvider = Arc::new(core_provider);
+    let mut loader = FileSystemLoader::with_path(&extension_template_path);
+    if core_template_path.exists() {
+        loader = loader.add_path(&core_template_path);
+    }
+
+    let extension_provider: DynTemplateProvider = Arc::new(extension_provider);
     let loader: DynTemplateLoader = Arc::new(loader);
 
-    let template_registry = TemplateRegistryBuilder::new()
-        .with_provider(provider)
-        .with_loader(loader)
+    let mut registry_builder = TemplateRegistryBuilder::new()
+        .with_provider(extension_provider)
+        .with_loader(loader);
+
+    if let Some(core_prov) = core_provider {
+        let core_prov: DynTemplateProvider = Arc::new(core_prov);
+        registry_builder = registry_builder.with_provider(core_prov);
+    }
+
+    let template_registry = registry_builder
         .build_and_init()
         .await
         .context("Failed to initialize template registry")?;
