@@ -75,7 +75,7 @@ impl LogStreamer {
 
         let mut new_logs: Vec<LogEntry> = logs
             .into_iter()
-            .filter(|log| last_timestamp.map_or(true, |timestamp| log.timestamp > timestamp))
+            .filter(|log| last_timestamp.is_none_or(|timestamp| log.timestamp > timestamp))
             .map(|log| LogEntry {
                 timestamp: log.timestamp,
                 level: log.level,

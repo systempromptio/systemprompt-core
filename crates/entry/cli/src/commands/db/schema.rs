@@ -33,7 +33,7 @@ pub async fn execute_tables(
         .context("Failed to list tables")?;
 
     let filtered_tables: Vec<_> = if let Some(pattern) = &filter {
-        let pattern = pattern.replace('%', "").replace('*', "");
+        let pattern = pattern.replace(['%', '*'], "");
         tables
             .into_iter()
             .filter(|t| t.name.contains(&pattern))
@@ -184,12 +184,12 @@ pub async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) 
 
     let expected_tables: Vec<&str> = DatabaseAdminService::get_expected_tables();
     let table_names: Vec<String> = info.tables.iter().map(|t| t.name.clone()).collect();
-    let actual_tables: HashSet<&str> = table_names.iter().map(|s| s.as_str()).collect();
+    let actual_tables: HashSet<&str> = table_names.iter().map(String::as_str).collect();
 
     let missing: Vec<String> = expected_tables
         .iter()
         .filter(|t| !actual_tables.contains(*t))
-        .map(|t| t.to_string())
+        .map(ToString::to_string)
         .collect();
 
     let extra: Vec<String> = table_names

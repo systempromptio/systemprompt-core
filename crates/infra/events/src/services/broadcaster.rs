@@ -148,7 +148,7 @@ pub type A2ABroadcaster = GenericBroadcaster<A2AEvent>;
 pub type ContextBroadcaster = GenericBroadcaster<ContextEvent>;
 
 pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
-    broadcaster: &'static once_cell::sync::Lazy<GenericBroadcaster<E>>,
+    broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
     user_id: UserId,
     connection_id: String,
 }
@@ -165,7 +165,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> std::fmt::Debug for ConnectionGua
 
 impl<E: ToSse + Clone + Send + Sync + 'static> ConnectionGuard<E> {
     pub fn new(
-        broadcaster: &'static once_cell::sync::Lazy<GenericBroadcaster<E>>,
+        broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,
         user_id: UserId,
         connection_id: String,
     ) -> Self {
@@ -585,7 +585,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_connection_guard_debug() {
-        use once_cell::sync::Lazy;
+        use std::sync::LazyLock;
 
         static TEST_BROADCASTER: Lazy<GenericBroadcaster<SystemEvent>> =
             Lazy::new(GenericBroadcaster::new);

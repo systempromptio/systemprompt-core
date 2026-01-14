@@ -23,7 +23,7 @@ pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOu
         .filter(|ext| {
             args.extension
                 .as_ref()
-                .map_or(true, |f| ext.id().contains(f))
+                .is_none_or( |f| ext.id().contains(f))
         })
         .flat_map(|ext| {
             ext.jobs().iter().filter_map(|job| {

@@ -191,7 +191,7 @@ pub fn configure_routes(
     let static_router = Router::new()
         .route("/", get(serve_homepage))
         .route("/agent", get(serve_vite_app))
-        .route("/agent/*path", get(serve_vite_app))
+        .route("/agent/{*path}", get(serve_vite_app))
         .fallback(smart_fallback_handler)
         .with_state(static_state)
         .with_auth_middleware(public_middleware.clone());

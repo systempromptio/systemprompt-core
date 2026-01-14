@@ -50,7 +50,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<Con
         .filter(|(_, source)| {
             args.category
                 .as_ref()
-                .map_or(true, |category| source.category_id.as_str() == category)
+                .is_none_or( |category| source.category_id.as_str() == category)
         })
         .map(|(name, source)| ContentTypeSummary {
             name: name.clone(),

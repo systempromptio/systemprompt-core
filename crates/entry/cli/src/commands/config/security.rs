@@ -48,7 +48,7 @@ fn execute_show() -> Result<()> {
             .security
             .audiences
             .iter()
-            .map(|a| a.to_string())
+            .map(ToString::to_string)
             .collect(),
     };
 
@@ -67,9 +67,9 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
 
     let mut changes: Vec<SecuritySetOutput> = Vec::new();
 
-    if let Some(issuer) = args.jwt_issuer {
+    if let Some(ref issuer) = args.jwt_issuer {
         let old = profile.security.issuer.clone();
-        profile.security.issuer = issuer.clone();
+        profile.security.issuer.clone_from(issuer);
         changes.push(SecuritySetOutput {
             field: "jwt_issuer".to_string(),
             old_value: old,

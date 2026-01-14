@@ -57,13 +57,12 @@ pub async fn serve_vite_app(
 
     let path = uri.path();
 
-    let (effective_dist_dir, effective_path) = if path.starts_with("/agent") {
-        let agent_dist = dist_dir.join("agent");
-        let stripped = path.strip_prefix("/agent").unwrap_or("/");
-        let stripped = if stripped.is_empty() { "/" } else { stripped };
-        (agent_dist, stripped.to_string())
-    } else {
-        (dist_dir.clone(), path.to_string())
+    let (effective_dist_dir, effective_path) = match path.strip_prefix("/agent") {
+        Some(stripped) => {
+            let effective = if stripped.is_empty() { "/" } else { stripped };
+            (dist_dir.join("agent"), effective.to_string())
+        },
+        None => (dist_dir.clone(), path.to_string()),
     };
 
     if matches!(

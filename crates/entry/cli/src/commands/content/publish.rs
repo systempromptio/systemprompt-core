@@ -110,7 +110,7 @@ pub async fn execute(
         "unchanged"
     };
 
-    let success = prerendered.unwrap_or(true) && http_status.map_or(true, |s| s == 200);
+    let success = prerendered.unwrap_or(true) && http_status.is_none_or( |s| s == 200);
 
     let output = PublishOutput {
         content_id: content.id.to_string(),

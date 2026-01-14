@@ -220,7 +220,7 @@ async fn cleanup_stale_service_entries(
         let should_delete = match service.status.as_str() {
             "running" => service
                 .pid
-                .map_or(true, |pid| !ProcessCleanup::process_exists(pid as u32)),
+                .is_none_or(|pid| !ProcessCleanup::process_exists(pid as u32)),
             "error" | "stopped" => true,
             _ => false,
         };
@@ -250,7 +250,7 @@ async fn cleanup_stale_service_entries(
             let should_delete = match service.status.as_str() {
                 "running" => service
                     .pid
-                    .map_or(true, |pid| !ProcessCleanup::process_exists(pid as u32)),
+                    .is_none_or(|pid| !ProcessCleanup::process_exists(pid as u32)),
                 "error" | "stopped" => true,
                 _ => false,
             };

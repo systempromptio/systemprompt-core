@@ -20,7 +20,7 @@ pub fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandResult<Ll
         .filter(|ext| {
             args.extension
                 .as_ref()
-                .map_or(true, |f| ext.id().contains(f))
+                .is_none_or( |f| ext.id().contains(f))
         })
         .flat_map(|ext| {
             ext.llm_providers()

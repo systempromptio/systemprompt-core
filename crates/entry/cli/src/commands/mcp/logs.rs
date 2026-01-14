@@ -62,17 +62,14 @@ pub struct LogsArgs {
 }
 
 fn get_default_logs_dir() -> PathBuf {
-    AppPaths::get()
-        .map(|paths| paths.system().logs())
-        .unwrap_or_else(|_| PathBuf::from("/var/log"))
+    AppPaths::get().map_or_else(|_| PathBuf::from("/var/log"), |paths| paths.system().logs())
 }
 
 pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {
     let logs_path = args
         .logs_dir
         .as_ref()
-        .map(PathBuf::from)
-        .unwrap_or_else(get_default_logs_dir);
+        .map_or_else(get_default_logs_dir, PathBuf::from);
 
     if args.follow {
         return execute_follow_mode(&args, config, &logs_path);
@@ -107,7 +104,6 @@ async fn execute_db_mode(
         None => build_all_mcp_patterns()?,
     };
 
-    // Fetch more entries if filtering, to ensure we get enough after filter
     let fetch_limit = if args.level.is_some() {
         (args.lines * 5) as i64
     } else {
@@ -127,8 +123,7 @@ async fn execute_db_mode(
         .iter()
         .filter(|e| {
             args.level
-                .map(|level| level.matches(&e.level.to_string()))
-                .unwrap_or(true)
+                .is_none_or(|level| level.matches(&e.level.to_string()))
         })
         .take(args.lines)
         .map(|e| {

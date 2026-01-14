@@ -92,10 +92,16 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
 
     match cmd {
         DbCommands::Query { sql, limit, offset, format } => {
-            query::execute_query(&db.query_executor, &sql, limit, offset, &format, config).await
+            let params = query::QueryParams {
+                sql: &sql,
+                limit,
+                offset,
+                format: format.as_deref(),
+            };
+            query::execute_query(&db.query_executor, &params, config).await
         }
         DbCommands::Execute { sql, format } => {
-            query::execute_write(&db.query_executor, &sql, &format, config).await
+            query::execute_write(&db.query_executor, &sql, format.as_deref(), config).await
         }
         DbCommands::Tables { filter } => {
             schema::execute_tables(&db.admin_service, filter, config).await

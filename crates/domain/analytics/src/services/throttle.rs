@@ -110,7 +110,7 @@ impl ThrottleService {
             return false;
         }
 
-        last_escalation.map_or(true, |escalated_at| {
+        last_escalation.is_none_or(|escalated_at| {
             Utc::now() > escalated_at + Duration::minutes(cooldown_minutes)
         })
     }

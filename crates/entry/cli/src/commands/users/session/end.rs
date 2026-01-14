@@ -79,7 +79,7 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
         } else {
             vec![]
         },
-        count: if ended { 1 } else { 0 },
+        count: u64::from(ended),
         message: if ended {
             format!("Session '{}' ended successfully", session_id_str)
         } else {

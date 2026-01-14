@@ -36,14 +36,12 @@ pub async fn execute_api(config: &CliConfig) -> Result<()> {
         return super::serve::execute(true, false, config).await;
     }
 
-    let pid = api_pid.unwrap();
+    let pid = api_pid.expect("API PID should be present at this point");
     CliService::info(&format!("Stopping API server (PID: {})...", pid));
 
-    // Gracefully terminate the API server
     ProcessCleanup::terminate_gracefully(pid, 100).await;
     ProcessCleanup::kill_port(port);
 
-    // Wait for port to be free
     ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
 
     CliService::success("API server stopped");

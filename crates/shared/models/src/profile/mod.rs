@@ -29,13 +29,13 @@ pub use site::SiteConfig;
 pub use style::ProfileStyle;
 
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 #[allow(clippy::expect_used)]
-static ENV_VAR_REGEX: Lazy<Regex> = Lazy::new(|| {
+static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{(\w+)\}")
         .expect("ENV_VAR_REGEX is a valid regex - this is a compile-time constant")
 });

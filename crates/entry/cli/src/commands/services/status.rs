@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::{RuntimeStatus, ServiceStateManager, VerifiedServiceState};
+use systemprompt_runtime::{display_validation_report, StartupValidator};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -100,7 +101,20 @@ pub fn execute_command(
 
 pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
-    let configs = super::load_service_configs(&ctx)?;
+
+    let configs = match super::load_service_configs(&ctx) {
+        Ok(c) => c,
+        Err(_) => {
+            let mut validator = StartupValidator::new();
+            let report = validator.validate(ctx.config());
+            if report.has_errors() {
+                display_validation_report(&report);
+                std::process::exit(1);
+            }
+            return Err(anyhow::anyhow!("Failed to load service configs"));
+        },
+    };
+
     let state_manager = ServiceStateManager::new(Arc::clone(ctx.db_pool()));
 
     let states = state_manager.get_verified_states(&configs).await?;

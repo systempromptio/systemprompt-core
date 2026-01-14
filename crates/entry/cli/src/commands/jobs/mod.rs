@@ -208,7 +208,7 @@ async fn show_job(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
         run_count: db_job.as_ref().map_or(0, |j| j.run_count),
     };
 
-    Ok(CommandResult::card(output).with_title(&format!("Job: {}", args.job_name)))
+    Ok(CommandResult::card(output).with_title(format!("Job: {}", args.job_name)))
 }
 
 async fn run_jobs(args: RunArgs) -> Result<CommandResult<BatchJobRunOutput>> {
@@ -359,7 +359,7 @@ async fn job_history(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput
             .filter(|e| {
                 args.status
                     .as_ref()
-                    .map_or(true, |s| e.status.eq_ignore_ascii_case(s))
+                    .is_none_or( |s| e.status.eq_ignore_ascii_case(s))
             })
             .collect()
     };
@@ -497,11 +497,11 @@ async fn cleanup_logs(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOu
 
     if args.dry_run {
         let count: i64 = sqlx::query_scalar::<_, i64>(
-            r#"
+            r"
             SELECT COUNT(*)
             FROM application_logs
             WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
-            "#,
+            ",
         )
         .bind(args.days.to_string())
         .fetch_one(&*pool)
@@ -522,10 +522,10 @@ async fn cleanup_logs(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOu
     }
 
     let deleted_count = sqlx::query(
-        r#"
+        r"
         DELETE FROM application_logs
         WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
-        "#,
+        ",
     )
     .bind(args.days.to_string())
     .execute(&*pool)

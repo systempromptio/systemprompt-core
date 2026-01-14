@@ -281,13 +281,7 @@ impl UserRepository {
         Ok(result.rows_affected())
     }
 
-    /// Merge source user into target user:
-    /// - Transfer all sessions from source to target
-    /// - Transfer all tasks from source to target
-    /// - Delete source user
-    /// Returns the number of sessions transferred
     pub async fn merge_users(&self, source_id: &UserId, target_id: &UserId) -> Result<MergeResult> {
-        // Transfer sessions
         let sessions_result = sqlx::query!(
             r#"
             UPDATE user_sessions
@@ -300,7 +294,6 @@ impl UserRepository {
         .execute(&*self.pool)
         .await?;
 
-        // Transfer tasks (if table exists)
         let tasks_result = sqlx::query!(
             r#"
             UPDATE agent_tasks
@@ -314,7 +307,6 @@ impl UserRepository {
         .await
         .unwrap_or_default();
 
-        // Delete source user
         sqlx::query!(
             r#"DELETE FROM users WHERE id = $1"#,
             source_id.as_str()

@@ -1137,17 +1137,16 @@ fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
     let content =
         fs::read_to_string(&args.file).with_context(|| format!("Failed to read file: {}", args.file))?;
 
-    let format = if args.file.ends_with(".json") {
-        "json"
-    } else {
-        "yaml"
-    };
+    let is_json = std::path::Path::new(&args.file)
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
 
-    let new_limits: RateLimitsConfig = match format {
-        "json" => serde_json::from_str(&content)
-            .with_context(|| format!("Failed to parse JSON from: {}", args.file))?,
-        _ => serde_yaml::from_str(&content)
-            .with_context(|| format!("Failed to parse YAML from: {}", args.file))?,
+    let new_limits: RateLimitsConfig = if is_json {
+        serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse JSON from: {}", args.file))?
+    } else {
+        serde_yaml::from_str(&content)
+            .with_context(|| format!("Failed to parse YAML from: {}", args.file))?
     };
 
     if !args.yes && config.is_interactive() {
@@ -1190,17 +1189,16 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read file: {}", file_path))?;
 
-        let format = if file_path.ends_with(".json") {
-            "json"
-        } else {
-            "yaml"
-        };
+        let is_json = std::path::Path::new(file_path)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("json"));
 
-        let limits: RateLimitsConfig = match format {
-            "json" => serde_json::from_str(&content)
-                .with_context(|| format!("Failed to parse JSON from: {}", file_path))?,
-            _ => serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse YAML from: {}", file_path))?,
+        let limits: RateLimitsConfig = if is_json {
+            serde_json::from_str(&content)
+                .with_context(|| format!("Failed to parse JSON from: {}", file_path))?
+        } else {
+            serde_yaml::from_str(&content)
+                .with_context(|| format!("Failed to parse YAML from: {}", file_path))?
         };
 
         (limits, file_path.clone())
