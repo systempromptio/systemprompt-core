@@ -13,7 +13,8 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionRegistry as McpExtensionRegistry};
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    ValidationConfigProvider, WebConfigRaw, WebConfigValidator, WebMetadataRaw,
+    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigRaw, WebConfigValidator,
+    WebMetadataRaw,
 };
 use systemprompt_models::{Config, ContentConfigRaw, ProfileBootstrap, ServicesConfig};
 use systemprompt_traits::validation_report::ValidationError;
@@ -31,6 +32,7 @@ impl StartupValidator {
         let mut registry = DomainConfigRegistry::new();
 
         registry.register(Box::new(FilesConfigValidator::new()));
+        registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
         registry.register(Box::new(ContentConfigValidator::new()));
         registry.register(Box::new(AgentConfigValidator::new()));

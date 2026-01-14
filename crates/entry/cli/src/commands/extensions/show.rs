@@ -15,7 +15,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionDetailOutput>> {
+pub fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionDetailOutput>> {
     let registry = ExtensionRegistry::discover();
 
     let ext = registry
@@ -41,7 +41,7 @@ pub async fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResul
                 .iter()
                 .map(|t| TemplateInfo {
                     name: t.name.clone(),
-                    description: t.description.clone().unwrap_or_default(),
+                    description: t.content_types.join(", "),
                 })
                 .collect::<Vec<_>>()
         })

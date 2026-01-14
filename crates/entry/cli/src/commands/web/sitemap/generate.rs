@@ -37,27 +37,19 @@ pub async fn execute(
     let content_config: ContentConfigRaw = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
-    // Get base URL from metadata or argument
-    let base_url = if let Some(url) = args.base_url {
-        url
-    } else {
-        // Try to read from metadata
+    let base_url = args.base_url.clone().unwrap_or_else(|| {
         let metadata_path = profile.paths.web_metadata();
-        if let Ok(metadata_content) = fs::read_to_string(&metadata_path) {
-            extract_base_url(&metadata_content).unwrap_or_else(|| "https://example.com".to_string())
-        } else {
-            "https://example.com".to_string()
-        }
-    };
-
-    // Determine output path
-    let web_path = profile.paths.web_path_resolved();
-    let output_path = args.output.unwrap_or_else(|| {
-        let dist_dir = PathBuf::from(&web_path).join("dist");
-        dist_dir.join("sitemap.xml")
+        fs::read_to_string(&metadata_path)
+            .ok()
+            .and_then(|content| extract_base_url(&content))
+            .unwrap_or_else(|| "https://example.com".to_string())
     });
 
-    // Ensure output directory exists
+    let web_path = profile.paths.web_path_resolved();
+    let output_path = args.output.clone().unwrap_or_else(|| {
+        PathBuf::from(&web_path).join("dist").join("sitemap.xml")
+    });
+
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)
             .with_context(|| format!("Failed to create directory: {}", parent.display()))?;
@@ -68,7 +60,6 @@ pub async fn execute(
     let mut urls: Vec<SitemapUrl> = Vec::new();
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
-    // Add static routes from content sources
     for (name, source) in &content_config.content_sources {
         if !source.enabled {
             continue;
@@ -79,7 +70,6 @@ pub async fn execute(
                 continue;
             }
 
-            // Add parent route if configured
             if let Some(parent) = &sitemap.parent_route {
                 if parent.enabled {
                     urls.push(SitemapUrl {
@@ -91,8 +81,6 @@ pub async fn execute(
                 }
             }
 
-            // For dynamic routes, we'd need database access
-            // For now, just add patterns as placeholders if not fetching from DB
             if !args.include_dynamic && sitemap.url_pattern.contains("{slug}") {
                 CliService::warning(&format!(
                     "Skipping dynamic route '{}' for source '{}'. Use --include-dynamic to fetch \
@@ -100,7 +88,6 @@ pub async fn execute(
                     sitemap.url_pattern, name
                 ));
             } else if !sitemap.url_pattern.contains("{slug}") {
-                // Static route
                 urls.push(SitemapUrl {
                     loc: format!("{}{}", base_url, sitemap.url_pattern),
                     lastmod: today.clone(),
@@ -111,13 +98,10 @@ pub async fn execute(
         }
     }
 
-    // Sort by priority descending
     urls.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
 
-    // Generate XML
     let xml = generate_sitemap_xml(&urls);
 
-    // Write to file
     fs::write(&output_path, &xml)
         .with_context(|| format!("Failed to write sitemap to {}", output_path.display()))?;
 
@@ -177,7 +161,6 @@ fn escape_xml(s: &str) -> String {
 }
 
 fn extract_base_url(metadata_content: &str) -> Option<String> {
-    // Simple extraction - look for baseUrl in YAML
     for line in metadata_content.lines() {
         let line = line.trim();
         if line.starts_with("baseUrl:") {

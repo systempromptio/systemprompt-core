@@ -33,7 +33,7 @@ impl Default for RateLimitConfig {
             agents_per_second: 3,
             mcp_registry_per_second: 20,
             mcp_per_second: 100,
-            stream_per_second: 1,
+            stream_per_second: 10,
             content_per_second: 20,
             burst_multiplier: 2,
             disabled: false,

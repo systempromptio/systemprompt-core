@@ -50,6 +50,8 @@ impl ConfigLoader {
             Self::merge_include(&mut merged_config, include_config);
         }
 
+        merged_config.settings.apply_env_overrides();
+
         merged_config
             .validate()
             .with_context(|| "Services config validation failed")?;
@@ -181,6 +183,8 @@ impl EnhancedConfigLoader {
         }
 
         self.resolve_includes(&mut merged)?;
+
+        merged.settings.apply_env_overrides();
 
         merged
             .validate()

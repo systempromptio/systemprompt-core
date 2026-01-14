@@ -79,7 +79,6 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Tem
 
     templates_config.templates.remove(&name);
 
-    // Handle HTML file deletion
     let html_file_path = templates_dir.join(format!("{}.html", name));
     let file_deleted = if args.delete_file && html_file_path.exists() {
         fs::remove_file(&html_file_path).with_context(|| {
@@ -90,7 +89,6 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Tem
         false
     };
 
-    // Write updated config
     let yaml = serde_yaml::to_string(&templates_config).context("Failed to serialize config")?;
     fs::write(&templates_yaml_path, yaml).with_context(|| {
         format!(

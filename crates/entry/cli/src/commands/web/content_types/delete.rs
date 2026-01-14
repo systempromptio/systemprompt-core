@@ -56,7 +56,6 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Con
         }
     }
 
-    // Check if web config references this content type
     let web_config_path = profile.paths.web_config();
     if let Ok(web_content) = fs::read_to_string(&web_config_path) {
         if web_content.contains(&format!("- {}", name)) {
