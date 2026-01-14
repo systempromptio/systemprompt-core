@@ -73,7 +73,12 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
                 CliService::info("Setup cancelled");
             }
 
-            return Ok(CommandResult::text(output).with_title("Setup Cancelled"));
+            let result = CommandResult::text(output).with_title("Setup Cancelled");
+            if config.is_json_output() {
+                return Ok(result);
+            } else {
+                return Ok(result.with_skip_render());
+            }
         }
     }
 
@@ -147,7 +152,12 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
         print_summary(&env_name, &profile_path);
     }
 
-    Ok(CommandResult::text(output).with_title("Setup Complete"))
+    let result = CommandResult::text(output).with_title("Setup Complete");
+    if config.is_json_output() {
+        Ok(result)
+    } else {
+        Ok(result.with_skip_render())
+    }
 }
 
 async fn execute_dry_run(
@@ -255,7 +265,12 @@ async fn execute_dry_run(
         message: "Dry run completed - no changes made".to_string(),
     };
 
-    Ok(CommandResult::text(output).with_title("Setup Dry Run"))
+    let result = CommandResult::text(output).with_title("Setup Dry Run");
+    if config.is_json_output() {
+        Ok(result)
+    } else {
+        Ok(result.with_skip_render())
+    }
 }
 
 fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {

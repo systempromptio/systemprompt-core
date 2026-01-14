@@ -90,11 +90,3 @@ pub struct BatchJobRunOutput {
     pub succeeded: usize,
     pub failed: usize,
 }
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct DryRunOutput {
-    pub job_name: String,
-    pub would_affect: String,
-    pub estimated_count: Option<i64>,
-    pub message: String,
-}

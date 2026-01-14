@@ -1,5 +1,6 @@
 mod admin;
 mod helpers;
+mod introspect;
 mod query;
 mod schema;
 mod types;
@@ -113,8 +114,8 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             schema::execute_count(&db.admin_service, &table_name, config).await
         }
         DbCommands::Indexes { table } => {
-            schema::execute_indexes(&db.admin_service, table, config).await
+            introspect::execute_indexes(&db.admin_service, table, config).await
         }
-        DbCommands::Size => schema::execute_size(&db.admin_service, config).await,
+        DbCommands::Size => introspect::execute_size(&db.admin_service, config).await,
     }
 }

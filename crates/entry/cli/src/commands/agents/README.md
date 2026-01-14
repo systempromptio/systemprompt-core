@@ -722,6 +722,30 @@ sp --json agents message primary -m "test" --token "$TOKEN" | jq '.data.task.tas
 
 ---
 
+## Tracing Agent Messages
+
+After sending a message to an agent, you can trace the full execution flow using the logs commands:
+
+```bash
+# Send message and get task ID
+RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
+
+# View the execution trace (accepts task ID directly)
+sp logs trace show "$TASK_ID" --all
+
+# View AI requests made during the task
+sp logs request list --since 5m
+sp logs request show <request-id> --messages --tools
+
+# Get aggregate statistics
+sp logs request stats --since 1h
+```
+
+**Related Documentation:** See [logs/README.md](../logs/README.md) for complete logs command documentation.
+
+---
+
 ## Compliance Checklist
 
 - [x] All `execute` functions accept `config: &CliConfig`
