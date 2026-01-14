@@ -2,9 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use systemprompt_core_logging::CliService;
 
-use super::types::TaskGetOutput;
+use super::types::{HistoryMessage, TaskArtifact, TaskGetOutput};
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 
@@ -19,8 +18,8 @@ pub struct TaskArgs {
     #[arg(long, help = "Task ID to retrieve")]
     pub task_id: Option<String>,
 
-    #[arg(long, help = "Context ID for the conversation")]
-    pub context_id: Option<String>,
+    #[arg(long, help = "Number of history messages to retrieve")]
+    pub history_length: Option<u32>,
 
     #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
     pub url: Option<String>,
@@ -44,13 +43,8 @@ struct JsonRpcRequest {
 #[serde(rename_all = "camelCase")]
 struct TaskGetParams {
     id: String,
-    message: MessageContext,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageContext {
-    context_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    history_length: Option<u32>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -124,10 +118,6 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 
-    let context_id = resolve_input(args.context_id, "context-id", config, || {
-        Err(anyhow!("Context ID is required. Use --context-id"))
-    })?;
-
     let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
     let agent_url = format!(
         "{}/api/v1/agents/{}",
@@ -137,14 +127,14 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
 
     let request_id = uuid::Uuid::new_v4().to_string();
 
+    // Per A2A spec Section 7.3: tasks/get only requires task ID
+    // Context is resolved from task storage by the server
     let request = JsonRpcRequest {
         jsonrpc: JSON_RPC_VERSION.to_string(),
         method: "tasks/get".to_string(),
         params: TaskGetParams {
             id: task_id.clone(),
-            message: MessageContext {
-                context_id: context_id.clone(),
-            },
+            history_length: args.history_length,
         },
         id: request_id,
     };
@@ -195,54 +185,63 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         .result
         .ok_or_else(|| anyhow!("No result in agent response"))?;
 
-    if let Some(history) = &task.history {
-        CliService::info("--- Conversation History ---");
-        for entry in history {
-            let role_label = match entry.role.as_str() {
-                "user" => "User",
-                "agent" => "Agent",
-                _ => &entry.role,
-            };
-            for part in &entry.parts {
-                if part.kind == "text" {
-                    if let Some(text) = &part.text {
-                        CliService::info(&format!("[{}]: {}", role_label, text));
-                    }
-                }
-            }
-        }
-        CliService::info("----------------------------");
-    }
+    // Convert history entries to output format
+    let history: Vec<HistoryMessage> = task
+        .history
+        .as_ref()
+        .map(|entries| {
+            entries
+                .iter()
+                .flat_map(|entry| {
+                    let role = match entry.role.as_str() {
+                        "user" => "User".to_string(),
+                        "agent" => "Agent".to_string(),
+                        other => other.to_string(),
+                    };
+                    entry
+                        .parts
+                        .iter()
+                        .filter(|p| p.kind == "text")
+                        .filter_map(|p| p.text.clone())
+                        .map(move |text| HistoryMessage {
+                            role: role.clone(),
+                            text,
+                        })
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
-    if let Some(artifacts) = &task.artifacts {
-        if !artifacts.is_empty() {
-            CliService::info("--- Artifacts ---");
-            for artifact in artifacts {
-                if let Some(name) = &artifact.name {
-                    CliService::info(&format!("Artifact: {}", name));
-                }
-                for part in &artifact.parts {
-                    if part.kind == "text" {
-                        if let Some(text) = &part.text {
-                            CliService::info(text);
-                        }
+    // Convert artifacts to output format
+    let artifacts: Vec<TaskArtifact> = task
+        .artifacts
+        .as_ref()
+        .map(|arts| {
+            arts.iter()
+                .map(|artifact| {
+                    let content = artifact
+                        .parts
+                        .iter()
+                        .filter(|p| p.kind == "text")
+                        .filter_map(|p| p.text.clone())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    TaskArtifact {
+                        name: artifact.name.clone(),
+                        content,
                     }
-                }
-            }
-            CliService::info("-----------------");
-        }
-    }
-
-    let history_count = task.history.as_ref().map_or(0, Vec::len);
-    let artifacts_count = task.artifacts.as_ref().map_or(0, Vec::len);
+                })
+                .collect()
+        })
+        .unwrap_or_default();
 
     let output = TaskGetOutput {
         task_id: task.id,
         context_id: task.context_id,
         state: task.status.state,
         timestamp: task.status.timestamp,
-        history_count,
-        artifacts_count,
+        history,
+        artifacts,
     };
 
     Ok(CommandResult::card(output).with_title("Task Details"))

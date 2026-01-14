@@ -44,6 +44,8 @@ pub struct CommandResult<T> {
     pub title: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hints: Option<RenderingHints>,
+    #[serde(skip)]
+    skip_render: bool,
 }
 
 impl<T> CommandResult<T> {
@@ -53,7 +55,17 @@ impl<T> CommandResult<T> {
             artifact_type,
             title: None,
             hints: None,
+            skip_render: false,
         }
+    }
+
+    pub const fn should_skip_render(&self) -> bool {
+        self.skip_render
+    }
+
+    pub const fn with_skip_render(mut self) -> Self {
+        self.skip_render = true;
+        self
     }
 
     pub const fn table(data: T) -> Self {
@@ -197,6 +209,10 @@ use crate::cli_settings::{get_global_config, OutputFormat};
 use systemprompt_core_logging::CliService;
 
 pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
+    if result.should_skip_render() {
+        return;
+    }
+
     let config = get_global_config();
 
     match config.output_format() {

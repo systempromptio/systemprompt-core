@@ -90,10 +90,10 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Con
         }
     });
 
-    let sitemap = if args.url_pattern.is_some() {
+    let sitemap = if let Some(url_pattern) = args.url_pattern {
         Some(SitemapConfig {
             enabled: true,
-            url_pattern: args.url_pattern.unwrap(),
+            url_pattern,
             priority: args.priority,
             changefreq: args.changefreq.clone(),
             fetch_from: "database".to_string(),

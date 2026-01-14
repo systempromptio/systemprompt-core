@@ -6,7 +6,11 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId,
 use systemprompt_models::execution::{ContextExtractionError, RequestContext};
 
 use super::traits::ContextExtractor;
-use crate::services::middleware::context::sources::{HeaderSource, PayloadSource};
+use crate::services::middleware::context::sources::{ContextIdSource, HeaderSource, PayloadSource};
+
+/// Marker context ID for task-based methods where context is resolved from task storage.
+/// Per A2A spec, tasks/get only requires task_id - the context is stored with the task.
+const TASK_BASED_CONTEXT_MARKER: &str = "__task_based__";
 
 #[derive(Debug, Clone, Copy)]
 pub struct A2aContextExtractor;
@@ -42,12 +46,22 @@ impl A2aContextExtractor {
         body_bytes: &[u8],
         headers: &HeaderMap,
     ) -> Result<RequestContext, ContextExtractionError> {
-        let context_id = PayloadSource::extract_context_id(body_bytes)?;
+        let context_source = PayloadSource::extract_context_source(body_bytes)?;
 
         let session_id = HeaderSource::extract_required(headers, "x-session-id")?;
         let trace_id = HeaderSource::extract_required(headers, "x-trace-id")?;
         let user_id = HeaderSource::extract_required(headers, "x-user-id")?;
         let agent_name = HeaderSource::extract_required(headers, "x-agent-name")?;
+
+        // Per A2A spec: task methods (tasks/get, tasks/cancel, etc.) only have task_id
+        // The context is resolved from the task storage by the handler
+        let (context_id, task_id) = match context_source {
+            ContextIdSource::Direct(id) => (id, HeaderSource::extract_optional(headers, "x-task-id")),
+            ContextIdSource::FromTask { task_id } => {
+                // Use marker context_id - the handler will resolve actual context from task
+                (TASK_BASED_CONTEXT_MARKER.to_string(), Some(task_id))
+            }
+        };
 
         let mut context = RequestContext::new(
             SessionId::new(session_id),
@@ -57,7 +71,7 @@ impl A2aContextExtractor {
         )
         .with_user_id(UserId::new(user_id));
 
-        if let Some(task_id_str) = HeaderSource::extract_optional(headers, "x-task-id") {
+        if let Some(task_id_str) = task_id {
             context = context.with_task_id(TaskId::new(task_id_str));
         }
 

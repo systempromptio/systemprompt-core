@@ -24,7 +24,7 @@ pub struct GenerateArgs {
     pub include_dynamic: bool,
 }
 
-pub async fn execute(
+pub fn execute(
     args: GenerateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SitemapGenerateOutput>> {

@@ -36,6 +36,7 @@ pub struct TierEffectiveLimitsOutput {
 }
 
 #[derive(Debug, Clone, Copy, Serialize)]
+#[allow(clippy::struct_field_names)]
 pub struct EffectiveLimitsOutput {
     pub oauth_public_per_second: u64,
     pub oauth_auth_per_second: u64,
