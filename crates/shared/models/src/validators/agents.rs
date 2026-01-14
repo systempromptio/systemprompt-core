@@ -1,7 +1,6 @@
-//! Agent configuration validator.
-
 use super::ValidationConfigProvider;
 use crate::ServicesConfig;
+use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
@@ -68,6 +67,21 @@ impl DomainConfig for AgentConfigValidator {
             );
         }
 
+        let mut used_ports: HashMap<u16, String> = HashMap::new();
+        for (name, agent) in &config.agents {
+            if let Some(existing) = used_ports.get(&agent.port) {
+                report.add_error(
+                    ValidationError::new(
+                        format!("agents.{}.port", name),
+                        format!("Port {} already used by agent '{}'", agent.port, existing),
+                    )
+                    .with_suggestion("Assign unique ports to each agent"),
+                );
+            } else {
+                used_ports.insert(agent.port, name.clone());
+            }
+        }
+
         for (name, agent) in &config.agents {
             if agent.name.is_empty() {
                 report.add_error(ValidationError::new(
@@ -91,7 +105,6 @@ impl DomainConfig for AgentConfigValidator {
                 }
             }
 
-            // Validate metadata.skills references
             for skill_id in &agent.metadata.skills {
                 let skill_path = Path::new(skills_path).join(skill_id);
                 if !skill_path.exists() {
@@ -106,7 +119,6 @@ impl DomainConfig for AgentConfigValidator {
                 }
             }
 
-            // Validate metadata.mcp_servers references
             for mcp_server in &agent.metadata.mcp_servers {
                 if !config.mcp_servers.contains_key(mcp_server) {
                     report.add_error(

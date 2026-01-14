@@ -5,12 +5,16 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use std::fs;
 use std::path::Path;
+use std::sync::Arc;
 
 use super::types::SkillCreateOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
+use systemprompt_core_agent::services::skills::SkillIngestionService;
+use systemprompt_core_database::Database;
 use systemprompt_core_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_identifiers::SourceId;
+use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -43,9 +47,12 @@ pub struct CreateArgs {
 
     #[arg(long, help = "Skill type (default: skill)")]
     pub skill_type: Option<String>,
+
+    #[arg(long, help = "Skip syncing to database after creation")]
+    pub no_sync: bool,
 }
 
-pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<SkillCreateOutput>> {
+pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<SkillCreateOutput>> {
     let name = resolve_input(args.name, "name", config, prompt_name)?;
     validate_skill_name(&name)?;
 
@@ -123,13 +130,39 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Ski
         index_path.display()
     ));
 
-    let output = SkillCreateOutput {
-        skill_id: name.clone(),
-        message: format!(
-            "Skill '{}' created successfully at {}",
+    let mut synced_to_db = false;
+    if !args.no_sync {
+        match sync_skill_to_db(&skill_dir).await {
+            Ok(()) => {
+                CliService::success("Skill synced to database");
+                synced_to_db = true;
+            }
+            Err(e) => {
+                CliService::warning(&format!(
+                    "Skill created but not synced to database: {}. Run 'skills sync' manually.",
+                    e
+                ));
+            }
+        }
+    }
+
+    let message = if synced_to_db {
+        format!(
+            "Skill '{}' created and synced to database at {}",
             name,
             index_path.display()
-        ),
+        )
+    } else {
+        format!(
+            "Skill '{}' created at {}",
+            name,
+            index_path.display()
+        )
+    };
+
+    let output = SkillCreateOutput {
+        skill_id: name.clone(),
+        message,
         file_path: index_path.to_string_lossy().to_string(),
     };
 
@@ -244,14 +277,12 @@ struct SkillFrontmatterParams<'a> {
 }
 
 fn build_skill_markdown(params: &SkillFrontmatterParams<'_>, instructions: &str) -> String {
-    // Use comma-separated string format for keywords (required by DB sync)
     let keywords = if params.tags.is_empty() {
         String::new()
     } else {
         params.tags.join(", ")
     };
 
-    // Get current date for published_at
     let today = Utc::now().format("%Y-%m-%d").to_string();
 
     format!(
@@ -323,4 +354,23 @@ fn prompt_instructions() -> Result<String> {
         .allow_empty(true)
         .interact_text()
         .context("Failed to get instructions")
+}
+
+async fn sync_skill_to_db(skill_dir: &Path) -> Result<()> {
+    let db_url = SecretsBootstrap::database_url()
+        .context("Database URL not configured")?
+        .to_string();
+
+    let database = Database::from_config("postgres", &db_url)
+        .await
+        .context("Failed to connect to database")?;
+
+    let ingestion_service = SkillIngestionService::new(Arc::new(database));
+
+    ingestion_service
+        .ingest_directory(skill_dir, SourceId::new("cli"), false)
+        .await
+        .context("Failed to sync skill to database")?;
+
+    Ok(())
 }

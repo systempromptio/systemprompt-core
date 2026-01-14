@@ -48,7 +48,9 @@ pub async fn execute_with_config(command: SkillsCommands, config: &CliConfig) ->
             Ok(())
         },
         SkillsCommands::Create(args) => {
-            let result = create::execute(args, config).context("Failed to create skill")?;
+            let result = create::execute(args, config)
+                .await
+                .context("Failed to create skill")?;
             render_result(&result);
             Ok(())
         },
