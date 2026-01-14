@@ -7,7 +7,7 @@ use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::ImageOptimizationJob;
-use crate::{generate_sitemap, organize_css_files, prerender_content};
+use crate::{generate_sitemap, organize_css_files, prerender_content, prerender_homepage};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PublishContentJob;
@@ -48,6 +48,7 @@ impl PublishContentJob {
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         run_prerender(db_pool, &mut stats).await;
+        run_homepage_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
         run_css_organization(&mut stats).await;
 
@@ -95,6 +96,19 @@ async fn run_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
         },
         Err(e) => {
             tracing::warn!("Prerendering failed: {:#}", e);
+            stats.record_failure();
+        },
+    }
+}
+
+async fn run_homepage_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
+    match prerender_homepage(Arc::clone(db_pool)).await {
+        Ok(()) => {
+            tracing::debug!("Homepage prerendering completed");
+            stats.record_success();
+        },
+        Err(e) => {
+            tracing::warn!("Homepage prerendering failed: {:#}", e);
             stats.record_failure();
         },
     }
