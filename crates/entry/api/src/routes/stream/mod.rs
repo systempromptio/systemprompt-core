@@ -3,9 +3,8 @@ use axum::response::sse::Sse;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
-use once_cell::sync::Lazy;
 use std::convert::Infallible;
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 use systemprompt_core_agent::services::ContextProviderService;
 use systemprompt_core_events::{
     standard_keep_alive, Broadcaster, ConnectionGuard, GenericBroadcaster, A2A_BROADCASTER,
@@ -79,7 +78,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> futures_util::Stream for StreamWi
 
 pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
     request_context: &RequestContext,
-    broadcaster: &'static Lazy<GenericBroadcaster<E>>,
+    broadcaster: &'static LazyLock<GenericBroadcaster<E>>,
     stream_name: &str,
 ) -> impl IntoResponse {
     let user_id = request_context.user_id().clone();

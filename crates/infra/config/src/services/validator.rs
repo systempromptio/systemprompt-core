@@ -88,7 +88,7 @@ impl ConfigValidator {
         let mut missing = Vec::new();
 
         for var in &required_vars {
-            let is_missing_or_empty = config.variables.get(*var).map_or(true, String::is_empty);
+            let is_missing_or_empty = config.variables.get(*var).is_none_or(String::is_empty);
             if is_missing_or_empty {
                 missing.push(*var);
             }

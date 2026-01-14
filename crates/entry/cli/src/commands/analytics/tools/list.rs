@@ -20,6 +20,14 @@ pub enum ToolSortBy {
     AvgTime,
 }
 
+struct ToolQueryParams<'a> {
+    start: DateTime<Utc>,
+    end: DateTime<Utc>,
+    limit: i64,
+    server_filter: Option<&'a String>,
+    sort_by: ToolSortBy,
+}
+
 #[derive(Debug, Args)]
 pub struct ListArgs {
     #[arg(
@@ -60,8 +68,14 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output =
-        fetch_tools(&pool, start, end, args.limit, args.server.as_ref(), args.sort_by).await?;
+    let params = ToolQueryParams {
+        start,
+        end,
+        limit: args.limit,
+        server_filter: args.server.as_ref(),
+        sort_by: args.sort_by,
+    };
+    let output = fetch_tools(&pool, &params).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.tools, path)?;
@@ -98,13 +112,9 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
 
 async fn fetch_tools(
     pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-    server_filter: Option<&String>,
-    sort_by: ToolSortBy,
+    params: &ToolQueryParams<'_>,
 ) -> Result<ToolListOutput> {
-    let order_clause = match sort_by {
+    let order_clause = match params.sort_by {
         ToolSortBy::ExecutionCount => "COUNT(*) DESC",
         ToolSortBy::SuccessRate => "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float ELSE 0 END DESC",
         ToolSortBy::AvgTime => "COALESCE(AVG(execution_time_ms), 0) DESC",
@@ -123,16 +133,16 @@ async fn fetch_tools(
     ";
 
     let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> =
-        if let Some(server) = server_filter {
+        if let Some(server) = params.server_filter {
             let query = format!(
                 "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY {} LIMIT $4",
                 base_query, order_clause
             );
             sqlx::query_as(&query)
-                .bind(start)
-                .bind(end)
+                .bind(params.start)
+                .bind(params.end)
                 .bind(format!("%{}%", server))
-                .bind(limit)
+                .bind(params.limit)
                 .fetch_all(pool.as_ref())
                 .await?
         } else {
@@ -141,9 +151,9 @@ async fn fetch_tools(
                 base_query, order_clause
             );
             sqlx::query_as(&query)
-                .bind(start)
-                .bind(end)
-                .bind(limit)
+                .bind(params.start)
+                .bind(params.end)
+                .bind(params.limit)
                 .fetch_all(pool.as_ref())
                 .await?
         };

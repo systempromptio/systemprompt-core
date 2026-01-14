@@ -108,9 +108,9 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
 
     let mut changes: Vec<ServerSetOutput> = Vec::new();
 
-    if let Some(host) = args.host {
+    if let Some(ref host) = args.host {
         let old = profile.server.host.clone();
-        profile.server.host = host.clone();
+        profile.server.host.clone_from(host);
         changes.push(ServerSetOutput {
             field: "host".to_string(),
             old_value: old,
@@ -141,9 +141,9 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         });
     }
 
-    if let Some(url) = args.api_server_url {
+    if let Some(ref url) = args.api_server_url {
         let old = profile.server.api_server_url.clone();
-        profile.server.api_server_url = url.clone();
+        profile.server.api_server_url.clone_from(url);
         changes.push(ServerSetOutput {
             field: "api_server_url".to_string(),
             old_value: old,
@@ -152,9 +152,9 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         });
     }
 
-    if let Some(url) = args.api_internal_url {
+    if let Some(ref url) = args.api_internal_url {
         let old = profile.server.api_internal_url.clone();
-        profile.server.api_internal_url = url.clone();
+        profile.server.api_internal_url.clone_from(url);
         changes.push(ServerSetOutput {
             field: "api_internal_url".to_string(),
             old_value: old,
@@ -163,9 +163,9 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         });
     }
 
-    if let Some(url) = args.api_external_url {
+    if let Some(ref url) = args.api_external_url {
         let old = profile.server.api_external_url.clone();
-        profile.server.api_external_url = url.clone();
+        profile.server.api_external_url.clone_from(url);
         changes.push(ServerSetOutput {
             field: "api_external_url".to_string(),
             old_value: old,

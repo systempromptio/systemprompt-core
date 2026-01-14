@@ -62,9 +62,8 @@ pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()>
         return Ok(());
     }
 
-    // Confirm before cleanup unless --yes is provided
     if !yes && config.is_interactive() {
-        let service_count = running_services.len() + if api_pid.is_some() { 1 } else { 0 };
+        let service_count = running_services.len() + usize::from(api_pid.is_some());
         if !CliService::confirm(&format!(
             "This will stop {} service(s). Continue?",
             service_count

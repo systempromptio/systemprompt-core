@@ -143,13 +143,13 @@ impl UserRepository {
         }
 
         let rows: Vec<StatusCount> = sqlx::query_as(
-            r#"
+            r"
             SELECT status, COUNT(*)::bigint as cnt
             FROM users
             WHERE status != $1
             GROUP BY status
             ORDER BY cnt DESC
-            "#,
+            ",
         )
         .bind(deleted_status)
         .fetch_all(&*self.pool)
@@ -168,13 +168,13 @@ impl UserRepository {
         }
 
         let rows: Vec<RoleCount> = sqlx::query_as(
-            r#"
+            r"
             SELECT role, COUNT(*)::bigint as cnt
             FROM users, UNNEST(roles) as role
             WHERE status != $1
             GROUP BY role
             ORDER BY cnt DESC
-            "#,
+            ",
         )
         .bind(deleted_status)
         .fetch_all(&*self.pool)
@@ -202,7 +202,7 @@ impl UserRepository {
         }
 
         let row: StatsRow = sqlx::query_as(
-            r#"
+            r"
             SELECT
                 COUNT(*)::bigint as total,
                 COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::bigint as created_24h,
@@ -217,7 +217,7 @@ impl UserRepository {
                 MAX(created_at) as newest_user
             FROM users
             WHERE status != $1
-            "#,
+            ",
         )
         .bind(deleted_status)
         .fetch_one(&*self.pool)
@@ -243,7 +243,7 @@ impl UserRepository {
         user_ids: &[UserId],
         new_status: &str,
     ) -> Result<u64> {
-        let ids: Vec<String> = user_ids.iter().map(|id| id.to_string()).collect();
+        let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"
             UPDATE users
@@ -261,7 +261,7 @@ impl UserRepository {
 
     pub async fn bulk_delete(&self, user_ids: &[UserId]) -> Result<u64> {
         let deleted_status = UserStatus::Deleted.as_str();
-        let ids: Vec<String> = user_ids.iter().map(|id| id.to_string()).collect();
+        let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
             r#"
             UPDATE users

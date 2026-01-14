@@ -37,7 +37,7 @@ impl LogSubscriber {
         }
 
         self.last_poll
-            .map_or(true, |last| last.elapsed() >= POLL_INTERVAL)
+            .is_none_or(|last| last.elapsed() >= POLL_INTERVAL)
     }
 
     pub async fn poll_logs(&mut self) {

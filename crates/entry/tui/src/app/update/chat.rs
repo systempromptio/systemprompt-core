@@ -63,7 +63,7 @@ impl TuiApp {
         let requires_approval = self
             .tool_registry
             .get(&tool_call.tool_name)
-            .map_or(true, |t| t.requires_approval());
+            .is_none_or(|t| t.requires_approval());
 
         if requires_approval {
             self.state.tools.add_pending(tool_call);

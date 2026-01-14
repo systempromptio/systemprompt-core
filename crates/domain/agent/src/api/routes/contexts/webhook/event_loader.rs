@@ -222,7 +222,7 @@ async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, 
         )
     })?;
 
-    if payload.task.history.is_none() || payload.task.history.as_ref().map_or(true, Vec::is_empty) {
+    if payload.task.history.as_ref().is_none_or(Vec::is_empty) {
         return Err(anyhow::anyhow!(
             "task_created payload has empty history - user message is missing! Task ID: {}",
             request.entity_id

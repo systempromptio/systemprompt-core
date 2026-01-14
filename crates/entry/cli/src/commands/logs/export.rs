@@ -73,7 +73,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let logs: Vec<LogEntryRow> = rows
         .into_iter()
         .filter(|r| {
-            args.module.as_ref().map_or(true, |module| r.module.contains(module))
+            args.module.as_ref().is_none_or( |module| r.module.contains(module))
         })
         .map(|r| LogEntryRow {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),

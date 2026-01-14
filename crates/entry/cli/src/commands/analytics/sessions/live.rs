@@ -108,8 +108,8 @@ async fn fetch_live_sessions(
                 session_id: row.session_id,
                 user_type: row.user_type.unwrap_or_else(|| "unknown".to_string()),
                 started_at: row.started_at.format("%H:%M:%S").to_string(),
-                duration_seconds: row.duration_seconds.map_or(current_duration, |d| d as i64),
-                request_count: row.request_count.unwrap_or(0) as i64,
+                duration_seconds: row.duration_seconds.map_or(current_duration, i64::from),
+                request_count: i64::from(row.request_count.unwrap_or(0)),
                 last_activity: row.last_activity_at.format("%H:%M:%S").to_string(),
             }
         })

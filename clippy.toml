@@ -4,7 +4,7 @@
 
 # Avoid false positives for common patterns
 avoid-breaking-exported-api = false
-msrv = "1.76"
+msrv = "1.82"
 
 # COGNITIVE COMPLEXITY - Keep code simple and maintainable
 # Target: 15 (world-class code should be simple)
@@ -55,3 +55,6 @@ future-size-threshold = 16384
 
 # LARGE STACK FRAMES - Prevent stack overflow
 stack-size-threshold = 512000
+
+# STRUCT BOOLS - Allow reasonable number of bools in CLI args and config structs
+max-struct-bools = 5

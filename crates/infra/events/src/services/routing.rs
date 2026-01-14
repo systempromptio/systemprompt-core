@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use systemprompt_identifiers::UserId;
 use tracing::info;
 
@@ -6,9 +6,9 @@ use super::{A2ABroadcaster, AgUiBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
 use systemprompt_models::{A2AEvent, AgUiEvent, ContextEvent, SystemEvent};
 
-pub static CONTEXT_BROADCASTER: Lazy<ContextBroadcaster> = Lazy::new(ContextBroadcaster::new);
-pub static AGUI_BROADCASTER: Lazy<AgUiBroadcaster> = Lazy::new(AgUiBroadcaster::new);
-pub static A2A_BROADCASTER: Lazy<A2ABroadcaster> = Lazy::new(A2ABroadcaster::new);
+pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> = LazyLock::new(ContextBroadcaster::new);
+pub static AGUI_BROADCASTER: LazyLock<AgUiBroadcaster> = LazyLock::new(AgUiBroadcaster::new);
+pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcaster::new);
 
 #[derive(Debug, Clone, Copy)]
 pub struct EventRouter;

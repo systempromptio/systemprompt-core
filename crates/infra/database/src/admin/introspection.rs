@@ -18,7 +18,7 @@ impl DatabaseAdminService {
 
     pub async fn list_tables(&self) -> Result<Vec<TableInfo>> {
         let rows = sqlx::query(
-            r#"
+            r"
             SELECT
                 t.table_name as name,
                 COALESCE(s.n_live_tup, 0) as row_count,
@@ -27,7 +27,7 @@ impl DatabaseAdminService {
             LEFT JOIN pg_stat_user_tables s ON t.table_name = s.relname
             WHERE t.table_schema = 'public'
             ORDER BY t.table_name
-            "#,
+            ",
         )
         .fetch_all(&*self.pool)
         .await?;
@@ -68,12 +68,12 @@ impl DatabaseAdminService {
         }
 
         let pk_rows = sqlx::query(
-            r#"
+            r"
             SELECT a.attname as column_name
             FROM pg_index i
             JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = ANY(i.indkey)
             WHERE i.indrelid = $1::regclass AND i.indisprimary
-            "#,
+            ",
         )
         .bind(table_name)
         .fetch_all(&*self.pool)
@@ -99,8 +99,8 @@ impl DatabaseAdminService {
                     name,
                     data_type,
                     nullable,
-                    default,
                     primary_key,
+                    default,
                 }
             })
             .collect();
@@ -116,7 +116,7 @@ impl DatabaseAdminService {
         }
 
         let rows = sqlx::query(
-            r#"
+            r"
             SELECT
                 i.relname as index_name,
                 ix.indisunique as is_unique,
@@ -128,7 +128,7 @@ impl DatabaseAdminService {
             WHERE t.relname = $1 AND t.relkind = 'r'
             GROUP BY i.relname, ix.indisunique
             ORDER BY i.relname
-            "#,
+            ",
         )
         .bind(table_name)
         .fetch_all(&*self.pool)

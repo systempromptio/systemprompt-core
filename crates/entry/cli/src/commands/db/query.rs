@@ -7,12 +7,19 @@ use crate::cli_settings::{CliConfig, OutputFormat};
 use super::helpers::{extract_relation_name, JsonError};
 use super::types::DbExecuteOutput;
 
-fn get_output_format(format_arg: &Option<String>, config: &CliConfig) -> OutputFormat {
-    match format_arg.as_deref() {
+fn get_output_format(format_arg: Option<&str>, config: &CliConfig) -> OutputFormat {
+    match format_arg {
         Some("json") => OutputFormat::Json,
         Some("yaml") => OutputFormat::Yaml,
         _ => config.output_format,
     }
+}
+
+pub struct QueryParams<'a> {
+    pub sql: &'a str,
+    pub limit: Option<u32>,
+    pub offset: Option<u32>,
+    pub format: Option<&'a str>,
 }
 
 fn print_query_result(result: &QueryResult, output_format: OutputFormat) {
@@ -25,20 +32,17 @@ fn print_query_result(result: &QueryResult, output_format: OutputFormat) {
 
 pub async fn execute_query(
     executor: &QueryExecutor,
-    sql: &str,
-    limit: Option<u32>,
-    offset: Option<u32>,
-    format: &Option<String>,
+    params: &QueryParams<'_>,
     config: &CliConfig,
 ) -> Result<()> {
-    let output_format = get_output_format(format, config);
+    let output_format = get_output_format(params.format, config);
 
-    let final_sql = if limit.is_some() || offset.is_some() {
-        let limit_clause = limit.map(|l| format!(" LIMIT {}", l)).unwrap_or_default();
-        let offset_clause = offset.map(|o| format!(" OFFSET {}", o)).unwrap_or_default();
-        format!("{}{}{}", sql.trim_end_matches(';'), limit_clause, offset_clause)
+    let final_sql = if params.limit.is_some() || params.offset.is_some() {
+        let limit_clause = params.limit.map(|l| format!(" LIMIT {}", l)).unwrap_or_default();
+        let offset_clause = params.offset.map(|o| format!(" OFFSET {}", o)).unwrap_or_default();
+        format!("{}{}{}", params.sql.trim_end_matches(';'), limit_clause, offset_clause)
     } else {
-        sql.to_string()
+        params.sql.to_string()
     };
 
     let result = executor
@@ -73,7 +77,7 @@ pub async fn execute_query(
 pub async fn execute_write(
     executor: &QueryExecutor,
     sql: &str,
-    format: &Option<String>,
+    format: Option<&str>,
     config: &CliConfig,
 ) -> Result<()> {
     let output_format = get_output_format(format, config);
