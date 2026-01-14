@@ -74,7 +74,7 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
                 .collect();
 
             let table = Table::new(rows).to_string();
-            println!("{}", table);
+            CliService::output(&table);
 
             CliService::info(&format!("Found {} user(s)", total));
         }

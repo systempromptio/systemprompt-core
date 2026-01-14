@@ -6,8 +6,8 @@ use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 
-#[derive(Debug, Clone, Args)]
-pub struct ConfigArgs {}
+#[derive(Debug, Clone, Copy, Args)]
+pub struct ConfigArgs;
 
 pub fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandResult<FileConfigOutput>> {
     let files_config = FilesConfig::get()?;

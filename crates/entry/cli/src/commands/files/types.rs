@@ -83,7 +83,7 @@ pub struct DocumentMetadataOutput {
     pub page_count: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct AudioMetadataOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub duration_seconds: Option<f32>,
@@ -93,7 +93,7 @@ pub struct AudioMetadataOutput {
     pub channels: Option<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct VideoMetadataOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub width: Option<u32>,
@@ -143,7 +143,7 @@ pub struct FileConfigOutput {
 }
 
 #[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct AllowedTypesOutput {
     pub images: bool,
     pub documents: bool,

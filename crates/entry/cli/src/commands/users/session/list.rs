@@ -100,7 +100,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                 .collect();
 
             let table = Table::new(rows).to_string();
-            println!("{}", table);
+            CliService::output(&table);
 
             CliService::info(&format!("Total: {} session(s)", output.total));
         }

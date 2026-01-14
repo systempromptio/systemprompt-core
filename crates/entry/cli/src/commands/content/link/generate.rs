@@ -10,7 +10,7 @@ use systemprompt_core_content::services::link::generation::{
 use systemprompt_identifiers::{CampaignId, ContentId};
 use systemprompt_runtime::AppContext;
 
-#[derive(Debug, Clone, ValueEnum)]
+#[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum LinkType {
     Redirect,
     Utm,
@@ -93,7 +93,7 @@ pub async fn execute(
 
     let params = GenerateLinkParams {
         target_url: args.url.clone(),
-        link_type: args.link_type.clone().into(),
+        link_type: args.link_type.into(),
         campaign_id: args.campaign.map(CampaignId::new),
         campaign_name: args.campaign_name,
         source_content_id: args.content.map(ContentId::new),

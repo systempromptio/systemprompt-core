@@ -48,7 +48,7 @@ impl From<StatusFilter> for UserStatus {
     }
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
     #[arg(long, default_value = "20")]
     pub limit: i64,
@@ -138,7 +138,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                 .collect();
 
             let table = Table::new(rows).to_string();
-            println!("{}", table);
+            CliService::output(&table);
 
             CliService::info(&format!(
                 "Showing {} user(s) (offset: {}, limit: {})",

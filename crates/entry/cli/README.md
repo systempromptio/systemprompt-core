@@ -21,6 +21,7 @@ src/
 ├── presentation/       # Output formatting
 ├── services/           # systemprompt services [...]
 ├── setup/              # systemprompt setup
+├── web/                # systemprompt web [...]
 ├── shared/             # Cross-cutting infrastructure
 │   ├── mod.rs
 │   └── config.rs       # CliConfig, OutputFormat, VerbosityLevel
@@ -525,7 +526,98 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
 
 ---
 
-## 2.9 tui/
+## 2.9 web/
+
+**Commands:** `systemprompt web [content-types|templates|assets|sitemap|validate]`
+
+### Command Structure
+
+```
+web
+├── content-types           # Manage content types (from content config)
+│   ├── list [--enabled|--disabled] [--category CATEGORY]
+│   ├── show <NAME>
+│   ├── create [--name NAME] [--path PATH] [--source-id ID] [--category-id ID]
+│   ├── edit <NAME> [--set KEY=VALUE] [--enable|--disable] [--url-pattern PATTERN]
+│   └── delete <NAME> [-y]
+├── templates               # Manage HTML templates
+│   ├── list [--missing]
+│   ├── show <NAME> [--preview-lines N]
+│   ├── create [--name NAME] [--content-types TYPES] [--content -|FILE]
+│   ├── edit <NAME> [--add-content-type TYPE] [--remove-content-type TYPE] [--content -]
+│   └── delete <NAME> [-y] [--delete-file]
+├── assets                  # List and inspect static assets
+│   ├── list [--type css|logo|favicon|font|image|all]
+│   └── show <PATH>
+├── sitemap                 # Sitemap operations
+│   ├── show [--preview]
+│   └── generate [--output PATH] [--base-url URL]
+└── validate [--only config|templates|assets|sitemap]
+```
+
+### Requirements
+
+| Requirement | Status |
+|-------------|--------|
+| All `execute` functions accept `config: &CliConfig` | Required |
+| All prompts have flag equivalents | Required |
+| All destructive operations have `--yes` | Required |
+| Template content supports stdin (`--content -`) | Required |
+
+### Path Resolution
+
+All paths are resolved from the profile:
+- `profile.paths.content_config()` → Content sources configuration
+- `profile.paths.web_config()` → Web service configuration
+- `profile.paths.web_metadata()` → Web metadata
+- `profile.paths.web_path_resolved()` → Web service root (templates, assets)
+
+### Required Flags by Command
+
+| Command | Required Flags (Non-Interactive) |
+|---------|----------------------------------|
+| `web content-types create` | `--name`, `--path`, `--source-id`, `--category-id` |
+| `web content-types delete` | `--yes` |
+| `web templates create` | `--name`, `--content-types` |
+| `web templates delete` | `--yes` |
+| `web sitemap generate` | `--base-url` (or from metadata) |
+
+### Piping HTML Content
+
+Templates support piping HTML via stdin:
+
+```bash
+# Create template with HTML from stdin
+cat template.html | systemprompt web templates create --name blog-post --content-types blog --content -
+
+# Update template HTML
+echo "<html>...</html>" | systemprompt web templates edit blog-post --content -
+
+# Copy from existing file
+systemprompt web templates create --name new-template --content-types articles --content ./source.html
+```
+
+### JSON Output Required
+
+| Command | JSON Structure |
+|---------|---------------|
+| `web content-types list` | `{"content_types": [{"name": "...", "enabled": true, ...}]}` |
+| `web templates list` | `{"templates": [{"name": "...", "file_exists": true, ...}]}` |
+| `web assets list` | `{"assets": [{"path": "...", "asset_type": "css", ...}]}` |
+| `web sitemap show` | `{"routes": [...], "total_routes": N}` |
+| `web validate` | `{"valid": true, "errors": [], "warnings": []}` |
+
+### Validation Checks
+
+The `web validate` command checks:
+1. **Config**: Web and content configs exist and parse correctly
+2. **Templates**: Each template entry has a corresponding HTML file
+3. **Assets**: Referenced branding assets (logo, favicon) exist
+4. **Sitemap**: URL patterns are valid, priorities in range 0.0-1.0
+
+---
+
+## 2.10 tui/
 
 **Commands:** `systemprompt` (no subcommand)
 

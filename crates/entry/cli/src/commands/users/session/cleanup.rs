@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::commands::users::types::SessionCleanupOutput;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
     #[arg(long, default_value = "30")]
     pub days: i32,

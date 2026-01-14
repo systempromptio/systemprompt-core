@@ -136,7 +136,7 @@ impl TuiApp {
             Message::CommandModalOpen => self.handle_command_modal_open(),
             Message::CommandModalClose => self.handle_command_modal_close(),
             Message::CommandCliOutput(output) => self.handle_command_cli_output(output),
-            Message::CommandCliError(error) => self.handle_command_cli_error(error),
+            Message::CommandCliError(error) => self.handle_command_cli_error(&error),
             Message::CommandRequestAiParams {
                 command_path,
                 description,

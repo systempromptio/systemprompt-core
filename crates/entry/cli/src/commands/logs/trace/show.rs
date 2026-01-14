@@ -59,7 +59,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     // First try to resolve as a task ID for detailed AI trace view
-    let ai_service = AiTraceService::new(pool.clone());
+    let ai_service = AiTraceService::new(std::sync::Arc::clone(&pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
@@ -69,7 +69,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn execute_trace_view(args: &ShowArgs, pool: &std::sync::Arc<sqlx::PgPool>) -> Result<()> {
-    let service = TraceQueryService::new(pool.clone());
+    let service = TraceQueryService::new(std::sync::Arc::clone(pool));
 
     let (
         log_events,

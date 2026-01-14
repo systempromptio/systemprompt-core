@@ -137,8 +137,8 @@ impl TuiApp {
         vec![Command::None]
     }
 
-    pub(crate) fn handle_command_cli_error(&mut self, error: String) -> Vec<Command> {
-        self.state.commands.set_error(&error);
+    pub(crate) fn handle_command_cli_error(&mut self, error: &str) -> Vec<Command> {
+        self.state.commands.set_error(error);
         vec![Command::None]
     }
 

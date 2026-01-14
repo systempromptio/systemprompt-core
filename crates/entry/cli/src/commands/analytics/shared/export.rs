@@ -69,6 +69,7 @@ fn escape_csv_field(s: &str) -> String {
     }
 }
 
+#[derive(Debug)]
 pub struct CsvBuilder {
     headers: Vec<String>,
     rows: Vec<Vec<String>>,

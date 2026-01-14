@@ -7,7 +7,7 @@ use systemprompt_runtime::AppContext;
 
 use crate::commands::users::types::BanCleanupOutput;
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
     #[arg(short = 'y', long)]
     pub yes: bool,

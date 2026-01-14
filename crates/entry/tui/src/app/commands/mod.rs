@@ -49,7 +49,7 @@ impl TuiApp {
             Command::RequestAiCommandParams {
                 command_path,
                 description,
-            } => self.handle_ai_command_request(command_path, description),
+            } => self.handle_ai_command_request(&command_path, &description),
             _ => {},
         }
         Ok(())
@@ -240,7 +240,7 @@ impl TuiApp {
         executor.spawn_execution(cmd_string);
     }
 
-    fn handle_ai_command_request(&mut self, command_path: Vec<String>, description: String) {
+    fn handle_ai_command_request(&mut self, command_path: &[String], description: &str) {
         use crate::state::ActiveTab;
 
         let prompt = format!(
