@@ -10,7 +10,9 @@ import { globalErrorHandler } from './lib/errorHandling'
 
 globalErrorHandler.initialize()
 
-const router = createBrowserRouter(routes)
+const router = createBrowserRouter(routes, {
+  basename: '/agent'
+})
 
 const rootElement = document.getElementById('root')
 if (!rootElement) {

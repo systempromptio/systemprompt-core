@@ -204,12 +204,13 @@ impl MessageProcessor {
         )
         .await
         {
+            let error_msg = format!("Failed to persist completed task: {}", e);
             tracing::error!(task_id = %task.id, error = %e, "Failed to persist completed task");
 
             let failed_timestamp = chrono::Utc::now();
             if let Err(update_err) = self
                 .task_repo
-                .update_task_state(&task.id, TaskState::Failed, &failed_timestamp)
+                .update_task_failed_with_error(&task.id, &error_msg, &failed_timestamp)
                 .await
             {
                 tracing::error!(task_id = %task.id, error = %update_err, "Failed to update task to failed state");

@@ -54,7 +54,7 @@ sp skills list --agent primary
 {
   "skills": [
     {
-      "name": "code-review",
+      "name": "code_review",
       "display_name": "Code Review",
       "description": "Reviews code for quality and best practices",
       "agent": "primary",
@@ -78,25 +78,25 @@ Create a new skill configuration.
 
 ```bash
 sp skills create \
-  --name "my-skill" \
+  --name "my_skill" \
   --display-name "My Skill" \
   --description "A custom skill" \
   --agent primary \
   --prompt "You are a helpful assistant that..."
 
 sp skills create \
-  --name "code-helper" \
+  --name "code_helper" \
   --display-name "Code Helper" \
   --description "Helps with coding tasks" \
   --agent primary \
-  --prompt-file ./prompts/code-helper.txt \
+  --prompt-file ./prompts/code_helper.txt \
   --enabled
 ```
 
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--name` | Yes | Skill identifier (lowercase alphanumeric + hyphens) |
+| `--name` | Yes | Skill identifier (lowercase alphanumeric + underscores) |
 | `--agent` | Yes | Agent to associate skill with |
 | `--prompt` or `--prompt-file` | Yes | Skill prompt (inline or file path) |
 
@@ -108,15 +108,15 @@ sp skills create \
 | `--enabled` | `false` | Enable skill after creation |
 
 **Validation Rules:**
-- Name: 3-50 characters, lowercase alphanumeric with hyphens only
+- Name: 3-50 characters, lowercase alphanumeric with underscores only
 - Agent must exist in configuration
 
 **Output Structure:**
 ```json
 {
-  "name": "my-skill",
-  "path": "/var/www/html/tyingshoelaces/services/skills/my-skill.yaml",
-  "message": "Skill 'my-skill' created successfully"
+  "name": "my_skill",
+  "path": "/var/www/html/tyingshoelaces/services/skills/my_skill.yaml",
+  "message": "Skill 'my_skill' created successfully"
 }
 ```
 
@@ -129,12 +129,12 @@ sp skills create \
 Edit an existing skill configuration.
 
 ```bash
-sp skills edit <skill-name> --enable
-sp skills edit <skill-name> --disable
-sp skills edit <skill-name> --description "Updated description"
-sp skills edit <skill-name> --prompt "New prompt text..."
-sp skills edit <skill-name> --prompt-file ./prompts/updated.txt
-sp skills edit <skill-name> --set display_name="New Display Name"
+sp skills edit <skill_name> --enable
+sp skills edit <skill_name> --disable
+sp skills edit <skill_name> --description "Updated description"
+sp skills edit <skill_name> --prompt "New prompt text..."
+sp skills edit <skill_name> --prompt-file ./prompts/updated.txt
+sp skills edit <skill_name> --set display_name="New Display Name"
 ```
 
 **Required Arguments:**
@@ -162,8 +162,8 @@ sp skills edit <skill-name> --set display_name="New Display Name"
 **Output Structure:**
 ```json
 {
-  "name": "my-skill",
-  "message": "Skill 'my-skill' updated successfully with 2 change(s)",
+  "name": "my_skill",
+  "message": "Skill 'my_skill' updated successfully with 2 change(s)",
   "changes": ["enabled: true", "description: Updated description"]
 }
 ```
@@ -177,8 +177,8 @@ sp skills edit <skill-name> --set display_name="New Display Name"
 Delete a skill configuration.
 
 ```bash
-sp skills delete <skill-name> --yes
-sp skills delete my-skill --yes
+sp skills delete <skill_name> --yes
+sp skills delete my_skill --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -190,8 +190,8 @@ sp skills delete my-skill --yes
 **Output Structure:**
 ```json
 {
-  "deleted": "my-skill",
-  "message": "Skill 'my-skill' deleted successfully"
+  "deleted": "my_skill",
+  "message": "Skill 'my_skill' deleted successfully"
 }
 ```
 
@@ -219,7 +219,7 @@ sp skills status --agent primary
 {
   "skills": [
     {
-      "name": "code-review",
+      "name": "code_review",
       "disk_exists": true,
       "db_exists": true,
       "synced": true,
@@ -227,7 +227,7 @@ sp skills status --agent primary
       "db_updated": "2024-01-15T10:30:00Z"
     },
     {
-      "name": "old-skill",
+      "name": "old_skill",
       "disk_exists": false,
       "db_exists": true,
       "synced": false,
@@ -276,8 +276,8 @@ sp skills sync --dry-run
 ```json
 {
   "direction": "to-db",
-  "created": ["new-skill"],
-  "updated": ["existing-skill"],
+  "created": ["new_skill"],
+  "updated": ["existing_skill"],
   "deleted": [],
   "skipped": [],
   "dry_run": false,
@@ -300,7 +300,7 @@ sp --json skills status
 
 # Phase 2: Create new skill
 sp skills create \
-  --name "documentation-helper" \
+  --name "documentation_helper" \
   --display-name "Documentation Helper" \
   --description "Helps write and improve documentation" \
   --agent primary \
@@ -314,10 +314,10 @@ sp --json skills status
 sp skills sync --direction to-db
 
 # Phase 5: Enable skill
-sp skills edit documentation-helper --enable
+sp skills edit documentation_helper --enable
 
 # Phase 6: Update skill
-sp skills edit documentation-helper \
+sp skills edit documentation_helper \
   --description "Professional documentation assistance" \
   --prompt "You are an expert technical writer..."
 
@@ -325,7 +325,7 @@ sp skills edit documentation-helper \
 sp skills sync --direction to-db
 
 # Phase 8: Delete skill
-sp skills delete documentation-helper --yes
+sp skills delete documentation_helper --yes
 
 # Phase 9: Sync deletion
 sp skills sync --direction to-db
@@ -341,8 +341,8 @@ sp --json skills list
 Skills are stored as YAML files:
 
 ```yaml
-# /services/skills/my-skill.yaml
-name: my-skill
+# /services/skills/my_skill.yaml
+name: my_skill
 display_name: My Skill
 description: A helpful skill
 agent: primary
@@ -364,7 +364,7 @@ For complex prompts, use a separate file:
 
 ```bash
 # Create prompt file
-cat << 'EOF' > ./prompts/my-skill.txt
+cat << 'EOF' > ./prompts/my_skill.txt
 You are a helpful assistant that specializes in software development.
 
 When responding to requests:
@@ -378,9 +378,9 @@ EOF
 
 # Create skill with prompt file
 sp skills create \
-  --name "dev-helper" \
+  --name "dev_helper" \
   --agent primary \
-  --prompt-file ./prompts/my-skill.txt
+  --prompt-file ./prompts/my_skill.txt
 ```
 
 ---
@@ -396,7 +396,7 @@ sp skills create --name test
 sp skills create --name test --agent primary
 # Error: --prompt or --prompt-file is required in non-interactive mode
 
-sp skills delete my-skill
+sp skills delete my_skill
 # Error: --yes is required to delete skills in non-interactive mode
 ```
 
@@ -404,12 +404,12 @@ sp skills delete my-skill
 
 ```bash
 sp skills create --name "Test Skill" --agent primary --prompt "test"
-# Error: Skill name must be lowercase alphanumeric with hyphens only
+# Error: Skill name must be lowercase alphanumeric with underscores only
 
 sp skills create --name "ab" --agent primary --prompt "test"
 # Error: Skill name must be between 3 and 50 characters
 
-sp skills create --name "new-skill" --agent nonexistent --prompt "test"
+sp skills create --name "new_skill" --agent nonexistent --prompt "test"
 # Error: Agent 'nonexistent' not found
 ```
 

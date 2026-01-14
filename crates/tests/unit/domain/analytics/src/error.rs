@@ -49,15 +49,6 @@ mod analytics_error_tests {
     }
 
     #[test]
-    fn feature_extraction_failed_displays_reason() {
-        let err = AnalyticsError::FeatureExtractionFailed("Missing session data".to_string());
-        let display = format!("{}", err);
-
-        assert!(display.contains("Feature extraction failed"));
-        assert!(display.contains("Missing session data"));
-    }
-
-    #[test]
     fn anomaly_detection_failed_displays_reason() {
         let err = AnalyticsError::AnomalyDetectionFailed("Threshold exceeded".to_string());
         let display = format!("{}", err);

@@ -36,6 +36,7 @@ async fn fetch_task_row(
             started_at,
             completed_at,
             execution_time_ms,
+            error_message,
             metadata,
             created_at as "created_at!",
             updated_at as "updated_at!"

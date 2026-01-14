@@ -5,7 +5,6 @@ pub mod services;
 
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,
-    FeatureExtractionJob,
 };
 pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig, SchedulerError};
 pub use repository::{JobRepository, SchedulerRepository};

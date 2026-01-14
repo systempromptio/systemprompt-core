@@ -28,6 +28,7 @@ pub async fn get_task(
             started_at,
             completed_at,
             execution_time_ms,
+            error_message,
             metadata,
             created_at as "created_at!",
             updated_at as "updated_at!"
@@ -68,6 +69,7 @@ pub async fn list_tasks_by_context(
             started_at,
             completed_at,
             execution_time_ms,
+            error_message,
             metadata,
             created_at as "created_at!",
             updated_at as "updated_at!"
@@ -114,6 +116,7 @@ pub async fn get_tasks_by_user_id(
             started_at,
             completed_at,
             execution_time_ms,
+            error_message,
             metadata,
             created_at as "created_at!",
             updated_at as "updated_at!"

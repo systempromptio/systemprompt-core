@@ -75,6 +75,50 @@ pub fn execute(
             });
         }
 
+        // Validate that the configured provider is enabled and has an API key
+        if agent.enabled {
+            if let Some(provider_name) = &agent.metadata.provider {
+                match services_config.ai.providers.get(provider_name) {
+                    None => {
+                        issues.push(ValidationIssue {
+                            agent: name.clone(),
+                            severity: ValidationSeverity::Error,
+                            message: format!(
+                                "Provider '{}' is not configured in ai.providers",
+                                provider_name
+                            ),
+                        });
+                    },
+                    Some(provider_config) => {
+                        if !provider_config.enabled {
+                            issues.push(ValidationIssue {
+                                agent: name.clone(),
+                                severity: ValidationSeverity::Error,
+                                message: format!(
+                                    "Provider '{}' is disabled in AI config (set enabled: true)",
+                                    provider_name
+                                ),
+                            });
+                        }
+
+                        // Check if API key is configured (non-empty or placeholder)
+                        if provider_config.api_key.is_empty()
+                            || provider_config.api_key.starts_with("${")
+                        {
+                            issues.push(ValidationIssue {
+                                agent: name.clone(),
+                                severity: ValidationSeverity::Error,
+                                message: format!(
+                                    "No API key configured for provider '{}' (check secrets file)",
+                                    provider_name
+                                ),
+                            });
+                        }
+                    },
+                }
+            }
+        }
+
         for mcp_server in &agent.metadata.mcp_servers {
             if !services_config.mcp_servers.contains_key(mcp_server) {
                 issues.push(ValidationIssue {

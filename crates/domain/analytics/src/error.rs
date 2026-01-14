@@ -20,9 +20,6 @@ pub enum AnalyticsError {
     #[error("Behavioral bot detected: {0}")]
     BehavioralBotDetected(String),
 
-    #[error("Feature extraction failed: {0}")]
-    FeatureExtractionFailed(String),
-
     #[error("Anomaly detection failed: {0}")]
     AnomalyDetectionFailed(String),
 }

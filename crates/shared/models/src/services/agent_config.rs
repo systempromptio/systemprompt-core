@@ -140,10 +140,10 @@ impl AgentConfig {
         if !self
             .name
             .chars()
-            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
         {
             anyhow::bail!(
-                "Agent name '{}' must be lowercase alphanumeric with hyphens only",
+                "Agent name '{}' must be lowercase alphanumeric with underscores only",
                 self.name
             );
         }

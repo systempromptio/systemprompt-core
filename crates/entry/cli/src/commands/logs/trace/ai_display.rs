@@ -110,6 +110,16 @@ pub fn print_task_info(task_info: &TaskInfo) {
     print_section("TASK");
     let table = Table::new(rows).with(Style::rounded()).to_string();
     CliService::info(&table);
+
+    // Display error message if task failed
+    if task_info.status == "failed" {
+        if let Some(ref error) = task_info.error_message {
+            if !error.is_empty() {
+                CliService::error("Error:");
+                print_content_block(error);
+            }
+        }
+    }
 }
 
 pub fn print_user_input(input: Option<&String>) {

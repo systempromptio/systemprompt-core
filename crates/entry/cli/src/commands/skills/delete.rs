@@ -108,12 +108,6 @@ fn find_skill_dir(skills_path: &Path, name: &str) -> Option<std::path::PathBuf> 
     if direct.exists() && direct.is_dir() {
         return Some(direct);
     }
-
-    let with_hyphens = skills_path.join(name.replace('_', "-"));
-    if with_hyphens.exists() && with_hyphens.is_dir() {
-        return Some(with_hyphens);
-    }
-
     None
 }
 

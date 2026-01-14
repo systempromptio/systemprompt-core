@@ -1,12 +1,10 @@
 mod engagement;
 mod fingerprint;
-mod ml_features;
 
 pub use engagement::{
     CreateEngagementEventInput, EngagementEvent, EngagementEventData, EngagementOptionalMetrics,
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
-pub use ml_features::{AnomalyThreshold, FeatureExtractionConfig, MlBehavioralFeatures};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

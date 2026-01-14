@@ -157,7 +157,6 @@ These functions exceed complexity limits and must be refactored:
 | `crates/domain/content/src/api/routes/query.rs:34` | `execute_search` |
 | `crates/domain/content/src/analytics/repository.rs:173` | `record_click` |
 | `crates/domain/analytics/src/repository/session/mutations.rs:179` | `create_session` |
-| `crates/domain/analytics/src/repository/ml_features.rs:20` | `insert_features` |
 | `crates/domain/analytics/src/repository/engagement.rs:20` | `create_engagement` |
 | `crates/infra/logging/src/repository/analytics/mod.rs:46` | `run_insert_query` |
 

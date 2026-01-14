@@ -6,7 +6,8 @@ use crate::services::middleware::{
     ip_ban_middleware, ContextMiddleware, JwtContextExtractor, RouterExt,
 };
 use crate::services::static_content::{
-    serve_vite_app, smart_fallback_handler, StaticContentMatcher, StaticContentState,
+    serve_homepage, serve_vite_app, smart_fallback_handler, StaticContentMatcher,
+    StaticContentState,
 };
 use axum::routing::get;
 use std::sync::Arc;
@@ -188,7 +189,9 @@ pub fn configure_routes(
     };
 
     let static_router = Router::new()
-        .route("/", get(serve_vite_app))
+        .route("/", get(serve_homepage))
+        .route("/agent", get(serve_vite_app))
+        .route("/agent/*path", get(serve_vite_app))
         .fallback(smart_fallback_handler)
         .with_state(static_state)
         .with_auth_middleware(public_middleware.clone());

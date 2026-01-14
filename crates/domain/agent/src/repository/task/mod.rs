@@ -4,7 +4,8 @@ mod queries;
 
 pub use constructor::TaskConstructor;
 pub use mutations::{
-    create_task, task_state_to_db_string, track_agent_in_context, update_task_state,
+    create_task, task_state_to_db_string, track_agent_in_context, update_task_failed_with_error,
+    update_task_state,
 };
 pub use queries::{
     get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context, TaskContextInfo,
@@ -169,6 +170,17 @@ impl TaskRepository {
         let task_id_typed = systemprompt_identifiers::TaskId::new(task_id);
         self.update_task_state(&task_id_typed, state, timestamp)
             .await
+    }
+
+    /// Update task to failed state with an error message for debugging
+    pub async fn update_task_failed_with_error(
+        &self,
+        task_id: &systemprompt_identifiers::TaskId,
+        error_message: &str,
+        timestamp: &chrono::DateTime<chrono::Utc>,
+    ) -> Result<(), RepositoryError> {
+        let pool = self.get_pg_pool()?;
+        update_task_failed_with_error(&pool, task_id, error_message, timestamp).await
     }
 
     pub async fn update_task_and_save_messages(
