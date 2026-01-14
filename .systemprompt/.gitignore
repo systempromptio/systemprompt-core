@@ -1,6 +1,0 @@
-# Ignore sensitive files
-credentials.json
-tenants.json
-**/secrets.json
-docker/
-storage/

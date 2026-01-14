@@ -76,9 +76,8 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
             let result = CommandResult::text(output).with_title("Setup Cancelled");
             if config.is_json_output() {
                 return Ok(result);
-            } else {
-                return Ok(result.with_skip_render());
             }
+            return Ok(result.with_skip_render());
         }
     }
 

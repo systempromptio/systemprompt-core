@@ -134,14 +134,13 @@ impl UserRepository {
     }
 
     pub async fn count_by_status(&self) -> Result<Vec<(String, i64)>> {
-        let deleted_status = UserStatus::Deleted.as_str();
-
         #[derive(sqlx::FromRow)]
         struct StatusCount {
             status: String,
             cnt: i64,
         }
 
+        let deleted_status = UserStatus::Deleted.as_str();
         let rows: Vec<StatusCount> = sqlx::query_as(
             r"
             SELECT status, COUNT(*)::bigint as cnt
@@ -159,14 +158,13 @@ impl UserRepository {
     }
 
     pub async fn count_by_role(&self) -> Result<Vec<(String, i64)>> {
-        let deleted_status = UserStatus::Deleted.as_str();
-
         #[derive(sqlx::FromRow)]
         struct RoleCount {
             role: String,
             cnt: i64,
         }
 
+        let deleted_status = UserStatus::Deleted.as_str();
         let rows: Vec<RoleCount> = sqlx::query_as(
             r"
             SELECT role, COUNT(*)::bigint as cnt
@@ -184,8 +182,6 @@ impl UserRepository {
     }
 
     pub async fn get_stats(&self) -> Result<UserStats> {
-        let deleted_status = UserStatus::Deleted.as_str();
-
         #[derive(sqlx::FromRow)]
         struct StatsRow {
             total: i64,
@@ -201,6 +197,7 @@ impl UserRepository {
             newest_user: Option<chrono::DateTime<chrono::Utc>>,
         }
 
+        let deleted_status = UserStatus::Deleted.as_str();
         let row: StatsRow = sqlx::query_as(
             r"
             SELECT

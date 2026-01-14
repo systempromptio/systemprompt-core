@@ -214,10 +214,10 @@ async fn validate_single_service(
     });
 
     let issues = if let Some(ref error) = validation_result.error_message {
-        if !error.is_empty() {
-            vec![error.clone()]
-        } else {
+        if error.is_empty() {
             vec![]
+        } else {
+            vec![error.clone()]
         }
     } else {
         vec![]

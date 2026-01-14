@@ -87,6 +87,8 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Ski
     ));
 
     let skills_path = get_skills_path()?;
+    check_normalized_conflicts(&name, &skills_path)?;
+
     let skill_dir = skills_path.join(&name);
 
     if skill_dir.exists() {
@@ -151,6 +153,46 @@ fn validate_skill_name(name: &str) -> Result<()> {
         return Err(anyhow!(
             "Skill name must be lowercase alphanumeric with underscores only"
         ));
+    }
+
+    Ok(())
+}
+
+fn normalize_skill_name(name: &str) -> String {
+    name.replace('-', "_").to_lowercase()
+}
+
+fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Result<()> {
+    let normalized_name = normalize_skill_name(name);
+
+    if !skills_dir.exists() {
+        return Ok(());
+    }
+
+    let entries = fs::read_dir(skills_dir)
+        .with_context(|| format!("Failed to read skills directory: {}", skills_dir.display()))?;
+
+    for entry in entries.filter_map(|e| e.ok()) {
+        if !entry.path().is_dir() {
+            continue;
+        }
+
+        let existing_name = entry.file_name().to_string_lossy().to_string();
+        let existing_normalized = normalize_skill_name(&existing_name);
+
+        if existing_name == name {
+            continue;
+        }
+
+        if existing_normalized == normalized_name {
+            return Err(anyhow!(
+                "Skill '{}' conflicts with existing skill '{}' (same normalized name: '{}'). \
+                 Use consistent naming to avoid confusion.",
+                name,
+                existing_name,
+                normalized_name
+            ));
+        }
     }
 
     Ok(())
