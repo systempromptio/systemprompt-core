@@ -65,7 +65,7 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
 
     if let Some(ct) = args.content_types {
         let new_types: Vec<String> = ct.split(',').map(|s| s.trim().to_string()).collect();
-        entry.content_types = new_types.clone();
+        entry.content_types.clone_from(&new_types);
         changes.push(format!("content_types: {:?}", new_types));
     }
 

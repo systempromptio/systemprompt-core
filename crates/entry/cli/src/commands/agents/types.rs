@@ -176,6 +176,21 @@ pub struct TaskGetOutput {
     pub state: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub timestamp: Option<String>,
-    pub history_count: usize,
-    pub artifacts_count: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub history: Vec<HistoryMessage>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub artifacts: Vec<TaskArtifact>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct HistoryMessage {
+    pub role: String,
+    pub text: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct TaskArtifact {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+    pub content: String,
 }

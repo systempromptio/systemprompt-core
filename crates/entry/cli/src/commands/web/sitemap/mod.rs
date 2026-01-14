@@ -25,7 +25,6 @@ pub async fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()>
         },
         SitemapCommands::Generate(args) => {
             let result = generate::execute(args, config)
-                .await
                 .context("Failed to generate sitemap")?;
             render_result(&result);
             Ok(())

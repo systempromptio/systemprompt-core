@@ -78,19 +78,19 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
     }
 
     if let Some(path) = args.path {
-        source.path = path.clone();
+        source.path.clone_from(&path);
         changes.push(format!("path: {}", path));
     }
 
     if let Some(description) = args.description {
-        source.description = description.clone();
+        source.description.clone_from(&description);
         changes.push(format!("description: {}", description));
     }
 
     if args.url_pattern.is_some() || args.priority.is_some() || args.changefreq.is_some() {
         if let Some(ref mut sitemap) = source.sitemap {
             if let Some(url_pattern) = args.url_pattern {
-                sitemap.url_pattern = url_pattern.clone();
+                sitemap.url_pattern.clone_from(&url_pattern);
                 changes.push(format!("sitemap.url_pattern: {}", url_pattern));
             }
             if let Some(priority) = args.priority {
@@ -101,7 +101,7 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Conte
                 changes.push(format!("sitemap.priority: {}", priority));
             }
             if let Some(changefreq) = args.changefreq {
-                sitemap.changefreq = changefreq.clone();
+                sitemap.changefreq.clone_from(&changefreq);
                 changes.push(format!("sitemap.changefreq: {}", changefreq));
             }
         } else {
