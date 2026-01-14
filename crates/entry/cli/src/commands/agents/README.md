@@ -487,8 +487,9 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 Get task details including conversation history and agent response.
 
 ```bash
-sp agents task <agent-name> --task-id <task-id> --context-id <context-id> --token "$TOKEN"
-sp --json agents task primary --task-id task_abc123 --context-id ctx_xyz789 --token "$TOKEN"
+sp agents task <agent-name> --task-id <task-id> --token "$TOKEN"
+sp --json agents task primary --task-id task_abc123 --token "$TOKEN"
+sp agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TOKEN"
 ```
 
 **Required Arguments:**
@@ -496,14 +497,16 @@ sp --json agents task primary --task-id task_abc123 --context-id ctx_xyz789 --to
 |----------|----------|-------------|
 | `<agent>` | Yes | Agent name that processed the task |
 | `--task-id` | Yes | Task ID from message response |
-| `--context-id` | Yes | Context ID from message response |
 | `--token` | Yes | Bearer token for authentication |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
+| `--history-length` | All | Number of history messages to retrieve |
 | `--url` | `http://localhost:8080` | Gateway URL |
 | `--timeout` | 30 | Timeout in seconds |
+
+**A2A Spec Compliance:** Per A2A spec Section 7.3, `tasks/get` uses `TaskQueryParams` which only requires `id` (task UUID). The context is resolved from task storage by the server.
 
 **Output Structure:**
 ```json
@@ -512,20 +515,12 @@ sp --json agents task primary --task-id task_abc123 --context-id ctx_xyz789 --to
   "context_id": "ctx_xyz789",
   "state": "completed",
   "timestamp": "2024-01-15T10:30:00Z",
-  "history_count": 2,
-  "artifacts_count": 0
+  "history": [
+    { "role": "User", "text": "What is 2+2?" },
+    { "role": "Agent", "text": "2 + 2 equals 4." }
+  ],
+  "artifacts": []
 }
-```
-
-The command also prints the conversation history:
-```
---- Conversation History ---
-
-[User]: What is 2+2?
-
-[Agent]: 2 + 2 equals 4.
-
-----------------------------
 ```
 
 **Artifact Type:** `Card`
@@ -599,9 +594,9 @@ echo "$RESPONSE"
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 CONTEXT_ID=$(echo "$RESPONSE" | jq -r '.data.task.context_id')
 
-# Step 5: Get task details with agent response
-sp agents task admin --task-id "$TASK_ID" --context-id "$CONTEXT_ID" --token "$TOKEN"
-# Shows conversation history with agent response
+# Step 5: Get task details with agent response (no --context-id needed per A2A spec)
+sp agents task admin --task-id "$TASK_ID" --token "$TOKEN"
+# Returns structured history and artifacts in JSON output
 
 # Step 6: Continue conversation (use context_id from previous response)
 sp --json agents message admin \
@@ -611,7 +606,7 @@ sp --json agents message admin \
   --blocking
 
 # Step 7: Get full conversation history
-sp agents task admin --task-id "$TASK_ID" --context-id "$CONTEXT_ID" --token "$TOKEN"
+sp agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 ```
 
 ### Authentication

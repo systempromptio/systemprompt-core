@@ -33,8 +33,7 @@ pub enum ExtensionsCommands {
 pub fn execute(cmd: ExtensionsCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         ExtensionsCommands::List(args) => {
-            let result = list::execute(&args, config).context("Failed to list extensions")?;
-            render_result(&result);
+            render_result(&list::execute(&args, config));
             Ok(())
         },
         ExtensionsCommands::Show(args) => {

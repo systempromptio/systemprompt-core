@@ -14,9 +14,6 @@ pub struct DeleteArgs {
 
     #[arg(short = 'y', long)]
     pub yes: bool,
-
-    #[arg(long)]
-    pub hard: bool,
 }
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
@@ -24,7 +21,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
 
     if !args.yes {
-        CliService::warning("This will delete the user. Use --yes to confirm.");
+        CliService::warning("This will permanently delete the user. Use --yes to confirm.");
         return Err(anyhow!("Operation cancelled - confirmation required"));
     }
 
@@ -36,19 +33,11 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
         return Err(anyhow!("User not found"));
     }
 
-    if args.hard {
-        user_service.delete_anonymous(&user_id).await?;
-    } else {
-        user_service.delete(&user_id).await?;
-    }
+    user_service.delete(&user_id).await?;
 
-    let delete_type = if args.hard { "hard" } else { "soft" };
     let output = UserDeletedOutput {
         id: user_id.to_string(),
-        message: format!(
-            "User '{}' {} deleted successfully",
-            args.user_id, delete_type
-        ),
+        message: format!("User '{}' deleted successfully", args.user_id),
     };
 
     if config.is_json_output() {

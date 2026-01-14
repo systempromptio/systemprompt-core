@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -11,6 +11,15 @@ use crate::commands::analytics::shared::{
 };
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum AgentSortBy {
+    #[default]
+    TaskCount,
+    SuccessRate,
+    Cost,
+    LastActive,
+}
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -32,6 +41,14 @@ pub struct ListArgs {
     )]
     pub limit: i64,
 
+    #[arg(
+        long,
+        value_enum,
+        default_value = "task-count",
+        help = "Sort by: task-count, success-rate, cost, last-active"
+    )]
+    pub sort_by: AgentSortBy,
+
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
 }
@@ -41,7 +58,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_agents(&pool, start, end, args.limit).await?;
+    let output = fetch_agents(&pool, start, end, args.limit, args.sort_by).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.agents, path)?;
@@ -76,24 +93,22 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-struct AgentRow {
-    agent_name: Option<String>,
-    task_count: Option<i64>,
-    completed_count: Option<i64>,
-    avg_execution_time_ms: Option<f64>,
-    total_cost_cents: Option<i64>,
-    last_active: Option<DateTime<Utc>>,
-}
-
 async fn fetch_agents(
     pool: &std::sync::Arc<sqlx::PgPool>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     limit: i64,
+    sort_by: AgentSortBy,
 ) -> Result<AgentListOutput> {
-    let rows = sqlx::query_as!(
-        AgentRow,
-        r#"
+    let order_clause = match sort_by {
+        AgentSortBy::TaskCount => "COUNT(*) DESC",
+        AgentSortBy::SuccessRate => "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE t.status = 'completed')::float / COUNT(*)::float ELSE 0 END DESC",
+        AgentSortBy::Cost => "COALESCE(SUM(r.cost_cents), 0) DESC",
+        AgentSortBy::LastActive => "MAX(t.started_at) DESC",
+    };
+
+    let query = format!(
+        r"
         SELECT
             t.agent_name,
             COUNT(*)::bigint as task_count,
@@ -106,38 +121,44 @@ async fn fetch_agents(
         WHERE t.started_at >= $1 AND t.started_at < $2
           AND t.agent_name IS NOT NULL
         GROUP BY t.agent_name
-        ORDER BY COUNT(*) DESC
+        ORDER BY {}
         LIMIT $3
-        "#,
-        start,
-        end,
-        limit
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
+        ",
+        order_clause
+    );
+
+    let rows: Vec<(Option<String>, i64, i64, Option<f64>, i64, Option<DateTime<Utc>>)> =
+        sqlx::query_as(&query)
+            .bind(start)
+            .bind(end)
+            .bind(limit)
+            .fetch_all(pool.as_ref())
+            .await?;
 
     let agents: Vec<AgentListRow> = rows
         .into_iter()
-        .filter_map(|row| {
-            let agent_name = row.agent_name?;
-            let task_count = row.task_count.unwrap_or(0);
-            let completed_count = row.completed_count.unwrap_or(0);
-            let success_rate = if task_count > 0 {
-                (completed_count as f64 / task_count as f64) * 100.0
-            } else {
-                0.0
-            };
+        .filter_map(
+            |(agent_name, task_count, completed_count, avg_time, cost, last_active)| {
+                let agent_name = agent_name?;
+                let success_rate = if task_count > 0 {
+                    (completed_count as f64 / task_count as f64) * 100.0
+                } else {
+                    0.0
+                };
 
-            Some(AgentListRow {
-                agent_name,
-                task_count,
-                success_rate,
-                avg_execution_time_ms: row.avg_execution_time_ms.map_or(0, |v| v as i64),
-                total_cost_cents: row.total_cost_cents.unwrap_or(0),
-                last_active: row
-                    .last_active.map_or_else(|| "N/A".to_string(), |dt| dt.format("%Y-%m-%d %H:%M:%S").to_string()),
-            })
-        })
+                Some(AgentListRow {
+                    agent_name,
+                    task_count,
+                    success_rate,
+                    avg_execution_time_ms: avg_time.map_or(0, |v| v as i64),
+                    total_cost_cents: cost,
+                    last_active: last_active.map_or_else(
+                        || "N/A".to_string(),
+                        |dt| dt.format("%Y-%m-%d %H:%M:%S").to_string(),
+                    ),
+                })
+            },
+        )
         .collect();
 
     Ok(AgentListOutput {

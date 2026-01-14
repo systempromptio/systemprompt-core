@@ -1,15 +1,16 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
+use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
-use crate::commands::analytics::shared::format_number;
+use crate::commands::analytics::shared::{export_to_csv, format_number};
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
 
-#[derive(Debug, Clone, Copy, Args)]
+#[derive(Debug, Clone, Args)]
 pub struct LiveArgs {
     #[arg(long, default_value = "5", help = "Refresh interval in seconds")]
     pub refresh: u64,
@@ -24,11 +25,21 @@ pub struct LiveArgs {
         help = "Maximum sessions to show"
     )]
     pub limit: i64,
+
+    #[arg(long, help = "Export to CSV (requires --no-refresh)")]
+    pub export: Option<PathBuf>,
 }
 
 pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+
+    if let Some(ref path) = args.export {
+        let output = fetch_live_sessions(&pool, args.limit).await?;
+        export_to_csv(&output.sessions, path)?;
+        CliService::success(&format!("Exported to {}", path.display()));
+        return Ok(());
+    }
 
     if args.no_refresh || !config.is_interactive() {
         let output = fetch_live_sessions(&pool, args.limit).await?;

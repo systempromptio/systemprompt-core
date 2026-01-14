@@ -6,11 +6,9 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId,
 use systemprompt_models::execution::{ContextExtractionError, RequestContext};
 
 use super::traits::ContextExtractor;
-use crate::services::middleware::context::sources::{ContextIdSource, HeaderSource, PayloadSource};
-
-/// Marker context ID for task-based methods where context is resolved from task storage.
-/// Per A2A spec, tasks/get only requires task_id - the context is stored with the task.
-const TASK_BASED_CONTEXT_MARKER: &str = "__task_based__";
+use crate::services::middleware::context::sources::{
+    ContextIdSource, HeaderSource, PayloadSource, TASK_BASED_CONTEXT_MARKER,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct A2aContextExtractor;

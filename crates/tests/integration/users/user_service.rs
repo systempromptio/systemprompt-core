@@ -323,7 +323,7 @@ async fn service_delete_user() -> Result<()> {
 }
 
 #[tokio::test]
-async fn service_delete_anonymous() -> Result<()> {
+async fn service_delete_user() -> Result<()> {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return Ok(());
@@ -332,10 +332,10 @@ async fn service_delete_anonymous() -> Result<()> {
     let db_pool = db.as_pool()?;
     let service = UserService::new(&db_pool)?;
 
-    let fingerprint = format!("svc_del_anon_{}", uuid::Uuid::new_v4());
+    let fingerprint = format!("svc_del_user_{}", uuid::Uuid::new_v4());
     let created = service.create_anonymous(&fingerprint).await?;
 
-    service.delete_anonymous(&created.id).await?;
+    service.delete(&created.id).await?;
 
     let found = service.find_by_email(&created.email).await?;
     assert!(found.is_none());

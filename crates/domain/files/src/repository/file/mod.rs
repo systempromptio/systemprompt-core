@@ -253,22 +253,19 @@ impl FileRepository {
         .context("Failed to list all files")
     }
 
-    pub async fn soft_delete(&self, id: &FileId) -> Result<()> {
+    pub async fn delete(&self, id: &FileId) -> Result<()> {
         let id_uuid = uuid::Uuid::parse_str(id.as_str()).context("Invalid UUID for file id")?;
-        let now = Utc::now();
 
         sqlx::query!(
             r#"
-            UPDATE files
-            SET deleted_at = $1, updated_at = $1
-            WHERE id = $2
+            DELETE FROM files
+            WHERE id = $1
             "#,
-            now,
             id_uuid
         )
         .execute(self.pool.as_ref())
         .await
-        .context(format!("Failed to soft delete file: {id}"))?;
+        .context(format!("Failed to delete file: {id}"))?;
 
         Ok(())
     }

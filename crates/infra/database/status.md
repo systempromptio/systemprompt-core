@@ -228,7 +228,7 @@ All 82 applicable checks pass. 34 checks are N/A for this foundation-layer modul
 
 ### New Files Added
 - `src/error.rs` - RepositoryError enum with NotFound, Constraint, Database, Serialization, InvalidArgument, Internal variants
-- `src/repository/base.rs` - Repository trait with CRUD operations, PgDbPool type alias, SoftDeleteRepository and PaginatedRepository extension traits
+- `src/repository/base.rs` - Repository trait with CRUD operations, PgDbPool type alias, PaginatedRepository extension trait
 - `src/repository/macros.rs` - Helper macros: impl_repository_new!, define_repository!, impl_repository_pool!
 - `src/services/transaction.rs` - Transaction helpers: with_transaction, with_transaction_raw, with_transaction_retry with automatic retry on serialization failures
 

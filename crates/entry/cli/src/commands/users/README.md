@@ -25,7 +25,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `users search <query>` | Search users by name/email | `Table` | No (DB only) |
 | `users create` | Create a new user | `Text` | No (DB only) |
 | `users update <id>` | Update user fields | `Text` | No (DB only) |
-| `users delete <id>` | Delete a user (soft delete) | `Text` | No (DB only) |
+| `users delete <id>` | Delete a user | `Text` | No (DB only) |
 | `users count` | Get total user count | `Card` | No (DB only) |
 | `users role assign` | Assign role to user | `Text` | No (DB only) |
 | `users role promote` | Promote user to admin | `Text` | No (DB only) |
@@ -245,12 +245,11 @@ sp users update user_abc123 --status suspended
 
 ### users delete
 
-Delete a user (soft delete by default).
+Delete a user permanently.
 
 ```bash
 sp users delete <user-id> --yes
 sp users delete user_abc123 --yes
-sp users delete user_abc123 --yes --hard
 ```
 
 **Required Flags (non-interactive):**
@@ -259,16 +258,10 @@ sp users delete user_abc123 --yes --hard
 | `<id>` | Yes | User ID to delete |
 | `--yes` / `-y` | Yes | Skip confirmation (REQUIRED in non-interactive mode) |
 
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--hard` | `false` | Permanently delete (cannot be recovered) |
-
 **Output Structure:**
 ```json
 {
-  "deleted": "user_abc123",
-  "hard_delete": false,
+  "id": "user_abc123",
   "message": "User 'johndoe' deleted successfully"
 }
 ```

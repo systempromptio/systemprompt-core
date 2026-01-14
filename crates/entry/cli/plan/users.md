@@ -13,7 +13,7 @@ users
 ├── search <QUERY> [--limit N]
 ├── create --name NAME --email EMAIL [--full-name NAME] [--display-name NAME]
 ├── update <USER_ID> [--email EMAIL] [--full-name NAME] [--status STATUS]
-├── delete <USER_ID> --yes [--hard]
+├── delete <USER_ID> --yes
 ├── count
 │
 ├── role
@@ -266,11 +266,10 @@ pub struct UpdateArgs {
 
 ### `users delete`
 
-Delete a user (soft delete by default).
+Delete a user permanently.
 
 ```bash
-users delete user_abc123 --yes          # Soft delete
-users delete user_abc123 --yes --hard   # Hard delete (anonymous only)
+users delete user_abc123 --yes
 ```
 
 **Args:**
@@ -282,15 +281,10 @@ pub struct DeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation")]
     pub yes: bool,
-
-    #[arg(long, help = "Hard delete (anonymous users only)")]
-    pub hard: bool,
 }
 ```
 
-**Service Calls:**
-- `UserService::delete()` - Soft delete
-- `UserService::delete_anonymous()` - Hard delete
+**Service Call:** `UserService::delete()`
 
 ### `users count`
 

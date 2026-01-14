@@ -30,15 +30,6 @@ pub trait Repository: Send + Sync {
 }
 
 #[async_trait]
-pub trait SoftDeleteRepository: Repository {
-    async fn soft_delete(&self, id: &Self::Id) -> Result<(), Self::Error>;
-
-    async fn restore(&self, id: &Self::Id) -> Result<(), Self::Error>;
-
-    async fn find_all_with_deleted(&self) -> Result<Vec<Self::Entity>, Self::Error>;
-}
-
-#[async_trait]
 pub trait PaginatedRepository: Repository {
     async fn find_paginated(
         &self,

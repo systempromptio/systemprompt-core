@@ -27,7 +27,7 @@ pub use lifecycle::{
 };
 pub use repository::{
     CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PaginatedRepository, PgDbPool,
-    Repository, ServiceConfig, ServiceRepository, SoftDeleteRepository,
+    Repository, ServiceConfig, ServiceRepository,
 };
 
 pub use admin::{DatabaseAdminService, QueryExecutor, QueryExecutorError};

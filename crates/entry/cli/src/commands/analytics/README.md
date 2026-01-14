@@ -57,9 +57,13 @@ All analytics commands share these common flags:
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--since` | `24h` | Time range start (e.g., '1h', '24h', '7d', '30d') |
+| `--since` | `24h` or `7d` | Time range start (e.g., '1h', '24h', '7d', '30d') |
 | `--until` | Now | End time for range |
 | `--export` | None | Export results to CSV file |
+
+**Default Time Ranges:**
+- Stats/list commands default to `24h` (recent snapshot)
+- Trends commands default to `7d` (meaningful trend data needs multiple data points)
 
 **Time Range Formats:**
 - Hours: `1h`, `2h`, `24h`
@@ -259,14 +263,15 @@ List agents with performance metrics.
 ```bash
 sp analytics agents list
 sp --json analytics agents list
-sp analytics agents list --since 7d --sort-by success_rate
+sp analytics agents list --since 7d --limit 10
+sp analytics agents list --sort-by success-rate
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--sort-by` | `task_count` | Sort by: `task_count`, `success_rate`, `cost`, `last_active` |
-| `--limit` | `50` | Maximum number of results |
+| `--limit` | `20` | Maximum number of results |
+| `--sort-by` | `task-count` | Sort by: `task-count`, `success-rate`, `cost`, `last-active` |
 
 **Output Structure:**
 ```json
@@ -412,14 +417,16 @@ List tools with execution metrics.
 ```bash
 sp analytics tools list
 sp --json analytics tools list
-sp analytics tools list --since 7d --sort-by execution_count
+sp analytics tools list --since 7d --server systemprompt-admin
+sp analytics tools list --sort-by success-rate
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--sort-by` | `execution_count` | Sort by: `execution_count`, `success_rate`, `avg_time` |
-| `--limit` | `50` | Maximum number of results |
+| `--limit` | `20` | Maximum number of results |
+| `--server` | All | Filter by server name |
+| `--sort-by` | `execution-count` | Sort by: `execution-count`, `success-rate`, `avg-time` |
 
 **Output Structure:**
 ```json
@@ -701,18 +708,21 @@ sp analytics sessions trends --since 7d --group-by day
 
 ### analytics sessions live
 
-Real-time active sessions.
+Real-time active sessions monitor. Unlike other commands, this is designed for live monitoring and does not support `--export`.
 
 ```bash
 sp analytics sessions live
 sp --json analytics sessions live
 sp analytics sessions live --limit 20
+sp analytics sessions live --no-refresh
 ```
 
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--limit` | `50` | Maximum number of results |
+| `--limit` | `20` | Maximum sessions to show |
+| `--refresh` | `5` | Refresh interval in seconds |
+| `--no-refresh` | - | Show once without auto-refresh |
 
 **Output Structure:**
 ```json

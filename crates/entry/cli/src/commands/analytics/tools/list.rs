@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
@@ -11,6 +11,14 @@ use crate::commands::analytics::shared::{
 };
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
+
+#[derive(Debug, Clone, Copy, Default, ValueEnum)]
+pub enum ToolSortBy {
+    #[default]
+    ExecutionCount,
+    SuccessRate,
+    AvgTime,
+}
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -35,6 +43,14 @@ pub struct ListArgs {
     #[arg(long, help = "Filter by server name")]
     pub server: Option<String>,
 
+    #[arg(
+        long,
+        value_enum,
+        default_value = "execution-count",
+        help = "Sort by: execution-count, success-rate, avg-time"
+    )]
+    pub sort_by: ToolSortBy,
+
     #[arg(long, help = "Export results to CSV file")]
     pub export: Option<PathBuf>,
 }
@@ -44,7 +60,8 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_tools(&pool, start, end, args.limit, args.server.as_ref()).await?;
+    let output =
+        fetch_tools(&pool, start, end, args.limit, args.server.as_ref(), args.sort_by).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.tools, path)?;
@@ -85,7 +102,14 @@ async fn fetch_tools(
     end: DateTime<Utc>,
     limit: i64,
     server_filter: Option<&String>,
+    sort_by: ToolSortBy,
 ) -> Result<ToolListOutput> {
+    let order_clause = match sort_by {
+        ToolSortBy::ExecutionCount => "COUNT(*) DESC",
+        ToolSortBy::SuccessRate => "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float ELSE 0 END DESC",
+        ToolSortBy::AvgTime => "COALESCE(AVG(execution_time_ms), 0) DESC",
+    };
+
     let base_query = r"
         SELECT
             tool_name,
@@ -101,9 +125,8 @@ async fn fetch_tools(
     let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> =
         if let Some(server) = server_filter {
             let query = format!(
-                "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY COUNT(*) \
-                 DESC LIMIT $4",
-                base_query
+                "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY {} LIMIT $4",
+                base_query, order_clause
             );
             sqlx::query_as(&query)
                 .bind(start)
@@ -114,8 +137,8 @@ async fn fetch_tools(
                 .await?
         } else {
             let query = format!(
-                "{} GROUP BY tool_name, server_name ORDER BY COUNT(*) DESC LIMIT $3",
-                base_query
+                "{} GROUP BY tool_name, server_name ORDER BY {} LIMIT $3",
+                base_query, order_clause
             );
             sqlx::query_as(&query)
                 .bind(start)

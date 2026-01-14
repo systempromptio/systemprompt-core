@@ -68,7 +68,7 @@ Output: Uploads file to storage and creates database record. Returns file_id, pa
 systemprompt --non-interactive files delete <FILE_ID> --json
 ```
 
-Output: Soft deletes file from storage and database. Returns confirmation message.
+Output: Deletes file from storage and database. Returns confirmation message.
 
 ### files content list
 

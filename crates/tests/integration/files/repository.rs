@@ -58,7 +58,7 @@ async fn test_file_repository_insert_success() {
     assert!(result.is_ok(), "Should insert file successfully");
 
     // Cleanup
-    let _ = repo.soft_delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -82,7 +82,7 @@ async fn test_file_repository_insert_with_user_id() {
     assert_eq!(file.user_id.as_ref().map(|u| u.as_str()), Some("user_test_123"));
 
     // Cleanup
-    let _ = repo.soft_delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -104,7 +104,7 @@ async fn test_file_repository_insert_with_ai_content() {
     assert!(file.expect("Should have file").ai_content);
 
     // Cleanup
-    let _ = repo.soft_delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -142,8 +142,8 @@ async fn test_file_repository_insert_upsert_on_conflict() {
     assert!(result.is_ok(), "Upsert should succeed");
 
     // Cleanup
-    let _ = repo.soft_delete(&file_id1).await;
-    let _ = repo.soft_delete(&file_id2).await;
+    let _ = repo.delete(&file_id1).await;
+    let _ = repo.delete(&file_id2).await;
 }
 
 // ============================================================================
@@ -168,7 +168,7 @@ async fn test_file_repository_find_by_id_exists() {
     assert_eq!(file.id.to_string(), request.id.as_str());
 
     // Cleanup
-    let _ = repo.soft_delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 #[tokio::test]
@@ -228,7 +228,7 @@ async fn test_file_repository_find_by_path_exists() {
     assert_eq!(file.expect("Should have file").path, unique_path);
 
     // Cleanup
-    let _ = repo.soft_delete(&file_id).await;
+    let _ = repo.delete(&file_id).await;
 }
 
 #[tokio::test]
@@ -278,7 +278,7 @@ async fn test_file_repository_list_by_user() {
 
     // Cleanup
     for id in file_ids {
-        let _ = repo.soft_delete(&id).await;
+        let _ = repo.delete(&id).await;
     }
 }
 
@@ -319,7 +319,7 @@ async fn test_file_repository_list_by_user_with_pagination() {
 
     // Cleanup
     for id in file_ids {
-        let _ = repo.soft_delete(&id).await;
+        let _ = repo.delete(&id).await;
     }
 }
 
@@ -343,18 +343,18 @@ async fn test_file_repository_list_all() {
 }
 
 // ============================================================================
-// FileRepository::soft_delete Tests
+// FileRepository::delete Tests
 // ============================================================================
 
 #[tokio::test]
-async fn test_file_repository_soft_delete() {
+async fn test_file_repository_delete() {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return;
     };
 
     let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
-    let request = create_test_file_request("soft_delete");
+    let request = create_test_file_request("delete");
 
     repo.insert(request.clone()).await.expect("Insert should succeed");
 
@@ -362,12 +362,12 @@ async fn test_file_repository_soft_delete() {
     let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
     assert!(file.is_some(), "File should exist before delete");
 
-    // Soft delete
-    repo.soft_delete(&request.id).await.expect("Soft delete should succeed");
+    // Delete
+    repo.delete(&request.id).await.expect("Delete should succeed");
 
-    // Verify file is no longer returned (soft deleted)
+    // Verify file is no longer returned
     let file = repo.find_by_id(&request.id).await.expect("Find should succeed");
-    assert!(file.is_none(), "Soft deleted file should not be returned");
+    assert!(file.is_none(), "Deleted file should not be returned");
 }
 
 // ============================================================================
@@ -397,7 +397,7 @@ async fn test_file_repository_update_metadata() {
     assert!(file.is_some(), "File should exist");
 
     // Cleanup
-    let _ = repo.soft_delete(&request.id).await;
+    let _ = repo.delete(&request.id).await;
 }
 
 // ============================================================================
@@ -435,7 +435,7 @@ async fn test_file_repository_insert_file() {
     assert!(result.is_ok(), "insert_file should succeed");
 
     // Cleanup
-    let _ = repo.soft_delete(&FileId::new(file_id.to_string())).await;
+    let _ = repo.delete(&FileId::new(file_id.to_string())).await;
 }
 
 // ============================================================================
@@ -472,7 +472,7 @@ async fn test_file_repository_list_ai_images() {
     }
 
     // Cleanup
-    let _ = repo.soft_delete(&file_id).await;
+    let _ = repo.delete(&file_id).await;
 }
 
 #[tokio::test]
@@ -508,7 +508,7 @@ async fn test_file_repository_list_ai_images_by_user() {
     }
 
     // Cleanup
-    let _ = repo.soft_delete(&file_id).await;
+    let _ = repo.delete(&file_id).await;
 }
 
 #[tokio::test]
@@ -544,6 +544,6 @@ async fn test_file_repository_count_ai_images_by_user() {
 
     // Cleanup
     for id in file_ids {
-        let _ = repo.soft_delete(&id).await;
+        let _ = repo.delete(&id).await;
     }
 }

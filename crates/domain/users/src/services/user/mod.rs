@@ -148,10 +148,6 @@ impl UserService {
         self.repository.delete(id).await
     }
 
-    pub async fn delete_anonymous(&self, id: &UserId) -> Result<()> {
-        self.repository.delete_anonymous(id).await
-    }
-
     pub async fn cleanup_old_anonymous(&self, days: i32) -> Result<u64> {
         self.repository.cleanup_old_anonymous(days).await
     }

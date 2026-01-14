@@ -8,7 +8,7 @@ use uuid::Uuid;
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_core_database::DbPool;
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 
 use super::token::{extract_token_from_headers, JwtExtractor, JwtUserContext};
@@ -207,7 +207,9 @@ impl JwtContextExtractor {
         &self,
         request: Request<Body>,
     ) -> Result<(RequestContext, Request<Body>), ContextExtractionError> {
-        use crate::services::middleware::context::sources::PayloadSource;
+        use crate::services::middleware::context::sources::{
+            ContextIdSource, PayloadSource, TASK_BASED_CONTEXT_MARKER,
+        };
 
         let headers = request.headers().clone();
         let has_auth = headers.get("authorization").is_some();
@@ -235,9 +237,19 @@ impl JwtContextExtractor {
 
         let (body_bytes, reconstructed_request) =
             PayloadSource::read_and_reconstruct(request).await?;
-        let context_id = ContextId::new(PayloadSource::extract_context_id(&body_bytes)?);
 
-        let (trace_id, task_id, auth_token, agent_name) = Self::extract_common_headers(&headers);
+        let context_source = PayloadSource::extract_context_source(&body_bytes)?;
+        let (context_id, task_id_from_payload) = match context_source {
+            ContextIdSource::Direct(id) => (ContextId::new(id), None),
+            ContextIdSource::FromTask { task_id } => {
+                (ContextId::new(TASK_BASED_CONTEXT_MARKER), Some(TaskId::new(task_id)))
+            }
+        };
+
+        let (trace_id, task_id_from_header, auth_token, agent_name) =
+            Self::extract_common_headers(&headers);
+
+        let task_id = task_id_from_payload.or(task_id_from_header);
 
         let ctx = Self::build_context(
             &jwt_context,

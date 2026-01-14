@@ -5,7 +5,7 @@ mod context_error;
 mod context_types;
 
 pub use call_source::CallSource;
-pub use context_error::ContextExtractionError;
+pub use context_error::{ContextExtractionError, ContextIdSource, TASK_BASED_CONTEXT_MARKER};
 pub use context_types::{
     AuthContext, ExecutionContext, ExecutionSettings, RequestMetadata, UserInteractionMode,
 };

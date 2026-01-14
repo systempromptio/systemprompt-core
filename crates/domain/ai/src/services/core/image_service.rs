@@ -182,7 +182,7 @@ impl ImageService {
         if let Some(file_record) = file {
             let file_path = std::path::Path::new(&file_record.path);
             self.storage.delete_image(file_path)?;
-            self.file_repo.soft_delete(&file_id).await?;
+            self.file_repo.delete(&file_id).await?;
         }
 
         Ok(())

@@ -8,8 +8,8 @@ use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::shared::{
-    export_to_csv, format_cost, format_duration_ms, format_number, format_percent,
-    parse_time_range, MetricCard,
+    format_cost, format_duration_ms, format_number, format_percent, parse_time_range, CsvBuilder,
+    MetricCard,
 };
 use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
@@ -87,8 +87,7 @@ pub async fn execute(args: OverviewArgs, config: &CliConfig) -> Result<()> {
     let output = fetch_overview_data(&pool, start, end).await?;
 
     if let Some(ref path) = args.export {
-        let export_data = vec![&output];
-        export_to_csv(&export_data, path)?;
+        export_overview_csv(&output, path)?;
         CliService::success(&format!("Exported to {}", path.display()));
         return Ok(());
     }
@@ -368,4 +367,50 @@ fn render_overview(output: &OverviewOutput) {
             format!("{} {} {}", card.value, change_str, secondary_str).trim(),
         );
     }
+}
+
+fn export_overview_csv(output: &OverviewOutput, path: &std::path::Path) -> Result<()> {
+    let mut csv = CsvBuilder::new().headers(vec![
+        "period",
+        "conversations_total",
+        "conversations_change_pct",
+        "agents_active",
+        "agents_tasks",
+        "agents_success_rate",
+        "requests_total",
+        "requests_tokens",
+        "requests_avg_latency_ms",
+        "tools_executions",
+        "tools_success_rate",
+        "sessions_active",
+        "sessions_total",
+        "costs_cents",
+        "costs_change_pct",
+    ]);
+
+    csv.add_row(vec![
+        output.period.clone(),
+        output.conversations.total.to_string(),
+        output
+            .conversations
+            .change_percent
+            .map_or(String::new(), |v| format!("{:.2}", v)),
+        output.agents.active_count.to_string(),
+        output.agents.total_tasks.to_string(),
+        format!("{:.2}", output.agents.success_rate),
+        output.requests.total.to_string(),
+        output.requests.total_tokens.to_string(),
+        output.requests.avg_latency_ms.to_string(),
+        output.tools.total_executions.to_string(),
+        format!("{:.2}", output.tools.success_rate),
+        output.sessions.active.to_string(),
+        output.sessions.total_today.to_string(),
+        output.costs.total_cents.to_string(),
+        output
+            .costs
+            .change_percent
+            .map_or(String::new(), |v| format!("{:.2}", v)),
+    ]);
+
+    csv.write_to_file(path)
 }

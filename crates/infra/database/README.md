@@ -20,7 +20,7 @@ database/
     │   └── transaction.rs      # DatabaseTransaction trait
     ├── repository/
     │   ├── mod.rs              # Module exports
-    │   ├── base.rs             # Repository trait, PgDbPool, SoftDeleteRepository, PaginatedRepository
+    │   ├── base.rs             # Repository trait, PgDbPool, PaginatedRepository
     │   ├── info.rs             # DatabaseInfoRepository
     │   └── macros.rs           # impl_repository_new!, define_repository!, impl_repository_pool!
     └── services/
@@ -62,7 +62,6 @@ database/
 | Trait | Source | Description |
 |-------|--------|-------------|
 | `Repository` | `repository/base.rs` | Base CRUD repository trait |
-| `SoftDeleteRepository` | `repository/base.rs` | Soft delete extension trait |
 | `PaginatedRepository` | `repository/base.rs` | Pagination extension trait |
 | `DatabaseProvider` | `services/provider.rs` | Core database operations |
 | `DatabaseProviderExt` | `services/provider.rs` | Typed row fetching |
