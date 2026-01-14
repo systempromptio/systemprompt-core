@@ -329,7 +329,7 @@ impl UserRepository {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct MergeResult {
     pub sessions_transferred: u64,
     pub tasks_transferred: u64,

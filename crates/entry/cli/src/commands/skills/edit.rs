@@ -45,12 +45,7 @@ pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<Skil
 
     let skill_dir = skills_path.join(&name);
     if !skill_dir.exists() {
-        let alt_name = name.replace('_', "-");
-        let alt_dir = skills_path.join(&alt_name);
-        if !alt_dir.exists() {
-            return Err(anyhow!("Skill '{}' not found", name));
-        }
-        return edit_skill(&alt_dir, &alt_name, args);
+        return Err(anyhow!("Skill '{}' not found", name));
     }
 
     edit_skill(&skill_dir, &name, args)
@@ -125,7 +120,7 @@ fn edit_skill(
     CliService::success(&format!("Skill '{}' updated successfully", name));
 
     let output = SkillEditOutput {
-        skill_id: name.replace('-', "_"),
+        skill_id: name.to_string(),
         message: format!(
             "Skill '{}' updated successfully with {} change(s)",
             name,

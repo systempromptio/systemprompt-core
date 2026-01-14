@@ -38,14 +38,6 @@ pub fn define() -> Module {
                 ),
                 required_columns: vec!["fingerprint".into()],
             },
-            ModuleSchema {
-                table: "ml_behavioral_features".into(),
-                sql: SchemaSource::Inline(
-                    include_str!("../../../../domain/analytics/schema/ml_behavioral_features.sql")
-                        .into(),
-                ),
-                required_columns: vec!["id".into(), "session_id".into()],
-            },
         ]),
         seeds: None,
         permissions: None,

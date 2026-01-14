@@ -171,10 +171,10 @@ fn validate_agent_name(name: &str) -> Result<()> {
 
     if !name
         .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
     {
         return Err(anyhow!(
-            "Agent name must be lowercase alphanumeric with hyphens only"
+            "Agent name must be lowercase alphanumeric with underscores only"
         ));
     }
 
@@ -200,9 +200,9 @@ fn prompt_name() -> Result<String> {
             }
             if !input
                 .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             {
-                return Err("Name must be lowercase alphanumeric with hyphens only");
+                return Err("Name must be lowercase alphanumeric with underscores only");
             }
             Ok(())
         })

@@ -2,6 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use std::fs;
 use std::path::Path;
 
 use super::types::AgentEditOutput;
@@ -37,6 +38,24 @@ pub struct EditArgs {
 
     #[arg(long, help = "Set the AI model")]
     pub model: Option<String>,
+
+    #[arg(long = "mcp-server", help = "Add an MCP server reference (can be specified multiple times)")]
+    pub mcp_servers: Vec<String>,
+
+    #[arg(long = "remove-mcp-server", help = "Remove an MCP server reference")]
+    pub remove_mcp_servers: Vec<String>,
+
+    #[arg(long, help = "Add a skill reference (can be specified multiple times)")]
+    pub skill: Vec<String>,
+
+    #[arg(long = "remove-skill", help = "Remove a skill reference")]
+    pub remove_skills: Vec<String>,
+
+    #[arg(long = "system-prompt", help = "Set the system prompt inline")]
+    pub system_prompt: Option<String>,
+
+    #[arg(long = "system-prompt-file", help = "Load system prompt from a file")]
+    pub system_prompt_file: Option<String>,
 }
 
 pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
@@ -85,6 +104,85 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         changes.push(format!("metadata.model: {}", model));
     }
 
+    // Handle MCP server additions
+    for mcp_server in &args.mcp_servers {
+        if !agent.metadata.mcp_servers.contains(mcp_server) {
+            // Validate MCP server exists in config
+            if !services_config.mcp_servers.contains_key(mcp_server) {
+                return Err(anyhow!(
+                    "MCP server '{}' not found in configuration. \
+                     Available servers: {}",
+                    mcp_server,
+                    services_config
+                        .mcp_servers
+                        .keys()
+                        .cloned()
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                ));
+            }
+            agent.metadata.mcp_servers.push(mcp_server.clone());
+            changes.push(format!("added mcp_server: {}", mcp_server));
+        }
+    }
+
+    // Handle MCP server removals
+    for mcp_server in &args.remove_mcp_servers {
+        if let Some(pos) = agent
+            .metadata
+            .mcp_servers
+            .iter()
+            .position(|s| s == mcp_server)
+        {
+            agent.metadata.mcp_servers.remove(pos);
+            changes.push(format!("removed mcp_server: {}", mcp_server));
+        } else {
+            CliService::warning(&format!(
+                "MCP server '{}' not found in agent configuration, skipping removal",
+                mcp_server
+            ));
+        }
+    }
+
+    // Handle skill additions
+    for skill in &args.skill {
+        if !agent.metadata.skills.contains(skill) {
+            agent.metadata.skills.push(skill.clone());
+            changes.push(format!("added skill: {}", skill));
+        }
+    }
+
+    // Handle skill removals
+    for skill in &args.remove_skills {
+        if let Some(pos) = agent.metadata.skills.iter().position(|s| s == skill) {
+            let removed = agent.metadata.skills.remove(pos);
+            changes.push(format!("removed skill: {}", removed));
+        } else {
+            CliService::warning(&format!(
+                "Skill '{}' not found in agent configuration, skipping removal",
+                skill
+            ));
+        }
+    }
+
+    // Handle system prompt from file
+    if let Some(file_path) = &args.system_prompt_file {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
+        agent.metadata.system_prompt = Some(content.clone());
+        changes.push(format!(
+            "system_prompt: loaded from {} ({} chars)",
+            file_path,
+            content.len()
+        ));
+    }
+
+    // Handle inline system prompt (takes precedence if both specified)
+    if let Some(prompt) = &args.system_prompt {
+        agent.metadata.system_prompt = Some(prompt.clone());
+        changes.push(format!("system_prompt: {} chars", prompt.len()));
+    }
+
     for set_value in &args.set_values {
         let parts: Vec<&str> = set_value.splitn(2, '=').collect();
         if parts.len() != 2 {
@@ -102,8 +200,8 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
 
     if changes.is_empty() {
         return Err(anyhow!(
-            "No changes specified. Use --enable, --disable, --port, --provider, --model, or --set \
-             key=value"
+            "No changes specified. Use --enable, --disable, --port, --provider, --model, \
+             --mcp-server, --skill, --system-prompt, --system-prompt-file, or --set key=value"
         ));
     }
 

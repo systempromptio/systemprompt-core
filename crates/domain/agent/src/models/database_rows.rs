@@ -15,6 +15,7 @@ pub struct TaskRow {
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
     pub execution_time_ms: Option<i32>,
+    pub error_message: Option<String>,
     pub metadata: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

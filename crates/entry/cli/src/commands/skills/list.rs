@@ -60,7 +60,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
 }
 
 fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult<ListOrDetail>> {
-    let skill_dir = skills_path.join(skill_id.replace('_', "-"));
+    let skill_dir = skills_path.join(skill_id);
 
     if !skill_dir.exists() {
         return Err(anyhow!("Skill '{}' not found", skill_id));
@@ -140,7 +140,7 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
                     .unwrap_or_default();
 
                 skills.push(SkillSummary {
-                    skill_id: dir_name.replace('-', "_"),
+                    skill_id: dir_name.to_string(),
                     name: parsed.name,
                     enabled: parsed.enabled,
                     tags: parsed.tags,

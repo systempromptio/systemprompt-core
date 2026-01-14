@@ -41,6 +41,7 @@ import { themeWatcher } from './plugins/theme-watcher'
 import { metadataInjector } from './plugins/metadata-injector'
 
 export default defineConfig(({ mode }) => ({
+  base: '/agent/',
   plugins: [
     react(),
     themeWatcher(),
@@ -58,7 +59,7 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
-    outDir: 'dist',
+    outDir: 'dist/agent',
     sourcemap: true,
     chunkSizeWarningLimit: 1200,
     target: 'es2020',

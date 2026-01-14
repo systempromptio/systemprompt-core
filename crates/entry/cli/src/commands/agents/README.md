@@ -79,7 +79,7 @@ sp agents list --disabled
 Display detailed configuration for a specific agent.
 
 ```bash
-sp agents show <agent-name>
+sp agents show <agent_name>
 sp --json agents show primary
 ```
 
@@ -115,7 +115,7 @@ Check agent configurations for errors and warnings.
 ```bash
 sp agents validate
 sp --json agents validate
-sp agents validate <agent-name>
+sp agents validate <agent_name>
 ```
 
 **Output Structure:**
@@ -147,7 +147,7 @@ Create a new agent configuration.
 
 ```bash
 sp agents create \
-  --name "my-agent" \
+  --name "my_agent" \
   --port 8099 \
   --display-name "My Agent" \
   --description "A custom agent" \
@@ -159,7 +159,7 @@ sp agents create \
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--name` | Yes | Agent identifier (3-50 chars, lowercase alphanumeric + hyphens) |
+| `--name` | Yes | Agent identifier (3-50 chars, lowercase alphanumeric + underscores) |
 | `--port` | Yes | Port number (>= 1024) |
 
 **Optional Flags:**
@@ -172,14 +172,14 @@ sp agents create \
 | `--enabled` | `false` | Enable agent after creation |
 
 **Validation Rules:**
-- Name: 3-50 characters, lowercase alphanumeric with hyphens only
+- Name: 3-50 characters, lowercase alphanumeric with underscores only
 - Port: Must be >= 1024 (non-privileged), non-zero
 
 **Output Structure:**
 ```json
 {
-  "name": "my-agent",
-  "message": "Agent 'my-agent' created successfully at /path/to/agent.yaml"
+  "name": "my_agent",
+  "message": "Agent 'my_agent' created successfully at /path/to/agent.yaml"
 }
 ```
 
@@ -192,11 +192,11 @@ sp agents create \
 Edit an existing agent configuration.
 
 ```bash
-sp agents edit <agent-name> --enable
-sp agents edit <agent-name> --disable
-sp agents edit <agent-name> --port 8098
-sp agents edit <agent-name> --provider openai --model gpt-4
-sp agents edit <agent-name> --set card.description="New description"
+sp agents edit <agent_name> --enable
+sp agents edit <agent_name> --disable
+sp agents edit <agent_name> --port 8098
+sp agents edit <agent_name> --provider openai --model gpt-4
+sp agents edit <agent_name> --set card.description="New description"
 ```
 
 **Required Arguments:**
@@ -227,8 +227,8 @@ sp agents edit <agent-name> --set card.description="New description"
 **Output Structure:**
 ```json
 {
-  "name": "my-agent",
-  "message": "Agent 'my-agent' updated successfully with 2 change(s)",
+  "name": "my_agent",
+  "message": "Agent 'my_agent' updated successfully with 2 change(s)",
   "changes": [
     "enabled: true",
     "port: 8098"
@@ -245,7 +245,7 @@ sp agents edit <agent-name> --set card.description="New description"
 Delete an agent configuration.
 
 ```bash
-sp agents delete <agent-name> --yes
+sp agents delete <agent_name> --yes
 sp agents delete --all --yes
 ```
 
@@ -263,8 +263,8 @@ sp agents delete --all --yes
 **Output Structure:**
 ```json
 {
-  "deleted": ["my-agent"],
-  "message": "Agent 'my-agent' deleted successfully"
+  "deleted": ["my_agent"],
+  "message": "Agent 'my_agent' deleted successfully"
 }
 ```
 
@@ -279,7 +279,7 @@ Show agent process status (running state, PID, port).
 ```bash
 sp agents status
 sp --json agents status
-sp agents status <agent-name>
+sp agents status <agent_name>
 ```
 
 **Output Structure:**
@@ -307,10 +307,10 @@ sp agents status <agent-name>
 View agent logs from database or disk.
 
 ```bash
-sp agents logs <agent-name>
-sp agents logs <agent-name> --lines 100
-sp agents logs <agent-name> --disk
-sp agents logs <agent-name> --follow
+sp agents logs <agent_name>
+sp agents logs <agent_name> --lines 100
+sp agents logs <agent_name> --disk
+sp agents logs <agent_name> --follow
 ```
 
 **Flags:**
@@ -407,7 +407,7 @@ sp agents registry --verbose
 Send a message to a running agent via the A2A protocol. Returns a task ID for tracking.
 
 ```bash
-sp agents message <agent-name> -m "Hello, how can you help me?"
+sp agents message <agent_name> -m "Hello, how can you help me?"
 sp agents message primary -m "What tools do you have?" --blocking
 sp agents message primary -m "Search for files" --stream
 sp agents message primary -m "Continue task" --context-id <ctx-id> --task-id <task-id>
@@ -487,7 +487,7 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 Get task details including conversation history and agent response.
 
 ```bash
-sp agents task <agent-name> --task-id <task-id> --token "$TOKEN"
+sp agents task <agent_name> --task-id <task-id> --token "$TOKEN"
 sp --json agents task primary --task-id task_abc123 --token "$TOKEN"
 sp agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TOKEN"
 ```
@@ -672,7 +672,7 @@ sp agents message primary
 
 ```bash
 sp agents create --name "Test Agent" --port 8099
-# Error: Agent name must be lowercase alphanumeric with hyphens only
+# Error: Agent name must be lowercase alphanumeric with underscores only
 
 sp agents create --name "ab" --port 8099
 # Error: Agent name must be between 3 and 50 characters

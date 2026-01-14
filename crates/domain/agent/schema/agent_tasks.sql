@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS agent_tasks (
     started_at TIMESTAMPTZ,
     completed_at TIMESTAMPTZ,
     execution_time_ms INTEGER,
+    error_message TEXT,
 
     metadata JSONB DEFAULT '{}',
 
@@ -45,6 +46,8 @@ CREATE INDEX IF NOT EXISTS idx_agent_tasks_agent_name ON agent_tasks(agent_name)
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_started_at ON agent_tasks(started_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_completed_at ON agent_tasks(completed_at DESC);
 CREATE INDEX IF NOT EXISTS idx_agent_tasks_execution_time ON agent_tasks(execution_time_ms DESC);
+
+CREATE INDEX IF NOT EXISTS idx_agent_tasks_error_message ON agent_tasks(error_message) WHERE error_message IS NOT NULL;
 
 DROP TRIGGER IF EXISTS update_agent_tasks_updated_at ON agent_tasks;
 CREATE TRIGGER update_agent_tasks_updated_at

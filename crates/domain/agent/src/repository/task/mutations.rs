@@ -133,3 +133,33 @@ pub async fn update_task_state(
 
     Ok(())
 }
+
+/// Update task state to failed with an error message for debugging
+pub async fn update_task_failed_with_error(
+    pool: &Arc<PgPool>,
+    task_id: &systemprompt_identifiers::TaskId,
+    error_message: &str,
+    timestamp: &chrono::DateTime<chrono::Utc>,
+) -> Result<(), RepositoryError> {
+    let task_id_str = task_id.as_str();
+
+    sqlx::query!(
+        r#"UPDATE agent_tasks SET
+            status = 'failed',
+            status_timestamp = $1,
+            error_message = $2,
+            updated_at = CURRENT_TIMESTAMP,
+            completed_at = CURRENT_TIMESTAMP,
+            started_at = COALESCE(started_at, CURRENT_TIMESTAMP),
+            execution_time_ms = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - COALESCE(started_at, CURRENT_TIMESTAMP))) * 1000
+        WHERE task_id = $3"#,
+        timestamp,
+        error_message,
+        task_id_str
+    )
+    .execute(pool.as_ref())
+    .await
+    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+
+    Ok(())
+}

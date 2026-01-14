@@ -35,6 +35,34 @@ pub async fn prerender_content(db_pool: DbPool) -> Result<()> {
     Ok(())
 }
 
+pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
+    let ctx = load_prerender_context(db_pool).await?;
+
+    if !ctx.template_registry.has_template("homepage") {
+        tracing::info!("No homepage template found, skipping homepage prerender");
+        return Ok(());
+    }
+
+    let homepage_data = serde_json::json!({
+        "site": &ctx.web_config,
+        "nav": {
+            "agent_url": "/agent",
+            "blog_url": "/blog"
+        }
+    });
+
+    let html = ctx
+        .template_registry
+        .render("homepage", &homepage_data)
+        .context("Failed to render homepage template")?;
+
+    let output_path = ctx.dist_dir.join("index.html");
+    fs::write(&output_path, html).await?;
+
+    tracing::info!(path = %output_path.display(), "Generated homepage");
+    Ok(())
+}
+
 async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
     let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
     let config_path = paths.system().content_config();

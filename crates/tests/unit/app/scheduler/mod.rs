@@ -1580,20 +1580,6 @@ fn test_cleanup_inactive_sessions_job_properties() {
     assert_eq!(job.schedule(), "0 */10 * * * *"); // Every 10 minutes
 }
 
-#[test]
-fn test_feature_extraction_job_properties() {
-    use systemprompt_core_scheduler::FeatureExtractionJob;
-    use systemprompt_traits::Job;
-
-    let job = FeatureExtractionJob;
-    assert_eq!(job.name(), "feature_extraction");
-    assert_eq!(
-        job.description(),
-        "Extracts ML behavioral features from completed sessions"
-    );
-    assert_eq!(job.schedule(), "0 */15 * * * *"); // Every 15 minutes
-}
-
 // ============================================================================
 // Job Cron Schedule Validation Tests
 // ============================================================================
@@ -1602,7 +1588,7 @@ fn test_feature_extraction_job_properties() {
 fn test_job_schedules_are_valid_cron_format() {
     use systemprompt_core_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob, FeatureExtractionJob,
+        DatabaseCleanupJob,
     };
     use systemprompt_traits::Job;
 
@@ -1611,7 +1597,6 @@ fn test_job_schedules_are_valid_cron_format() {
         &DatabaseCleanupJob,
         &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
-        &FeatureExtractionJob,
     ];
 
     for job in jobs {
@@ -1632,7 +1617,7 @@ fn test_job_schedules_are_valid_cron_format() {
 fn test_all_jobs_have_unique_names() {
     use systemprompt_core_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob, FeatureExtractionJob,
+        DatabaseCleanupJob,
     };
     use systemprompt_traits::Job;
 
@@ -1641,7 +1626,6 @@ fn test_all_jobs_have_unique_names() {
         DatabaseCleanupJob.name(),
         CleanupEmptyContextsJob.name(),
         CleanupInactiveSessionsJob.name(),
-        FeatureExtractionJob.name(),
     ];
 
     let mut unique_names = names.clone();
@@ -1660,7 +1644,7 @@ fn test_all_jobs_have_unique_names() {
 fn test_all_jobs_have_non_empty_names() {
     use systemprompt_core_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob, FeatureExtractionJob,
+        DatabaseCleanupJob,
     };
     use systemprompt_traits::Job;
 
@@ -1669,7 +1653,6 @@ fn test_all_jobs_have_non_empty_names() {
         &DatabaseCleanupJob,
         &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
-        &FeatureExtractionJob,
     ];
 
     for job in jobs {
@@ -1689,7 +1672,7 @@ fn test_all_jobs_have_non_empty_names() {
 fn test_all_jobs_have_snake_case_names() {
     use systemprompt_core_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
-        DatabaseCleanupJob, FeatureExtractionJob,
+        DatabaseCleanupJob,
     };
     use systemprompt_traits::Job;
 
@@ -1698,7 +1681,6 @@ fn test_all_jobs_have_snake_case_names() {
         &DatabaseCleanupJob,
         &CleanupEmptyContextsJob,
         &CleanupInactiveSessionsJob,
-        &FeatureExtractionJob,
     ];
 
     for job in jobs {
@@ -1752,16 +1734,6 @@ fn test_cleanup_inactive_sessions_job_copy() {
     use systemprompt_traits::Job;
 
     let job1 = CleanupInactiveSessionsJob;
-    let job2 = job1; // Copy
-    assert_eq!(job1.name(), job2.name());
-}
-
-#[test]
-fn test_feature_extraction_job_copy() {
-    use systemprompt_core_scheduler::FeatureExtractionJob;
-    use systemprompt_traits::Job;
-
-    let job1 = FeatureExtractionJob;
     let job2 = job1; // Copy
     assert_eq!(job1.name(), job2.name());
 }

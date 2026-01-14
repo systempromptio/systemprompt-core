@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use chrono::Utc;
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
@@ -13,7 +14,7 @@ use systemprompt_models::ProfileBootstrap;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
-    #[arg(long, help = "Skill name/slug (e.g., greeting-agent)")]
+    #[arg(long, help = "Skill name/slug (e.g., greeting_agent)")]
     pub name: Option<String>,
 
     #[arg(long, help = "Display name for the skill")]
@@ -33,6 +34,15 @@ pub struct CreateArgs {
 
     #[arg(long, help = "Enable the skill (default: true)")]
     pub enabled: Option<bool>,
+
+    #[arg(long, help = "Skill author (default: systemprompt)")]
+    pub author: Option<String>,
+
+    #[arg(long, help = "Category for the skill (default: skills)")]
+    pub category: Option<String>,
+
+    #[arg(long, help = "Skill type (default: skill)")]
+    pub skill_type: Option<String>,
 }
 
 pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<SkillCreateOutput>> {
@@ -67,6 +77,9 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Ski
         .unwrap_or_default();
 
     let enabled = args.enabled.unwrap_or(true);
+    let author = args.author.unwrap_or_else(|| "systemprompt".to_string());
+    let category = args.category.unwrap_or_else(|| "skills".to_string());
+    let skill_type = args.skill_type.unwrap_or_else(|| "skill".to_string());
 
     CliService::info(&format!(
         "Creating skill '{}' (display: {})...",
@@ -87,7 +100,17 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Ski
         .with_context(|| format!("Failed to create skill directory: {}", skill_dir.display()))?;
 
     let index_path = skill_dir.join("index.md");
-    let content = build_skill_markdown(&display_name, &description, enabled, &tags, &instructions);
+    let frontmatter_params = SkillFrontmatterParams {
+        title: &display_name,
+        slug: &name,
+        description: &description,
+        author: &author,
+        category: &category,
+        skill_type: &skill_type,
+        enabled,
+        tags: &tags,
+    };
+    let content = build_skill_markdown(&frontmatter_params, &instructions);
 
     fs::write(&index_path, content)
         .with_context(|| format!("Failed to write skill file: {}", index_path.display()))?;
@@ -99,7 +122,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Ski
     ));
 
     let output = SkillCreateOutput {
-        skill_id: name.replace('-', "_"),
+        skill_id: name.clone(),
         message: format!(
             "Skill '{}' created successfully at {}",
             name,
@@ -123,10 +146,10 @@ fn validate_skill_name(name: &str) -> Result<()> {
 
     if !name
         .chars()
-        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
     {
         return Err(anyhow!(
-            "Skill name must be lowercase alphanumeric with hyphens only"
+            "Skill name must be lowercase alphanumeric with underscores only"
         ));
     }
 
@@ -134,7 +157,7 @@ fn validate_skill_name(name: &str) -> Result<()> {
 }
 
 fn title_case(s: &str) -> String {
-    s.split('-')
+    s.split('_')
         .map(|word| {
             let mut chars = word.chars();
             chars.next().map_or_else(String::new, |first| {
@@ -167,36 +190,53 @@ fn resolve_instructions(
     Ok(String::new())
 }
 
-fn build_skill_markdown(
-    title: &str,
-    description: &str,
+struct SkillFrontmatterParams<'a> {
+    title: &'a str,
+    slug: &'a str,
+    description: &'a str,
+    author: &'a str,
+    category: &'a str,
+    skill_type: &'a str,
     enabled: bool,
-    tags: &[String],
-    instructions: &str,
-) -> String {
-    let tags_yaml = if tags.is_empty() {
-        "[]".to_string()
+    tags: &'a [String],
+}
+
+fn build_skill_markdown(params: &SkillFrontmatterParams<'_>, instructions: &str) -> String {
+    // Use comma-separated string format for keywords (required by DB sync)
+    let keywords = if params.tags.is_empty() {
+        String::new()
     } else {
-        format!(
-            "[{}]",
-            tags.iter()
-                .map(|t| format!("\"{}\"", t))
-                .collect::<Vec<_>>()
-                .join(", ")
-        )
+        params.tags.join(", ")
     };
+
+    // Get current date for published_at
+    let today = Utc::now().format("%Y-%m-%d").to_string();
 
     format!(
         r#"---
-title: "{}"
-description: "{}"
-enabled: {}
-keywords: {}
+title: "{title}"
+slug: "{slug}"
+description: "{description}"
+author: "{author}"
+published_at: "{published_at}"
+type: "{skill_type}"
+category: "{category}"
+keywords: "{keywords}"
+enabled: {enabled}
 ---
 
-{}
+{instructions}
 "#,
-        title, description, enabled, tags_yaml, instructions
+        title = params.title,
+        slug = params.slug,
+        description = params.description,
+        author = params.author,
+        published_at = today,
+        skill_type = params.skill_type,
+        category = params.category,
+        keywords = keywords,
+        enabled = params.enabled,
+        instructions = instructions
     )
 }
 
@@ -209,9 +249,9 @@ fn prompt_name() -> Result<String> {
             }
             if !input
                 .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '_')
             {
-                return Err("Name must be lowercase alphanumeric with hyphens only");
+                return Err("Name must be lowercase alphanumeric with underscores only");
             }
             Ok(())
         })

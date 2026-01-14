@@ -168,11 +168,12 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
         .await
     {
         Err(e) => {
+            let error_msg = format!("Failed to complete task and persist messages: {}", e);
             tracing::error!(task_id = %task_id, error = %e, "Failed to complete task and persist messages");
 
             let failed_timestamp = chrono::Utc::now();
             let _ = task_repo
-                .update_task_state(&task_id, TaskState::Failed, &failed_timestamp)
+                .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
                 .await;
 
             let error_event = AgUiEventBuilder::run_error(
@@ -245,8 +246,9 @@ pub async fn handle_error(
     tracing::error!(task_id = %task_id, error = %error, "Stream error");
 
     let failed_timestamp = chrono::Utc::now();
+    // Use the new method that stores the error message for debugging
     let _ = task_repo
-        .update_task_state(&task_id, TaskState::Failed, &failed_timestamp)
+        .update_task_failed_with_error(task_id, &error, &failed_timestamp)
         .await;
 
     let failed_status = TaskStatus {

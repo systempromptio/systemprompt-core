@@ -369,7 +369,7 @@ impl FileRepository {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct FileStats {
     pub total_files: i64,
     pub total_size_bytes: i64,

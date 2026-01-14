@@ -21,7 +21,8 @@ pub async fn resolve_task_id(pool: &Arc<PgPool>, partial_id: &str) -> Result<Opt
 
 pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &str) -> Result<TaskInfo> {
     let row = sqlx::query!(
-        r#"SELECT task_id, context_id, agent_name, status, created_at, started_at, completed_at, execution_time_ms
+        r#"SELECT task_id, context_id, agent_name, status, created_at, started_at, completed_at,
+                  execution_time_ms, error_message
            FROM agent_tasks WHERE task_id = $1"#,
         task_id
     )
@@ -37,6 +38,7 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &str) -> Result<TaskIn
         started_at: row.started_at,
         completed_at: row.completed_at,
         execution_time_ms: row.execution_time_ms,
+        error_message: row.error_message,
     })
 }
 
