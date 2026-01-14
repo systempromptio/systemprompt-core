@@ -3,7 +3,7 @@ use std::process::Command;
 use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
-use clap::Args;
+use clap::{Args, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 
@@ -12,9 +12,28 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_core_logging::LoggingRepository;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 
-const DEFAULT_LOGS_DIR: &str = "/var/www/html/tyingshoelaces/logs";
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum LogLevel {
+    Debug,
+    Info,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    fn matches(&self, level_str: &str) -> bool {
+        let level_upper = level_str.to_uppercase();
+        match self {
+            LogLevel::Debug => true, // Show all levels
+            LogLevel::Info => !level_upper.contains("DEBUG"),
+            LogLevel::Warn => level_upper.contains("WARN") || level_upper.contains("ERROR"),
+            LogLevel::Error => level_upper.contains("ERROR"),
+        }
+    }
+}
 
 #[derive(Debug, Args)]
 pub struct LogsArgs {
@@ -37,11 +56,23 @@ pub struct LogsArgs {
 
     #[arg(long, help = "Custom logs directory path")]
     pub logs_dir: Option<String>,
+
+    #[arg(long, value_enum, help = "Filter by log level: debug, info, warn, error")]
+    pub level: Option<LogLevel>,
+}
+
+fn get_default_logs_dir() -> PathBuf {
+    AppPaths::get()
+        .map(|paths| paths.system().logs())
+        .unwrap_or_else(|_| PathBuf::from("/var/log"))
 }
 
 pub async fn execute(args: LogsArgs, config: &CliConfig) -> Result<CommandResult<McpLogsOutput>> {
-    let logs_dir = args.logs_dir.as_deref().unwrap_or(DEFAULT_LOGS_DIR);
-    let logs_path = PathBuf::from(logs_dir);
+    let logs_path = args
+        .logs_dir
+        .as_ref()
+        .map(PathBuf::from)
+        .unwrap_or_else(get_default_logs_dir);
 
     if args.follow {
         return execute_follow_mode(&args, config, &logs_path);
@@ -76,8 +107,15 @@ async fn execute_db_mode(
         None => build_all_mcp_patterns()?,
     };
 
+    // Fetch more entries if filtering, to ensure we get enough after filter
+    let fetch_limit = if args.level.is_some() {
+        (args.lines * 5) as i64
+    } else {
+        args.lines as i64
+    };
+
     let entries = repo
-        .get_logs_by_module_patterns(&patterns, args.lines as i64)
+        .get_logs_by_module_patterns(&patterns, fetch_limit)
         .await
         .context("Failed to query logs from database")?;
 
@@ -87,6 +125,12 @@ async fn execute_db_mode(
 
     let logs: Vec<String> = entries
         .iter()
+        .filter(|e| {
+            args.level
+                .map(|level| level.matches(&e.level.to_string()))
+                .unwrap_or(true)
+        })
+        .take(args.lines)
         .map(|e| {
             format!(
                 "{} {} [{}] {}",
@@ -99,6 +143,10 @@ async fn execute_db_mode(
         .collect();
 
     let service_label = args.service.clone().unwrap_or_else(|| "all".to_string());
+    let level_label = args
+        .level
+        .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
+        .unwrap_or_default();
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service_label.clone()),
@@ -106,7 +154,7 @@ async fn execute_db_mode(
         logs,
         log_files: vec![],
     })
-    .with_title(format!("MCP Logs (DB): {}", service_label)))
+    .with_title(format!("MCP Logs (DB): {}{}", service_label, level_label)))
 }
 
 fn build_service_patterns(service: &str) -> Vec<String> {
@@ -156,7 +204,12 @@ fn execute_disk_mode(
     })?;
 
     let log_file = find_log_file(logs_path, &service)?;
-    let logs = read_log_lines(&log_file, args.lines)?;
+    let logs = read_log_lines(&log_file, args.lines, args.level)?;
+
+    let level_label = args
+        .level
+        .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
+        .unwrap_or_default();
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service.clone()),
@@ -164,7 +217,7 @@ fn execute_disk_mode(
         logs,
         log_files: vec![],
     })
-    .with_title(format!("MCP Logs (Disk): {}", service)))
+    .with_title(format!("MCP Logs (Disk): {}{}", service, level_label)))
 }
 
 fn execute_follow_mode(
@@ -251,7 +304,7 @@ fn find_log_file(logs_dir: &Path, service: &str) -> Result<PathBuf> {
         })
 }
 
-fn read_log_lines(log_file: &Path, lines: usize) -> Result<Vec<String>> {
+fn read_log_lines(log_file: &Path, lines: usize, level: Option<LogLevel>) -> Result<Vec<String>> {
     use std::io::{BufRead, BufReader};
 
     let file = std::fs::File::open(log_file)
@@ -263,8 +316,18 @@ fn read_log_lines(log_file: &Path, lines: usize) -> Result<Vec<String>> {
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to read log lines")?;
 
-    let start = all_lines.len().saturating_sub(lines);
-    Ok(all_lines[start..].to_vec())
+    // Filter by level if specified
+    let filtered_lines: Vec<String> = if let Some(log_level) = level {
+        all_lines
+            .into_iter()
+            .filter(|line| log_level.matches(line))
+            .collect()
+    } else {
+        all_lines
+    };
+
+    let start = filtered_lines.len().saturating_sub(lines);
+    Ok(filtered_lines[start..].to_vec())
 }
 
 fn prompt_log_selection(logs_dir: &Path) -> Result<String> {

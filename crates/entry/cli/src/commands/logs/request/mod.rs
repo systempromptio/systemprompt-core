@@ -1,5 +1,6 @@
 mod list;
 mod show;
+mod stats;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -23,6 +24,13 @@ pub enum RequestCommands {
                       request show abc123 --messages --tools"
     )]
     Show(show::ShowArgs),
+
+    #[command(
+        about = "Show aggregate AI request statistics",
+        after_help = "EXAMPLES:\n  systemprompt logs request stats\n  systemprompt logs request \
+                      stats --since 24h"
+    )]
+    Stats(stats::StatsArgs),
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -84,5 +92,6 @@ pub async fn execute(command: RequestCommands, config: &CliConfig) -> Result<()>
     match command {
         RequestCommands::List(args) => list::execute(args, config).await,
         RequestCommands::Show(args) => show::execute(args, config).await,
+        RequestCommands::Stats(args) => stats::execute(args, config).await,
     }
 }

@@ -32,6 +32,11 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `users update <USER>` | Update user fields | No |
 | `users delete <USER>` | Delete a user | **Yes** |
 | `users count` | Get total user count | No |
+| `users export` | Export users to JSON | No |
+| `users stats` | Show user statistics dashboard | No |
+| `users merge` | Merge source user into target | **Yes** |
+| `users bulk delete` | Bulk delete users by filter | **Yes** |
+| `users bulk update` | Bulk update user status | **Yes** |
 | `users role assign <USER>` | Assign roles to user | No |
 | `users role promote <USER>` | Promote user to admin | No |
 | `users role demote <USER>` | Demote user from admin | No |

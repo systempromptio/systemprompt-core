@@ -96,3 +96,39 @@ pub struct DbValidateOutput {
     pub extra_tables: Vec<String>,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbCountOutput {
+    pub table: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbIndexesOutput {
+    pub indexes: Vec<TableIndexInfo>,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableIndexInfo {
+    pub table: String,
+    pub name: String,
+    pub columns: Vec<String>,
+    pub unique: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbSizeOutput {
+    pub database_size: String,
+    pub database_size_bytes: i64,
+    pub table_count: usize,
+    pub largest_tables: Vec<TableSizeInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TableSizeInfo {
+    pub name: String,
+    pub size: String,
+    pub size_bytes: i64,
+    pub rows: i64,
+}

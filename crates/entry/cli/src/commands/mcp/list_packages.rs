@@ -24,10 +24,20 @@ pub fn execute(
 
     let packages: Vec<String> = servers.iter().map(|s| s.name.clone()).collect();
 
-    let output = McpPackagesOutput { packages };
+    let output = if args.raw {
+        McpPackagesOutput {
+            raw_packages: Some(packages.join(" ")),
+            packages,
+        }
+    } else {
+        McpPackagesOutput {
+            packages,
+            raw_packages: None,
+        }
+    };
 
     if args.raw {
-        Ok(CommandResult::copy_paste(output).with_title("MCP Packages"))
+        Ok(CommandResult::copy_paste(output).with_title("MCP Packages (raw)"))
     } else {
         Ok(CommandResult::list(output).with_title("MCP Packages"))
     }

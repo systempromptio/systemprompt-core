@@ -3,13 +3,17 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::path::{Path, PathBuf};
 use systemprompt_core_logging::CliService;
+use systemprompt_models::cli::CommandResult;
 
 use super::postgres::PostgresConfig;
+use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
 use super::{postgres, profile, secrets, SetupArgs};
 use crate::CliConfig;
 
-pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
-    CliService::section("SystemPrompt Setup Wizard");
+pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResult<SetupOutput>> {
+    if !config.is_json_output() {
+        CliService::section("SystemPrompt Setup Wizard");
+    }
 
     let project_root = detect_project_root()?;
     let project_name = project_root
@@ -17,20 +21,77 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
         .and_then(|n| n.to_str())
         .unwrap_or("systemprompt");
 
-    CliService::success(&format!(
-        "Project: {} ({})",
-        project_name,
-        project_root.display()
-    ));
+    if !config.is_json_output() {
+        CliService::success(&format!(
+            "Project: {} ({})",
+            project_name,
+            project_root.display()
+        ));
+    }
 
     let systemprompt_dir = project_root.join(".systemprompt");
 
     let env_name = get_environment_name(&args, config)?;
 
-    CliService::info(&format!("Configuring environment: {}", env_name));
-    CliService::section(&format!("Setting up '{}' environment", env_name));
+    if !config.is_json_output() {
+        CliService::info(&format!("Configuring environment: {}", env_name));
+    }
+
+    // Confirmation for non-dry-run operations
+    if !args.dry_run && !args.yes && config.is_interactive() {
+        let confirmed = Confirm::with_theme(&ColorfulTheme::default())
+            .with_prompt(format!(
+                "This will create/update configuration for '{}' environment. Continue?",
+                env_name
+            ))
+            .default(true)
+            .interact()?;
+
+        if !confirmed {
+            let output = SetupOutput {
+                environment: env_name.clone(),
+                profile_path: String::new(),
+                database: DatabaseSetupInfo {
+                    host: args.db_host.clone(),
+                    port: args.db_port,
+                    name: args.effective_db_name(&env_name),
+                    user: args.effective_db_user(&env_name),
+                    connection_status: "cancelled".to_string(),
+                    docker: args.docker,
+                },
+                secrets_configured: SecretsConfiguredInfo {
+                    anthropic: args.anthropic_key.is_some(),
+                    openai: args.openai_key.is_some(),
+                    gemini: args.gemini_key.is_some(),
+                    github: args.github_token.is_some(),
+                },
+                migrations_run: false,
+                message: "Setup cancelled by user".to_string(),
+            };
+
+            if !config.is_json_output() {
+                CliService::info("Setup cancelled");
+            }
+
+            return Ok(CommandResult::text(output).with_title("Setup Cancelled"));
+        }
+    }
+
+    if args.dry_run {
+        return execute_dry_run(&args, &env_name, &systemprompt_dir, config).await;
+    }
+
+    if !config.is_json_output() {
+        CliService::section(&format!("Setting up '{}' environment", env_name));
+    }
 
     let pg_config = setup_postgres(&args, config, &env_name).await?;
+
+    let connection_status = if postgres::test_connection(&pg_config).await {
+        "connected"
+    } else {
+        "unreachable"
+    };
 
     let mut secrets_data = collect_secrets(&args, config, &env_name)?;
     secrets_data.database_url = Some(pg_config.database_url());
@@ -44,8 +105,16 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
     profile::save(&profile_data, &profile_path)?;
 
     match profile_data.validate() {
-        Ok(()) => CliService::success("Profile validated successfully"),
-        Err(e) => CliService::warning(&format!("Profile validation warnings: {}", e)),
+        Ok(()) => {
+            if !config.is_json_output() {
+                CliService::success("Profile validated successfully");
+            }
+        }
+        Err(e) => {
+            if !config.is_json_output() {
+                CliService::warning(&format!("Profile validation warnings: {}", e));
+            }
+        }
     }
 
     let run_migrations = should_run_migrations(&args, config)?;
@@ -53,9 +122,140 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<()> {
         profile::run_migrations(&profile_path)?;
     }
 
-    print_summary(&env_name, &profile_path);
+    let output = SetupOutput {
+        environment: env_name.clone(),
+        profile_path: profile_path.to_string_lossy().to_string(),
+        database: DatabaseSetupInfo {
+            host: pg_config.host.clone(),
+            port: pg_config.port,
+            name: pg_config.database.clone(),
+            user: pg_config.user.clone(),
+            connection_status: connection_status.to_string(),
+            docker: args.docker,
+        },
+        secrets_configured: SecretsConfiguredInfo {
+            anthropic: secrets_data.anthropic.is_some(),
+            openai: secrets_data.openai.is_some(),
+            gemini: secrets_data.gemini.is_some(),
+            github: secrets_data.github.is_some(),
+        },
+        migrations_run: run_migrations,
+        message: format!("Environment '{}' setup completed successfully", env_name),
+    };
 
-    Ok(())
+    if !config.is_json_output() {
+        print_summary(&env_name, &profile_path);
+    }
+
+    Ok(CommandResult::text(output).with_title("Setup Complete"))
+}
+
+async fn execute_dry_run(
+    args: &SetupArgs,
+    env_name: &str,
+    systemprompt_dir: &Path,
+    config: &CliConfig,
+) -> Result<CommandResult<SetupOutput>> {
+    if !config.is_json_output() {
+        CliService::section("Dry Run - No changes will be made");
+    }
+
+    let profile_path = profile::default_path(systemprompt_dir, env_name);
+    let secrets_path = secrets::default_path(systemprompt_dir, env_name);
+
+    // Check database connectivity without making changes
+    let connection_status = if args.docker {
+        "docker_pending"
+    } else if postgres::detect_postgresql(&args.db_host, args.db_port) {
+        "reachable"
+    } else {
+        "unreachable"
+    };
+
+    if !config.is_json_output() {
+        CliService::subsection("Configuration Preview");
+        CliService::key_value("Environment", env_name);
+        CliService::key_value("Profile path", &profile_path.to_string_lossy());
+        CliService::key_value("Secrets path", &secrets_path.to_string_lossy());
+
+        CliService::subsection("Database");
+        CliService::key_value("Host", &args.db_host);
+        CliService::key_value("Port", &args.db_port.to_string());
+        CliService::key_value("User", &args.effective_db_user(env_name));
+        CliService::key_value("Database", &args.effective_db_name(env_name));
+        CliService::key_value("Docker", if args.docker { "yes" } else { "no" });
+        CliService::key_value("Connection", connection_status);
+
+        CliService::subsection("API Keys");
+        CliService::key_value(
+            "Anthropic",
+            if args.anthropic_key.is_some() {
+                "configured"
+            } else {
+                "not set"
+            },
+        );
+        CliService::key_value(
+            "OpenAI",
+            if args.openai_key.is_some() {
+                "configured"
+            } else {
+                "not set"
+            },
+        );
+        CliService::key_value(
+            "Gemini",
+            if args.gemini_key.is_some() {
+                "configured"
+            } else {
+                "not set"
+            },
+        );
+        CliService::key_value(
+            "GitHub",
+            if args.github_token.is_some() {
+                "configured"
+            } else {
+                "not set"
+            },
+        );
+
+        CliService::subsection("Migrations");
+        let migration_status = if args.migrate {
+            "will run"
+        } else if args.no_migrate {
+            "skipped"
+        } else {
+            "will prompt (interactive)"
+        };
+        CliService::key_value("Status", migration_status);
+
+        CliService::info("");
+        CliService::info("Run without --dry-run to execute setup");
+    }
+
+    let output = SetupOutput {
+        environment: env_name.to_string(),
+        profile_path: profile_path.to_string_lossy().to_string(),
+        database: DatabaseSetupInfo {
+            host: args.db_host.clone(),
+            port: args.db_port,
+            name: args.effective_db_name(env_name),
+            user: args.effective_db_user(env_name),
+            connection_status: connection_status.to_string(),
+            docker: args.docker,
+        },
+        secrets_configured: SecretsConfiguredInfo {
+            anthropic: args.anthropic_key.is_some(),
+            openai: args.openai_key.is_some(),
+            gemini: args.gemini_key.is_some(),
+            github: args.github_token.is_some(),
+        },
+        migrations_run: false,
+        message: "Dry run completed - no changes made".to_string(),
+    };
+
+    Ok(CommandResult::text(output).with_title("Setup Dry Run"))
 }
 
 fn get_environment_name(args: &SetupArgs, config: &CliConfig) -> Result<String> {
@@ -84,9 +284,9 @@ async fn setup_postgres(
     env_name: &str,
 ) -> Result<PostgresConfig> {
     if !config.is_interactive() {
-        return postgres::setup_non_interactive(args, env_name).await;
+        return postgres::setup_non_interactive(args, env_name, config).await;
     }
-    postgres::setup_interactive(args, env_name).await
+    postgres::setup_interactive(args, env_name, config).await
 }
 
 fn collect_secrets(
@@ -95,9 +295,9 @@ fn collect_secrets(
     env_name: &str,
 ) -> Result<secrets::SecretsData> {
     if !config.is_interactive() {
-        return secrets::collect_non_interactive(args);
+        return secrets::collect_non_interactive(args, config);
     }
-    secrets::collect_interactive(args, env_name)
+    secrets::collect_interactive(args, env_name, config)
 }
 
 fn should_run_migrations(args: &SetupArgs, config: &CliConfig) -> Result<bool> {
@@ -151,7 +351,7 @@ fn print_summary(env_name: &str, profile_path: &Path) {
     CliService::section("Setup Complete!");
 
     CliService::info(&format!(
-        "Created profile: {} → {}",
+        "Created profile: {} -> {}",
         env_name,
         profile_path.display()
     ));

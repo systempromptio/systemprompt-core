@@ -26,13 +26,43 @@ pub struct McpServerSummary {
 pub struct McpValidateOutput {
     pub server: String,
     pub valid: bool,
+    pub health_status: String,
+    pub validation_type: String,
     pub tools_count: usize,
+    pub latency_ms: u32,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub server_info: Option<McpServerInfo>,
     pub issues: Vec<String>,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpServerInfo {
+    pub name: String,
+    pub version: String,
+    pub protocol_version: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpBatchValidateOutput {
+    pub results: Vec<McpValidateOutput>,
+    pub summary: McpValidateSummary,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct McpValidateSummary {
+    pub total: usize,
+    pub valid: usize,
+    pub invalid: usize,
+    pub healthy: usize,
+    pub unhealthy: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct McpPackagesOutput {
     pub packages: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub raw_packages: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

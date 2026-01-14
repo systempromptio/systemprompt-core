@@ -3,7 +3,7 @@ use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::{FileId, UserId};
 
 use crate::models::{File, FileMetadata};
-use crate::repository::{FileRepository, InsertFileRequest};
+use crate::repository::{FileRepository, FileStats, InsertFileRequest};
 
 #[derive(Debug, Clone)]
 pub struct FileService {
@@ -60,5 +60,13 @@ impl FileService {
 
     pub async fn update_metadata(&self, id: &FileId, metadata: &FileMetadata) -> Result<()> {
         self.repository.update_metadata(id, metadata).await
+    }
+
+    pub async fn get_stats(&self) -> Result<FileStats> {
+        self.repository.get_stats().await
+    }
+
+    pub async fn search_by_path(&self, query: &str, limit: i64) -> Result<Vec<File>> {
+        self.repository.search_by_path(query, limit).await
     }
 }

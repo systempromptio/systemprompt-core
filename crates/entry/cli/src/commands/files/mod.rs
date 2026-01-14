@@ -3,7 +3,9 @@ pub mod types;
 mod config;
 mod delete;
 mod list;
+mod search;
 mod show;
+mod stats;
 pub mod upload;
 mod validate;
 
@@ -35,6 +37,12 @@ pub enum FilesCommands {
 
     #[command(about = "Show file upload configuration")]
     Config(config::ConfigArgs),
+
+    #[command(about = "Search files by path pattern")]
+    Search(search::SearchArgs),
+
+    #[command(about = "Show file storage statistics")]
+    Stats(stats::StatsArgs),
 
     #[command(subcommand, about = "Content-file linking operations")]
     Content(content::ContentCommands),
@@ -84,6 +92,20 @@ pub async fn execute_with_config(cmd: FilesCommands, config: &CliConfig) -> Resu
         },
         FilesCommands::Config(args) => {
             let result = config::execute(args, config).context("Failed to get file config")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Search(args) => {
+            let result = search::execute(args, config)
+                .await
+                .context("Failed to search files")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Stats(args) => {
+            let result = stats::execute(args, config)
+                .await
+                .context("Failed to get file stats")?;
             render_result(&result);
             Ok(())
         },

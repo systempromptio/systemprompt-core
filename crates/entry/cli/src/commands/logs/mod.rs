@@ -5,6 +5,7 @@ mod export;
 pub mod request;
 mod search;
 mod stream;
+mod summary;
 pub mod trace;
 mod view;
 
@@ -51,6 +52,12 @@ pub enum LogsCommands {
 
     #[command(about = "Delete all log entries")]
     Delete(delete::DeleteArgs),
+
+    #[command(
+        about = "Show logs summary statistics",
+        after_help = "EXAMPLES:\n  systemprompt logs summary\n  systemprompt logs summary --since 24h"
+    )]
+    Summary(summary::SummaryArgs),
 
     #[command(subcommand, about = "Debug execution traces")]
     Trace(trace::TraceCommands),
@@ -119,6 +126,7 @@ pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
         LogsCommands::Export(args) => export::execute(args, config).await,
         LogsCommands::Cleanup(args) => cleanup::execute(args, config).await,
         LogsCommands::Delete(args) => delete::execute(args, config).await,
+        LogsCommands::Summary(args) => summary::execute(args, config).await,
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
         LogsCommands::Request(cmd) => request::execute(cmd, config).await,
     }
