@@ -1,4 +1,5 @@
-use systemprompt_identifiers::UserId;
+use chrono::Utc;
+use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::Result;
 use crate::models::{UserSession, UserSessionRow};
@@ -64,5 +65,37 @@ impl UserRepository {
         .await?;
 
         Ok(rows.into_iter().map(UserSession::from).collect())
+    }
+
+    pub async fn end_session(&self, session_id: &SessionId) -> Result<bool> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE user_sessions
+            SET ended_at = $1
+            WHERE session_id = $2 AND ended_at IS NULL
+            "#,
+            Utc::now(),
+            session_id.as_str()
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        Ok(result.rows_affected() > 0)
+    }
+
+    pub async fn end_all_sessions(&self, user_id: &UserId) -> Result<u64> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE user_sessions
+            SET ended_at = $1
+            WHERE user_id = $2 AND ended_at IS NULL
+            "#,
+            Utc::now(),
+            user_id.as_str()
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 }

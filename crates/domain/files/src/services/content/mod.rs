@@ -54,6 +54,10 @@ impl ContentService {
         self.repository.list_files_by_content(content_id).await
     }
 
+    pub async fn list_content_by_file(&self, file_id: &FileId) -> Result<Vec<ContentFile>> {
+        self.repository.list_content_by_file(file_id).await
+    }
+
     pub async fn find_featured_image(&self, content_id: &ContentId) -> Result<Option<File>> {
         self.repository.find_featured_image(content_id).await
     }

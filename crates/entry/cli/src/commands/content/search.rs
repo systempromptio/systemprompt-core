@@ -12,6 +12,9 @@ pub struct SearchArgs {
     #[arg(help = "Search query")]
     pub query: String,
 
+    #[arg(long, help = "Filter by source ID")]
+    pub source: Option<String>,
+
     #[arg(long, help = "Filter by category ID")]
     pub category: Option<String>,
 
@@ -38,6 +41,13 @@ pub async fn execute(args: SearchArgs, _config: &CliConfig) -> Result<CommandRes
     let results: Vec<SearchResultRow> = response
         .results
         .into_iter()
+        .filter(|r| {
+            if let Some(ref src) = args.source {
+                r.source_id.as_str() == src
+            } else {
+                true
+            }
+        })
         .map(|r| SearchResultRow {
             id: r.id,
             slug: r.slug,

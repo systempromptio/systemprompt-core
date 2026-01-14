@@ -4,7 +4,7 @@ mod user;
 pub use banned_ip::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp, BannedIpRepository,
 };
-pub use user::UpdateUserParams;
+pub use user::{MergeResult, UpdateUserParams};
 
 use anyhow::Result;
 use sqlx::PgPool;

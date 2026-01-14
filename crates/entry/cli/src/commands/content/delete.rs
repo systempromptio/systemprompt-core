@@ -21,7 +21,7 @@ pub struct DeleteArgs {
 }
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<DeleteOutput>> {
-    if !args.yes && config.interactive {
+    if !args.yes && config.is_interactive() {
         CliService::warning(&format!(
             "This will permanently delete content: {}",
             args.identifier

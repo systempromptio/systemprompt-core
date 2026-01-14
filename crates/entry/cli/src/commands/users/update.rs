@@ -2,8 +2,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
-use systemprompt_core_users::{UserService, UserStatus};
-use systemprompt_identifiers::UserId;
+use systemprompt_core_users::{UserAdminService, UserService, UserStatus};
 use systemprompt_runtime::AppContext;
 
 use super::list::StatusFilter;
@@ -19,6 +18,9 @@ pub struct UpdateArgs {
     #[arg(long)]
     pub full_name: Option<String>,
 
+    #[arg(long)]
+    pub display_name: Option<String>,
+
     #[arg(long, value_enum)]
     pub status: Option<StatusFilter>,
 
@@ -29,17 +31,18 @@ pub struct UpdateArgs {
 pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
+    let admin_service = UserAdminService::new(user_service.clone());
 
-    let user_id = UserId::new(&args.user_id);
-
-    let existing = user_service.find_by_id(&user_id).await?;
+    let existing = admin_service.find_user(&args.user_id).await?;
     let Some(mut user) = existing else {
         CliService::error(&format!("User not found: {}", args.user_id));
         return Err(anyhow!("User not found"));
     };
+    let user_id = user.id.clone();
 
     let has_updates = args.email.is_some()
         || args.full_name.is_some()
+        || args.display_name.is_some()
         || args.status.is_some()
         || args.email_verified.is_some();
 
@@ -54,6 +57,12 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
 
     if let Some(ref full_name) = args.full_name {
         user = user_service.update_full_name(&user_id, full_name).await?;
+    }
+
+    if let Some(ref display_name) = args.display_name {
+        user = user_service
+            .update_display_name(&user_id, display_name)
+            .await?;
     }
 
     if let Some(status_filter) = args.status {

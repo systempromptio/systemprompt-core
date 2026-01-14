@@ -43,4 +43,8 @@ impl AiService {
     pub async fn count_ai_images_by_user(&self, user_id: &UserId) -> Result<i64> {
         self.repository.count_ai_images_by_user(user_id).await
     }
+
+    pub async fn count_ai_images(&self) -> Result<i64> {
+        self.repository.count_ai_images().await
+    }
 }

@@ -2,8 +2,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
-use systemprompt_core_users::UserService;
-use systemprompt_identifiers::UserId;
+use systemprompt_core_users::{UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
 
 use crate::commands::users::types::RoleAssignOutput;
@@ -19,20 +18,21 @@ pub struct AssignArgs {
 pub async fn execute(args: AssignArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
+    let admin_service = UserAdminService::new(user_service.clone());
 
     if args.roles.is_empty() {
         return Err(anyhow!("At least one role must be specified"));
     }
 
-    let user_id = UserId::new(&args.user_id);
-
-    let existing = user_service.find_by_id(&user_id).await?;
-    if existing.is_none() {
+    let existing = admin_service.find_user(&args.user_id).await?;
+    let Some(existing_user) = existing else {
         CliService::error(&format!("User not found: {}", args.user_id));
         return Err(anyhow!("User not found"));
-    }
+    };
 
-    let user = user_service.assign_roles(&user_id, &args.roles).await?;
+    let user = user_service
+        .assign_roles(&existing_user.id, &args.roles)
+        .await?;
 
     let output = RoleAssignOutput {
         id: user.id.to_string(),

@@ -26,6 +26,9 @@ pub struct IngestArgs {
 
     #[arg(long, help = "Override existing content")]
     pub r#override: bool,
+
+    #[arg(long, help = "Preview changes without writing to database")]
+    pub dry_run: bool,
 }
 
 pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandResult<IngestOutput>> {
@@ -52,7 +55,8 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
 
     let options = IngestionOptions::default()
         .with_recursive(args.recursive)
-        .with_override(args.r#override);
+        .with_override(args.r#override)
+        .with_dry_run(args.dry_run);
 
     let report = service
         .ingest_directory(&args.directory, &source, options)

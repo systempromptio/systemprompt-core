@@ -212,3 +212,47 @@ pub struct AiFilesCountOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub user_id: Option<UserId>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileContentLinksOutput {
+    pub file_id: FileId,
+    pub links: Vec<FileContentLinkRow>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileContentLinkRow {
+    pub content_id: ContentId,
+    pub role: String,
+    pub display_order: i32,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileStatsOutput {
+    pub total_files: i64,
+    pub total_size_bytes: i64,
+    pub ai_images_count: i64,
+    pub by_category: FileCategoryStats,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileCategoryStats {
+    pub images: CategoryStat,
+    pub documents: CategoryStat,
+    pub audio: CategoryStat,
+    pub video: CategoryStat,
+    pub other: CategoryStat,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CategoryStat {
+    pub count: i64,
+    pub size_bytes: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct FileSearchOutput {
+    pub files: Vec<FileSummary>,
+    pub query: String,
+    pub total: i64,
+}

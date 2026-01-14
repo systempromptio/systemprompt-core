@@ -100,3 +100,60 @@ impl From<UserSessionRow> for UserSession {
         }
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserStats {
+    pub total: i64,
+    pub created_24h: i64,
+    pub created_7d: i64,
+    pub created_30d: i64,
+    pub active: i64,
+    pub suspended: i64,
+    pub admins: i64,
+    pub anonymous: i64,
+    pub bots: i64,
+    pub oldest_user: Option<DateTime<Utc>>,
+    pub newest_user: Option<DateTime<Utc>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserCountBreakdown {
+    pub total: i64,
+    pub by_status: std::collections::HashMap<String, i64>,
+    pub by_role: std::collections::HashMap<String, i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct UserExport {
+    pub id: String,
+    pub name: String,
+    pub email: String,
+    pub full_name: Option<String>,
+    pub display_name: Option<String>,
+    pub status: Option<String>,
+    pub email_verified: Option<bool>,
+    pub roles: Vec<String>,
+    pub is_bot: bool,
+    pub is_scanner: bool,
+    pub created_at: Option<DateTime<Utc>>,
+    pub updated_at: Option<DateTime<Utc>>,
+}
+
+impl From<User> for UserExport {
+    fn from(user: User) -> Self {
+        Self {
+            id: user.id.to_string(),
+            name: user.name,
+            email: user.email,
+            full_name: user.full_name,
+            display_name: user.display_name,
+            status: user.status,
+            email_verified: user.email_verified,
+            roles: user.roles,
+            is_bot: user.is_bot,
+            is_scanner: user.is_scanner,
+            created_at: user.created_at,
+            updated_at: user.updated_at,
+        }
+    }
+}

@@ -133,4 +133,33 @@ impl LinkRepository {
         .fetch_all(&*self.pool)
         .await
     }
+
+    pub async fn get_link_by_id(&self, id: &LinkId) -> Result<Option<CampaignLink>, sqlx::Error> {
+        sqlx::query_as!(
+            CampaignLink,
+            r#"
+            SELECT id as "id: LinkId", short_code, target_url, link_type,
+                   campaign_id as "campaign_id: CampaignId", campaign_name,
+                   source_content_id as "source_content_id: ContentId", source_page,
+                   utm_params, link_text, link_position, destination_type,
+                   click_count, unique_click_count, conversion_count,
+                   is_active, expires_at, created_at, updated_at
+            FROM campaign_links
+            WHERE id = $1
+            "#,
+            id.as_str()
+        )
+        .fetch_optional(&*self.pool)
+        .await
+    }
+
+    pub async fn delete_link(&self, id: &LinkId) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query!(
+            "DELETE FROM campaign_links WHERE id = $1",
+            id.as_str()
+        )
+        .execute(&*self.pool)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
 }

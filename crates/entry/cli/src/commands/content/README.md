@@ -23,15 +23,18 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `content list` | List content with pagination | `Table` | No (DB only) |
 | `content show <id>` | Show content details | `Card` | No (DB only) |
 | `content search <query>` | Search content | `Table` | No (DB only) |
-| `content ingest` | Ingest markdown files | `Text` | No (DB only) |
-| `content delete <id>` | Delete content by ID | `Text` | No (DB only) |
-| `content delete-source` | Delete all content from source | `Text` | No (DB only) |
+| `content ingest` | Ingest markdown files | `Card` | No (DB only) |
+| `content delete <id>` | Delete content by ID | `Card` | No (DB only) |
+| `content delete-source` | Delete all content from source | `Card` | No (DB only) |
 | `content popular` | Get popular content | `Table` | No (DB only) |
-| `content link list` | List content links | `Table` | No (DB only) |
-| `content link create` | Create content link | `Text` | No (DB only) |
-| `content link delete` | Delete content link | `Text` | No (DB only) |
-| `content analytics views` | Content view analytics | `Table` | No (DB only) |
-| `content analytics engagement` | Content engagement metrics | `Card` | No (DB only) |
+| `content link generate` | Generate trackable link | `Card` | No (DB only) |
+| `content link show` | Show link details | `Card` | No (DB only) |
+| `content link list` | List links | `Table` | No (DB only) |
+| `content link performance` | Link performance metrics | `Card` | No (DB only) |
+| `content link delete` | Delete a link | `Card` | No (DB only) |
+| `content analytics clicks` | Link click history | `Table` | No (DB only) |
+| `content analytics campaign` | Campaign analytics | `Card` | No (DB only) |
+| `content analytics journey` | Content navigation graph | `Table` | No (DB only) |
 
 ---
 
@@ -47,7 +50,6 @@ sp --json content list
 sp content list --limit 50 --offset 0
 sp content list --source blog
 sp content list --category tutorials
-sp content list --status published
 ```
 
 **Flags:**
@@ -56,22 +58,20 @@ sp content list --status published
 | `--limit` | `20` | Maximum number of results |
 | `--offset` | `0` | Number of results to skip |
 | `--source` | None | Filter by source ID |
-| `--category` | None | Filter by category |
-| `--status` | None | Filter by status: `draft`, `published`, `archived` |
+| `--category` | None | Filter by category ID |
 
 **Output Structure:**
 ```json
 {
-  "content": [
+  "items": [
     {
       "id": "content_abc123",
       "slug": "getting-started",
       "title": "Getting Started Guide",
+      "kind": "article",
       "source_id": "blog",
       "category_id": "tutorials",
-      "status": "published",
-      "created_at": "2024-01-15T10:30:00Z",
-      "updated_at": "2024-01-15T10:30:00Z"
+      "published_at": "2024-01-15T10:30:00Z"
     }
   ],
   "total": 1,
@@ -81,7 +81,7 @@ sp content list --status published
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `id`, `slug`, `title`, `source_id`, `status`, `created_at`
+**Columns:** `id`, `title`, `kind`, `source_id`, `published_at`
 
 ---
 
@@ -91,14 +91,19 @@ Show detailed content information.
 
 ```bash
 sp content show <content-id>
-sp --json content show content_abc123
-sp content show blog/getting-started
+sp --json content show dc2ae776-debb-4a75-9e8d-90c9131382e0
+sp content show getting-started --source blog
 ```
 
 **Required Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<id>` | Yes | Content ID or source/slug path |
+| `<identifier>` | Yes | Content ID or slug |
+
+**Optional Flags:**
+| Flag | Description |
+|------|-------------|
+| `--source` | Source ID (required when using slug) |
 
 **Output Structure:**
 ```json
@@ -107,16 +112,16 @@ sp content show blog/getting-started
   "slug": "getting-started",
   "title": "Getting Started Guide",
   "description": "A comprehensive guide to getting started",
-  "source_id": "blog",
+  "body": "# Getting Started\n\nWelcome to...",
+  "author": "John Doe",
+  "published_at": "2024-01-15T10:30:00Z",
+  "keywords": ["tutorial", "beginner"],
+  "kind": "article",
+  "image": "/images/getting-started.webp",
   "category_id": "tutorials",
-  "status": "published",
-  "content": "# Getting Started\n\nWelcome to...",
-  "metadata": {
-    "author": "John Doe",
-    "tags": ["tutorial", "beginner"]
-  },
-  "views": 1520,
-  "created_at": "2024-01-15T10:30:00Z",
+  "source_id": "blog",
+  "version_hash": "abc123...",
+  "is_public": true,
   "updated_at": "2024-01-15T10:30:00Z"
 }
 ```
@@ -133,7 +138,7 @@ Search content by query.
 sp content search <query>
 sp --json content search "getting started"
 sp content search "tutorial" --source blog
-sp content search "api" --limit 10
+sp content search "api" --category docs --limit 10
 ```
 
 **Required Arguments:**
@@ -145,6 +150,7 @@ sp content search "api" --limit 10
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--source` | None | Filter by source ID |
+| `--category` | None | Filter by category ID |
 | `--limit` | `20` | Maximum number of results |
 
 **Output Structure:**
@@ -155,18 +161,19 @@ sp content search "api" --limit 10
       "id": "content_abc123",
       "slug": "getting-started",
       "title": "Getting Started Guide",
-      "snippet": "...getting started with the platform...",
-      "score": 0.95,
-      "source_id": "blog"
+      "description": "A comprehensive guide...",
+      "image": "/images/getting-started.webp",
+      "source_id": "blog",
+      "category_id": "tutorials"
     }
   ],
-  "query": "getting started",
-  "total": 1
+  "total": 1,
+  "query": "getting started"
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `id`, `title`, `snippet`, `score`, `source_id`
+**Columns:** `id`, `title`, `slug`, `source_id`
 
 ---
 
@@ -175,13 +182,18 @@ sp content search "api" --limit 10
 Ingest markdown files from a directory into the database.
 
 ```bash
-sp content ingest --source blog
-sp content ingest --source blog --path ./content/blog
-sp content ingest --source blog --recursive
-sp content ingest --source blog --dry-run
+sp content ingest <directory> --source blog
+sp content ingest ./content/blog --source blog --recursive
+sp content ingest ./content --source docs --category documentation
+sp content ingest ./content --source test --dry-run
 ```
 
-**Required Flags (non-interactive):**
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<directory>` | Yes | Path to content directory |
+
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
 | `--source` | Yes | Source ID for ingested content |
@@ -189,26 +201,49 @@ sp content ingest --source blog --dry-run
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--path` | From config | Path to content directory |
-| `--recursive` | `true` | Recursively process subdirectories |
-| `--dry-run` | `false` | Preview without making changes |
+| `--category` | `default` | Category ID for ingested content |
+| `--recursive` | `false` | Recursively process subdirectories |
 | `--override` | `false` | Override existing content |
+| `--dry-run` | `false` | Preview without making changes |
+
+**Frontmatter Requirements:**
+
+Markdown files must include YAML frontmatter with these required fields:
+
+```yaml
+---
+title: Article Title
+slug: article-slug
+description: Brief description
+published_at: 2024-01-15
+kind: article
+author: Author Name
+---
+```
+
+| Field | Required | Format | Description |
+|-------|----------|--------|-------------|
+| `title` | Yes | String | Content title |
+| `slug` | Yes | String | URL-friendly slug |
+| `description` | Yes | String | Brief description |
+| `published_at` | Yes | `YYYY-MM-DD` | Publication date |
+| `kind` | Yes | `article`, `paper`, `guide`, `tutorial` | Content type |
+| `author` | Yes | String | Author name |
+| `category` | No | String | Override default category |
+| `keywords` | No | String | Comma-separated keywords |
+| `image` | No | String | Image path |
 
 **Output Structure:**
 ```json
 {
-  "source_id": "blog",
-  "path": "/var/www/html/tyingshoelaces/services/content/blog",
+  "files_found": 25,
   "files_processed": 25,
-  "created": 20,
-  "updated": 5,
-  "skipped": 0,
   "errors": [],
-  "message": "Ingested 25 files into source 'blog'"
+  "success": true
 }
 ```
 
-**Artifact Type:** `Text`
+**Artifact Type:** `Card`
 
 ---
 
@@ -218,25 +253,30 @@ Delete content by ID.
 
 ```bash
 sp content delete <content-id> --yes
-sp content delete content_abc123 --yes
-sp content delete blog/getting-started --yes
+sp content delete dc2ae776-debb-4a75-9e8d-90c9131382e0 --yes
+sp content delete getting-started --source blog --yes
 ```
 
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<id>` | Yes | Content ID or source/slug path |
+| `<identifier>` | Yes | Content ID or slug |
 | `--yes` / `-y` | Yes | Skip confirmation |
+
+**Optional Flags:**
+| Flag | Description |
+|------|-------------|
+| `--source` | Source ID (required when using slug) |
 
 **Output Structure:**
 ```json
 {
-  "deleted": "content_abc123",
-  "message": "Content 'content_abc123' deleted successfully"
+  "deleted": true,
+  "content_id": "dc2ae776-debb-4a75-9e8d-90c9131382e0"
 }
 ```
 
-**Artifact Type:** `Text`
+**Artifact Type:** `Card`
 
 ---
 
@@ -246,32 +286,24 @@ Delete all content from a source.
 
 ```bash
 sp content delete-source <source-id> --yes
-sp content delete-source blog --yes
-sp content delete-source tutorials --yes --hard
+sp content delete-source test-source --yes
 ```
 
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<source>` | Yes | Source ID |
+| `<source_id>` | Yes | Source ID |
 | `--yes` / `-y` | Yes | Skip confirmation |
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--hard` | `false` | Permanently delete (cannot recover) |
 
 **Output Structure:**
 ```json
 {
-  "source_id": "blog",
   "deleted_count": 25,
-  "hard_delete": false,
-  "message": "Deleted 25 content items from source 'blog'"
+  "source_id": "blog"
 }
 ```
 
-**Artifact Type:** `Text`
+**Artifact Type:** `Card`
 
 ---
 
@@ -280,214 +312,91 @@ sp content delete-source tutorials --yes --hard
 Get popular content based on views.
 
 ```bash
-sp content popular
-sp --json content popular
-sp content popular --limit 10
-sp content popular --since 7d
 sp content popular --source blog
+sp --json content popular --source blog
+sp content popular --source blog --limit 10
+sp content popular --source blog --since 7d
+sp content popular --source docs --since 1w
 ```
+
+**Required Flags:**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--source` | Yes | Source ID |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--limit` | `10` | Maximum number of results |
-| `--since` | `30d` | Time period |
-| `--source` | None | Filter by source ID |
+| `--since` | `30d` | Time period (e.g., `7d`, `30d`, `1w`) |
 
 **Output Structure:**
 ```json
 {
-  "content": [
+  "items": [
     {
       "id": "content_abc123",
       "slug": "popular-article",
       "title": "Most Popular Article",
-      "views": 5200,
-      "source_id": "blog"
+      "kind": "article",
+      "source_id": "blog",
+      "category_id": "tutorials",
+      "published_at": "2024-01-15T10:30:00Z"
     }
   ],
-  "period": "30d",
-  "total": 10
+  "source_id": "blog",
+  "days": 30
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `id`, `title`, `views`, `source_id`
+**Columns:** `id`, `title`, `kind`, `published_at`
 
 ---
 
 ## Link Commands
 
-### content link list
+### content link generate
 
-List content links (related content).
-
-```bash
-sp content link list
-sp --json content link list
-sp content link list --content content_abc123
-sp content link list --type related
-```
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--content` | None | Filter by content ID |
-| `--type` | None | Filter by link type |
-
-**Output Structure:**
-```json
-{
-  "links": [
-    {
-      "source_id": "content_abc123",
-      "target_id": "content_xyz789",
-      "link_type": "related",
-      "weight": 0.85,
-      "created_at": "2024-01-15T10:30:00Z"
-    }
-  ],
-  "total": 1
-}
-```
-
-**Artifact Type:** `Table`
-**Columns:** `source_id`, `target_id`, `link_type`, `weight`
-
----
-
-### content link create
-
-Create a content link.
+Generate a trackable campaign link.
 
 ```bash
-sp content link create --source <content-id> --target <content-id>
-sp content link create --source content_abc --target content_xyz --type related
-sp content link create --source content_abc --target content_xyz --weight 0.9
+sp content link generate --url https://example.com
+sp content link generate --url https://example.com --campaign my-campaign
+sp content link generate --url https://example.com --utm-source twitter --utm-medium social
+sp content link generate --url https://example.com --link-type redirect
 ```
 
-**Required Flags (non-interactive):**
+**Required Flags:**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `--source` | Yes | Source content ID |
-| `--target` | Yes | Target content ID |
+| `--url` | Yes | Target URL |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--type` | `related` | Link type: `related`, `next`, `previous`, `parent` |
-| `--weight` | `1.0` | Link weight (0.0 to 1.0) |
+| `--campaign` | None | Campaign ID |
+| `--campaign-name` | None | Campaign name |
+| `--content` | None | Source content ID |
+| `--utm-source` | None | UTM source parameter |
+| `--utm-medium` | None | UTM medium parameter |
+| `--utm-campaign` | None | UTM campaign parameter |
+| `--utm-term` | None | UTM term parameter |
+| `--utm-content` | None | UTM content parameter |
+| `--link-type` | `both` | Link type: `redirect`, `utm`, `both` |
 
 **Output Structure:**
 ```json
 {
-  "source_id": "content_abc123",
-  "target_id": "content_xyz789",
-  "link_type": "related",
-  "message": "Content link created successfully"
-}
-```
-
-**Artifact Type:** `Text`
-
----
-
-### content link delete
-
-Delete a content link.
-
-```bash
-sp content link delete --source <content-id> --target <content-id> --yes
-sp content link delete --source content_abc --target content_xyz --yes
-```
-
-**Required Flags (non-interactive):**
-| Flag | Required | Description |
-|------|----------|-------------|
-| `--source` | Yes | Source content ID |
-| `--target` | Yes | Target content ID |
-| `--yes` / `-y` | Yes | Skip confirmation |
-
-**Output Structure:**
-```json
-{
-  "source_id": "content_abc123",
-  "target_id": "content_xyz789",
-  "message": "Content link deleted successfully"
-}
-```
-
-**Artifact Type:** `Text`
-
----
-
-## Analytics Commands
-
-### content analytics views
-
-View content analytics.
-
-```bash
-sp content analytics views
-sp --json content analytics views
-sp content analytics views --content content_abc123
-sp content analytics views --since 7d
-```
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--content` | None | Filter by content ID |
-| `--since` | `30d` | Time period |
-| `--group-by` | `day` | Group by: `hour`, `day`, `week` |
-
-**Output Structure:**
-```json
-{
-  "views": [
-    {
-      "timestamp": "2024-01-14",
-      "content_id": "content_abc123",
-      "views": 150,
-      "unique_visitors": 120
-    }
-  ],
-  "period": "7d",
-  "total_views": 1050
-}
-```
-
-**Artifact Type:** `Table`
-
----
-
-### content analytics engagement
-
-Content engagement metrics.
-
-```bash
-sp content analytics engagement
-sp --json content analytics engagement
-sp content analytics engagement --content content_abc123
-```
-
-**Optional Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--content` | None | Filter by content ID |
-| `--since` | `30d` | Time period |
-
-**Output Structure:**
-```json
-{
-  "content_id": "content_abc123",
-  "period": "30d",
-  "metrics": {
-    "total_views": 5200,
-    "unique_visitors": 3800,
-    "avg_time_on_page_seconds": 185,
-    "avg_scroll_depth": 0.72,
-    "bounce_rate": 0.35
+  "link_id": "abc123",
+  "short_code": "6WRVOTgT",
+  "short_url": "https://systemprompt.io/r/6WRVOTgT",
+  "target_url": "https://example.com",
+  "full_url": "https://example.com?utm_source=...",
+  "link_type": "both",
+  "utm_params": {
+    "source": "twitter",
+    "medium": "social"
   }
 }
 ```
@@ -496,18 +405,261 @@ sp content analytics engagement --content content_abc123
 
 ---
 
+### content link show
+
+Show link details by short code.
+
+```bash
+sp content link show <short-code>
+sp --json content link show 6WRVOTgT
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<short_code>` | Yes | Link short code |
+
+**Output Structure:**
+```json
+{
+  "id": "abc123",
+  "short_code": "6WRVOTgT",
+  "target_url": "https://example.com",
+  "full_url": "https://example.com?utm_source=...",
+  "link_type": "both",
+  "campaign_id": "my-campaign",
+  "campaign_name": "My Campaign",
+  "click_count": 150,
+  "unique_click_count": 120,
+  "conversion_count": 10,
+  "is_active": true,
+  "created_at": "2024-01-15T10:30:00Z"
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### content link list
+
+List links by campaign or content.
+
+```bash
+sp content link list --campaign my-campaign
+sp content link list --content content_abc123
+sp --json content link list --campaign my-campaign
+```
+
+**Required Flags (at least one):**
+| Flag | Description |
+|------|-------------|
+| `--campaign` | Filter by campaign ID |
+| `--content` | Filter by source content ID |
+
+**Output Structure:**
+```json
+{
+  "links": [
+    {
+      "id": "abc123",
+      "short_code": "6WRVOTgT",
+      "target_url": "https://example.com",
+      "link_type": "both",
+      "campaign_name": "My Campaign",
+      "click_count": 150,
+      "created_at": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "total": 1
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `id`, `short_code`, `target_url`, `click_count`
+
+---
+
+### content link performance
+
+Show link performance metrics.
+
+```bash
+sp content link performance <link-id>
+sp --json content link performance abc123
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<link_id>` | Yes | Link ID |
+
+**Output Structure:**
+```json
+{
+  "link_id": "abc123",
+  "click_count": 150,
+  "unique_click_count": 120,
+  "conversion_count": 10,
+  "conversion_rate": 0.083
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### content link delete
+
+Delete a link.
+
+```bash
+sp content link delete <link-id> --yes
+sp content link delete abc123 --yes
+```
+
+**Required Flags (non-interactive):**
+| Flag | Required | Description |
+|------|----------|-------------|
+| `<link_id>` | Yes | Link ID |
+| `--yes` / `-y` | Yes | Skip confirmation |
+
+**Output Structure:**
+```json
+{
+  "deleted": true,
+  "link_id": "abc123"
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+## Analytics Commands
+
+### content analytics clicks
+
+Show click history for a link.
+
+```bash
+sp content analytics clicks <link-id>
+sp --json content analytics clicks abc123
+sp content analytics clicks abc123 --limit 50
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<link_id>` | Yes | Link ID |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | `20` | Maximum number of results |
+| `--offset` | `0` | Number of results to skip |
+
+**Output Structure:**
+```json
+{
+  "link_id": "abc123",
+  "clicks": [
+    {
+      "click_id": "click_123",
+      "session_id": "session_456",
+      "user_id": "user_789",
+      "clicked_at": "2024-01-15T10:30:00Z",
+      "referrer_page": "/blog/article",
+      "device_type": "desktop",
+      "country": "US",
+      "is_conversion": false
+    }
+  ],
+  "total": 150
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `click_id`, `session_id`, `clicked_at`, `device_type`, `country`
+
+---
+
+### content analytics campaign
+
+Show campaign-level analytics.
+
+```bash
+sp content analytics campaign <campaign-id>
+sp --json content analytics campaign my-campaign
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<campaign_id>` | Yes | Campaign ID |
+
+**Output Structure:**
+```json
+{
+  "campaign_id": "my-campaign",
+  "total_clicks": 1500,
+  "link_count": 10,
+  "unique_visitors": 1200,
+  "conversion_count": 50
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### content analytics journey
+
+Show content navigation graph.
+
+```bash
+sp content analytics journey
+sp --json content analytics journey
+sp content analytics journey --limit 50
+```
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | `20` | Maximum number of results |
+| `--offset` | `0` | Number of results to skip |
+
+**Output Structure:**
+```json
+{
+  "nodes": [
+    {
+      "source_content_id": "content_abc",
+      "target_url": "https://example.com",
+      "click_count": 150
+    }
+  ]
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `source_content_id`, `target_url`, `click_count`
+
+---
+
 ## Complete Content Management Flow Example
 
 ```bash
 # Phase 1: Create content directory and files
-mkdir -p /services/content/tutorials
-cat << 'EOF' > /services/content/tutorials/getting-started.md
+mkdir -p /tmp/tutorials
+cat << 'EOF' > /tmp/tutorials/getting-started.md
 ---
 title: Getting Started
 slug: getting-started
 description: A beginner's guide
 author: Developer
-tags: [tutorial, beginner]
+published_at: 2024-01-15
+kind: tutorial
 ---
 
 # Getting Started
@@ -515,30 +667,32 @@ tags: [tutorial, beginner]
 Welcome to our platform...
 EOF
 
-# Phase 2: Ingest content
-sp content ingest --source tutorials
+# Phase 2: Dry-run to preview ingestion
+sp content ingest /tmp/tutorials --source tutorials --dry-run
 
-# Phase 3: Verify content
+# Phase 3: Ingest content
+sp content ingest /tmp/tutorials --source tutorials
+
+# Phase 4: Verify content
 sp --json content list --source tutorials
-sp --json content show tutorials/getting-started
+sp --json content show getting-started --source tutorials
 
-# Phase 4: Search content
+# Phase 5: Search content
 sp --json content search "getting started"
 
-# Phase 5: Check popular content
-sp --json content popular --since 7d
+# Phase 6: Check popular content
+sp --json content popular --source tutorials --since 7d
 
-# Phase 6: View analytics
-sp --json content analytics views --since 7d
-sp --json content analytics engagement
+# Phase 7: Generate trackable link
+sp content link generate --url https://example.com --campaign test --utm-source cli
 
-# Phase 7: Create related links
-sp content link create --source content_abc --target content_xyz --type related
+# Phase 8: View link analytics
+sp --json content analytics clicks <link-id>
 
-# Phase 8: Delete content
-sp content delete tutorials/getting-started --yes
+# Phase 9: Delete content
+sp content delete getting-started --source tutorials --yes
 
-# Phase 9: Delete all from source
+# Phase 10: Delete all from source
 sp content delete-source tutorials --yes
 ```
 
@@ -549,21 +703,27 @@ sp content delete-source tutorials --yes
 ### Missing Required Flags
 
 ```bash
-sp content ingest
+sp content ingest /path
 # Error: --source is required
 
 sp content delete content_abc
 # Error: --yes is required to delete content in non-interactive mode
+
+sp content link list
+# Error: Either --campaign or --content must be specified
 ```
 
 ### Content Not Found
 
 ```bash
 sp content show nonexistent
-# Error: Content 'nonexistent' not found
+# Error: Source ID required when using slug
+
+sp content show nonexistent --source blog
+# Error: Content not found: nonexistent in source blog
 
 sp content delete nonexistent --yes
-# Error: Content 'nonexistent' not found
+# Error: Source ID required when using slug (use --source)
 ```
 
 ---
@@ -577,9 +737,9 @@ All commands support `--json` flag for structured output:
 sp --json content list | jq .
 
 # Extract specific fields
-sp --json content list | jq '.content[].title'
-sp --json content show content_abc | jq '.metadata'
-sp --json content popular | jq '.content[] | {title, views}'
+sp --json content list | jq '.items[].title'
+sp --json content show content_abc | jq '.body'
+sp --json content popular --source blog | jq '.items[] | {title, kind}'
 ```
 
 ---
@@ -593,3 +753,4 @@ sp --json content popular | jq '.content[] | {title, views}'
 - [x] No `println!` / `eprintln!` - uses `render_result()`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
+- [x] Uses `config.is_interactive()` for interactive checks

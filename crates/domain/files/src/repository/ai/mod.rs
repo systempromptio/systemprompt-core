@@ -64,4 +64,19 @@ impl FileRepository {
 
         Ok(count)
     }
+
+    pub async fn count_ai_images(&self) -> Result<i64> {
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*) as "count!"
+            FROM files
+            WHERE ai_content = true AND deleted_at IS NULL
+            "#
+        )
+        .fetch_one(self.pool.as_ref())
+        .await
+        .context("Failed to count AI images")?;
+
+        Ok(count)
+    }
 }

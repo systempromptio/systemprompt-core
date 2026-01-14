@@ -2,8 +2,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
-use systemprompt_core_users::UserService;
-use systemprompt_identifiers::UserId;
+use systemprompt_core_users::{UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
 
 use super::types::UserDeletedOutput;
@@ -19,25 +18,24 @@ pub struct DeleteArgs {
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
+    let admin_service = UserAdminService::new(user_service.clone());
 
     if !args.yes {
         CliService::warning("This will permanently delete the user. Use --yes to confirm.");
         return Err(anyhow!("Operation cancelled - confirmation required"));
     }
 
-    let user_id = UserId::new(&args.user_id);
-
-    let existing = user_service.find_by_id(&user_id).await?;
-    if existing.is_none() {
+    let existing = admin_service.find_user(&args.user_id).await?;
+    let Some(user) = existing else {
         CliService::error(&format!("User not found: {}", args.user_id));
         return Err(anyhow!("User not found"));
-    }
+    };
 
-    user_service.delete(&user_id).await?;
+    user_service.delete(&user.id).await?;
 
     let output = UserDeletedOutput {
-        id: user_id.to_string(),
-        message: format!("User '{}' deleted successfully", args.user_id),
+        id: user.id.to_string(),
+        message: format!("User '{}' deleted successfully", user.name),
     };
 
     if config.is_json_output() {

@@ -7,13 +7,30 @@ use systemprompt_core_content::ContentRepository;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 
+fn parse_duration(s: &str) -> Result<i64> {
+    let s = s.trim().to_lowercase();
+    if s.ends_with('d') {
+        s[..s.len() - 1]
+            .parse::<i64>()
+            .map_err(|_| anyhow!("Invalid duration format: {}", s))
+    } else if s.ends_with('w') {
+        s[..s.len() - 1]
+            .parse::<i64>()
+            .map(|w| w * 7)
+            .map_err(|_| anyhow!("Invalid duration format: {}", s))
+    } else {
+        s.parse::<i64>()
+            .map_err(|_| anyhow!("Invalid duration format: {}. Use '7d', '30d', '1w', etc.", s))
+    }
+}
+
 #[derive(Debug, Args)]
 pub struct PopularArgs {
     #[arg(long, help = "Filter by source ID (required)")]
     pub source: String,
 
-    #[arg(long, default_value = "30", help = "Days to look back")]
-    pub days: i64,
+    #[arg(long, default_value = "30d", help = "Time period (e.g., 7d, 30d, 1w)")]
+    pub since: String,
 
     #[arg(long, default_value = "10")]
     pub limit: i64,
@@ -27,7 +44,8 @@ pub async fn execute(
     let repo = ContentRepository::new(ctx.db_pool())?;
 
     let source = SourceId::new(args.source.clone());
-    let days = i32::try_from(args.days).map_err(|_| anyhow!("Days value too large"))?;
+    let days_i64 = parse_duration(&args.since)?;
+    let days = i32::try_from(days_i64).map_err(|_| anyhow!("Duration too large"))?;
 
     let content_ids = repo
         .get_popular_content_ids(&source, days, args.limit)
@@ -51,7 +69,7 @@ pub async fn execute(
     let output = PopularOutput {
         items,
         source_id: args.source,
-        days: args.days,
+        days: days_i64,
     };
 
     Ok(CommandResult::table(output)

@@ -184,4 +184,23 @@ impl FileRepository {
         tx.commit().await?;
         Ok(())
     }
+
+    pub async fn list_content_by_file(&self, file_id: &FileId) -> Result<Vec<ContentFile>> {
+        let file_id_uuid =
+            uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
+
+        sqlx::query_as!(
+            ContentFile,
+            r#"
+            SELECT id, content_id as "content_id: ContentId", file_id, role, display_order, created_at
+            FROM content_files
+            WHERE file_id = $1
+            ORDER BY created_at ASC
+            "#,
+            file_id_uuid
+        )
+        .fetch_all(self.pool.as_ref())
+        .await
+        .context(format!("Failed to list content for file: {file_id}"))
+    }
 }

@@ -216,3 +216,50 @@ pub struct JourneyNode {
     pub target_url: String,
     pub click_count: i32,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct LinkDeleteOutput {
+    pub deleted: bool,
+    pub link_id: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct VerifyOutput {
+    pub content_id: String,
+    pub slug: String,
+    pub source_id: String,
+    pub in_database: bool,
+    pub is_public: bool,
+    pub expected_url: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prerendered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prerender_path: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub template: Option<String>,
+    pub last_updated: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct StatusOutput {
+    pub items: Vec<ContentStatusRow>,
+    pub source_id: String,
+    pub total: i64,
+    pub healthy: i64,
+    pub issues: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ContentStatusRow {
+    pub slug: String,
+    pub title: String,
+    pub in_database: bool,
+    pub is_public: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub prerendered: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub http_status: Option<u16>,
+    pub last_updated: DateTime<Utc>,
+}

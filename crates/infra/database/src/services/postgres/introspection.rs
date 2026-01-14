@@ -52,6 +52,7 @@ pub async fn get_database_info(pool: &PgPool) -> Result<DatabaseInfo> {
         tables.push(TableInfo {
             name: table_name,
             row_count,
+            size_bytes: 0,
             columns,
         });
     }

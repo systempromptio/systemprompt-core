@@ -7,7 +7,9 @@ pub mod list;
 pub mod popular;
 pub mod search;
 pub mod show;
+pub mod status;
 pub mod types;
+pub mod verify;
 
 use crate::cli_settings::{get_global_config, CliConfig};
 use crate::shared::render_result;
@@ -36,6 +38,12 @@ pub enum ContentCommands {
 
     #[command(about = "Get popular content")]
     Popular(popular::PopularArgs),
+
+    #[command(about = "Verify content is published and accessible")]
+    Verify(verify::VerifyArgs),
+
+    #[command(about = "Show content health status for a source")]
+    Status(status::StatusArgs),
 
     #[command(subcommand, about = "Link generation and management")]
     Link(link::LinkCommands),
@@ -91,6 +99,18 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
             let result = popular::execute(args, config)
                 .await
                 .context("Failed to get popular content")?;
+            render_result(&result);
+        },
+        ContentCommands::Verify(args) => {
+            let result = verify::execute(args, config)
+                .await
+                .context("Failed to verify content")?;
+            render_result(&result);
+        },
+        ContentCommands::Status(args) => {
+            let result = status::execute(args, config)
+                .await
+                .context("Failed to get content status")?;
             render_result(&result);
         },
         ContentCommands::Link(cmd) => {

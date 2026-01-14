@@ -10,10 +10,13 @@ use systemprompt_loader::ConfigLoader;
 use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 
-#[derive(Debug, Clone, Copy, Args)]
+#[derive(Debug, Clone, Args)]
 pub struct StatusArgs {
     #[arg(long, short, help = "Show detailed output including binary paths")]
     pub detailed: bool,
+
+    #[arg(long, help = "Filter to specific server")]
+    pub server: Option<String>,
 }
 
 pub async fn execute(
@@ -39,6 +42,13 @@ pub async fn execute(
     let mut servers = Vec::new();
 
     for (name, deployment) in &services_config.mcp_servers {
+        // Filter by server name if specified
+        if let Some(ref filter) = args.server {
+            if name != filter {
+                continue;
+            }
+        }
+
         let running_info = running_servers.iter().find(|s| &s.name == name);
         let is_running = running_info.is_some();
 

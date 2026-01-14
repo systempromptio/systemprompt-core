@@ -9,8 +9,8 @@ pub mod services;
 pub use models::{
     parse_database_datetime, ArtifactId, ClientId, ColumnInfo, ContentId, ContextId, DatabaseInfo,
     DatabaseQuery, DatabaseTransaction, DbValue, ExecutionStepId, FileId, FromDatabaseRow,
-    FromDbValue, JsonRow, LogId, QueryResult, QueryRow, QuerySelector, SessionId, SkillId,
-    TableInfo, TaskId, ToDbValue, TokenId, TraceId, UserId,
+    FromDbValue, IndexInfo, JsonRow, LogId, QueryResult, QueryRow, QuerySelector, SessionId,
+    SkillId, TableInfo, TaskId, ToDbValue, TokenId, TraceId, UserId,
 };
 
 pub use services::{

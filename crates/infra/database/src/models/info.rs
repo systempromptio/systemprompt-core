@@ -12,6 +12,8 @@ pub struct DatabaseInfo {
 pub struct TableInfo {
     pub name: String,
     pub row_count: i64,
+    #[serde(default)]
+    pub size_bytes: i64,
     pub columns: Vec<ColumnInfo>,
 }
 
@@ -22,4 +24,11 @@ pub struct ColumnInfo {
     pub nullable: bool,
     pub primary_key: bool,
     pub default: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IndexInfo {
+    pub name: String,
+    pub columns: Vec<String>,
+    pub unique: bool,
 }

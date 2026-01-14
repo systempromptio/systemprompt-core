@@ -3,7 +3,6 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::{UserAdminService, UserService};
-use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
@@ -24,12 +23,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    let user = if args.identifier.starts_with("user_") {
-        let user_id = UserId::new(&args.identifier);
-        user_service.find_by_id(&user_id).await?
-    } else {
-        admin_service.find_user(&args.identifier).await?
-    };
+    let user = admin_service.find_user(&args.identifier).await?;
 
     let Some(user) = user else {
         CliService::error(&format!("User not found: {}", args.identifier));

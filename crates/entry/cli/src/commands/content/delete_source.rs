@@ -21,7 +21,7 @@ pub async fn execute(
     args: DeleteSourceArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<DeleteSourceOutput>> {
-    if !args.yes && config.interactive {
+    if !args.yes && config.is_interactive() {
         CliService::warning(&format!(
             "This will permanently delete ALL content from source: {}",
             args.source_id

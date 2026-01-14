@@ -3,4 +3,4 @@ mod list;
 pub mod operations;
 mod session;
 
-pub use operations::UpdateUserParams;
+pub use operations::{MergeResult, UpdateUserParams};
