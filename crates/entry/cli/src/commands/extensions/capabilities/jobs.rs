@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
@@ -15,7 +14,7 @@ pub struct JobsArgs {
     pub enabled: bool,
 }
 
-pub fn execute(args: JobsArgs, _config: &CliConfig) -> Result<CommandResult<JobsListOutput>> {
+pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let jobs: Vec<JobWithExtension> = registry
@@ -47,12 +46,12 @@ pub fn execute(args: JobsArgs, _config: &CliConfig) -> Result<CommandResult<Jobs
 
     let output = JobsListOutput { jobs, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Jobs Across Extensions")
         .with_columns(vec![
             "extension_id".to_string(),
             "job_name".to_string(),
             "schedule".to_string(),
             "enabled".to_string(),
-        ]))
+        ])
 }

@@ -25,7 +25,7 @@ pub struct GenerateArgs {
 }
 
 pub fn execute(
-    args: GenerateArgs,
+    args: &GenerateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<SitemapGenerateOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;

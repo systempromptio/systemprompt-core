@@ -67,9 +67,8 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
     }
 
     let html_file_path = templates_dir.join(format!("{}.html", name));
-    let mut html_written = false;
 
-    if let Some(content_source) = &args.content {
+    let html_written = if let Some(content_source) = &args.content {
         let html_content = if content_source == "-" {
             let mut buffer = String::new();
             io::stdin()
@@ -85,14 +84,14 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
 
         fs::write(&html_file_path, html_content)
             .with_context(|| format!("Failed to write HTML file: {}", html_file_path.display()))?;
-        html_written = true;
-    }
+        true
+    } else {
+        false
+    };
 
     templates_config.templates.insert(
         name.clone(),
-        TemplateEntry {
-            content_types: content_types.clone(),
-        },
+        TemplateEntry { content_types },
     );
 
     let yaml = serde_yaml::to_string(&templates_config).context("Failed to serialize config")?;
@@ -120,7 +119,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
     CliService::success(&message);
 
     let output = TemplateCreateOutput {
-        name: name.clone(),
+        name,
         file_path: html_file_path.to_string_lossy().to_string(),
         message,
     };

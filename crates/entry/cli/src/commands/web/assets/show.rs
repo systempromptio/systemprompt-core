@@ -16,7 +16,7 @@ pub struct ShowArgs {
     pub path: String,
 }
 
-pub fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<AssetDetailOutput>> {
+pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<AssetDetailOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_path = profile.paths.web_path_resolved();
     let assets_dir = Path::new(&web_path).join("assets");

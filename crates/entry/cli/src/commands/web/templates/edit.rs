@@ -70,14 +70,14 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
     }
 
     if let Some(add_type) = &args.add_content_type {
-        if !entry.content_types.contains(add_type) {
-            entry.content_types.push(add_type.clone());
-            changes.push(format!("added content_type: {}", add_type));
-        } else {
+        if entry.content_types.contains(add_type) {
             CliService::warning(&format!(
                 "Content type '{}' already linked to template",
                 add_type
             ));
+        } else {
+            entry.content_types.push(add_type.clone());
+            changes.push(format!("added content_type: {}", add_type));
         }
     }
 

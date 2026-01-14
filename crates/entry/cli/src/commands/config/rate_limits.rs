@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
 use clap::{Args, Subcommand};
+use systemprompt_core_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use super::types::{
@@ -66,7 +67,7 @@ pub fn execute_show(config: &CliConfig) -> Result<()> {
     render_result(&CommandResult::card(output).with_title("Rate Limits"));
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
-        println!("\n  Note: Rate limiting is currently DISABLED");
+        CliService::warning("Rate limiting is currently DISABLED");
     }
 
     Ok(())
@@ -113,7 +114,7 @@ pub fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
     render_result(&CommandResult::card(output).with_title("Tier Effective Limits"));
 
     if config.output_format() == OutputFormat::Table && limits.disabled {
-        println!("\n  Note: Rate limiting is currently DISABLED");
+        CliService::warning("Rate limiting is currently DISABLED");
     }
 
     Ok(())

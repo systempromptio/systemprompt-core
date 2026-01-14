@@ -40,7 +40,7 @@ pub async fn execute_with_config(command: WebCommands, config: &CliConfig) -> Re
         WebCommands::ContentTypes(cmd) => content_types::execute(cmd, config),
         WebCommands::Templates(cmd) => templates::execute(cmd, config),
         WebCommands::Assets(cmd) => assets::execute(cmd, config),
-        WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config).await,
+        WebCommands::Sitemap(cmd) => sitemap::execute(cmd, config),
         WebCommands::Validate(args) => {
             let result = validate::execute(&args, config)?;
             render_result(&result);

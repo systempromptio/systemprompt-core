@@ -15,7 +15,7 @@ pub struct ShowArgs {
     pub id: String,
 }
 
-pub fn execute(args: ShowArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionDetailOutput>> {
+pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionDetailOutput>> {
     let registry = ExtensionRegistry::discover();
 
     let ext = registry

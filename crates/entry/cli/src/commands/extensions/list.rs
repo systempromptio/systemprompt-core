@@ -15,7 +15,7 @@ pub struct ListArgs {
     pub capability: Option<String>,
 }
 
-pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionListOutput>> {
+pub fn execute(args: &ListArgs, _config: &CliConfig) -> Result<CommandResult<ExtensionListOutput>> {
     let registry = ExtensionRegistry::discover();
 
     let mut extensions: Vec<ExtensionSummary> = registry

@@ -16,7 +16,7 @@ pub enum SitemapCommands {
     Generate(generate::GenerateArgs),
 }
 
-pub async fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()> {
     match command {
         SitemapCommands::Show(args) => {
             let result = show::execute(args, config).context("Failed to show sitemap")?;
@@ -24,7 +24,7 @@ pub async fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()>
             Ok(())
         },
         SitemapCommands::Generate(args) => {
-            let result = generate::execute(args, config)
+            let result = generate::execute(&args, config)
                 .context("Failed to generate sitemap")?;
             render_result(&result);
             Ok(())

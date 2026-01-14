@@ -5,6 +5,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
+use std::sync::OnceLock;
 
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
@@ -86,8 +87,13 @@ pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<Templ
     Ok(CommandResult::card(output).with_title(format!("Template: {}", name)))
 }
 
+fn template_variable_regex() -> &'static Regex {
+    static RE: OnceLock<Regex> = OnceLock::new();
+    RE.get_or_init(|| Regex::new(r"\{\{([A-Z_]+)\}\}").unwrap())
+}
+
 fn extract_template_variables(content: &str) -> Vec<String> {
-    let re = Regex::new(r"\{\{([A-Z_]+)\}\}").expect("Invalid regex");
+    let re = template_variable_regex();
     let mut variables: HashSet<String> = HashSet::new();
 
     for cap in re.captures_iter(content) {
