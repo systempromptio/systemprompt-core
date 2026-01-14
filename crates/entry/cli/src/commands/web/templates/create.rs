@@ -66,24 +66,20 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
         return Err(anyhow!("At least one content type is required"));
     }
 
-    // Handle HTML content
     let html_file_path = templates_dir.join(format!("{}.html", name));
     let mut html_written = false;
 
     if let Some(content_source) = &args.content {
         let html_content = if content_source == "-" {
-            // Read from stdin
             let mut buffer = String::new();
             io::stdin()
                 .read_to_string(&mut buffer)
                 .context("Failed to read from stdin")?;
             buffer
         } else if Path::new(content_source).exists() {
-            // Read from file
             fs::read_to_string(content_source)
                 .with_context(|| format!("Failed to read file: {}", content_source))?
         } else {
-            // Treat as literal content
             content_source.clone()
         };
 
@@ -92,7 +88,6 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
         html_written = true;
     }
 
-    // Add entry to templates.yaml
     templates_config.templates.insert(
         name.clone(),
         TemplateEntry {

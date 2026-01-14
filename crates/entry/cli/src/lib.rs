@@ -6,8 +6,8 @@ mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{
-    agents, analytics, build, cloud, content, db, files, jobs, logs, mcp, services, setup, skills,
-    users, web,
+    agents, analytics, build, cloud, config, content, db, extensions, files, jobs, logs, mcp,
+    services, setup, skills, system, users, web,
 };
 
 use anyhow::{Context, Result};
@@ -143,11 +143,20 @@ enum Commands {
     #[command(subcommand, about = "Content management and analytics")]
     Content(content::ContentCommands),
 
+    #[command(subcommand, about = "Configuration management and rate limits")]
+    Config(config::ConfigCommands),
+
     #[command(subcommand, about = "Analytics and metrics reporting")]
     Analytics(analytics::AnalyticsCommands),
 
     #[command(subcommand, about = "Web service configuration management")]
     Web(web::WebCommands),
+
+    #[command(subcommand, about = "Extension management and discovery")]
+    Extensions(extensions::ExtensionsCommands),
+
+    #[command(subcommand, about = "System authentication and session management")]
+    System(system::SystemCommands),
 
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
@@ -227,8 +236,11 @@ pub async fn run() -> Result<()> {
         Some(Commands::Users(cmd)) => users::execute(cmd, &cli_config).await?,
         Some(Commands::Files(cmd)) => files::execute(cmd, &cli_config).await?,
         Some(Commands::Content(cmd)) => content::execute(cmd).await?,
+        Some(Commands::Config(cmd)) => config::execute(cmd, &cli_config)?,
         Some(Commands::Analytics(cmd)) => analytics::execute(cmd, &cli_config).await?,
         Some(Commands::Web(cmd)) => web::execute(cmd).await?,
+        Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
+        Some(Commands::System(cmd)) => system::execute(cmd).await?,
         Some(Commands::Setup(args)) => setup::execute(args, &cli_config).await?,
         None => tui::execute(&cli_config).await?,
     }

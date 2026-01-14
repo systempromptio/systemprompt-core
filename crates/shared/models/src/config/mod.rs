@@ -182,16 +182,22 @@ impl Config {
     }
 
     fn build_config(profile: &Profile, paths: BuildConfigPaths) -> Result<Self> {
+        let secrets = SecretsBootstrap::get().map_err(|_| {
+            anyhow::anyhow!(
+                "Secrets not initialized. Call SecretsBootstrap::init() before Config::from_profile()"
+            )
+        })?;
+
         Ok(Self {
             sitename: profile.site.name.clone(),
             database_type: profile.database.db_type.clone(),
-            database_url: Self::resolve_database_url(profile)?,
+            database_url: secrets.database_url.clone(),
             github_link: profile
                 .site
                 .github_link
                 .clone()
                 .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_string()),
-            github_token: None,
+            github_token: secrets.github.clone(),
             system_path: paths.system_path,
             services_path: profile.paths.services.clone(),
             bin_path: profile.paths.bin.clone(),
@@ -218,26 +224,12 @@ impl Config {
         })
     }
 
-    /// Initialize configuration from a profile.
-    ///
-    /// This loads the profile and sets it as the global configuration.
     pub fn init_from_profile(profile: &Profile) -> Result<()> {
         let config = Self::from_profile(profile)?;
         CONFIG
             .set(config)
             .map_err(|_| anyhow::anyhow!("Config already initialized"))?;
         Ok(())
-    }
-
-    /// Get database URL from secrets (required).
-    fn resolve_database_url(_profile: &Profile) -> Result<String> {
-        let secrets = SecretsBootstrap::get().map_err(|_| {
-            anyhow::anyhow!(
-                "Secrets not initialized. Database URL must be configured in secrets.json or via \
-                 DATABASE_URL environment variable."
-            )
-        })?;
-        Ok(secrets.database_url.clone())
     }
 
     pub fn validate_database_config(&self) -> Result<()> {

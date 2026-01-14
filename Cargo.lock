@@ -5316,6 +5316,7 @@ dependencies = [
  "inventory",
  "serde",
  "serde_json",
+ "serde_yaml",
  "sha2",
  "sqlx",
  "systemprompt-cloud",

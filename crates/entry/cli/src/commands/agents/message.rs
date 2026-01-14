@@ -2,7 +2,6 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
 use uuid::Uuid;
 
 use super::types::{MessageOutput, TaskInfo};
@@ -10,6 +9,7 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
+const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Debug, Args)]
 pub struct MessageArgs {
@@ -27,6 +27,9 @@ pub struct MessageArgs {
 
     #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
     pub url: Option<String>,
+
+    #[arg(long, env = "SYSTEMPROMPT_TOKEN", help = "Bearer token for authentication")]
+    pub token: Option<String>,
 
     #[arg(long, help = "Use streaming mode")]
     pub stream: bool,
@@ -84,15 +87,12 @@ struct JsonRpcResponse {
     result: Option<TaskResponse>,
     #[serde(default)]
     error: Option<JsonRpcError>,
-    id: serde_json::Value,
 }
 
 #[derive(Debug, Deserialize)]
 struct JsonRpcError {
     code: i32,
     message: String,
-    #[serde(default)]
-    data: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -108,8 +108,6 @@ struct TaskResponse {
 #[derive(Debug, Deserialize)]
 struct TaskStatusResponse {
     state: String,
-    #[serde(default)]
-    message: Option<serde_json::Value>,
     #[serde(default)]
     timestamp: Option<String>,
 }
@@ -143,7 +141,7 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
     };
 
     let request = JsonRpcRequest {
-        jsonrpc: "2.0".to_string(),
+        jsonrpc: JSON_RPC_VERSION.to_string(),
         method: method.to_string(),
         params: MessageSendParams {
             message: A2aMessage {
@@ -157,13 +155,9 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
                 context_id: context_id.clone(),
                 kind: "message".to_string(),
             },
-            configuration: if args.blocking {
-                Some(MessageConfiguration {
-                    blocking: Some(true),
-                })
-            } else {
-                None
-            },
+            configuration: args.blocking.then_some(MessageConfiguration {
+                blocking: Some(true),
+            }),
         },
         id: request_id,
     };
@@ -173,9 +167,15 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
         .build()
         .context("Failed to create HTTP client")?;
 
-    let response = client
+    let mut request_builder = client
         .post(&agent_url)
-        .header("Content-Type", "application/json")
+        .header("Content-Type", "application/json");
+
+    if let Some(token) = &args.token {
+        request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
+    }
+
+    let response = request_builder
         .json(&request)
         .send()
         .await
@@ -184,11 +184,7 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        anyhow::bail!(
-            "Agent request failed with status {}: {}",
-            status,
-            body
-        );
+        anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 
     let json_response: JsonRpcResponse = response
@@ -196,19 +192,23 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
         .await
         .context("Failed to parse agent response")?;
 
-    if let Some(error) = json_response.error {
+    if json_response.jsonrpc != JSON_RPC_VERSION {
         anyhow::bail!(
-            "Agent returned error ({}): {}",
-            error.code,
-            error.message
+            "Invalid JSON-RPC version: expected {}, got {}",
+            JSON_RPC_VERSION,
+            json_response.jsonrpc
         );
+    }
+
+    if let Some(error) = json_response.error {
+        anyhow::bail!("Agent returned error ({}): {}", error.code, error.message);
     }
 
     let task = json_response
         .result
         .ok_or_else(|| anyhow!("No result in agent response"))?;
 
-    let artifacts_count = task.artifacts.as_ref().map(|a| a.len()).unwrap_or(0);
+    let artifacts_count = task.artifacts.as_ref().map_or(0, Vec::len);
 
     let output = MessageOutput {
         agent: agent.clone(),

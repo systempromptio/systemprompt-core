@@ -28,9 +28,23 @@ impl Default for Settings {
             auto_start_enabled: true,
             validation_strict: true,
             schema_validation_mode: default_schema_validation_mode(),
-            services_path: std::env::var("SYSTEMPROMPT_SERVICES_PATH").ok(),
-            skills_path: std::env::var("SYSTEMPROMPT_SKILLS_PATH").ok(),
-            config_path: std::env::var("SYSTEMPROMPT_CONFIG_PATH").ok(),
+            services_path: None,
+            skills_path: None,
+            config_path: None,
+        }
+    }
+}
+
+impl Settings {
+    pub fn apply_env_overrides(&mut self) {
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_SERVICES_PATH") {
+            self.services_path = Some(val);
+        }
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_SKILLS_PATH") {
+            self.skills_path = Some(val);
+        }
+        if let Ok(val) = std::env::var("SYSTEMPROMPT_CONFIG_PATH") {
+            self.config_path = Some(val);
         }
     }
 }

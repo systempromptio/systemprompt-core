@@ -35,12 +35,10 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult
 
     let category = args.only.unwrap_or(ValidationCategory::All);
 
-    // Config validation
     if matches!(category, ValidationCategory::All | ValidationCategory::Config) {
         validate_config(profile, &mut errors, &mut warnings)?;
     }
 
-    // Templates validation
     if matches!(
         category,
         ValidationCategory::All | ValidationCategory::Templates
@@ -48,12 +46,10 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult
         validate_templates(profile, &mut errors, &mut warnings)?;
     }
 
-    // Assets validation
     if matches!(category, ValidationCategory::All | ValidationCategory::Assets) {
         validate_assets(profile, &mut errors, &mut warnings)?;
     }
 
-    // Sitemap validation
     if matches!(
         category,
         ValidationCategory::All | ValidationCategory::Sitemap
@@ -77,7 +73,6 @@ fn validate_config(
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,
 ) -> Result<()> {
-    // Check web config exists and parses
     let web_config_path = profile.paths.web_config();
     if !Path::new(&web_config_path).exists() {
         errors.push(ValidationIssue {
@@ -93,7 +88,6 @@ fn validate_config(
         });
     }
 
-    // Check content config exists and parses
     let content_config_path = profile.paths.content_config();
     if !Path::new(&content_config_path).exists() {
         errors.push(ValidationIssue {
@@ -128,7 +122,6 @@ fn validate_config(
         },
     };
 
-    // Check web path exists
     let web_path = profile.paths.web_path_resolved();
     if !Path::new(&web_path).exists() {
         warnings.push(ValidationIssue {
@@ -138,7 +131,6 @@ fn validate_config(
         });
     }
 
-    // Check templates directory
     let templates_dir = Path::new(&web_path).join("templates");
     if !templates_dir.exists() {
         warnings.push(ValidationIssue {
@@ -148,7 +140,6 @@ fn validate_config(
         });
     }
 
-    // Check assets directory
     let assets_dir = Path::new(&web_path).join("assets");
     if !assets_dir.exists() {
         warnings.push(ValidationIssue {
@@ -203,7 +194,6 @@ fn validate_templates(
         },
     };
 
-    // Check each template has an HTML file
     for (name, _entry) in &templates_config.templates {
         let html_path = templates_dir.join(format!("{}.html", name));
         if !html_path.exists() {
@@ -215,13 +205,11 @@ fn validate_templates(
         }
     }
 
-    // Load content config to check content type references
     let content_config_path = profile.paths.content_config();
     if let Ok(content) = fs::read_to_string(&content_config_path) {
         if let Ok(content_config) = serde_yaml::from_str::<ContentConfigRaw>(&content) {
             let content_type_names: HashSet<&String> = content_config.content_sources.keys().collect();
 
-            // Check template content types reference valid content sources
             for (template_name, entry) in &templates_config.templates {
                 for ct in &entry.content_types {
                     if !content_type_names.contains(ct) {
@@ -237,7 +225,6 @@ fn validate_templates(
                 }
             }
 
-            // Check for orphaned content types (no template)
             let template_content_types: HashSet<&String> = templates_config
                 .templates
                 .values()
@@ -272,9 +259,7 @@ fn validate_assets(
         return Ok(());
     }
 
-    // Read web config and check for asset references
     if let Ok(config_content) = fs::read_to_string(&web_config_path) {
-        // Check branding logo references
         let logo_refs = [
             "logo.svg",
             "logo.png",
@@ -296,7 +281,6 @@ fn validate_assets(
             }
         }
 
-        // Check favicon reference
         if config_content.contains("favicon") {
             let favicon_path = assets_dir.join("favicon.ico");
             let favicon_svg = assets_dir.join("logos").join("logo.svg");
@@ -336,7 +320,6 @@ fn validate_sitemap(
 
     for (name, source) in &content_config.content_sources {
         if let Some(sitemap) = &source.sitemap {
-            // Validate priority
             if sitemap.priority < 0.0 || sitemap.priority > 1.0 {
                 errors.push(ValidationIssue {
                     category: "sitemap".to_string(),
@@ -348,7 +331,6 @@ fn validate_sitemap(
                 });
             }
 
-            // Validate changefreq
             if !valid_changefreq.contains(&sitemap.changefreq.as_str()) {
                 warnings.push(ValidationIssue {
                     category: "sitemap".to_string(),
@@ -360,7 +342,6 @@ fn validate_sitemap(
                 });
             }
 
-            // Check URL pattern format
             if !sitemap.url_pattern.starts_with('/') {
                 warnings.push(ValidationIssue {
                     category: "sitemap".to_string(),
@@ -372,7 +353,6 @@ fn validate_sitemap(
                 });
             }
 
-            // Validate parent route if present
             if let Some(parent) = &sitemap.parent_route {
                 if parent.priority < 0.0 || parent.priority > 1.0 {
                     errors.push(ValidationIssue {

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
 use crate::shared::CommandResult;
@@ -23,7 +23,7 @@ pub struct RegistryArgs {
 
 #[derive(Debug, Deserialize)]
 struct RegistryResponse {
-    agents: Vec<AgentCardResponse>,
+    data: Vec<AgentCardResponse>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -43,7 +43,6 @@ struct AgentCardResponse {
 #[serde(rename_all = "camelCase")]
 struct CapabilitiesResponse {
     streaming: Option<bool>,
-    push_notifications: Option<bool>,
     #[serde(default)]
     extensions: Option<Vec<ExtensionResponse>>,
 }
@@ -57,7 +56,6 @@ struct ExtensionResponse {
 
 #[derive(Debug, Deserialize)]
 struct SkillResponse {
-    id: String,
     name: String,
 }
 
@@ -78,11 +76,7 @@ pub async fn execute(
     if !response.status().is_success() {
         let status = response.status();
         let body = response.text().await.unwrap_or_default();
-        anyhow::bail!(
-            "Registry request failed with status {}: {}",
-            status,
-            body
-        );
+        anyhow::bail!("Registry request failed with status {}: {}", status, body);
     }
 
     let registry: RegistryResponse = response
@@ -91,27 +85,11 @@ pub async fn execute(
         .context("Failed to parse registry response")?;
 
     let agents: Vec<RegistryAgentInfo> = registry
-        .agents
+        .data
         .into_iter()
         .filter(|agent| {
             if args.running {
-                // Check if agent has service-status extension showing "running"
-                agent
-                    .capabilities
-                    .extensions
-                    .as_ref()
-                    .map(|exts| {
-                        exts.iter().any(|ext| {
-                            ext.uri == "systemprompt:service-status"
-                                && ext
-                                    .params
-                                    .as_ref()
-                                    .and_then(|p| p.get("status"))
-                                    .and_then(|s| s.as_str())
-                                    .is_some_and(|s| s == "running")
-                        })
-                    })
-                    .unwrap_or(false)
+                is_agent_running(agent)
             } else {
                 true
             }
@@ -155,6 +133,25 @@ pub async fn execute(
         ]))
 }
 
+fn is_agent_running(agent: &AgentCardResponse) -> bool {
+    agent
+        .capabilities
+        .extensions
+        .as_ref()
+        .map(|exts| {
+            exts.iter().any(|ext| {
+                ext.uri == "systemprompt:service-status"
+                    && ext
+                        .params
+                        .as_ref()
+                        .and_then(|p| p.get("status"))
+                        .and_then(|s| s.as_str())
+                        .is_some_and(|s| s == "running")
+            })
+        })
+        .unwrap_or(false)
+}
+
 fn extract_status(agent: &AgentCardResponse) -> String {
     agent
         .capabilities
@@ -180,6 +177,6 @@ fn truncate(s: &str, max_len: usize) -> String {
     if s.len() <= max_len {
         s.to_string()
     } else {
-        format!("{}...", &s[..max_len - 3])
+        format!("{}...", &s[..max_len.saturating_sub(3)])
     }
 }

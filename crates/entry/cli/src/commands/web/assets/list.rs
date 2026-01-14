@@ -64,7 +64,6 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Asse
 
         let asset_type = determine_asset_type(path, &relative_path);
 
-        // Apply filter
         if !matches_filter(asset_type, args.asset_type) {
             continue;
         }
@@ -114,17 +113,14 @@ fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
         .unwrap_or("")
         .to_lowercase();
 
-    // Check for favicon
     if filename.starts_with("favicon") {
         return AssetType::Favicon;
     }
 
-    // Check for logo (in logos/ directory or logo in filename)
     if relative_path.starts_with("logos/") || filename.contains("logo") {
         return AssetType::Logo;
     }
 
-    // Check by extension
     match extension.as_str() {
         "css" => AssetType::Css,
         "ttf" | "woff" | "woff2" | "otf" | "eot" => AssetType::Font,

@@ -128,7 +128,7 @@ pub const fn default_mcp() -> u64 {
     100
 }
 pub const fn default_stream() -> u64 {
-    1
+    10
 }
 pub const fn default_content() -> u64 {
     20

@@ -63,7 +63,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
 
     let mut changes = Vec::new();
 
-    // Handle content types modifications
     if let Some(ct) = args.content_types {
         let new_types: Vec<String> = ct.split(',').map(|s| s.trim().to_string()).collect();
         entry.content_types = new_types.clone();
@@ -94,7 +93,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
         }
     }
 
-    // Handle HTML content
     if let Some(content_source) = &args.content {
         let html_content = if content_source == "-" {
             let mut buffer = String::new();
@@ -122,7 +120,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Templ
         ));
     }
 
-    // Write updated config
     let yaml = serde_yaml::to_string(&templates_config).context("Failed to serialize config")?;
     fs::write(&templates_yaml_path, yaml).with_context(|| {
         format!(

@@ -8,7 +8,7 @@ pub enum ExtensionSource {
     Manifest,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, JsonSchema)]
 pub struct CapabilitySummary {
     pub jobs: usize,
     pub templates: usize,
