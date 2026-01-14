@@ -138,7 +138,7 @@ fn is_agent_running(agent: &AgentCardResponse) -> bool {
         .capabilities
         .extensions
         .as_ref()
-        .map(|exts| {
+        .is_some_and(|exts| {
             exts.iter().any(|ext| {
                 ext.uri == "systemprompt:service-status"
                     && ext
@@ -149,7 +149,6 @@ fn is_agent_running(agent: &AgentCardResponse) -> bool {
                         .is_some_and(|s| s == "running")
             })
         })
-        .unwrap_or(false)
 }
 
 fn extract_status(agent: &AgentCardResponse) -> String {

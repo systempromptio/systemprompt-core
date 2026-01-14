@@ -10,6 +10,7 @@ mod registry;
 mod run;
 mod show;
 mod status;
+mod task;
 mod validate;
 
 use anyhow::{Context, Result};
@@ -50,6 +51,9 @@ pub enum AgentsCommands {
 
     #[command(about = "Send a message to an agent via A2A protocol")]
     Message(message::MessageArgs),
+
+    #[command(about = "Get task details and response from an agent")]
+    Task(task::TaskArgs),
 
     #[command(about = "Run an agent server (internal use)", hide = true)]
     Run(run::RunArgs),
@@ -117,6 +121,13 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             let result = message::execute(args, config)
                 .await
                 .context("Failed to send message to agent")?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Task(args) => {
+            let result = task::execute(args, config)
+                .await
+                .context("Failed to get task details")?;
             render_result(&result);
             Ok(())
         },

@@ -4945,6 +4945,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "systemprompt-client",
  "systemprompt-cloud",
  "systemprompt-core-agent",
  "systemprompt-core-ai",
