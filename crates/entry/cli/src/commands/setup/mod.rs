@@ -2,10 +2,14 @@ mod docker;
 mod postgres;
 mod profile;
 mod secrets;
+mod types;
 mod wizard;
 
 use anyhow::Result;
 use clap::Args;
+use systemprompt_models::cli::CommandResult;
+
+pub use types::*;
 
 #[derive(Debug, Args)]
 pub struct SetupArgs {
@@ -22,20 +26,39 @@ pub struct SetupArgs {
     )]
     pub docker: bool,
 
-    #[arg(long, default_value = "localhost", help = "PostgreSQL host")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_DB_HOST",
+        default_value = "localhost",
+        help = "PostgreSQL host"
+    )]
     pub db_host: String,
 
-    #[arg(long, default_value = "5432", help = "PostgreSQL port")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_DB_PORT",
+        default_value = "5432",
+        help = "PostgreSQL port"
+    )]
     pub db_port: u16,
 
-    #[arg(long, help = "PostgreSQL user (default: systemprompt_`<env>`)")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_DB_USER",
+        help = "PostgreSQL user (default: systemprompt_`<env>`)"
+    )]
     pub db_user: Option<String>,
 
-    #[arg(long, help = "PostgreSQL password (auto-generated if not provided)")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_DB_PASSWORD",
+        help = "PostgreSQL password (auto-generated if not provided)"
+    )]
     pub db_password: Option<String>,
 
     #[arg(
         long,
+        env = "SYSTEMPROMPT_DB_NAME",
         help = "PostgreSQL database name (default: systemprompt_`<env>`)"
     )]
     pub db_name: Option<String>,
@@ -61,6 +84,12 @@ pub struct SetupArgs {
         help = "Skip migrations (non-interactive default)"
     )]
     pub no_migrate: bool,
+
+    #[arg(long, help = "Preview setup without creating files or making changes")]
+    pub dry_run: bool,
+
+    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+    pub yes: bool,
 }
 
 impl SetupArgs {
@@ -81,6 +110,9 @@ impl SetupArgs {
     }
 }
 
-pub async fn execute(args: SetupArgs, config: &crate::CliConfig) -> Result<()> {
+pub async fn execute(
+    args: SetupArgs,
+    config: &crate::CliConfig,
+) -> Result<CommandResult<SetupOutput>> {
     wizard::execute(args, config).await
 }

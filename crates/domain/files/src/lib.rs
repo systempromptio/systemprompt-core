@@ -13,7 +13,7 @@ pub use models::{
     AudioMetadata, ContentFile, DocumentMetadata, File, FileChecksums, FileMetadata, FileRole,
     ImageGenerationInfo, ImageMetadata, TypeSpecificMetadata, VideoMetadata,
 };
-pub use repository::{FileRepository, InsertFileRequest};
+pub use repository::{FileRepository, FileStats, InsertFileRequest};
 pub use services::{
     AiService, ContentService, FileCategory, FileService, FileUploadError, FileUploadRequest,
     FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator, UploadedFile,

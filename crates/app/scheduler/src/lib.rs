@@ -8,7 +8,7 @@ pub use jobs::{
     FeatureExtractionJob,
 };
 pub use models::{JobConfig, JobStatus, ScheduledJob, SchedulerConfig, SchedulerError};
-pub use repository::SchedulerRepository;
+pub use repository::{JobRepository, SchedulerRepository};
 pub use services::{
     DbServiceRecord, DesiredStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
     RuntimeStatus, SchedulerService, ServiceAction, ServiceConfig, ServiceManagementService,

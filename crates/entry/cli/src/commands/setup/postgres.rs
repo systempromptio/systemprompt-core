@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
 use rand::distr::Alphanumeric;
@@ -10,6 +10,7 @@ use std::time::Duration;
 use systemprompt_core_logging::CliService;
 
 use super::SetupArgs;
+use crate::CliConfig;
 
 #[derive(Debug, Clone)]
 pub struct PostgresConfig {
@@ -37,8 +38,14 @@ pub fn generate_password() -> String {
         .collect()
 }
 
-pub async fn setup_non_interactive(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
-    CliService::section(&format!("PostgreSQL Setup ({})", env_name));
+pub async fn setup_non_interactive(
+    args: &SetupArgs,
+    env_name: &str,
+    cli_config: &CliConfig,
+) -> Result<PostgresConfig> {
+    if !cli_config.is_json_output() {
+        CliService::section(&format!("PostgreSQL Setup ({})", env_name));
+    }
 
     let password = args.db_password.clone().unwrap_or_else(generate_password);
     let config = PostgresConfig {
@@ -49,22 +56,28 @@ pub async fn setup_non_interactive(args: &SetupArgs, env_name: &str) -> Result<P
         database: args.effective_db_name(env_name),
     };
 
-    CliService::key_value("Host", &config.host);
-    CliService::key_value("Port", &config.port.to_string());
-    CliService::key_value("User", &config.user);
-    CliService::key_value("Database", &config.database);
+    if !cli_config.is_json_output() {
+        CliService::key_value("Host", &config.host);
+        CliService::key_value("Port", &config.port.to_string());
+        CliService::key_value("User", &config.user);
+        CliService::key_value("Database", &config.database);
+    }
 
     if args.docker {
-        CliService::info("Setting up PostgreSQL with Docker...");
+        if !cli_config.is_json_output() {
+            CliService::info("Setting up PostgreSQL with Docker...");
+        }
         return super::docker::setup_docker_postgres_non_interactive(&config, env_name).await;
     }
 
     if detect_postgresql(&config.host, config.port) {
-        CliService::success(&format!(
-            "PostgreSQL reachable at {}:{}",
-            config.host, config.port
-        ));
-    } else {
+        if !cli_config.is_json_output() {
+            CliService::success(&format!(
+                "PostgreSQL reachable at {}:{}",
+                config.host, config.port
+            ));
+        }
+    } else if !cli_config.is_json_output() {
         CliService::warning(&format!(
             "PostgreSQL not reachable at {}:{}",
             config.host, config.port
@@ -73,16 +86,22 @@ pub async fn setup_non_interactive(args: &SetupArgs, env_name: &str) -> Result<P
     }
 
     if test_connection(&config).await {
-        CliService::success("Database connection successful");
+        if !cli_config.is_json_output() {
+            CliService::success("Database connection successful");
+        }
         enable_extensions(&config).await?;
-    } else {
+    } else if !cli_config.is_json_output() {
         CliService::warning("Cannot connect to database - it may need to be created manually");
     }
 
     Ok(config)
 }
 
-pub async fn setup_interactive(args: &SetupArgs, env_name: &str) -> Result<PostgresConfig> {
+pub async fn setup_interactive(
+    args: &SetupArgs,
+    env_name: &str,
+    _cli_config: &CliConfig,
+) -> Result<PostgresConfig> {
     CliService::section(&format!("PostgreSQL Setup ({})", env_name));
     CliService::info("Configure PostgreSQL database for your local environment.");
 
@@ -100,7 +119,7 @@ pub async fn setup_interactive(args: &SetupArgs, env_name: &str) -> Result<Postg
     match selection {
         0 => setup_existing_postgres(args, env_name).await,
         1 => super::docker::setup_docker_postgres_interactive(args, env_name).await,
-        _ => unreachable!(),
+        _ => Err(anyhow!("Invalid PostgreSQL setup option selected")),
     }
 }
 
