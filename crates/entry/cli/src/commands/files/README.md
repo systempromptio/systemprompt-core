@@ -23,12 +23,15 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `files list` | List files with pagination | `Table` | No (DB only) |
 | `files show <id>` | Show detailed file information | `Card` | No (DB only) |
 | `files upload <path>` | Upload a file | `Card` | No (DB only) |
-| `files delete <id>` | Delete a file | `Text` | No (DB only) |
+| `files delete <id>` | Delete a file | `Card` | No (DB only) |
 | `files validate <path>` | Validate a file before upload | `Card` | No |
 | `files config` | Show file upload configuration | `Card` | No |
+| `files search <query>` | Search files by path pattern | `Table` | No (DB only) |
+| `files stats` | Show file storage statistics | `Card` | No (DB only) |
 | `files content list` | List content-file links | `Table` | No (DB only) |
-| `files content link` | Link file to content | `Text` | No (DB only) |
-| `files content unlink` | Unlink file from content | `Text` | No (DB only) |
+| `files content link` | Link file to content | `Card` | No (DB only) |
+| `files content unlink` | Unlink file from content | `Card` | No (DB only) |
+| `files content featured` | Get/set featured image | `Card` | No (DB only) |
 | `files ai list` | List AI-generated images | `Table` | No (DB only) |
 | `files ai count` | Count AI-generated images | `Card` | No (DB only) |
 
@@ -66,9 +69,9 @@ sp files list --mime "application/pdf"
 {
   "files": [
     {
-      "id": "file_abc123",
-      "path": "uploads/2024/01/image.png",
-      "public_url": "https://example.com/uploads/2024/01/image.png",
+      "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+      "path": "/storage/files/uploads/contexts/.../image.png",
+      "public_url": "/files/files/uploads/contexts/.../image.png",
       "mime_type": "image/png",
       "size_bytes": 102400,
       "ai_content": false,
@@ -92,23 +95,22 @@ Display detailed information for a specific file.
 
 ```bash
 sp files show <file-id>
-sp --json files show file_abc123
+sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 ```
 
 **Required Arguments:**
 | Argument | Required | Description |
 |----------|----------|-------------|
-| `<id>` | Yes | File ID to show |
+| `<id>` | Yes | File ID (UUID format) |
 
 **Output Structure:**
 ```json
 {
-  "id": "file_abc123",
-  "path": "uploads/2024/01/image.png",
-  "public_url": "https://example.com/uploads/2024/01/image.png",
+  "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+  "path": "/storage/files/uploads/contexts/.../image.png",
+  "public_url": "/files/files/uploads/contexts/.../image.png",
   "mime_type": "image/png",
   "size_bytes": 102400,
-  "checksum_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
   "user_id": "user_abc123",
   "context_id": "ctx_xyz789",
   "ai_content": false,
@@ -156,9 +158,9 @@ sp files upload ./generated.png --context ctx_abc123 --ai
 **Output Structure:**
 ```json
 {
-  "file_id": "file_abc123",
-  "path": "uploads/2024/01/image.png",
-  "public_url": "https://example.com/uploads/2024/01/image.png",
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+  "path": "/storage/files/uploads/contexts/.../image.png",
+  "public_url": "/files/files/uploads/contexts/.../image.png",
   "size_bytes": 102400,
   "mime_type": "image/png",
   "checksum_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
@@ -175,24 +177,38 @@ Delete a file permanently.
 
 ```bash
 sp files delete <file-id> --yes
-sp files delete file_abc123 --yes
+sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
+sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
 ```
 
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
-| `<id>` | Yes | File ID to delete |
+| `<id>` | Yes | File ID (UUID format) |
 | `--yes` / `-y` | Yes | Skip confirmation (REQUIRED in non-interactive mode) |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--dry-run` | `false` | Preview deletion without executing |
 
 **Output Structure:**
 ```json
 {
-  "deleted": "file_abc123",
-  "message": "File 'file_abc123' deleted successfully"
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+  "message": "File '/path/to/file.png' deleted successfully"
 }
 ```
 
-**Artifact Type:** `Text`
+**Dry-Run Output:**
+```json
+{
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+  "message": "[DRY-RUN] Would delete file '/path/to/file.png' (b75940ac-c50f-4d46-9fdd-ebb4970b2a7d)"
+}
+```
+
+**Artifact Type:** `Card`
 
 ---
 
@@ -220,10 +236,10 @@ sp --json files validate ./image.png
 ```json
 {
   "valid": true,
-  "path": "./image.png",
-  "size_bytes": 102400,
   "mime_type": "image/png",
-  "warnings": [],
+  "category": "images",
+  "size_bytes": 102400,
+  "max_size_bytes": 10485760,
   "errors": []
 }
 ```
@@ -244,11 +260,112 @@ sp --json files config
 **Output Structure:**
 ```json
 {
-  "enabled": true,
-  "max_size_bytes": 10485760,
-  "allowed_types": ["image/*", "application/pdf", "text/*"],
-  "storage_path": "/var/www/html/tyingshoelaces/uploads",
-  "public_url_base": "https://example.com/uploads"
+  "uploads_enabled": true,
+  "max_file_size_bytes": 10485760,
+  "persistence_mode": "local",
+  "storage_root": "/var/www/html/tyingshoelaces/storage/files",
+  "url_prefix": "/files",
+  "allowed_types": {
+    "images": true,
+    "documents": true,
+    "audio": true,
+    "video": true
+  },
+  "storage_paths": {
+    "uploads": "uploads",
+    "images": "images",
+    "documents": "documents",
+    "audio": "audio",
+    "video": "video"
+  }
+}
+```
+
+**Artifact Type:** `Card`
+
+---
+
+### files search
+
+Search files by path pattern.
+
+```bash
+sp files search <query>
+sp --json files search uploads
+sp files search logo --limit 10
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<query>` | Yes | Search query (matches file paths) |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--limit` | `20` | Maximum number of results |
+
+**Output Structure:**
+```json
+{
+  "files": [
+    {
+      "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+      "path": "/storage/files/uploads/contexts/.../image.png",
+      "public_url": "/files/files/uploads/contexts/.../image.png",
+      "mime_type": "image/png",
+      "size_bytes": 156108,
+      "ai_content": false,
+      "created_at": "2026-01-09T14:26:01.616511Z"
+    }
+  ],
+  "query": "uploads",
+  "total": 4
+}
+```
+
+**Artifact Type:** `Table`
+**Columns:** `id`, `path`, `mime_type`, `size_bytes`, `created_at`
+
+---
+
+### files stats
+
+Show file storage statistics.
+
+```bash
+sp files stats
+sp --json files stats
+```
+
+**Output Structure:**
+```json
+{
+  "total_files": 4,
+  "total_size_bytes": 363938,
+  "ai_images_count": 0,
+  "by_category": {
+    "images": {
+      "count": 2,
+      "size_bytes": 356490
+    },
+    "documents": {
+      "count": 2,
+      "size_bytes": 7448
+    },
+    "audio": {
+      "count": 0,
+      "size_bytes": 0
+    },
+    "video": {
+      "count": 0,
+      "size_bytes": 0
+    },
+    "other": {
+      "count": 0,
+      "size_bytes": 0
+    }
+  }
 }
 ```
 
@@ -260,73 +377,95 @@ sp --json files config
 
 ### files content list
 
-List content-file links.
+List content-file links. Use `--content` to list files attached to content, or `--file` to list content linked to a file.
 
 ```bash
-sp files content list
-sp --json files content list
 sp files content list --content content_abc123
-sp files content list --file file_xyz789
+sp files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json files content list --content content_abc123
 ```
 
-**Flags:**
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--content` | None | Filter by content ID |
-| `--file` | None | Filter by file ID |
+**Required Flags (one of):**
+| Flag | Description |
+|------|-------------|
+| `--content` | List files attached to this content ID |
+| `--file` | List content linked to this file ID (reverse lookup) |
 
-**Output Structure:**
+**Output Structure (with --content):**
 ```json
 {
+  "content_id": "content_abc123",
+  "files": [
+    {
+      "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+      "path": "/storage/files/uploads/.../image.png",
+      "mime_type": "image/png",
+      "role": "featured",
+      "display_order": 0
+    }
+  ]
+}
+```
+
+**Output Structure (with --file):**
+```json
+{
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
   "links": [
     {
       "content_id": "content_abc123",
-      "file_id": "file_xyz789",
-      "link_type": "attachment",
+      "role": "featured",
+      "display_order": 0,
       "created_at": "2024-01-15T10:30:00Z"
     }
-  ],
-  "total": 1
+  ]
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `content_id`, `file_id`, `link_type`, `created_at`
 
 ---
 
 ### files content link
 
-Link a file to content.
+Link a file to content with a specific role.
 
 ```bash
-sp files content link --content <content-id> --file <file-id>
-sp files content link --content content_abc123 --file file_xyz789
-sp files content link --content content_abc123 --file file_xyz789 --type attachment
+sp files content link <file-id> --content <content-id> --role <role>
+sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role attachment
+sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role featured --order 0
 ```
 
-**Required Flags (non-interactive):**
-| Flag | Required | Description |
-|------|----------|-------------|
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<file-id>` | Yes | File ID (UUID format) |
 | `--content` | Yes | Content ID |
-| `--file` | Yes | File ID |
+| `--role` | Yes | File role |
 
 **Optional Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--type` | `attachment` | Link type: `attachment`, `thumbnail`, `preview` |
+| `--order` | `0` | Display order |
+
+**Available Roles:**
+- `featured` - Featured/hero image
+- `attachment` - General attachment
+- `inline` - Inline content image
+- `og-image` - Open Graph image
+- `thumbnail` - Thumbnail image
 
 **Output Structure:**
 ```json
 {
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
   "content_id": "content_abc123",
-  "file_id": "file_xyz789",
-  "link_type": "attachment",
+  "role": "attachment",
   "message": "File linked to content successfully"
 }
 ```
 
-**Artifact Type:** `Text`
+**Artifact Type:** `Card`
 
 ---
 
@@ -335,27 +474,83 @@ sp files content link --content content_abc123 --file file_xyz789 --type attachm
 Unlink a file from content.
 
 ```bash
-sp files content unlink --content <content-id> --file <file-id> --yes
-sp files content unlink --content content_abc123 --file file_xyz789 --yes
+sp files content unlink <file-id> --content <content-id> --yes
+sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --yes
+sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --dry-run --yes
 ```
 
 **Required Flags (non-interactive):**
 | Flag | Required | Description |
 |------|----------|-------------|
+| `<file-id>` | Yes | File ID (UUID format) |
 | `--content` | Yes | Content ID |
-| `--file` | Yes | File ID |
-| `--yes` / `-y` | Yes | Skip confirmation |
+| `--yes` / `-y` | Yes | Skip confirmation (REQUIRED in non-interactive mode) |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--dry-run` | `false` | Preview unlink without executing |
 
 **Output Structure:**
 ```json
 {
+  "file_id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
   "content_id": "content_abc123",
-  "file_id": "file_xyz789",
   "message": "File unlinked from content successfully"
 }
 ```
 
-**Artifact Type:** `Text`
+**Artifact Type:** `Card`
+
+---
+
+### files content featured
+
+Get or set the featured image for content.
+
+```bash
+sp files content featured <content-id>
+sp files content featured content_abc123 --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp --json files content featured content_abc123
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<content-id>` | Yes | Content ID |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--set` | None | File ID to set as featured image |
+
+**Output Structure (get):**
+```json
+{
+  "content_id": "content_abc123",
+  "file": {
+    "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+    "path": "/storage/files/.../image.png",
+    "public_url": "/files/.../image.png",
+    "mime_type": "image/png",
+    "size_bytes": 156108,
+    "ai_content": false,
+    "created_at": "2024-01-15T10:30:00Z"
+  },
+  "message": "Featured image: /storage/files/.../image.png"
+}
+```
+
+**Output Structure (set):**
+```json
+{
+  "content_id": "content_abc123",
+  "file": null,
+  "message": "Featured image set successfully"
+}
+```
+
+**Artifact Type:** `Card`
 
 ---
 
@@ -384,28 +579,29 @@ sp files ai list --user user_abc123
 {
   "files": [
     {
-      "id": "file_abc123",
-      "path": "ai-images/2024/01/generated.png",
-      "public_url": "https://example.com/ai-images/2024/01/generated.png",
+      "id": "b75940ac-c50f-4d46-9fdd-ebb4970b2a7d",
+      "path": "/storage/files/ai-images/.../generated.png",
+      "public_url": "/files/ai-images/.../generated.png",
       "mime_type": "image/png",
       "size_bytes": 204800,
-      "prompt": "A sunset over mountains",
-      "model": "dall-e-3",
+      "ai_content": true,
       "created_at": "2024-01-15T10:30:00Z"
     }
   ],
-  "total": 1
+  "total": 1,
+  "limit": 20,
+  "offset": 0
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `id`, `path`, `size_bytes`, `model`, `created_at`
+**Columns:** `id`, `path`, `size_bytes`, `created_at`
 
 ---
 
 ### files ai count
 
-Count AI-generated images.
+Count AI-generated images. The `--user` flag is optional; when omitted, counts all AI images.
 
 ```bash
 sp files ai count
@@ -416,17 +612,21 @@ sp files ai count --user user_abc123
 **Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--user` | None | Filter by user ID |
+| `--user` | None | Filter by user ID (optional, counts all if not specified) |
 
 **Output Structure:**
 ```json
 {
-  "total_count": 150,
-  "total_size_bytes": 31457280,
-  "by_model": {
-    "dall-e-3": 100,
-    "stable-diffusion": 50
-  }
+  "count": 150,
+  "user_id": null
+}
+```
+
+**Output Structure (with --user):**
+```json
+{
+  "count": 25,
+  "user_id": "user_abc123"
 }
 ```
 
@@ -439,8 +639,9 @@ sp files ai count --user user_abc123
 This flow demonstrates the full file management lifecycle:
 
 ```bash
-# Phase 1: Check configuration
+# Phase 1: Check configuration and storage stats
 sp --json files config
+sp --json files stats
 
 # Phase 2: Validate file before upload
 sp --json files validate ./image.png
@@ -450,20 +651,31 @@ sp --json files upload ./image.png --context ctx_abc123
 
 # Phase 4: Verify upload
 sp --json files list --limit 5
-sp --json files show file_abc123
+sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
-# Phase 5: Link file to content
-sp files content link --content content_xyz --file file_abc123 --type attachment
+# Phase 5: Search for files
+sp --json files search uploads
 
-# Phase 6: List content-file links
-sp --json files content list --file file_abc123
+# Phase 6: Link file to content
+sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --role attachment
 
-# Phase 7: Cleanup (if needed)
-sp files content unlink --content content_xyz --file file_abc123 --yes
-sp files delete file_abc123 --yes
+# Phase 7: List content-file links (both directions)
+sp --json files content list --content content_xyz
+sp --json files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
-# Phase 8: Verify deletion
-sp --json files list
+# Phase 8: Set featured image
+sp files content featured content_xyz --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+
+# Phase 9: Cleanup with dry-run preview
+sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --dry-run --yes
+sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
+
+# Phase 10: Actual cleanup
+sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --yes
+sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
+
+# Phase 11: Verify deletion
+sp --json files stats
 ```
 
 ---
@@ -471,17 +683,20 @@ sp --json files list
 ## AI Image Workflow Example
 
 ```bash
-# Phase 1: List AI-generated images
-sp --json files ai list --limit 10
-
-# Phase 2: Count AI images
+# Phase 1: Count all AI-generated images
 sp --json files ai count
 
-# Phase 3: Upload new AI-generated image
+# Phase 2: List AI-generated images
+sp --json files ai list --limit 10
+
+# Phase 3: Count AI images for specific user
+sp --json files ai count --user user_abc123
+
+# Phase 4: Upload new AI-generated image
 sp files upload ./generated.png --context ctx_abc123 --ai
 
-# Phase 4: Verify AI flag
-sp --json files show file_abc123
+# Phase 5: Verify AI flag
+sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Should show "ai_content": true
 ```
 
@@ -495,11 +710,24 @@ sp --json files show file_abc123
 sp files upload ./image.png
 # Error: --context is required
 
-sp files delete file_abc123
+sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Error: --yes is required to delete files in non-interactive mode
 
-sp files content link --content content_abc
-# Error: --file is required
+sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc
+# Error: --yes is required to unlink files in non-interactive mode
+
+sp files content list
+# Error: Either --content or --file is required
+```
+
+### Invalid UUID Format
+
+```bash
+sp files show invalid-id
+# Error: Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got 'invalid-id'
+
+sp files delete not-a-uuid --yes
+# Error: Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got 'not-a-uuid'
 ```
 
 ### File Not Found
@@ -508,8 +736,8 @@ sp files content link --content content_abc
 sp files upload ./nonexistent.png --context ctx_abc
 # Error: File not found: ./nonexistent.png
 
-sp files show nonexistent
-# Error: File 'nonexistent' not found
+sp files show 00000000-0000-0000-0000-000000000000
+# Error: File not found: 00000000-0000-0000-0000-000000000000
 ```
 
 ### Validation Errors
@@ -540,14 +768,15 @@ All commands support `--json` flag for structured output:
 sp --json files list | jq .
 
 # Extract specific fields
-sp --json files list | jq '.files[].id'
-sp --json files show file_abc123 | jq '.public_url'
-sp --json files config | jq '.max_size_bytes'
+sp --json files list | jq '.data.files[].id'
+sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d | jq '.data.public_url'
+sp --json files config | jq '.data.max_file_size_bytes'
+sp --json files stats | jq '.data.by_category.images'
 
 # Filter by criteria
-sp --json files list | jq '.files[] | select(.ai_content == true)'
-sp --json files list | jq '.files[] | select(.size_bytes > 100000)'
-sp --json files ai list | jq '.files[] | select(.model == "dall-e-3")'
+sp --json files list | jq '.data.files[] | select(.ai_content == true)'
+sp --json files list | jq '.data.files[] | select(.size_bytes > 100000)'
+sp --json files search uploads | jq '.data.files[] | select(.mime_type | startswith("image/"))'
 ```
 
 ---
@@ -556,9 +785,12 @@ sp --json files ai list | jq '.files[] | select(.model == "dall-e-3")'
 
 - [x] All `execute` functions accept `config: &CliConfig`
 - [x] All commands return `CommandResult<T>` with proper artifact type
-- [x] `delete` commands require `--yes` / `-y` flag
+- [x] `delete` commands require `--yes` / `-y` flag in non-interactive mode
+- [x] `unlink` commands require `--yes` / `-y` flag in non-interactive mode
+- [x] `--dry-run` support for destructive operations
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
 - [x] No `println!` / `eprintln!` - uses `CliService`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
 - [x] Proper error messages for missing required flags
+- [x] Proper error messages for invalid UUID format

@@ -18,13 +18,17 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ## Command Reference
 
-| Command | Description | Artifact Type | Requires Services |
-|---------|-------------|---------------|-------------------|
-| `jobs list` | List available scheduled jobs | `Table` | No |
-| `jobs run <name>` | Run a scheduled job manually | `Text` | No (DB only) |
-| `jobs cleanup-sessions` | Clean up inactive sessions | `Text` | No (DB only) |
-| `jobs session-cleanup` | Clean up inactive sessions (alias) | `Text` | No (DB only) |
-| `jobs log-cleanup` | Clean up old log entries | `Text` | No (DB only) |
+| Command | Description | Artifact Type |
+|---------|-------------|---------------|
+| `jobs list` | List available scheduled jobs | `Table` |
+| `jobs show <name>` | Show detailed job information | `PresentationCard` |
+| `jobs run <name...>` | Run job(s) manually | `Table` |
+| `jobs run --all` | Run all enabled jobs | `Table` |
+| `jobs history` | View job execution history | `Table` |
+| `jobs enable <name>` | Enable a job | `Text` |
+| `jobs disable <name>` | Disable a job | `Text` |
+| `jobs cleanup-sessions` | Clean up inactive sessions | `Text` |
+| `jobs log-cleanup` | Clean up old log entries | `Text` |
 
 ---
 
@@ -42,78 +46,165 @@ sp --json jobs list
 **Output Structure:**
 ```json
 {
-  "jobs": [
-    {
-      "name": "content_ingestion",
-      "description": "Ingest markdown content from configured directories",
-      "schedule": "0 0 * * * *",
-      "enabled": true
-    },
-    {
-      "name": "session_cleanup",
-      "description": "Clean up expired user sessions",
-      "schedule": "0 */15 * * * *",
-      "enabled": true
-    },
-    {
-      "name": "database_cleanup",
-      "description": "Clean up old database entries",
-      "schedule": "0 0 2 * * *",
-      "enabled": true
-    },
-    {
-      "name": "publish_content",
-      "description": "Full publishing pipeline",
-      "schedule": "manual",
-      "enabled": true
-    }
-  ],
-  "total": 4
+  "data": {
+    "jobs": [
+      {
+        "name": "content_ingestion",
+        "description": "Ingests markdown content from configured directories",
+        "schedule": "0 0 * * * *",
+        "enabled": true
+      }
+    ],
+    "total": 10
+  },
+  "artifact_type": "table",
+  "title": "Available Jobs"
 }
 ```
 
-**Artifact Type:** `Table`
-**Columns:** `name`, `description`, `schedule`, `enabled`
+---
 
-**Schedule Format (Cron):**
-- `0 0 * * * *` - Every hour at minute 0
-- `0 */15 * * * *` - Every 15 minutes
-- `0 0 2 * * *` - Daily at 2:00 AM
-- `manual` - Only run manually via CLI
+### jobs show
+
+Show detailed information about a specific job.
+
+```bash
+sp jobs show content_ingestion
+sp --json jobs show database_cleanup
+```
+
+**Output Structure:**
+```json
+{
+  "data": {
+    "name": "content_ingestion",
+    "description": "Ingests markdown content from configured directories",
+    "schedule": "0 0 * * * *",
+    "schedule_human": "Every hour",
+    "enabled": true,
+    "last_run": "2026-01-14T10:00:00Z",
+    "next_run": "2026-01-14T11:00:00Z",
+    "last_status": "success",
+    "last_error": null,
+    "run_count": 42
+  },
+  "artifact_type": "presentation_card",
+  "title": "Job: content_ingestion"
+}
+```
 
 ---
 
 ### jobs run
 
-Run a scheduled job manually.
+Run one or more scheduled jobs manually.
 
 ```bash
-sp jobs run <job-name>
+# Run a single job
 sp jobs run content_ingestion
-sp jobs run session_cleanup
-sp jobs run database_cleanup
-sp jobs run publish_content
+
+# Run multiple jobs
+sp jobs run content_ingestion publish_content database_cleanup
+
+# Run all enabled jobs
+sp jobs run --all
 ```
 
-**Required Arguments:**
-| Argument | Required | Description |
-|----------|----------|-------------|
-| `<name>` | Yes | Job name to run |
+**Arguments & Flags:**
+| Argument/Flag | Description |
+|---------------|-------------|
+| `<name...>` | Job name(s) to run |
+| `--all` | Run all enabled jobs |
+| `--sequential` | Run jobs one at a time (default: parallel) |
 
 **Output Structure:**
 ```json
 {
-  "job_name": "content_ingestion",
-  "status": "completed",
-  "duration_seconds": 15,
-  "result": {
-    "success": true,
-    "message": "Ingested 25 content files"
-  }
+  "data": {
+    "jobs_run": [
+      {
+        "job_name": "content_ingestion",
+        "status": "success",
+        "duration_ms": 64,
+        "result": {
+          "success": true,
+          "message": "Ingested 31 files",
+          "items_processed": 31,
+          "items_failed": 0
+        }
+      }
+    ],
+    "total": 1,
+    "succeeded": 1,
+    "failed": 0
+  },
+  "artifact_type": "table",
+  "title": "Job Execution Results"
 }
 ```
 
-**Artifact Type:** `Text`
+---
+
+### jobs history
+
+View job execution history.
+
+```bash
+sp jobs history
+sp jobs history --job content_ingestion
+sp jobs history --status failed
+sp jobs history -n 50
+```
+
+**Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--job` | | Filter by job name |
+| `--status` | | Filter by status (success, failed, running) |
+| `-n, --limit` | `20` | Number of entries to show |
+
+**Output Structure:**
+```json
+{
+  "data": {
+    "entries": [
+      {
+        "job_name": "publish_content",
+        "status": "success",
+        "run_at": "2026-01-14T10:30:02Z",
+        "error": null
+      }
+    ],
+    "total": 5
+  },
+  "artifact_type": "table",
+  "title": "Job Execution History"
+}
+```
+
+---
+
+### jobs enable / disable
+
+Enable or disable a job.
+
+```bash
+sp jobs enable behavioral_analysis
+sp jobs disable behavioral_analysis
+```
+
+**Output Structure:**
+```json
+{
+  "data": {
+    "job_name": "behavioral_analysis",
+    "enabled": true,
+    "message": "Job 'behavioral_analysis' has been enabled"
+  },
+  "artifact_type": "text",
+  "title": "Job Enabled"
+}
+```
 
 ---
 
@@ -124,34 +215,27 @@ Clean up inactive user sessions.
 ```bash
 sp jobs cleanup-sessions
 sp jobs cleanup-sessions --hours 2
+sp jobs cleanup-sessions --dry-run
 ```
 
-**Optional Flags:**
+**Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--hours` | `1` | Sessions inactive for more than N hours |
+| `--dry-run` | | Preview without executing |
 
 **Output Structure:**
 ```json
 {
-  "job_name": "session_cleanup",
-  "sessions_cleaned": 15,
-  "hours_threshold": 1,
-  "message": "Cleaned up 15 inactive session(s)"
+  "data": {
+    "job_name": "session_cleanup",
+    "sessions_cleaned": 15,
+    "hours_threshold": 1,
+    "message": "Cleaned up 15 inactive session(s)"
+  },
+  "artifact_type": "text",
+  "title": "Session Cleanup"
 }
-```
-
-**Artifact Type:** `Text`
-
----
-
-### jobs session-cleanup
-
-Alias for `cleanup-sessions`.
-
-```bash
-sp jobs session-cleanup
-sp jobs session-cleanup --hours 4
 ```
 
 ---
@@ -163,162 +247,332 @@ Clean up old log entries.
 ```bash
 sp jobs log-cleanup
 sp jobs log-cleanup --days 7
+sp jobs log-cleanup --days 7 --dry-run
 ```
 
-**Optional Flags:**
+**Flags:**
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--days` | `30` | Delete logs older than N days |
+| `--dry-run` | | Preview without executing |
 
 **Output Structure:**
 ```json
 {
-  "job_name": "log_cleanup",
-  "entries_deleted": 5000,
-  "days_threshold": 30,
-  "message": "Deleted 5000 log entries older than 30 days"
+  "data": {
+    "job_name": "log_cleanup",
+    "entries_deleted": 5000,
+    "days_threshold": 30,
+    "message": "Deleted 5000 log entries older than 30 days"
+  },
+  "artifact_type": "text",
+  "title": "Log Cleanup"
 }
 ```
 
-**Artifact Type:** `Text`
+---
+
+## Creating a New Job
+
+Jobs are registered at compile-time using the `inventory` crate. To create a new job:
+
+### Step 1: Create the Job File
+
+Create a new file in your extension or domain crate:
+
+```
+/var/www/html/tyingshoelaces/extensions/blog/src/jobs/my_job.rs
+```
+
+### Step 2: Implement the Job Trait
+
+```rust
+use anyhow::Result;
+use async_trait::async_trait;
+use std::sync::Arc;
+use systemprompt_core_database::DbPool;
+use systemprompt_traits::{Job, JobContext, JobResult};
+use tracing::info;
+
+/// My custom job that does something useful
+#[derive(Debug, Clone, Copy)]
+pub struct MyCustomJob;
+
+#[async_trait]
+impl Job for MyCustomJob {
+    /// Unique job identifier (used in CLI commands)
+    fn name(&self) -> &'static str {
+        "my_custom_job"
+    }
+
+    /// Human-readable description
+    fn description(&self) -> &'static str {
+        "Does something useful on a schedule"
+    }
+
+    /// Cron schedule (6 fields: sec min hour day month weekday)
+    fn schedule(&self) -> &'static str {
+        "0 */15 * * * *"  // Every 15 minutes
+    }
+
+    /// Whether this job is enabled by default
+    fn enabled(&self) -> bool {
+        true
+    }
+
+    /// The actual job logic
+    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+        let start = std::time::Instant::now();
+
+        // Extract database pool from context
+        let db_pool = Arc::clone(
+            ctx.db_pool::<DbPool>()
+                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
+        );
+
+        info!("my_custom_job started");
+
+        // Do your work here
+        let processed = do_the_work(&db_pool).await?;
+
+        let duration_ms = start.elapsed().as_millis() as u64;
+
+        info!(
+            processed = processed,
+            duration_ms = duration_ms,
+            "my_custom_job completed"
+        );
+
+        // Return result with stats
+        Ok(JobResult::success()
+            .with_message(format!("Processed {} items", processed))
+            .with_stats(processed, 0)
+            .with_duration(duration_ms))
+    }
+}
+
+async fn do_the_work(pool: &DbPool) -> Result<u64> {
+    // Your implementation here
+    Ok(42)
+}
+
+// CRITICAL: Register the job with inventory
+systemprompt_traits::submit_job!(&MyCustomJob);
+```
+
+### Step 3: Export from Module
+
+In your `jobs/mod.rs`:
+
+```rust
+mod my_job;
+
+pub use my_job::MyCustomJob;
+```
+
+### Step 4: Include in Crate
+
+Ensure the jobs module is included in your crate's `lib.rs`:
+
+```rust
+pub mod jobs;
+```
+
+### Step 5: Link to CLI
+
+The job will automatically appear in `jobs list` after rebuilding, as long as the crate is linked to the CLI binary. For extensions, this happens through the generator crate dependency.
 
 ---
 
-## Available Jobs Reference
+## Job Trait Reference
 
-| Job Name | Description | Schedule |
-|----------|-------------|----------|
-| `content_ingestion` | Ingest markdown files into database | Hourly |
-| `session_cleanup` | Remove expired sessions | Every 15 min |
-| `database_cleanup` | Clean old database entries | Daily 2 AM |
-| `publish_content` | Full publishing pipeline | Manual |
-| `sitemap_generation` | Regenerate sitemap.xml | Hourly |
-| `cache_cleanup` | Clear expired cache entries | Every 30 min |
+```rust
+#[async_trait]
+pub trait Job: Send + Sync + 'static {
+    /// Unique identifier for the job
+    fn name(&self) -> &'static str;
 
----
+    /// Human-readable description (optional, defaults to "")
+    fn description(&self) -> &'static str { "" }
 
-## Complete Jobs Workflow Example
+    /// Cron schedule expression (6 fields)
+    fn schedule(&self) -> &'static str;
 
-This flow demonstrates common job operations:
+    /// Execute the job
+    async fn execute(&self, ctx: &JobContext) -> Result<JobResult>;
 
-```bash
-# Phase 1: List available jobs
-sp --json jobs list
-
-# Phase 2: Run content ingestion
-sp jobs run content_ingestion
-
-# Phase 3: Run full publish pipeline
-sp jobs run publish_content
-
-# Phase 4: Clean up sessions
-sp jobs cleanup-sessions --hours 2
-
-# Phase 5: Clean up logs
-sp jobs log-cleanup --days 7
-
-# Phase 6: Verify cleanup
-sp --json analytics sessions stats
+    /// Whether the job is enabled (optional, defaults to true)
+    fn enabled(&self) -> bool { true }
+}
 ```
 
 ---
 
-## Scheduled Job Cron Examples
+## JobResult Builder
+
+```rust
+// Success with message
+JobResult::success()
+    .with_message("Completed successfully")
+
+// Success with stats
+JobResult::success()
+    .with_stats(100, 5)  // processed, failed
+    .with_duration(1500) // milliseconds
+
+// Failure
+JobResult::failure("Database connection failed")
+```
+
+---
+
+## Cron Schedule Format
+
+The schedule uses 6-field cron syntax:
 
 ```
-# Every minute
+┌──────────── second (0-59)
+│ ┌────────── minute (0-59)
+│ │ ┌──────── hour (0-23)
+│ │ │ ┌────── day of month (1-31)
+│ │ │ │ ┌──── month (1-12)
+│ │ │ │ │ ┌── day of week (0-6, Sun=0)
+│ │ │ │ │ │
 * * * * * *
+```
 
-# Every 5 minutes
-*/5 * * * * *
+**Common Schedules:**
+| Schedule | Description |
+|----------|-------------|
+| `0 0 * * * *` | Every hour |
+| `0 */15 * * * *` | Every 15 minutes |
+| `0 */30 * * * *` | Every 30 minutes |
+| `0 0 */2 * * *` | Every 2 hours |
+| `0 0 3 * * *` | Daily at 3:00 AM |
+| `0 30 2 * * *` | Daily at 2:30 AM |
+| `0 0 0 * * 0` | Weekly on Sunday at midnight |
+| `0 0 0 1 * *` | Monthly on the 1st at midnight |
 
-# Every hour at minute 0
-0 * * * * *
+---
 
-# Daily at midnight
-0 0 * * * *
+## Example: Blog Extension Job
 
-# Daily at 2:30 AM
-30 2 * * * *
+Location: `/var/www/html/tyingshoelaces/extensions/blog/src/jobs/`
 
-# Weekly on Sunday at midnight
-0 0 * * 0 *
+```rust
+// blog_content_ingestion.rs
+use anyhow::Result;
+use async_trait::async_trait;
+use std::sync::Arc;
+use systemprompt_core_database::DbPool;
+use systemprompt_traits::{Job, JobContext, JobResult};
 
-# Monthly on the 1st at midnight
-0 0 1 * * *
+#[derive(Debug, Clone, Copy)]
+pub struct BlogContentIngestionJob;
+
+#[async_trait]
+impl Job for BlogContentIngestionJob {
+    fn name(&self) -> &'static str {
+        "blog_content_ingestion"
+    }
+
+    fn description(&self) -> &'static str {
+        "Ingests blog posts from markdown files"
+    }
+
+    fn schedule(&self) -> &'static str {
+        "0 0 * * * *"  // Every hour
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+        let start = std::time::Instant::now();
+        let db_pool = Arc::clone(
+            ctx.db_pool::<DbPool>()
+                .ok_or_else(|| anyhow::anyhow!("DbPool not available"))?
+        );
+
+        // Ingest blog content...
+        let posts_ingested = ingest_blog_posts(&db_pool).await?;
+
+        Ok(JobResult::success()
+            .with_stats(posts_ingested, 0)
+            .with_duration(start.elapsed().as_millis() as u64))
+    }
+}
+
+systemprompt_traits::submit_job!(&BlogContentIngestionJob);
 ```
 
 ---
 
-## Job Integration with Content Pipeline
+## Workflow Examples
+
+### Development Workflow
 
 ```bash
-# Step 1: Create content files in markdown
-mkdir -p /services/content/blog
-cat << 'EOF' > /services/content/blog/my-post.md
----
-title: My Blog Post
-slug: my-post
----
-Content here...
-EOF
+# List all jobs
+sp --json jobs list | jq '.data.jobs[].name'
 
-# Step 2: Run content ingestion
+# Check job details before running
+sp jobs show content_ingestion
+
+# Preview cleanup without executing
+sp jobs cleanup-sessions --dry-run
+sp jobs log-cleanup --days 7 --dry-run
+
+# Run the job
 sp jobs run content_ingestion
 
-# Step 3: Verify content was ingested
-sp content list --source blog
+# Check execution history
+sp --json jobs history --job content_ingestion
+```
 
-# Step 4: Run full publish (images, prerender, sitemap)
-sp jobs run publish_content
+### Maintenance Workflow
 
-# Step 5: Verify sitemap was generated
-cat /services/web/dist/sitemap.xml
+```bash
+# Run all maintenance jobs
+sp jobs run cleanup_inactive_sessions cleanup_empty_contexts database_cleanup
+
+# Or run everything
+sp jobs run --all
+
+# Check results
+sp --json jobs history -n 10
+```
+
+### Disable/Enable Workflow
+
+```bash
+# Temporarily disable a job
+sp jobs disable behavioral_analysis
+
+# Re-enable when ready
+sp jobs enable behavioral_analysis
+
+# Verify status
+sp jobs show behavioral_analysis
 ```
 
 ---
 
-## Error Handling
+## Database Schema
 
-### Job Not Found
+Jobs are tracked in the `scheduled_jobs` table:
 
-```bash
-sp jobs run nonexistent
-# Error: Unknown job: nonexistent
-# Use 'jobs list' to see available jobs
-```
-
-### Job Failed
-
-```bash
-sp jobs run content_ingestion
-# Error: Job failed: Failed to connect to database
-```
-
-### Database Connection Error
-
-```bash
-sp jobs cleanup-sessions
-# Error: Failed to initialize application context. Check database connection.
-```
-
----
-
-## JSON Output
-
-All commands support `--json` flag for structured output:
-
-```bash
-# Verify JSON is valid
-sp --json jobs list | jq .
-
-# Extract specific fields
-sp --json jobs list | jq '.jobs[].name'
-sp --json jobs list | jq '.jobs[] | select(.enabled == true)'
-sp --json jobs list | jq '.jobs[] | select(.schedule != "manual")'
-
-# Get job count
-sp --json jobs list | jq '.total'
+```sql
+CREATE TABLE scheduled_jobs (
+    id TEXT PRIMARY KEY,
+    job_name TEXT NOT NULL UNIQUE,
+    schedule TEXT NOT NULL,
+    enabled BOOLEAN NOT NULL DEFAULT true,
+    last_run TIMESTAMPTZ,
+    next_run TIMESTAMPTZ,
+    last_status TEXT,          -- 'success', 'failed', 'running'
+    last_error TEXT,
+    run_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 ```
 
 ---
@@ -328,6 +582,7 @@ sp --json jobs list | jq '.total'
 - [x] All `execute` functions accept `config: &CliConfig`
 - [x] All commands return `CommandResult<T>` with proper artifact type
 - [x] All output types derive `Serialize`, `Deserialize`, `JsonSchema`
-- [x] No `println!` / `eprintln!` - uses `CliService`
+- [x] No `println!` / `eprintln!` - uses `render_result()`
 - [x] No `unwrap()` / `expect()` - uses `?` with `.context()`
 - [x] JSON output supported via `--json` flag
+- [x] Cleanup commands support `--dry-run`

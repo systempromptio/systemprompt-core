@@ -5,11 +5,14 @@ use systemprompt_core_logging::CliService;
 use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 use systemprompt_models::{Profile, ProfileBootstrap};
 
+use std::path::Path;
+
 use super::types::{
-    BaseRateRow, CompareOutput, EffectiveLimitRow, EffectiveLimitsOutput, EndpointComparison,
-    RateLimitStatusOutput, RateLimitsDocsOutput, RateLimitsOutput, ResetChange, ResetOutput,
-    SetRateLimitOutput, TierEffectiveLimitsOutput, TierMultiplierRow, TierMultipliersOutput,
-    ValidateOutput,
+    BaseRateRow, CompareOutput, DiffEntry, DiffOutput, EffectiveLimitRow, EffectiveLimitsOutput,
+    EndpointComparison, ExportOutput, ImportOutput, PresetApplyOutput, PresetInfo,
+    PresetListOutput, PresetShowOutput, RateLimitStatusOutput, RateLimitsDocsOutput,
+    RateLimitsOutput, ResetChange, ResetOutput, SetRateLimitOutput, TierEffectiveLimitsOutput,
+    TierMultiplierRow, TierMultipliersOutput, ValidateOutput,
 };
 use crate::cli_settings::OutputFormat;
 use crate::shared::{render_result, CommandResult};
@@ -43,6 +46,18 @@ pub enum RateLimitsCommands {
 
     #[command(about = "Reset rate limits to defaults")]
     Reset(ResetArgs),
+
+    #[command(subcommand, about = "Manage rate limit presets")]
+    Preset(PresetCommands),
+
+    #[command(about = "Export rate limits to file")]
+    Export(ExportArgs),
+
+    #[command(about = "Import rate limits from file")]
+    Import(ImportArgs),
+
+    #[command(about = "Compare rate limits with defaults or file")]
+    Diff(DiffArgs),
 }
 
 #[derive(Debug, Clone, Args)]

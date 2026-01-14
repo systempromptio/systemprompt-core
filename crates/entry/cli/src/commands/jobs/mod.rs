@@ -7,12 +7,11 @@ use clap::{Args, Subcommand};
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_core_analytics::SessionCleanupService;
-use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_core_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_traits::{Job, JobContext};
 use types::{
-    BatchJobRunOutput, DryRunOutput, JobEnableOutput, JobHistoryEntry, JobHistoryOutput, JobInfo,
+    BatchJobRunOutput, JobEnableOutput, JobHistoryEntry, JobHistoryOutput, JobInfo,
     JobListOutput, JobRunOutput, JobRunResult, JobShowOutput, LogCleanupOutput,
     SessionCleanupOutput,
 };
