@@ -282,6 +282,59 @@ paths:
 
 ---
 
+### Core Defaults Directory
+
+The `defaults/` directory at repository root contains fallback templates, assets, and web content that extensions can override.
+
+**Directory structure:**
+
+```
+defaults/                         <- systemprompt-core/defaults/
+  templates/                      <- Default templates (homepage, etc.)
+  assets/                         <- Default static assets
+  web/                            <- Default web content
+```
+
+**Access via SystemPaths:**
+
+```rust
+let paths = AppPaths::get()?;
+
+let templates = paths.system().default_templates();  // defaults/templates
+let assets = paths.system().default_assets();        // defaults/assets
+let web = paths.system().default_web();              // defaults/web
+```
+
+**Template fallback pattern:**
+
+Extensions define templates in `services/web/templates/`. Core defaults provide fallbacks:
+
+```rust
+let extension_path = get_templates_path(&web_config)?;  // services/web/templates
+let core_path = paths.system().default_templates();      // core/defaults/templates
+
+let extension_provider = CoreTemplateProvider::discover_with_priority(
+    &extension_path,
+    CoreTemplateProvider::EXTENSION_PRIORITY,  // 500 - wins
+).await?;
+
+let core_provider = CoreTemplateProvider::discover_with_priority(
+    &core_path,
+    CoreTemplateProvider::DEFAULT_PRIORITY,    // 1000 - fallback
+).await?;
+```
+
+**Key rules:**
+
+| Rule | Description |
+|------|-------------|
+| Extensions override core | Extension templates (priority 500) override core defaults (priority 1000) |
+| Path is derived | `defaults` path is computed: `{system_root}/core/defaults` |
+| Not configurable | Unlike `storage`, defaults path is not in profile.yaml |
+| Submodule pattern | In extension projects, core is at `{root}/core/`, so defaults is at `{root}/core/defaults/` |
+
+---
+
 ### File Upload System
 
 The file upload system handles file attachments in A2A messages, persisting them to storage and database.

@@ -22,24 +22,47 @@ struct TemplateConfig {
 pub struct CoreTemplateProvider {
     template_dir: PathBuf,
     templates: Vec<TemplateDefinition>,
+    priority: u32,
 }
 
 impl CoreTemplateProvider {
+    pub const DEFAULT_PRIORITY: u32 = 1000;
+    pub const EXTENSION_PRIORITY: u32 = 500;
+
     #[must_use]
     pub fn new(template_dir: impl Into<PathBuf>) -> Self {
         Self {
             template_dir: template_dir.into(),
             templates: Vec::new(),
+            priority: Self::DEFAULT_PRIORITY,
+        }
+    }
+
+    #[must_use]
+    pub fn with_priority(template_dir: impl Into<PathBuf>, priority: u32) -> Self {
+        Self {
+            template_dir: template_dir.into(),
+            templates: Vec::new(),
+            priority,
         }
     }
 
     pub async fn discover(&mut self) -> anyhow::Result<()> {
-        self.templates = discover_templates(&self.template_dir).await?;
+        self.templates = discover_templates(&self.template_dir, self.priority).await?;
         Ok(())
     }
 
     pub async fn discover_from(template_dir: impl Into<PathBuf>) -> anyhow::Result<Self> {
         let mut provider = Self::new(template_dir);
+        provider.discover().await?;
+        Ok(provider)
+    }
+
+    pub async fn discover_with_priority(
+        template_dir: impl Into<PathBuf>,
+        priority: u32,
+    ) -> anyhow::Result<Self> {
+        let mut provider = Self::with_priority(template_dir, priority);
         provider.discover().await?;
         Ok(provider)
     }
@@ -51,7 +74,7 @@ impl TemplateProvider for CoreTemplateProvider {
     }
 
     fn priority(&self) -> u32 {
-        1000
+        self.priority
     }
 
     fn templates(&self) -> Vec<TemplateDefinition> {
@@ -82,7 +105,7 @@ async fn load_manifest(dir: &Path) -> TemplateManifest {
     }
 }
 
-async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition>> {
+async fn discover_templates(dir: &Path, priority: u32) -> anyhow::Result<Vec<TemplateDefinition>> {
     let mut templates = Vec::new();
 
     if !dir.exists() {
@@ -104,6 +127,7 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
             debug!(
                 template = %template_name,
                 path = %path.display(),
+                priority = priority,
                 "Discovered template"
             );
 
@@ -117,7 +141,7 @@ async fn discover_templates(dir: &Path) -> anyhow::Result<Vec<TemplateDefinition
             templates.push(TemplateDefinition {
                 name: template_name,
                 source: TemplateSource::File(filename),
-                priority: 1000,
+                priority,
                 content_types,
             });
         }

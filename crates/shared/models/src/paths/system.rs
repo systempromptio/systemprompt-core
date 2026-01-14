@@ -11,13 +11,16 @@ pub struct SystemPaths {
     settings: PathBuf,
     content_config: PathBuf,
     geoip_database: Option<PathBuf>,
+    defaults: PathBuf,
 }
 
 impl SystemPaths {
     const LOGS_DIR: &'static str = "logs";
+    const DEFAULTS_DIR: &'static str = "core/defaults";
 
     pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         let root = Self::canonicalize(&paths.system, "system")?;
+        let defaults = root.join(Self::DEFAULTS_DIR);
 
         Ok(Self {
             root,
@@ -26,6 +29,7 @@ impl SystemPaths {
             settings: PathBuf::from(paths.config()),
             content_config: PathBuf::from(paths.content_config()),
             geoip_database: paths.geoip_database.as_ref().map(PathBuf::from),
+            defaults,
         })
     }
 
@@ -71,5 +75,21 @@ impl SystemPaths {
 
     pub fn resolve_service(&self, name: &str) -> PathBuf {
         self.services.join(name)
+    }
+
+    pub fn defaults(&self) -> &Path {
+        &self.defaults
+    }
+
+    pub fn default_templates(&self) -> PathBuf {
+        self.defaults.join("templates")
+    }
+
+    pub fn default_assets(&self) -> PathBuf {
+        self.defaults.join("assets")
+    }
+
+    pub fn default_web(&self) -> PathBuf {
+        self.defaults.join("web")
     }
 }
