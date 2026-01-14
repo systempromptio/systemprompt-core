@@ -4,10 +4,19 @@ use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::ProcessCleanup;
 use systemprompt_loader::ModuleLoader;
+use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::{
     install_module_with_db, validate_system, AppContext, Modules, ServiceCategory,
 };
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
+
+const DEFAULT_API_PORT: u16 = 8080;
+
+fn get_api_port() -> u16 {
+    ProfileBootstrap::get()
+        .map(|p| p.server.port)
+        .unwrap_or(DEFAULT_API_PORT)
+}
 
 pub async fn execute_with_events(
     foreground: bool,
@@ -15,7 +24,7 @@ pub async fn execute_with_events(
     config: &CliConfig,
     events: Option<&StartupEventSender>,
 ) -> Result<String> {
-    let port = 8080u16;
+    let port = get_api_port();
 
     if events.is_none() {
         CliService::startup_banner(Some("Starting services..."));

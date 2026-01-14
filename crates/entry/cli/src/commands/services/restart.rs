@@ -5,7 +5,17 @@ use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_core_agent::services::registry::AgentRegistry;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_mcp::services::McpManager;
+use systemprompt_core_scheduler::ProcessCleanup;
+use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
+
+const DEFAULT_API_PORT: u16 = 8080;
+
+fn get_api_port() -> u16 {
+    ProfileBootstrap::get()
+        .map(|p| p.server.port)
+        .unwrap_or(DEFAULT_API_PORT)
+}
 
 async fn resolve_name(agent_identifier: &str) -> Result<String> {
     let registry = AgentRegistry::new().await?;
@@ -13,13 +23,37 @@ async fn resolve_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub fn execute_api(_ctx: &Arc<AppContext>, _config: &CliConfig) {
+pub async fn execute_api(config: &CliConfig) -> Result<()> {
     CliService::section("Restarting API Server");
 
-    CliService::warning("API server restart via CLI is not currently supported");
-    CliService::info("To restart the API server:");
-    CliService::info("  1. Stop the current server (Ctrl+C if running in foreground)");
-    CliService::info("  2. Run: just api");
+    let port = get_api_port();
+
+    // Check if API server is running
+    let api_pid = ProcessCleanup::check_port(port);
+    if api_pid.is_none() {
+        CliService::warning("API server is not running");
+        CliService::info("Starting API server...");
+        return super::serve::execute(true, false, config).await;
+    }
+
+    let pid = api_pid.unwrap();
+    CliService::info(&format!("Stopping API server (PID: {})...", pid));
+
+    // Gracefully terminate the API server
+    ProcessCleanup::terminate_gracefully(pid, 100).await;
+    ProcessCleanup::kill_port(port);
+
+    // Wait for port to be free
+    ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
+
+    CliService::success("API server stopped");
+    CliService::info("Starting API server...");
+
+    // Start the API server again
+    super::serve::execute(true, false, config).await?;
+
+    CliService::success("API server restarted successfully");
+    Ok(())
 }
 
 pub async fn execute_agent(

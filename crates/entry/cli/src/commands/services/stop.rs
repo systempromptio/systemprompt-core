@@ -3,9 +3,18 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 
 use super::start::ServiceTarget;
+
+const DEFAULT_API_PORT: u16 = 8080;
+
+fn get_api_port() -> u16 {
+    ProfileBootstrap::get()
+        .map(|p| p.server.port)
+        .unwrap_or(DEFAULT_API_PORT)
+}
 
 pub async fn execute(target: ServiceTarget, force: bool, _config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
@@ -31,7 +40,9 @@ pub async fn execute(target: ServiceTarget, force: bool, _config: &CliConfig) ->
 }
 
 async fn stop_api(force: bool) -> Result<()> {
-    if let Some(pid) = ProcessCleanup::check_port(8080) {
+    let port = get_api_port();
+
+    if let Some(pid) = ProcessCleanup::check_port(port) {
         CliService::info(&format!("Stopping API server (PID: {})...", pid));
         if force {
             ProcessCleanup::kill_process(pid);
@@ -40,8 +51,8 @@ async fn stop_api(force: bool) -> Result<()> {
         }
     }
 
-    ProcessCleanup::kill_port(8080);
-    ProcessCleanup::wait_for_port_free(8080, 5, 200).await?;
+    ProcessCleanup::kill_port(port);
+    ProcessCleanup::wait_for_port_free(port, 5, 200).await?;
 
     CliService::success("API server stopped");
     Ok(())

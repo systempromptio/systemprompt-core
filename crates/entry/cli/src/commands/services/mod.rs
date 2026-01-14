@@ -81,7 +81,13 @@ pub enum ServicesCommands {
     },
 
     #[command(about = "Clean up orphaned processes and stale entries")]
-    Cleanup,
+    Cleanup {
+        #[arg(short = 'y', long, help = "Skip confirmation prompt")]
+        yes: bool,
+
+        #[arg(long, help = "Preview cleanup without executing")]
+        dry_run: bool,
+    },
 
     #[command(about = "Start API server (automatically starts agents and MCP servers)")]
     Serve {
@@ -149,10 +155,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 restart::execute_failed(&ctx, config).await
             } else {
                 match target {
-                    Some(RestartTarget::Api) => {
-                        restart::execute_api(&ctx, config);
-                        Ok(())
-                    },
+                    Some(RestartTarget::Api) => restart::execute_api(config).await,
                     Some(RestartTarget::Agent { agent_id }) => {
                         restart::execute_agent(&ctx, &agent_id, config).await
                     },
@@ -172,7 +175,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             health,
         } => status::execute(detailed, json, health, config).await,
 
-        ServicesCommands::Cleanup => cleanup::execute(config).await,
+        ServicesCommands::Cleanup { yes, dry_run } => cleanup::execute(yes, dry_run, config).await,
 
         ServicesCommands::Serve {
             foreground,

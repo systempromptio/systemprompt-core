@@ -99,6 +99,60 @@ pub struct ResetArgs {
     pub tier: Option<String>,
 }
 
+#[derive(Debug, Subcommand)]
+pub enum PresetCommands {
+    #[command(about = "List available presets")]
+    List,
+
+    #[command(about = "Show preset configuration")]
+    Show(PresetShowArgs),
+
+    #[command(about = "Apply a preset")]
+    Apply(PresetApplyArgs),
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PresetShowArgs {
+    #[arg(help = "Preset name: development, production, high-traffic")]
+    pub name: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct PresetApplyArgs {
+    #[arg(help = "Preset name: development, production, high-traffic")]
+    pub name: String,
+
+    #[arg(short = 'y', long, help = "Skip confirmation")]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ExportArgs {
+    #[arg(long, short = 'o', help = "Output file path")]
+    pub output: String,
+
+    #[arg(long, default_value = "yaml", help = "Format: yaml, json")]
+    pub format: String,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct ImportArgs {
+    #[arg(long, short = 'f', help = "Input file path")]
+    pub file: String,
+
+    #[arg(short = 'y', long, help = "Skip confirmation")]
+    pub yes: bool,
+}
+
+#[derive(Debug, Clone, Args)]
+pub struct DiffArgs {
+    #[arg(long, help = "Compare with defaults")]
+    pub defaults: bool,
+
+    #[arg(long, short = 'f', help = "Compare with file")]
+    pub file: Option<String>,
+}
+
 pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
     match command {
         RateLimitsCommands::Show => execute_show(config),
@@ -110,6 +164,10 @@ pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
         RateLimitsCommands::Validate => execute_validate(config),
         RateLimitsCommands::Compare => execute_compare(config),
         RateLimitsCommands::Reset(args) => execute_reset(args, config),
+        RateLimitsCommands::Preset(cmd) => execute_preset(cmd, config),
+        RateLimitsCommands::Export(args) => execute_export(args, config),
+        RateLimitsCommands::Import(args) => execute_import(args, config),
+        RateLimitsCommands::Diff(args) => execute_diff(args, config),
     }
 }
 
@@ -826,5 +884,485 @@ fn collect_tier_changes(
                 new_value: format!("{:.1}", default_val),
             });
         }
+    }
+}
+
+// === Preset Commands ===
+
+fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
+    match command {
+        PresetCommands::List => execute_preset_list(config),
+        PresetCommands::Show(args) => execute_preset_show(args, config),
+        PresetCommands::Apply(args) => execute_preset_apply(args, config),
+    }
+}
+
+fn execute_preset_list(_config: &CliConfig) -> Result<()> {
+    let presets = vec![
+        PresetInfo {
+            name: "development".to_string(),
+            description: "Relaxed limits for local development".to_string(),
+            builtin: true,
+        },
+        PresetInfo {
+            name: "production".to_string(),
+            description: "Balanced limits for production workloads".to_string(),
+            builtin: true,
+        },
+        PresetInfo {
+            name: "high-traffic".to_string(),
+            description: "Strict limits for high-traffic environments".to_string(),
+            builtin: true,
+        },
+    ];
+
+    let output = PresetListOutput { presets };
+    render_result(&CommandResult::table(output).with_title("Available Presets"));
+
+    Ok(())
+}
+
+fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> {
+    let limits = get_preset_config(&args.name)?;
+    let description = get_preset_description(&args.name)?;
+
+    let output = PresetShowOutput {
+        name: args.name,
+        description,
+        config: RateLimitsOutput {
+            disabled: limits.disabled,
+            oauth_public_per_second: limits.oauth_public_per_second,
+            oauth_auth_per_second: limits.oauth_auth_per_second,
+            contexts_per_second: limits.contexts_per_second,
+            tasks_per_second: limits.tasks_per_second,
+            artifacts_per_second: limits.artifacts_per_second,
+            agent_registry_per_second: limits.agent_registry_per_second,
+            agents_per_second: limits.agents_per_second,
+            mcp_registry_per_second: limits.mcp_registry_per_second,
+            mcp_per_second: limits.mcp_per_second,
+            stream_per_second: limits.stream_per_second,
+            content_per_second: limits.content_per_second,
+            burst_multiplier: limits.burst_multiplier,
+            tier_multipliers: TierMultipliersOutput {
+                admin: limits.tier_multipliers.admin,
+                user: limits.tier_multipliers.user,
+                a2a: limits.tier_multipliers.a2a,
+                mcp: limits.tier_multipliers.mcp,
+                service: limits.tier_multipliers.service,
+                anon: limits.tier_multipliers.anon,
+            },
+        },
+    };
+
+    render_result(&CommandResult::card(output).with_title("Preset Configuration"));
+
+    Ok(())
+}
+
+fn get_preset_description(name: &str) -> Result<String> {
+    match name {
+        "development" => Ok("Relaxed limits for local development".to_string()),
+        "production" => Ok("Balanced limits for production workloads".to_string()),
+        "high-traffic" => Ok("Strict limits for high-traffic environments".to_string()),
+        _ => bail!(
+            "Unknown preset: {}. Valid presets: development, production, high-traffic",
+            name
+        ),
+    }
+}
+
+fn execute_preset_apply(args: PresetApplyArgs, config: &CliConfig) -> Result<()> {
+    if !args.yes && !config.is_interactive() {
+        bail!("--yes is required in non-interactive mode");
+    }
+
+    let preset_config = get_preset_config(&args.name)?;
+
+    if !args.yes && config.is_interactive() {
+        CliService::warning(&format!(
+            "This will apply the '{}' preset to rate limits",
+            args.name
+        ));
+        if !CliService::confirm("Proceed with preset application?")? {
+            CliService::info("Preset application cancelled");
+            return Ok(());
+        }
+    }
+
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile_for_edit(profile_path)?;
+
+    // Collect changes
+    let mut changes: Vec<ResetChange> = Vec::new();
+    collect_endpoint_changes(&profile.rate_limits, &preset_config, &mut changes);
+    collect_tier_changes(
+        &profile.rate_limits.tier_multipliers,
+        &preset_config.tier_multipliers,
+        &mut changes,
+    );
+
+    if profile.rate_limits.burst_multiplier != preset_config.burst_multiplier {
+        changes.push(ResetChange {
+            field: "burst_multiplier".to_string(),
+            old_value: profile.rate_limits.burst_multiplier.to_string(),
+            new_value: preset_config.burst_multiplier.to_string(),
+        });
+    }
+    if profile.rate_limits.disabled != preset_config.disabled {
+        changes.push(ResetChange {
+            field: "disabled".to_string(),
+            old_value: profile.rate_limits.disabled.to_string(),
+            new_value: preset_config.disabled.to_string(),
+        });
+    }
+
+    profile.rate_limits = preset_config;
+    save_profile(&profile, profile_path)?;
+
+    let output = PresetApplyOutput {
+        preset: args.name.clone(),
+        changes,
+        message: format!("Applied '{}' preset successfully", args.name),
+    };
+
+    render_result(&CommandResult::table(output).with_title("Preset Applied"));
+
+    if config.output_format() == OutputFormat::Table {
+        CliService::warning("Restart services for changes to take effect");
+    }
+
+    Ok(())
+}
+
+fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
+    match name {
+        "development" => Ok(RateLimitsConfig {
+            disabled: false,
+            oauth_public_per_second: 50,
+            oauth_auth_per_second: 20,
+            contexts_per_second: 100,
+            tasks_per_second: 100,
+            artifacts_per_second: 100,
+            agent_registry_per_second: 50,
+            agents_per_second: 100,
+            mcp_registry_per_second: 50,
+            mcp_per_second: 100,
+            stream_per_second: 50,
+            content_per_second: 200,
+            burst_multiplier: 5,
+            tier_multipliers: TierMultipliers {
+                admin: 10.0,
+                user: 2.0,
+                a2a: 3.0,
+                mcp: 3.0,
+                service: 5.0,
+                anon: 0.5,
+            },
+        }),
+        "production" => Ok(RateLimitsConfig::default()),
+        "high-traffic" => Ok(RateLimitsConfig {
+            disabled: false,
+            oauth_public_per_second: 5,
+            oauth_auth_per_second: 2,
+            contexts_per_second: 10,
+            tasks_per_second: 10,
+            artifacts_per_second: 10,
+            agent_registry_per_second: 5,
+            agents_per_second: 10,
+            mcp_registry_per_second: 5,
+            mcp_per_second: 10,
+            stream_per_second: 5,
+            content_per_second: 20,
+            burst_multiplier: 2,
+            tier_multipliers: TierMultipliers {
+                admin: 5.0,
+                user: 1.0,
+                a2a: 1.5,
+                mcp: 1.5,
+                service: 2.0,
+                anon: 0.2,
+            },
+        }),
+        _ => bail!(
+            "Unknown preset: {}. Valid presets: development, production, high-traffic",
+            name
+        ),
+    }
+}
+
+// === Export/Import Commands ===
+
+fn execute_export(args: ExportArgs, config: &CliConfig) -> Result<()> {
+    let profile = ProfileBootstrap::get()?;
+    let limits = &profile.rate_limits;
+
+    let content = match args.format.as_str() {
+        "yaml" | "yml" => {
+            serde_yaml::to_string(limits).context("Failed to serialize rate limits to YAML")?
+        }
+        "json" => {
+            serde_json::to_string_pretty(limits).context("Failed to serialize rate limits to JSON")?
+        }
+        _ => bail!("Unknown format: {}. Valid formats: yaml, json", args.format),
+    };
+
+    fs::write(&args.output, &content)
+        .with_context(|| format!("Failed to write to file: {}", args.output))?;
+
+    let output = ExportOutput {
+        path: args.output.clone(),
+        format: args.format.clone(),
+        message: format!("Exported rate limits to {}", args.output),
+    };
+
+    render_result(&CommandResult::text(output).with_title("Rate Limits Exported"));
+
+    if config.output_format() == OutputFormat::Table {
+        CliService::success(&format!("Exported to {}", args.output));
+    }
+
+    Ok(())
+}
+
+fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
+    if !args.yes && !config.is_interactive() {
+        bail!("--yes is required in non-interactive mode");
+    }
+
+    let path = Path::new(&args.file);
+    if !path.exists() {
+        bail!("File not found: {}", args.file);
+    }
+
+    let content =
+        fs::read_to_string(&args.file).with_context(|| format!("Failed to read file: {}", args.file))?;
+
+    let format = if args.file.ends_with(".json") {
+        "json"
+    } else {
+        "yaml"
+    };
+
+    let new_limits: RateLimitsConfig = match format {
+        "json" => serde_json::from_str(&content)
+            .with_context(|| format!("Failed to parse JSON from: {}", args.file))?,
+        _ => serde_yaml::from_str(&content)
+            .with_context(|| format!("Failed to parse YAML from: {}", args.file))?,
+    };
+
+    if !args.yes && config.is_interactive() {
+        CliService::warning(&format!("This will import rate limits from {}", args.file));
+        if !CliService::confirm("Proceed with import?")? {
+            CliService::info("Import cancelled");
+            return Ok(());
+        }
+    }
+
+    let profile_path = ProfileBootstrap::get_path()?;
+    let mut profile = load_profile_for_edit(profile_path)?;
+    profile.rate_limits = new_limits;
+    save_profile(&profile, profile_path)?;
+
+    let output = ImportOutput {
+        path: args.file.clone(),
+        changes: vec![],
+        message: format!("Imported rate limits from {}", args.file),
+    };
+
+    render_result(&CommandResult::text(output).with_title("Rate Limits Imported"));
+
+    if config.output_format() == OutputFormat::Table {
+        CliService::warning("Restart services for changes to take effect");
+    }
+
+    Ok(())
+}
+
+// === Diff Command ===
+
+fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
+    let profile = ProfileBootstrap::get()?;
+    let current = &profile.rate_limits;
+
+    let (compare_with, source) = if args.defaults {
+        (RateLimitsConfig::default(), "defaults".to_string())
+    } else if let Some(file_path) = &args.file {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read file: {}", file_path))?;
+
+        let format = if file_path.ends_with(".json") {
+            "json"
+        } else {
+            "yaml"
+        };
+
+        let limits: RateLimitsConfig = match format {
+            "json" => serde_json::from_str(&content)
+                .with_context(|| format!("Failed to parse JSON from: {}", file_path))?,
+            _ => serde_yaml::from_str(&content)
+                .with_context(|| format!("Failed to parse YAML from: {}", file_path))?,
+        };
+
+        (limits, file_path.clone())
+    } else {
+        bail!("Must specify --defaults or --file");
+    };
+
+    let mut differences: Vec<DiffEntry> = Vec::new();
+
+    // Compare all fields
+    add_diff_if_different(&mut differences, "disabled", current.disabled, compare_with.disabled);
+    add_diff_if_different(
+        &mut differences,
+        "oauth_public_per_second",
+        current.oauth_public_per_second,
+        compare_with.oauth_public_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "oauth_auth_per_second",
+        current.oauth_auth_per_second,
+        compare_with.oauth_auth_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "contexts_per_second",
+        current.contexts_per_second,
+        compare_with.contexts_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "tasks_per_second",
+        current.tasks_per_second,
+        compare_with.tasks_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "artifacts_per_second",
+        current.artifacts_per_second,
+        compare_with.artifacts_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "agent_registry_per_second",
+        current.agent_registry_per_second,
+        compare_with.agent_registry_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "agents_per_second",
+        current.agents_per_second,
+        compare_with.agents_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "mcp_registry_per_second",
+        current.mcp_registry_per_second,
+        compare_with.mcp_registry_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "mcp_per_second",
+        current.mcp_per_second,
+        compare_with.mcp_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "stream_per_second",
+        current.stream_per_second,
+        compare_with.stream_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "content_per_second",
+        current.content_per_second,
+        compare_with.content_per_second,
+    );
+    add_diff_if_different(
+        &mut differences,
+        "burst_multiplier",
+        current.burst_multiplier,
+        compare_with.burst_multiplier,
+    );
+
+    // Compare tier multipliers
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.admin",
+        current.tier_multipliers.admin,
+        compare_with.tier_multipliers.admin,
+    );
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.user",
+        current.tier_multipliers.user,
+        compare_with.tier_multipliers.user,
+    );
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.a2a",
+        current.tier_multipliers.a2a,
+        compare_with.tier_multipliers.a2a,
+    );
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.mcp",
+        current.tier_multipliers.mcp,
+        compare_with.tier_multipliers.mcp,
+    );
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.service",
+        current.tier_multipliers.service,
+        compare_with.tier_multipliers.service,
+    );
+    add_diff_if_different_f64(
+        &mut differences,
+        "tier_multipliers.anon",
+        current.tier_multipliers.anon,
+        compare_with.tier_multipliers.anon,
+    );
+
+    let output = DiffOutput {
+        source,
+        differences: differences.clone(),
+        identical: differences.is_empty(),
+    };
+
+    render_result(&CommandResult::table(output).with_title("Rate Limits Diff"));
+
+    if config.output_format() == OutputFormat::Table {
+        if differences.is_empty() {
+            CliService::success("No differences found");
+        } else {
+            CliService::info(&format!("{} difference(s) found", differences.len()));
+        }
+    }
+
+    Ok(())
+}
+
+fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
+    diffs: &mut Vec<DiffEntry>,
+    field: &str,
+    current: T,
+    compare: T,
+) {
+    if current != compare {
+        diffs.push(DiffEntry {
+            field: field.to_string(),
+            current: current.to_string(),
+            other: compare.to_string(),
+        });
+    }
+}
+
+fn add_diff_if_different_f64(diffs: &mut Vec<DiffEntry>, field: &str, current: f64, compare: f64) {
+    if (current - compare).abs() > f64::EPSILON {
+        diffs.push(DiffEntry {
+            field: field.to_string(),
+            current: format!("{:.1}", current),
+            other: format!("{:.1}", compare),
+        });
     }
 }
