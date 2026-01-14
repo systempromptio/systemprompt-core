@@ -767,7 +767,25 @@ sp --json web templates show tutorial
 
 ### Phase 4: Create Content Markdown File
 
-Create the markdown content file in the configured path:
+Create the markdown content file in the configured path.
+
+**Required Frontmatter Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | String | Content title |
+| `slug` | String | URL-safe identifier (lowercase, hyphens) |
+| `description` | String | Short description for SEO/previews |
+| `kind` | String | Content kind (e.g., `article`, `page`) |
+| `public` | Boolean | Whether content is publicly visible |
+| `tags` | Array | List of tags for categorization |
+| `published_at` | DateTime | ISO 8601 date when content was published |
+| `updated_at` | DateTime | ISO 8601 date when content was last updated |
+
+**Optional Fields:**
+| Field | Type | Description |
+|-------|------|-------------|
+| `author` | String | Content author name |
+| `image` | String | Featured image path |
 
 ```bash
 mkdir -p /var/www/html/tyingshoelaces/services/content/tutorials
@@ -777,7 +795,14 @@ cat << 'EOF' > /var/www/html/tyingshoelaces/services/content/tutorials/getting-s
 title: Getting Started with Rust
 slug: getting-started-rust
 description: Learn the basics of Rust programming
-date: 2024-01-15
+kind: article
+public: true
+tags:
+  - rust
+  - programming
+  - tutorial
+published_at: 2024-01-15T10:00:00Z
+updated_at: 2024-01-15T10:00:00Z
 author: Developer
 ---
 
@@ -811,7 +836,7 @@ Ingest the markdown content into the database:
 sp jobs run content_ingestion
 
 sp content list --source tutorials
-sp --json content show tutorials/getting-started-rust
+sp --json content show getting-started-rust --source tutorials
 ```
 
 ### Phase 6: Validate Configuration
@@ -858,7 +883,7 @@ cat /var/www/html/tyingshoelaces/services/web/dist/sitemap.xml
 ```bash
 sp --json web sitemap show | jq '.routes[] | select(.source == "tutorials")'
 
-sp --json content show tutorials/getting-started-rust | jq '.slug, .title'
+sp --json content show getting-started-rust --source tutorials | jq '.slug, .title'
 
 curl -s "https://example.com/tutorials/getting-started-rust" | head -20
 ```
@@ -866,7 +891,7 @@ curl -s "https://example.com/tutorials/getting-started-rust" | head -20
 ### Phase 10: Cleanup (Optional)
 
 ```bash
-sp content delete tutorials/getting-started-rust --yes
+sp content delete getting-started-rust --source tutorials --yes
 rm /var/www/html/tyingshoelaces/services/content/tutorials/getting-started-rust.md
 sp web templates delete tutorial --yes --delete-file
 sp web content-types delete tutorials --yes
@@ -885,11 +910,12 @@ The web CLI works alongside the content CLI and jobs for full content management
 | Create content template | `sp web templates create` |
 | Create actual content | `sp content create --source <type>` |
 | List content | `sp content list --source <type>` |
-| Show content | `sp content show <source>/<slug>` |
+| Show content | `sp content show <slug> --source <type>` |
+| Delete content | `sp content delete <slug> --source <type> --yes` |
 | Index content | `sp content index --source <type>` |
 | Ingest from markdown | `sp jobs run content_ingestion` |
 | Full publish pipeline | `sp jobs run publish_content` |
-| Generate sitemap | `sp web sitemap generate` |
+| Generate sitemap | `sp jobs run publish_content` (preferred) or `sp web sitemap generate` |
 | Validate all | `sp web validate` |
 
 ### Workflow Diagram

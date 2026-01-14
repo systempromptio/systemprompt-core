@@ -72,7 +72,7 @@ fn validate_config(
     profile: &systemprompt_models::Profile,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,
-) -> Result<()> {
+) {
     let web_config_path = profile.paths.web_config();
     if !Path::new(&web_config_path).exists() {
         errors.push(ValidationIssue {
@@ -95,31 +95,25 @@ fn validate_config(
             message: format!("Content config not found at {}", content_config_path),
             suggestion: Some("Create a content config.yaml file".to_string()),
         });
-        return Ok(());
+        return;
     }
 
-    let content = match fs::read_to_string(&content_config_path) {
-        Ok(c) => c,
-        Err(e) => {
-            errors.push(ValidationIssue {
-                category: "config".to_string(),
-                message: format!("Failed to read content config: {}", e),
-                suggestion: None,
-            });
-            return Ok(());
-        },
+    let Ok(content) = fs::read_to_string(&content_config_path) else {
+        errors.push(ValidationIssue {
+            category: "config".to_string(),
+            message: "Failed to read content config".to_string(),
+            suggestion: None,
+        });
+        return;
     };
 
-    let _content_config: ContentConfigRaw = match serde_yaml::from_str(&content) {
-        Ok(c) => c,
-        Err(e) => {
-            errors.push(ValidationIssue {
-                category: "config".to_string(),
-                message: format!("Failed to parse content config: {}", e),
-                suggestion: Some("Check YAML syntax".to_string()),
-            });
-            return Ok(());
-        },
+    let Ok(_content_config) = serde_yaml::from_str::<ContentConfigRaw>(&content) else {
+        errors.push(ValidationIssue {
+            category: "config".to_string(),
+            message: "Failed to parse content config".to_string(),
+            suggestion: Some("Check YAML syntax".to_string()),
+        });
+        return;
     };
 
     let web_path = profile.paths.web_path_resolved();
@@ -148,8 +142,6 @@ fn validate_config(
             suggestion: Some("Create the assets directory".to_string()),
         });
     }
-
-    Ok(())
 }
 
 fn validate_templates(
@@ -194,7 +186,7 @@ fn validate_templates(
         },
     };
 
-    for (name, _entry) in &templates_config.templates {
+    for name in templates_config.templates.keys() {
         let html_path = templates_dir.join(format!("{}.html", name));
         if !html_path.exists() {
             errors.push(ValidationIssue {

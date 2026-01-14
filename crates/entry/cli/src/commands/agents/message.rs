@@ -2,6 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use systemprompt_client::SystempromptClient;
+use systemprompt_identifiers::JwtToken;
+use systemprompt_models::ProfileBootstrap;
 use uuid::Uuid;
 
 use super::types::{MessageOutput, TaskInfo};
@@ -128,9 +131,26 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
         agent
     );
 
-    let context_id = args
-        .context_id
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
+    let context_id = match args.context_id {
+        Some(id) => id,
+        None => {
+            if let Some(token) = &args.token {
+                // Use the API URL from profile for context creation
+                let profile = ProfileBootstrap::get()
+                    .context("Profile not loaded - required for auto-context creation")?;
+                let api_url = &profile.server.api_external_url;
+                let client = SystempromptClient::new(api_url)?
+                    .with_token(JwtToken::new(token));
+                let ctx = client
+                    .fetch_or_create_context()
+                    .await
+                    .context("Failed to create context for conversation")?;
+                ctx.to_string()
+            } else {
+                Uuid::new_v4().to_string()
+            }
+        }
+    };
     let message_id = Uuid::new_v4().to_string();
     let request_id = Uuid::new_v4().to_string();
 

@@ -30,6 +30,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `agents logs [name]` | View agent logs | `Text`/`List` | No |
 | `agents registry` | Get running agents from gateway | `Table` | Yes |
 | `agents message <agent>` | Send A2A message to agent | `Card` | Yes |
+| `agents task <agent>` | Get task details and response | `Card` | Yes |
 
 ---
 
@@ -481,6 +482,56 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 
 ---
 
+### agents task
+
+Get task details including conversation history and agent response.
+
+```bash
+sp agents task <agent-name> --task-id <task-id> --context-id <context-id> --token "$TOKEN"
+sp --json agents task primary --task-id task_abc123 --context-id ctx_xyz789 --token "$TOKEN"
+```
+
+**Required Arguments:**
+| Argument | Required | Description |
+|----------|----------|-------------|
+| `<agent>` | Yes | Agent name that processed the task |
+| `--task-id` | Yes | Task ID from message response |
+| `--context-id` | Yes | Context ID from message response |
+| `--token` | Yes | Bearer token for authentication |
+
+**Optional Flags:**
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--url` | `http://localhost:8080` | Gateway URL |
+| `--timeout` | 30 | Timeout in seconds |
+
+**Output Structure:**
+```json
+{
+  "task_id": "task_abc123",
+  "context_id": "ctx_xyz789",
+  "state": "completed",
+  "timestamp": "2024-01-15T10:30:00Z",
+  "history_count": 2,
+  "artifacts_count": 0
+}
+```
+
+The command also prints the conversation history:
+```
+--- Conversation History ---
+
+[User]: What is 2+2?
+
+[Agent]: 2 + 2 equals 4.
+
+----------------------------
+```
+
+**Artifact Type:** `Card`
+
+---
+
 ## Complete CRUD Flow Example
 
 This flow demonstrates the full lifecycle of agent management:
@@ -527,29 +578,62 @@ sp --json agents list
 
 ## A2A Communication Flow
 
-This flow demonstrates interacting with running agents:
+This flow demonstrates interacting with running agents with authentication:
 
 ```bash
 # Step 1: Start services (in tyingshoelaces repo)
 cd /var/www/html/tyingshoelaces && just start
 
-# Step 2: Discover available agents
+# Step 2: Get authentication token
+TOKEN=$(sp system login --email your-admin@email.com --token-only)
+# Verify token was captured
+echo "Token length: ${#TOKEN}"
+
+# Step 3: Discover available agents
 sp --json agents registry --running
 
-# Step 3: Send initial message to agent
-sp --json agents message primary -m "What tools do you have?"
-# Response includes task_id and context_id
+# Step 4: Send initial message to agent (auto-creates context)
+RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --blocking)
+echo "$RESPONSE"
+# Extract task_id and context_id from response (note: JSON output wraps data)
+TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
+CONTEXT_ID=$(echo "$RESPONSE" | jq -r '.data.task.context_id')
 
-# Step 4: Continue conversation (use context_id from previous response)
-sp --json agents message primary \
-  -m "Use the filesystem tool to list files" \
-  --context-id <context-id-from-step-3>
+# Step 5: Get task details with agent response
+sp agents task admin --task-id "$TASK_ID" --context-id "$CONTEXT_ID" --token "$TOKEN"
+# Shows conversation history with agent response
 
-# Step 5: Send blocking request (wait for completion)
-sp --json agents message primary \
-  -m "Search for all TypeScript files" \
-  --blocking --timeout 60
+# Step 6: Continue conversation (use context_id from previous response)
+sp --json agents message admin \
+  -m "Now multiply that by 10" \
+  --context-id "$CONTEXT_ID" \
+  --token "$TOKEN" \
+  --blocking
+
+# Step 7: Get full conversation history
+sp agents task admin --task-id "$TASK_ID" --context-id "$CONTEXT_ID" --token "$TOKEN"
 ```
+
+### Authentication
+
+A2A protocol commands require authentication. Use `system login` to get a token:
+
+```bash
+# Get token interactively
+sp system login --email admin@example.com
+
+# Get token for scripting (outputs only the token)
+TOKEN=$(sp system login --email admin@example.com --token-only)
+
+# Use token with message command
+sp agents message admin -m "Hello" --token "$TOKEN"
+
+# Or set as environment variable
+export SYSTEMPROMPT_TOKEN="$TOKEN"
+sp agents message admin -m "Hello"  # Uses env var automatically
+```
+
+The token is a JWT with 24-hour default expiration. Use `--duration-hours` to customize.
 
 ---
 
@@ -567,6 +651,7 @@ sp --json agents message primary \
 | `logs` | `AgentLogsOutput` | `Text`/`List` | title |
 | `registry` | `RegistryOutput` | `Table` | columns |
 | `message` | `MessageOutput` | `Card` | title |
+| `task` | `TaskGetOutput` | `Card` | title |
 
 ---
 
@@ -631,13 +716,13 @@ All commands support `--json` flag for structured output:
 # Verify JSON is valid
 sp --json agents list | jq .
 
-# Extract specific fields
-sp --json agents list | jq '.agents[].name'
-sp --json agents show primary | jq '.port'
-sp --json agents validate | jq '.valid'
-sp --json agents status | jq '.agents[] | select(.is_running == true)'
-sp --json agents registry | jq '.agents[] | select(.status == "running")'
-sp --json agents message primary -m "test" | jq '.task.task_id'
+# Extract specific fields (JSON output wraps data in .data)
+sp --json agents list | jq '.data.agents[].name'
+sp --json agents show primary | jq '.data.port'
+sp --json agents validate | jq '.data.valid'
+sp --json agents status | jq '.data.agents[] | select(.is_running == true)'
+sp --json agents registry | jq '.data.agents[] | select(.status == "running")'
+sp --json agents message primary -m "test" --token "$TOKEN" | jq '.data.task.task_id'
 ```
 
 ---

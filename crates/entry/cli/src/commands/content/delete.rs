@@ -5,13 +5,16 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_content::ContentRepository;
 use systemprompt_core_logging::CliService;
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{ContentId, SourceId};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    #[arg(help = "Content ID")]
-    pub content_id: String,
+    #[arg(help = "Content ID or slug")]
+    pub identifier: String,
+
+    #[arg(long, help = "Source ID (required when using slug)")]
+    pub source: Option<String>,
 
     #[arg(short = 'y', long, help = "Skip confirmation")]
     pub yes: bool,
@@ -21,7 +24,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
     if !args.yes && config.interactive {
         CliService::warning(&format!(
             "This will permanently delete content: {}",
-            args.content_id
+            args.identifier
         ));
         if !CliService::confirm("Are you sure you want to continue?")? {
             return Err(anyhow!("Operation cancelled"));
@@ -35,18 +38,35 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
-    let id = ContentId::new(args.content_id.clone());
+    let content = if args.identifier.starts_with("content_")
+        || args.identifier.contains('-') && args.identifier.len() > 30
+    {
+        let id = ContentId::new(args.identifier.clone());
+        repo.get_by_id(&id)
+            .await?
+            .ok_or_else(|| anyhow!("Content not found: {}", args.identifier))?
+    } else {
+        let source_id = args
+            .source
+            .as_ref()
+            .ok_or_else(|| anyhow!("Source ID required when using slug (use --source)"))?;
+        let source = SourceId::new(source_id.clone());
+        repo.get_by_source_and_slug(&source, &args.identifier)
+            .await?
+            .ok_or_else(|| {
+                anyhow!(
+                    "Content not found: {} in source {}",
+                    args.identifier,
+                    source_id
+                )
+            })?
+    };
 
-    let existing = repo.get_by_id(&id).await?;
-    if existing.is_none() {
-        return Err(anyhow!("Content not found: {}", args.content_id));
-    }
-
-    repo.delete(&id).await?;
+    repo.delete(&content.id).await?;
 
     let output = DeleteOutput {
         deleted: true,
-        content_id: args.content_id,
+        content_id: content.id.to_string(),
     };
 
     Ok(CommandResult::card(output).with_title("Content Deleted"))

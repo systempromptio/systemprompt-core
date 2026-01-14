@@ -69,7 +69,18 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Con
     let source_id = resolve_input(args.source_id, "source-id", config, || {
         prompt_source_id(&name)
     })?;
-    let category_id = resolve_input(args.category_id, "category-id", config, prompt_category_id)?;
+    let category_id = resolve_input(args.category_id, "category-id", config, || {
+        prompt_category_id(&content_config)
+    })?;
+
+    if !content_config.categories.contains_key(&category_id) {
+        let available: Vec<&String> = content_config.categories.keys().collect();
+        return Err(anyhow!(
+            "Category '{}' not found. Available categories: {:?}",
+            category_id,
+            available
+        ));
+    }
 
     let description = args.description.unwrap_or_else(|| {
         if config.is_interactive() {
@@ -163,12 +174,26 @@ fn prompt_source_id(name: &str) -> Result<String> {
         .context("Failed to get source ID")
 }
 
-fn prompt_category_id() -> Result<String> {
-    Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Category ID")
-        .default("blog".to_string())
-        .interact_text()
-        .context("Failed to get category ID")
+fn prompt_category_id(content_config: &ContentConfigRaw) -> Result<String> {
+    let mut categories: Vec<&String> = content_config.categories.keys().collect();
+    categories.sort();
+
+    if categories.is_empty() {
+        return Input::with_theme(&ColorfulTheme::default())
+            .with_prompt("Category ID")
+            .default("blog".to_string())
+            .interact_text()
+            .context("Failed to get category ID");
+    }
+
+    let selection = dialoguer::Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select category")
+        .items(&categories)
+        .default(0)
+        .interact()
+        .context("Failed to get category selection")?;
+
+    Ok(categories[selection].clone())
 }
 
 fn prompt_description() -> Result<String> {

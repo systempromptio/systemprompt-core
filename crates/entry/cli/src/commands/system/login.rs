@@ -53,10 +53,14 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let database_url = &secrets.database_url;
     let jwt_secret = &secrets.jwt_secret;
 
-    CliService::info(&format!("Fetching admin user: {}", email));
+    if !args.token_only {
+        CliService::info(&format!("Fetching admin user: {}", email));
+    }
     let admin_user = fetch_admin_user(database_url, &email).await?;
 
-    CliService::info("Creating session...");
+    if !args.token_only {
+        CliService::info("Creating session...");
+    }
     let session_id = create_session(
         &profile.server.api_external_url,
         admin_user.id.as_str(),
@@ -64,7 +68,9 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     )
     .await?;
 
-    CliService::info("Generating token...");
+    if !args.token_only {
+        CliService::info("Generating token...");
+    }
     let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
     let duration = ChronoDuration::hours(args.duration_hours);
     let session_token = session_generator
@@ -76,20 +82,20 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         })
         .context("Failed to generate session token")?;
 
-    if args.token_only {
-        CliService::output(session_token.as_str());
-    } else {
-        CliService::success("Login successful");
-    }
-
     let output = LoginOutput {
         user_id: admin_user.id.to_string(),
-        email: admin_user.email,
+        email: admin_user.email.clone(),
         session_id: session_id.to_string(),
         token: session_token.to_string(),
         expires_in_hours: args.duration_hours,
     };
 
+    if args.token_only {
+        println!("{}", session_token.as_str());
+        return Ok(CommandResult::text(output));
+    }
+
+    CliService::success("Login successful");
     Ok(CommandResult::card(output).with_title("Session Created"))
 }
 

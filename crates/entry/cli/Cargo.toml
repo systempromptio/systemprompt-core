@@ -50,6 +50,7 @@ systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-extension = { path = "../../shared/extension" }
 systemprompt-cloud = { path = "../../infra/cloud" }
+systemprompt-client = { path = "../../shared/client" }
 
 # Additional dependencies used by CLI modules
 tracing = { workspace = true }

@@ -23,10 +23,13 @@ pub async fn execute(command: SystemCommands) -> Result<()> {
 pub async fn execute_with_config(command: SystemCommands, config: &CliConfig) -> Result<()> {
     match command {
         SystemCommands::Login(args) => {
+            let token_only = args.token_only;
             let result = login::execute(args, config)
                 .await
                 .context("Failed to login")?;
-            render_result(&result);
+            if !token_only {
+                render_result(&result);
+            }
             Ok(())
         },
     }
