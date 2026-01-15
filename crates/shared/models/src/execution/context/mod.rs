@@ -298,7 +298,11 @@ impl InjectContextHeaders for RequestContext {
         insert_header(hdrs, headers::TRACE_ID, self.execution.trace_id.as_str());
         insert_header(hdrs, headers::USER_ID, self.auth.user_id.as_str());
         insert_header(hdrs, headers::USER_TYPE, self.auth.user_type.as_str());
-        insert_header(hdrs, headers::AGENT_NAME, self.execution.agent_name.as_str());
+        insert_header(
+            hdrs,
+            headers::AGENT_NAME,
+            self.execution.agent_name.as_str(),
+        );
 
         let context_id = self.execution.context_id.as_str();
         if !context_id.is_empty() {

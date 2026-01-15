@@ -27,8 +27,6 @@ pub async fn execute_api(config: &CliConfig) -> Result<()> {
     CliService::section("Restarting API Server");
 
     let port = get_api_port();
-
-    // Check if API server is running
     let api_pid = ProcessCleanup::check_port(port);
     if api_pid.is_none() {
         CliService::warning("API server is not running");
@@ -47,7 +45,6 @@ pub async fn execute_api(config: &CliConfig) -> Result<()> {
     CliService::success("API server stopped");
     CliService::info("Starting API server...");
 
-    // Start the API server again
     super::serve::execute(true, false, config).await?;
 
     CliService::success("API server restarted successfully");
@@ -79,15 +76,27 @@ pub async fn execute_agent(
 pub async fn execute_mcp(
     ctx: &Arc<AppContext>,
     server_name: &str,
+    build: bool,
     _config: &CliConfig,
 ) -> Result<()> {
-    CliService::section(&format!("Restarting MCP Server: {}", server_name));
+    let action = if build {
+        "Building and restarting"
+    } else {
+        "Restarting"
+    };
+    CliService::section(&format!("{} MCP Server: {}", action, server_name));
 
     let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
-    manager
-        .restart_services(Some(server_name.to_string()))
-        .await?;
+    if build {
+        manager
+            .build_and_restart_services(Some(server_name.to_string()))
+            .await?;
+    } else {
+        manager
+            .restart_services_sync(Some(server_name.to_string()))
+            .await?;
+    }
 
     CliService::success(&format!(
         "MCP server {} restarted successfully",

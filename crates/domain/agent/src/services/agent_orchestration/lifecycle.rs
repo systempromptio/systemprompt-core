@@ -78,10 +78,12 @@ impl AgentLifecycle {
 
             let service_id = self
                 .db_service
-                .register_agent(&agent_config.name, pid, agent_config.port)
+                .register_agent_starting(&agent_config.name, pid, agent_config.port)
                 .await?;
 
             self.verify_startup(agent_name, agent_config.port).await?;
+
+            self.db_service.mark_running(agent_name).await?;
 
             tracing::info!("Agent started: {} :{}", agent_config.name, agent_config.port);
 
@@ -156,16 +158,30 @@ impl AgentLifecycle {
         agent_name: &str,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<String> {
-        tracing::debug!("Restarting agent: {}", agent_name);
+        tracing::debug!(agent_name = %agent_name, "Restarting agent");
+
+        self.publish_event(AgentEvent::AgentRestartRequested {
+            agent_id: agent_name.to_string(),
+            reason: "User requested restart".to_string(),
+        });
 
         let status = self.db_service.get_status(agent_name).await?;
         if let AgentStatus::Running { pid, .. } = status {
-            if process::kill_process(pid) {
-                tracing::debug!(agent_name = %agent_name, pid = %pid, "Killed process");
-            } else {
-                tracing::warn!(agent_name = %agent_name, pid = %pid, "Failed to kill process");
+            match process::terminate_gracefully(pid, 5).await {
+                Ok(()) => {
+                    tracing::debug!(agent_name = %agent_name, pid = %pid, "Gracefully terminated process");
+                },
+                Err(e) => {
+                    tracing::warn!(agent_name = %agent_name, pid = %pid, error = %e, "Failed to gracefully terminate");
+                },
             }
-            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            self.publish_event(AgentEvent::AgentStopped {
+                agent_id: agent_name.to_string(),
+                exit_code: None,
+            });
+
+            self.db_service.update_agent_stopped(agent_name).await?;
         }
 
         self.start_agent(agent_name, events).await

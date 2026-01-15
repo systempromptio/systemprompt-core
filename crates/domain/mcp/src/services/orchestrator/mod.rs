@@ -181,6 +181,31 @@ impl McpOrchestrator {
         Ok(())
     }
 
+    pub async fn restart_services_sync(&self, service_name: Option<String>) -> Result<()> {
+        let servers = self.get_target_servers(service_name, false).await?;
+
+        for server in servers {
+            tracing::info!(service = %server.name, "Restarting MCP service");
+            self.lifecycle.restart_server(&server).await?;
+        }
+
+        Ok(())
+    }
+
+    pub async fn build_and_restart_services(&self, service_name: Option<String>) -> Result<()> {
+        let servers = self.get_target_servers(service_name, true).await?;
+
+        for server in servers {
+            tracing::info!(service = %server.name, "Building service");
+            ProcessManager::build_server(&server)?;
+
+            tracing::info!(service = %server.name, "Restarting service");
+            self.lifecycle.restart_server(&server).await?;
+        }
+
+        Ok(())
+    }
+
     pub async fn build_services(&self, service_name: Option<String>) -> Result<()> {
         let servers = self.get_target_servers(service_name, true).await?;
 

@@ -29,7 +29,7 @@ impl EventBus {
 
         for handler in &self.handlers {
             if handler.handles(&event) {
-                handler.handle(&event).await.ok();
+                handler.handle(&event).await?;
             }
         }
 

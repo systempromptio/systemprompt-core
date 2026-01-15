@@ -102,8 +102,14 @@ pub enum ServicesCommands {
 #[derive(Debug, Clone, Subcommand)]
 pub enum RestartTarget {
     Api,
-    Agent { agent_id: String },
-    Mcp { server_name: String },
+    Agent {
+        agent_id: String,
+    },
+    Mcp {
+        server_name: String,
+        #[arg(long, help = "Rebuild the binary before restarting")]
+        build: bool,
+    },
 }
 
 pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()> {
@@ -159,8 +165,8 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                     Some(RestartTarget::Agent { agent_id }) => {
                         restart::execute_agent(&ctx, &agent_id, config).await
                     },
-                    Some(RestartTarget::Mcp { server_name }) => {
-                        restart::execute_mcp(&ctx, &server_name, config).await
+                    Some(RestartTarget::Mcp { server_name, build }) => {
+                        restart::execute_mcp(&ctx, &server_name, build, config).await
                     },
                     None => Err(anyhow::anyhow!(
                         "Must specify target (api, agent, mcp) or use --failed flag"

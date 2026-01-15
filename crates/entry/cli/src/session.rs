@@ -38,18 +38,6 @@ impl CliSessionContext {
 }
 
 pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
-    CredentialsBootstrap::try_init()
-        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
-
-    let creds = CredentialsBootstrap::require()
-        .map_err(|_| {
-            anyhow::anyhow!(
-                "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
-                 authenticate."
-            )
-        })?
-        .clone();
-
     let profile = ProfileBootstrap::get()
         .map_err(|_| {
             anyhow::anyhow!(
@@ -60,9 +48,7 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         .clone();
 
     let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
-        anyhow::anyhow!(
-            "Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable."
-        )
+        anyhow::anyhow!("Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable.")
     })?;
 
     let profile_path = Path::new(profile_path_str);
@@ -89,6 +75,18 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
             return Ok(CliSessionContext { session, profile });
         }
     }
+
+    CredentialsBootstrap::try_init()
+        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
+
+    let creds = CredentialsBootstrap::require()
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
+                 authenticate."
+            )
+        })?
+        .clone();
 
     let session =
         create_session_for_profile(&creds, &profile, profile_dir, &profile_name, config).await?;
@@ -199,10 +197,7 @@ async fn create_session_for_profile(
     ))
 }
 
-async fn fetch_admin_user(
-    db_pool: &DbPool,
-    email: &str,
-) -> Result<systemprompt_core_users::User> {
+async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_core_users::User> {
     let user_service = UserService::new(db_pool)?;
     let user = user_service
         .find_by_email(email)
