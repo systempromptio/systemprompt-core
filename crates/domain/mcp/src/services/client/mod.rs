@@ -167,9 +167,15 @@ impl McpClient {
 
         let tool_repo = ToolUsageRepository::new(db_pool)?;
         let started_at = chrono::Utc::now();
-        let mcp_execution_id =
-            start_execution_tracking(&tool_repo, &name, service_name, arguments.clone(), context, started_at)
-                .await?;
+        let mcp_execution_id = start_execution_tracking(
+            &tool_repo,
+            &name,
+            service_name,
+            arguments.clone(),
+            context,
+            started_at,
+        )
+        .await?;
 
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         let tool_result = execute_tool_call(transport, &name, arguments).await;

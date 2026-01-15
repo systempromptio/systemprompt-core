@@ -52,19 +52,24 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
         sqlx::query_as!(
             TraceRow,
             r#"
-            SELECT DISTINCT
-                l.trace_id as "trace_id!",
-                MIN(l.timestamp) as "first_timestamp!",
-                MAX(l.timestamp) as "last_timestamp!",
-                (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
-                (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
-                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
-                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
-            FROM logs l
-            WHERE l.trace_id IS NOT NULL
-              AND l.timestamp >= $1
-            GROUP BY l.trace_id
-            ORDER BY MIN(l.timestamp) DESC
+            WITH all_traces AS (
+                SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL AND timestamp >= $1
+                UNION ALL
+                SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL AND created_at >= $1
+                UNION ALL
+                SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL AND started_at >= $1
+            )
+            SELECT
+                t.trace_id as "trace_id!",
+                MIN(t.ts) as "first_timestamp!",
+                MAX(t.ts) as "last_timestamp!",
+                (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+            FROM all_traces t
+            GROUP BY t.trace_id
+            ORDER BY MIN(t.ts) DESC
             LIMIT $2
             "#,
             since_ts,
@@ -76,18 +81,24 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
         sqlx::query_as!(
             TraceRow,
             r#"
-            SELECT DISTINCT
-                l.trace_id as "trace_id!",
-                MIN(l.timestamp) as "first_timestamp!",
-                MAX(l.timestamp) as "last_timestamp!",
-                (SELECT t.agent_name FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "agent",
-                (SELECT t.status FROM agent_tasks t WHERE t.trace_id = l.trace_id LIMIT 1) as "status",
-                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = l.trace_id) as "ai_requests",
-                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = l.trace_id) as "mcp_calls"
-            FROM logs l
-            WHERE l.trace_id IS NOT NULL
-            GROUP BY l.trace_id
-            ORDER BY MIN(l.timestamp) DESC
+            WITH all_traces AS (
+                SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL
+                UNION ALL
+                SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL
+                UNION ALL
+                SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL
+            )
+            SELECT
+                t.trace_id as "trace_id!",
+                MIN(t.ts) as "first_timestamp!",
+                MAX(t.ts) as "last_timestamp!",
+                (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+            FROM all_traces t
+            GROUP BY t.trace_id
+            ORDER BY MIN(t.ts) DESC
             LIMIT $1
             "#,
             args.limit
