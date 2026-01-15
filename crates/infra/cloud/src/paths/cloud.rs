@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::constants::{credentials, tenants};
+use crate::constants::{cli_session, credentials, tenants};
 
 use super::resolve_path;
 
@@ -8,6 +8,7 @@ use super::resolve_path;
 pub enum CloudPath {
     Credentials,
     Tenants,
+    CliSession,
 }
 
 impl CloudPath {
@@ -16,6 +17,7 @@ impl CloudPath {
         match self {
             Self::Credentials => credentials::DEFAULT_FILE_NAME,
             Self::Tenants => tenants::DEFAULT_FILE_NAME,
+            Self::CliSession => cli_session::DEFAULT_FILE_NAME,
         }
     }
 
@@ -24,6 +26,7 @@ impl CloudPath {
         match self {
             Self::Credentials => credentials::DEFAULT_DIR_NAME,
             Self::Tenants => tenants::DEFAULT_DIR_NAME,
+            Self::CliSession => cli_session::DEFAULT_DIR_NAME,
         }
     }
 }
@@ -93,6 +96,7 @@ impl CloudPaths {
                 .tenants_path
                 .clone()
                 .unwrap_or_else(|| self.base_dir.join(tenants::DEFAULT_FILE_NAME)),
+            CloudPath::CliSession => self.base_dir.join(cli_session::DEFAULT_FILE_NAME),
         }
     }
 

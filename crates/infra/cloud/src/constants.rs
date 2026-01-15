@@ -19,6 +19,11 @@ pub mod tenants {
     pub const DEFAULT_FILE_NAME: &str = "tenants.json";
 }
 
+pub mod cli_session {
+    pub const DEFAULT_DIR_NAME: &str = ".systemprompt";
+    pub const DEFAULT_FILE_NAME: &str = "session.json";
+}
+
 pub mod docker {
     pub const CONTAINER_NAME_PREFIX: &str = "systemprompt-postgres";
     pub const COMPOSE_PATH: &str = "infrastructure/docker";

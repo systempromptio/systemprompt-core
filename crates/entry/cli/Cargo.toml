@@ -68,6 +68,7 @@ inventory = { workspace = true }
 dotenvy = { workspace = true }
 uuid = { workspace = true }
 reqwest = { workspace = true }
+rmcp = { workspace = true }
 atty = { workspace = true }
 dialoguer = { workspace = true }
 dirs = { workspace = true }
