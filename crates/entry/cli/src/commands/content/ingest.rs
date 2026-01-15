@@ -95,8 +95,8 @@ fn resolve_directory(args: &IngestArgs) -> Result<PathBuf> {
 
     let content_base = AppPaths::get()
         .map_err(|e| anyhow!("{}", e))?
-        .content()
-        .base()
+        .system()
+        .services()
         .to_path_buf();
 
     Ok(content_base.join(&source_config.path))
