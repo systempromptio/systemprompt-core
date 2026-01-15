@@ -30,7 +30,7 @@ impl CopyExtensionAssetsJob {
         let mut failed = 0u64;
 
         for (ext_id, asset) in assets {
-            match copy_asset(&files_config, ext_id, &asset).await {
+            match copy_asset(files_config, ext_id, &asset).await {
                 Ok(()) => copied += 1,
                 Err(e) => {
                     if asset.is_required() {
