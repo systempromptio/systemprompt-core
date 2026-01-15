@@ -1,14 +1,15 @@
 use axum::body::Body;
-use axum::http::{Request, StatusCode};
+use axum::http::Request;
 use axum::middleware::Next;
-use axum::response::Response;
+use axum::response::{IntoResponse, Response};
+use systemprompt_models::api::ApiError;
 
 pub async fn sync_token_middleware(request: Request<Body>, next: Next) -> Response {
     let expected_token = match std::env::var("SYNC_TOKEN") {
         Ok(token) if !token.is_empty() => token,
         _ => {
             tracing::warn!("SYNC_TOKEN environment variable not set");
-            return error_response(StatusCode::UNAUTHORIZED, "SYNC_TOKEN not configured");
+            return ApiError::unauthorized("SYNC_TOKEN not configured").into_response();
         },
     };
 
@@ -20,23 +21,13 @@ pub async fn sync_token_middleware(request: Request<Body>, next: Next) -> Respon
     let provided_token = match auth_header {
         Some(header) if header.starts_with("Bearer ") => &header[7..],
         _ => {
-            return error_response(
-                StatusCode::UNAUTHORIZED,
-                "Missing or invalid Authorization header",
-            );
+            return ApiError::unauthorized("Missing or invalid Authorization header").into_response();
         },
     };
 
     if provided_token != expected_token {
-        return error_response(StatusCode::UNAUTHORIZED, "Invalid sync token");
+        return ApiError::unauthorized("Invalid sync token").into_response();
     }
 
     next.run(request).await
-}
-
-fn error_response(status: StatusCode, message: &str) -> Response {
-    Response::builder()
-        .status(status)
-        .body(Body::from(message.to_string()))
-        .unwrap_or_else(|_| Response::new(Body::empty()))
 }

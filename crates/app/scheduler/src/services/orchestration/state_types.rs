@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::fmt;
 
 pub use systemprompt_models::{RuntimeStatus, ServiceType};
 
@@ -32,18 +31,5 @@ impl ServiceAction {
             self,
             Self::Start | Self::Stop | Self::Restart | Self::CleanupDb
         )
-    }
-}
-
-impl fmt::Display for ServiceAction {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::None => write!(f, "none"),
-            Self::Start => write!(f, "start"),
-            Self::Stop => write!(f, "stop"),
-            Self::Restart => write!(f, "restart"),
-            Self::CleanupDb => write!(f, "cleanup-db"),
-            Self::CleanupProcess => write!(f, "cleanup-process"),
-        }
     }
 }

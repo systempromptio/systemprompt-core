@@ -1,3 +1,4 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -9,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use super::types::LoginOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
+use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
+use systemprompt_cloud::CliSession;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
@@ -26,6 +29,9 @@ pub struct LoginArgs {
 
     #[arg(long, help = "Only output the token (for scripting)")]
     pub token_only: bool,
+
+    #[arg(long, help = "Force creation of a new session even if a valid one exists")]
+    pub force_new: bool,
 }
 
 #[derive(Debug, Serialize)]
@@ -42,6 +48,12 @@ struct SessionResponse {
 
 pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
+
+    if !args.force_new {
+        if let Some(output) = try_use_existing_session(&args)? {
+            return Ok(output);
+        }
+    }
 
     let email = resolve_input(args.email, "email", config, || {
         Err(anyhow::anyhow!(
@@ -97,6 +109,51 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
 
     CliService::success("Login successful");
     Ok(CommandResult::card(output).with_title("Session Created"))
+}
+
+fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<LoginOutput>>> {
+    let cloud_paths = match get_cloud_paths() {
+        Ok(paths) => paths,
+        Err(_) => return Ok(None),
+    };
+
+    let session_path = cloud_paths.resolve(CloudPath::CliSession);
+
+    let profile_path = match ProfileBootstrap::get_path() {
+        Ok(path) => path,
+        Err(_) => return Ok(None),
+    };
+
+    let profile_dir = Path::new(profile_path).parent();
+    let profile_name = profile_dir
+        .and_then(|d| d.file_name())
+        .and_then(|n| n.to_str());
+
+    let (Some(profile_name), Ok(session)) =
+        (profile_name, CliSession::load_from_path(&session_path))
+    else {
+        return Ok(None);
+    };
+
+    if !session.is_valid_for_profile(profile_name) {
+        return Ok(None);
+    }
+
+    let output = LoginOutput {
+        user_id: session.user_id.to_string(),
+        email: session.user_email.clone(),
+        session_id: session.session_id.to_string(),
+        token: session.session_token.to_string(),
+        expires_in_hours: 24,
+    };
+
+    if args.token_only {
+        CliService::output(session.session_token.as_str());
+        return Ok(Some(CommandResult::text(output).with_skip_render()));
+    }
+
+    CliService::success("Using existing valid session");
+    Ok(Some(CommandResult::card(output).with_title("Existing Session")))
 }
 
 async fn fetch_admin_user(database_url: &str, email: &str) -> Result<User> {

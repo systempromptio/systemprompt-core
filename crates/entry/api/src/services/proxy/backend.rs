@@ -4,6 +4,7 @@ use axum::response::{IntoResponse, Response};
 use futures_util::TryStreamExt;
 use reqwest::Method;
 use std::str::FromStr;
+use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::InjectContextHeaders;
 use thiserror::Error;
@@ -129,7 +130,19 @@ impl IntoResponse for ProxyError {
                 }
 
                 let message = self.to_string();
-                (status, message).into_response()
+                let api_error = match status {
+                    StatusCode::NOT_FOUND => ApiError::not_found(message),
+                    StatusCode::UNAUTHORIZED => ApiError::unauthorized(message),
+                    StatusCode::FORBIDDEN => ApiError::forbidden(message),
+                    StatusCode::BAD_REQUEST => ApiError::bad_request(message),
+                    StatusCode::SERVICE_UNAVAILABLE
+                    | StatusCode::BAD_GATEWAY
+                    | StatusCode::GATEWAY_TIMEOUT => {
+                        ApiError::new(ErrorCode::ServiceUnavailable, message)
+                    },
+                    _ => ApiError::internal_error(message),
+                };
+                api_error.into_response()
             },
         }
     }
