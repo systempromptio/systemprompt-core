@@ -1,5 +1,4 @@
 use axum::extract::Request;
-use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
@@ -9,6 +8,7 @@ use tracing::Instrument;
 use super::extractors::ContextExtractor;
 use super::requirements::ContextRequirement;
 use systemprompt_identifiers::{AgentName, ContextId, TraceId};
+use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 
 #[derive(Debug, Clone)]
@@ -53,55 +53,41 @@ impl<E> ContextMiddleware<E> {
         }
     }
 
-    fn error_response(error: &ContextExtractionError) -> (StatusCode, String) {
+    fn error_to_api_error(error: &ContextExtractionError) -> ApiError {
         match error {
-            ContextExtractionError::MissingAuthHeader => (
-                StatusCode::UNAUTHORIZED,
-                "Missing Authorization header".to_string(),
-            ),
-            ContextExtractionError::InvalidToken(_) => (
-                StatusCode::UNAUTHORIZED,
-                "Invalid or expired JWT token".to_string(),
-            ),
-            ContextExtractionError::UserNotFound(_) => (
-                StatusCode::UNAUTHORIZED,
-                "User no longer exists".to_string(),
-            ),
-            ContextExtractionError::MissingSessionId => (
-                StatusCode::BAD_REQUEST,
-                "JWT missing required 'session_id' claim".to_string(),
-            ),
-            ContextExtractionError::MissingUserId => (
-                StatusCode::BAD_REQUEST,
-                "JWT missing required 'sub' claim".to_string(),
-            ),
-            ContextExtractionError::MissingContextId => (
-                StatusCode::BAD_REQUEST,
+            ContextExtractionError::MissingAuthHeader => {
+                ApiError::unauthorized("Missing Authorization header")
+            },
+            ContextExtractionError::InvalidToken(_) => {
+                ApiError::unauthorized("Invalid or expired JWT token")
+            },
+            ContextExtractionError::UserNotFound(_) => {
+                ApiError::unauthorized("User no longer exists")
+            },
+            ContextExtractionError::MissingSessionId => {
+                ApiError::bad_request("JWT missing required 'session_id' claim")
+            },
+            ContextExtractionError::MissingUserId => {
+                ApiError::bad_request("JWT missing required 'sub' claim")
+            },
+            ContextExtractionError::MissingContextId => ApiError::bad_request(
                 "Missing required 'x-context-id' header (for MCP routes) or contextId in body \
-                 (for A2A routes)"
-                    .to_string(),
+                 (for A2A routes)",
             ),
-            ContextExtractionError::MissingHeader(header) => (
-                StatusCode::BAD_REQUEST,
-                format!("Missing required header: {header}"),
-            ),
-            ContextExtractionError::InvalidHeaderValue { header, reason } => (
-                StatusCode::BAD_REQUEST,
-                format!("Invalid header {header}: {reason}"),
-            ),
-            ContextExtractionError::InvalidUserId(reason) => (
-                StatusCode::BAD_REQUEST,
-                format!("Invalid user_id: {reason}"),
-            ),
-            ContextExtractionError::DatabaseError(_) => (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Internal server error".to_string(),
-            ),
-            ContextExtractionError::ForbiddenHeader { header, reason } => (
-                StatusCode::BAD_REQUEST,
-                format!(
-                    "Header '{header}' is not allowed: {reason}. Use JWT authentication instead."
-                ),
+            ContextExtractionError::MissingHeader(header) => {
+                ApiError::bad_request(format!("Missing required header: {header}"))
+            },
+            ContextExtractionError::InvalidHeaderValue { header, reason } => {
+                ApiError::bad_request(format!("Invalid header {header}: {reason}"))
+            },
+            ContextExtractionError::InvalidUserId(reason) => {
+                ApiError::bad_request(format!("Invalid user_id: {reason}"))
+            },
+            ContextExtractionError::DatabaseError(_) => {
+                ApiError::internal_error("Internal server error")
+            },
+            ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
+                format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),
             ),
         }
     }
@@ -112,8 +98,6 @@ impl<E> ContextMiddleware<E> {
         path: &str,
         method: &str,
     ) -> Response {
-        let (status, message) = Self::error_response(error);
-
         let _span = tracing::error_span!(
             "context_extraction_error",
             trace_id = %trace_id,
@@ -153,11 +137,10 @@ impl<E> ContextMiddleware<E> {
             },
         }
 
-        let mut response = (status, message).into_response();
-        if let Ok(header_value) = trace_id.as_str().parse() {
-            response.headers_mut().insert("x-trace-id", header_value);
-        }
-        response
+        Self::error_to_api_error(error)
+            .with_trace_id(trace_id.as_str())
+            .with_path(path)
+            .into_response()
     }
 }
 
@@ -200,12 +183,10 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
         let mut req_ctx = if let Some(ctx) = request.extensions().get::<RequestContext>() {
             ctx.clone()
         } else {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "Middleware configuration error: SessionMiddleware must run before \
-                 ContextMiddleware",
+            return ApiError::internal_error(
+                "Middleware configuration error: SessionMiddleware must run before ContextMiddleware",
             )
-                .into_response();
+            .into_response();
         };
 
         if let Some(context_id) = headers.get("x-context-id") {
@@ -285,15 +266,10 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                         method = %method,
                         "Middleware configuration error: SessionMiddleware must run before ContextMiddleware"
                     );
-                    let mut response = (
-                        StatusCode::INTERNAL_SERVER_ERROR,
-                        "Middleware configuration error",
-                    )
-                        .into_response();
-                    if let Ok(header_value) = trace_id.as_str().parse() {
-                        response.headers_mut().insert("x-trace-id", header_value);
-                    }
-                    response
+                    ApiError::internal_error("Middleware configuration error")
+                        .with_trace_id(trace_id.as_str())
+                        .with_path(&path)
+                        .into_response()
                 },
             },
         }

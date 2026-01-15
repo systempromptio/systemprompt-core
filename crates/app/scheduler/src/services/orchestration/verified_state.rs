@@ -124,7 +124,7 @@ impl VerifiedServiceState {
 
     pub const fn action_display(&self) -> &'static str {
         match self.needs_action {
-            ServiceAction::None => "none",
+            ServiceAction::None => "-",
             ServiceAction::Start => "start",
             ServiceAction::Stop => "stop",
             ServiceAction::Restart => "restart",

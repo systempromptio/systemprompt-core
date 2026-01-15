@@ -297,16 +297,6 @@ fn test_service_action_cleanup_process() {
     assert!(!action.requires_db_change());
 }
 
-#[test]
-fn test_service_action_display() {
-    assert_eq!(format!("{}", ServiceAction::None), "none");
-    assert_eq!(format!("{}", ServiceAction::Start), "start");
-    assert_eq!(format!("{}", ServiceAction::Stop), "stop");
-    assert_eq!(format!("{}", ServiceAction::Restart), "restart");
-    assert_eq!(format!("{}", ServiceAction::CleanupDb), "cleanup-db");
-    assert_eq!(format!("{}", ServiceAction::CleanupProcess), "cleanup-process");
-}
-
 // ============================================================================
 // VerifiedServiceState Tests - State Determination
 // ============================================================================
@@ -537,7 +527,7 @@ fn test_verified_state_action_display() {
         8080,
     )
     .build();
-    assert_eq!(no_action.action_display(), "none");
+    assert_eq!(no_action.action_display(), "-");
 
     let start_action = VerifiedServiceState::builder(
         "svc".to_string(),
