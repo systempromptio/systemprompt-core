@@ -129,28 +129,28 @@ impl<E> ContextMiddleware<E> {
                     error_type = "database",
                     "Context extraction failed due to database error"
                 );
-            }
+            },
             ContextExtractionError::InvalidToken(reason) => {
                 tracing::warn!(
                     reason = %reason,
                     error_type = "invalid_token",
                     "Context extraction failed: invalid token"
                 );
-            }
+            },
             ContextExtractionError::UserNotFound(user_id) => {
                 tracing::warn!(
                     user_id = %user_id,
                     error_type = "user_not_found",
                     "Context extraction failed: user not found"
                 );
-            }
+            },
             _ => {
                 tracing::warn!(
                     error = %error,
                     error_type = "context_extraction",
                     "Context extraction failed"
                 );
-            }
+            },
         }
 
         let mut response = (status, message).into_response();
@@ -235,7 +235,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 let span = create_request_span(&context);
                 request.extensions_mut().insert(context);
                 next.run(request).instrument(span).await
-            }
+            },
             Err(e) => Self::log_error_response(&e, &trace_id, &path, &method),
         }
     }
@@ -251,7 +251,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 let mut req = reconstructed_request;
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
-            }
+            },
             Err(e) => Self::log_error_response(&e, &trace_id, &path, &method),
         }
     }
@@ -267,7 +267,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 let mut req = request;
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
-            }
+            },
             Err(e) => match request.extensions().get::<RequestContext>().cloned() {
                 Some(ctx) => {
                     tracing::debug!(
@@ -277,7 +277,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                     );
                     let span = create_request_span(&ctx);
                     next.run(request).instrument(span).await
-                }
+                },
                 None => {
                     tracing::error!(
                         trace_id = %trace_id,
@@ -294,7 +294,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                         response.headers_mut().insert("x-trace-id", header_value);
                     }
                     response
-                }
+                },
             },
         }
     }

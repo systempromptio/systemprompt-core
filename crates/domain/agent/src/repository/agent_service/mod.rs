@@ -78,6 +78,51 @@ impl AgentServiceRepository {
         Ok(name.to_string())
     }
 
+    pub async fn register_agent_starting(
+        &self,
+        name: &str,
+        pid: u32,
+        port: u16,
+    ) -> Result<String, RepositoryError> {
+        self.remove_agent_service(name).await?;
+
+        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pid_i32 = pid as i32;
+        let port_i32 = i32::from(port);
+
+        sqlx::query!(
+            "INSERT INTO services (name, module_name, pid, port, status, updated_at)
+             VALUES ($1, 'agent', $2, $3, 'starting', CURRENT_TIMESTAMP)
+             ON CONFLICT (name) DO UPDATE SET pid = $2, port = $3, status = 'starting', updated_at \
+             = CURRENT_TIMESTAMP",
+            name,
+            pid_i32,
+            port_i32
+        )
+        .execute(pool.as_ref())
+        .await
+        .context("Failed to register agent as starting")
+        .map_err(RepositoryError::GenericError)?;
+
+        Ok(name.to_string())
+    }
+
+    pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
+        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+
+        sqlx::query!(
+            "UPDATE services SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE name = \
+             $1",
+            agent_name
+        )
+        .execute(pool.as_ref())
+        .await
+        .context("Failed to mark agent as running")
+        .map_err(RepositoryError::GenericError)?;
+
+        Ok(())
+    }
+
     pub async fn get_agent_status(
         &self,
         agent_name: &str,

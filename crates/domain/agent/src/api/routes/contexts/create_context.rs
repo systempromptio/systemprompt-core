@@ -22,7 +22,7 @@ pub async fn create_context(
             return ApiError::bad_request("Context name cannot be empty")
                 .with_request_context(&req_ctx)
                 .into_response()
-        }
+        },
         Some(name) => name.to_owned(),
         None => format!("Conversation {}", chrono::Utc::now().timestamp_millis()),
     };
@@ -56,7 +56,7 @@ pub async fn create_context(
                     ))
                     .with_request_context(&req_ctx)
                     .into_response()
-                }
+                },
             }
         },
         Err(e) => {
@@ -64,6 +64,6 @@ pub async fn create_context(
             ApiError::internal_error(format!("Failed to create context: {e}"))
                 .with_request_context(&req_ctx)
                 .into_response()
-        }
+        },
     }
 }

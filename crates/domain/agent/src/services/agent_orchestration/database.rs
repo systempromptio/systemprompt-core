@@ -61,7 +61,12 @@ impl AgentDatabaseService {
                         })
                     }
                 },
-                (_, "failed" | "crashed") => {
+                (_, "starting") => Ok(AgentStatus::Failed {
+                    reason: "Agent is starting".to_string(),
+                    last_attempt: None,
+                    retry_count: 0,
+                }),
+                (_, "failed" | "crashed" | "stopped") => {
                     let error_msg = self
                         .get_error_message(agent_name)
                         .await
@@ -226,6 +231,25 @@ impl AgentDatabaseService {
     pub async fn update_agent_stopped(&self, agent_name: &str) -> OrchestrationResult<()> {
         self.repository
             .mark_stopped(agent_name)
+            .await
+            .map_err(|e| OrchestrationError::Database(e.to_string()))
+    }
+
+    pub async fn register_agent_starting(
+        &self,
+        agent_name: &str,
+        pid: u32,
+        port: u16,
+    ) -> OrchestrationResult<String> {
+        self.repository
+            .register_agent_starting(agent_name, pid, port)
+            .await
+            .map_err(|e| OrchestrationError::Database(e.to_string()))
+    }
+
+    pub async fn mark_running(&self, agent_name: &str) -> OrchestrationResult<()> {
+        self.repository
+            .mark_running(agent_name)
             .await
             .map_err(|e| OrchestrationError::Database(e.to_string()))
     }

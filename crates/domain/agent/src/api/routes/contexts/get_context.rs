@@ -38,6 +38,6 @@ pub async fn get_context(
             ApiError::not_found(format!("Context not found: {e}"))
                 .with_request_context(&req_ctx)
                 .into_response()
-        }
+        },
     }
 }
