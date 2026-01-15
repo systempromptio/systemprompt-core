@@ -144,7 +144,6 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Apply module filter if specified
     let filtered_rows: Vec<_> = if let Some(ref module) = args.module {
         rows.into_iter()
             .filter(|r| r.module.contains(module))

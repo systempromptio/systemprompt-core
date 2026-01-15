@@ -35,7 +35,6 @@ pub async fn execute(
     let file_id = parse_file_id(&args.file_id)?;
     let content_id = ContentId::new(args.content.clone());
 
-    // Handle confirmation requirement
     if !args.yes {
         if config.is_interactive() {
             let confirmed = Confirm::new()
@@ -56,7 +55,6 @@ pub async fn execute(
         }
     }
 
-    // Handle dry-run
     if args.dry_run {
         let output = ContentUnlinkOutput {
             file_id,

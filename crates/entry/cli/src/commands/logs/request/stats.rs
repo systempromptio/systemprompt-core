@@ -84,7 +84,6 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
 
     let since_timestamp = parse_since(args.since.as_ref())?;
 
-    // Get totals
     let totals = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             TotalRow,
@@ -119,7 +118,6 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Get by provider
     let by_provider = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             ProviderRow,
@@ -158,7 +156,6 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Get by model
     let by_model = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             ModelRow,

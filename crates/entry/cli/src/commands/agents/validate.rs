@@ -75,7 +75,6 @@ pub fn execute(
             });
         }
 
-        // Validate that the configured provider is enabled and has an API key
         if agent.enabled {
             if let Some(provider_name) = &agent.metadata.provider {
                 match services_config.ai.providers.get(provider_name) {
@@ -101,7 +100,6 @@ pub fn execute(
                             });
                         }
 
-                        // Check if API key is configured (non-empty or placeholder)
                         if provider_config.api_key.is_empty()
                             || provider_config.api_key.starts_with("${")
                         {

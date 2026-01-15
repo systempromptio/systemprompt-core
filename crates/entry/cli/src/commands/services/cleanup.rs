@@ -24,7 +24,6 @@ pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()>
     CliService::info("Finding running services...");
     let running_services = service_mgmt.get_running_services_with_pid().await?;
 
-    // Check if there's anything to clean
     let api_pid = ProcessCleanup::check_port(api_port);
     let has_services = !running_services.is_empty() || api_pid.is_some();
 
@@ -33,7 +32,6 @@ pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()>
         return Ok(());
     }
 
-    // Show what will be cleaned
     if dry_run {
         CliService::section("Dry Run - Would clean the following:");
         for service in &running_services {

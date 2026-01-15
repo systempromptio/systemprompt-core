@@ -107,10 +107,8 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         changes.push(format!("metadata.model: {}", model));
     }
 
-    // Handle MCP server additions
     for mcp_server in &args.mcp_servers {
         if !agent.metadata.mcp_servers.contains(mcp_server) {
-            // Validate MCP server exists in config
             if !services_config.mcp_servers.contains_key(mcp_server) {
                 return Err(anyhow!(
                     "MCP server '{}' not found in configuration. Available servers: {}",
@@ -128,7 +126,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         }
     }
 
-    // Handle MCP server removals
     for mcp_server in &args.remove_mcp_servers {
         if let Some(pos) = agent
             .metadata
@@ -146,7 +143,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         }
     }
 
-    // Handle skill additions
     for skill in &args.skill {
         if !agent.metadata.skills.contains(skill) {
             agent.metadata.skills.push(skill.clone());
@@ -154,7 +150,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         }
     }
 
-    // Handle skill removals
     for skill in &args.remove_skills {
         if let Some(pos) = agent.metadata.skills.iter().position(|s| s == skill) {
             let removed = agent.metadata.skills.remove(pos);
@@ -167,7 +162,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         }
     }
 
-    // Handle system prompt from file
     if let Some(file_path) = &args.system_prompt_file {
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
@@ -179,7 +173,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         ));
     }
 
-    // Handle inline system prompt (takes precedence if both specified)
     if let Some(prompt) = &args.system_prompt {
         agent.metadata.system_prompt = Some(prompt.clone());
         changes.push(format!("system_prompt: {} chars", prompt.len()));

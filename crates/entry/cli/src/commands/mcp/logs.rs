@@ -315,7 +315,6 @@ fn read_log_lines(log_file: &Path, lines: usize, level: Option<LogLevel>) -> Res
         .collect::<Result<Vec<_>, _>>()
         .context("Failed to read log lines")?;
 
-    // Filter by level if specified
     let filtered_lines: Vec<String> = if let Some(log_level) = level {
         all_lines
             .into_iter()
