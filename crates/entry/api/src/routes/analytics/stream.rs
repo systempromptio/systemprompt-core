@@ -14,8 +14,6 @@ use systemprompt_models::RequestContext;
 /// - EngagementUpdate: Engagement metrics update
 /// - RealTimeStats: Periodic aggregated statistics
 /// - Heartbeat: Keep-alive heartbeat
-pub async fn analytics_stream(
-    Extension(req_ctx): Extension<RequestContext>,
-) -> impl IntoResponse {
+pub async fn analytics_stream(Extension(req_ctx): Extension<RequestContext>) -> impl IntoResponse {
     create_sse_stream(&req_ctx, &ANALYTICS_BROADCASTER, "Analytics").await
 }

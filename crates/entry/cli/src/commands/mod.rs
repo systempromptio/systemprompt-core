@@ -5,6 +5,7 @@ pub mod cloud;
 pub mod config;
 pub mod content;
 pub mod db;
+pub mod ext;
 pub mod extensions;
 pub mod files;
 pub mod jobs;

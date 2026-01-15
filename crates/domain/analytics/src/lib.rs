@@ -13,15 +13,14 @@ pub use error::{AnalyticsError, Result as AnalyticsResult};
 pub use models::{
     ActivityTrend, AnalyticsEvent, AnalyticsEventBatchResponse, AnalyticsEventCreated,
     AnalyticsEventType, AnalyticsSession, BotTrafficStats, BrowserBreakdown, ContentStat,
-    ConversionEventData, ConversationByAgent, ConversationSummary, ConversationTrend,
-    CostOverview, CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput,
-    CreateEngagementEventInput, DeviceBreakdown, EngagementEvent, EngagementEventData,
-    EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult, FingerprintReputation,
-    CreateFunnelInput, CreateFunnelStepInput, FlagReason, Funnel, FunnelMatchType,
-    FunnelProgress, FunnelStats, FunnelStep, FunnelStepStats, FunnelWithSteps,
-    GeographicBreakdown, LinkClickEventData, PlatformOverview, RecentConversation,
-    ScrollEventData, TopAgent, TopTool, TopUser, TrafficSource, TrafficSummary,
-    UserMetricsWithTrends,
+    ConversationByAgent, ConversationSummary, ConversationTrend, ConversionEventData, CostOverview,
+    CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
+    CreateFunnelInput, CreateFunnelStepInput, DeviceBreakdown, EngagementEvent,
+    EngagementEventData, EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult,
+    FingerprintReputation, FlagReason, Funnel, FunnelMatchType, FunnelProgress, FunnelStats,
+    FunnelStep, FunnelStepStats, FunnelWithSteps, GeographicBreakdown, LinkClickEventData,
+    PlatformOverview, RecentConversation, ScrollEventData, TopAgent, TopTool, TopUser,
+    TrafficSource, TrafficSummary, UserMetricsWithTrends,
 };
 pub use repository::{
     AnalyticsEventsRepository, AnalyticsQueryRepository, CoreStatsRepository, CreateSessionParams,

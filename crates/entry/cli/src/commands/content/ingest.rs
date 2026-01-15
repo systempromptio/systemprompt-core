@@ -1,25 +1,28 @@
 use super::types::IngestOutput;
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_core_content::{IngestionOptions, IngestionService, IngestionSource};
+use systemprompt_models::{AppPaths, ContentConfigRaw};
 use systemprompt_runtime::AppContext;
 
 const DEFAULT_CATEGORY: &str = "default";
-const ALLOWED_CONTENT_TYPES: &[&str] = &["article", "paper", "guide", "tutorial"];
 
 #[derive(Debug, Args)]
 pub struct IngestArgs {
-    #[arg(help = "Directory path")]
-    pub directory: PathBuf,
+    #[arg(help = "Directory path (optional if --source is configured in content config)")]
+    pub directory: Option<PathBuf>,
 
     #[arg(long, help = "Source ID (required)")]
     pub source: String,
 
     #[arg(long, help = "Category ID")]
     pub category: Option<String>,
+
+    #[arg(long, help = "Allowed content types (comma-separated, overrides config)")]
+    pub allowed_types: Option<String>,
 
     #[arg(long, help = "Scan recursively")]
     pub recursive: bool,
@@ -32,26 +35,30 @@ pub struct IngestArgs {
 }
 
 pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandResult<IngestOutput>> {
-    if !args.directory.exists() {
+    let directory = resolve_directory(&args)?;
+
+    if !directory.exists() {
         return Err(anyhow!(
             "Directory does not exist: {}",
-            args.directory.display()
+            directory.display()
         ));
     }
 
-    if !args.directory.is_dir() {
+    if !directory.is_dir() {
         return Err(anyhow!(
             "Path is not a directory: {}",
-            args.directory.display()
+            directory.display()
         ));
     }
 
     let ctx = AppContext::new().await?;
     let service = IngestionService::new(ctx.db_pool())?;
 
-    let category_id = args.category.as_deref().unwrap_or(DEFAULT_CATEGORY);
+    let allowed_types = resolve_allowed_types(&args)?;
+    let category_id = resolve_category_id(&args)?;
 
-    let source = IngestionSource::new(&args.source, category_id, ALLOWED_CONTENT_TYPES);
+    let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
+    let source = IngestionSource::new(&args.source, &category_id, &allowed_types_refs);
 
     let options = IngestionOptions::default()
         .with_recursive(args.recursive)
@@ -59,7 +66,7 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
         .with_dry_run(args.dry_run);
 
     let report = service
-        .ingest_directory(&args.directory, &source, options)
+        .ingest_directory(&directory, &source, options)
         .await?;
 
     let success = report.is_success();
@@ -71,4 +78,67 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
     };
 
     Ok(CommandResult::card(output).with_title("Ingestion Report"))
+}
+
+fn resolve_directory(args: &IngestArgs) -> Result<PathBuf> {
+    if let Some(dir) = &args.directory {
+        return Ok(dir.clone());
+    }
+
+    let config = load_content_config()?;
+    let source_config = config.content_sources.get(&args.source).ok_or_else(|| {
+        anyhow!(
+            "Source '{}' not found in content config. Provide directory path or configure source.",
+            args.source
+        )
+    })?;
+
+    let content_base = AppPaths::get()
+        .map_err(|e| anyhow!("{}", e))?
+        .content()
+        .base()
+        .to_path_buf();
+
+    Ok(content_base.join(&source_config.path))
+}
+
+fn resolve_allowed_types(args: &IngestArgs) -> Result<Vec<String>> {
+    if let Some(types) = &args.allowed_types {
+        return Ok(types.split(',').map(|t| t.trim().to_string()).collect());
+    }
+
+    let config = load_content_config()?;
+    config
+        .content_sources
+        .get(&args.source)
+        .map(|source| source.allowed_content_types.clone())
+        .ok_or_else(|| {
+            anyhow!(
+                "Source '{}' not found in content config. Use --allowed-types to specify types manually.",
+                args.source
+            )
+        })
+}
+
+fn resolve_category_id(args: &IngestArgs) -> Result<String> {
+    if let Some(category) = &args.category {
+        return Ok(category.clone());
+    }
+
+    let config = load_content_config().ok();
+    let category = config
+        .and_then(|c| c.content_sources.get(&args.source).cloned())
+        .map(|source| source.category_id.as_str().to_string())
+        .unwrap_or_else(|| DEFAULT_CATEGORY.to_string());
+
+    Ok(category)
+}
+
+fn load_content_config() -> Result<ContentConfigRaw> {
+    let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
+    let config_path = paths.system().content_config();
+    let yaml_content = std::fs::read_to_string(&config_path)
+        .with_context(|| format!("Failed to read content config: {}", config_path.display()))?;
+    serde_yaml::from_str(&yaml_content)
+        .with_context(|| format!("Failed to parse content config: {}", config_path.display()))
 }

@@ -14,7 +14,9 @@ use tokio::fs;
 use crate::content::render_markdown;
 use crate::prerender::parent::{render_parent_route, RenderParentParams};
 use crate::templates::data::{prepare_template_data, TemplateDataParams};
+use crate::templates::navigation::generate_footer_html;
 use crate::templates::{get_templates_path, load_web_config};
+use systemprompt_cloud::constants::storage;
 
 const MAX_RETRIES: u32 = 5;
 const RETRY_DELAY_MS: u64 = 500;
@@ -43,14 +45,26 @@ pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
         return Ok(());
     }
 
+    let branding = extract_homepage_branding(&ctx.web_config, &ctx.config);
+    let footer_html = generate_footer_html(&ctx.web_config).unwrap_or_default();
+
     let homepage_data = serde_json::json!({
         "site": &ctx.web_config,
         "nav": {
             "agent_url": "/agent",
             "blog_url": "/blog"
         },
-        "JS_BASE_PATH": "/files/js",
-        "CSS_BASE_PATH": "/files/css"
+        "ORG_NAME": branding.org_name,
+        "ORG_URL": branding.org_url,
+        "ORG_LOGO": branding.org_logo,
+        "LOGO_PATH": branding.logo_path,
+        "FAVICON_PATH": branding.favicon_path,
+        "TWITTER_HANDLE": branding.twitter_handle,
+        "DISPLAY_SITENAME": branding.display_sitename,
+        "FOOTER_NAV": footer_html,
+        "HEADER_CTA_URL": "/",
+        "JS_BASE_PATH": format!("/{}", storage::JS),
+        "CSS_BASE_PATH": format!("/{}", storage::CSS)
     });
 
     let html = ctx
@@ -63,6 +77,62 @@ pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
 
     tracing::info!(path = %output_path.display(), "Generated homepage");
     Ok(())
+}
+
+struct HomepageBranding {
+    org_name: String,
+    org_url: String,
+    org_logo: String,
+    logo_path: String,
+    favicon_path: String,
+    twitter_handle: String,
+    display_sitename: bool,
+}
+
+fn extract_homepage_branding(
+    web_config: &serde_yaml::Value,
+    config: &ContentConfigRaw,
+) -> HomepageBranding {
+    let org = &config.metadata.structured_data.organization;
+
+    let logo_path = web_config
+        .get("branding")
+        .and_then(|b| b.get("logo"))
+        .and_then(|l| l.get("primary"))
+        .and_then(|p| p.get("svg"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let favicon_path = web_config
+        .get("branding")
+        .and_then(|b| b.get("favicon"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let twitter_handle = web_config
+        .get("branding")
+        .and_then(|b| b.get("twitter_handle"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    let display_sitename = web_config
+        .get("branding")
+        .and_then(|b| b.get("display_sitename"))
+        .and_then(serde_yaml::Value::as_bool)
+        .unwrap_or(true);
+
+    HomepageBranding {
+        org_name: org.name.clone(),
+        org_url: org.url.clone(),
+        org_logo: org.logo.clone(),
+        logo_path,
+        favicon_path,
+        twitter_handle,
+        display_sitename,
+    }
 }
 
 async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {

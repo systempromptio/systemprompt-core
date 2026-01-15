@@ -181,6 +181,20 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         .and_then(serde_yaml::Value::as_bool)
         .ok_or_else(|| ContentError::missing_branding_config("display_sitename"))?;
 
+    let logo_path = web_config
+        .get("branding")
+        .and_then(|b| b.get("logo"))
+        .and_then(|l| l.get("primary"))
+        .and_then(|p| p.get("svg"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ContentError::missing_branding_config("branding.logo.primary.svg"))?;
+
+    let favicon_path = web_config
+        .get("branding")
+        .and_then(|b| b.get("favicon"))
+        .and_then(|v| v.as_str())
+        .ok_or_else(|| ContentError::missing_branding_config("branding.favicon"))?;
+
     Ok(serde_json::json!({
         "POSTS": posts_html.join("\n"),
         "ITEMS": posts_html.join("\n"),
@@ -197,6 +211,8 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         "TWITTER_HANDLE": twitter_handle,
         "HEADER_CTA_URL": "/",
         "DISPLAY_SITENAME": display_sitename,
+        "LOGO_PATH": logo_path,
+        "FAVICON_PATH": favicon_path,
         "CSS_BASE_PATH": format!("/{}", storage::CSS),
         "JS_BASE_PATH": format!("/{}", storage::JS),
     }))

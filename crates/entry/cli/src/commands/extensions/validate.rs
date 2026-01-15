@@ -63,6 +63,18 @@ pub fn execute(
         }
     }
 
+    for ext in registry.asset_extensions() {
+        for asset in ext.required_assets() {
+            if asset.is_required() && !asset.source().exists() {
+                errors.push(ValidationError {
+                    extension_id: Some(ext.id().to_string()),
+                    error_type: "required_asset".to_string(),
+                    message: format!("Missing required asset: {}", asset.source().display()),
+                });
+            }
+        }
+    }
+
     let valid = errors.is_empty();
     let extension_count = registry.len();
 

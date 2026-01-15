@@ -152,7 +152,9 @@ fn render_logs(output: &LogViewOutput) {
     }
 
     CliService::info(&format!("Showing {} log entries", output.total));
-    CliService::info("Tip: Use 'logs show <id>' for details or 'logs trace show <trace_id>' for full trace");
+    CliService::info(
+        "Tip: Use 'logs show <id>' for details or 'logs trace show <trace_id>' for full trace",
+    );
 }
 
 fn display_log_row(log: &LogEntryRow) {

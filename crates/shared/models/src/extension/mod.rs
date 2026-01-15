@@ -7,6 +7,7 @@ use std::path::PathBuf;
 pub enum ExtensionType {
     Mcp,
     Blog,
+    Cli,
     #[default]
     Other,
 }
@@ -25,6 +26,13 @@ pub struct ManifestRole {
     pub description: String,
     #[serde(default)]
     pub permissions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CliCommand {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,6 +64,9 @@ pub struct Extension {
 
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub roles: HashMap<String, ManifestRole>,
+
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commands: Vec<CliCommand>,
 }
 
 const fn default_true() -> bool {
@@ -92,6 +103,14 @@ impl DiscoveredExtension {
 
     pub fn is_mcp(&self) -> bool {
         self.manifest.extension.type_ == ExtensionType::Mcp
+    }
+
+    pub fn is_cli(&self) -> bool {
+        self.manifest.extension.type_ == ExtensionType::Cli
+    }
+
+    pub fn commands(&self) -> &[CliCommand] {
+        &self.manifest.extension.commands
     }
 
     pub const fn build_type(&self) -> BuildType {

@@ -9,7 +9,7 @@ use systemprompt_core_analytics::{
     AnalyticsService, CreateAnalyticsSessionInput, FingerprintRepository, SessionAnalytics,
     MAX_SESSIONS_PER_FINGERPRINT,
 };
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_traits::{UserEvent, UserEventPublisher, UserProvider};
 
 use crate::services::generation::{generate_anonymous_jwt, JwtSigningParams};
@@ -23,6 +23,7 @@ struct SessionCreationParams<'a> {
     fingerprint: String,
     client_id: &'a ClientId,
     jwt_secret: &'a str,
+    session_source: SessionSource,
 }
 
 #[derive(Debug, Clone)]
@@ -36,6 +37,15 @@ pub struct AnonymousSessionInfo {
 #[derive(Debug, Clone)]
 pub struct AuthenticatedSessionInfo {
     pub session_id: SessionId,
+}
+
+#[derive(Debug)]
+pub struct CreateAnonymousSessionInput<'a> {
+    pub headers: &'a HeaderMap,
+    pub uri: Option<&'a Uri>,
+    pub client_id: &'a ClientId,
+    pub jwt_secret: &'a str,
+    pub session_source: SessionSource,
 }
 
 #[derive(Clone)]
@@ -91,12 +101,11 @@ impl SessionCreationService {
 
     pub async fn create_anonymous_session(
         &self,
-        headers: &HeaderMap,
-        uri: Option<&Uri>,
-        client_id: &ClientId,
-        jwt_secret: &str,
+        input: CreateAnonymousSessionInput<'_>,
     ) -> Result<AnonymousSessionInfo> {
-        let analytics = self.analytics_service.extract_analytics(headers, uri);
+        let analytics = self
+            .analytics_service
+            .extract_analytics(input.headers, input.uri);
         let is_bot = AnalyticsService::is_bot(&analytics);
         let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
 
@@ -104,8 +113,9 @@ impl SessionCreationService {
             analytics,
             is_bot,
             fingerprint,
-            client_id,
-            jwt_secret,
+            client_id: input.client_id,
+            jwt_secret: input.jwt_secret,
+            session_source: input.session_source,
         };
         self.create_session_internal(params).await
     }
@@ -114,6 +124,7 @@ impl SessionCreationService {
         &self,
         user_id: &UserId,
         headers: &HeaderMap,
+        session_source: SessionSource,
     ) -> Result<SessionId> {
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
         let analytics = self.analytics_service.extract_analytics(headers, None);
@@ -128,6 +139,7 @@ impl SessionCreationService {
                 session_id: &session_id,
                 user_id: Some(user_id),
                 analytics: &analytics,
+                session_source,
                 is_bot,
                 expires_at,
             })
@@ -316,6 +328,7 @@ impl SessionCreationService {
                 session_id: &session_id,
                 user_id: Some(&user_id),
                 analytics: &params.analytics,
+                session_source: params.session_source,
                 is_bot: params.is_bot,
                 expires_at,
             })

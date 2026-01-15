@@ -10,7 +10,7 @@ pub mod webauthn;
 
 pub use http::BrowserRedirectService;
 pub use jwt::{extract_bearer_token, extract_cookie_token, AuthService, TokenValidator};
-pub use session::{AnonymousSessionInfo, SessionCreationService};
+pub use session::{AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationService};
 pub use templating::TemplateEngine;
 pub use webauthn::{JwtTokenValidator, UserCreationService, WebAuthnConfig, WebAuthnService};
 

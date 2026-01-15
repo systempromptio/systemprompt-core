@@ -100,10 +100,9 @@ pub async fn execute(
             continue;
         }
 
-        let server = running_servers
-            .iter()
-            .find(|s| &s.name == server_name)
-            .unwrap();
+        let Some(server) = running_servers.iter().find(|s| &s.name == server_name) else {
+            continue;
+        };
 
         let server_config = services_config.mcp_servers.get(server_name);
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
@@ -122,8 +121,8 @@ pub async fn execute(
                         server: server_name.clone(),
                         description: tool.description,
                         parameters_count: tool.parameters_count,
-                        input_schema: args.detailed.then(|| tool.input_schema).flatten(),
-                        output_schema: args.detailed.then(|| tool.output_schema).flatten(),
+                        input_schema: args.detailed.then_some(tool.input_schema).flatten(),
+                        output_schema: args.detailed.then_some(tool.output_schema).flatten(),
                     });
                 }
                 servers_queried += 1;
@@ -238,7 +237,7 @@ async fn list_tools_unauthenticated(
                 .as_ref()
                 .and_then(|s| s.get("properties"))
                 .and_then(|p| p.as_object())
-                .map_or(0, |o| o.len());
+                .map_or(0, serde_json::Map::len);
 
             ToolInfo {
                 name: tool.name.to_string(),
@@ -303,7 +302,7 @@ async fn list_tools_authenticated(
                 .as_ref()
                 .and_then(|s| s.get("properties"))
                 .and_then(|p| p.as_object())
-                .map_or(0, |o| o.len());
+                .map_or(0, serde_json::Map::len);
 
             ToolInfo {
                 name: tool.name.to_string(),

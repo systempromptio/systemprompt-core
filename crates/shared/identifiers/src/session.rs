@@ -59,3 +59,58 @@ impl ToDbValue for &SessionId {
         DbValue::String(self.0.clone())
     }
 }
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum SessionSource {
+    Web,
+    Api,
+    Cli,
+    Tui,
+    Oauth,
+    #[default]
+    Unknown,
+}
+
+impl SessionSource {
+    pub const fn as_str(self) -> &'static str {
+        match self {
+            Self::Web => "web",
+            Self::Api => "api",
+            Self::Cli => "cli",
+            Self::Tui => "tui",
+            Self::Oauth => "oauth",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    pub fn from_client_id(client_id: &str) -> Self {
+        match client_id {
+            "sp_web" => Self::Web,
+            "sp_cli" => Self::Cli,
+            "sp_tui" => Self::Tui,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl fmt::Display for SessionSource {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.as_str())
+    }
+}
+
+impl std::str::FromStr for SessionSource {
+    type Err = std::convert::Infallible;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s.to_lowercase().as_str() {
+            "web" => Self::Web,
+            "api" => Self::Api,
+            "cli" => Self::Cli,
+            "tui" => Self::Tui,
+            "oauth" => Self::Oauth,
+            _ => Self::Unknown,
+        })
+    }
+}

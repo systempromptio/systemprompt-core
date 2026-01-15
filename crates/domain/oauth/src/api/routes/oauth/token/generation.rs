@@ -9,7 +9,7 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{SessionId, SessionSource};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_runtime::AppContext;
@@ -51,7 +51,7 @@ pub async fn generate_tokens_by_user_id(
         user_provider,
     );
     let session_id = session_service
-        .create_authenticated_session(&user_id_typed, params.headers)
+        .create_authenticated_session(&user_id_typed, params.headers, SessionSource::Oauth)
         .await?;
 
     let access_token_jti = generate_access_token_jti();

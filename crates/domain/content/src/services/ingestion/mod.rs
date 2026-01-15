@@ -113,7 +113,7 @@ impl IngestionService {
                 .with_author(new_content.author.clone())
                 .with_published_at(new_content.published_at)
                 .with_keywords(new_content.keywords.clone())
-                .with_kind(Self::parse_content_kind(&new_content.kind))
+                .with_kind(new_content.kind.clone())
                 .with_image(new_content.image.clone())
                 .with_category_id(new_content.category_id.clone())
                 .with_version_hash(version_hash)
@@ -274,14 +274,5 @@ impl IngestionService {
         hasher.update(content.author.as_bytes());
         hasher.update(content.published_at.to_string().as_bytes());
         format!("{:x}", hasher.finalize())
-    }
-
-    fn parse_content_kind(kind_str: &str) -> ContentKind {
-        match kind_str {
-            s if s == ContentKind::Paper.as_str() => ContentKind::Paper,
-            s if s == ContentKind::Guide.as_str() => ContentKind::Guide,
-            s if s == ContentKind::Tutorial.as_str() => ContentKind::Tutorial,
-            _ => ContentKind::Article,
-        }
     }
 }

@@ -5,9 +5,7 @@ use sqlx::PgPool;
 use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::ContentId;
 
-use crate::models::{
-    AnalyticsEventCreated, AnalyticsEventType, CreateAnalyticsEventInput,
-};
+use crate::models::{AnalyticsEventCreated, AnalyticsEventType, CreateAnalyticsEventInput};
 
 #[derive(Clone, Debug)]
 pub struct AnalyticsEventsRepository {
@@ -30,7 +28,7 @@ impl AnalyticsEventsRepository {
         let event_type = input.event_type.as_str();
         let event_category = input.event_type.category();
 
-        let event_data = self.build_event_data(input)?;
+        let event_data = Self::build_event_data(input);
 
         sqlx::query!(
             r#"
@@ -144,12 +142,15 @@ impl AnalyticsEventsRepository {
         Ok(events)
     }
 
-    fn build_event_data(&self, input: &CreateAnalyticsEventInput) -> Result<serde_json::Value> {
+    fn build_event_data(input: &CreateAnalyticsEventInput) -> serde_json::Value {
         let mut data = input.data.clone().unwrap_or(serde_json::json!({}));
 
         if let Some(obj) = data.as_object_mut() {
             if let Some(content_id) = &input.content_id {
-                obj.insert("content_id".to_string(), serde_json::json!(content_id.as_str()));
+                obj.insert(
+                    "content_id".to_string(),
+                    serde_json::json!(content_id.as_str()),
+                );
             }
             if let Some(slug) = &input.slug {
                 obj.insert("slug".to_string(), serde_json::json!(slug));
@@ -159,7 +160,7 @@ impl AnalyticsEventsRepository {
             }
         }
 
-        Ok(data)
+        data
     }
 }
 

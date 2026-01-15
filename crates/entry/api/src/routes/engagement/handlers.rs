@@ -92,13 +92,18 @@ pub async fn record_engagement_batch(
 
         match state
             .repo
-            .create_engagement(session_id.as_str(), user_id.as_str(), content_id.as_ref(), &event)
+            .create_engagement(
+                session_id.as_str(),
+                user_id.as_str(),
+                content_id.as_ref(),
+                &event,
+            )
             .await
         {
             Ok(_) => success_count += 1,
             Err(e) => {
                 tracing::warn!(error = %e, page_url = %event.page_url, "Failed to record batch engagement event");
-            }
+            },
         }
     }
 

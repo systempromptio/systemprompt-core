@@ -103,26 +103,10 @@ pub struct RealTimeStatsPayload {
 pub struct AnalyticsEventBuilder;
 
 impl AnalyticsEventBuilder {
-    pub fn session_started(
-        session_id: String,
-        device_type: Option<String>,
-        browser: Option<String>,
-        os: Option<String>,
-        country: Option<String>,
-        referrer_source: Option<String>,
-        is_bot: bool,
-    ) -> AnalyticsEvent {
+    pub fn session_started(payload: SessionStartedPayload) -> AnalyticsEvent {
         AnalyticsEvent::SessionStarted {
             timestamp: Utc::now(),
-            payload: SessionStartedPayload {
-                session_id,
-                device_type,
-                browser,
-                os,
-                country,
-                referrer_source,
-                is_bot,
-            },
+            payload,
         }
     }
 

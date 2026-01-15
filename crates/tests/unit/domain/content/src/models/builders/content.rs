@@ -5,7 +5,7 @@
 //! - UpdateContentParams builder
 
 use chrono::{TimeZone, Utc};
-use systemprompt_core_content::models::{ContentKind, CreateContentParams, UpdateContentParams};
+use systemprompt_core_content::models::{CreateContentParams, UpdateContentParams};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 // ============================================================================
@@ -29,7 +29,7 @@ fn test_create_content_params_new() {
     assert_eq!(params.source_id.as_str(), "blog");
     assert!(params.author.is_empty());
     assert!(params.keywords.is_empty());
-    assert_eq!(params.kind, ContentKind::Article);
+    assert_eq!(params.kind, "article");
     assert!(params.image.is_none());
     assert!(params.category_id.is_none());
     assert!(params.version_hash.is_empty());
@@ -87,9 +87,9 @@ fn test_create_content_params_with_kind() {
         "Body".to_string(),
         SourceId::new("src"),
     )
-    .with_kind(ContentKind::Paper);
+    .with_kind("paper".to_string());
 
-    assert_eq!(params.kind, ContentKind::Paper);
+    assert_eq!(params.kind, "paper");
 }
 
 #[test]
@@ -180,7 +180,7 @@ fn test_create_content_params_builder_chain() {
     .with_author("Jane Smith".to_string())
     .with_published_at(date)
     .with_keywords("complete, test".to_string())
-    .with_kind(ContentKind::Guide)
+    .with_kind("guide".to_string())
     .with_image(Some("/img/guide.png".to_string()))
     .with_category_id(Some(CategoryId::new("guides")))
     .with_version_hash("fullhash123".to_string())
@@ -190,7 +190,7 @@ fn test_create_content_params_builder_chain() {
     assert_eq!(params.author, "Jane Smith");
     assert_eq!(params.published_at, date);
     assert_eq!(params.keywords, "complete, test");
-    assert_eq!(params.kind, ContentKind::Guide);
+    assert_eq!(params.kind, "guide");
     assert_eq!(params.image, Some("/img/guide.png".to_string()));
     assert_eq!(params.category_id.as_ref().unwrap().as_str(), "guides");
     assert_eq!(params.version_hash, "fullhash123");

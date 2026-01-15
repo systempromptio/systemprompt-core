@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use axum::http::HeaderMap;
-use systemprompt_core_oauth::{validate_jwt_token, SessionCreationService};
+use systemprompt_core_oauth::{
+    validate_jwt_token, CreateAnonymousSessionInput, SessionCreationService,
+};
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::{ClientId, SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::jwt::extract_token_from_headers;
@@ -51,7 +53,13 @@ pub async fn ensure_session(
 
     let client_id = ClientId::new("sp_web".to_string());
     let session_info = session_service
-        .create_anonymous_session(headers, uri, &client_id, jwt_secret)
+        .create_anonymous_session(CreateAnonymousSessionInput {
+            headers,
+            uri,
+            client_id: &client_id,
+            jwt_secret,
+            session_source: SessionSource::Web,
+        })
         .await?;
 
     Ok(SessionInfo {

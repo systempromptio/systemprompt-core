@@ -1,7 +1,7 @@
 use crate::models::AiRequestRecord;
 use crate::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_core_analytics::{CreateSessionParams, SessionRepository};
-use systemprompt_identifiers::{AiRequestId, SessionId, UserId};
+use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
 
 use super::record_builder::{MessageData, ToolCallData};
 
@@ -84,6 +84,7 @@ async fn ensure_session_exists(
     let params = CreateSessionParams {
         session_id,
         user_id: Some(user_id),
+        session_source: SessionSource::Api,
         fingerprint_hash: None,
         ip_address: None,
         user_agent: None,

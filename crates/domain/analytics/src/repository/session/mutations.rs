@@ -181,19 +181,21 @@ pub async fn create_session(pool: &DbPool, params: &CreateSessionParams<'_>) -> 
     let pool = pool.pool_arc().context("Failed to get database pool")?;
     let session_id = params.session_id.as_str();
     let user_id = params.user_id.map(UserId::as_str);
+    let session_source = params.session_source.as_str();
     sqlx::query!(
         r#"
         INSERT INTO user_sessions (
-            session_id, user_id, fingerprint_hash, ip_address, user_agent,
+            session_id, user_id, session_source, fingerprint_hash, ip_address, user_agent,
             device_type, browser, os, country, region, city, preferred_locale,
             referrer_source, referrer_url, landing_page, entry_url,
             utm_source, utm_medium, utm_campaign, is_bot, expires_at,
             started_at, last_activity_at
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
         "#,
         session_id,
         user_id,
+        session_source,
         params.fingerprint_hash,
         params.ip_address,
         params.user_agent,
