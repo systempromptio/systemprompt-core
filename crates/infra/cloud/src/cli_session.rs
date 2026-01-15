@@ -20,9 +20,15 @@ pub struct CliSession {
     pub context_id: ContextId,
     pub user_id: UserId,
     pub user_email: String,
+    #[serde(default = "default_user_type")]
+    pub user_type: UserType,
     pub created_at: DateTime<Utc>,
     pub expires_at: DateTime<Utc>,
     pub last_used: DateTime<Utc>,
+}
+
+fn default_user_type() -> UserType {
+    UserType::Admin
 }
 
 #[derive(Debug)]
@@ -33,6 +39,7 @@ pub struct CliSessionBuilder {
     context_id: ContextId,
     user_id: UserId,
     user_email: String,
+    user_type: UserType,
 }
 
 impl CliSessionBuilder {
@@ -49,6 +56,7 @@ impl CliSessionBuilder {
             context_id,
             user_id: UserId::system(),
             user_email: String::new(),
+            user_type: UserType::Admin,
         }
     }
 
@@ -56,6 +64,12 @@ impl CliSessionBuilder {
     pub fn with_user(mut self, user_id: UserId, user_email: impl Into<String>) -> Self {
         self.user_id = user_id;
         self.user_email = user_email.into();
+        self
+    }
+
+    #[must_use]
+    pub const fn with_user_type(mut self, user_type: UserType) -> Self {
+        self.user_type = user_type;
         self
     }
 
@@ -71,6 +85,7 @@ impl CliSessionBuilder {
             context_id: self.context_id,
             user_id: self.user_id,
             user_email: self.user_email,
+            user_type: self.user_type,
             created_at: now,
             expires_at,
             last_used: now,

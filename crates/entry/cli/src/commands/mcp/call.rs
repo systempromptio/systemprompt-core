@@ -12,17 +12,17 @@ use rmcp::transport::streamable_http_client::{
 use rmcp::ServiceExt;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_identifiers::SessionToken;
+use systemprompt_core_mcp::services::client::HttpClientWithContext;
+use systemprompt_core_mcp::services::McpManager;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_models::ai::tools::CallToolResult;
+use systemprompt_runtime::AppContext;
 use tokio::time::timeout;
 
 use super::types::{McpCallOutput, McpToolContent};
-use crate::session::get_or_create_session;
+use crate::session::{get_or_create_session, CliSessionContext};
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use systemprompt_core_mcp::services::McpManager;
-use systemprompt_loader::ConfigLoader;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct CallArgs {
@@ -42,7 +42,6 @@ pub struct CallArgs {
 pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult<McpCallOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
     let session_ctx = get_or_create_session(config).await?;
-    let session_token = session_ctx.session_token();
 
     let server_arg = args.server.clone();
     let tool_arg = args.tool.clone();
@@ -52,7 +51,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         prompt_server_selection(&services_config)
     })?;
 
-    let server_config = services_config
+    let _server_config = services_config
         .mcp_servers
         .get(&server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
@@ -74,14 +73,11 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .find(|s| s.name == server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
 
-    let requires_auth = server_config.oauth.required;
-
     let tool_name = resolve_input(tool_arg, "tool", config, || {
         prompt_tool_selection(
             &server_name,
             running_server.port,
-            requires_auth,
-            session_token,
+            &session_ctx,
             timeout_secs,
         )
     })?;
@@ -100,8 +96,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         running_server.port,
         &tool_name,
         tool_args,
-        requires_auth,
-        session_token,
+        &session_ctx,
         timeout_secs,
     )
     .await;
@@ -178,19 +173,16 @@ async fn execute_tool_call(
     port: u16,
     tool_name: &str,
     arguments: Option<serde_json::Value>,
-    requires_auth: bool,
-    session_token: &SessionToken,
+    session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<CallToolResult> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
 
-    let transport = if requires_auth {
-        let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-            .auth_header(format!("Bearer {}", session_token.as_str()));
-        StreamableHttpClientTransport::from_config(config)
-    } else {
-        StreamableHttpClientTransport::from_uri(url.as_str())
-    };
+    let request_context = session_ctx.to_request_context(&format!("cli-{}", server_name));
+    let http_client = HttpClientWithContext::new(request_context);
+    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
+        .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo {
         protocol_version: ProtocolVersion::default(),
@@ -247,20 +239,12 @@ fn prompt_server_selection(config: &systemprompt_models::ServicesConfig) -> Resu
 fn prompt_tool_selection(
     server_name: &str,
     port: u16,
-    requires_auth: bool,
-    session_token: &SessionToken,
+    session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let tools = rt.block_on(async {
-        list_available_tools(
-            server_name,
-            port,
-            requires_auth,
-            session_token,
-            timeout_secs,
-        )
-        .await
+        list_available_tools(server_name, port, session_ctx, timeout_secs).await
     })?;
 
     if tools.is_empty() {
@@ -282,19 +266,16 @@ fn prompt_tool_selection(
 async fn list_available_tools(
     server_name: &str,
     port: u16,
-    requires_auth: bool,
-    session_token: &SessionToken,
+    session_ctx: &CliSessionContext,
     timeout_secs: u64,
 ) -> Result<Vec<String>> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
 
-    let transport = if requires_auth {
-        let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-            .auth_header(format!("Bearer {}", session_token.as_str()));
-        StreamableHttpClientTransport::from_config(config)
-    } else {
-        StreamableHttpClientTransport::from_uri(url.as_str())
-    };
+    let request_context = session_ctx.to_request_context(&format!("cli-{}", server_name));
+    let http_client = HttpClientWithContext::new(request_context);
+    let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
+        .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
+    let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo {
         protocol_version: ProtocolVersion::default(),

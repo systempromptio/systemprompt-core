@@ -14,7 +14,7 @@ use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::ContextPropagation;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct HttpClientWithContext {
     client: reqwest::Client,
     context: RequestContext,

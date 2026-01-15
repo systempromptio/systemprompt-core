@@ -17,8 +17,7 @@ mod http_client_with_context;
 mod types;
 mod validation;
 
-use http_client_with_context::HttpClientWithContext;
-
+pub use http_client_with_context::HttpClientWithContext;
 pub use types::{McpConnectionResult, McpProtocolInfo, ToolExecutionWithId, ValidationResult};
 pub use validation::{validate_connection, validate_connection_with_auth};
 

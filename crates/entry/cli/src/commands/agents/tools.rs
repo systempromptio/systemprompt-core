@@ -33,7 +33,10 @@ pub struct ToolsArgs {
     pub timeout: u64,
 }
 
-pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResult<AgentToolsOutput>> {
+pub async fn execute(
+    args: ToolsArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<AgentToolsOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let name = if let Some(n) = args.name {
@@ -63,8 +66,7 @@ pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResul
             unavailable_servers: Vec::new(),
         };
         return Ok(CommandResult::card(output)
-            .with_title(format!("Agent Tools: {}", name))
-            .with_message("No MCP servers configured for this agent"));
+            .with_title(format!("Agent Tools: {} (no MCP servers configured)", name)));
     }
 
     let session_ctx = get_or_create_session(config).await?;
@@ -125,7 +127,7 @@ pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResul
                     });
                 }
                 servers_queried += 1;
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     server = %server_name,
@@ -136,7 +138,7 @@ pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResul
                     name: server_name.clone(),
                     reason: format!("connection failed: {}", e),
                 });
-            }
+            },
         }
     }
 
