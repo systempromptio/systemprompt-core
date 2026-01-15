@@ -4,8 +4,8 @@ use crate::models::image_generation::{
     NewImageGenerationResponse,
 };
 use crate::models::providers::gemini::{
-    GeminiContent, GeminiGenerationConfig, GeminiInlineData, GeminiPart, GeminiRequest,
-    GeminiResponse, GeminiTool, GoogleSearch,
+    GeminiContent, GeminiGenerationConfig, GeminiImageConfig, GeminiInlineData, GeminiPart,
+    GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch,
 };
 use crate::services::providers::image_provider_trait::{ImageProvider, ImageProviderCapabilities};
 use async_trait::async_trait;
@@ -47,6 +47,14 @@ impl GeminiImageProvider {
         self
     }
 
+    fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
+        match resolution {
+            ImageResolution::OneK => "1K".to_string(),
+            ImageResolution::TwoK => "2K".to_string(),
+            ImageResolution::FourK => "4K".to_string(),
+        }
+    }
+
     fn build_image_request(request: &ImageGenerationRequest) -> GeminiRequest {
         let mut parts = vec![GeminiPart::Text {
             text: request.prompt.clone(),
@@ -78,7 +86,10 @@ impl GeminiImageProvider {
             response_mime_type: None,
             response_schema: None,
             response_modalities: Some(vec!["IMAGE".to_string()]),
-            image_config: None,
+            image_config: Some(GeminiImageConfig {
+                aspect_ratio: request.aspect_ratio.as_str().to_string(),
+                image_size: Self::map_resolution_to_gemini_size(&request.resolution),
+            }),
             thinking_config: None,
         };
 

@@ -50,6 +50,25 @@ impl ImageService {
         })
     }
 
+    pub fn with_providers(
+        db_pool: &DbPool,
+        storage_config: StorageConfig,
+        providers: HashMap<String, BoxedImageProvider>,
+        default_provider: Option<String>,
+    ) -> Result<Self> {
+        let storage = Arc::new(ImageStorage::new(storage_config)?);
+        let file_repo = FileRepository::new(db_pool)?;
+        let ai_request_repo = AiRequestRepository::new(db_pool)?;
+
+        Ok(Self {
+            providers,
+            storage,
+            file_repo,
+            ai_request_repo,
+            default_provider,
+        })
+    }
+
     pub fn register_provider(&mut self, provider: BoxedImageProvider) {
         let name = provider.name().to_string();
         self.providers.insert(name, provider);
