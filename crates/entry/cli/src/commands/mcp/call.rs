@@ -253,7 +253,14 @@ fn prompt_tool_selection(
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let tools = rt.block_on(async {
-        list_available_tools(server_name, port, requires_auth, session_token, timeout_secs).await
+        list_available_tools(
+            server_name,
+            port,
+            requires_auth,
+            session_token,
+            timeout_secs,
+        )
+        .await
     })?;
 
     if tools.is_empty() {

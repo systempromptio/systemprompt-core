@@ -19,7 +19,10 @@ pub struct MessageArgs {
     #[arg(short = 'm', long, help = "Message text to send")]
     pub message: Option<String>,
 
-    #[arg(long, help = "Context ID for conversation continuity (overrides session)")]
+    #[arg(
+        long,
+        help = "Context ID for conversation continuity (overrides session)"
+    )]
     pub context_id: Option<String>,
 
     #[arg(long, help = "Task ID to continue an existing task")]
@@ -133,7 +136,9 @@ pub async fn execute(
         .unwrap_or(&session_ctx.profile.server.api_external_url);
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
-    let context_id = args.context_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let context_id = args
+        .context_id
+        .unwrap_or_else(|| Uuid::new_v4().to_string());
     let auth_token = session_ctx.session_token().as_str();
 
     let message_id = Uuid::new_v4().to_string();

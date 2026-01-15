@@ -33,6 +33,7 @@ pub use api_client::{
 pub use checkout::{
     run_checkout_callback_flow, wait_for_provisioning, CheckoutCallbackResult, CheckoutTemplates,
 };
+pub use cli_session::CliSession;
 pub use constants::api::{PRODUCTION_URL, SANDBOX_URL};
 pub use context::{CloudContext, ResolvedTenant};
 pub use credentials::CloudCredentials;
@@ -43,7 +44,6 @@ pub use paths::{
     expand_home, get_cloud_paths, resolve_path, CloudPath, CloudPaths, ProfilePath, ProjectContext,
     ProjectPath,
 };
-pub use cli_session::CliSession;
 pub use tenants::{StoredTenant, TenantStore, TenantType};
 
 use clap::ValueEnum;

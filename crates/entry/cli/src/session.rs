@@ -1,20 +1,19 @@
+use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::Select;
-use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath};
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
+use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath};
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_users::UserService;
 use systemprompt_identifiers::{SessionToken, UserId};
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
-use crate::shared::profile::{discover_profiles, DiscoveredProfile};
 use crate::CliConfig;
 
 #[derive(Debug)]
@@ -34,111 +33,83 @@ impl CliSessionContext {
 }
 
 pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
-    CredentialsBootstrap::try_init()?;
+    CredentialsBootstrap::try_init()
+        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
 
     let creds = CredentialsBootstrap::require()
-        .with_context(|| {
-            "Not logged in to SystemPrompt Cloud.\n\nRun 'systemprompt cloud auth login' to authenticate."
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
+                 authenticate."
+            )
         })?
         .clone();
 
-    let cloud_paths = get_cloud_paths()?;
+    let profile = ProfileBootstrap::get()
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
+                 profile.yaml path."
+            )
+        })?
+        .clone();
+
+    let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
+        anyhow::anyhow!(
+            "Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable."
+        )
+    })?;
+
+    let profile_path = Path::new(profile_path_str);
+    let profile_dir = profile_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Invalid profile path: no parent directory"))?;
+    let profile_name = profile_dir
+        .file_name()
+        .and_then(|n| n.to_str())
+        .ok_or_else(|| anyhow::anyhow!("Invalid profile directory name"))?
+        .to_string();
+
+    let cloud_paths =
+        get_cloud_paths().context("Failed to resolve cloud paths from profile configuration")?;
     let session_path = cloud_paths.resolve(CloudPath::CliSession);
 
-    let profiles = discover_profiles_for_cli()?;
-
     if let Ok(session) = CliSession::load_from_path(&session_path) {
-        if let Some(profile) = find_profile_by_name(&profiles, &session.profile_name) {
-            if session.is_valid_for_profile(&profile.name) {
-                let mut session = session;
-                session.touch();
-                let _ = session.save_to_path(&session_path);
-                return Ok(CliSessionContext {
-                    session,
-                    profile: profile.profile.clone(),
-                });
-            }
+        if session.is_valid_for_profile(&profile_name) {
+            let mut session = session;
+            session.touch();
+            session
+                .save_to_path(&session_path)
+                .context("Failed to update session file")?;
+            return Ok(CliSessionContext { session, profile });
         }
     }
 
-    let selected = select_profile(&profiles, config)?;
-    let session = create_session_for_profile(&creds, selected, config).await?;
-    session.save_to_path(&session_path)?;
+    let session =
+        create_session_for_profile(&creds, &profile, profile_dir, &profile_name, config).await?;
 
-    Ok(CliSessionContext {
-        session,
-        profile: selected.profile.clone(),
-    })
-}
+    session
+        .save_to_path(&session_path)
+        .context("Failed to save session file")?;
 
-fn discover_profiles_for_cli() -> Result<Vec<DiscoveredProfile>> {
-    let profiles: Vec<_> = discover_profiles()
-        .context("Failed to discover profiles")?
-        .into_iter()
-        .filter(|p| p.profile.database.external_db_access || p.profile.target.is_local())
-        .collect();
-
-    if profiles.is_empty() {
-        anyhow::bail!(
-            "No profiles found.\n\nCreate a profile with: systemprompt cloud profile create <name>"
-        );
-    }
-
-    Ok(profiles)
-}
-
-fn find_profile_by_name<'a>(
-    profiles: &'a [DiscoveredProfile],
-    name: &str,
-) -> Option<&'a DiscoveredProfile> {
-    profiles.iter().find(|p| p.name == name)
-}
-
-fn select_profile<'a>(
-    profiles: &'a [DiscoveredProfile],
-    config: &CliConfig,
-) -> Result<&'a DiscoveredProfile> {
-    if profiles.len() == 1 {
-        return Ok(&profiles[0]);
-    }
-
-    if !config.is_interactive() {
-        anyhow::bail!(
-            "Multiple profiles found but running in non-interactive mode.\n\n\
-             Set SYSTEMPROMPT_PROFILE to specify which profile to use."
-        );
-    }
-
-    let options: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select a profile for CLI session")
-        .items(&options)
-        .default(0)
-        .interact()
-        .context("Failed to get profile selection")?;
-
-    Ok(&profiles[selection])
+    Ok(CliSessionContext { session, profile })
 }
 
 async fn create_session_for_profile(
     creds: &CloudCredentials,
-    profile: &DiscoveredProfile,
+    profile: &Profile,
+    profile_dir: &Path,
+    profile_name: &str,
     config: &CliConfig,
 ) -> Result<CliSession> {
     profile
-        .profile
         .validate()
-        .with_context(|| format!("Failed to validate profile: {}", profile.name))?;
+        .with_context(|| format!("Failed to validate profile: {}", profile_name))?;
 
     let cloud_email = creds.user_email.as_ref().ok_or_else(|| {
         anyhow::anyhow!("No email in cloud credentials. Run 'systemprompt cloud auth login'.")
     })?;
 
-    let profile_dir = profile
-        .path
-        .parent()
-        .context("Invalid profile path - no parent directory")?;
     let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
     let secrets_content = std::fs::read_to_string(&secrets_path)
         .with_context(|| format!("Failed to read secrets from {}", secrets_path.display()))?;
@@ -156,21 +127,21 @@ async fn create_session_for_profile(
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
-        CliService::key_value("Profile", &profile.name);
+        CliService::key_value("Profile", profile_name);
         CliService::key_value("User", cloud_email);
     }
 
     let admin_user = fetch_admin_user_by_email(database_url, cloud_email).await?;
 
     let session_id = create_tui_session(
-        &profile.profile.server.api_external_url,
+        &profile.server.api_external_url,
         admin_user.id.as_str(),
         &admin_user.email,
     )
     .await
     .context("Failed to create CLI session via API")?;
 
-    let session_generator = SessionGenerator::new(jwt_secret, &profile.profile.security.issuer);
+    let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
     let session_token = session_generator
         .generate(&SessionParams {
             user_id: &admin_user.id,
@@ -185,7 +156,7 @@ async fn create_session_for_profile(
     }
 
     Ok(CliSession::new(
-        profile.name.clone(),
+        profile_name.to_string(),
         session_token,
         session_id,
         UserId::new(admin_user.id.to_string()),
@@ -211,14 +182,16 @@ async fn fetch_admin_user_by_email(
         .context("Failed to fetch user")?
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "User '{}' not found in database.\n\nRun 'systemprompt cloud auth login' to sync your user.",
+                "User '{}' not found in database.\n\nRun 'systemprompt cloud auth login' to sync \
+                 your user.",
                 email
             )
         })?;
 
     if !user.is_admin() {
         anyhow::bail!(
-            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your admin role.",
+            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your admin \
+             role.",
             email
         );
     }
