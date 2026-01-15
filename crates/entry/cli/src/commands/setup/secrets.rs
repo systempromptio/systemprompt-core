@@ -127,15 +127,15 @@ pub fn collect_interactive(
         0 => {
             let key = prompt_api_key("Gemini API Key")?;
             secrets.gemini = Some(key);
-        }
+        },
         1 => {
             let key = prompt_api_key("Anthropic API Key")?;
             secrets.anthropic = Some(key);
-        }
+        },
         2 => {
             let key = prompt_api_key("OpenAI API Key")?;
             secrets.openai = Some(key);
-        }
+        },
         3 => {
             CliService::info("Enter API keys (press Enter to skip any):");
 
@@ -151,7 +151,7 @@ pub fn collect_interactive(
             if let Some(key) = prompt_optional_api_key("GitHub Token (optional)")? {
                 secrets.github = Some(key);
             }
-        }
+        },
         _ => return Err(anyhow!("Invalid AI provider option selected")),
     }
 

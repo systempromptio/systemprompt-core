@@ -23,10 +23,7 @@ pub struct StatusArgs {
     pub limit: i64,
 }
 
-pub async fn execute(
-    args: StatusArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<StatusOutput>> {
+pub async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandResult<StatusOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
@@ -46,8 +43,10 @@ pub async fn execute(
         let expected_url = expected_url.replace("{}", &content.slug);
 
         let prerendered = args.web_dist.as_ref().map(|dist_dir| {
-            let html_path =
-                dist_dir.join(format!("{}/index.html", expected_url.trim_start_matches('/')));
+            let html_path = dist_dir.join(format!(
+                "{}/index.html",
+                expected_url.trim_start_matches('/')
+            ));
             html_path.exists()
         });
 

@@ -31,7 +31,11 @@ pub struct MessageArgs {
     #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
     pub url: Option<String>,
 
-    #[arg(long, env = "SYSTEMPROMPT_TOKEN", help = "Bearer token for authentication")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_TOKEN",
+        help = "Bearer token for authentication"
+    )]
     pub token: Option<String>,
 
     #[arg(long, help = "Use streaming mode")]
@@ -40,7 +44,11 @@ pub struct MessageArgs {
     #[arg(long, help = "Wait for task completion (blocking mode)")]
     pub blocking: bool,
 
-    #[arg(long, default_value = "30", help = "Timeout in seconds for blocking mode")]
+    #[arg(
+        long,
+        default_value = "30",
+        help = "Timeout in seconds for blocking mode"
+    )]
     pub timeout: u64,
 }
 
@@ -115,7 +123,10 @@ struct TaskStatusResponse {
     timestamp: Option<String>,
 }
 
-pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandResult<MessageOutput>> {
+pub async fn execute(
+    args: MessageArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<MessageOutput>> {
     let agent = resolve_input(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
@@ -125,11 +136,7 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
     })?;
 
     let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
-    let agent_url = format!(
-        "{}/api/v1/agents/{}",
-        base_url.trim_end_matches('/'),
-        agent
-    );
+    let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
     let context_id = match args.context_id {
         Some(id) => id,
@@ -139,8 +146,7 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
                 let profile = ProfileBootstrap::get()
                     .context("Profile not loaded - required for auto-context creation")?;
                 let api_url = &profile.server.api_external_url;
-                let client = SystempromptClient::new(api_url)?
-                    .with_token(JwtToken::new(token));
+                let client = SystempromptClient::new(api_url)?.with_token(JwtToken::new(token));
                 let ctx = client
                     .fetch_or_create_context()
                     .await
@@ -149,7 +155,7 @@ pub async fn execute(args: MessageArgs, config: &CliConfig) -> Result<CommandRes
             } else {
                 Uuid::new_v4().to_string()
             }
-        }
+        },
     };
     let message_id = Uuid::new_v4().to_string();
     let request_id = Uuid::new_v4().to_string();

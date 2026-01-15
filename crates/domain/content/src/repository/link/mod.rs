@@ -154,12 +154,9 @@ impl LinkRepository {
     }
 
     pub async fn delete_link(&self, id: &LinkId) -> Result<bool, sqlx::Error> {
-        let result = sqlx::query!(
-            "DELETE FROM campaign_links WHERE id = $1",
-            id.as_str()
-        )
-        .execute(&*self.pool)
-        .await?;
+        let result = sqlx::query!("DELETE FROM campaign_links WHERE id = $1", id.as_str())
+            .execute(&*self.pool)
+            .await?;
         Ok(result.rows_affected() > 0)
     }
 }

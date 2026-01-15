@@ -39,7 +39,9 @@ pub struct UpdateArgs {
 
 pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
     if !args.yes && !args.dry_run {
-        CliService::warning("This will update multiple users. Use --yes to confirm or --dry-run to preview.");
+        CliService::warning(
+            "This will update multiple users. Use --yes to confirm or --dry-run to preview.",
+        );
         return Err(anyhow!("Operation cancelled - confirmation required"));
     }
 
@@ -122,7 +124,10 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
 
     let output = BulkUpdateOutput {
         updated,
-        message: format!("Updated {} user(s) to status '{}'", updated, args.set_status),
+        message: format!(
+            "Updated {} user(s) to status '{}'",
+            updated, args.set_status
+        ),
     };
 
     if config.is_json_output() {

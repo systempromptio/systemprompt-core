@@ -17,11 +17,7 @@ pub fn execute(args: &RolesArgs, _config: &CliConfig) -> CommandResult<RolesList
     let roles: Vec<RoleWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
             ext.roles()
                 .iter()

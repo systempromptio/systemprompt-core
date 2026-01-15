@@ -257,7 +257,10 @@ fn render_text_output(output: &RequestStatsOutput) {
 
     CliService::key_value("Total Requests", &output.total_requests.to_string());
     CliService::key_value("Total Cost", &format!("${:.6}", output.total_cost_dollars));
-    CliService::key_value("Average Latency", &format!("{}ms", output.average_latency_ms));
+    CliService::key_value(
+        "Average Latency",
+        &format!("{}ms", output.average_latency_ms),
+    );
 
     CliService::subsection("Token Usage");
     CliService::key_value("  Input Tokens", &output.total_tokens.input.to_string());

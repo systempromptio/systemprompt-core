@@ -19,7 +19,10 @@ pub struct ShowArgs {
     pub name: Option<String>,
 }
 
-pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeDetailOutput>> {
+pub fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<ContentTypeDetailOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 

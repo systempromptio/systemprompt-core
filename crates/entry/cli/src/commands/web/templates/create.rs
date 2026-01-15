@@ -25,7 +25,10 @@ pub struct CreateArgs {
     pub content: Option<String>,
 }
 
-pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<TemplateCreateOutput>> {
+pub fn execute(
+    args: CreateArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<TemplateCreateOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_path = profile.paths.web_path_resolved();
     let templates_dir = Path::new(&web_path).join("templates");
@@ -89,10 +92,9 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Tem
         false
     };
 
-    templates_config.templates.insert(
-        name.clone(),
-        TemplateEntry { content_types },
-    );
+    templates_config
+        .templates
+        .insert(name.clone(), TemplateEntry { content_types });
 
     let yaml = serde_yaml::to_string(&templates_config).context("Failed to serialize config")?;
     fs::write(&templates_yaml_path, yaml).with_context(|| {

@@ -92,8 +92,10 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
                         .device_type
                         .clone()
                         .unwrap_or_else(|| "unknown".to_string()),
-                    started: s
-                        .started_at.map_or_else(|| "unknown".to_string(), |t| t.format("%Y-%m-%d %H:%M").to_string()),
+                    started: s.started_at.map_or_else(
+                        || "unknown".to_string(),
+                        |t| t.format("%Y-%m-%d %H:%M").to_string(),
+                    ),
                 })
                 .collect();
 

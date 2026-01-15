@@ -69,11 +69,7 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub async fn execute_assign_admin(
-    ctx: &AppContext,
-    user: &str,
-    config: &CliConfig,
-) -> Result<()> {
+pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConfig) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
     let user_admin = UserAdminService::new(user_service);
 
@@ -98,7 +94,7 @@ pub async fn execute_assign_admin(
                 CliService::success(&output.message);
                 CliService::info(&format!("   Roles: {:?}", new_roles));
             }
-        }
+        },
         PromoteResult::AlreadyAdmin(u) => {
             let output = DbAssignAdminOutput {
                 user_id: u.id.to_string(),
@@ -114,10 +110,10 @@ pub async fn execute_assign_admin(
             } else {
                 CliService::warning(&output.message);
             }
-        }
+        },
         PromoteResult::UserNotFound => {
             return Err(anyhow!("User '{}' not found", user));
-        }
+        },
     }
 
     Ok(())

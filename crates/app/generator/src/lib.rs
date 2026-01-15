@@ -9,7 +9,7 @@ pub mod prerender;
 pub mod sitemap;
 pub mod templates;
 
-pub use assets::{copy_implementation_assets, organize_css_files};
+pub use assets::{copy_implementation_assets, organize_css_files, organize_js_files};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, optimize_images, render_markdown};
 pub use prerender::{prerender_content, prerender_homepage};

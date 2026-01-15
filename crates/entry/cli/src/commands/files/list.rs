@@ -42,7 +42,7 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
         .filter(|f| {
             args.mime
                 .as_ref()
-                .is_none_or( |pattern| matches_mime_pattern(&f.mime_type, pattern))
+                .is_none_or(|pattern| matches_mime_pattern(&f.mime_type, pattern))
         })
         .map(|f| FileSummary {
             id: FileId::new(f.id.to_string()),

@@ -134,21 +134,17 @@ pub async fn execute(
 }
 
 fn is_agent_running(agent: &AgentCardResponse) -> bool {
-    agent
-        .capabilities
-        .extensions
-        .as_ref()
-        .is_some_and(|exts| {
-            exts.iter().any(|ext| {
-                ext.uri == "systemprompt:service-status"
-                    && ext
-                        .params
-                        .as_ref()
-                        .and_then(|p| p.get("status"))
-                        .and_then(|s| s.as_str())
-                        .is_some_and(|s| s == "running")
-            })
+    agent.capabilities.extensions.as_ref().is_some_and(|exts| {
+        exts.iter().any(|ext| {
+            ext.uri == "systemprompt:service-status"
+                && ext
+                    .params
+                    .as_ref()
+                    .and_then(|p| p.get("status"))
+                    .and_then(|s| s.as_str())
+                    .is_some_and(|s| s == "running")
         })
+    })
 }
 
 fn extract_status(agent: &AgentCardResponse) -> String {

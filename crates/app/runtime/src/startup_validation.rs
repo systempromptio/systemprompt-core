@@ -4,11 +4,10 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::path::Path;
 use std::time::Duration;
 use systemprompt_core_files::FilesConfig;
-use systemprompt_core_logging::is_startup_mode;
 use systemprompt_core_logging::services::cli::{
     render_phase_success, render_phase_warning, BrandColors,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_core_logging::{is_startup_mode, CliService};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionRegistry as McpExtensionRegistry};
 use systemprompt_models::validators::{

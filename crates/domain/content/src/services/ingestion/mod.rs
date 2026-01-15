@@ -39,7 +39,12 @@ impl IngestionService {
 
         for file_path in markdown_files {
             match self
-                .ingest_file(&file_path, source, options.override_existing, options.dry_run)
+                .ingest_file(
+                    &file_path,
+                    source,
+                    options.override_existing,
+                    options.dry_run,
+                )
                 .await
             {
                 Ok(()) => {

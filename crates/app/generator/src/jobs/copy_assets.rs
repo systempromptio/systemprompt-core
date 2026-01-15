@@ -23,8 +23,8 @@ impl CopyExtensionAssetsJob {
                 .with_duration(duration_ms));
         }
 
-        let files_config =
-            FilesConfig::get().map_err(|e| anyhow::anyhow!("FilesConfig not initialized: {}", e))?;
+        let files_config = FilesConfig::get()
+            .map_err(|e| anyhow::anyhow!("FilesConfig not initialized: {}", e))?;
 
         let mut copied = 0u64;
         let mut failed = 0u64;

@@ -10,8 +10,7 @@ use super::{
     StatusBreakdownItem,
 };
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_duration_ms, format_number, format_percent,
-    parse_time_range,
+    export_single_to_csv, format_duration_ms, format_number, format_percent, parse_time_range,
 };
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;

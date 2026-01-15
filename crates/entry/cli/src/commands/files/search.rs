@@ -4,7 +4,7 @@ use systemprompt_core_files::FileService;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
-use super::types::{FileSummary, FileSearchOutput};
+use super::types::{FileSearchOutput, FileSummary};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 

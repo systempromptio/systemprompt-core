@@ -46,9 +46,10 @@ pub fn execute(
     });
 
     let web_path = profile.paths.web_path_resolved();
-    let output_path = args.output.clone().unwrap_or_else(|| {
-        PathBuf::from(&web_path).join("dist").join("sitemap.xml")
-    });
+    let output_path = args
+        .output
+        .clone()
+        .unwrap_or_else(|| PathBuf::from(&web_path).join("dist").join("sitemap.xml"));
 
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)
@@ -98,7 +99,11 @@ pub fn execute(
         }
     }
 
-    urls.sort_by(|a, b| b.priority.partial_cmp(&a.priority).unwrap_or(std::cmp::Ordering::Equal));
+    urls.sort_by(|a, b| {
+        b.priority
+            .partial_cmp(&a.priority)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     let xml = generate_sitemap_xml(&urls);
 

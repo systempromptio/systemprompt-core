@@ -135,6 +135,8 @@ async fn run_startup(
 
     Ok(format!(
         "http://127.0.0.1:{}",
-        ProfileBootstrap::get().map(|p| p.server.port).unwrap_or(8080)
+        ProfileBootstrap::get()
+            .map(|p| p.server.port)
+            .unwrap_or(8080)
     ))
 }

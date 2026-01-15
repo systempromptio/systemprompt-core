@@ -24,7 +24,11 @@ pub struct TaskArgs {
     #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
     pub url: Option<String>,
 
-    #[arg(long, env = "SYSTEMPROMPT_TOKEN", help = "Bearer token for authentication")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_TOKEN",
+        help = "Bearer token for authentication"
+    )]
     pub token: Option<String>,
 
     #[arg(long, default_value = "30", help = "Timeout in seconds")]
@@ -119,11 +123,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
     })?;
 
     let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
-    let agent_url = format!(
-        "{}/api/v1/agents/{}",
-        base_url.trim_end_matches('/'),
-        agent
-    );
+    let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
     let request_id = uuid::Uuid::new_v4().to_string();
 

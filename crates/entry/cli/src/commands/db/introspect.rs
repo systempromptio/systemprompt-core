@@ -12,10 +12,7 @@ pub async fn execute_indexes(
     table_filter: Option<String>,
     config: &CliConfig,
 ) -> Result<()> {
-    let tables = admin
-        .list_tables()
-        .await
-        .context("Failed to list tables")?;
+    let tables = admin.list_tables().await.context("Failed to list tables")?;
 
     let filtered_tables: Vec<_> = if let Some(ref filter) = table_filter {
         tables.into_iter().filter(|t| t.name == *filter).collect()
@@ -74,10 +71,7 @@ pub async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> R
         .await
         .context("Failed to get database info")?;
 
-    let tables = admin
-        .list_tables()
-        .await
-        .context("Failed to list tables")?;
+    let tables = admin.list_tables().await.context("Failed to list tables")?;
 
     let mut sorted_tables = tables.clone();
     sorted_tables.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));

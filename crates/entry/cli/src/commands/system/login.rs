@@ -114,7 +114,8 @@ async fn fetch_admin_user(database_url: &str, email: &str) -> Result<User> {
         .context("Failed to fetch user")?
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "User '{}' not found in database.\nRun 'systemprompt cloud login' to sync your user.",
+                "User '{}' not found in database.\nRun 'systemprompt cloud login' to sync your \
+                 user.",
                 email
             )
         })?;

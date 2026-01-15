@@ -19,8 +19,12 @@ fn parse_duration(s: &str) -> Result<i64> {
             .map(|w| w * 7)
             .map_err(|_| anyhow!("Invalid duration format: {}", s))
     } else {
-        s.parse::<i64>()
-            .map_err(|_| anyhow!("Invalid duration format: {}. Use '7d', '30d', '1w', etc.", s))
+        s.parse::<i64>().map_err(|_| {
+            anyhow!(
+                "Invalid duration format: {}. Use '7d', '30d', '1w', etc.",
+                s
+            )
+        })
     }
 }
 

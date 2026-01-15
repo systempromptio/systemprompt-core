@@ -17,11 +17,7 @@ pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsList
     let tools: Vec<ToolWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
             ext.tool_providers()
                 .iter()
@@ -41,8 +37,5 @@ pub fn execute(args: &ToolsArgs, _config: &CliConfig) -> CommandResult<ToolsList
 
     CommandResult::table(output)
         .with_title("Tools Across Extensions")
-        .with_columns(vec![
-            "extension_id".to_string(),
-            "tool_name".to_string(),
-        ])
+        .with_columns(vec!["extension_id".to_string(), "tool_name".to_string()])
 }

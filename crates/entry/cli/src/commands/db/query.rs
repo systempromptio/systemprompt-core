@@ -38,9 +38,20 @@ pub async fn execute_query(
     let output_format = get_output_format(params.format, config);
 
     let final_sql = if params.limit.is_some() || params.offset.is_some() {
-        let limit_clause = params.limit.map(|l| format!(" LIMIT {}", l)).unwrap_or_default();
-        let offset_clause = params.offset.map(|o| format!(" OFFSET {}", o)).unwrap_or_default();
-        format!("{}{}{}", params.sql.trim_end_matches(';'), limit_clause, offset_clause)
+        let limit_clause = params
+            .limit
+            .map(|l| format!(" LIMIT {}", l))
+            .unwrap_or_default();
+        let offset_clause = params
+            .offset
+            .map(|o| format!(" OFFSET {}", o))
+            .unwrap_or_default();
+        format!(
+            "{}{}{}",
+            params.sql.trim_end_matches(';'),
+            limit_clause,
+            offset_clause
+        )
     } else {
         params.sql.to_string()
     };

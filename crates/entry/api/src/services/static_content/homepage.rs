@@ -28,10 +28,7 @@ pub async fn serve_homepage() -> impl IntoResponse {
             },
             Err(e) => {
                 tracing::error!(error = %e, "Failed to read homepage");
-                return (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Error reading homepage",
-                )
+                return (StatusCode::INTERNAL_SERVER_ERROR, "Error reading homepage")
                     .into_response();
             },
         }

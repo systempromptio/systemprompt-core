@@ -37,9 +37,9 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
 
     // Case 1: End all sessions for a user
     if args.all {
-        let user_identifier = args.user.ok_or_else(|| {
-            anyhow!("--user is required when using --all")
-        })?;
+        let user_identifier = args
+            .user
+            .ok_or_else(|| anyhow!("--user is required when using --all"))?;
 
         let user = admin_service
             .find_user(&user_identifier)

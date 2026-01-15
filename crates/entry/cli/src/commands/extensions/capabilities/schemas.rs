@@ -17,11 +17,7 @@ pub fn execute(args: &SchemasArgs, _config: &CliConfig) -> CommandResult<Schemas
     let mut schemas: Vec<SchemaWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
             ext.schemas()
                 .iter()

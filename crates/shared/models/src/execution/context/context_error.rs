@@ -2,8 +2,9 @@
 
 use thiserror::Error;
 
-/// Marker context ID for task-based methods where context is resolved from task storage.
-/// Per A2A spec Section 7.3, tasks/get only requires task_id - the context is stored with the task.
+/// Marker context ID for task-based methods where context is resolved from task
+/// storage. Per A2A spec Section 7.3, tasks/get only requires task_id - the
+/// context is stored with the task.
 pub const TASK_BASED_CONTEXT_MARKER: &str = "__task_based__";
 
 /// Result of context extraction from A2A payload.

@@ -243,12 +243,9 @@ impl UserRepository {
     }
 
     pub async fn delete(&self, id: &UserId) -> Result<()> {
-        let result = sqlx::query!(
-            r#"DELETE FROM users WHERE id = $1"#,
-            id.as_str()
-        )
-        .execute(&*self.pool)
-        .await?;
+        let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
+            .execute(&*self.pool)
+            .await?;
 
         if result.rows_affected() == 0 {
             return Err(UserError::NotFound(id.clone()));
@@ -307,12 +304,9 @@ impl UserRepository {
         .await
         .unwrap_or_default();
 
-        sqlx::query!(
-            r#"DELETE FROM users WHERE id = $1"#,
-            source_id.as_str()
-        )
-        .execute(&*self.pool)
-        .await?;
+        sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, source_id.as_str())
+            .execute(&*self.pool)
+            .await?;
 
         Ok(MergeResult {
             sessions_transferred: sessions_result.rows_affected(),

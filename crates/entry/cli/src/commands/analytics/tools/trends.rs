@@ -162,9 +162,10 @@ async fn fetch_trends(
 }
 
 fn render_trends(output: &ToolTrendsOutput) {
-    let title = output
-        .tool
-        .as_ref().map_or_else(|| format!("Tool Trends ({})", output.period), |t| format!("Tool Trends: {} ({})", t, output.period));
+    let title = output.tool.as_ref().map_or_else(
+        || format!("Tool Trends ({})", output.period),
+        |t| format!("Tool Trends: {} ({})", t, output.period),
+    );
 
     CliService::section(&title);
     CliService::key_value("Grouped by", &output.group_by);

@@ -62,19 +62,29 @@ pub enum RateLimitsCommands {
 
 #[derive(Debug, Clone, Args)]
 pub struct TierArgs {
-    #[arg(value_name = "TIER", help = "Tier name: admin, user, a2a, mcp, service, anon")]
+    #[arg(
+        value_name = "TIER",
+        help = "Tier name: admin, user, a2a, mcp, service, anon"
+    )]
     pub tier: String,
 }
 
 #[derive(Debug, Clone, Args)]
 pub struct SetArgs {
-    #[arg(long, help = "Endpoint to modify: oauth_public, oauth_auth, contexts, tasks, artifacts, agent_registry, agents, mcp_registry, mcp, stream, content")]
+    #[arg(
+        long,
+        help = "Endpoint to modify: oauth_public, oauth_auth, contexts, tasks, artifacts, \
+                agent_registry, agents, mcp_registry, mcp, stream, content"
+    )]
     pub endpoint: Option<String>,
 
     #[arg(long, help = "Rate per second (requires --endpoint)")]
     pub rate: Option<u64>,
 
-    #[arg(long, help = "Tier to modify multiplier: admin, user, a2a, mcp, service, anon")]
+    #[arg(
+        long,
+        help = "Tier to modify multiplier: admin, user, a2a, mcp, service, anon"
+    )]
     pub tier: Option<String>,
 
     #[arg(long, help = "Multiplier value (requires --tier)")]
@@ -408,7 +418,10 @@ pub fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
             field: format!("tier_multipliers.{}", tier),
             old_value: format!("{:.1}", old_value),
             new_value: format!("{:.1}", multiplier),
-            message: format!("Updated {} tier multiplier: {:.1}x -> {:.1}x", tier, old_value, multiplier),
+            message: format!(
+                "Updated {} tier multiplier: {:.1}x -> {:.1}x",
+                tier, old_value, multiplier
+            ),
         }
     } else if let Some(burst) = args.burst {
         let old_value = limits.burst_multiplier;
@@ -673,7 +686,11 @@ pub fn execute_reset(args: ResetArgs, config: &CliConfig) -> Result<()> {
         reset_type = "all".to_string();
         // Compare all fields and collect changes
         collect_endpoint_changes(limits, &defaults, &mut changes);
-        collect_tier_changes(&limits.tier_multipliers, &defaults.tier_multipliers, &mut changes);
+        collect_tier_changes(
+            &limits.tier_multipliers,
+            &defaults.tier_multipliers,
+            &mut changes,
+        );
 
         if limits.burst_multiplier != defaults.burst_multiplier {
             changes.push(ResetChange {
@@ -701,7 +718,10 @@ pub fn execute_reset(args: ResetArgs, config: &CliConfig) -> Result<()> {
         "No changes needed - already at defaults".to_string()
     } else {
         if !args.yes && config.is_interactive() {
-            CliService::warning(&format!("This will reset {} value(s) to defaults", changes.len()));
+            CliService::warning(&format!(
+                "This will reset {} value(s) to defaults",
+                changes.len()
+            ));
             if !CliService::confirm("Proceed with reset?")? {
                 CliService::info("Reset cancelled");
                 return Ok(());
@@ -777,7 +797,8 @@ fn get_endpoint_rate(limits: &RateLimitsConfig, endpoint: &str) -> Result<u64> {
         "stream" => Ok(limits.stream_per_second),
         "content" => Ok(limits.content_per_second),
         _ => bail!(
-            "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
+            "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
             endpoint
         ),
     }
@@ -797,7 +818,8 @@ fn set_endpoint_rate(limits: &mut RateLimitsConfig, endpoint: &str, value: u64) 
         "stream" => limits.stream_per_second = value,
         "content" => limits.content_per_second = value,
         _ => bail!(
-            "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
+            "Unknown endpoint: {}. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, \
+             artifacts, agent_registry, agents, mcp_registry, mcp, stream, content",
             endpoint
         ),
     }
@@ -805,18 +827,16 @@ fn set_endpoint_rate(limits: &mut RateLimitsConfig, endpoint: &str, value: u64) 
 }
 
 fn load_profile_for_edit(path: &str) -> Result<Profile> {
-    let content = fs::read_to_string(path)
-        .with_context(|| format!("Failed to read profile: {}", path))?;
+    let content =
+        fs::read_to_string(path).with_context(|| format!("Failed to read profile: {}", path))?;
     let profile: Profile = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse profile: {}", path))?;
     Ok(profile)
 }
 
 fn save_profile(profile: &Profile, path: &str) -> Result<()> {
-    let content = serde_yaml::to_string(profile)
-        .context("Failed to serialize profile")?;
-    fs::write(path, content)
-        .with_context(|| format!("Failed to write profile: {}", path))?;
+    let content = serde_yaml::to_string(profile).context("Failed to serialize profile")?;
+    fs::write(path, content).with_context(|| format!("Failed to write profile: {}", path))?;
     Ok(())
 }
 
@@ -838,17 +858,61 @@ fn collect_endpoint_changes(
     changes: &mut Vec<ResetChange>,
 ) {
     let endpoints = [
-        ("oauth_public_per_second", current.oauth_public_per_second, defaults.oauth_public_per_second),
-        ("oauth_auth_per_second", current.oauth_auth_per_second, defaults.oauth_auth_per_second),
-        ("contexts_per_second", current.contexts_per_second, defaults.contexts_per_second),
-        ("tasks_per_second", current.tasks_per_second, defaults.tasks_per_second),
-        ("artifacts_per_second", current.artifacts_per_second, defaults.artifacts_per_second),
-        ("agent_registry_per_second", current.agent_registry_per_second, defaults.agent_registry_per_second),
-        ("agents_per_second", current.agents_per_second, defaults.agents_per_second),
-        ("mcp_registry_per_second", current.mcp_registry_per_second, defaults.mcp_registry_per_second),
-        ("mcp_per_second", current.mcp_per_second, defaults.mcp_per_second),
-        ("stream_per_second", current.stream_per_second, defaults.stream_per_second),
-        ("content_per_second", current.content_per_second, defaults.content_per_second),
+        (
+            "oauth_public_per_second",
+            current.oauth_public_per_second,
+            defaults.oauth_public_per_second,
+        ),
+        (
+            "oauth_auth_per_second",
+            current.oauth_auth_per_second,
+            defaults.oauth_auth_per_second,
+        ),
+        (
+            "contexts_per_second",
+            current.contexts_per_second,
+            defaults.contexts_per_second,
+        ),
+        (
+            "tasks_per_second",
+            current.tasks_per_second,
+            defaults.tasks_per_second,
+        ),
+        (
+            "artifacts_per_second",
+            current.artifacts_per_second,
+            defaults.artifacts_per_second,
+        ),
+        (
+            "agent_registry_per_second",
+            current.agent_registry_per_second,
+            defaults.agent_registry_per_second,
+        ),
+        (
+            "agents_per_second",
+            current.agents_per_second,
+            defaults.agents_per_second,
+        ),
+        (
+            "mcp_registry_per_second",
+            current.mcp_registry_per_second,
+            defaults.mcp_registry_per_second,
+        ),
+        (
+            "mcp_per_second",
+            current.mcp_per_second,
+            defaults.mcp_per_second,
+        ),
+        (
+            "stream_per_second",
+            current.stream_per_second,
+            defaults.stream_per_second,
+        ),
+        (
+            "content_per_second",
+            current.content_per_second,
+            defaults.content_per_second,
+        ),
     ];
 
     for (name, current_val, default_val) in endpoints {
@@ -872,7 +936,11 @@ fn collect_tier_changes(
         ("tier_multipliers.user", current.user, defaults.user),
         ("tier_multipliers.a2a", current.a2a, defaults.a2a),
         ("tier_multipliers.mcp", current.mcp, defaults.mcp),
-        ("tier_multipliers.service", current.service, defaults.service),
+        (
+            "tier_multipliers.service",
+            current.service,
+            defaults.service,
+        ),
         ("tier_multipliers.anon", current.anon, defaults.anon),
     ];
 
@@ -1099,10 +1167,9 @@ fn execute_export(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let content = match args.format.as_str() {
         "yaml" | "yml" => {
             serde_yaml::to_string(limits).context("Failed to serialize rate limits to YAML")?
-        }
-        "json" => {
-            serde_json::to_string_pretty(limits).context("Failed to serialize rate limits to JSON")?
-        }
+        },
+        "json" => serde_json::to_string_pretty(limits)
+            .context("Failed to serialize rate limits to JSON")?,
         _ => bail!("Unknown format: {}. Valid formats: yaml, json", args.format),
     };
 
@@ -1134,8 +1201,8 @@ fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
         bail!("File not found: {}", args.file);
     }
 
-    let content =
-        fs::read_to_string(&args.file).with_context(|| format!("Failed to read file: {}", args.file))?;
+    let content = fs::read_to_string(&args.file)
+        .with_context(|| format!("Failed to read file: {}", args.file))?;
 
     let is_json = Path::new(&args.file)
         .extension()
@@ -1209,7 +1276,12 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
     let mut differences: Vec<DiffEntry> = Vec::new();
 
     // Compare all fields
-    add_diff_if_different(&mut differences, "disabled", current.disabled, compare_with.disabled);
+    add_diff_if_different(
+        &mut differences,
+        "disabled",
+        current.disabled,
+        compare_with.disabled,
+    );
     add_diff_if_different(
         &mut differences,
         "oauth_public_per_second",

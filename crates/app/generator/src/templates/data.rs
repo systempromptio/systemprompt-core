@@ -347,6 +347,7 @@ fn build_template_json(params: BuildTemplateJsonParams<'_>) -> Result<Value> {
         "TOC_HTML": content_data.toc_html,
         "SECTIONS_HTML": content_data.sections_html,
         "CSS_BASE_PATH": "/files/css",
+        "JS_BASE_PATH": "/files/js",
     }))
 }
 

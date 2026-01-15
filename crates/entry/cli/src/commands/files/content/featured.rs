@@ -51,11 +51,10 @@ pub async fn execute(
         created_at: f.created_at,
     });
 
-    let message = file_summary
-        .as_ref()
-        .map_or_else(|| "No featured image set".to_string(), |f| {
-            format!("Featured image: {}", f.path)
-        });
+    let message = file_summary.as_ref().map_or_else(
+        || "No featured image set".to_string(),
+        |f| format!("Featured image: {}", f.path),
+    );
 
     let output = FeaturedImageOutput {
         content_id,

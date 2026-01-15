@@ -27,10 +27,7 @@ pub async fn execute_tables(
     filter: Option<String>,
     config: &CliConfig,
 ) -> Result<()> {
-    let tables = admin
-        .list_tables()
-        .await
-        .context("Failed to list tables")?;
+    let tables = admin.list_tables().await.context("Failed to list tables")?;
 
     let filtered_tables: Vec<_> = if let Some(pattern) = &filter {
         let pattern = pattern.replace(['%', '*'], "");

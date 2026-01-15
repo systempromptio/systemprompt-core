@@ -165,7 +165,9 @@ pub async fn serve_vite_app(
     }
 
     let trimmed_effective_path = effective_path.trim_start_matches('/');
-    let parent_route_path = effective_dist_dir.join(trimmed_effective_path).join("index.html");
+    let parent_route_path = effective_dist_dir
+        .join(trimmed_effective_path)
+        .join("index.html");
     if parent_route_path.exists() {
         match std::fs::read(&parent_route_path) {
             Ok(content) => {
@@ -198,7 +200,9 @@ pub async fn serve_vite_app(
             .into_response();
         }
 
-        let index_path = effective_dist_dir.join(trimmed_effective_path).join("index.html");
+        let index_path = effective_dist_dir
+            .join(trimmed_effective_path)
+            .join("index.html");
         if index_path.exists() {
             return serve_html_with_analytics(
                 &index_path,

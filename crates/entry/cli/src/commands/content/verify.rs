@@ -26,10 +26,7 @@ pub struct VerifyArgs {
     pub url_pattern: Option<String>,
 }
 
-pub async fn execute(
-    args: VerifyArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<VerifyOutput>> {
+pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandResult<VerifyOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
@@ -62,12 +59,12 @@ pub async fn execute(
     let expected_url = expected_url.replace("{}", &content.slug);
 
     let (prerendered, prerender_path) = if let Some(dist_dir) = &args.web_dist {
-        let html_path = dist_dir.join(format!("{}/index.html", expected_url.trim_start_matches('/')));
+        let html_path = dist_dir.join(format!(
+            "{}/index.html",
+            expected_url.trim_start_matches('/')
+        ));
         let exists = html_path.exists();
-        (
-            Some(exists),
-            Some(html_path.to_string_lossy().to_string()),
-        )
+        (Some(exists), Some(html_path.to_string_lossy().to_string()))
     } else {
         (None, None)
     };

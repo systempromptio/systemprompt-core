@@ -14,10 +14,9 @@ use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_files::FilesConfig;
-use systemprompt_core_logging::CliService;
+use systemprompt_core_logging::{set_startup_mode, CliService};
 use systemprompt_models::profile::CloudValidationMode;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
-use systemprompt_core_logging::set_startup_mode;
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
@@ -165,8 +164,8 @@ enum Commands {
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
 
-    // Only show full validation output (success checkmarks, etc.) when launching TUI.
-    // For specific CLI commands, only errors should be displayed.
+    // Only show full validation output (success checkmarks, etc.) when launching
+    // TUI. For specific CLI commands, only errors should be displayed.
     let is_tui_startup = cli.command.is_none();
     set_startup_mode(is_tui_startup);
 
@@ -244,7 +243,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Setup(args)) => {
             let result = setup::execute(args, &cli_config).await?;
             shared::render_result(&result);
-        }
+        },
         None => tui::execute(&cli_config).await?,
     }
 

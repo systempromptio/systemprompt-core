@@ -39,7 +39,10 @@ pub struct EditArgs {
     #[arg(long, help = "Set the AI model")]
     pub model: Option<String>,
 
-    #[arg(long = "mcp-server", help = "Add an MCP server reference (can be specified multiple times)")]
+    #[arg(
+        long = "mcp-server",
+        help = "Add an MCP server reference (can be specified multiple times)"
+    )]
     pub mcp_servers: Vec<String>,
 
     #[arg(long = "remove-mcp-server", help = "Remove an MCP server reference")]
@@ -110,8 +113,7 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
             // Validate MCP server exists in config
             if !services_config.mcp_servers.contains_key(mcp_server) {
                 return Err(anyhow!(
-                    "MCP server '{}' not found in configuration. \
-                     Available servers: {}",
+                    "MCP server '{}' not found in configuration. Available servers: {}",
                     mcp_server,
                     services_config
                         .mcp_servers

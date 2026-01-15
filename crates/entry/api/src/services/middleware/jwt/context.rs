@@ -73,12 +73,7 @@ impl JwtContextExtractor {
 
     fn extract_common_headers(
         headers: &HeaderMap,
-    ) -> (
-        TraceId,
-        Option<TaskId>,
-        Option<String>,
-        AgentName,
-    ) {
+    ) -> (TraceId, Option<TaskId>, Option<String>, AgentName) {
         let trace_id = headers
             .get("x-trace-id")
             .and_then(|h| h.to_str().ok())
@@ -241,9 +236,10 @@ impl JwtContextExtractor {
         let context_source = PayloadSource::extract_context_source(&body_bytes)?;
         let (context_id, task_id_from_payload) = match context_source {
             ContextIdSource::Direct(id) => (ContextId::new(id), None),
-            ContextIdSource::FromTask { task_id } => {
-                (ContextId::new(TASK_BASED_CONTEXT_MARKER), Some(TaskId::new(task_id)))
-            }
+            ContextIdSource::FromTask { task_id } => (
+                ContextId::new(TASK_BASED_CONTEXT_MARKER),
+                Some(TaskId::new(task_id)),
+            ),
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =

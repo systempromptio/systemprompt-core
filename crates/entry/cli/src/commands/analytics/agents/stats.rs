@@ -61,9 +61,9 @@ async fn fetch_stats(
     end: DateTime<Utc>,
     agent_filter: Option<&String>,
 ) -> Result<AgentStatsOutput> {
-    let (agent_condition, agent_param) = agent_filter
-        .as_ref()
-        .map_or(("", None), |a| ("AND agent_name ILIKE $3", Some(format!("%{}%", a))));
+    let (agent_condition, agent_param) = agent_filter.as_ref().map_or(("", None), |a| {
+        ("AND agent_name ILIKE $3", Some(format!("%{}%", a)))
+    });
 
     let query = format!(
         r"

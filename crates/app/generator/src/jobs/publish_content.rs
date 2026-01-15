@@ -7,7 +7,9 @@ use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::{CopyExtensionAssetsJob, ImageOptimizationJob};
-use crate::{generate_sitemap, organize_css_files, prerender_content, prerender_homepage};
+use crate::{
+    generate_sitemap, organize_css_files, organize_js_files, prerender_content, prerender_homepage,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PublishContentJob;
@@ -166,6 +168,17 @@ async fn run_css_organization(stats: &mut PublishStats) {
             stats.record_failure();
         },
     }
+
+    match organize_js_files(web_dir_str).await {
+        Ok(count) => {
+            tracing::debug!(files = count, "JS organized");
+            stats.record_success();
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "JS organization warning");
+            stats.record_failure();
+        },
+    }
 }
 
 #[async_trait::async_trait]
@@ -175,7 +188,8 @@ impl Job for PublishContentJob {
     }
 
     fn description(&self) -> &'static str {
-        "Publishes content through the full pipeline: images, ingestion, prerender, sitemap, CSS"
+        "Publishes content through the full pipeline: images, ingestion, prerender, sitemap, CSS, \
+         JS"
     }
 
     fn schedule(&self) -> &'static str {

@@ -48,7 +48,9 @@ pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
         "nav": {
             "agent_url": "/agent",
             "blog_url": "/blog"
-        }
+        },
+        "JS_BASE_PATH": "/files/js",
+        "CSS_BASE_PATH": "/files/css"
     });
 
     let html = ctx
