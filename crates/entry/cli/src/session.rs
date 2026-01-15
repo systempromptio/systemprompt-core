@@ -90,7 +90,18 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
 
     session
         .save_to_path(&session_path)
-        .context("Failed to save session file")?;
+        .with_context(|| format!("Failed to save session to {}", session_path.display()))?;
+
+    if !session_path.exists() {
+        anyhow::bail!(
+            "Session file was not created at {}. Check write permissions.",
+            session_path.display()
+        );
+    }
+
+    if session.session_token.as_str().is_empty() {
+        anyhow::bail!("Session token is empty. Session creation failed.");
+    }
 
     Ok(CliSessionContext { session, profile })
 }
@@ -153,6 +164,7 @@ async fn create_session_for_profile(
 
     if config.is_interactive() {
         CliService::success("Session created");
+        CliService::key_value("Session ID", session_id.as_str());
     }
 
     Ok(CliSession::new(
