@@ -3,6 +3,7 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::{UserAdminService, UserService};
+use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
 use tabled::{Table, Tabled};
 
@@ -22,7 +23,7 @@ pub struct ListArgs {
 #[derive(Tabled)]
 struct SessionRow {
     #[tabled(rename = "Session ID")]
-    id: String,
+    id: SessionId,
     #[tabled(rename = "Status")]
     status: String,
     #[tabled(rename = "IP Address")]
@@ -55,7 +56,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let summaries: Vec<SessionSummary> = sessions
         .into_iter()
         .map(|s| SessionSummary {
-            session_id: s.session_id.to_string(),
+            session_id: s.session_id.clone(),
             ip_address: s.ip_address,
             user_agent: s.user_agent,
             device_type: s.device_type,

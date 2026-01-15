@@ -34,13 +34,11 @@ pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    // Find source user
     let source_user = admin_service
         .find_user(&args.source)
         .await?
         .ok_or_else(|| anyhow!("Source user not found: {}", args.source))?;
 
-    // Find target user
     let target_user = admin_service
         .find_user(&args.target)
         .await?
@@ -50,14 +48,13 @@ pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
         return Err(anyhow!("Source and target users cannot be the same"));
     }
 
-    // Perform merge
     let result = user_service
         .merge_users(&source_user.id, &target_user.id)
         .await?;
 
     let output = UserMergeOutput {
-        source_id: source_user.id.to_string(),
-        target_id: target_user.id.to_string(),
+        source_id: source_user.id.clone(),
+        target_id: target_user.id.clone(),
         sessions_transferred: result.sessions_transferred,
         tasks_transferred: result.tasks_transferred,
         message: format!(

@@ -20,7 +20,7 @@ pub async fn execute(args: PromoteArgs, config: &CliConfig) -> Result<()> {
     match admin_service.promote_to_admin(&args.identifier).await? {
         PromoteResult::Promoted(user, new_roles) => {
             let output = RoleAssignOutput {
-                id: user.id.to_string(),
+                id: user.id.clone(),
                 name: user.name.clone(),
                 roles: new_roles.clone(),
                 message: format!("User '{}' promoted to admin", user.name),
@@ -38,7 +38,7 @@ pub async fn execute(args: PromoteArgs, config: &CliConfig) -> Result<()> {
         PromoteResult::AlreadyAdmin(user) => {
             if config.is_json_output() {
                 CliService::json(&serde_json::json!({
-                    "id": user.id.to_string(),
+                    "id": user.id.clone(),
                     "name": user.name,
                     "message": "User is already an admin"
                 }));

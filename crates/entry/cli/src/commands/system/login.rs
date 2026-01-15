@@ -30,7 +30,10 @@ pub struct LoginArgs {
     #[arg(long, help = "Only output the token (for scripting)")]
     pub token_only: bool,
 
-    #[arg(long, help = "Force creation of a new session even if a valid one exists")]
+    #[arg(
+        long,
+        help = "Force creation of a new session even if a valid one exists"
+    )]
     pub force_new: bool,
 }
 
@@ -163,7 +166,9 @@ fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<Log
     }
 
     CliService::success("Using existing valid session");
-    Ok(Some(CommandResult::card(output).with_title("Existing Session")))
+    Ok(Some(
+        CommandResult::card(output).with_title("Existing Session"),
+    ))
 }
 
 async fn fetch_admin_user(database_url: &str, email: &str) -> Result<User> {
@@ -223,7 +228,7 @@ async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<Ses
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response.text().await.unwrap_or_else(|_| String::new());
         anyhow::bail!("Session creation failed ({}): {}", status, body);
     }
 

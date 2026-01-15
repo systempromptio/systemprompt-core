@@ -1,11 +1,11 @@
 use axum::extract::Request;
-use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
 use systemprompt_core_users::BannedIpRepository;
+use systemprompt_models::api::ApiError;
 use tracing::warn;
 
 #[derive(Clone, Copy, Debug)]
@@ -47,12 +47,13 @@ pub async fn ip_ban_middleware(
         match banned_ip_repo.is_banned(ip).await {
             Ok(true) => {
                 warn!(ip = %ip, path = %request.uri().path(), "Blocked request from banned IP");
-                return (
-                    StatusCode::FORBIDDEN,
-                    [("X-Blocked-Reason", "ip-banned")],
-                    "Access denied",
-                )
-                    .into_response();
+                let api_error = ApiError::forbidden("Access denied");
+                let mut response = api_error.into_response();
+                response.headers_mut().insert(
+                    "X-Blocked-Reason",
+                    "ip-banned".parse().expect("valid header value"),
+                );
+                return response;
             },
             Ok(false) => {},
             Err(e) => {

@@ -72,7 +72,7 @@ pub async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandRes
 
     let output = StatusOutput {
         items,
-        source_id: args.source,
+        source_id: source,
         total,
         healthy,
         issues,

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbStatusOutput {
@@ -79,7 +80,7 @@ pub struct DbMigrateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DbAssignAdminOutput {
-    pub user_id: String,
+    pub user_id: UserId,
     pub name: String,
     pub email: String,
     pub roles: Vec<String>,

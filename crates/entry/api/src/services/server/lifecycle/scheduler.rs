@@ -19,7 +19,13 @@ pub async fn initialize_scheduler(
     }
 
     let scheduler_config = match ConfigLoader::load() {
-        Ok(config) => config.scheduler.unwrap_or_default(),
+        Ok(config) => match config.scheduler {
+            Some(cfg) => cfg,
+            None => {
+                tracing::info!("No scheduler config found, using defaults");
+                SchedulerConfig::default()
+            },
+        },
         Err(e) => {
             tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
             SchedulerConfig::default()
@@ -39,9 +45,6 @@ pub async fn initialize_scheduler(
     let db_pool = ctx.db_pool().clone();
     let scheduler_repo = SchedulerRepository::new(&db_pool)?;
 
-    // db_pool is Arc<Database>, wrap in Arc to store Arc<Database> as the
-    // type-erased value ctx is &AppContext, we need Arc<Arc<AppContext>> so
-    // jobs can access via app_context::<Arc<AppContext>>()
     let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool.clone());
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::new(ctx.clone()));
     let job_ctx = JobContext::new(db_pool_any, app_context_any);

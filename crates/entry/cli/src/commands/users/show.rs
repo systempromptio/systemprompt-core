@@ -36,7 +36,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
             user_sessions
                 .into_iter()
                 .map(|s| SessionSummary {
-                    session_id: s.session_id.to_string(),
+                    session_id: s.session_id,
                     ip_address: s.ip_address,
                     user_agent: s.user_agent,
                     device_type: s.device_type,
@@ -53,7 +53,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let activity = if args.activity {
         let user_activity = user_service.get_activity(&user.id).await?;
         Some(UserActivityOutput {
-            user_id: user_activity.user_id.to_string(),
+            user_id: user_activity.user_id,
             last_active: user_activity.last_active,
             session_count: user_activity.session_count,
             task_count: user_activity.task_count,
@@ -64,7 +64,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     };
 
     let output = UserDetailOutput {
-        id: user.id.to_string(),
+        id: user.id.clone(),
         name: user.name.clone(),
         email: user.email.clone(),
         full_name: user.full_name.clone(),
@@ -84,7 +84,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
         CliService::json(&output);
     } else {
         CliService::section("User Details");
-        CliService::key_value("ID", &output.id);
+        CliService::key_value("ID", output.id.as_str());
         CliService::key_value("Name", &output.name);
         CliService::key_value("Email", &output.email);
 
@@ -121,7 +121,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
                 for session in sessions {
                     let status = if session.is_active { "active" } else { "ended" };
                     CliService::key_value(
-                        &session.session_id.clone(),
+                        session.session_id.as_str(),
                         &format!(
                             "{} | {} | {}",
                             status,

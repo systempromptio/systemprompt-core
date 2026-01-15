@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use systemprompt_identifiers::{SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserListOutput {
@@ -12,7 +13,7 @@ pub struct UserListOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserSummary {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub status: Option<String>,
@@ -22,7 +23,7 @@ pub struct UserSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserDetailOutput {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
@@ -42,7 +43,7 @@ pub struct UserDetailOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionSummary {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
     pub device_type: Option<String>,
@@ -53,7 +54,7 @@ pub struct SessionSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserActivityOutput {
-    pub user_id: String,
+    pub user_id: UserId,
     pub last_active: Option<DateTime<Utc>>,
     pub session_count: i64,
     pub task_count: i64,
@@ -67,7 +68,7 @@ pub struct UserCountOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserCreatedOutput {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub message: String,
@@ -75,7 +76,7 @@ pub struct UserCreatedOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserUpdatedOutput {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub message: String,
@@ -83,13 +84,13 @@ pub struct UserUpdatedOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserDeletedOutput {
-    pub id: String,
+    pub id: UserId,
     pub message: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RoleAssignOutput {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub roles: Vec<String>,
     pub message: String,
@@ -192,7 +193,7 @@ pub struct UserExportOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserExportItem {
-    pub id: String,
+    pub id: UserId,
     pub name: String,
     pub email: String,
     pub full_name: Option<String>,
@@ -220,8 +221,8 @@ pub struct BulkUpdateOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMergeOutput {
-    pub source_id: String,
-    pub target_id: String,
+    pub source_id: UserId,
+    pub target_id: UserId,
     pub sessions_transferred: u64,
     pub tasks_transferred: u64,
     pub message: String,

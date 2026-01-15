@@ -85,9 +85,9 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
     };
 
     let output = VerifyOutput {
-        content_id: content.id.to_string(),
+        content_id: content.id.clone(),
         slug: content.slug,
-        source_id: content.source_id.to_string(),
+        source_id: content.source_id.clone(),
         in_database: true,
         is_public: content.public,
         expected_url,

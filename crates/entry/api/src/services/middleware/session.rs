@@ -1,5 +1,5 @@
 use axum::extract::Request;
-use axum::http::{header, StatusCode};
+use axum::http::header;
 use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
@@ -8,6 +8,7 @@ use systemprompt_core_oauth::services::SessionCreationService;
 use systemprompt_core_security::HeaderExtractor;
 use systemprompt_core_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, UserId};
+use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::modules::ApiPaths;
@@ -40,7 +41,7 @@ impl SessionMiddleware {
         })
     }
 
-    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, StatusCode> {
+    pub async fn handle(&self, mut request: Request, next: Next) -> Result<Response, ApiError> {
         let headers = request.headers();
         let uri = request.uri().clone();
         let method = request.method().clone();
@@ -133,33 +134,29 @@ impl SessionMiddleware {
         headers: &http::HeaderMap,
         uri: &http::Uri,
         _method: &http::Method,
-    ) -> Result<(SessionId, UserId, String, bool), StatusCode> {
+    ) -> Result<(SessionId, UserId, String, bool), ApiError> {
         let client_id = ClientId::new("sp_web".to_string());
 
-        match self
-            .session_creation_service
-            .create_anonymous_session(
-                headers,
-                Some(uri),
-                &client_id,
-                systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
-                    tracing::error!(error = %e, "Failed to get JWT secret during session creation");
-                    StatusCode::INTERNAL_SERVER_ERROR
-                })?,
-            )
+        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+            tracing::error!(error = %e, "Failed to get JWT secret during session creation");
+            ApiError::internal_error("Failed to initialize session")
+        })?;
+
+        self.session_creation_service
+            .create_anonymous_session(headers, Some(uri), &client_id, jwt_secret)
             .await
-        {
-            Ok(session_info) => Ok((
-                session_info.session_id,
-                session_info.user_id,
-                session_info.jwt_token,
-                session_info.is_new,
-            )),
-            Err(e) => {
+            .map(|session_info| {
+                (
+                    session_info.session_id,
+                    session_info.user_id,
+                    session_info.jwt_token,
+                    session_info.is_new,
+                )
+            })
+            .map_err(|e| {
                 tracing::error!(error = %e, "Failed to create anonymous session");
-                Err(StatusCode::SERVICE_UNAVAILABLE)
-            },
-        }
+                ApiError::internal_error("Service temporarily unavailable")
+            })
     }
 
     fn should_skip_session_tracking(path: &str) -> bool {

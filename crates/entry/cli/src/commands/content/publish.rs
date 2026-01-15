@@ -113,9 +113,9 @@ pub async fn execute(
     let success = prerendered.unwrap_or(true) && http_status.is_none_or( |s| s == 200);
 
     let output = PublishOutput {
-        content_id: content.id.to_string(),
+        content_id: content.id.clone(),
         slug,
-        source_id: args.source,
+        source_id: source.clone(),
         action: action.to_string(),
         expected_url,
         prerendered,

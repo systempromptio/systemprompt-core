@@ -72,7 +72,7 @@ pub async fn execute(
 
     let output = PopularOutput {
         items,
-        source_id: args.source,
+        source_id: source,
         days: days_i64,
     };
 

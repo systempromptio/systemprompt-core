@@ -20,7 +20,7 @@ const BUFFER_FLUSH_SIZE: usize = 100;
 const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;
 
 enum LogCommand {
-    Entry(LogEntry),
+    Entry(Box<LogEntry>),
     FlushNow,
 }
 
@@ -52,7 +52,7 @@ impl DatabaseLayer {
                 Some(command) = receiver.recv() => {
                     match command {
                         LogCommand::Entry(entry) => {
-                            buffer.push(entry);
+                            buffer.push(*entry);
                             if buffer.len() >= BUFFER_FLUSH_SIZE {
                                 Self::flush(&db_pool, &mut buffer).await;
                             }
@@ -242,7 +242,7 @@ where
                 .map(|s| ClientId::new(s.clone())),
         };
 
-        let _ = self.sender.send(LogCommand::Entry(entry));
+        let _ = self.sender.send(LogCommand::Entry(Box::new(entry)));
 
         if is_error {
             let _ = self.sender.send(LogCommand::FlushNow);
