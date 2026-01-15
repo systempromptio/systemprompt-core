@@ -13,8 +13,8 @@ use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
-    remove_trailing_slash, AnalyticsMiddleware, ContextMiddleware, CorsMiddleware,
-    JwtContextExtractor, SessionMiddleware,
+    inject_trace_header, remove_trailing_slash, AnalyticsMiddleware, ContextMiddleware,
+    CorsMiddleware, JwtContextExtractor, SessionMiddleware,
 };
 
 const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");
@@ -127,6 +127,8 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
     router = router.layer(cors);
 
     router = router.layer(axum::middleware::from_fn(remove_trailing_slash));
+
+    router = router.layer(axum::middleware::from_fn(inject_trace_header));
 
     Ok(router)
 }

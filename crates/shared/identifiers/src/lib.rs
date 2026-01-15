@@ -17,6 +17,7 @@ mod tenant;
 mod trace;
 mod user;
 
+pub mod headers;
 pub mod macros;
 
 pub use agent::{AgentId, AgentName};

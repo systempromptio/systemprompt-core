@@ -1,8 +1,9 @@
 use axum::extract::Request;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
+use systemprompt_core_security::HeaderExtractor;
 use tracing::Instrument;
 
 use super::extractors::ContextExtractor;
@@ -105,17 +106,9 @@ impl<E> ContextMiddleware<E> {
         }
     }
 
-    fn extract_request_id(headers: &HeaderMap) -> TraceId {
-        headers
-            .get("x-request-id")
-            .and_then(|v| v.to_str().ok())
-            .map(|s| TraceId::new(s.to_string()))
-            .unwrap_or_else(TraceId::generate)
-    }
-
     fn log_error_response(
         error: &ContextExtractionError,
-        request_id: &TraceId,
+        trace_id: &TraceId,
         path: &str,
         method: &str,
     ) -> Response {
@@ -123,7 +116,7 @@ impl<E> ContextMiddleware<E> {
 
         let _span = tracing::error_span!(
             "context_extraction_error",
-            request_id = %request_id,
+            trace_id = %trace_id,
             path = %path,
             method = %method,
         )
@@ -161,8 +154,8 @@ impl<E> ContextMiddleware<E> {
         }
 
         let mut response = (status, message).into_response();
-        if let Ok(header_value) = request_id.as_str().parse() {
-            response.headers_mut().insert("x-request-id", header_value);
+        if let Ok(header_value) = trace_id.as_str().parse() {
+            response.headers_mut().insert("x-trace-id", header_value);
         }
         response
     }
@@ -233,7 +226,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
     }
 
     async fn handle_user_only(&self, mut request: Request, next: Next) -> Response {
-        let request_id = Self::extract_request_id(request.headers());
+        let trace_id = HeaderExtractor::extract_trace_id(request.headers());
         let path = request.uri().path().to_string();
         let method = request.method().to_string();
 
@@ -243,12 +236,12 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 request.extensions_mut().insert(context);
                 next.run(request).instrument(span).await
             }
-            Err(e) => Self::log_error_response(&e, &request_id, &path, &method),
+            Err(e) => Self::log_error_response(&e, &trace_id, &path, &method),
         }
     }
 
     async fn handle_user_with_context(&self, request: Request, next: Next) -> Response {
-        let request_id = Self::extract_request_id(request.headers());
+        let trace_id = HeaderExtractor::extract_trace_id(request.headers());
         let path = request.uri().path().to_string();
         let method = request.method().to_string();
 
@@ -259,12 +252,12 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
             }
-            Err(e) => Self::log_error_response(&e, &request_id, &path, &method),
+            Err(e) => Self::log_error_response(&e, &trace_id, &path, &method),
         }
     }
 
     async fn handle_mcp_with_headers(&self, request: Request, next: Next) -> Response {
-        let request_id = Self::extract_request_id(request.headers());
+        let trace_id = HeaderExtractor::extract_trace_id(request.headers());
         let path = request.uri().path().to_string();
         let method = request.method().to_string();
 
@@ -279,7 +272,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 Some(ctx) => {
                     tracing::debug!(
                         error = %e,
-                        request_id = %request_id,
+                        trace_id = %trace_id,
                         "MCP header extraction failed, using session context"
                     );
                     let span = create_request_span(&ctx);
@@ -287,7 +280,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 }
                 None => {
                     tracing::error!(
-                        request_id = %request_id,
+                        trace_id = %trace_id,
                         path = %path,
                         method = %method,
                         "Middleware configuration error: SessionMiddleware must run before ContextMiddleware"
@@ -297,8 +290,8 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                         "Middleware configuration error",
                     )
                         .into_response();
-                    if let Ok(header_value) = request_id.as_str().parse() {
-                        response.headers_mut().insert("x-request-id", header_value);
+                    if let Ok(header_value) = trace_id.as_str().parse() {
+                        response.headers_mut().insert("x-trace-id", header_value);
                     }
                     response
                 }

@@ -7,6 +7,6 @@ pub trait ApiErrorExt {
 
 impl ApiErrorExt for ApiError {
     fn with_request_context(self, ctx: &RequestContext) -> Self {
-        self.with_request_id(ctx.trace_id().to_string())
+        self.with_trace_id(ctx.trace_id().to_string())
     }
 }

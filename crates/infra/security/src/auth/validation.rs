@@ -4,6 +4,7 @@ use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId}
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
 use systemprompt_models::execution::context::RequestContext;
 
+use crate::extraction::HeaderExtractor;
 use crate::session::ValidatedSessionClaims;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -106,26 +107,23 @@ impl AuthValidationService {
         let session_id = SessionId::new(claims.session_id.clone());
         let user_id = UserId::new(claims.user_id.clone());
 
-        let trace_id = Self::extract_trace_id(headers);
-        let context_id = Self::extract_context_id(headers);
-        let agent_name = Self::extract_agent_name(headers);
-
-        RequestContext::new(session_id, trace_id, context_id, agent_name)
-            .with_user_id(user_id)
-            .with_auth_token(token)
-            .with_user_type(claims.user_type)
+        RequestContext::new(
+            session_id,
+            HeaderExtractor::extract_trace_id(headers),
+            HeaderExtractor::extract_context_id(headers),
+            HeaderExtractor::extract_agent_name(headers),
+        )
+        .with_user_id(user_id)
+        .with_auth_token(token)
+        .with_user_type(claims.user_type)
     }
 
     fn create_anonymous_context(headers: &HeaderMap) -> RequestContext {
-        let trace_id = Self::extract_trace_id(headers);
-        let context_id = Self::extract_context_id(headers);
-        let agent_name = Self::extract_agent_name(headers);
-
         RequestContext::new(
             SessionId::new("anonymous".to_string()),
-            trace_id,
-            context_id,
-            agent_name,
+            HeaderExtractor::extract_trace_id(headers),
+            HeaderExtractor::extract_context_id(headers),
+            HeaderExtractor::extract_agent_name(headers),
         )
         .with_user_id(UserId::anonymous())
         .with_user_type(UserType::Anon)
@@ -140,30 +138,5 @@ impl AuthValidationService {
         )
         .with_user_id(UserId::new("test-user".to_string()))
         .with_user_type(UserType::User)
-    }
-
-    fn extract_trace_id(headers: &HeaderMap) -> TraceId {
-        headers
-            .get("x-trace-id")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || TraceId::new(uuid::Uuid::new_v4().to_string()),
-                |s| TraceId::new(s.to_string()),
-            )
-    }
-
-    fn extract_context_id(headers: &HeaderMap) -> ContextId {
-        headers
-            .get("x-context-id")
-            .and_then(|h| h.to_str().ok())
-            .filter(|s| !s.is_empty())
-            .map_or_else(ContextId::empty, |s| ContextId::new(s.to_string()))
-    }
-
-    fn extract_agent_name(headers: &HeaderMap) -> AgentName {
-        headers
-            .get("x-agent-name")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(AgentName::system, |s| AgentName::new(s.to_string()))
     }
 }

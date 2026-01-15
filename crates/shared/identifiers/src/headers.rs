@@ -1,0 +1,11 @@
+pub const TRACE_ID: &str = "x-trace-id";
+pub const CONTEXT_ID: &str = "x-context-id";
+pub const SESSION_ID: &str = "x-session-id";
+pub const USER_ID: &str = "x-user-id";
+pub const USER_TYPE: &str = "x-user-type";
+pub const TASK_ID: &str = "x-task-id";
+pub const AGENT_NAME: &str = "x-agent-name";
+pub const AI_TOOL_CALL_ID: &str = "x-ai-tool-call-id";
+pub const CALL_SOURCE: &str = "x-call-source";
+pub const CLIENT_ID: &str = "x-client-id";
+pub const AUTHORIZATION: &str = "authorization";

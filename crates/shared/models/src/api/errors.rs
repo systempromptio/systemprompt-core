@@ -196,7 +196,7 @@ pub struct ApiError {
 
     pub timestamp: DateTime<Utc>,
 
-    pub request_id: Option<String>,
+    pub trace_id: Option<String>,
 }
 
 impl ApiError {
@@ -209,7 +209,7 @@ impl ApiError {
             path: None,
             validation_errors: Vec::new(),
             timestamp: Utc::now(),
-            request_id: None,
+            trace_id: None,
         }
     }
 
@@ -233,8 +233,8 @@ impl ApiError {
         self
     }
 
-    pub fn with_request_id(mut self, id: impl Into<String>) -> Self {
-        self.request_id = Some(id.into());
+    pub fn with_trace_id(mut self, id: impl Into<String>) -> Self {
+        self.trace_id = Some(id.into());
         self
     }
 
