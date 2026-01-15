@@ -9,6 +9,7 @@ use flate2::Compression;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
+use systemprompt_models::api::ApiError;
 use tar::{Archive, Builder};
 
 use super::types::{to_api_error, ApiResult, FileEntry, FileManifest, FilesQuery, UploadResult};
@@ -199,19 +200,17 @@ pub async fn manifest(Query(query): Query<FilesQuery>) -> ApiResult<Json<FileMan
     Ok(Json(manifest))
 }
 
-pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, (StatusCode, String)> {
-    let services_path = get_services_path().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, ApiError> {
+    let services_path = get_services_path().map_err(to_api_error)?;
     let directories = query.directories();
 
-    let manifest = collect_files(&services_path, &directories)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let manifest = collect_files(&services_path, &directories).map_err(to_api_error)?;
 
     if query.dry_run {
         return Ok(Json(manifest).into_response());
     }
 
-    let tarball = create_tarball(&services_path, &manifest)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let tarball = create_tarball(&services_path, &manifest).map_err(to_api_error)?;
 
     Response::builder()
         .status(StatusCode::OK)
@@ -222,7 +221,7 @@ pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, (Stat
         )
         .header(header::CONTENT_LENGTH, tarball.len())
         .body(Body::from(tarball))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| ApiError::internal_error(e.to_string()))
 }
 
 pub async fn upload(

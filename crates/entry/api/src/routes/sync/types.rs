@@ -1,21 +1,10 @@
-use axum::http::StatusCode;
-use axum::Json;
 use serde::{Deserialize, Serialize};
+use systemprompt_models::api::ApiError;
 
-#[derive(Serialize)]
-pub struct SyncError {
-    pub error: String,
-}
+pub type ApiResult<T> = Result<T, ApiError>;
 
-pub type ApiResult<T> = Result<T, (StatusCode, Json<SyncError>)>;
-
-pub fn to_api_error(e: impl std::fmt::Display) -> (StatusCode, Json<SyncError>) {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(SyncError {
-            error: e.to_string(),
-        }),
-    )
+pub fn to_api_error(e: impl std::fmt::Display) -> ApiError {
+    ApiError::internal_error(e.to_string())
 }
 
 #[derive(Debug, Deserialize)]
