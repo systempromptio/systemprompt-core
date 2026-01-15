@@ -62,6 +62,9 @@ pub fn artifact_type_to_string(artifact_type: &ArtifactType) -> String {
         ArtifactType::PresentationCard => "presentation_card".to_string(),
         ArtifactType::List => "list".to_string(),
         ArtifactType::CopyPasteText => "copy_paste_text".to_string(),
+        ArtifactType::Image => "image".to_string(),
+        ArtifactType::Video => "video".to_string(),
+        ArtifactType::Audio => "audio".to_string(),
         ArtifactType::Custom(name) => name.clone(),
     }
 }
