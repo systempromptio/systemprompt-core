@@ -1,5 +1,5 @@
 use axum::extract::Request;
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
@@ -7,7 +7,7 @@ use tracing::Instrument;
 
 use super::extractors::ContextExtractor;
 use super::requirements::ContextRequirement;
-use systemprompt_identifiers::{AgentName, ContextId};
+use systemprompt_identifiers::{AgentName, ContextId, TraceId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 
 #[derive(Debug, Clone)]
@@ -104,6 +104,68 @@ impl<E> ContextMiddleware<E> {
             ),
         }
     }
+
+    fn extract_request_id(headers: &HeaderMap) -> TraceId {
+        headers
+            .get("x-request-id")
+            .and_then(|v| v.to_str().ok())
+            .map(|s| TraceId::new(s.to_string()))
+            .unwrap_or_else(TraceId::generate)
+    }
+
+    fn log_error_response(
+        error: &ContextExtractionError,
+        request_id: &TraceId,
+        path: &str,
+        method: &str,
+    ) -> Response {
+        let (status, message) = Self::error_response(error);
+
+        let _span = tracing::error_span!(
+            "context_extraction_error",
+            request_id = %request_id,
+            path = %path,
+            method = %method,
+        )
+        .entered();
+
+        match error {
+            ContextExtractionError::DatabaseError(e) => {
+                tracing::error!(
+                    error = %e,
+                    error_type = "database",
+                    "Context extraction failed due to database error"
+                );
+            }
+            ContextExtractionError::InvalidToken(reason) => {
+                tracing::warn!(
+                    reason = %reason,
+                    error_type = "invalid_token",
+                    "Context extraction failed: invalid token"
+                );
+            }
+            ContextExtractionError::UserNotFound(user_id) => {
+                tracing::warn!(
+                    user_id = %user_id,
+                    error_type = "user_not_found",
+                    "Context extraction failed: user not found"
+                );
+            }
+            _ => {
+                tracing::warn!(
+                    error = %error,
+                    error_type = "context_extraction",
+                    "Context extraction failed"
+                );
+            }
+        }
+
+        let mut response = (status, message).into_response();
+        if let Ok(header_value) = request_id.as_str().parse() {
+            response.headers_mut().insert("x-request-id", header_value);
+        }
+        response
+    }
 }
 
 fn create_request_span(ctx: &RequestContext) -> tracing::Span {
@@ -171,56 +233,75 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
     }
 
     async fn handle_user_only(&self, mut request: Request, next: Next) -> Response {
-        let headers = request.headers();
-        match self.extractor.extract_user_only(headers).await {
+        let request_id = Self::extract_request_id(request.headers());
+        let path = request.uri().path().to_string();
+        let method = request.method().to_string();
+
+        match self.extractor.extract_user_only(request.headers()).await {
             Ok(context) => {
                 let span = create_request_span(&context);
                 request.extensions_mut().insert(context);
                 next.run(request).instrument(span).await
-            },
-            Err(e) => {
-                let (status, message) = Self::error_response(&e);
-                (status, message).into_response()
-            },
+            }
+            Err(e) => Self::log_error_response(&e, &request_id, &path, &method),
         }
     }
 
     async fn handle_user_with_context(&self, request: Request, next: Next) -> Response {
+        let request_id = Self::extract_request_id(request.headers());
+        let path = request.uri().path().to_string();
+        let method = request.method().to_string();
+
         match self.extractor.extract_from_request(request).await {
             Ok((context, reconstructed_request)) => {
                 let span = create_request_span(&context);
                 let mut req = reconstructed_request;
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
-            },
-            Err(e) => {
-                let (status, message) = Self::error_response(&e);
-                (status, message).into_response()
-            },
+            }
+            Err(e) => Self::log_error_response(&e, &request_id, &path, &method),
         }
     }
 
     async fn handle_mcp_with_headers(&self, request: Request, next: Next) -> Response {
-        let headers = request.headers();
+        let request_id = Self::extract_request_id(request.headers());
+        let path = request.uri().path().to_string();
+        let method = request.method().to_string();
 
-        match self.extractor.extract_from_headers(headers).await {
+        match self.extractor.extract_from_headers(request.headers()).await {
             Ok(context) => {
                 let span = create_request_span(&context);
                 let mut req = request;
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
-            },
-            Err(_) => match request.extensions().get::<RequestContext>().cloned() {
+            }
+            Err(e) => match request.extensions().get::<RequestContext>().cloned() {
                 Some(ctx) => {
+                    tracing::debug!(
+                        error = %e,
+                        request_id = %request_id,
+                        "MCP header extraction failed, using session context"
+                    );
                     let span = create_request_span(&ctx);
                     next.run(request).instrument(span).await
-                },
-                None => (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    "Middleware configuration error: SessionMiddleware must run before \
-                     ContextMiddleware",
-                )
-                    .into_response(),
+                }
+                None => {
+                    tracing::error!(
+                        request_id = %request_id,
+                        path = %path,
+                        method = %method,
+                        "Middleware configuration error: SessionMiddleware must run before ContextMiddleware"
+                    );
+                    let mut response = (
+                        StatusCode::INTERNAL_SERVER_ERROR,
+                        "Middleware configuration error",
+                    )
+                        .into_response();
+                    if let Ok(header_value) = request_id.as_str().parse() {
+                        response.headers_mut().insert("x-request-id", header_value);
+                    }
+                    response
+                }
             },
         }
     }
