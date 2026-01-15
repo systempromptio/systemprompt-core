@@ -49,7 +49,6 @@ pub struct Content {
     pub public: bool,
     #[serde(default)]
     pub links: JsonValue,
-    pub image_optimization_status: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 

@@ -11,7 +11,6 @@ CREATE TABLE IF NOT EXISTS markdown_content (
     keywords TEXT NOT NULL,
     kind TEXT NOT NULL DEFAULT 'article',
     image TEXT,
-    image_optimization_status TEXT,
 
     category_id TEXT,
     source_id TEXT NOT NULL,
