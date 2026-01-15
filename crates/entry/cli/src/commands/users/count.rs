@@ -7,10 +7,9 @@ use systemprompt_runtime::AppContext;
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct CountArgs {
-    /// Show breakdown by status and role
-    #[arg(long)]
+    #[arg(long, help = "Show breakdown by status and role")]
     pub breakdown: bool,
 }
 

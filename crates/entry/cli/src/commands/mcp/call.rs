@@ -12,12 +12,12 @@ use rmcp::transport::streamable_http_client::{
 use rmcp::ServiceExt;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_cloud::CloudContext;
+use systemprompt_identifiers::SessionToken;
 use systemprompt_models::ai::tools::CallToolResult;
-use systemprompt_models::RequestContext;
 use tokio::time::timeout;
 
 use super::types::{McpCallOutput, McpToolContent};
+use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_core_mcp::services::McpManager;
@@ -41,9 +41,8 @@ pub struct CallArgs {
 
 pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult<McpCallOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
-
-    let mut cloud_ctx = CloudContext::new_authenticated()
-        .context("Cloud authentication required. Run 'systemprompt cloud login'")?;
+    let session_ctx = get_or_create_session(config).await?;
+    let session_token = session_ctx.session_token();
 
     let server_arg = args.server.clone();
     let tool_arg = args.tool.clone();
@@ -75,11 +74,6 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .find(|s| s.name == server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
 
-    let request_context = cloud_ctx
-        .get_or_create_request_context("mcp-cli")
-        .await
-        .context("Failed to create request context")?;
-
     let requires_auth = server_config.oauth.required;
 
     let tool_name = resolve_input(tool_arg, "tool", config, || {
@@ -87,7 +81,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
             &server_name,
             running_server.port,
             requires_auth,
-            &request_context,
+            session_token,
             timeout_secs,
         )
     })?;
@@ -107,7 +101,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         &tool_name,
         tool_args,
         requires_auth,
-        &request_context,
+        session_token,
         timeout_secs,
     )
     .await;
@@ -185,15 +179,14 @@ async fn execute_tool_call(
     tool_name: &str,
     arguments: Option<serde_json::Value>,
     requires_auth: bool,
-    request_context: &RequestContext,
+    session_token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<CallToolResult> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
 
     let transport = if requires_auth {
-        let token = request_context.auth_token();
         let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-            .auth_header(format!("Bearer {}", token.as_str()));
+            .auth_header(format!("Bearer {}", session_token.as_str()));
         StreamableHttpClientTransport::from_config(config)
     } else {
         StreamableHttpClientTransport::from_uri(url.as_str())
@@ -255,12 +248,12 @@ fn prompt_tool_selection(
     server_name: &str,
     port: u16,
     requires_auth: bool,
-    request_context: &RequestContext,
+    session_token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<String> {
     let rt = tokio::runtime::Handle::current();
     let tools = rt.block_on(async {
-        list_available_tools(server_name, port, requires_auth, request_context, timeout_secs).await
+        list_available_tools(server_name, port, requires_auth, session_token, timeout_secs).await
     })?;
 
     if tools.is_empty() {
@@ -283,15 +276,14 @@ async fn list_available_tools(
     server_name: &str,
     port: u16,
     requires_auth: bool,
-    request_context: &RequestContext,
+    session_token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<Vec<String>> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
 
     let transport = if requires_auth {
-        let token = request_context.auth_token();
         let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
-            .auth_header(format!("Bearer {}", token.as_str()));
+            .auth_header(format!("Bearer {}", session_token.as_str()));
         StreamableHttpClientTransport::from_config(config)
     } else {
         StreamableHttpClientTransport::from_uri(url.as_str())

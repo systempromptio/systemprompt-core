@@ -7,10 +7,11 @@ use rmcp::transport::streamable_http_client::{
 use rmcp::ServiceExt;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_cloud::CloudContext;
+use systemprompt_identifiers::SessionToken;
 use tokio::time::timeout;
 
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
+use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_core_mcp::services::McpManager;
@@ -31,12 +32,12 @@ pub struct ToolsArgs {
 
 pub async fn execute(
     args: ToolsArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<McpToolsOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let mut cloud_ctx = CloudContext::new_authenticated()
-        .context("Cloud authentication required. Run 'systemprompt cloud login'")?;
+    let session_ctx = get_or_create_session(config).await?;
+    let session_token = session_ctx.session_token();
 
     let ctx = Arc::new(
         AppContext::new()
@@ -67,11 +68,6 @@ pub async fn execute(
         return Err(anyhow!(message));
     }
 
-    let request_context = cloud_ctx
-        .get_or_create_request_context("mcp-cli")
-        .await
-        .context("Failed to create request context")?;
-
     let mut all_tools = Vec::new();
     let mut servers_queried = 0;
 
@@ -80,8 +76,7 @@ pub async fn execute(
         let requires_auth = server_config.is_some_and(|c| c.oauth.required);
 
         let tools_result = if requires_auth {
-            list_tools_authenticated(&server.name, server.port, &request_context, args.timeout)
-                .await
+            list_tools_authenticated(&server.name, server.port, session_token, args.timeout).await
         } else {
             list_tools_unauthenticated(&server.name, server.port, args.timeout).await
         };
@@ -204,11 +199,10 @@ async fn list_tools_unauthenticated(
 async fn list_tools_authenticated(
     server_name: &str,
     port: u16,
-    request_context: &systemprompt_models::RequestContext,
+    token: &SessionToken,
     timeout_secs: u64,
 ) -> Result<Vec<ToolInfo>> {
     let url = format!("http://127.0.0.1:{}/mcp", port);
-    let token = request_context.auth_token();
 
     let config = StreamableHttpClientTransportConfig::with_uri(url.as_str())
         .auth_header(format!("Bearer {}", token.as_str()));

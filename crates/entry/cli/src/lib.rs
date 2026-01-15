@@ -1,6 +1,7 @@
 pub mod cli_settings;
 mod commands;
 mod presentation;
+pub mod session;
 pub mod shared;
 mod tui;
 

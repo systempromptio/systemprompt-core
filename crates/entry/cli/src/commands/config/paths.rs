@@ -9,7 +9,7 @@ use crate::cli_settings::OutputFormat;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
-#[derive(Debug, Subcommand)]
+#[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {
     #[command(about = "Show paths configuration")]
     Show,

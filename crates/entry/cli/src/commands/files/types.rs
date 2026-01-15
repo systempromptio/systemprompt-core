@@ -227,7 +227,7 @@ pub struct FileContentLinkRow {
     pub created_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct FileStatsOutput {
     pub total_files: i64,
     pub total_size_bytes: i64,
@@ -235,7 +235,7 @@ pub struct FileStatsOutput {
     pub by_category: FileCategoryStats,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct FileCategoryStats {
     pub images: CategoryStat,
     pub documents: CategoryStat,
@@ -244,7 +244,7 @@ pub struct FileCategoryStats {
     pub other: CategoryStat,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct CategoryStat {
     pub count: i64,
     pub size_bytes: i64,
