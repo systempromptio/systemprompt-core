@@ -7,7 +7,7 @@ use tracing_subscriber::fmt::format::Writer;
 pub struct FilterSystemFields;
 
 impl FilterSystemFields {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 }
@@ -20,7 +20,7 @@ pub struct FilteringVisitor<'a> {
 }
 
 impl<'a> FilteringVisitor<'a> {
-    fn new(writer: Writer<'a>) -> Self {
+    const fn new(writer: Writer<'a>) -> Self {
         Self {
             writer,
             is_first: true,

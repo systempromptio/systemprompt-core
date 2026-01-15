@@ -65,7 +65,6 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
 
     let mut validations: Vec<PathValidation> = Vec::new();
 
-    // Required paths
     validations.push(PathValidation {
         name: "system".to_string(),
         path: profile.paths.system.clone(),
@@ -87,7 +86,6 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
         required: true,
     });
 
-    // Optional paths
     if let Some(web_path) = &profile.paths.web_path {
         validations.push(PathValidation {
             name: "web_path".to_string(),
@@ -115,7 +113,6 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
         });
     }
 
-    // Derived paths
     let config_path = profile.paths.config();
     validations.push(PathValidation {
         name: "config".to_string(),
@@ -140,7 +137,6 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
         required: false,
     });
 
-    // Calculate validity - only required paths matter
     let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);
 
     let output = PathsValidateOutput {

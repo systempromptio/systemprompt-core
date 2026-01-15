@@ -81,7 +81,6 @@ pub struct EffectiveLimitRow {
     pub anon: u64,
 }
 
-// === Set Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SetRateLimitOutput {
@@ -91,7 +90,6 @@ pub struct SetRateLimitOutput {
     pub message: String,
 }
 
-// === Enable/Disable Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RateLimitStatusOutput {
@@ -99,7 +97,6 @@ pub struct RateLimitStatusOutput {
     pub message: String,
 }
 
-// === Validate Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ValidateOutput {
@@ -108,7 +105,6 @@ pub struct ValidateOutput {
     pub warnings: Vec<String>,
 }
 
-// === Compare Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CompareOutput {
@@ -126,7 +122,6 @@ pub struct EndpointComparison {
     pub anon: u64,
 }
 
-// === Reset Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ResetOutput {
@@ -142,7 +137,6 @@ pub struct ResetChange {
     pub new_value: String,
 }
 
-// === Config Show (Overview) Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ConfigOverviewOutput {
@@ -195,7 +189,6 @@ pub struct RateLimitsSummary {
     pub tier_count: usize,
 }
 
-// === Server Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServerConfigOutput {
@@ -229,7 +222,6 @@ pub struct CorsModifyOutput {
     pub message: String,
 }
 
-// === Runtime Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RuntimeConfigOutput {
@@ -248,7 +240,6 @@ pub struct RuntimeSetOutput {
     pub message: String,
 }
 
-// === Security Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SecurityConfigOutput {
@@ -266,7 +257,6 @@ pub struct SecuritySetOutput {
     pub message: String,
 }
 
-// === Paths Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PathsConfigOutput {
@@ -298,7 +288,6 @@ pub struct PathValidation {
     pub required: bool,
 }
 
-// === Preset Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PresetListOutput {
@@ -326,7 +315,6 @@ pub struct PresetApplyOutput {
     pub message: String,
 }
 
-// === Import/Export Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExportOutput {
@@ -342,7 +330,6 @@ pub struct ImportOutput {
     pub message: String,
 }
 
-// === Diff Command Output ===
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DiffOutput {

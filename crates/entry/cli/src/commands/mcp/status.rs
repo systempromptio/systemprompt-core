@@ -42,7 +42,6 @@ pub async fn execute(
     let mut servers = Vec::new();
 
     for (name, deployment) in &services_config.mcp_servers {
-        // Filter by server name if specified
         if let Some(ref filter) = args.server {
             if name != filter {
                 continue;

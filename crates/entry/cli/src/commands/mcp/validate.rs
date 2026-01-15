@@ -1,5 +1,3 @@
-//! Validate MCP connection
-
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
@@ -126,7 +124,6 @@ async fn validate_single_service(
         },
     };
 
-    // Check if service is running
     let service_info = match database.get_service_by_name(service_name).await {
         Ok(info) => info,
         Err(e) => {
@@ -162,7 +159,6 @@ async fn validate_single_service(
         };
     }
 
-    // Perform actual validation with timeout
     let validation_future = validate_connection_with_auth(
         service_name,
         "127.0.0.1",

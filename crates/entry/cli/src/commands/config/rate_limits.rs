@@ -381,7 +381,6 @@ pub fn execute_docs(config: &CliConfig) -> Result<()> {
 }
 
 pub fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
-    // Validate args
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -511,7 +510,6 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
     let mut errors: Vec<String> = Vec::new();
     let mut warnings: Vec<String> = Vec::new();
 
-    // Check for zero rates
     if limits.oauth_public_per_second == 0 {
         errors.push("oauth_public_per_second is 0".to_string());
     }
@@ -540,7 +538,6 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
         errors.push("content_per_second is 0".to_string());
     }
 
-    // Check tier multiplier hierarchy
     let tiers = &limits.tier_multipliers;
     if tiers.anon >= tiers.user {
         warnings.push(format!(
@@ -555,7 +552,6 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
         ));
     }
 
-    // Check for negative or zero multipliers
     if tiers.admin <= 0.0 {
         errors.push("admin multiplier must be positive".to_string());
     }
@@ -575,7 +571,6 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
         errors.push("service multiplier must be positive".to_string());
     }
 
-    // Check burst multiplier
     if limits.burst_multiplier == 0 {
         errors.push("burst_multiplier is 0".to_string());
     }
@@ -586,7 +581,6 @@ pub fn execute_validate(config: &CliConfig) -> Result<()> {
         ));
     }
 
-    // Check if disabled
     if limits.disabled {
         warnings.push("Rate limiting is currently DISABLED".to_string());
     }
@@ -684,7 +678,6 @@ pub fn execute_reset(args: ResetArgs, config: &CliConfig) -> Result<()> {
         }
     } else {
         reset_type = "all".to_string();
-        // Compare all fields and collect changes
         collect_endpoint_changes(limits, &defaults, &mut changes);
         collect_tier_changes(
             &limits.tier_multipliers,
@@ -746,7 +739,6 @@ pub fn execute_reset(args: ResetArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-// === Helper Functions ===
 
 fn apply_multiplier(base: u64, multiplier: f64) -> u64 {
     (base as f64 * multiplier).round() as u64
@@ -955,7 +947,6 @@ fn collect_tier_changes(
     }
 }
 
-// === Preset Commands ===
 
 fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
     match command {
@@ -1060,7 +1051,6 @@ fn execute_preset_apply(args: PresetApplyArgs, config: &CliConfig) -> Result<()>
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
 
-    // Collect changes
     let mut changes: Vec<ResetChange> = Vec::new();
     collect_endpoint_changes(&profile.rate_limits, &preset_config, &mut changes);
     collect_tier_changes(
@@ -1158,7 +1148,6 @@ fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
     }
 }
 
-// === Export/Import Commands ===
 
 fn execute_export(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
@@ -1244,7 +1233,6 @@ fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-// === Diff Command ===
 
 fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
@@ -1275,7 +1263,6 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
 
     let mut differences: Vec<DiffEntry> = Vec::new();
 
-    // Compare all fields
     add_diff_if_different(
         &mut differences,
         "disabled",
@@ -1355,7 +1342,6 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
         compare_with.burst_multiplier,
     );
 
-    // Compare tier multipliers
     add_diff_if_different_f64(
         &mut differences,
         "tier_multipliers.admin",

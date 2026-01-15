@@ -37,7 +37,6 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
         CliService::info(&format!("Configuring environment: {}", env_name));
     }
 
-    // Confirmation for non-dry-run operations
     if !args.dry_run && !args.yes && config.is_interactive() {
         let confirmed = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(format!(
@@ -172,7 +171,6 @@ async fn execute_dry_run(
     let profile_path = profile::default_path(systemprompt_dir, env_name);
     let secrets_path = secrets::default_path(systemprompt_dir, env_name);
 
-    // Check database connectivity without making changes
     let connection_status = if args.docker {
         "docker_pending"
     } else if postgres::detect_postgresql(&args.db_host, args.db_port) {

@@ -39,7 +39,6 @@ pub async fn execute(
         .await?
         .ok_or_else(|| anyhow!("File not found: {}", args.file_id))?;
 
-    // Handle confirmation requirement
     if !args.yes {
         if config.is_interactive() {
             let confirmed = Confirm::new()
@@ -60,7 +59,6 @@ pub async fn execute(
         }
     }
 
-    // Handle dry-run
     if args.dry_run {
         let output = FileDeleteOutput {
             file_id,
@@ -83,7 +81,6 @@ pub async fn execute(
 }
 
 fn parse_file_id(id: &str) -> Result<FileId> {
-    // Validate UUID format
     uuid::Uuid::parse_str(id).map_err(|_| {
         anyhow!(
             "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \

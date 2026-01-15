@@ -33,10 +33,6 @@ pub enum RequestCommands {
     Stats(stats::StatsArgs),
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output Types
-// ═══════════════════════════════════════════════════════════════════════════════
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RequestListRow {
     pub request_id: String,
@@ -83,10 +79,6 @@ pub struct RequestShowOutput {
     pub messages: Vec<MessageRow>,
     pub linked_mcp_calls: Vec<ToolCallRow>,
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Execute
-// ═══════════════════════════════════════════════════════════════════════════════
 
 pub async fn execute(command: RequestCommands, config: &CliConfig) -> Result<()> {
     match command {
