@@ -1,6 +1,7 @@
 pub mod cloud;
 pub mod contexts;
 pub mod errors;
+pub mod ext;
 pub mod http;
 pub mod modules;
 pub mod pagination;
@@ -17,6 +18,7 @@ pub use cloud::{
 };
 pub use contexts::{CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats};
 pub use errors::{ApiError, ErrorCode, ErrorResponse, ValidationError};
+pub use ext::ApiErrorExt;
 pub use modules::ModuleInfo;
 pub use pagination::{
     ApiQuery, PaginationInfo, PaginationParams, SearchQuery, SortOrder, SortParams,

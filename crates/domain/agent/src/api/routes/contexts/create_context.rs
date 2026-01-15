@@ -6,7 +6,7 @@ use axum::Json;
 use crate::models::context::CreateContextRequest;
 use crate::repository::context::ContextRepository;
 use systemprompt_core_events::EventRouter;
-use systemprompt_models::{ApiError, SingleResponse, SystemEventBuilder};
+use systemprompt_models::{ApiError, ApiErrorExt, SingleResponse, SystemEventBuilder};
 
 pub async fn create_context(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
@@ -18,7 +18,11 @@ pub async fn create_context(
     let user_id = &req_ctx.auth.user_id;
 
     let context_name = match request.name.as_deref().map(str::trim) {
-        Some("") => return ApiError::bad_request("Context name cannot be empty").into_response(),
+        Some("") => {
+            return ApiError::bad_request("Context name cannot be empty")
+                .with_request_context(&req_ctx)
+                .into_response()
+        }
         Some(name) => name.to_owned(),
         None => format!("Conversation {}", chrono::Utc::now().timestamp_millis()),
     };
@@ -50,13 +54,16 @@ pub async fn create_context(
                         "Context created but failed to retrieve: {}",
                         e
                     ))
+                    .with_request_context(&req_ctx)
                     .into_response()
-                },
+                }
             }
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to create context");
-            ApiError::internal_error(format!("Failed to create context: {e}")).into_response()
-        },
+            ApiError::internal_error(format!("Failed to create context: {e}"))
+                .with_request_context(&req_ctx)
+                .into_response()
+        }
     }
 }

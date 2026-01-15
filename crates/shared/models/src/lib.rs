@@ -62,7 +62,7 @@ pub use ai::{
     SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES, SUPPORTED_VIDEO_TYPES,
 };
 pub use api::{
-    AcceptedResponse, ApiError, ApiQuery, ApiResponse, CheckoutEvent, CheckoutRequest,
+    AcceptedResponse, ApiError, ApiErrorExt, ApiQuery, ApiResponse, CheckoutEvent, CheckoutRequest,
     CheckoutResponse, CloudApiError, CloudApiErrorDetail, CloudApiResponse, CloudCustomerInfo,
     CloudListResponse, CloudLogEntry, CloudLogsResponse, CloudPlan, CloudPlanInfo,
     CloudStatusResponse, CloudTenant, CloudTenantInfo, CloudTenantSecrets, CloudTenantStatus,

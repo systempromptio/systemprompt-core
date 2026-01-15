@@ -4,7 +4,7 @@ use systemprompt_identifiers::ContextId;
 
 use super::is_valid_context_id;
 use crate::repository::context::ContextRepository;
-use systemprompt_models::{ApiError, SingleResponse};
+use systemprompt_models::{ApiError, ApiErrorExt, SingleResponse};
 
 pub async fn get_context(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
@@ -15,6 +15,7 @@ pub async fn get_context(
         return ApiError::bad_request(
             "Invalid context ID. Please select or create a valid conversation.",
         )
+        .with_request_context(&req_ctx)
         .into_response();
     }
 
@@ -34,7 +35,9 @@ pub async fn get_context(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to get context");
-            ApiError::not_found(format!("Context not found: {e}")).into_response()
-        },
+            ApiError::not_found(format!("Context not found: {e}"))
+                .with_request_context(&req_ctx)
+                .into_response()
+        }
     }
 }
