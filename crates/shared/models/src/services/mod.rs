@@ -1,17 +1,21 @@
 pub mod agent_config;
+pub mod ai;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
 pub mod skills;
+pub mod web;
 
 pub use agent_config::*;
+pub use ai::{
+    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
+    ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
+};
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;
-pub use skills::{
-    AiConfig, AiProviderConfig, HistoryConfig, McpConfig, SamplingConfig, SkillConfig,
-    SkillsConfig, ToolModelConfig, ToolModelSettings, WebConfig,
-};
+pub use skills::{SkillConfig, SkillsConfig};
+pub use web::{BrandingConfig, WebConfig};
 
 use crate::mcp::Deployment;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -81,7 +85,6 @@ pub struct PartialServicesConfig {
     pub web: Option<WebConfig>,
 }
 
-/// Complete merged services configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ServicesConfig {
     #[serde(default)]

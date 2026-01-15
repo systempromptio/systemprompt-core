@@ -39,7 +39,7 @@ impl AssetDefinitionBuilder {
     }
 
     #[must_use]
-    pub fn optional(mut self) -> Self {
+    pub const fn optional(mut self) -> Self {
         self.required = false;
         self
     }
@@ -90,17 +90,17 @@ impl AssetDefinition {
     }
 
     #[must_use]
-    pub fn destination(&self) -> &str {
+    pub const fn destination(&self) -> &str {
         self.destination
     }
 
     #[must_use]
-    pub fn asset_type(&self) -> AssetType {
+    pub const fn asset_type(&self) -> AssetType {
         self.asset_type
     }
 
     #[must_use]
-    pub fn is_required(&self) -> bool {
+    pub const fn is_required(&self) -> bool {
         self.required
     }
 }
