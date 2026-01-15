@@ -101,18 +101,17 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
         CloudCommands::Deploy { skip_push, profile } => {
             deploy::execute(skip_push, profile, config).await
         },
-        CloudCommands::Status => status::execute(config).await,
+        CloudCommands::Status => status::execute().await,
         CloudCommands::Restart { tenant, yes } => restart::execute(tenant, yes, config).await,
         CloudCommands::Sync { command } => sync::execute(command, config).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
-        CloudCommands::Dockerfile => execute_dockerfile(config),
+        CloudCommands::Dockerfile => execute_dockerfile(),
     }
 }
 
-fn execute_dockerfile(config: &CliConfig) -> Result<()> {
+fn execute_dockerfile() -> Result<()> {
     use crate::shared::project::ProjectRoot;
 
-    let _ = config; // Will be used for output format handling
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
     dockerfile::print_dockerfile_suggestion(project.as_path());
     Ok(())

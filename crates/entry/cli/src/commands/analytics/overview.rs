@@ -321,12 +321,10 @@ fn format_period(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
 }
 
 fn format_change_percent(change: Option<f64>) -> String {
-    change
-        .map(|c| {
-            let sign = if c >= 0.0 { "+" } else { "" };
-            format!("{}{:.1}%", sign, c)
-        })
-        .unwrap_or_default()
+    change.map_or_else(String::new, |c| {
+        let sign = if c >= 0.0 { "+" } else { "" };
+        format!("{}{:.1}%", sign, c)
+    })
 }
 
 fn render_overview(output: &OverviewOutput) {

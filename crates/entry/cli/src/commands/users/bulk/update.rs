@@ -51,7 +51,6 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         ));
     }
 
-    // Validate new status
     let valid_statuses = ["active", "inactive", "suspended"];
     if !valid_statuses.contains(&args.set_status.as_str()) {
         return Err(anyhow!(
@@ -64,7 +63,6 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
-    // Find users matching filter
     let users = user_service
         .list_by_filter(
             args.status.as_deref(),
@@ -116,7 +114,6 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    // Perform bulk update
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
     let updated = user_service
         .bulk_update_status(&user_ids, &args.set_status)

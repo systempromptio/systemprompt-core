@@ -10,7 +10,8 @@ pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 pub use services::{
     get_output_mode, init_tui_mode, is_console_output_enabled, is_startup_mode, publish_log,
     set_log_publisher, set_output_mode, set_startup_mode, CliService, DatabaseLogService,
-    LoggingMaintenanceService, OutputMode, RequestSpan, RequestSpanBuilder, SystemSpan,
+    FilterSystemFields, LoggingMaintenanceService, OutputMode, RequestSpan, RequestSpanBuilder,
+    SystemSpan,
 };
 pub use trace::{
     AiRequestInfo, AiRequestSummary, AiTraceService, ConversationMessage, ExecutionStep,
@@ -25,8 +26,8 @@ use tracing_subscriber::{EnvFilter, Layer};
 
 pub fn init_logging(db_pool: DbPool) {
     use crate::services::output::is_startup_mode;
+    use crate::services::FilterSystemFields;
 
-    // Console filter: during startup, only WARN/ERROR; otherwise respect env
     let console_filter = if is_startup_mode() {
         EnvFilter::new("warn")
     } else {
@@ -34,8 +35,9 @@ pub fn init_logging(db_pool: DbPool) {
     };
 
     let fmt_layer = tracing_subscriber::fmt::layer()
+        .fmt_fields(FilterSystemFields::new())
         .with_target(true)
-        .with_writer(std::io::stderr) // Use stderr, not stdout (spinners use stdout)
+        .with_writer(std::io::stderr)
         .with_filter(console_filter);
 
     let db_layer =

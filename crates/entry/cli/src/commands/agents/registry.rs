@@ -75,7 +75,10 @@ pub async fn execute(
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response.text().await.unwrap_or_else(|e| {
+            tracing::warn!(error = %e, "Failed to read error response body");
+            String::new()
+        });
         anyhow::bail!("Registry request failed with status {}: {}", status, body);
     }
 

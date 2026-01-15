@@ -78,7 +78,6 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
 
     let since_timestamp = parse_since(args.since.as_ref())?;
 
-    // Get counts by level
     let level_counts = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             LevelRow,
@@ -109,7 +108,6 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     let total_logs =
         by_level.error + by_level.warn + by_level.info + by_level.debug + by_level.trace;
 
-    // Get top modules
     let top_modules = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             ModuleRow,
@@ -140,7 +138,6 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Get time range
     let time_range_row = if let Some(since_ts) = since_timestamp {
         sqlx::query_as!(
             TimeRangeRow,
@@ -165,7 +162,6 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Get total row count (for database info)
     let total_row_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM logs")
         .fetch_one(pool.as_ref())
         .await?;

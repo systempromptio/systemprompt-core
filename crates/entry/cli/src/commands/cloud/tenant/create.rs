@@ -295,7 +295,7 @@ fn swap_to_external_host(url: &str) -> String {
         return url.to_string();
     };
 
-    let host = parsed.host_str().unwrap_or_default();
+    let host = parsed.host_str().unwrap_or("");
     let external_host = if host.contains("sandbox") {
         "db-sandbox.systemprompt.io"
     } else {

@@ -13,7 +13,6 @@ use super::ai_mcp::print_mcp_executions;
 use super::display::{print_event, print_table};
 use super::json::print_json;
 use super::summary::{print_summary, SummaryContext};
-use crate::CliConfig;
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
@@ -53,18 +52,15 @@ struct FormattedDisplayContext<'a> {
     step_summary: &'a systemprompt_core_logging::ExecutionStepSummary,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
-    let _ = config;
+pub async fn execute(args: ShowArgs) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
 
-    // First try to resolve as a task ID for detailed AI trace view
     let ai_service = AiTraceService::new(std::sync::Arc::clone(&pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
 
-    // Otherwise treat as a trace ID for event-based view
     execute_trace_view(&args, &pool).await
 }
 
@@ -150,25 +146,21 @@ async fn execute_ai_trace(service: &AiTraceService, task_id: &str, args: &ShowAr
 
     let show_all = args.all;
 
-    // Show execution steps
     if show_all || args.steps {
         let steps = service.get_execution_steps(task_id).await?;
         print_execution_steps(&steps);
     }
 
-    // Show AI requests
     if show_all || args.ai {
         let ai_requests = service.get_ai_requests(task_id).await?;
         print_ai_requests(&ai_requests);
     }
 
-    // Show MCP executions
     if show_all || args.mcp {
         let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
         print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose).await;
     }
 
-    // Show artifacts
     if show_all || args.artifacts {
         let artifacts = service.get_task_artifacts(task_id, &context_id).await?;
         print_artifacts(&artifacts);

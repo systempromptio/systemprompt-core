@@ -95,7 +95,10 @@ pub async fn execute_describe(
     let indexes = admin
         .get_table_indexes(table_name)
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|e| {
+            tracing::warn!(table = %table_name, error = %e, "Failed to get table indexes");
+            Vec::new()
+        });
 
     let output = DbDescribeOutput {
         table: table_name.to_string(),

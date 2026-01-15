@@ -3,10 +3,7 @@ use systemprompt_cloud::{CloudApiClient, CredentialsBootstrap};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-use crate::cli_settings::CliConfig;
-
-pub async fn execute(config: &CliConfig) -> Result<()> {
-    let _ = config;
+pub async fn execute() -> Result<()> {
     CliService::section("SystemPrompt Cloud Status");
 
     let mut tenant_id_from_profile: Option<String> = None;

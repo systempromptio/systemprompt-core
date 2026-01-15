@@ -5,10 +5,7 @@ use systemprompt_cloud::{
 };
 use systemprompt_core_logging::CliService;
 
-use crate::cli_settings::CliConfig;
-
-pub async fn execute(config: &CliConfig) -> Result<()> {
-    let _ = config; // Used for output format in future
+pub async fn execute() -> Result<()> {
     CliService::section("SystemPrompt Cloud Identity");
 
     let cloud_paths = get_cloud_paths()?;

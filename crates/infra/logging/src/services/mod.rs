@@ -1,5 +1,6 @@
 pub mod cli;
 mod database_log;
+mod format;
 mod maintenance;
 pub mod output;
 pub mod retention;
@@ -7,6 +8,7 @@ pub mod spans;
 
 pub use cli::CliService;
 pub use database_log::DatabaseLogService;
+pub use format::FilterSystemFields;
 pub use maintenance::LoggingMaintenanceService;
 pub use output::{
     get_log_publisher, get_output_mode, init_tui_mode, is_console_output_enabled, is_startup_mode,

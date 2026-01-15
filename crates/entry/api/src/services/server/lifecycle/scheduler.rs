@@ -18,19 +18,17 @@ pub async fn initialize_scheduler(
         }
     }
 
-    let scheduler_config = match ConfigLoader::load() {
-        Ok(config) => match config.scheduler {
-            Some(cfg) => cfg,
-            None => {
+    let scheduler_config = ConfigLoader::load()
+        .map(|config| {
+            config.scheduler.unwrap_or_else(|| {
                 tracing::info!("No scheduler config found, using defaults");
                 SchedulerConfig::default()
-            },
-        },
-        Err(e) => {
+            })
+        })
+        .unwrap_or_else(|e| {
             tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
             SchedulerConfig::default()
-        },
-    };
+        });
 
     let bootstrap_jobs = scheduler_config.bootstrap_jobs.clone();
 

@@ -151,7 +151,7 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
                     name
                 )
             })
-            .unwrap_or_default();
+            .unwrap_or_else(|| String::new());
 
         if profile_env.is_empty() {
             format!(

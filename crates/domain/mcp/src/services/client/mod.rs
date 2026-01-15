@@ -166,16 +166,9 @@ impl McpClient {
         let url = validation::rewrite_url_for_internal_use(&url);
 
         let tool_repo = ToolUsageRepository::new(db_pool)?;
-        let started_at = chrono::Utc::now();
-        let mcp_execution_id = start_execution_tracking(
-            &tool_repo,
-            &name,
-            service_name,
-            arguments.clone(),
-            context,
-            started_at,
-        )
-        .await?;
+        let (mcp_execution_id, started_at) =
+            start_execution_tracking(&tool_repo, &name, service_name, arguments.clone(), context)
+                .await?;
 
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         let tool_result = execute_tool_call(transport, &name, arguments).await;
@@ -191,8 +184,11 @@ async fn start_execution_tracking(
     service_name: &str,
     arguments: Option<serde_json::Value>,
     context: &systemprompt_models::RequestContext,
-    started_at: chrono::DateTime<chrono::Utc>,
-) -> Result<systemprompt_identifiers::McpExecutionId> {
+) -> Result<(
+    systemprompt_identifiers::McpExecutionId,
+    chrono::DateTime<chrono::Utc>,
+)> {
+    let started_at = chrono::Utc::now();
     let request = ToolExecutionRequest {
         tool_name: tool_name.to_string(),
         server_name: service_name.to_string(),
@@ -203,7 +199,8 @@ async fn start_execution_tracking(
         request_source: Some("ai_service".to_string()),
         ai_tool_call_id: context.ai_tool_call_id().cloned(),
     };
-    tool_repo.start_execution(&request).await
+    let id = tool_repo.start_execution(&request).await?;
+    Ok((id, started_at))
 }
 
 fn build_transport(

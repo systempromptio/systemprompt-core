@@ -69,7 +69,10 @@ pub async fn execute(
 
     let description = args.description.unwrap_or_else(|| {
         if config.is_interactive() {
-            prompt_description().unwrap_or_default()
+            prompt_description().unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Failed to prompt for description");
+                String::new()
+            })
         } else {
             String::new()
         }

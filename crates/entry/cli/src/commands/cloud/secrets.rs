@@ -27,8 +27,7 @@ pub enum SecretsCommands {
     },
 }
 
-pub async fn execute(cmd: SecretsCommands, config: &CliConfig) -> Result<()> {
-    let _ = config; // Used for output format in future
+pub async fn execute(cmd: SecretsCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         SecretsCommands::Sync => sync_secrets().await,
         SecretsCommands::Set { key_values } => set_secrets(key_values).await,

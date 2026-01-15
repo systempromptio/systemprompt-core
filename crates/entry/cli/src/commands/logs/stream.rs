@@ -147,13 +147,13 @@ fn display_log_entry(log: &LogEntry) {
             )
         },
         |metadata| {
+            let metadata_str = serde_json::to_string(metadata).unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "Failed to serialize log metadata");
+                String::new()
+            });
             format!(
                 "{} {} [{}] {} {}",
-                timestamp,
-                level_str,
-                log.module,
-                log.message,
-                serde_json::to_string(metadata).unwrap_or_default()
+                timestamp, level_str, log.module, log.message, metadata_str
             )
         },
     );

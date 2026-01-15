@@ -252,28 +252,32 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 req.extensions_mut().insert(context);
                 next.run(req).instrument(span).await
             },
-            Err(e) => match request.extensions().get::<RequestContext>().cloned() {
-                Some(ctx) => {
-                    tracing::debug!(
-                        error = %e,
-                        trace_id = %trace_id,
-                        "MCP header extraction failed, using session context"
-                    );
-                    let span = create_request_span(&ctx);
-                    next.run(request).instrument(span).await
-                },
-                None => {
-                    tracing::error!(
-                        trace_id = %trace_id,
-                        path = %path,
-                        method = %method,
-                        "Middleware configuration error: SessionMiddleware must run before ContextMiddleware"
-                    );
-                    ApiError::internal_error("Middleware configuration error")
-                        .with_trace_id(trace_id.as_str())
-                        .with_path(&path)
-                        .into_response()
-                },
+            Err(e) => {
+                let fallback_ctx = request.extensions().get::<RequestContext>().cloned();
+                #[allow(clippy::single_match_else)]
+                match fallback_ctx {
+                    Some(ctx) => {
+                        tracing::debug!(
+                            error = %e,
+                            trace_id = %trace_id,
+                            "MCP header extraction failed, using session context"
+                        );
+                        let span = create_request_span(&ctx);
+                        next.run(request).instrument(span).await
+                    },
+                    None => {
+                        tracing::error!(
+                            trace_id = %trace_id,
+                            path = %path,
+                            method = %method,
+                            "Middleware configuration error: SessionMiddleware must run before ContextMiddleware"
+                        );
+                        ApiError::internal_error("Middleware configuration error")
+                            .with_trace_id(trace_id.as_str())
+                            .with_path(&path)
+                            .into_response()
+                    },
+                }
             },
         }
     }
