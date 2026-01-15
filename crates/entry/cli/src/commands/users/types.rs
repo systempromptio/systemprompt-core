@@ -168,7 +168,7 @@ pub struct UserCountBreakdownOutput {
     pub by_role: HashMap<String, i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct UserStatsOutput {
     pub total: i64,
     pub created_24h: i64,

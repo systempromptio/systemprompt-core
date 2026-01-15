@@ -21,7 +21,7 @@ pub struct DatabaseSetupInfo {
     pub docker: bool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct SecretsConfiguredInfo {
     pub anthropic: bool,
     pub openai: bool,

@@ -94,7 +94,7 @@ pub struct DisableArgs {
     pub job_name: String,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupSessionsArgs {
     #[arg(
         long,
@@ -107,7 +107,7 @@ pub struct CleanupSessionsArgs {
     pub dry_run: bool,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct LogCleanupArgs {
     #[arg(long, default_value = "30", help = "Delete logs older than N days")]
     pub days: i32,

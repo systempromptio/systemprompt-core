@@ -1,7 +1,4 @@
 use serde::Serialize;
-use systemprompt_core_logging::CliService;
-
-use crate::cli_settings::CliConfig;
 
 pub fn format_bytes(bytes: i64) -> String {
     const KB: i64 = 1024;
@@ -46,28 +43,5 @@ impl JsonError {
 
     pub fn table_not_found(table: &str) -> Self {
         Self::new("TABLE_NOT_FOUND", &format!("Table '{}' not found", table))
-    }
-
-    pub fn query_failed(msg: &str) -> Self {
-        Self::new("QUERY_FAILED", msg)
-    }
-
-    pub fn connection_failed() -> Self {
-        Self::new(
-            "CONNECTION_FAILED",
-            "Failed to connect to database. Check your profile configuration.",
-        )
-    }
-
-    pub fn user_not_found(user: &str) -> Self {
-        Self::new("USER_NOT_FOUND", &format!("User '{}' not found", user))
-    }
-}
-
-pub fn output_error(config: &CliConfig, error: &JsonError) {
-    if config.is_json_output() {
-        CliService::json(error);
-    } else {
-        CliService::error(&error.message);
     }
 }

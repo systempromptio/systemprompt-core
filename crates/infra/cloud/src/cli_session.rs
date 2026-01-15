@@ -1,38 +1,64 @@
 use anyhow::{Context, Result};
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use systemprompt_identifiers::{ContextId, SessionId};
+use systemprompt_identifiers::{SessionId, SessionToken, UserId};
 
 use crate::error::CloudError;
 
-const CURRENT_VERSION: u32 = 1;
+const CURRENT_VERSION: u32 = 2;
+const SESSION_DURATION_HOURS: i64 = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliSession {
     pub version: u32,
-    pub context_id: ContextId,
+    pub profile_name: String,
+    pub session_token: SessionToken,
     pub session_id: SessionId,
+    pub user_id: UserId,
+    pub user_email: String,
     pub created_at: DateTime<Utc>,
+    pub expires_at: DateTime<Utc>,
     pub last_used: DateTime<Utc>,
 }
 
 impl CliSession {
     #[must_use]
-    pub fn new(context_id: ContextId, session_id: SessionId) -> Self {
+    pub fn new(
+        profile_name: String,
+        session_token: SessionToken,
+        session_id: SessionId,
+        user_id: UserId,
+        user_email: String,
+    ) -> Self {
         let now = Utc::now();
+        let expires_at = now + Duration::hours(SESSION_DURATION_HOURS);
         Self {
             version: CURRENT_VERSION,
-            context_id,
+            profile_name,
+            session_token,
             session_id,
+            user_id,
+            user_email,
             created_at: now,
+            expires_at,
             last_used: now,
         }
     }
 
     pub fn touch(&mut self) {
         self.last_used = Utc::now();
+    }
+
+    #[must_use]
+    pub fn is_expired(&self) -> bool {
+        Utc::now() >= self.expires_at
+    }
+
+    #[must_use]
+    pub fn is_valid_for_profile(&self, profile_name: &str) -> bool {
+        self.profile_name == profile_name && !self.is_expired()
     }
 
     pub fn load_from_path(path: &Path) -> Result<Self> {
@@ -48,9 +74,10 @@ impl CliSession {
 
         if session.version != CURRENT_VERSION {
             return Err(anyhow::anyhow!(
-                "Session file version mismatch: expected {}, got {}",
+                "Session file version mismatch: expected {}, got {}. Delete {} and retry.",
                 CURRENT_VERSION,
-                session.version
+                session.version,
+                path.display()
             ));
         }
 

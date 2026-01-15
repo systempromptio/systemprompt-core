@@ -7,7 +7,7 @@ use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;
 
 pub async fn execute(

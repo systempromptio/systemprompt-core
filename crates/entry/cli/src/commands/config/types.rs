@@ -188,7 +188,7 @@ pub struct PathsOverview {
     pub storage: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct RateLimitsSummary {
     pub enabled: bool,
     pub burst_multiplier: u64,

@@ -2,14 +2,13 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use systemprompt_cloud::CloudContext;
 use uuid::Uuid;
 
 use super::types::{MessageOutput, TaskInfo};
+use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 
-const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Debug, Args)]
@@ -118,8 +117,7 @@ pub async fn execute(
     args: MessageArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<MessageOutput>> {
-    let mut cloud_ctx = CloudContext::new_authenticated()
-        .context("Cloud authentication required. Run 'systemprompt cloud login'")?;
+    let session_ctx = get_or_create_session(config).await?;
 
     let agent = resolve_input(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
@@ -129,22 +127,14 @@ pub async fn execute(
         Err(anyhow!("Message text is required. Use -m or --message"))
     })?;
 
-    let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
+    let base_url = args
+        .url
+        .as_deref()
+        .unwrap_or(&session_ctx.profile.server.api_external_url);
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
-    let (context_id, auth_token) = match args.context_id {
-        Some(id) => (id, cloud_ctx.credentials.api_token.clone()),
-        None => {
-            let req_ctx = cloud_ctx
-                .get_or_create_request_context("agent-cli")
-                .await
-                .context("Failed to create request context")?;
-            (
-                req_ctx.context_id().to_string(),
-                req_ctx.auth_token().as_str().to_string(),
-            )
-        },
-    };
+    let context_id = args.context_id.unwrap_or_else(|| Uuid::new_v4().to_string());
+    let auth_token = session_ctx.session_token().as_str();
 
     let message_id = Uuid::new_v4().to_string();
     let request_id = Uuid::new_v4().to_string();

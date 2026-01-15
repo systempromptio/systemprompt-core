@@ -49,7 +49,7 @@ pub struct McpBatchValidateOutput {
     pub summary: McpValidateSummary,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct McpValidateSummary {
     pub total: usize,
     pub valid: usize,
