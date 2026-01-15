@@ -19,6 +19,7 @@ systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-core-database = { path = "../../infra/database" }
 systemprompt-core-logging = { path = "../../infra/logging" }
 systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-cloud = { path = "../../infra/cloud" }
 
 # Domain layer (read-only access for content types)
 systemprompt-core-content = { path = "../../domain/content" }

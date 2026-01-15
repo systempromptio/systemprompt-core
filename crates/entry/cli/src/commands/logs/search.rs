@@ -89,6 +89,8 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
     let logs: Vec<LogEntryRow> = filtered_rows
         .into_iter()
         .map(|r| LogEntryRow {
+            id: r.id,
+            trace_id: r.trace_id,
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             level: r.level.to_uppercase(),
             module: r.module,
@@ -207,9 +209,15 @@ fn display_log_row(log: &LogEntryRow) {
         &log.timestamp
     };
 
+    let trace_short = if log.trace_id.len() > 8 {
+        format!("{}...", &log.trace_id[..8])
+    } else {
+        log.trace_id.clone()
+    };
+
     let line = format!(
-        "{} {} [{}] {}",
-        time_part, log.level, log.module, log.message
+        "{} {} [{}] {}  [{}]",
+        time_part, log.level, log.module, log.message, trace_short
     );
 
     match log.level.as_str() {

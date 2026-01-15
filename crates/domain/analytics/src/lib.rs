@@ -11,19 +11,24 @@ pub mod services;
 pub use error::{AnalyticsError, Result as AnalyticsResult};
 
 pub use models::{
-    ActivityTrend, AnalyticsEvent, AnalyticsSession, BotTrafficStats, BrowserBreakdown,
-    ContentStat, ConversationByAgent, ConversationSummary, ConversationTrend, CostOverview,
+    ActivityTrend, AnalyticsEvent, AnalyticsEventBatchResponse, AnalyticsEventCreated,
+    AnalyticsEventType, AnalyticsSession, BotTrafficStats, BrowserBreakdown, ContentStat,
+    ConversionEventData, ConversationByAgent, ConversationSummary, ConversationTrend,
+    CostOverview, CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput,
     CreateEngagementEventInput, DeviceBreakdown, EngagementEvent, EngagementEventData,
     EngagementOptionalMetrics, ErrorSummary, FingerprintAnalysisResult, FingerprintReputation,
-    FlagReason, GeographicBreakdown, PlatformOverview, RecentConversation, TopAgent, TopTool,
-    TopUser, TrafficSource, TrafficSummary, UserMetricsWithTrends,
+    CreateFunnelInput, CreateFunnelStepInput, FlagReason, Funnel, FunnelMatchType,
+    FunnelProgress, FunnelStats, FunnelStep, FunnelStepStats, FunnelWithSteps,
+    GeographicBreakdown, LinkClickEventData, PlatformOverview, RecentConversation,
+    ScrollEventData, TopAgent, TopTool, TopUser, TrafficSource, TrafficSummary,
+    UserMetricsWithTrends,
 };
 pub use repository::{
-    AnalyticsQueryRepository, CoreStatsRepository, CreateSessionParams, EngagementRepository,
-    FingerprintRepository, ProviderUsage, SessionBehavioralData, SessionEngagementSummary,
-    SessionMigrationResult, SessionRecord, SessionRepository, ABUSE_THRESHOLD_FOR_BAN,
-    HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT,
-    SUSTAINED_VELOCITY_MINUTES,
+    AnalyticsEventsRepository, AnalyticsQueryRepository, CoreStatsRepository, CreateSessionParams,
+    EngagementRepository, FingerprintRepository, FunnelRepository, ProviderUsage,
+    SessionBehavioralData, SessionEngagementSummary, SessionMigrationResult, SessionRecord,
+    SessionRepository, StoredAnalyticsEvent, ABUSE_THRESHOLD_FOR_BAN, HIGH_REQUEST_THRESHOLD,
+    HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
 pub use services::{
     detection, AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent,

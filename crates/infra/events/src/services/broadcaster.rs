@@ -141,11 +141,12 @@ impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaste
     }
 }
 
-use systemprompt_models::{A2AEvent, AgUiEvent, ContextEvent};
+use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent};
 
 pub type AgUiBroadcaster = GenericBroadcaster<AgUiEvent>;
 pub type A2ABroadcaster = GenericBroadcaster<A2AEvent>;
 pub type ContextBroadcaster = GenericBroadcaster<ContextEvent>;
+pub type AnalyticsBroadcaster = GenericBroadcaster<AnalyticsEvent>;
 
 pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
     broadcaster: &'static std::sync::LazyLock<GenericBroadcaster<E>>,

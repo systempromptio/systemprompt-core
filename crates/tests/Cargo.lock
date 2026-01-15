@@ -2568,12 +2568,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "paste"
-version = "1.0.15"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57c0d7b74b563b49d38dae00a0c37d4d6de9b432382b2892f0574ddcae73fd0a"
-
-[[package]]
 name = "pastey"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3271,39 +3265,6 @@ dependencies = [
 
 [[package]]
 name = "rmcp"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5947688160b56fb6c827e3c20a72c90392a1d7e9dec74749197aa1780ac42ca"
-dependencies = [
- "base64 0.22.1",
- "bytes",
- "chrono",
- "futures",
- "http",
- "http-body",
- "http-body-util",
- "oauth2",
- "paste",
- "pin-project-lite",
- "rand 0.9.2",
- "reqwest",
- "rmcp-macros 0.8.5",
- "schemars",
- "serde",
- "serde_json",
- "sse-stream",
- "thiserror 2.0.17",
- "tokio",
- "tokio-stream",
- "tokio-util",
- "tower-service",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "rmcp"
 version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "528d42f8176e6e5e71ea69182b17d1d0a19a6b3b894b564678b74cd7cab13cfa"
@@ -3321,7 +3282,7 @@ dependencies = [
  "pin-project-lite",
  "rand 0.9.2",
  "reqwest",
- "rmcp-macros 0.12.0",
+ "rmcp-macros",
  "schemars",
  "serde",
  "serde_json",
@@ -3334,19 +3295,6 @@ dependencies = [
  "tracing",
  "url",
  "uuid",
-]
-
-[[package]]
-name = "rmcp-macros"
-version = "0.8.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "01263441d3f8635c628e33856c468b96ebbce1af2d3699ea712ca71432d4ee7a"
-dependencies = [
- "darling 0.21.3",
- "proc-macro2",
- "quote",
- "serde_json",
- "syn 2.0.111",
 ]
 
 [[package]]
@@ -4135,7 +4083,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "chrono",
- "rmcp 0.8.5",
+ "rmcp",
  "serde",
  "serde_json",
  "sqlx",
@@ -4299,7 +4247,7 @@ dependencies = [
  "rand 0.9.2",
  "regex",
  "reqwest",
- "rmcp 0.12.0",
+ "rmcp",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4354,7 +4302,7 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "rmcp 0.12.0",
+ "rmcp",
  "rust_decimal",
  "serde",
  "serde_json",
@@ -4419,7 +4367,7 @@ dependencies = [
  "once_cell",
  "regex",
  "reqwest",
- "rmcp 0.12.0",
+ "rmcp",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4617,8 +4565,8 @@ dependencies = [
  "inventory",
  "rand 0.9.2",
  "reqwest",
- "rmcp 0.12.0",
- "rmcp-macros 0.12.0",
+ "rmcp",
+ "rmcp-macros",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -4831,6 +4779,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "systemprompt-cloud",
  "systemprompt-core-config",
  "systemprompt-core-content",
  "systemprompt-core-database",
@@ -4951,7 +4900,7 @@ dependencies = [
  "indexmap",
  "once_cell",
  "regex",
- "rmcp 0.12.0",
+ "rmcp",
  "schemars",
  "serde",
  "serde_json",

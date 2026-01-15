@@ -2,6 +2,7 @@ use axum::routing::post;
 use axum::Router;
 use std::sync::Arc;
 use systemprompt_core_analytics::EngagementRepository;
+use systemprompt_core_content::ContentRepository;
 use systemprompt_runtime::AppContext;
 
 mod handlers;
@@ -13,6 +14,9 @@ pub fn router(ctx: &AppContext) -> Router {
         repo: Arc::new(
             EngagementRepository::new(ctx.db_pool())
                 .expect("Failed to create EngagementRepository"),
+        ),
+        content_repo: Arc::new(
+            ContentRepository::new(ctx.db_pool()).expect("Failed to create ContentRepository"),
         ),
     };
 

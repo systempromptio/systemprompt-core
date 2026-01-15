@@ -92,8 +92,8 @@ pub use content_config::{
 };
 pub use errors::{CoreError, RepositoryError, ServiceError};
 pub use events::{
-    A2AEvent, A2AEventBuilder, A2AEventType, ContextEvent, ContextSummary, SystemEvent,
-    SystemEventBuilder, SystemEventType, ToSse,
+    A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder, ContextEvent,
+    ContextSummary, SystemEvent, SystemEventBuilder, SystemEventType, ToSse,
 };
 pub use execution::{
     ExecutionStep, PlannedTool, RequestContext, StepContent, StepId, StepStatus, StepType,

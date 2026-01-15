@@ -3,6 +3,7 @@ CREATE TABLE IF NOT EXISTS engagement_events (
     session_id TEXT NOT NULL,
     user_id VARCHAR(255) NOT NULL,
     page_url TEXT NOT NULL,
+    content_id TEXT,
 
     time_on_page_ms INTEGER NOT NULL DEFAULT 0,
     time_to_first_interaction_ms INTEGER,
@@ -47,3 +48,5 @@ CREATE INDEX IF NOT EXISTS idx_engagement_events_scroll_depth
     ON engagement_events(max_scroll_depth);
 CREATE INDEX IF NOT EXISTS idx_engagement_events_time_on_page
     ON engagement_events(time_on_page_ms);
+CREATE INDEX IF NOT EXISTS idx_engagement_events_content_id
+    ON engagement_events(content_id);

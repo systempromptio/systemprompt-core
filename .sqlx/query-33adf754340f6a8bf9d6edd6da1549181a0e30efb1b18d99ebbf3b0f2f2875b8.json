@@ -1,0 +1,48 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                SELECT timestamp as \"timestamp!\", level as \"level!\", module as \"module!\",\n                       message as \"message!\", metadata\n                FROM logs\n                WHERE message ILIKE $1 AND timestamp >= $2\n                ORDER BY timestamp DESC LIMIT $3\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "level!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "module!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "message!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "metadata",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "33adf754340f6a8bf9d6edd6da1549181a0e30efb1b18d99ebbf3b0f2f2875b8"
+}

@@ -1,0 +1,46 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                timestamp as \"timestamp!\",\n                level as \"level!\",\n                module as \"module!\",\n                message as \"message!\",\n                metadata\n            FROM logs\n            ORDER BY timestamp DESC\n            LIMIT $1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "timestamp!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "level!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "module!",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "message!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "metadata",
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "24705b2ba2cc61dc3f9cc48cc6d8695749757b4c156d934e7b493658a59e54cc"
+}

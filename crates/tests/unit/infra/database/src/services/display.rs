@@ -24,6 +24,7 @@ fn test_single_table_display_no_panic() {
     let tables = vec![TableInfo {
         name: "users".to_string(),
         row_count: 100,
+        size_bytes: 0,
         columns: vec![],
     }];
     // Should not panic
@@ -36,16 +37,19 @@ fn test_multiple_tables_display_no_panic() {
         TableInfo {
             name: "users".to_string(),
             row_count: 100,
+            size_bytes: 0,
             columns: vec![],
         },
         TableInfo {
             name: "posts".to_string(),
             row_count: 500,
+            size_bytes: 0,
             columns: vec![],
         },
         TableInfo {
             name: "comments".to_string(),
             row_count: 1000,
+            size_bytes: 0,
             columns: vec![],
         },
     ];
@@ -58,6 +62,7 @@ fn test_table_with_zero_rows_display_no_panic() {
     let tables = vec![TableInfo {
         name: "empty_table".to_string(),
         row_count: 0,
+        size_bytes: 0,
         columns: vec![],
     }];
     // Should not panic
@@ -174,11 +179,13 @@ fn test_database_info_with_tables_display_no_panic() {
             TableInfo {
                 name: "table1".to_string(),
                 row_count: 10,
+                size_bytes: 0,
                 columns: vec![],
             },
             TableInfo {
                 name: "table2".to_string(),
                 row_count: 20,
+                size_bytes: 0,
                 columns: vec![],
             },
         ],

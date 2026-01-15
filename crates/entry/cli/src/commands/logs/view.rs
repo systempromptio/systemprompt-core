@@ -46,6 +46,8 @@ pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<()> {
     if config.is_json_output() {
         let hints = RenderingHints {
             columns: Some(vec![
+                "id".to_string(),
+                "trace_id".to_string(),
                 "timestamp".to_string(),
                 "level".to_string(),
                 "module".to_string(),
@@ -112,6 +114,8 @@ fn build_output(logs: &[LogEntry], args: &ViewArgs) -> LogViewOutput {
 
 fn log_to_row(log: &LogEntry) -> LogEntryRow {
     LogEntryRow {
+        id: log.id.to_string(),
+        trace_id: log.trace_id.to_string(),
         timestamp: log.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
         level: format!("{:?}", log.level).to_uppercase(),
         module: log.module.clone(),
@@ -148,6 +152,7 @@ fn render_logs(output: &LogViewOutput) {
     }
 
     CliService::info(&format!("Showing {} log entries", output.total));
+    CliService::info("Tip: Use 'logs show <id>' for details or 'logs trace show <trace_id>' for full trace");
 }
 
 fn display_log_row(log: &LogEntryRow) {
@@ -157,9 +162,15 @@ fn display_log_row(log: &LogEntryRow) {
         &log.timestamp
     };
 
+    let trace_short = if log.trace_id.len() > 8 {
+        format!("{}...", &log.trace_id[..8])
+    } else {
+        log.trace_id.clone()
+    };
+
     let line = format!(
-        "{} {} [{}] {}",
-        time_part, log.level, log.module, log.message
+        "{} {} [{}] {}  [{}]",
+        time_part, log.level, log.module, log.message, trace_short
     );
 
     match log.level.as_str() {

@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
+use systemprompt_cloud::constants::storage;
 use systemprompt_core_database::DbPool;
 
 use systemprompt_core_content::models::ContentError;
@@ -346,8 +347,8 @@ fn build_template_json(params: BuildTemplateJsonParams<'_>) -> Result<Value> {
         "HERO_ALT": image_data.hero_alt,
         "TOC_HTML": content_data.toc_html,
         "SECTIONS_HTML": content_data.sections_html,
-        "CSS_BASE_PATH": "/files/css",
-        "JS_BASE_PATH": "/files/js",
+        "CSS_BASE_PATH": format!("/{}", storage::CSS),
+        "JS_BASE_PATH": format!("/{}", storage::JS),
     }))
 }
 

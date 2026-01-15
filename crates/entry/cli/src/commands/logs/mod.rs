@@ -5,6 +5,7 @@ mod export;
 pub mod request;
 mod search;
 mod search_queries;
+mod show;
 mod stream;
 mod summary;
 pub mod tools;
@@ -62,6 +63,13 @@ pub enum LogsCommands {
     )]
     Summary(summary::SummaryArgs),
 
+    #[command(
+        about = "Show details of a log entry or all logs for a trace",
+        after_help = "EXAMPLES:\n  systemprompt logs show log_abc123\n  systemprompt logs show \
+                      trace_def456"
+    )]
+    Show(show::ShowArgs),
+
     #[command(subcommand, about = "Debug execution traces")]
     Trace(trace::TraceCommands),
 
@@ -74,6 +82,8 @@ pub enum LogsCommands {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LogEntryRow {
+    pub id: String,
+    pub trace_id: String,
     pub timestamp: String,
     pub level: String,
     pub module: String,
@@ -133,6 +143,7 @@ pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
         LogsCommands::Cleanup(args) => cleanup::execute(args, config).await,
         LogsCommands::Delete(args) => delete::execute(args, config).await,
         LogsCommands::Summary(args) => summary::execute(args, config).await,
+        LogsCommands::Show(args) => show::execute(args, config).await,
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
         LogsCommands::Request(cmd) => request::execute(cmd, config).await,
         LogsCommands::Tools(cmd) => tools::execute(cmd, config).await,

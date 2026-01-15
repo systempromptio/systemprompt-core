@@ -1,18 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct EngagementEventData {
-    pub scroll_depth: Option<i32>,
-    pub time_on_page_ms: Option<i64>,
-    pub time_to_first_interaction_ms: Option<i64>,
-    pub click_count: Option<i32>,
-    pub mouse_move_distance_px: Option<i32>,
-    pub visible_time_ms: Option<i64>,
-    pub is_rage_click: Option<bool>,
-    pub reading_pattern: Option<String>,
-}
+use systemprompt_identifiers::ContentId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct EngagementEvent {
@@ -20,6 +9,7 @@ pub struct EngagementEvent {
     pub session_id: String,
     pub user_id: String,
     pub page_url: String,
+    pub content_id: Option<ContentId>,
     pub time_on_page_ms: i32,
     pub time_to_first_interaction_ms: Option<i32>,
     pub time_to_first_scroll_ms: Option<i32>,

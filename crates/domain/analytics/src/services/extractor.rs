@@ -217,11 +217,7 @@ impl SessionAnalytics {
 
             if is_html_page {
                 analytics.entry_url = Some(uri.to_string());
-                if analytics.referrer_url.is_none()
-                    || Self::is_same_site(analytics.referrer_url.as_ref())
-                {
-                    analytics.landing_page = Some(uri.path().to_string());
-                }
+                analytics.landing_page = Some(uri.path().to_string());
             }
         }
 
@@ -252,17 +248,6 @@ impl SessionAnalytics {
                     .collect()
             })
             .unwrap_or_default()
-    }
-
-    fn is_same_site(referrer_url: Option<&String>) -> bool {
-        referrer_url
-            .and_then(|url| url::Url::parse(url).ok())
-            .and_then(|parsed| parsed.host_str().map(ToString::to_string))
-            .is_some_and(|host| {
-                host.contains("systemprompt.io")
-                    || host == "localhost"
-                    || host.contains("tyingshoelaces.com")
-            })
     }
 
     fn lookup_geoip(
@@ -310,6 +295,22 @@ impl SessionAnalytics {
 
         let browser = if ua_lower.contains("edg/") || ua_lower.contains("edge") {
             Some("Edge".to_string())
+        } else if ua_lower.contains("samsungbrowser") {
+            Some("Samsung Internet".to_string())
+        } else if ua_lower.contains("ucbrowser") || ua_lower.contains("ucweb") {
+            Some("UC Browser".to_string())
+        } else if ua_lower.contains("yabrowser") {
+            Some("Yandex".to_string())
+        } else if ua_lower.contains("qqbrowser") {
+            Some("QQ Browser".to_string())
+        } else if ua_lower.contains("micromessenger") {
+            Some("WeChat".to_string())
+        } else if ua_lower.contains("silk/") {
+            Some("Silk".to_string())
+        } else if ua_lower.contains("electron") {
+            Some("Electron".to_string())
+        } else if ua_lower.contains("cordova") || ua_lower.contains("wv)") {
+            Some("WebView".to_string())
         } else if ua_lower.contains("chrome") && !ua_lower.contains("edg") {
             Some("Chrome".to_string())
         } else if ua_lower.contains("firefox") {

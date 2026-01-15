@@ -140,6 +140,7 @@ mod image_generation_request_tests {
             user_id: None,
             session_id: None,
             trace_id: None,
+            mcp_execution_id: None,
         };
 
         assert_eq!(request.prompt, "A beautiful sunset");
@@ -168,6 +169,7 @@ mod image_generation_request_tests {
             user_id: Some("user-123".to_string()),
             session_id: Some("session-456".to_string()),
             trace_id: Some("trace-789".to_string()),
+            mcp_execution_id: None,
         };
 
         assert_eq!(request.prompt, "Generate like the reference");
@@ -191,6 +193,7 @@ mod image_generation_request_tests {
             user_id: None,
             session_id: None,
             trace_id: None,
+            mcp_execution_id: None,
         };
 
         let json = serde_json::to_string(&request).unwrap();
