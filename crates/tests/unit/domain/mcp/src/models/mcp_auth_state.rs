@@ -8,8 +8,9 @@ fn create_test_user() -> AuthenticatedUser {
     AuthenticatedUser {
         id: Uuid::new_v4(),
         username: "test_user".to_string(),
-        email: Some("test@example.com".to_string()),
+        email: "test@example.com".to_string(),
         permissions: vec![Permission::Admin],
+        roles: vec![],
     }
 }
 

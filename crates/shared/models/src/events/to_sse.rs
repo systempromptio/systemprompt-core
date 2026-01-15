@@ -1,7 +1,7 @@
 use axum::response::sse::Event;
 use serde::Serialize;
 
-use super::{A2AEvent, ContextEvent, SystemEvent};
+use super::{A2AEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 use crate::agui::AgUiEvent;
 
 /// Trait for types that can be serialized to Server-Sent Events.
@@ -33,6 +33,12 @@ impl ToSse for SystemEvent {
 }
 
 impl ToSse for ContextEvent {
+    fn to_sse(&self) -> Result<Event, serde_json::Error> {
+        serialize_to_sse(self)
+    }
+}
+
+impl ToSse for AnalyticsEvent {
     fn to_sse(&self) -> Result<Event, serde_json::Error> {
         serialize_to_sse(self)
     }

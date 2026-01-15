@@ -347,8 +347,9 @@ fn test_content_links_metadata_valid() {
         category_id: None,
         source_id: SourceId::new("source"),
         version_hash: "hash".to_string(),
+        public: true,
         links: links_json,
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let result = content.links_metadata();
@@ -379,8 +380,9 @@ fn test_content_links_metadata_empty() {
         category_id: None,
         source_id: SourceId::new("source"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let result = content.links_metadata();
@@ -408,8 +410,9 @@ fn test_content_links_metadata_invalid_json() {
         category_id: None,
         source_id: SourceId::new("source"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!({"not": "an array"}),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let result = content.links_metadata();
@@ -436,8 +439,9 @@ fn test_content_clone() {
         category_id: None,
         source_id: SourceId::new("source"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let cloned = content.clone();

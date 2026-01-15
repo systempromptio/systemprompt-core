@@ -5589,6 +5589,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "systemprompt-cloud",
  "systemprompt-core-config",
  "systemprompt-core-content",
  "systemprompt-core-database",

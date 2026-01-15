@@ -52,47 +52,32 @@ async fn fetch_stats(
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<ContentStatsOutput> {
-    let row: (
-        Option<i64>,
-        Option<i64>,
-        Option<f64>,
-        Option<f64>,
-        Option<i64>,
-    ) = sqlx::query_as(
-        r"
+    let row = sqlx::query!(
+        r#"
         SELECT
-            SUM(total_views)::bigint,
-            SUM(unique_visitors)::bigint,
-            AVG(avg_time_on_page_seconds)::float8,
-            AVG(avg_scroll_depth)::float8,
-            SUM(total_clicks)::bigint
-        FROM (
-            SELECT
-                content_id,
-                COUNT(*) as total_views,
-                COUNT(DISTINCT session_id) as unique_visitors,
-                (AVG(time_on_page_ms) / 1000.0)::float8 as avg_time_on_page_seconds,
-                AVG(max_scroll_depth)::float8 as avg_scroll_depth,
-                SUM(click_count)::bigint as total_clicks
-            FROM engagement_events
-            WHERE created_at >= $1 AND created_at < $2
-            GROUP BY content_id
-        ) subq
-        ",
+            COUNT(*)::bigint as "total_views!",
+            COUNT(DISTINCT ae.session_id)::bigint as "unique_visitors!",
+            COALESCE(AVG(ee.time_on_page_ms) / 1000.0, 0)::float8 as "avg_time_on_page_seconds!",
+            COALESCE(AVG(ee.max_scroll_depth), 0)::float8 as "avg_scroll_depth!",
+            COALESCE(SUM(ee.click_count), 0)::bigint as "total_clicks!"
+        FROM analytics_events ae
+        LEFT JOIN engagement_events ee ON ae.session_id = ee.session_id
+        WHERE ae.event_type = 'page_view'
+            AND ae.timestamp >= $1 AND ae.timestamp < $2
+        "#,
+        start,
+        end
     )
-    .bind(start)
-    .bind(end)
     .fetch_one(pool.as_ref())
-    .await
-    .unwrap_or((None, None, None, None, None));
+    .await?;
 
     Ok(ContentStatsOutput {
         period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
-        total_views: row.0.unwrap_or(0),
-        unique_visitors: row.1.unwrap_or(0),
-        avg_time_on_page_seconds: row.2.map_or(0, |v| v as i64),
-        avg_scroll_depth: row.3.unwrap_or(0.0),
-        total_clicks: row.4.unwrap_or(0),
+        total_views: row.total_views,
+        unique_visitors: row.unique_visitors,
+        avg_time_on_page_seconds: row.avg_time_on_page_seconds as i64,
+        avg_scroll_depth: row.avg_scroll_depth,
+        total_clicks: row.total_clicks,
     })
 }
 

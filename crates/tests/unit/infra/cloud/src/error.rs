@@ -151,15 +151,6 @@ fn test_user_message_app_not_configured() {
 }
 
 #[test]
-fn test_user_message_cloud_disabled() {
-    let error = CloudError::CloudDisabled;
-    assert_eq!(
-        error.user_message(),
-        "Cloud features are disabled in this profile"
-    );
-}
-
-#[test]
 fn test_user_message_profile_required() {
     let error = CloudError::ProfileRequired {
         message: "test".to_string(),
@@ -335,12 +326,6 @@ fn test_requires_login_false_for_tenant_not_configured() {
 }
 
 #[test]
-fn test_requires_login_false_for_cloud_disabled() {
-    let error = CloudError::CloudDisabled;
-    assert!(!error.requires_login());
-}
-
-#[test]
 fn test_requires_login_false_for_jwt_decode() {
     let error = CloudError::JwtDecode;
     assert!(!error.requires_login());
@@ -371,12 +356,6 @@ fn test_requires_setup_false_for_not_authenticated() {
 #[test]
 fn test_requires_setup_false_for_token_expired() {
     let error = CloudError::TokenExpired;
-    assert!(!error.requires_setup());
-}
-
-#[test]
-fn test_requires_setup_false_for_cloud_disabled() {
-    let error = CloudError::CloudDisabled;
     assert!(!error.requires_setup());
 }
 

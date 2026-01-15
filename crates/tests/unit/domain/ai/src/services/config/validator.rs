@@ -14,6 +14,7 @@ fn create_valid_config() -> AiConfig {
             endpoint: None,
             default_model: "gpt-4".to_string(),
             google_search_enabled: false,
+            models: HashMap::new(),
         },
     );
 
@@ -119,6 +120,7 @@ mod validate_providers_tests {
                 endpoint: None,
                 default_model: "claude-3".to_string(),
                 google_search_enabled: false,
+                models: HashMap::new(),
             },
         );
 
@@ -142,6 +144,7 @@ mod validate_providers_tests {
                 endpoint: None,
                 default_model: "claude-3".to_string(),
                 google_search_enabled: false,
+                models: HashMap::new(),
             },
         );
 

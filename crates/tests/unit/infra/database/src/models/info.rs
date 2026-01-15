@@ -115,6 +115,7 @@ fn test_table_info_creation() {
     let table = TableInfo {
         name: "users".to_string(),
         row_count: 100,
+        size_bytes: 0,
         columns: vec![],
     };
 
@@ -145,6 +146,7 @@ fn test_table_info_with_columns() {
     let table = TableInfo {
         name: "users".to_string(),
         row_count: 50,
+        size_bytes: 0,
         columns,
     };
 
@@ -158,6 +160,7 @@ fn test_table_info_zero_rows() {
     let table = TableInfo {
         name: "empty_table".to_string(),
         row_count: 0,
+        size_bytes: 0,
         columns: vec![],
     };
 
@@ -169,6 +172,7 @@ fn test_table_info_negative_row_count() {
     let table = TableInfo {
         name: "test".to_string(),
         row_count: -1,
+        size_bytes: 0,
         columns: vec![],
     };
 
@@ -180,6 +184,7 @@ fn test_table_info_debug() {
     let table = TableInfo {
         name: "products".to_string(),
         row_count: 1000,
+        size_bytes: 0,
         columns: vec![],
     };
 
@@ -193,6 +198,7 @@ fn test_table_info_serialization() {
     let table = TableInfo {
         name: "orders".to_string(),
         row_count: 500,
+        size_bytes: 0,
         columns: vec![],
     };
 
@@ -226,11 +232,13 @@ fn test_database_info_with_tables() {
         TableInfo {
             name: "users".to_string(),
             row_count: 100,
+            size_bytes: 0,
             columns: vec![],
         },
         TableInfo {
             name: "posts".to_string(),
             row_count: 500,
+            size_bytes: 0,
             columns: vec![],
         },
     ];
@@ -282,6 +290,7 @@ fn test_database_info_clone() {
         tables: vec![TableInfo {
             name: "t1".to_string(),
             row_count: 10,
+            size_bytes: 0,
             columns: vec![],
         }],
     };

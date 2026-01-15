@@ -1,10 +1,21 @@
 mod engagement;
+mod events;
 mod fingerprint;
+mod funnel;
 
 pub use engagement::{
-    CreateEngagementEventInput, EngagementEvent, EngagementEventData, EngagementOptionalMetrics,
+    CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics,
+};
+pub use events::{
+    AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType,
+    ConversionEventData, CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput,
+    EngagementEventData, LinkClickEventData, ScrollEventData,
 };
 pub use fingerprint::{FingerprintAnalysisResult, FingerprintReputation, FlagReason};
+pub use funnel::{
+    CreateFunnelInput, CreateFunnelStepInput, Funnel, FunnelMatchType, FunnelProgress,
+    FunnelStats, FunnelStep, FunnelStepStats, FunnelWithSteps,
+};
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};

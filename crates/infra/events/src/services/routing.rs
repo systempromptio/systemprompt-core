@@ -2,14 +2,16 @@ use std::sync::LazyLock;
 use systemprompt_identifiers::UserId;
 use tracing::info;
 
-use super::{A2ABroadcaster, AgUiBroadcaster, ContextBroadcaster};
+use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
-use systemprompt_models::{A2AEvent, AgUiEvent, ContextEvent, SystemEvent};
+use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
 pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> =
     LazyLock::new(ContextBroadcaster::new);
 pub static AGUI_BROADCASTER: LazyLock<AgUiBroadcaster> = LazyLock::new(AgUiBroadcaster::new);
 pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcaster::new);
+pub static ANALYTICS_BROADCASTER: LazyLock<AnalyticsBroadcaster> =
+    LazyLock::new(AnalyticsBroadcaster::new);
 
 #[derive(Debug, Clone, Copy)]
 pub struct EventRouter;
@@ -41,6 +43,10 @@ impl EventRouter {
         CONTEXT_BROADCASTER
             .broadcast(user_id, ContextEvent::System(event))
             .await
+    }
+
+    pub async fn route_analytics(user_id: &UserId, event: AnalyticsEvent) -> usize {
+        ANALYTICS_BROADCASTER.broadcast(user_id, event).await
     }
 }
 

@@ -4,6 +4,8 @@ use sqlx::PgPool;
 use std::sync::Arc;
 
 pub struct SearchRow {
+    pub id: String,
+    pub trace_id: String,
     pub timestamp: DateTime<Utc>,
     pub level: String,
     pub module: String,
@@ -32,7 +34,8 @@ pub async fn search_logs(
             sqlx::query_as!(
                 SearchRow,
                 r#"
-                SELECT timestamp as "timestamp!", level as "level!", module as "module!",
+                SELECT id as "id!", trace_id as "trace_id!",
+                       timestamp as "timestamp!", level as "level!", module as "module!",
                        message as "message!", metadata
                 FROM logs
                 WHERE message ILIKE $1 AND timestamp >= $2 AND UPPER(level) = $3
@@ -50,7 +53,8 @@ pub async fn search_logs(
             sqlx::query_as!(
                 SearchRow,
                 r#"
-                SELECT timestamp as "timestamp!", level as "level!", module as "module!",
+                SELECT id as "id!", trace_id as "trace_id!",
+                       timestamp as "timestamp!", level as "level!", module as "module!",
                        message as "message!", metadata
                 FROM logs
                 WHERE message ILIKE $1 AND timestamp >= $2
@@ -67,7 +71,8 @@ pub async fn search_logs(
             sqlx::query_as!(
                 SearchRow,
                 r#"
-                SELECT timestamp as "timestamp!", level as "level!", module as "module!",
+                SELECT id as "id!", trace_id as "trace_id!",
+                       timestamp as "timestamp!", level as "level!", module as "module!",
                        message as "message!", metadata
                 FROM logs
                 WHERE message ILIKE $1 AND UPPER(level) = $2
@@ -84,7 +89,8 @@ pub async fn search_logs(
             sqlx::query_as!(
                 SearchRow,
                 r#"
-                SELECT timestamp as "timestamp!", level as "level!", module as "module!",
+                SELECT id as "id!", trace_id as "trace_id!",
+                       timestamp as "timestamp!", level as "level!", module as "module!",
                        message as "message!", metadata
                 FROM logs
                 WHERE message ILIKE $1

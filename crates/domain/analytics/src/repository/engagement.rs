@@ -5,6 +5,7 @@ use sqlx::PgPool;
 use systemprompt_core_database::DbPool;
 
 use crate::models::{CreateEngagementEventInput, EngagementEvent};
+use systemprompt_identifiers::ContentId;
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -22,6 +23,7 @@ impl EngagementRepository {
         &self,
         session_id: &str,
         user_id: &str,
+        content_id: Option<&ContentId>,
         input: &CreateEngagementEventInput,
     ) -> Result<String> {
         let id = format!("eng_{}", uuid::Uuid::new_v4());
@@ -29,7 +31,7 @@ impl EngagementRepository {
         sqlx::query!(
             r#"
             INSERT INTO engagement_events (
-                id, session_id, user_id, page_url,
+                id, session_id, user_id, page_url, content_id,
                 time_on_page_ms, max_scroll_depth, click_count,
                 time_to_first_interaction_ms, time_to_first_scroll_ms,
                 scroll_velocity_avg, scroll_direction_changes,
@@ -38,14 +40,15 @@ impl EngagementRepository {
                 is_rage_click, is_dead_click, reading_pattern
             )
             VALUES (
-                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
-                $12, $13, $14, $15, $16, $17, $18, $19, $20, $21
+                $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
             "#,
             id,
             session_id,
             user_id,
             input.page_url,
+            content_id.map(ContentId::as_str),
             input.time_on_page_ms,
             input.max_scroll_depth,
             input.click_count,
@@ -76,6 +79,7 @@ impl EngagementRepository {
             r#"
             SELECT
                 id, session_id, user_id, page_url,
+                content_id as "content_id: ContentId",
                 time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth, scroll_velocity_avg, scroll_direction_changes,
                 click_count, mouse_move_distance_px, keyboard_events, copy_events,
@@ -103,6 +107,7 @@ impl EngagementRepository {
             r#"
             SELECT
                 id, session_id, user_id, page_url,
+                content_id as "content_id: ContentId",
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth as "max_scroll_depth!", scroll_velocity_avg, scroll_direction_changes,
                 click_count as "click_count!", mouse_move_distance_px, keyboard_events, copy_events,
@@ -131,6 +136,7 @@ impl EngagementRepository {
             r#"
             SELECT
                 id, session_id, user_id, page_url,
+                content_id as "content_id: ContentId",
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth as "max_scroll_depth!", scroll_velocity_avg, scroll_direction_changes,
                 click_count as "click_count!", mouse_move_distance_px, keyboard_events, copy_events,

@@ -6,6 +6,8 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use systemprompt_core_analytics::{CreateEngagementEventInput, EngagementRepository};
+use systemprompt_core_content::ContentRepository;
+use systemprompt_identifiers::ContentId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
@@ -22,6 +24,34 @@ pub struct BatchResponse {
 #[derive(Clone, Debug)]
 pub struct EngagementState {
     pub repo: Arc<EngagementRepository>,
+    pub content_repo: Arc<ContentRepository>,
+}
+
+fn extract_slug_from_url(page_url: &str) -> Option<&str> {
+    page_url
+        .strip_prefix("/blog/")
+        .or_else(|| page_url.strip_prefix("/article/"))
+        .or_else(|| page_url.strip_prefix("/guide/"))
+        .or_else(|| page_url.strip_prefix("/paper/"))
+        .or_else(|| page_url.strip_prefix("/docs/"))
+        .map(|s| s.split('?').next().unwrap_or(s))
+        .map(|s| s.split('#').next().unwrap_or(s))
+        .map(|s| s.trim_end_matches('/'))
+}
+
+async fn resolve_content_id(content_repo: &ContentRepository, page_url: &str) -> Option<ContentId> {
+    let slug = extract_slug_from_url(page_url)?;
+
+    content_repo
+        .get_by_slug(slug)
+        .await
+        .map_err(|e| {
+            tracing::warn!(error = %e, slug = %slug, "Failed to lookup content by slug");
+            e
+        })
+        .ok()
+        .flatten()
+        .map(|c| c.id)
 }
 
 pub async fn record_engagement(
@@ -29,11 +59,14 @@ pub async fn record_engagement(
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
 ) -> Result<StatusCode, ApiError> {
+    let content_id = resolve_content_id(&state.content_repo, &input.page_url).await;
+
     state
         .repo
         .create_engagement(
             req_ctx.session_id().as_str(),
             req_ctx.user_id().as_str(),
+            content_id.as_ref(),
             &input,
         )
         .await
@@ -55,13 +88,17 @@ pub async fn record_engagement_batch(
 
     let mut success_count = 0;
     for event in input.events {
-        if state
+        let content_id = resolve_content_id(&state.content_repo, &event.page_url).await;
+
+        match state
             .repo
-            .create_engagement(session_id.as_str(), user_id.as_str(), &event)
+            .create_engagement(session_id.as_str(), user_id.as_str(), content_id.as_ref(), &event)
             .await
-            .is_ok()
         {
-            success_count += 1;
+            Ok(_) => success_count += 1,
+            Err(e) => {
+                tracing::warn!(error = %e, page_url = %event.page_url, "Failed to record batch engagement event");
+            }
         }
     }
 

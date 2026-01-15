@@ -1,6 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
+use systemprompt_cloud::constants::storage;
 use systemprompt_core_content::models::ContentError;
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_templates::TemplateRegistry;
@@ -196,5 +197,7 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         "TWITTER_HANDLE": twitter_handle,
         "HEADER_CTA_URL": "/",
         "DISPLAY_SITENAME": display_sitename,
+        "CSS_BASE_PATH": format!("/{}", storage::CSS),
+        "JS_BASE_PATH": format!("/{}", storage::JS),
     }))
 }

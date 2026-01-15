@@ -1,0 +1,106 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT\n            task_id as \"task_id!\",\n            context_id as \"context_id!\",\n            status as \"status!\",\n            status_timestamp,\n            user_id,\n            session_id,\n            trace_id,\n            agent_name,\n            started_at,\n            completed_at,\n            execution_time_ms,\n            error_message,\n            metadata,\n            created_at as \"created_at!\",\n            updated_at as \"updated_at!\"\n        FROM agent_tasks WHERE context_id = $1 ORDER BY created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "task_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "context_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "status!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "status_timestamp",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 4,
+        "name": "user_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "session_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "trace_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "agent_name",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 8,
+        "name": "started_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "completed_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "execution_time_ms",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 11,
+        "name": "error_message",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 12,
+        "name": "metadata",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 13,
+        "name": "created_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "updated_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "e5830ec8568cd1c24b81322ab2a7bc634dba7de85e19ae696598b07649361849"
+}

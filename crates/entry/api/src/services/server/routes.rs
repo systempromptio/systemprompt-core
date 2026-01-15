@@ -138,6 +138,13 @@ pub fn configure_routes(
     );
 
     router = router.nest(
+        "/api/v1/analytics",
+        crate::routes::analytics::router(ctx)
+            .with_rate_limit(rate_config, rate_config.content_per_second)
+            .with_auth_middleware(user_middleware.clone()),
+    );
+
+    router = router.nest(
         "/api/v1/engagement",
         crate::routes::engagement::router(ctx)
             .with_rate_limit(rate_config, rate_config.content_per_second)

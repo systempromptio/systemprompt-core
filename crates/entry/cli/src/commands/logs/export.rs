@@ -54,6 +54,8 @@ pub struct ExportArgs {
 }
 
 struct LogRow {
+    id: String,
+    trace_id: String,
     timestamp: DateTime<Utc>,
     level: String,
     module: String,
@@ -78,6 +80,8 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
                 .is_none_or(|module| r.module.contains(module))
         })
         .map(|r| LogEntryRow {
+            id: r.id,
+            trace_id: r.trace_id,
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             level: r.level.to_uppercase(),
             module: r.module,
@@ -145,6 +149,8 @@ async fn fetch_logs(
                 LogRow,
                 r#"
                 SELECT
+                    id as "id!",
+                    trace_id as "trace_id!",
                     timestamp as "timestamp!",
                     level as "level!",
                     module as "module!",
@@ -166,6 +172,8 @@ async fn fetch_logs(
                 LogRow,
                 r#"
                 SELECT
+                    id as "id!",
+                    trace_id as "trace_id!",
                     timestamp as "timestamp!",
                     level as "level!",
                     module as "module!",
@@ -187,6 +195,8 @@ async fn fetch_logs(
             LogRow,
             r#"
             SELECT
+                id as "id!",
+                trace_id as "trace_id!",
                 timestamp as "timestamp!",
                 level as "level!",
                 module as "module!",
@@ -207,6 +217,8 @@ async fn fetch_logs(
             LogRow,
             r#"
             SELECT
+                id as "id!",
+                trace_id as "trace_id!",
                 timestamp as "timestamp!",
                 level as "level!",
                 module as "module!",
@@ -226,13 +238,13 @@ async fn fetch_logs(
 }
 
 fn format_csv(logs: &[LogEntryRow]) -> String {
-    let mut output = String::from("timestamp,level,module,message\n");
+    let mut output = String::from("id,trace_id,timestamp,level,module,message\n");
 
     for log in logs {
         let escaped_message = log.message.replace('"', "\"\"");
         output.push_str(&format!(
-            "{},{},{},\"{}\"\n",
-            log.timestamp, log.level, log.module, escaped_message
+            "{},{},{},{},{},\"{}\"\n",
+            log.id, log.trace_id, log.timestamp, log.level, log.module, escaped_message
         ));
     }
 

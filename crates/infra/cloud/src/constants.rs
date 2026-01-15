@@ -111,4 +111,6 @@ pub mod storage {
     pub const VIDEO: &str = "files/video";
     pub const DOCUMENTS: &str = "files/documents";
     pub const UPLOADS: &str = "files/uploads";
+    pub const CSS: &str = "files/css";
+    pub const JS: &str = "files/js";
 }

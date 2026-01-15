@@ -225,6 +225,7 @@ mod rmcp_result_to_trait_result_tests {
                 mime_type: Some("text/plain".to_string()),
                 size: None,
                 icons: None,
+                meta: None,
             }),
             annotations: None,
         }
