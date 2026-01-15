@@ -15,6 +15,7 @@
 pub mod api_client;
 pub mod auth;
 pub mod checkout;
+pub mod cli_session;
 pub mod constants;
 pub mod context;
 pub mod credentials;
@@ -42,6 +43,7 @@ pub use paths::{
     expand_home, get_cloud_paths, resolve_path, CloudPath, CloudPaths, ProfilePath, ProjectContext,
     ProjectPath,
 };
+pub use cli_session::CliSession;
 pub use tenants::{StoredTenant, TenantStore, TenantType};
 
 use clap::ValueEnum;

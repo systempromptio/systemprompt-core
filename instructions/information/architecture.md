@@ -631,6 +631,75 @@ When spawning subprocesses (agents, MCP servers), config and secrets must be pas
 
 ---
 
+### CLI Session Management
+
+All CLI commands requiring cloud authentication use the `CloudContext` system for consistent credential and session handling.
+
+**Architecture:**
+
+```
+~/.systemprompt/
+  credentials.json     <- Cloud credentials (JWT token)
+  tenants.json         <- Synced tenant data
+  session.json         <- CLI session (context_id, session_id)
+```
+
+**Session Flow:**
+
+```
+CLI Command starts
+    │
+    ▼
+CloudContext::new_authenticated()
+    │ ← Load credentials.json (required)
+    │ ← Load session.json (optional)
+    ▼
+get_or_create_request_context("agent-name")
+    │ ← If session exists: reuse context_id/session_id
+    │ ← If no session: call fetch_or_create_context() via API
+    │ ← Save session.json
+    ▼
+Execute command with RequestContext
+```
+
+**Key Components:**
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `CloudCredentials` | `infra/cloud/src/credentials.rs` | JWT token persistence (0o600 perms) |
+| `CliSession` | `infra/cloud/src/cli_session.rs` | Session persistence (context_id, session_id) |
+| `CloudContext` | `infra/cloud/src/context.rs` | Bundles credentials + session + API client |
+| `CloudPath` | `infra/cloud/src/paths/cloud.rs` | Path resolution for cloud files |
+
+**CLI Command Pattern:**
+
+```rust
+pub async fn execute(args: Args, config: &CliConfig) -> Result<CommandResult<Output>> {
+    let mut cloud_ctx = CloudContext::new_authenticated()
+        .context("Cloud authentication required. Run 'systemprompt cloud login'")?;
+
+    let request_context = cloud_ctx
+        .get_or_create_request_context("my-cli-command")
+        .await
+        .context("Failed to create request context")?;
+
+    // Use request_context.auth_token() for API calls
+    // Use request_context.context_id() for tracking
+}
+```
+
+**Rules:**
+
+| Rule | Description |
+|------|-------------|
+| Cloud auth required | All MCP and agent CLI commands require cloud login |
+| Session reuse | Sessions are reused across CLI invocations |
+| Context via API | Context IDs are created/fetched via Systemprompt API |
+| Local persistence | Session data stored locally in JSON (not cloud) |
+| Token fallback removed | No `--token` flag override - use cloud login |
+
+---
+
 ### Config Validation System
 
 The startup validation system ensures configuration is valid before the application runs.

@@ -1,9 +1,11 @@
 //! MCP server management commands
 
+mod call;
 mod list;
 mod list_packages;
 mod logs;
 mod status;
+mod tools;
 pub mod types;
 mod validate;
 
@@ -30,6 +32,12 @@ pub enum McpCommands {
 
     /// List package names for build
     ListPackages(list_packages::ListPackagesArgs),
+
+    /// List tools from running MCP servers
+    Tools(tools::ToolsArgs),
+
+    /// Execute a tool on an MCP server
+    Call(call::CallArgs),
 }
 
 pub async fn execute(command: McpCommands) -> Result<()> {
@@ -68,6 +76,20 @@ pub async fn execute_with_config(command: McpCommands, config: &CliConfig) -> Re
         McpCommands::ListPackages(args) => {
             let result =
                 list_packages::execute(args, config).context("Failed to list MCP packages")?;
+            render_result(&result);
+            Ok(())
+        },
+        McpCommands::Tools(args) => {
+            let result = tools::execute(args, config)
+                .await
+                .context("Failed to list MCP tools")?;
+            render_result(&result);
+            Ok(())
+        },
+        McpCommands::Call(args) => {
+            let result = call::execute(args, config)
+                .await
+                .context("Failed to execute MCP tool")?;
             render_result(&result);
             Ok(())
         },

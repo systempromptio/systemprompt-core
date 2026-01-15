@@ -1,7 +1,10 @@
+use systemprompt_client::SystempromptClient;
+use systemprompt_identifiers::{AgentName, JwtToken, SessionId, TraceId};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_models::Profile;
+use systemprompt_models::{Profile, RequestContext};
 
 use crate::api_client::CloudApiClient;
+use crate::cli_session::CliSession;
 use crate::credentials::CloudCredentials;
 use crate::error::{CloudError, CloudResult};
 use crate::paths::{get_cloud_paths, CloudPath};
@@ -34,6 +37,7 @@ pub struct CloudContext {
     pub profile: Option<&'static Profile>,
     pub tenant: Option<ResolvedTenant>,
     pub api_client: CloudApiClient,
+    session: Option<CliSession>,
 }
 
 impl CloudContext {
@@ -43,6 +47,9 @@ impl CloudContext {
         let credentials = CloudCredentials::load_and_validate_from_path(&creds_path)
             .map_err(|_| CloudError::NotAuthenticated)?;
 
+        let session_path = cloud_paths.resolve(CloudPath::CliSession);
+        let session = CliSession::load_from_path(&session_path).ok();
+
         let api_client = CloudApiClient::new(&credentials.api_url, &credentials.api_token);
 
         Ok(Self {
@@ -50,6 +57,7 @@ impl CloudContext {
             profile: None,
             tenant: None,
             api_client,
+            session,
         })
     }
 
@@ -123,5 +131,65 @@ impl CloudContext {
     #[must_use]
     pub const fn has_tenant(&self) -> bool {
         self.tenant.is_some()
+    }
+
+    #[must_use]
+    pub const fn session(&self) -> Option<&CliSession> {
+        self.session.as_ref()
+    }
+
+    pub async fn get_or_create_request_context(
+        &mut self,
+        agent_name: &str,
+    ) -> CloudResult<RequestContext> {
+        let cloud_paths = get_cloud_paths().map_err(|_| CloudError::NotAuthenticated)?;
+        let session_path = cloud_paths.resolve(CloudPath::CliSession);
+
+        let (context_id, session_id) = if let Some(ref mut session) = self.session {
+            session.touch();
+            let _ = session.save_to_path(&session_path);
+            (session.context_id.clone(), session.session_id.clone())
+        } else {
+            let profile = ProfileBootstrap::get().map_err(|e| CloudError::ProfileRequired {
+                message: e.to_string(),
+            })?;
+            let api_url = &profile.server.api_external_url;
+
+            let client = SystempromptClient::new(api_url)
+                .map_err(|e| CloudError::ApiError {
+                    message: e.to_string(),
+                })?
+                .with_token(JwtToken::new(&self.credentials.api_token));
+
+            let context_id = client.fetch_or_create_context().await.map_err(|e| {
+                CloudError::ApiError {
+                    message: format!("Failed to create context: {}", e),
+                }
+            })?;
+
+            let session_id = SessionId::new(uuid::Uuid::new_v4().to_string());
+            let session = CliSession::new(context_id.clone(), session_id.clone());
+            let _ = session.save_to_path(&session_path);
+            self.session = Some(session);
+
+            (context_id, session_id)
+        };
+
+        let trace_id = TraceId::new(uuid::Uuid::new_v4().to_string());
+
+        Ok(
+            RequestContext::new(session_id, trace_id, context_id, AgentName::new(agent_name))
+                .with_auth_token(&self.credentials.api_token),
+        )
+    }
+
+    pub fn clear_session(&mut self) -> CloudResult<()> {
+        let cloud_paths = get_cloud_paths().map_err(|_| CloudError::NotAuthenticated)?;
+        let session_path = cloud_paths.resolve(CloudPath::CliSession);
+        CliSession::delete_from_path(&session_path).map_err(|e| CloudError::ApiError {
+            message: e.to_string(),
+        })?;
+        self.session = None;
+        Ok(())
     }
 }

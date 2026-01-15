@@ -47,6 +47,9 @@ pub enum CloudError {
     #[error("Tenant '{tenant_id}' not found.\n\nRun: systemprompt cloud config")]
     TenantNotFound { tenant_id: String },
 
+    #[error("API error: {message}")]
+    ApiError { message: String },
+
     #[error(transparent)]
     Network(#[from] reqwest::Error),
 
@@ -71,6 +74,7 @@ impl CloudError {
             Self::TenantsStoreCorrupted { .. } => "Tenants store is corrupted",
             Self::TenantsStoreInvalid { .. } => "Tenants store is invalid",
             Self::TenantNotFound { .. } => "Tenant not found",
+            Self::ApiError { .. } => "API request failed",
             Self::Network(_) => "Network error communicating with cloud",
             Self::Io(_) => "File system error",
         }
@@ -97,6 +101,7 @@ impl CloudError {
             Self::TenantNotFound { .. } => {
                 "Run 'systemprompt cloud config' to select a valid tenant"
             },
+            Self::ApiError { .. } => "Check the error message and try again",
             Self::Network(_) => "Check your internet connection and try again",
             Self::Io(_) => "Check file permissions and disk space",
         }

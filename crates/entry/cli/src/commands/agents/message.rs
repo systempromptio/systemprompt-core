@@ -2,9 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use systemprompt_client::SystempromptClient;
-use systemprompt_identifiers::JwtToken;
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_cloud::CloudContext;
 use uuid::Uuid;
 
 use super::types::{MessageOutput, TaskInfo};
@@ -22,7 +20,7 @@ pub struct MessageArgs {
     #[arg(short = 'm', long, help = "Message text to send")]
     pub message: Option<String>,
 
-    #[arg(long, help = "Context ID for conversation continuity")]
+    #[arg(long, help = "Context ID for conversation continuity (overrides session)")]
     pub context_id: Option<String>,
 
     #[arg(long, help = "Task ID to continue an existing task")]
@@ -30,13 +28,6 @@ pub struct MessageArgs {
 
     #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
     pub url: Option<String>,
-
-    #[arg(
-        long,
-        env = "SYSTEMPROMPT_TOKEN",
-        help = "Bearer token for authentication"
-    )]
-    pub token: Option<String>,
 
     #[arg(long, help = "Use streaming mode")]
     pub stream: bool,
@@ -127,6 +118,9 @@ pub async fn execute(
     args: MessageArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<MessageOutput>> {
+    let mut cloud_ctx = CloudContext::new_authenticated()
+        .context("Cloud authentication required. Run 'systemprompt cloud login'")?;
+
     let agent = resolve_input(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
@@ -138,25 +132,20 @@ pub async fn execute(
     let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
-    let context_id = match args.context_id {
-        Some(id) => id,
+    let (context_id, auth_token) = match args.context_id {
+        Some(id) => (id, cloud_ctx.credentials.api_token.clone()),
         None => {
-            if let Some(token) = &args.token {
-                // Use the API URL from profile for context creation
-                let profile = ProfileBootstrap::get()
-                    .context("Profile not loaded - required for auto-context creation")?;
-                let api_url = &profile.server.api_external_url;
-                let client = SystempromptClient::new(api_url)?.with_token(JwtToken::new(token));
-                let ctx = client
-                    .fetch_or_create_context()
-                    .await
-                    .context("Failed to create context for conversation")?;
-                ctx.to_string()
-            } else {
-                Uuid::new_v4().to_string()
-            }
+            let req_ctx = cloud_ctx
+                .get_or_create_request_context("agent-cli")
+                .await
+                .context("Failed to create request context")?;
+            (
+                req_ctx.context_id().to_string(),
+                req_ctx.auth_token().as_str().to_string(),
+            )
         },
     };
+
     let message_id = Uuid::new_v4().to_string();
     let request_id = Uuid::new_v4().to_string();
 
@@ -193,15 +182,10 @@ pub async fn execute(
         .build()
         .context("Failed to create HTTP client")?;
 
-    let mut request_builder = client
+    let response = client
         .post(&agent_url)
-        .header("Content-Type", "application/json");
-
-    if let Some(token) = &args.token {
-        request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
-    }
-
-    let response = request_builder
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", auth_token))
         .json(&request)
         .send()
         .await
