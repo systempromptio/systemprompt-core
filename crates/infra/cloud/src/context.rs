@@ -150,7 +150,12 @@ impl CloudContext {
             let _ = session.save_to_path(&session_path);
             (session.context_id.clone(), session.session_id.clone())
         } else {
-            let client = SystempromptClient::new(&self.credentials.api_url)
+            let profile = ProfileBootstrap::get().map_err(|e| CloudError::ProfileRequired {
+                message: e.to_string(),
+            })?;
+            let api_url = &profile.server.api_external_url;
+
+            let client = SystempromptClient::new(api_url)
                 .map_err(|e| CloudError::ApiError {
                     message: e.to_string(),
                 })?
