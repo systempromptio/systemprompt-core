@@ -3,11 +3,11 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use systemprompt_identifiers::{SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 
 use crate::error::CloudError;
 
-const CURRENT_VERSION: u32 = 2;
+const CURRENT_VERSION: u32 = 3;
 const SESSION_DURATION_HOURS: i64 = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +16,7 @@ pub struct CliSession {
     pub profile_name: String,
     pub session_token: SessionToken,
     pub session_id: SessionId,
+    pub context_id: ContextId,
     pub user_id: UserId,
     pub user_email: String,
     pub created_at: DateTime<Utc>,
@@ -29,6 +30,7 @@ impl CliSession {
         profile_name: String,
         session_token: SessionToken,
         session_id: SessionId,
+        context_id: ContextId,
         user_id: UserId,
         user_email: String,
     ) -> Self {
@@ -39,12 +41,17 @@ impl CliSession {
             profile_name,
             session_token,
             session_id,
+            context_id,
             user_id,
             user_email,
             created_at: now,
             expires_at,
             last_used: now,
         }
+    }
+
+    pub fn context_id(&self) -> &ContextId {
+        &self.context_id
     }
 
     pub fn touch(&mut self) {

@@ -138,7 +138,7 @@ pub async fn execute(
 
     let context_id = args
         .context_id
-        .unwrap_or_else(|| Uuid::new_v4().to_string());
+        .unwrap_or_else(|| session_ctx.context_id().to_string());
     let auth_token = session_ctx.session_token().as_str();
 
     let message_id = Uuid::new_v4().to_string();

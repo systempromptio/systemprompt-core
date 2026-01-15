@@ -1,4 +1,4 @@
-#![allow(clippy::print_stderr)] // Fallback when logging fails
+#![allow(clippy::print_stderr)]
 
 mod visitor;
 
@@ -19,8 +19,13 @@ use visitor::{extract_span_context, FieldVisitor, SpanContext, SpanFields, SpanV
 const BUFFER_FLUSH_SIZE: usize = 100;
 const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;
 
+enum LogCommand {
+    Entry(LogEntry),
+    FlushNow,
+}
+
 pub struct DatabaseLayer {
-    sender: mpsc::UnboundedSender<LogEntry>,
+    sender: mpsc::UnboundedSender<LogCommand>,
 }
 
 impl std::fmt::Debug for DatabaseLayer {
@@ -38,16 +43,25 @@ impl DatabaseLayer {
         Self { sender }
     }
 
-    async fn batch_writer(db_pool: DbPool, mut receiver: mpsc::UnboundedReceiver<LogEntry>) {
+    async fn batch_writer(db_pool: DbPool, mut receiver: mpsc::UnboundedReceiver<LogCommand>) {
         let mut buffer = Vec::with_capacity(BUFFER_FLUSH_SIZE);
         let mut interval = tokio::time::interval(Duration::from_secs(BUFFER_FLUSH_INTERVAL_SECS));
 
         loop {
             tokio::select! {
-                Some(entry) = receiver.recv() => {
-                    buffer.push(entry);
-                    if buffer.len() >= BUFFER_FLUSH_SIZE {
-                        Self::flush(&db_pool, &mut buffer).await;
+                Some(command) = receiver.recv() => {
+                    match command {
+                        LogCommand::Entry(entry) => {
+                            buffer.push(entry);
+                            if buffer.len() >= BUFFER_FLUSH_SIZE {
+                                Self::flush(&db_pool, &mut buffer).await;
+                            }
+                        }
+                        LogCommand::FlushNow => {
+                            if !buffer.is_empty() {
+                                Self::flush(&db_pool, &mut buffer).await;
+                            }
+                        }
                     }
                 }
                 _ = interval.tick() => {
@@ -193,6 +207,8 @@ where
             tracing::Level::TRACE => LogLevel::Trace,
         };
 
+        let is_error = log_level == LogLevel::Error;
+
         let entry = LogEntry {
             id: LogId::generate(),
             timestamp: Utc::now(),
@@ -226,6 +242,10 @@ where
                 .map(|s| ClientId::new(s.clone())),
         };
 
-        let _ = self.sender.send(entry);
+        let _ = self.sender.send(LogCommand::Entry(entry));
+
+        if is_error {
+            let _ = self.sender.send(LogCommand::FlushNow);
+        }
     }
 }

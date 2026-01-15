@@ -5,12 +5,13 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath};
+use systemprompt_core_agent::repository::context::ContextRepository;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{SessionToken, UserId};
+use systemprompt_identifiers::{ContextId, SessionToken};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
@@ -25,6 +26,10 @@ pub struct CliSessionContext {
 impl CliSessionContext {
     pub fn session_token(&self) -> &SessionToken {
         &self.session.session_token
+    }
+
+    pub fn context_id(&self) -> &ContextId {
+        &self.session.context_id
     }
 
     pub fn api_url(&self) -> &str {
@@ -142,7 +147,13 @@ async fn create_session_for_profile(
         CliService::key_value("User", cloud_email);
     }
 
-    let admin_user = fetch_admin_user_by_email(database_url, cloud_email).await?;
+    let db = Database::new_postgres(database_url)
+        .await
+        .context("Failed to connect to database")?;
+    let db_arc = Arc::new(db);
+    let db_pool = DbPool::from(db_arc);
+
+    let admin_user = fetch_admin_user(&db_pool, cloud_email).await?;
 
     let session_id = create_tui_session(
         &profile.server.api_external_url,
@@ -151,6 +162,16 @@ async fn create_session_for_profile(
     )
     .await
     .context("Failed to create CLI session via API")?;
+
+    let context_repo = ContextRepository::new(db_pool);
+    let context_id = context_repo
+        .create_context(
+            &admin_user.id,
+            Some(&session_id),
+            &format!("CLI Session - {}", profile_name),
+        )
+        .await
+        .context("Failed to create CLI context")?;
 
     let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
     let session_token = session_generator
@@ -165,29 +186,24 @@ async fn create_session_for_profile(
     if config.is_interactive() {
         CliService::success("Session created");
         CliService::key_value("Session ID", session_id.as_str());
+        CliService::key_value("Context ID", context_id.as_str());
     }
 
     Ok(CliSession::new(
         profile_name.to_string(),
         session_token,
         session_id,
-        UserId::new(admin_user.id.to_string()),
+        context_id,
+        admin_user.id,
         admin_user.email,
     ))
 }
 
-async fn fetch_admin_user_by_email(
-    database_url: &str,
+async fn fetch_admin_user(
+    db_pool: &DbPool,
     email: &str,
 ) -> Result<systemprompt_core_users::User> {
-    let db = Database::new_postgres(database_url)
-        .await
-        .context("Failed to connect to database")?;
-
-    let db_arc = Arc::new(db);
-    let db_pool = DbPool::from(db_arc);
-
-    let user_service = UserService::new(&db_pool)?;
+    let user_service = UserService::new(db_pool)?;
     let user = user_service
         .find_by_email(email)
         .await
