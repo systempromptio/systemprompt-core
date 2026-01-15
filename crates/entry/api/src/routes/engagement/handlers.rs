@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use systemprompt_core_analytics::{CreateEngagementEventInput, EngagementRepository};
+use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug, Deserialize)]
@@ -27,8 +28,8 @@ pub async fn record_engagement(
     State(state): State<EngagementState>,
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
-) -> impl IntoResponse {
-    match state
+) -> Result<StatusCode, ApiError> {
+    state
         .repo
         .create_engagement(
             req_ctx.session_id().as_str(),
@@ -36,13 +37,12 @@ pub async fn record_engagement(
             &input,
         )
         .await
-    {
-        Ok(_) => StatusCode::CREATED,
-        Err(e) => {
+        .map_err(|e| {
             tracing::error!(error = %e, "Failed to record engagement");
-            StatusCode::INTERNAL_SERVER_ERROR
-        },
-    }
+            ApiError::internal_error("Failed to record engagement")
+        })?;
+
+    Ok(StatusCode::CREATED)
 }
 
 pub async fn record_engagement_batch(

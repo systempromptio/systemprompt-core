@@ -95,10 +95,10 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         .context("Failed to generate session token")?;
 
     let output = LoginOutput {
-        user_id: admin_user.id.to_string(),
+        user_id: admin_user.id.clone(),
         email: admin_user.email.clone(),
-        session_id: session_id.to_string(),
-        token: session_token.to_string(),
+        session_id: session_id.clone(),
+        token: session_token.clone(),
         expires_in_hours: args.duration_hours,
     };
 
@@ -136,14 +136,24 @@ fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<Log
     };
 
     if !session.is_valid_for_profile(profile_name) {
+        if !args.token_only {
+            if session.is_expired() {
+                CliService::info("Existing session expired, creating new session...");
+            } else {
+                CliService::info(&format!(
+                    "Session for different profile '{}', creating new session...",
+                    session.profile_name
+                ));
+            }
+        }
         return Ok(None);
     }
 
     let output = LoginOutput {
-        user_id: session.user_id.to_string(),
+        user_id: session.user_id.clone(),
         email: session.user_email.clone(),
-        session_id: session.session_id.to_string(),
-        token: session.session_token.to_string(),
+        session_id: session.session_id.clone(),
+        token: session.session_token.clone(),
         expires_in_hours: 24,
     };
 

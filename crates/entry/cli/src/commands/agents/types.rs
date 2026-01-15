@@ -1,9 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-
-// ============================================================================
-// List/Show Output Types
-// ============================================================================
+use systemprompt_models::a2a::Task;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
@@ -124,10 +121,6 @@ pub struct AgentLogsOutput {
     pub log_files: Vec<String>,
 }
 
-// ============================================================================
-// Registry Output Types (A2A Discovery)
-// ============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct RegistryOutput {
     pub gateway_url: String,
@@ -148,49 +141,11 @@ pub struct RegistryAgentInfo {
     pub skills: Vec<String>,
 }
 
-// ============================================================================
-// Message Output Types (A2A Communication)
-// ============================================================================
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageOutput {
     pub agent: String,
-    pub task: TaskInfo,
+    pub task: Task,
     pub message_sent: String,
-    pub artifacts_count: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TaskInfo {
-    pub task_id: String,
-    pub context_id: String,
-    pub state: String,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TaskGetOutput {
-    pub task_id: String,
-    pub context_id: String,
-    pub state: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub timestamp: Option<String>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub history: Vec<HistoryMessage>,
-    #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub artifacts: Vec<TaskArtifact>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct HistoryMessage {
-    pub role: String,
-    pub text: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct TaskArtifact {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub name: Option<String>,
-    pub content: String,
+    pub response: Option<String>,
 }

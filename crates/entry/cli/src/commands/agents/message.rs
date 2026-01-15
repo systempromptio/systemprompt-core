@@ -2,9 +2,10 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
+use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
-use super::types::{MessageOutput, TaskInfo};
+use super::types::MessageOutput;
 use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
@@ -56,27 +57,9 @@ struct JsonRpcRequest {
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct MessageSendParams {
-    message: A2aMessage,
+    message: Message,
     #[serde(skip_serializing_if = "Option::is_none")]
     configuration: Option<MessageConfiguration>,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct A2aMessage {
-    role: String,
-    parts: Vec<MessagePart>,
-    message_id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    task_id: Option<String>,
-    context_id: String,
-    kind: String,
-}
-
-#[derive(Debug, Serialize)]
-struct MessagePart {
-    kind: String,
-    text: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -88,7 +71,7 @@ struct MessageConfiguration {
 struct JsonRpcResponse {
     jsonrpc: String,
     #[serde(default)]
-    result: Option<TaskResponse>,
+    result: Option<Task>,
     #[serde(default)]
     error: Option<JsonRpcError>,
 }
@@ -99,21 +82,15 @@ struct JsonRpcError {
     message: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TaskResponse {
-    id: String,
-    context_id: String,
-    status: TaskStatusResponse,
-    #[serde(default)]
-    artifacts: Option<Vec<serde_json::Value>>,
-}
-
-#[derive(Debug, Deserialize)]
-struct TaskStatusResponse {
-    state: String,
-    #[serde(default)]
-    timestamp: Option<String>,
+fn extract_text_from_parts(parts: &[Part]) -> String {
+    parts
+        .iter()
+        .filter_map(|part| match part {
+            Part::Text(text_part) => Some(text_part.text.as_str()),
+            _ => None,
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
 }
 
 pub async fn execute(
@@ -136,13 +113,16 @@ pub async fn execute(
         .unwrap_or(&session_ctx.profile.server.api_external_url);
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
-    let context_id = args
+    let context_id: ContextId = args
         .context_id
-        .unwrap_or_else(|| session_ctx.context_id().to_string());
+        .map(ContextId::new)
+        .unwrap_or_else(|| session_ctx.context_id().clone());
     let auth_token = session_ctx.session_token().as_str();
 
-    let message_id = Uuid::new_v4().to_string();
-    let request_id = Uuid::new_v4().to_string();
+    let task_id: Option<TaskId> = args.task_id.map(TaskId::new);
+
+    let message_id = MessageId::generate();
+    let request_id = MessageId::generate().to_string();
 
     let method = if args.stream {
         "message/stream"
@@ -154,16 +134,18 @@ pub async fn execute(
         jsonrpc: JSON_RPC_VERSION.to_string(),
         method: method.to_string(),
         params: MessageSendParams {
-            message: A2aMessage {
+            message: Message {
                 role: "user".to_string(),
-                parts: vec![MessagePart {
-                    kind: "text".to_string(),
+                parts: vec![Part::Text(TextPart {
                     text: message_text.clone(),
-                }],
-                message_id,
-                task_id: args.task_id.clone(),
+                })],
+                id: message_id,
+                task_id,
                 context_id: context_id.clone(),
                 kind: "message".to_string(),
+                metadata: None,
+                extensions: None,
+                reference_task_ids: None,
             },
             configuration: args.blocking.then_some(MessageConfiguration {
                 blocking: Some(true),
@@ -213,18 +195,17 @@ pub async fn execute(
         .result
         .ok_or_else(|| anyhow!("No result in agent response"))?;
 
-    let artifacts_count = task.artifacts.as_ref().map_or(0, Vec::len);
+    let response = task
+        .status
+        .message
+        .as_ref()
+        .map(|msg| extract_text_from_parts(&msg.parts));
 
     let output = MessageOutput {
         agent: agent.clone(),
-        task: TaskInfo {
-            task_id: task.id,
-            context_id: task.context_id,
-            state: task.status.state,
-            timestamp: task.status.timestamp,
-        },
+        task,
         message_sent: message_text,
-        artifacts_count,
+        response,
     };
 
     Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))

@@ -2,12 +2,12 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
+use systemprompt_models::a2a::Task;
 
-use super::types::{HistoryMessage, TaskArtifact, TaskGetOutput};
+use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 
-const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Debug, Args)]
@@ -55,7 +55,7 @@ struct TaskGetParams {
 struct JsonRpcResponse {
     jsonrpc: String,
     #[serde(default)]
-    result: Option<TaskResponse>,
+    result: Option<Task>,
     #[serde(default)]
     error: Option<JsonRpcError>,
 }
@@ -66,54 +66,9 @@ struct JsonRpcError {
     message: String,
 }
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct TaskResponse {
-    id: String,
-    context_id: String,
-    status: TaskStatusResponse,
-    #[serde(default)]
-    history: Option<Vec<HistoryEntry>>,
-    #[serde(default)]
-    artifacts: Option<Vec<ArtifactEntry>>,
-}
+pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
+    let session_ctx = get_or_create_session(config).await?;
 
-#[derive(Debug, Deserialize)]
-struct TaskStatusResponse {
-    state: String,
-    #[serde(default)]
-    timestamp: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct HistoryEntry {
-    role: String,
-    parts: Vec<MessagePart>,
-}
-
-#[derive(Debug, Deserialize)]
-struct MessagePart {
-    kind: String,
-    #[serde(default)]
-    text: Option<String>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ArtifactEntry {
-    #[serde(default)]
-    name: Option<String>,
-    parts: Vec<ArtifactPart>,
-}
-
-#[derive(Debug, Deserialize)]
-struct ArtifactPart {
-    kind: String,
-    #[serde(default)]
-    text: Option<String>,
-}
-
-pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<TaskGetOutput>> {
     let agent = resolve_input(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
@@ -122,13 +77,19 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 
-    let base_url = args.url.as_deref().unwrap_or(DEFAULT_GATEWAY_URL);
+    let base_url = args
+        .url
+        .as_deref()
+        .unwrap_or_else(|| session_ctx.api_url());
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
+
+    let auth_token = args
+        .token
+        .as_deref()
+        .unwrap_or_else(|| session_ctx.session_token().as_str());
 
     let request_id = uuid::Uuid::new_v4().to_string();
 
-    // Per A2A spec Section 7.3: tasks/get only requires task ID
-    // Context is resolved from task storage by the server
     let request = JsonRpcRequest {
         jsonrpc: JSON_RPC_VERSION.to_string(),
         method: "tasks/get".to_string(),
@@ -144,13 +105,10 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         .build()
         .context("Failed to create HTTP client")?;
 
-    let mut request_builder = client
+    let request_builder = client
         .post(&agent_url)
-        .header("Content-Type", "application/json");
-
-    if let Some(token) = &args.token {
-        request_builder = request_builder.header("Authorization", format!("Bearer {}", token));
-    }
+        .header("Content-Type", "application/json")
+        .header("Authorization", format!("Bearer {}", auth_token));
 
     let response = request_builder
         .json(&request)
@@ -185,64 +143,5 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         .result
         .ok_or_else(|| anyhow!("No result in agent response"))?;
 
-    // Convert history entries to output format
-    let history: Vec<HistoryMessage> = task
-        .history
-        .as_ref()
-        .map(|entries| {
-            entries
-                .iter()
-                .flat_map(|entry| {
-                    let role = match entry.role.as_str() {
-                        "user" => "User".to_string(),
-                        "agent" => "Agent".to_string(),
-                        other => other.to_string(),
-                    };
-                    entry
-                        .parts
-                        .iter()
-                        .filter(|p| p.kind == "text")
-                        .filter_map(|p| p.text.clone())
-                        .map(move |text| HistoryMessage {
-                            role: role.clone(),
-                            text,
-                        })
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    // Convert artifacts to output format
-    let artifacts: Vec<TaskArtifact> = task
-        .artifacts
-        .as_ref()
-        .map(|arts| {
-            arts.iter()
-                .map(|artifact| {
-                    let content = artifact
-                        .parts
-                        .iter()
-                        .filter(|p| p.kind == "text")
-                        .filter_map(|p| p.text.clone())
-                        .collect::<Vec<_>>()
-                        .join("\n");
-                    TaskArtifact {
-                        name: artifact.name.clone(),
-                        content,
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let output = TaskGetOutput {
-        task_id: task.id,
-        context_id: task.context_id,
-        state: task.status.state,
-        timestamp: task.status.timestamp,
-        history,
-        artifacts,
-    };
-
-    Ok(CommandResult::card(output).with_title("Task Details"))
+    Ok(CommandResult::card(task).with_title("Task Details"))
 }
