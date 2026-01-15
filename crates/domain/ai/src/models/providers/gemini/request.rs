@@ -130,7 +130,8 @@ pub struct GeminiThinkingConfig {
 #[serde(rename_all = "camelCase")]
 pub struct GeminiImageConfig {
     pub aspect_ratio: String,
-    pub image_size: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub image_size: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

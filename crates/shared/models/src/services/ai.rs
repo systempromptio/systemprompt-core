@@ -135,6 +135,9 @@ pub struct ModelCapabilities {
 
     #[serde(default)]
     pub system_prompts: bool,
+
+    #[serde(default)]
+    pub image_resolution_config: bool,
 }
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
