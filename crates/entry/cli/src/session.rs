@@ -11,7 +11,9 @@ use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{ContextId, SessionToken};
+use systemprompt_identifiers::{AgentName, ContextId, SessionToken, TraceId};
+use systemprompt_models::auth::UserType;
+use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
@@ -34,6 +36,18 @@ impl CliSessionContext {
 
     pub fn api_url(&self) -> &str {
         &self.profile.server.api_external_url
+    }
+
+    pub fn to_request_context(&self, agent_name: &str) -> RequestContext {
+        RequestContext::new(
+            self.session.session_id.clone(),
+            TraceId::generate(),
+            self.session.context_id.clone(),
+            AgentName::new(agent_name.to_string()),
+        )
+        .with_user_id(self.session.user_id.clone())
+        .with_auth_token(self.session.session_token.as_str())
+        .with_user_type(self.session.user_type)
     }
 }
 
@@ -191,6 +205,7 @@ async fn create_session_for_profile(
     Ok(
         CliSession::builder(profile_name, session_token, session_id, context_id)
             .with_user(admin_user.id, admin_user.email)
+            .with_user_type(UserType::Admin)
             .build(),
     )
 }
