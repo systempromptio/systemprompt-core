@@ -5,7 +5,7 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, Uri};
 use chrono::{DateTime, Utc};
 use systemprompt_core_database::DbPool;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
 
 use crate::repository::{CreateSessionParams, SessionRecord, SessionRepository};
@@ -17,6 +17,7 @@ pub struct CreateAnalyticsSessionInput<'a> {
     pub session_id: &'a SessionId,
     pub user_id: Option<&'a UserId>,
     pub analytics: &'a SessionAnalytics,
+    pub session_source: SessionSource,
     pub is_bot: bool,
     pub expires_at: DateTime<Utc>,
 }
@@ -104,6 +105,7 @@ impl AnalyticsService {
         let params = CreateSessionParams {
             session_id: input.session_id,
             user_id: input.user_id,
+            session_source: input.session_source,
             fingerprint_hash: Some(&fingerprint),
             ip_address: input.analytics.ip_address.as_deref(),
             user_agent: input.analytics.user_agent.as_deref(),

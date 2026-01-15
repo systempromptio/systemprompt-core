@@ -115,8 +115,7 @@ pub async fn execute(
 
     let context_id: ContextId = args
         .context_id
-        .map(ContextId::new)
-        .unwrap_or_else(|| session_ctx.context_id().clone());
+        .map_or_else(|| session_ctx.context_id().clone(), ContextId::new);
     let auth_token = session_ctx.session_token().as_str();
 
     let task_id: Option<TaskId> = args.task_id.map(TaskId::new);

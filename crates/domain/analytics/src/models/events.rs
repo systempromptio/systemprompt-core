@@ -27,7 +27,7 @@ impl AnalyticsEventType {
         }
     }
 
-    pub fn category(&self) -> &str {
+    pub const fn category(&self) -> &str {
         match self {
             Self::PageView | Self::PageExit => "navigation",
             Self::LinkClick => "interaction",

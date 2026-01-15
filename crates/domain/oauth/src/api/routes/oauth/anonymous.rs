@@ -6,9 +6,11 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use crate::services::cimd::ClientValidator;
-use crate::services::{generate_admin_jwt, JwtSigningParams, SessionCreationService};
+use crate::services::{
+    generate_admin_jwt, CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService,
+};
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::{ClientId, UserId};
+use systemprompt_identifiers::{ClientId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
 use systemprompt_runtime::AppContext;
 
@@ -112,9 +114,8 @@ pub async fn generate_anonymous_token(
             let user_id = UserId::new(user_id_str.clone());
             let email = req.email.clone().unwrap_or_else(|| user_id_str.clone());
 
-            // Create authenticated session for TUI
             match session_service
-                .create_authenticated_session(&user_id, &headers)
+                .create_authenticated_session(&user_id, &headers, SessionSource::Tui)
                 .await
             {
                 Ok(session_id) => {
@@ -210,7 +211,6 @@ pub async fn generate_anonymous_token(
         }
     }
 
-    // Default: create anonymous session
     let jwt_secret = match systemprompt_models::SecretsBootstrap::jwt_secret() {
         Ok(s) => s,
         Err(e) => {
@@ -224,8 +224,15 @@ pub async fn generate_anonymous_token(
                 .into_response();
         },
     };
+    let session_source = SessionSource::from_client_id(&req.client_id);
     match session_service
-        .create_anonymous_session(&headers, None, &client_id, jwt_secret)
+        .create_anonymous_session(CreateAnonymousSessionInput {
+            headers: &headers,
+            uri: None,
+            client_id: &client_id,
+            jwt_secret,
+            session_source,
+        })
         .await
     {
         Ok(session_info) => {

@@ -15,6 +15,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
 use select::resolve_profile;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug)]
@@ -80,6 +81,7 @@ impl DeployConfig {
         }
 
         self.validate_images_structure()?;
+        self.validate_extension_assets()?;
 
         if !self.dockerfile.exists() {
             return Err(anyhow!(
@@ -99,6 +101,29 @@ impl DeployConfig {
                  logos/",
                 logos_path.display(),
                 self.web_images.display()
+            );
+        }
+        Ok(())
+    }
+
+    fn validate_extension_assets(&self) -> Result<()> {
+        let registry = ExtensionRegistry::discover();
+        let missing: Vec<_> = registry
+            .asset_extensions()
+            .into_iter()
+            .flat_map(|ext| {
+                let ext_id = ext.id();
+                ext.required_assets()
+                    .into_iter()
+                    .filter(|asset| asset.is_required() && !asset.source().exists())
+                    .map(move |asset| format!("[ext:{}] {}", ext_id, asset.source().display()))
+            })
+            .collect();
+
+        if !missing.is_empty() {
+            bail!(
+                "Missing required extension assets:\n  {}",
+                missing.join("\n  ")
             );
         }
         Ok(())

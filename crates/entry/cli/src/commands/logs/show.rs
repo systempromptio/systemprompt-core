@@ -257,10 +257,7 @@ fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
         return;
     }
 
-    CliService::section(&format!(
-        "Logs for Trace: {}",
-        truncate_id(&trace_id, 12)
-    ));
+    CliService::section(&format!("Logs for Trace: {}", truncate_id(&trace_id, 12)));
     CliService::info(&format!("Found {} log entries", logs.len()));
     CliService::info("");
 

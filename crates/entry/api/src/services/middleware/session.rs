@@ -4,10 +4,10 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_core_analytics::AnalyticsService;
-use systemprompt_core_oauth::services::SessionCreationService;
+use systemprompt_core_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 use systemprompt_core_security::HeaderExtractor;
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, UserId};
+use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, SessionSource, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -143,7 +143,13 @@ impl SessionMiddleware {
         })?;
 
         self.session_creation_service
-            .create_anonymous_session(headers, Some(uri), &client_id, jwt_secret)
+            .create_anonymous_session(CreateAnonymousSessionInput {
+                headers,
+                uri: Some(uri),
+                client_id: &client_id,
+                jwt_secret,
+                session_source: SessionSource::Web,
+            })
             .await
             .map(|session_info| {
                 (

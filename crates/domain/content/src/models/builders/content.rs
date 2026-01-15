@@ -1,4 +1,3 @@
-use crate::models::ContentKind;
 use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
@@ -11,7 +10,7 @@ pub struct CreateContentParams {
     pub author: String,
     pub published_at: DateTime<Utc>,
     pub keywords: String,
-    pub kind: ContentKind,
+    pub kind: String,
     pub image: Option<String>,
     pub category_id: Option<CategoryId>,
     pub source_id: SourceId,
@@ -35,7 +34,7 @@ impl CreateContentParams {
             author: String::new(),
             published_at: Utc::now(),
             keywords: String::new(),
-            kind: ContentKind::default(),
+            kind: String::from("article"),
             image: None,
             category_id: None,
             source_id,
@@ -59,7 +58,7 @@ impl CreateContentParams {
         self
     }
 
-    pub const fn with_kind(mut self, kind: ContentKind) -> Self {
+    pub fn with_kind(mut self, kind: String) -> Self {
         self.kind = kind;
         self
     }

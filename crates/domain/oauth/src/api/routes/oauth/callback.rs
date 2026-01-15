@@ -5,6 +5,7 @@ use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_identifiers::SessionSource;
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_runtime::AppContext;
@@ -155,7 +156,7 @@ async fn exchange_code_for_token(
         user_provider,
     );
     let session_id = session_service
-        .create_authenticated_session(&user_id_typed, params.headers)
+        .create_authenticated_session(&user_id_typed, params.headers, SessionSource::Oauth)
         .await?;
 
     let access_token_jti = generate_access_token_jti();

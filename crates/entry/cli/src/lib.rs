@@ -7,7 +7,7 @@ mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{
-    agents, analytics, build, cloud, config, content, db, extensions, files, jobs, logs, mcp,
+    agents, analytics, build, cloud, config, content, db, ext, extensions, files, jobs, logs, mcp,
     services, setup, skills, system, users, web,
 };
 
@@ -154,6 +154,9 @@ enum Commands {
     #[command(subcommand, about = "Extension management and discovery")]
     Extensions(extensions::ExtensionsCommands),
 
+    #[command(subcommand, about = "Run CLI extension commands")]
+    Ext(ext::ExtCommands),
+
     #[command(subcommand, about = "System authentication and session management")]
     System(system::SystemCommands),
 
@@ -248,6 +251,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Analytics(cmd)) => analytics::execute(cmd, &cli_config).await?,
         Some(Commands::Web(cmd)) => web::execute(cmd)?,
         Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
+        Some(Commands::Ext(cmd)) => ext::execute(cmd, &cli_config).await?,
         Some(Commands::System(cmd)) => system::execute(cmd).await?,
         Some(Commands::Setup(args)) => {
             let result = setup::execute(args, &cli_config).await?;

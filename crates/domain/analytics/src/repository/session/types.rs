@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
 #[derive(Debug)]
 pub struct CreateSessionParams<'a> {
     pub session_id: &'a SessionId,
     pub user_id: Option<&'a UserId>,
+    pub session_source: SessionSource,
     pub fingerprint_hash: Option<&'a str>,
     pub ip_address: Option<&'a str>,
     pub user_agent: Option<&'a str>,

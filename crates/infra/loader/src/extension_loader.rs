@@ -78,6 +78,45 @@ impl ExtensionLoader {
             .collect()
     }
 
+    pub fn get_enabled_cli_extensions(project_root: &Path) -> Vec<DiscoveredExtension> {
+        Self::discover(project_root)
+            .into_iter()
+            .filter(|e| e.is_cli() && e.is_enabled())
+            .collect()
+    }
+
+    pub fn find_cli_extension(project_root: &Path, name: &str) -> Option<DiscoveredExtension> {
+        Self::get_enabled_cli_extensions(project_root)
+            .into_iter()
+            .find(|e| {
+                e.binary_name()
+                    .is_some_and(|b| b == name || e.manifest.extension.name == name)
+            })
+    }
+
+    pub fn get_cli_binary_path(
+        project_root: &Path,
+        binary_name: &str,
+    ) -> Option<std::path::PathBuf> {
+        let release_path = project_root
+            .join(CARGO_TARGET)
+            .join("release")
+            .join(binary_name);
+        if release_path.exists() {
+            return Some(release_path);
+        }
+
+        let debug_path = project_root
+            .join(CARGO_TARGET)
+            .join("debug")
+            .join(binary_name);
+        if debug_path.exists() {
+            return Some(debug_path);
+        }
+
+        None
+    }
+
     pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
         let extensions = Self::get_enabled_mcp_extensions(project_root);
         let target_dir = project_root.join(CARGO_TARGET).join("release");

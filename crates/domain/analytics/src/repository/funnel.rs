@@ -139,7 +139,7 @@ impl FunnelRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|r| r.into_funnel()).collect())
+        Ok(rows.into_iter().map(FunnelRow::into_funnel).collect())
     }
 
     pub async fn list_all(&self) -> Result<Vec<Funnel>> {
@@ -154,7 +154,7 @@ impl FunnelRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|r| r.into_funnel()).collect())
+        Ok(rows.into_iter().map(FunnelRow::into_funnel).collect())
     }
 
     pub async fn deactivate(&self, id: &FunnelId) -> Result<bool> {
@@ -174,12 +174,9 @@ impl FunnelRepository {
     }
 
     pub async fn delete(&self, id: &FunnelId) -> Result<bool> {
-        let result = sqlx::query!(
-            r#"DELETE FROM funnels WHERE id = $1"#,
-            id.as_str()
-        )
-        .execute(&*self.pool)
-        .await?;
+        let result = sqlx::query!(r#"DELETE FROM funnels WHERE id = $1"#, id.as_str())
+            .execute(&*self.pool)
+            .await?;
 
         Ok(result.rows_affected() > 0)
     }
@@ -196,73 +193,68 @@ impl FunnelRepository {
             "timestamp": now.to_rfc3339()
         });
 
-        let existing = self.find_progress(funnel_id, session_id).await?;
-
-        match existing {
-            Some(mut progress) => {
-                if step > progress.current_step {
-                    let mut timestamps = progress
-                        .step_timestamps
-                        .as_array()
-                        .cloned()
-                        .unwrap_or_default();
-                    timestamps.push(step_timestamp);
-
-                    sqlx::query!(
-                        r#"
-                        UPDATE funnel_progress
-                        SET current_step = $3, step_timestamps = $4, updated_at = $5
-                        WHERE funnel_id = $1 AND session_id = $2
-                        "#,
-                        funnel_id.as_str(),
-                        session_id.as_str(),
-                        step,
-                        serde_json::Value::Array(timestamps.clone()),
-                        now
-                    )
-                    .execute(&*self.pool)
-                    .await?;
-
-                    progress.current_step = step;
-                    progress.step_timestamps = serde_json::Value::Array(timestamps);
-                    progress.updated_at = now;
-                }
-                Ok(progress)
-            }
-            None => {
-                let id = FunnelProgressId::generate();
-                let timestamps = serde_json::json!([step_timestamp]);
+        if let Some(mut progress) = self.find_progress(funnel_id, session_id).await? {
+            if step > progress.current_step {
+                let mut timestamps = progress
+                    .step_timestamps
+                    .as_array()
+                    .cloned()
+                    .unwrap_or_default();
+                timestamps.push(step_timestamp);
 
                 sqlx::query!(
                     r#"
-                    INSERT INTO funnel_progress (
-                        id, funnel_id, session_id, current_step, step_timestamps, created_at, updated_at
-                    )
-                    VALUES ($1, $2, $3, $4, $5, $6, $6)
+                    UPDATE funnel_progress
+                    SET current_step = $3, step_timestamps = $4, updated_at = $5
+                    WHERE funnel_id = $1 AND session_id = $2
                     "#,
-                    id.as_str(),
                     funnel_id.as_str(),
                     session_id.as_str(),
                     step,
-                    timestamps,
+                    serde_json::Value::Array(timestamps.clone()),
                     now
                 )
                 .execute(&*self.pool)
                 .await?;
 
-                Ok(FunnelProgress {
-                    id,
-                    funnel_id: funnel_id.clone(),
-                    session_id: session_id.clone(),
-                    current_step: step,
-                    completed_at: None,
-                    dropped_at_step: None,
-                    step_timestamps: timestamps,
-                    created_at: now,
-                    updated_at: now,
-                })
+                progress.current_step = step;
+                progress.step_timestamps = serde_json::Value::Array(timestamps);
+                progress.updated_at = now;
             }
+            return Ok(progress);
         }
+
+        let id = FunnelProgressId::generate();
+        let timestamps = serde_json::json!([step_timestamp]);
+
+        sqlx::query!(
+            r#"
+            INSERT INTO funnel_progress (
+                id, funnel_id, session_id, current_step, step_timestamps, created_at, updated_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, $6)
+            "#,
+            id.as_str(),
+            funnel_id.as_str(),
+            session_id.as_str(),
+            step,
+            timestamps,
+            now
+        )
+        .execute(&*self.pool)
+        .await?;
+
+        Ok(FunnelProgress {
+            id,
+            funnel_id: funnel_id.clone(),
+            session_id: session_id.clone(),
+            current_step: step,
+            completed_at: None,
+            dropped_at_step: None,
+            step_timestamps: timestamps,
+            created_at: now,
+            updated_at: now,
+        })
     }
 
     pub async fn mark_completed(
@@ -306,7 +298,7 @@ impl FunnelRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(row.map(|r| r.into_progress()))
+        Ok(row.map(FunnelProgressRow::into_progress))
     }
 
     pub async fn get_stats(
@@ -377,7 +369,7 @@ impl FunnelRepository {
         .fetch_all(&*self.pool)
         .await?;
 
-        Ok(rows.into_iter().map(|r| r.into_step()).collect())
+        Ok(rows.into_iter().map(FunnelStepRow::into_step).collect())
     }
 
     async fn calculate_step_stats(
@@ -508,7 +500,7 @@ impl FunnelProgressRow {
 }
 
 impl FunnelMatchType {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::UrlExact => "url_exact",
             Self::UrlPrefix => "url_prefix",
@@ -520,7 +512,6 @@ impl FunnelMatchType {
     fn from_str(s: &str) -> Self {
         match s {
             "url_exact" => Self::UrlExact,
-            "url_prefix" => Self::UrlPrefix,
             "url_regex" => Self::UrlRegex,
             "event_type" => Self::EventType,
             _ => Self::UrlPrefix,
