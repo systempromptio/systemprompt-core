@@ -230,7 +230,7 @@ pub struct VerifyOutput {
     pub source_id: SourceId,
     pub in_database: bool,
     pub is_public: bool,
-    pub expected_url: String,
+    pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prerendered: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -270,7 +270,7 @@ pub struct PublishOutput {
     pub slug: String,
     pub source_id: SourceId,
     pub action: String,
-    pub expected_url: String,
+    pub url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prerendered: Option<bool>,
     #[serde(skip_serializing_if = "Option::is_none")]

@@ -151,13 +151,10 @@ fn resolve_image_path(_web_public: &Path, image_url: &str) -> PathBuf {
     let Ok(files_config) = FilesConfig::get() else {
         return PathBuf::from(image_url.trim_start_matches('/'));
     };
-    let prefix = files_config.url_prefix().trim_start_matches('/');
-    let relative_path = image_url
-        .trim_start_matches('/')
-        .trim_start_matches(prefix)
-        .trim_start_matches('/');
 
-    files_config.storage().join(relative_path)
+    files_config
+        .storage()
+        .join(image_url.trim_start_matches('/'))
 }
 
 async fn convert_to_webp(source: &Path, dest: &Path) -> Result<()> {

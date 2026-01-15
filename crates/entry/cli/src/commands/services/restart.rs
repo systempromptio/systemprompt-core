@@ -106,6 +106,100 @@ pub async fn execute_mcp(
     Ok(())
 }
 
+pub async fn execute_all_agents(ctx: &Arc<AppContext>, _config: &CliConfig) -> Result<()> {
+    CliService::section("Restarting All Agents");
+
+    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+        .await
+        .context("Failed to initialize agent orchestrator")?;
+
+    let agent_registry = AgentRegistry::new().await?;
+    let all_agents = orchestrator.list_all().await?;
+
+    let mut restarted = 0i32;
+    let mut failed = 0i32;
+
+    for (agent_id, _status) in &all_agents {
+        let Ok(agent_config) = agent_registry.get_agent(agent_id).await else {
+            continue;
+        };
+
+        if !agent_config.enabled {
+            continue;
+        }
+
+        CliService::info(&format!("Restarting agent: {}", agent_config.name));
+        match orchestrator.restart_agent(agent_id, None).await {
+            Ok(_) => {
+                restarted += 1;
+                CliService::success(&format!("  {} restarted", agent_config.name));
+            },
+            Err(e) => {
+                failed += 1;
+                CliService::error(&format!("  Failed to restart {}: {}", agent_config.name, e));
+            },
+        }
+    }
+
+    match (restarted, failed) {
+        (0, 0) => CliService::info("No enabled agents found"),
+        (r, 0) => CliService::success(&format!("Restarted {} agents", r)),
+        (0, f) => CliService::warning(&format!("Failed to restart {} agents", f)),
+        (r, f) => {
+            CliService::success(&format!("Restarted {} agents", r));
+            CliService::warning(&format!("Failed to restart {} agents", f));
+        },
+    }
+
+    Ok(())
+}
+
+pub async fn execute_all_mcp(ctx: &Arc<AppContext>, _config: &CliConfig) -> Result<()> {
+    CliService::section("Restarting All MCP Servers");
+
+    let mcp_manager =
+        McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+
+    systemprompt_core_mcp::services::RegistryManager::validate()?;
+    let servers = systemprompt_core_mcp::services::RegistryManager::get_enabled_servers()?;
+
+    let mut restarted = 0i32;
+    let mut failed = 0i32;
+
+    for server in servers {
+        if !server.enabled {
+            continue;
+        }
+
+        CliService::info(&format!("Restarting MCP server: {}", server.name));
+        match mcp_manager
+            .restart_services(Some(server.name.clone()))
+            .await
+        {
+            Ok(()) => {
+                restarted += 1;
+                CliService::success(&format!("  {} restarted", server.name));
+            },
+            Err(e) => {
+                failed += 1;
+                CliService::error(&format!("  Failed to restart {}: {}", server.name, e));
+            },
+        }
+    }
+
+    match (restarted, failed) {
+        (0, 0) => CliService::info("No enabled MCP servers found"),
+        (r, 0) => CliService::success(&format!("Restarted {} MCP servers", r)),
+        (0, f) => CliService::warning(&format!("Failed to restart {} MCP servers", f)),
+        (r, f) => {
+            CliService::success(&format!("Restarted {} MCP servers", r));
+            CliService::warning(&format!("Failed to restart {} MCP servers", f));
+        },
+    }
+
+    Ok(())
+}
+
 pub async fn execute_failed(ctx: &Arc<AppContext>, _config: &CliConfig) -> Result<()> {
     CliService::section("Restarting Failed Services");
 

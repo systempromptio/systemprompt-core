@@ -161,6 +161,13 @@ enum Commands {
     Setup(setup::SetupArgs),
 }
 
+fn should_skip_validation(command: &Option<Commands>) -> bool {
+    matches!(
+        command,
+        Some(Commands::Skills(skills::SkillsCommands::Create(_)))
+    )
+}
+
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
 
@@ -203,17 +210,19 @@ pub async fn run() -> Result<()> {
             Config::try_init().context("Failed to initialize configuration")?;
             FilesConfig::init().context("Failed to initialize files configuration")?;
 
-            let mut validator = StartupValidator::new();
-            let report = validator.validate(Config::get()?);
+            if !should_skip_validation(&cli.command) {
+                let mut validator = StartupValidator::new();
+                let report = validator.validate(Config::get()?);
 
-            if report.has_errors() {
-                display_validation_report(&report);
-                #[allow(clippy::exit)]
-                std::process::exit(1);
-            }
+                if report.has_errors() {
+                    display_validation_report(&report);
+                    #[allow(clippy::exit)]
+                    std::process::exit(1);
+                }
 
-            if report.has_warnings() {
-                display_validation_warnings(&report);
+                if report.has_warnings() {
+                    display_validation_warnings(&report);
+                }
             }
         }
 

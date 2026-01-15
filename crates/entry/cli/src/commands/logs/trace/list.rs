@@ -30,6 +30,15 @@ pub struct ListArgs {
 
     #[arg(long, help = "Filter by status (completed, failed, running)")]
     pub status: Option<String>,
+
+    #[arg(
+        long,
+        help = "Filter by MCP tool name (shows only traces that used this tool)"
+    )]
+    pub tool: Option<String>,
+
+    #[arg(long, help = "Only show traces with MCP tool calls")]
+    pub has_mcp: bool,
 }
 
 struct TraceRow {
@@ -47,64 +56,151 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     let pool = ctx.db_pool().pool_arc()?;
 
     let since_timestamp = parse_since(args.since.as_ref())?;
+    let tool_pattern = args.tool.as_ref().map(|t| format!("%{}%", t));
 
-    let rows = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            TraceRow,
-            r#"
-            WITH all_traces AS (
-                SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL AND timestamp >= $1
-                UNION ALL
-                SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL AND created_at >= $1
-                UNION ALL
-                SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL AND started_at >= $1
+    let rows = match (&since_timestamp, &tool_pattern) {
+        (Some(since_ts), Some(tool)) => {
+            sqlx::query_as!(
+                TraceRow,
+                r#"
+                WITH tool_traces AS (
+                    SELECT DISTINCT trace_id
+                    FROM mcp_tool_executions
+                    WHERE tool_name ILIKE $1 AND started_at >= $2
+                ),
+                all_traces AS (
+                    SELECT t.trace_id, l.timestamp as ts
+                    FROM tool_traces t
+                    JOIN logs l ON l.trace_id = t.trace_id AND l.timestamp >= $2
+                    UNION ALL
+                    SELECT t.trace_id, ar.created_at as ts
+                    FROM tool_traces t
+                    JOIN ai_requests ar ON ar.trace_id = t.trace_id AND ar.created_at >= $2
+                    UNION ALL
+                    SELECT t.trace_id, mte.started_at as ts
+                    FROM tool_traces t
+                    JOIN mcp_tool_executions mte ON mte.trace_id = t.trace_id AND mte.started_at >= $2
+                )
+                SELECT
+                    t.trace_id as "trace_id!",
+                    MIN(t.ts) as "first_timestamp!",
+                    MAX(t.ts) as "last_timestamp!",
+                    (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                    (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                    (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                    (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+                FROM all_traces t
+                GROUP BY t.trace_id
+                ORDER BY MIN(t.ts) DESC
+                LIMIT $3
+                "#,
+                tool,
+                since_ts,
+                args.limit
             )
-            SELECT
-                t.trace_id as "trace_id!",
-                MIN(t.ts) as "first_timestamp!",
-                MAX(t.ts) as "last_timestamp!",
-                (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
-                (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
-                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
-                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
-            FROM all_traces t
-            GROUP BY t.trace_id
-            ORDER BY MIN(t.ts) DESC
-            LIMIT $2
-            "#,
-            since_ts,
-            args.limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            TraceRow,
-            r#"
-            WITH all_traces AS (
-                SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL
-                UNION ALL
-                SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL
-                UNION ALL
-                SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL
+            .fetch_all(pool.as_ref())
+            .await?
+        }
+        (None, Some(tool)) => {
+            sqlx::query_as!(
+                TraceRow,
+                r#"
+                WITH tool_traces AS (
+                    SELECT DISTINCT trace_id
+                    FROM mcp_tool_executions
+                    WHERE tool_name ILIKE $1
+                ),
+                all_traces AS (
+                    SELECT t.trace_id, l.timestamp as ts
+                    FROM tool_traces t
+                    JOIN logs l ON l.trace_id = t.trace_id
+                    UNION ALL
+                    SELECT t.trace_id, ar.created_at as ts
+                    FROM tool_traces t
+                    JOIN ai_requests ar ON ar.trace_id = t.trace_id
+                    UNION ALL
+                    SELECT t.trace_id, mte.started_at as ts
+                    FROM tool_traces t
+                    JOIN mcp_tool_executions mte ON mte.trace_id = t.trace_id
+                )
+                SELECT
+                    t.trace_id as "trace_id!",
+                    MIN(t.ts) as "first_timestamp!",
+                    MAX(t.ts) as "last_timestamp!",
+                    (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                    (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                    (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                    (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+                FROM all_traces t
+                GROUP BY t.trace_id
+                ORDER BY MIN(t.ts) DESC
+                LIMIT $2
+                "#,
+                tool,
+                args.limit
             )
-            SELECT
-                t.trace_id as "trace_id!",
-                MIN(t.ts) as "first_timestamp!",
-                MAX(t.ts) as "last_timestamp!",
-                (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
-                (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
-                (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
-                (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
-            FROM all_traces t
-            GROUP BY t.trace_id
-            ORDER BY MIN(t.ts) DESC
-            LIMIT $1
-            "#,
-            args.limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
+            .fetch_all(pool.as_ref())
+            .await?
+        }
+        (Some(since_ts), None) => {
+            sqlx::query_as!(
+                TraceRow,
+                r#"
+                WITH all_traces AS (
+                    SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL AND timestamp >= $1
+                    UNION ALL
+                    SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL AND created_at >= $1
+                    UNION ALL
+                    SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL AND started_at >= $1
+                )
+                SELECT
+                    t.trace_id as "trace_id!",
+                    MIN(t.ts) as "first_timestamp!",
+                    MAX(t.ts) as "last_timestamp!",
+                    (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                    (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                    (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                    (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+                FROM all_traces t
+                GROUP BY t.trace_id
+                ORDER BY MIN(t.ts) DESC
+                LIMIT $2
+                "#,
+                since_ts,
+                args.limit
+            )
+            .fetch_all(pool.as_ref())
+            .await?
+        }
+        (None, None) => {
+            sqlx::query_as!(
+                TraceRow,
+                r#"
+                WITH all_traces AS (
+                    SELECT trace_id, timestamp as ts FROM logs WHERE trace_id IS NOT NULL
+                    UNION ALL
+                    SELECT trace_id, created_at as ts FROM ai_requests WHERE trace_id IS NOT NULL
+                    UNION ALL
+                    SELECT trace_id, started_at as ts FROM mcp_tool_executions WHERE trace_id IS NOT NULL
+                )
+                SELECT
+                    t.trace_id as "trace_id!",
+                    MIN(t.ts) as "first_timestamp!",
+                    MAX(t.ts) as "last_timestamp!",
+                    (SELECT at.agent_name FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "agent",
+                    (SELECT at.status FROM agent_tasks at WHERE at.trace_id = t.trace_id LIMIT 1) as "status",
+                    (SELECT COUNT(*) FROM ai_requests ar WHERE ar.trace_id = t.trace_id) as "ai_requests",
+                    (SELECT COUNT(*) FROM mcp_tool_executions mte WHERE mte.trace_id = t.trace_id) as "mcp_calls"
+                FROM all_traces t
+                GROUP BY t.trace_id
+                ORDER BY MIN(t.ts) DESC
+                LIMIT $1
+                "#,
+                args.limit
+            )
+            .fetch_all(pool.as_ref())
+            .await?
+        }
     };
 
     let traces: Vec<TraceListRow> = rows
@@ -153,6 +249,10 @@ fn matches_filters(row: &TraceRow, args: &ListArgs) -> bool {
             Some(status) if status.eq_ignore_ascii_case(status_filter) => {},
             _ => return false,
         }
+    }
+
+    if args.has_mcp && row.mcp_calls.unwrap_or(0) == 0 {
+        return false;
     }
 
     true

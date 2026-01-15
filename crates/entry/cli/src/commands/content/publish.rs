@@ -117,7 +117,7 @@ pub async fn execute(
         slug,
         source_id: source.clone(),
         action: action.to_string(),
-        expected_url,
+        url: expected_url,
         prerendered,
         http_status,
         success,
