@@ -631,6 +631,95 @@ When spawning subprocesses (agents, MCP servers), config and secrets must be pas
 
 ---
 
+### Execution Tracking System
+
+The system uses multiple database tables to track different types of executions. This is separate from general logging (`tracing::*` → `logs` table).
+
+**Tracking Tables:**
+
+| Table | Purpose | Logged By |
+|-------|---------|-----------|
+| `mcp_tool_executions` | MCP tool call tracking | MCP Server only |
+| `ai_requests` | AI provider request/response | AI Service |
+| `ai_request_tool_calls` | Tool calls within AI requests | AI Service |
+| `logs` | General application logs | `tracing::*` via DatabaseLayer |
+
+**Request Flow and Logging Points:**
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 1. DIRECT MCP CALL (CLI or API)                                             │
+│                                                                             │
+│    CLI/API Request                                                          │
+│         │                                                                   │
+│         ▼                                                                   │
+│    MCP Client (core)  ─────────────────►  MCP Server (extension)            │
+│    [NO logging here]                      [LOGS to mcp_tool_executions]     │
+│                                           - input, output, structured_content│
+│                                           - timing, status, ai_tool_call_id │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 2. AGENT TOOL USE (A2A message processing)                                  │
+│                                                                             │
+│    User Message                                                             │
+│         │                                                                   │
+│         ▼                                                                   │
+│    AI Service ──────► [LOGS to ai_requests]                                 │
+│    (planning)         - provider, model, messages, response                 │
+│         │                                                                   │
+│         ▼                                                                   │
+│    Tool Executor ───► [LOGS to ai_request_tool_calls]                       │
+│         │             - tool_name, arguments (linked to ai_request)         │
+│         │                                                                   │
+│         ▼                                                                   │
+│    MCP Client ─────────────────────────►  MCP Server                        │
+│    [NO logging]                           [LOGS to mcp_tool_executions]     │
+│                                           - full structured_content         │
+│         │                                                                   │
+│         ▼                                                                   │
+│    AI Service ──────► [LOGS to ai_requests]                                 │
+│    (synthesis)        - final response generation                           │
+└─────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ 3. AI REQUEST (direct LLM call without tools)                               │
+│                                                                             │
+│    Service Request                                                          │
+│         │                                                                   │
+│         ▼                                                                   │
+│    AI Service ──────► [LOGS to ai_requests]                                 │
+│                       - provider, model, input/output tokens                │
+│                       - messages, response, timing                          │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Key Files:**
+
+| Component | Location | Responsibility |
+|-----------|----------|----------------|
+| MCP Server logging | `extensions/mcp/*/src/server/mod.rs` | Logs all tool executions to `mcp_tool_executions` |
+| MCP Client | `domain/mcp/src/services/client/mod.rs` | Calls MCP servers (no logging - server handles it) |
+| AI request logging | `domain/ai/src/services/core/request_storage/` | Logs AI requests to `ai_requests` |
+| Tool call logging | `domain/ai/src/repository/ai_requests/` | Logs tool calls to `ai_request_tool_calls` |
+| General tracing | `infra/logging/src/` | Routes `tracing::*` to `logs` table |
+
+**Linking Executions:**
+
+Executions are linked via shared identifiers in `RequestContext`:
+
+| Field | Purpose | Tables Using It |
+|-------|---------|-----------------|
+| `trace_id` | Distributed tracing across services | All tables |
+| `context_id` | Conversation/session grouping | All tables |
+| `task_id` | A2A task grouping | `mcp_tool_executions`, `ai_requests` |
+| `ai_tool_call_id` | Links AI tool call to MCP execution | `ai_request_tool_calls` ↔ `mcp_tool_executions` |
+| `mcp_execution_id` | Unique MCP execution identifier | `mcp_tool_executions`, `task_artifacts` |
+
+**Important:** MCP tool execution logging happens **only in the MCP server** (extension layer), not in the MCP client (core). This ensures a single source of truth with complete data including `structured_content`.
+
+---
+
 ### CLI Session Management
 
 All CLI commands requiring cloud authentication use the `CloudContext` system for consistent credential and session handling.
