@@ -37,7 +37,7 @@ impl ContentRepository {
                       category_id as "category_id: CategoryId",
                       source_id as "source_id: SourceId",
                       version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                      image_optimization_status, updated_at
+                      updated_at
             "#,
             id.as_str(),
             params.slug,
@@ -68,7 +68,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             WHERE id = $1
             "#,
@@ -87,7 +87,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             WHERE slug = $1
             "#,
@@ -110,7 +110,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             WHERE source_id = $1 AND slug = $2
             "#,
@@ -130,7 +130,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             ORDER BY published_at DESC
             LIMIT $1 OFFSET $2
@@ -151,7 +151,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             WHERE source_id = $1
             ORDER BY published_at DESC
@@ -176,7 +176,7 @@ impl ContentRepository {
                       category_id as "category_id: CategoryId",
                       source_id as "source_id: SourceId",
                       version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                      image_optimization_status, updated_at
+                      updated_at
             "#,
             params.title,
             params.description,
@@ -217,7 +217,7 @@ impl ContentRepository {
                    category_id as "category_id: CategoryId",
                    source_id as "source_id: SourceId",
                    version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
-                   image_optimization_status, updated_at
+                   updated_at
             FROM markdown_content
             ORDER BY published_at DESC
             LIMIT $1 OFFSET $2

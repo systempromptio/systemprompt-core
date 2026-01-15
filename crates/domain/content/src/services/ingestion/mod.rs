@@ -262,7 +262,6 @@ impl IngestionService {
             version_hash: String::new(),
             public: true,
             links,
-            image_optimization_status: None,
             updated_at: chrono::Utc::now(),
         })
     }
