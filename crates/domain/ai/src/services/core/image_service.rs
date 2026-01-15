@@ -11,7 +11,7 @@ use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{
     File, FileMetadata, FileRepository, ImageGenerationInfo, ImageMetadata,
 };
-use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{FileId, McpExecutionId, SessionId, TraceId, UserId};
 use tracing::error;
 use uuid::Uuid;
 
@@ -213,7 +213,7 @@ impl ImageService {
         let mut builder = AiRequestRecordBuilder::new(&response.request_id, user_id)
             .provider(&response.provider)
             .model(&response.model)
-            .cost(response.cost_estimate.map_or(0, |c| c as i32))
+            .cost(response.cost_estimate.map_or(0, |c| c.round() as i32))
             .latency(response.generation_time_ms as i32)
             .completed();
 
@@ -223,6 +223,10 @@ impl ImageService {
 
         if let Some(trace_id) = &request.trace_id {
             builder = builder.trace_id(TraceId::new(trace_id));
+        }
+
+        if let Some(mcp_execution_id) = &request.mcp_execution_id {
+            builder = builder.mcp_execution_id(McpExecutionId::new(mcp_execution_id));
         }
 
         let record = builder

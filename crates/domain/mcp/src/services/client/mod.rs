@@ -166,13 +166,14 @@ impl McpClient {
         let url = validation::rewrite_url_for_internal_use(&url);
 
         let tool_repo = ToolUsageRepository::new(db_pool)?;
+        let started_at = chrono::Utc::now();
         let mcp_execution_id =
-            start_execution_tracking(&tool_repo, &name, service_name, arguments.clone(), context)
+            start_execution_tracking(&tool_repo, &name, service_name, arguments.clone(), context, started_at)
                 .await?;
 
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         let tool_result = execute_tool_call(transport, &name, arguments).await;
-        record_execution_result(&tool_repo, &mcp_execution_id, &tool_result).await?;
+        record_execution_result(&tool_repo, &mcp_execution_id, &tool_result, started_at).await?;
 
         tool_result.map_err(|e| anyhow::anyhow!("Tool execution failed: {e}"))
     }
@@ -184,12 +185,13 @@ async fn start_execution_tracking(
     service_name: &str,
     arguments: Option<serde_json::Value>,
     context: &systemprompt_models::RequestContext,
+    started_at: chrono::DateTime<chrono::Utc>,
 ) -> Result<systemprompt_identifiers::McpExecutionId> {
     let request = ToolExecutionRequest {
         tool_name: tool_name.to_string(),
         server_name: service_name.to_string(),
         input: arguments.unwrap_or(serde_json::json!({})),
-        started_at: chrono::Utc::now(),
+        started_at,
         context: context.clone(),
         request_method: Some("mcp".to_string()),
         request_source: Some("ai_service".to_string()),
@@ -268,21 +270,25 @@ async fn record_execution_result(
     tool_repo: &ToolUsageRepository,
     execution_id: &systemprompt_identifiers::McpExecutionId,
     tool_result: &Result<systemprompt_models::CallToolResult, anyhow::Error>,
+    started_at: chrono::DateTime<chrono::Utc>,
 ) -> Result<()> {
+    let completed_at = chrono::Utc::now();
     let result = match tool_result {
         Ok(res) => ToolExecutionResult {
             output: Some(serde_json::to_value(&res.content).unwrap_or(serde_json::json!({}))),
             output_schema: None,
             status: "success".to_string(),
             error_message: None,
-            completed_at: chrono::Utc::now(),
+            started_at,
+            completed_at,
         },
         Err(e) => ToolExecutionResult {
             output: None,
             output_schema: None,
             status: "failed".to_string(),
             error_message: Some(e.to_string()),
-            completed_at: chrono::Utc::now(),
+            started_at,
+            completed_at,
         },
     };
 

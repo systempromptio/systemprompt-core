@@ -70,6 +70,8 @@ pub struct ImageGenerationRequest {
     pub session_id: Option<String>,
     #[serde(default)]
     pub trace_id: Option<String>,
+    #[serde(default)]
+    pub mcp_execution_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

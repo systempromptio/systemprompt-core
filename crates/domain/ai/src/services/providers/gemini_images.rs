@@ -161,7 +161,7 @@ impl ImageProvider for GeminiImageProvider {
             supports_image_editing: true,
             supports_search_grounding: true,
             max_prompt_length: 8000,
-            cost_per_image_cents: 0.04,
+            cost_per_image_cents: 4.0,
         }
     }
 

@@ -93,6 +93,7 @@ pub struct ToolExecutionResult {
     pub output_schema: Option<serde_json::Value>,
     pub status: String,
     pub error_message: Option<String>,
+    pub started_at: DateTime<Utc>,
     pub completed_at: DateTime<Utc>,
 }
 
