@@ -1,17 +1,19 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::duration::parse_since;
-use super::{LogEntryRow, LogFilters, LogViewOutput};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use super::search_queries::{search_logs, search_tools};
+use super::{LogEntryRow, LogFilters};
+use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
-    #[arg(help = "Search pattern (matches message content)")]
+    #[arg(help = "Search pattern (matches message content and tool names)")]
     pub pattern: String,
 
     #[arg(long, help = "Filter by log level (error, warn, info, debug, trace)")]
@@ -26,21 +28,31 @@ pub struct SearchArgs {
     )]
     pub since: Option<String>,
 
-    #[arg(
-        long,
-        short = 'n',
-        default_value = "50",
-        help = "Maximum number of results to return"
-    )]
+    #[arg(long, short = 'n', default_value = "50", help = "Maximum results")]
     pub limit: i64,
+
+    #[arg(long, default_value = "true", help = "Include MCP tool executions")]
+    pub include_tools: bool,
 }
 
-struct SearchRow {
-    timestamp: DateTime<Utc>,
-    level: String,
-    module: String,
-    message: String,
-    metadata: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ToolSearchResult {
+    pub timestamp: String,
+    pub trace_id: String,
+    pub tool_name: String,
+    pub server: String,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub duration_ms: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct CombinedSearchOutput {
+    pub logs: Vec<LogEntryRow>,
+    pub log_count: u64,
+    pub tools: Vec<ToolSearchResult>,
+    pub tool_count: u64,
+    pub filters: LogFilters,
 }
 
 pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
@@ -49,107 +61,29 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
 
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
-
     let pattern = format!("%{}%", args.pattern);
 
-    let rows = if let Some(since_ts) = since_timestamp {
-        if let Some(ref level) = level_filter {
-            sqlx::query_as!(
-                SearchRow,
-                r#"
-                SELECT
-                    timestamp as "timestamp!",
-                    level as "level!",
-                    module as "module!",
-                    message as "message!",
-                    metadata
-                FROM logs
-                WHERE message ILIKE $1
-                  AND timestamp >= $2
-                  AND UPPER(level) = $3
-                ORDER BY timestamp DESC
-                LIMIT $4
-                "#,
-                pattern,
-                since_ts,
-                level,
-                args.limit
-            )
-            .fetch_all(pool.as_ref())
-            .await?
-        } else {
-            sqlx::query_as!(
-                SearchRow,
-                r#"
-                SELECT
-                    timestamp as "timestamp!",
-                    level as "level!",
-                    module as "module!",
-                    message as "message!",
-                    metadata
-                FROM logs
-                WHERE message ILIKE $1
-                  AND timestamp >= $2
-                ORDER BY timestamp DESC
-                LIMIT $3
-                "#,
-                pattern,
-                since_ts,
-                args.limit
-            )
-            .fetch_all(pool.as_ref())
-            .await?
-        }
-    } else if let Some(ref level) = level_filter {
-        sqlx::query_as!(
-            SearchRow,
-            r#"
-            SELECT
-                timestamp as "timestamp!",
-                level as "level!",
-                module as "module!",
-                message as "message!",
-                metadata
-            FROM logs
-            WHERE message ILIKE $1
-              AND UPPER(level) = $2
-            ORDER BY timestamp DESC
-            LIMIT $3
-            "#,
-            pattern,
-            level,
-            args.limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
+    let rows = search_logs(
+        &pool,
+        &pattern,
+        since_timestamp,
+        level_filter.as_deref(),
+        args.limit,
+    )
+    .await?;
+
+    let tool_rows = if args.include_tools {
+        search_tools(&pool, &pattern, since_timestamp, args.limit).await?
     } else {
-        sqlx::query_as!(
-            SearchRow,
-            r#"
-            SELECT
-                timestamp as "timestamp!",
-                level as "level!",
-                module as "module!",
-                message as "message!",
-                metadata
-            FROM logs
-            WHERE message ILIKE $1
-            ORDER BY timestamp DESC
-            LIMIT $2
-            "#,
-            pattern,
-            args.limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
+        vec![]
     };
 
-    let filtered_rows: Vec<_> = if let Some(ref module) = args.module {
-        rows.into_iter()
+    let filtered_rows: Vec<_> = match &args.module {
+        Some(module) => rows
+            .into_iter()
             .filter(|r| r.module.contains(module))
-            .collect()
-    } else {
-        rows
+            .collect(),
+        None => rows,
     };
 
     let logs: Vec<LogEntryRow> = filtered_rows
@@ -159,74 +93,111 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
             level: r.level.to_uppercase(),
             module: r.module,
             message: r.message,
-            metadata: r
-                .metadata
-                .as_ref()
-                .and_then(|m| serde_json::from_str(m).ok()),
+            metadata: r.metadata.as_ref().and_then(|m| {
+                serde_json::from_str(m)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Failed to parse log metadata");
+                        e
+                    })
+                    .ok()
+            }),
         })
         .collect();
 
-    let output = LogViewOutput {
-        total: logs.len() as u64,
-        logs,
-        filters: LogFilters {
-            level: args.level.clone(),
-            module: args.module.clone(),
-            since: args.since.clone(),
-            pattern: Some(args.pattern.clone()),
-            tail: args.limit,
-        },
+    let tools: Vec<ToolSearchResult> = tool_rows
+        .into_iter()
+        .map(|r| ToolSearchResult {
+            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
+            trace_id: r.trace_id,
+            tool_name: r.tool_name,
+            server: r.server_name.unwrap_or_else(|| "unknown".to_string()),
+            status: r.status,
+            duration_ms: r.execution_time_ms.map(i64::from),
+        })
+        .collect();
+
+    let filters = LogFilters {
+        level: args.level.clone(),
+        module: args.module.clone(),
+        since: args.since.clone(),
+        pattern: Some(args.pattern.clone()),
+        tail: args.limit,
     };
 
     if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "timestamp".to_string(),
-                "level".to_string(),
-                "module".to_string(),
-                "message".to_string(),
-            ]),
-            ..Default::default()
+        let output = CombinedSearchOutput {
+            log_count: logs.len() as u64,
+            logs,
+            tool_count: tools.len() as u64,
+            tools,
+            filters,
         };
-        let result = CommandResult::table(output)
-            .with_title("Search Results")
-            .with_hints(hints);
+        let result = CommandResult::table(output).with_title("Search Results");
         render_result(&result);
     } else {
-        render_search_results(&output, &args.pattern);
+        render_combined_results(&logs, &tools, &args.pattern, &filters);
     }
 
     Ok(())
 }
 
-fn render_search_results(output: &LogViewOutput, pattern: &str) {
+fn render_combined_results(
+    logs: &[LogEntryRow],
+    tools: &[ToolSearchResult],
+    pattern: &str,
+    filters: &LogFilters,
+) {
     CliService::section(&format!("Search Results: \"{}\"", pattern));
 
-    if output.filters.level.is_some()
-        || output.filters.module.is_some()
-        || output.filters.since.is_some()
-    {
-        if let Some(ref level) = output.filters.level {
+    if filters.level.is_some() || filters.module.is_some() || filters.since.is_some() {
+        if let Some(ref level) = filters.level {
             CliService::key_value("Level", level);
         }
-        if let Some(ref module) = output.filters.module {
+        if let Some(ref module) = filters.module {
             CliService::key_value("Module", module);
         }
-        if let Some(ref since) = output.filters.since {
+        if let Some(ref since) = filters.since {
             CliService::key_value("Since", since);
         }
     }
 
-    if output.logs.is_empty() {
-        CliService::warning("No matching logs found");
+    if !tools.is_empty() {
+        CliService::subsection(&format!("MCP Tool Executions ({})", tools.len()));
+        for tool in tools {
+            let duration = tool.duration_ms.map(|d| format!(" ({}ms)", d));
+            let line = format!(
+                "{} {}/{} [{}]{}  trace:{}",
+                tool.timestamp,
+                tool.server,
+                tool.tool_name,
+                tool.status,
+                duration.as_deref().unwrap_or(""),
+                tool.trace_id
+            );
+            match tool.status.as_str() {
+                "error" | "failed" => CliService::error(&line),
+                _ => CliService::info(&line),
+            }
+        }
+    }
+
+    if !logs.is_empty() {
+        CliService::subsection(&format!("Log Entries ({})", logs.len()));
+        for log in logs {
+            display_log_row(log);
+        }
+    }
+
+    if logs.is_empty() && tools.is_empty() {
+        CliService::warning("No matching results found");
         return;
     }
 
-    for log in &output.logs {
-        display_log_row(log);
-    }
-
-    CliService::info(&format!("Found {} matching entries", output.total));
+    CliService::info(&format!(
+        "Found {} log entries and {} tool executions",
+        logs.len(),
+        tools.len()
+    ));
 }
 
 fn display_log_row(log: &LogEntryRow) {

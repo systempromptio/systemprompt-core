@@ -4,8 +4,10 @@ pub mod duration;
 mod export;
 pub mod request;
 mod search;
+mod search_queries;
 mod stream;
 mod summary;
+pub mod tools;
 pub mod trace;
 mod view;
 
@@ -65,6 +67,9 @@ pub enum LogsCommands {
 
     #[command(subcommand, about = "Inspect AI requests")]
     Request(request::RequestCommands),
+
+    #[command(subcommand, about = "List and search MCP tool executions")]
+    Tools(tools::ToolsCommands),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -130,5 +135,6 @@ pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
         LogsCommands::Summary(args) => summary::execute(args, config).await,
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
         LogsCommands::Request(cmd) => request::execute(cmd, config).await,
+        LogsCommands::Tools(cmd) => tools::execute(cmd, config).await,
     }
 }

@@ -4,7 +4,7 @@ use systemprompt_core_logging::CliService;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
 
-use super::helpers::{extract_relation_name, JsonError};
+use super::helpers::{extract_relation_name, suggest_table_name, JsonError};
 use super::types::DbExecuteOutput;
 
 fn get_output_format(format_arg: Option<&str>, config: &CliConfig) -> OutputFormat {
@@ -62,11 +62,15 @@ pub async fn execute_query(
         .map_err(|e| {
             let msg = e.to_string();
             if msg.contains("does not exist") {
-                let json_err = JsonError::table_not_found(&extract_relation_name(&msg));
+                let table_name = extract_relation_name(&msg);
+                let json_err = JsonError::table_not_found(&table_name);
                 if config.is_json_output() {
                     CliService::json(&json_err);
                 }
-                anyhow!("{}", json_err.message)
+                let hint = suggest_table_name(&table_name)
+                    .map(|s| format!("\nHint: Did you mean '{}'?", s))
+                    .unwrap_or_default();
+                anyhow!("{}{}", json_err.message, hint)
             } else if msg.contains("syntax error") {
                 anyhow!("SQL syntax error: {}", msg)
             } else {

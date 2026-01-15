@@ -30,7 +30,7 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
-    let content = if args.identifier.contains('-') && args.identifier.len() > 30 {
+    let content = if uuid::Uuid::parse_str(&args.identifier).is_ok() {
         let id = ContentId::new(args.identifier.clone());
         repo.get_by_id(&id)
             .await?
@@ -90,7 +90,7 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
         source_id: content.source_id.clone(),
         in_database: true,
         is_public: content.public,
-        expected_url,
+        url: expected_url,
         prerendered,
         prerender_path,
         http_status,

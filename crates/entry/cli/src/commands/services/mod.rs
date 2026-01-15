@@ -66,6 +66,12 @@ pub enum ServicesCommands {
 
         #[arg(long, help = "Restart only failed services")]
         failed: bool,
+
+        #[arg(long, help = "Restart all agents")]
+        agents: bool,
+
+        #[arg(long, help = "Restart all MCP servers")]
+        mcp: bool,
     },
 
     #[command(about = "Show detailed service status")]
@@ -150,7 +156,12 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             stop::execute(target, force, config).await
         },
 
-        ServicesCommands::Restart { target, failed } => {
+        ServicesCommands::Restart {
+            target,
+            failed,
+            agents,
+            mcp,
+        } => {
             let ctx = Arc::new(
                 AppContext::new()
                     .await
@@ -159,6 +170,10 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
 
             if failed {
                 restart::execute_failed(&ctx, config).await
+            } else if agents {
+                restart::execute_all_agents(&ctx, config).await
+            } else if mcp {
+                restart::execute_all_mcp(&ctx, config).await
             } else {
                 match target {
                     Some(RestartTarget::Api) => restart::execute_api(config).await,
@@ -169,7 +184,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                         restart::execute_mcp(&ctx, &server_name, build, config).await
                     },
                     None => Err(anyhow::anyhow!(
-                        "Must specify target (api, agent, mcp) or use --failed flag"
+                        "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
                     )),
                 }
             }
