@@ -1,5 +1,5 @@
 use anyhow::{Context, Result};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -9,6 +9,8 @@ use systemprompt_models::services::{
     Settings as ServicesSettings, SkillsConfig, WebConfig,
 };
 use systemprompt_models::AppPaths;
+
+use crate::ConfigWriter;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigLoader;
@@ -50,6 +52,13 @@ impl ConfigLoader {
             Self::merge_include(&mut merged_config, include_config);
         }
 
+        Self::discover_and_load_agents(
+            config_dir,
+            config_path,
+            &root_config.includes,
+            &mut merged_config,
+        )?;
+
         merged_config.settings.apply_env_overrides();
 
         merged_config
@@ -57,6 +66,68 @@ impl ConfigLoader {
             .map_err(|e| anyhow::anyhow!("Services config validation failed: {}", e))?;
 
         Ok(merged_config)
+    }
+
+    fn discover_and_load_agents(
+        config_dir: &Path,
+        config_path: &Path,
+        existing_includes: &[String],
+        merged_config: &mut ServicesConfig,
+    ) -> Result<()> {
+        let agents_dir = config_dir.join("../agents");
+
+        if !agents_dir.exists() {
+            return Ok(());
+        }
+
+        let included_files: HashSet<String> = existing_includes
+            .iter()
+            .filter_map(|inc| {
+                Path::new(inc)
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+            })
+            .collect();
+
+        let entries = fs::read_dir(&agents_dir).with_context(|| {
+            format!("Failed to read agents directory: {}", agents_dir.display())
+        })?;
+
+        for entry in entries {
+            let path = entry
+                .with_context(|| format!("Failed to read entry in: {}", agents_dir.display()))?
+                .path();
+
+            let is_yaml = path
+                .extension()
+                .is_some_and(|ext| ext == "yaml" || ext == "yml");
+
+            if !is_yaml {
+                continue;
+            }
+
+            let file_name = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .ok_or_else(|| anyhow::anyhow!("Invalid file path: {}", path.display()))?;
+
+            if included_files.contains(&file_name) {
+                continue;
+            }
+
+            let include_config = Self::load_include_file(&path)?;
+            Self::merge_include(merged_config, include_config);
+
+            let relative_path = format!("../agents/{}", file_name);
+            ConfigWriter::add_include(&relative_path, config_path).with_context(|| {
+                format!(
+                    "Failed to add discovered agent to includes: {}",
+                    relative_path
+                )
+            })?;
+        }
+
+        Ok(())
     }
 
     fn load_include_file(path: &PathBuf) -> Result<PartialServicesConfig> {
@@ -182,6 +253,8 @@ impl EnhancedConfigLoader {
             Self::merge_partial(&mut merged, partial)?;
         }
 
+        self.discover_and_load_agents(&root.includes, &mut merged)?;
+
         self.resolve_includes(&mut merged)?;
 
         merged.settings.apply_env_overrides();
@@ -191,6 +264,67 @@ impl EnhancedConfigLoader {
             .map_err(|e| anyhow::anyhow!("Services config validation failed: {}", e))?;
 
         Ok(merged)
+    }
+
+    fn discover_and_load_agents(
+        &self,
+        existing_includes: &[String],
+        merged: &mut ServicesConfig,
+    ) -> Result<()> {
+        let agents_dir = self.base_path.join("../agents");
+
+        if !agents_dir.exists() {
+            return Ok(());
+        }
+
+        let included_files: HashSet<String> = existing_includes
+            .iter()
+            .filter_map(|inc| {
+                Path::new(inc)
+                    .file_name()
+                    .map(|f| f.to_string_lossy().to_string())
+            })
+            .collect();
+
+        let entries = fs::read_dir(&agents_dir).with_context(|| {
+            format!("Failed to read agents directory: {}", agents_dir.display())
+        })?;
+
+        for entry in entries {
+            let path = entry
+                .with_context(|| format!("Failed to read entry in: {}", agents_dir.display()))?
+                .path();
+
+            let is_yaml = path
+                .extension()
+                .is_some_and(|ext| ext == "yaml" || ext == "yml");
+
+            if !is_yaml {
+                continue;
+            }
+
+            let file_name = path
+                .file_name()
+                .map(|f| f.to_string_lossy().to_string())
+                .ok_or_else(|| anyhow::anyhow!("Invalid file path: {}", path.display()))?;
+
+            if included_files.contains(&file_name) {
+                continue;
+            }
+
+            let relative_path = format!("../agents/{}", file_name);
+            let partial = self.load_include(&relative_path)?;
+            Self::merge_partial(merged, partial)?;
+
+            ConfigWriter::add_include(&relative_path, &self.config_path).with_context(|| {
+                format!(
+                    "Failed to add discovered agent to includes: {}",
+                    relative_path
+                )
+            })?;
+        }
+
+        Ok(())
     }
 
     fn load_include(&self, path: &str) -> Result<PartialServicesConfig> {

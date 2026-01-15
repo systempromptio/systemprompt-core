@@ -1,11 +1,9 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::Utc;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::OnceLock;
-use systemprompt_models::profile::{CloudConfig, CloudValidationMode};
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-use crate::CloudCredentials;
+use crate::{CloudApiClient, CloudCredentials};
 
 static CREDENTIALS: OnceLock<Option<CloudCredentials>> = OnceLock::new();
 
@@ -23,10 +21,7 @@ pub enum CredentialsBootstrapError {
     #[error("Credentials already initialized")]
     AlreadyInitialized,
 
-    #[error("Profile not initialized. Call ProfileBootstrap::init() first")]
-    ProfileNotInitialized,
-
-    #[error("Cloud credentials not available (cloud disabled or not configured)")]
+    #[error("Cloud credentials not available")]
     NotAvailable,
 
     #[error("Cloud credentials file not found: {path}")]
@@ -37,10 +32,13 @@ pub enum CredentialsBootstrapError {
 
     #[error("Cloud token has expired. Run 'systemprompt cloud login' to refresh")]
     TokenExpired,
+
+    #[error("Cloud API validation failed: {message}")]
+    ApiValidationFailed { message: String },
 }
 
 impl CredentialsBootstrap {
-    pub fn init() -> Result<Option<&'static CloudCredentials>> {
+    pub async fn init() -> Result<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             anyhow::bail!(CredentialsBootstrapError::AlreadyInitialized);
         }
@@ -48,6 +46,9 @@ impl CredentialsBootstrap {
         if Self::is_fly_container() {
             tracing::debug!("Fly.io container detected, loading credentials from environment");
             let creds = Self::load_from_env();
+            if let Some(ref c) = creds {
+                Self::validate_with_api(c).await?;
+            }
             CREDENTIALS
                 .set(creds)
                 .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
@@ -57,46 +58,30 @@ impl CredentialsBootstrap {
                 .as_ref());
         }
 
-        let profile = ProfileBootstrap::get()
-            .map_err(|_| CredentialsBootstrapError::ProfileNotInitialized)?;
+        let cloud_paths = crate::paths::get_cloud_paths()?;
+        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
 
-        let Some(cloud_config) = &profile.cloud else {
-            CREDENTIALS
-                .set(None)
-                .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
-            return Ok(None);
-        };
+        let creds = Self::load_credentials_from_path(&credentials_path)?;
+        Self::validate_with_api(&creds).await?;
 
-        let credentials_path = Self::resolve_credentials_path(cloud_config)?;
+        CREDENTIALS
+            .set(Some(creds))
+            .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
+        Ok(CREDENTIALS
+            .get()
+            .ok_or(CredentialsBootstrapError::NotInitialized)?
+            .as_ref())
+    }
 
-        match Self::load_credentials(&credentials_path, cloud_config.validation) {
-            Ok(creds) => {
-                CREDENTIALS
-                    .set(Some(creds))
-                    .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
-                Ok(CREDENTIALS
-                    .get()
-                    .ok_or(CredentialsBootstrapError::NotInitialized)?
-                    .as_ref())
-            },
-            Err(e) => match cloud_config.validation {
-                CloudValidationMode::Strict => Err(e),
-                CloudValidationMode::Warn => {
-                    tracing::warn!("Cloud credentials issue (continuing anyway): {}", e);
-                    CREDENTIALS
-                        .set(None)
-                        .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
-                    Ok(None)
-                },
-                CloudValidationMode::Skip => {
-                    tracing::debug!("Skipping cloud credentials validation: {}", e);
-                    CREDENTIALS
-                        .set(None)
-                        .map_err(|_| CredentialsBootstrapError::AlreadyInitialized)?;
-                    Ok(None)
-                },
-            },
-        }
+    async fn validate_with_api(creds: &CloudCredentials) -> Result<()> {
+        let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+        client.get_user().await.map_err(|e| {
+            anyhow::anyhow!(CredentialsBootstrapError::ApiValidationFailed {
+                message: e.to_string()
+            })
+        })?;
+        tracing::debug!("Cloud credentials validated with API");
+        Ok(())
     }
 
     fn is_fly_container() -> bool {
@@ -138,11 +123,11 @@ impl CredentialsBootstrap {
         CREDENTIALS.get().is_some()
     }
 
-    pub fn try_init() -> Result<Option<&'static CloudCredentials>> {
+    pub async fn try_init() -> Result<Option<&'static CloudCredentials>> {
         if CREDENTIALS.get().is_some() {
             return Self::get().map_err(Into::into);
         }
-        Self::init()
+        Self::init().await
     }
 
     pub fn expires_within(duration: chrono::Duration) -> bool {
@@ -152,42 +137,27 @@ impl CredentialsBootstrap {
             .is_some_and(|c| c.expires_within(duration))
     }
 
-    pub fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
-        let profile = ProfileBootstrap::get()
-            .map_err(|_| CredentialsBootstrapError::ProfileNotInitialized)?;
+    pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
+        let cloud_paths =
+            crate::paths::get_cloud_paths().map_err(|_| CredentialsBootstrapError::NotAvailable)?;
+        let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
 
-        let cloud_config = profile
-            .cloud
-            .as_ref()
-            .ok_or(CredentialsBootstrapError::NotAvailable)?;
-
-        let path = Self::resolve_credentials_path(cloud_config).map_err(|e| {
+        let creds = Self::load_credentials_from_path(&credentials_path).map_err(|e| {
             CredentialsBootstrapError::InvalidCredentials {
                 message: e.to_string(),
             }
         })?;
 
-        Self::load_credentials(&path, cloud_config.validation).map_err(|e| {
-            CredentialsBootstrapError::InvalidCredentials {
+        Self::validate_with_api(&creds).await.map_err(|e| {
+            CredentialsBootstrapError::ApiValidationFailed {
                 message: e.to_string(),
             }
-        })
+        })?;
+
+        Ok(creds)
     }
 
-    fn resolve_credentials_path(cloud_config: &CloudConfig) -> Result<PathBuf> {
-        let profile_path = ProfileBootstrap::get_path()
-            .map_err(|_| CredentialsBootstrapError::ProfileNotInitialized)?;
-        let profile_dir = Path::new(profile_path)
-            .parent()
-            .context("Invalid profile path")?;
-
-        Ok(crate::paths::resolve_path(
-            profile_dir,
-            &cloud_config.credentials_path,
-        ))
-    }
-
-    fn load_credentials(path: &Path, validation: CloudValidationMode) -> Result<CloudCredentials> {
+    fn load_credentials_from_path(path: &Path) -> Result<CloudCredentials> {
         let creds = CloudCredentials::load_from_path(path).map_err(|e| {
             if path.exists() {
                 anyhow::anyhow!(CredentialsBootstrapError::InvalidCredentials {
@@ -200,7 +170,7 @@ impl CredentialsBootstrap {
             }
         })?;
 
-        if validation != CloudValidationMode::Skip && creds.is_token_expired() {
+        if creds.is_token_expired() {
             anyhow::bail!(CredentialsBootstrapError::TokenExpired);
         }
 

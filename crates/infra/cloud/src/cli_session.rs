@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
+use systemprompt_models::auth::UserType;
 
 use crate::error::CloudError;
 

@@ -77,6 +77,7 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
     }
 
     CredentialsBootstrap::try_init()
+        .await
         .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
 
     let creds = CredentialsBootstrap::require()

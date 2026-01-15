@@ -2,6 +2,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::a2a::Task;
 
+use crate::commands::mcp::types::McpToolEntry;
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
     pub agents: Vec<AgentSummary>,
@@ -148,4 +150,26 @@ pub struct MessageOutput {
     pub message_sent: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub response: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AgentToolsOutput {
+    pub agent: String,
+    pub tools: Vec<McpToolEntry>,
+    pub summary: AgentToolsSummary,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub unavailable_servers: Vec<UnavailableServer>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct AgentToolsSummary {
+    pub total_tools: usize,
+    pub configured_servers: usize,
+    pub available_servers: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct UnavailableServer {
+    pub name: String,
+    pub reason: String,
 }

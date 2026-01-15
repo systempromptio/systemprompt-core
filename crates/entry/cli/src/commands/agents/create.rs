@@ -3,8 +3,10 @@ use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use std::collections::HashMap;
+use std::fs;
 use std::path::Path;
 
+use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
@@ -20,23 +22,11 @@ pub struct CreateArgs {
     #[arg(long, help = "Agent name")]
     pub name: Option<String>,
 
-    #[arg(long, help = "Port for the agent")]
-    pub port: Option<u16>,
-
-    #[arg(long, help = "Display name for the agent")]
-    pub display_name: Option<String>,
-
-    #[arg(long, help = "Description of the agent")]
-    pub description: Option<String>,
-
     #[arg(long, help = "Enable the agent after creation")]
     pub enabled: bool,
 
-    #[arg(long, help = "AI provider (e.g., anthropic, openai)")]
-    pub provider: Option<String>,
-
-    #[arg(long, help = "AI model (e.g., claude-3-5-sonnet-20241022)")]
-    pub model: Option<String>,
+    #[command(flatten)]
+    pub agent: AgentArgs,
 }
 
 pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<AgentCreateOutput>> {
@@ -44,11 +34,11 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
 
     validate_agent_name(&name)?;
 
-    let port = resolve_input(args.port, "port", config, prompt_port)?;
+    let port = resolve_input(args.agent.port, "port", config, prompt_port)?;
 
     validate_port(port)?;
 
-    let display_name = args.display_name.unwrap_or_else(|| {
+    let display_name = args.agent.display_name.unwrap_or_else(|| {
         if config.is_interactive() {
             prompt_display_name(&name).unwrap_or_else(|_| name.clone())
         } else {
@@ -56,7 +46,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         }
     });
 
-    let description = args.description.unwrap_or_else(|| {
+    let description = args.agent.description.unwrap_or_else(|| {
         if config.is_interactive() {
             prompt_description().unwrap_or_else(|e| {
                 tracing::warn!(error = %e, "Failed to prompt for description");
@@ -67,20 +57,70 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         }
     });
 
+    let system_prompt = if let Some(file_path) = &args.agent.system_prompt_file {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
+        Some(content)
+    } else {
+        args.agent.system_prompt.clone()
+    };
+
     CliService::info(&format!(
         "Creating agent '{}' on port {} (display: {})...",
         name, port, display_name
     ));
 
-    let agent_config = build_agent_config(&AgentConfigParams {
-        name: &name,
+    let agent_config = AgentConfig {
+        name: name.clone(),
         port,
-        display_name: &display_name,
-        description: &description,
+        endpoint: args
+            .agent
+            .endpoint
+            .unwrap_or_else(|| format!("/api/v1/agents/{}", name)),
         enabled: args.enabled,
-        provider: args.provider.as_deref(),
-        model: args.model.as_deref(),
-    });
+        dev_only: args.agent.dev_only,
+        is_primary: args.agent.is_primary,
+        default: args.agent.default,
+        card: AgentCardConfig {
+            protocol_version: "0.3.0".to_string(),
+            name: Some(name.clone()),
+            display_name,
+            description,
+            version: args.agent.version.unwrap_or_else(|| "1.0.0".to_string()),
+            preferred_transport: "JSONRPC".to_string(),
+            icon_url: args.agent.icon_url,
+            documentation_url: args.agent.documentation_url,
+            provider: None,
+            capabilities: CapabilitiesConfig {
+                streaming: args.agent.streaming.unwrap_or(true),
+                push_notifications: args.agent.push_notifications.unwrap_or(false),
+                state_transition_history: args.agent.state_transition_history.unwrap_or(true),
+            },
+            default_input_modes: vec!["text/plain".to_string()],
+            default_output_modes: vec!["text/plain".to_string()],
+            security_schemes: None,
+            security: None,
+            skills: vec![],
+            supports_authenticated_extended_card: false,
+        },
+        metadata: AgentMetadataConfig {
+            system_prompt,
+            mcp_servers: args.agent.mcp_servers,
+            skills: args.agent.skills,
+            provider: Some(
+                args.agent
+                    .provider
+                    .unwrap_or_else(|| "anthropic".to_string()),
+            ),
+            model: Some(
+                args.agent
+                    .model
+                    .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
+            ),
+            tool_model_overrides: HashMap::default(),
+        },
+        oauth: OAuthConfig::default(),
+    };
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let services_dir = Path::new(&profile.paths.services);
@@ -111,60 +151,6 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
     };
 
     Ok(CommandResult::text(output).with_title("Agent Created"))
-}
-
-struct AgentConfigParams<'a> {
-    name: &'a str,
-    port: u16,
-    display_name: &'a str,
-    description: &'a str,
-    enabled: bool,
-    provider: Option<&'a str>,
-    model: Option<&'a str>,
-}
-
-fn build_agent_config(params: &AgentConfigParams<'_>) -> AgentConfig {
-    AgentConfig {
-        name: params.name.to_string(),
-        port: params.port,
-        endpoint: format!("/api/v1/agents/{}", params.name),
-        enabled: params.enabled,
-        dev_only: false,
-        is_primary: false,
-        default: false,
-        card: AgentCardConfig {
-            protocol_version: "0.3.0".to_string(),
-            name: Some(params.name.to_string()),
-            display_name: params.display_name.to_string(),
-            description: params.description.to_string(),
-            version: "1.0.0".to_string(),
-            preferred_transport: "JSONRPC".to_string(),
-            icon_url: None,
-            documentation_url: None,
-            provider: None,
-            capabilities: CapabilitiesConfig::default(),
-            default_input_modes: vec!["text/plain".to_string()],
-            default_output_modes: vec!["text/plain".to_string()],
-            security_schemes: None,
-            security: None,
-            skills: vec![],
-            supports_authenticated_extended_card: false,
-        },
-        metadata: AgentMetadataConfig {
-            system_prompt: None,
-            mcp_servers: vec![],
-            skills: vec![],
-            provider: Some(params.provider.unwrap_or("anthropic").to_string()),
-            model: Some(
-                params
-                    .model
-                    .unwrap_or("claude-3-5-sonnet-20241022")
-                    .to_string(),
-            ),
-            tool_model_overrides: HashMap::default(),
-        },
-        oauth: OAuthConfig::default(),
-    }
 }
 
 fn validate_agent_name(name: &str) -> Result<()> {

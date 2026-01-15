@@ -113,7 +113,7 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
         );
     }
 
-    CredentialsBootstrap::try_init()?;
+    CredentialsBootstrap::try_init().await?;
 
     let creds = CredentialsBootstrap::require()
         .with_context(|| {
