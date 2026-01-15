@@ -78,11 +78,21 @@ impl ToolUsageRepository {
         result: &ToolExecutionResult,
     ) -> Result<()> {
         let id = mcp_execution_id.as_str();
-        let duration_ms = (result.completed_at - Utc::now()).num_milliseconds().abs() as i32;
-        let output_str = result
-            .output
-            .as_ref()
-            .and_then(|v| serde_json::to_string(v).ok());
+        let duration_ms = (result.completed_at - result.started_at).num_milliseconds() as i32;
+        let output_str = match &result.output {
+            Some(v) => match serde_json::to_string(v) {
+                Ok(s) => Some(s),
+                Err(e) => {
+                    tracing::error!(
+                        mcp_execution_id = %id,
+                        error = %e,
+                        "Failed to serialize tool execution output"
+                    );
+                    None
+                }
+            },
+            None => None,
+        };
 
         sqlx::query!(
             r#"
