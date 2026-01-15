@@ -75,9 +75,9 @@ pub use api::{
     UserContextWithStats, UserMeResponse, ValidationError,
 };
 pub use artifacts::{
-    Alignment, Artifact, ArtifactSchema, ArtifactType, AxisType, ChartArtifact, ChartDataset,
-    ChartType, Column, ColumnType, ExecutionMetadata, SortOrder as ArtifactSortOrder,
-    TableArtifact, TableHints,
+    Alignment, Artifact, ArtifactSchema, ArtifactType, AudioArtifact, AxisType, ChartArtifact,
+    ChartDataset, ChartType, Column, ColumnType, ExecutionMetadata, ImageArtifact,
+    SortOrder as ArtifactSortOrder, TableArtifact, TableHints, VideoArtifact,
 };
 pub use auth::{
     AuthError, AuthenticatedUser, BaseRole, BaseRoles, GrantType, PkceMethod, ResponseType,

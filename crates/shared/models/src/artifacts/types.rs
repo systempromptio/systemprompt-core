@@ -14,6 +14,9 @@ pub enum ArtifactType {
     List,
     #[serde(rename = "copy_paste_text")]
     CopyPasteText,
+    Image,
+    Video,
+    Audio,
     /// Custom artifact types defined by extensions (e.g., "blog", "product",
     /// etc.)
     #[serde(untagged)]

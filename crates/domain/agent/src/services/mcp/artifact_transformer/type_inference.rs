@@ -98,6 +98,9 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
         "presentation_card" => ArtifactType::PresentationCard,
         "list" => ArtifactType::List,
         "copy_paste_text" => ArtifactType::CopyPasteText,
+        "image" => ArtifactType::Image,
+        "video" => ArtifactType::Video,
+        "audio" => ArtifactType::Audio,
         // Any other type is treated as a custom extension type
         custom => ArtifactType::Custom(custom.to_string()),
     }

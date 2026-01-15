@@ -202,3 +202,117 @@ export const extractListData = (artifact: Artifact): ExtractionResult<ListData> 
     errors: ['List data must be in {items: [...]} format per MCP spec']
   }
 }
+
+export interface ImageData {
+  src: string
+  alt?: string
+  caption?: string
+  width?: number
+  height?: number
+}
+
+export const extractImageData = (artifact: Artifact): ExtractionResult<ImageData | null> => {
+  const dataPart = artifact.parts.find(p => p.kind === 'data')
+  if (!dataPart || dataPart.kind !== 'data') {
+    return { data: null, errors: ['No data part found in artifact'] }
+  }
+
+  const rawData = dataPart.data
+  const data = unwrapToolResponse(rawData) as Record<string, unknown>
+  const validationErrors = artifact.metadata.validation_errors as string[] | undefined
+
+  if (!data.src || typeof data.src !== 'string') {
+    return { data: null, errors: ['Image src is required'] }
+  }
+
+  return {
+    data: {
+      src: data.src as string,
+      alt: data.alt as string | undefined,
+      caption: data.caption as string | undefined,
+      width: data.width as number | undefined,
+      height: data.height as number | undefined,
+    },
+    errors: validationErrors
+  }
+}
+
+export interface VideoData {
+  src: string
+  mime_type?: string
+  poster?: string
+  caption?: string
+  controls: boolean
+  autoplay: boolean
+  loop_playback: boolean
+  muted: boolean
+}
+
+export const extractVideoData = (artifact: Artifact): ExtractionResult<VideoData | null> => {
+  const dataPart = artifact.parts.find(p => p.kind === 'data')
+  if (!dataPart || dataPart.kind !== 'data') {
+    return { data: null, errors: ['No data part found in artifact'] }
+  }
+
+  const rawData = dataPart.data
+  const data = unwrapToolResponse(rawData) as Record<string, unknown>
+  const validationErrors = artifact.metadata.validation_errors as string[] | undefined
+
+  if (!data.src || typeof data.src !== 'string') {
+    return { data: null, errors: ['Video src is required'] }
+  }
+
+  return {
+    data: {
+      src: data.src as string,
+      mime_type: data.mime_type as string | undefined,
+      poster: data.poster as string | undefined,
+      caption: data.caption as string | undefined,
+      controls: data.controls !== false,
+      autoplay: Boolean(data.autoplay),
+      loop_playback: Boolean(data.loop || data.loop_playback),
+      muted: Boolean(data.muted),
+    },
+    errors: validationErrors
+  }
+}
+
+export interface AudioData {
+  src: string
+  mime_type?: string
+  title?: string
+  artist?: string
+  artwork?: string
+  controls: boolean
+  autoplay: boolean
+  loop_playback: boolean
+}
+
+export const extractAudioData = (artifact: Artifact): ExtractionResult<AudioData | null> => {
+  const dataPart = artifact.parts.find(p => p.kind === 'data')
+  if (!dataPart || dataPart.kind !== 'data') {
+    return { data: null, errors: ['No data part found in artifact'] }
+  }
+
+  const rawData = dataPart.data
+  const data = unwrapToolResponse(rawData) as Record<string, unknown>
+  const validationErrors = artifact.metadata.validation_errors as string[] | undefined
+
+  if (!data.src || typeof data.src !== 'string') {
+    return { data: null, errors: ['Audio src is required'] }
+  }
+
+  return {
+    data: {
+      src: data.src as string,
+      mime_type: data.mime_type as string | undefined,
+      title: data.title as string | undefined,
+      artist: data.artist as string | undefined,
+      artwork: data.artwork as string | undefined,
+      controls: data.controls !== false,
+      autoplay: Boolean(data.autoplay),
+      loop_playback: Boolean(data.loop || data.loop_playback),
+    },
+    errors: validationErrors
+  }
+}
