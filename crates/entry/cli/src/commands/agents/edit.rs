@@ -5,6 +5,7 @@ use dialoguer::Select;
 use std::fs;
 use std::path::Path;
 
+use super::shared::{apply_set_value, AgentArgs};
 use super::types::AgentEditOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
@@ -20,7 +21,7 @@ pub struct EditArgs {
     #[arg(
         long = "set",
         value_name = "KEY=VALUE",
-        help = "Set a configuration value"
+        help = "Set a configuration value (advanced)"
     )]
     pub set_values: Vec<String>,
 
@@ -30,35 +31,14 @@ pub struct EditArgs {
     #[arg(long, help = "Disable the agent", conflicts_with = "enable")]
     pub disable: bool,
 
-    #[arg(long, help = "Set the port")]
-    pub port: Option<u16>,
-
-    #[arg(long, help = "Set the AI provider")]
-    pub provider: Option<String>,
-
-    #[arg(long, help = "Set the AI model")]
-    pub model: Option<String>,
-
-    #[arg(
-        long = "mcp-server",
-        help = "Add an MCP server reference (can be specified multiple times)"
-    )]
-    pub mcp_servers: Vec<String>,
-
     #[arg(long = "remove-mcp-server", help = "Remove an MCP server reference")]
     pub remove_mcp_servers: Vec<String>,
-
-    #[arg(long, help = "Add a skill reference (can be specified multiple times)")]
-    pub skill: Vec<String>,
 
     #[arg(long = "remove-skill", help = "Remove a skill reference")]
     pub remove_skills: Vec<String>,
 
-    #[arg(long = "system-prompt", help = "Set the system prompt inline")]
-    pub system_prompt: Option<String>,
-
-    #[arg(long = "system-prompt-file", help = "Load system prompt from a file")]
-    pub system_prompt_file: Option<String>,
+    #[command(flatten)]
+    pub agent: AgentArgs,
 }
 
 pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
@@ -80,13 +60,12 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         agent.enabled = true;
         changes.push("enabled: true".to_string());
     }
-
     if args.disable {
         agent.enabled = false;
         changes.push("enabled: false".to_string());
     }
 
-    if let Some(port) = args.port {
+    if let Some(port) = args.agent.port {
         if port == 0 {
             return Err(anyhow!("Port cannot be 0"));
         }
@@ -96,18 +75,86 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         agent.port = port;
         changes.push(format!("port: {}", port));
     }
+    if let Some(endpoint) = &args.agent.endpoint {
+        agent.endpoint.clone_from(endpoint);
+        changes.push(format!("endpoint: {}", endpoint));
+    }
+    if args.agent.dev_only {
+        agent.dev_only = true;
+        changes.push("dev_only: true".to_string());
+    }
+    if args.agent.is_primary {
+        agent.is_primary = true;
+        changes.push("is_primary: true".to_string());
+    }
+    if args.agent.default {
+        agent.default = true;
+        changes.push("default: true".to_string());
+    }
 
-    if let Some(provider) = &args.provider {
+    if let Some(display_name) = &args.agent.display_name {
+        agent.card.display_name.clone_from(display_name);
+        changes.push(format!("card.display_name: {}", display_name));
+    }
+    if let Some(description) = &args.agent.description {
+        agent.card.description.clone_from(description);
+        changes.push(format!("card.description: {}", description));
+    }
+    if let Some(version) = &args.agent.version {
+        agent.card.version.clone_from(version);
+        changes.push(format!("card.version: {}", version));
+    }
+    if let Some(icon_url) = &args.agent.icon_url {
+        agent.card.icon_url = Some(icon_url.clone());
+        changes.push(format!("card.icon_url: {}", icon_url));
+    }
+    if let Some(documentation_url) = &args.agent.documentation_url {
+        agent.card.documentation_url = Some(documentation_url.clone());
+        changes.push(format!("card.documentation_url: {}", documentation_url));
+    }
+    if let Some(streaming) = args.agent.streaming {
+        agent.card.capabilities.streaming = streaming;
+        changes.push(format!("card.capabilities.streaming: {}", streaming));
+    }
+    if let Some(push_notifications) = args.agent.push_notifications {
+        agent.card.capabilities.push_notifications = push_notifications;
+        changes.push(format!(
+            "card.capabilities.push_notifications: {}",
+            push_notifications
+        ));
+    }
+    if let Some(state_transition_history) = args.agent.state_transition_history {
+        agent.card.capabilities.state_transition_history = state_transition_history;
+        changes.push(format!(
+            "card.capabilities.state_transition_history: {}",
+            state_transition_history
+        ));
+    }
+
+    if let Some(provider) = &args.agent.provider {
         agent.metadata.provider = Some(provider.clone());
         changes.push(format!("metadata.provider: {}", provider));
     }
-
-    if let Some(model) = &args.model {
+    if let Some(model) = &args.agent.model {
         agent.metadata.model = Some(model.clone());
         changes.push(format!("metadata.model: {}", model));
     }
 
-    for mcp_server in &args.mcp_servers {
+    if let Some(file_path) = &args.agent.system_prompt_file {
+        let content = fs::read_to_string(file_path)
+            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
+        agent.metadata.system_prompt = Some(content.clone());
+        changes.push(format!(
+            "system_prompt: loaded from {} ({} chars)",
+            file_path,
+            content.len()
+        ));
+    } else if let Some(prompt) = &args.agent.system_prompt {
+        agent.metadata.system_prompt = Some(prompt.clone());
+        changes.push(format!("system_prompt: {} chars", prompt.len()));
+    }
+
+    for mcp_server in &args.agent.mcp_servers {
         if !agent.metadata.mcp_servers.contains(mcp_server) {
             if !services_config.mcp_servers.contains_key(mcp_server) {
                 return Err(anyhow!(
@@ -125,7 +172,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
             changes.push(format!("added mcp_server: {}", mcp_server));
         }
     }
-
     for mcp_server in &args.remove_mcp_servers {
         if let Some(pos) = agent
             .metadata
@@ -143,13 +189,12 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
         }
     }
 
-    for skill in &args.skill {
+    for skill in &args.agent.skills {
         if !agent.metadata.skills.contains(skill) {
             agent.metadata.skills.push(skill.clone());
             changes.push(format!("added skill: {}", skill));
         }
     }
-
     for skill in &args.remove_skills {
         if let Some(pos) = agent.metadata.skills.iter().position(|s| s == skill) {
             let removed = agent.metadata.skills.remove(pos);
@@ -160,22 +205,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
                 skill
             ));
         }
-    }
-
-    if let Some(file_path) = &args.system_prompt_file {
-        let content = fs::read_to_string(file_path)
-            .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
-        agent.metadata.system_prompt = Some(content.clone());
-        changes.push(format!(
-            "system_prompt: loaded from {} ({} chars)",
-            file_path,
-            content.len()
-        ));
-    }
-
-    if let Some(prompt) = &args.system_prompt {
-        agent.metadata.system_prompt = Some(prompt.clone());
-        changes.push(format!("system_prompt: {} chars", prompt.len()));
     }
 
     for set_value in &args.set_values {
@@ -195,8 +224,8 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
 
     if changes.is_empty() {
         return Err(anyhow!(
-            "No changes specified. Use --enable, --disable, --port, --provider, --model, \
-             --mcp-server, --skill, --system-prompt, --system-prompt-file, or --set key=value"
+            "No changes specified. Use flags like --port, --display-name, --provider, --model, \
+             --mcp-server, --skill, --system-prompt, --enable/--disable, etc."
         ));
     }
 
@@ -228,50 +257,6 @@ pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<Agent
     };
 
     Ok(CommandResult::text(output).with_title(format!("Edit Agent: {}", name)))
-}
-
-fn apply_set_value(
-    agent: &mut systemprompt_models::services::AgentConfig,
-    key: &str,
-    value: &str,
-) -> Result<()> {
-    match key {
-        "card.displayName" | "card.display_name" => {
-            agent.card.display_name = value.to_string();
-        },
-        "card.description" => {
-            agent.card.description = value.to_string();
-        },
-        "card.version" => {
-            agent.card.version = value.to_string();
-        },
-        "endpoint" => {
-            agent.endpoint = value.to_string();
-        },
-        "is_primary" => {
-            agent.is_primary = value
-                .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for is_primary: '{}'", value))?;
-        },
-        "default" => {
-            agent.default = value
-                .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for default: '{}'", value))?;
-        },
-        "dev_only" => {
-            agent.dev_only = value
-                .parse()
-                .map_err(|_| anyhow!("Invalid boolean value for dev_only: '{}'", value))?;
-        },
-        _ => {
-            return Err(anyhow!(
-                "Unknown configuration key: '{}'. Supported keys: card.displayName, \
-                 card.description, card.version, endpoint, is_primary, default, dev_only",
-                key
-            ));
-        },
-    }
-    Ok(())
 }
 
 fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Result<String> {

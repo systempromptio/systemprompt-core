@@ -116,7 +116,7 @@ impl ConfigWriter {
             .with_context(|| format!("Failed to write agent file: {}", path.display()))
     }
 
-    fn add_include(include_path: &str, config_path: &Path) -> Result<()> {
+    pub fn add_include(include_path: &str, config_path: &Path) -> Result<()> {
         let content = fs::read_to_string(config_path)
             .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
 

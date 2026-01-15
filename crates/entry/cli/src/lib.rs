@@ -16,7 +16,6 @@ use clap::{Parser, Subcommand};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::{set_startup_mode, CliService};
-use systemprompt_models::profile::CloudValidationMode;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
@@ -194,9 +193,9 @@ pub async fn run() -> Result<()> {
             SecretsBootstrap::init().context("Secrets initialization failed")?;
         }
 
-        if let Err(e) = CredentialsBootstrap::init() {
-            tracing::debug!("Credentials bootstrap: {}", e);
-        }
+        CredentialsBootstrap::init()
+            .await
+            .context("Cloud credentials required. Run 'systemprompt cloud login'")?;
 
         if requires_secrets {
             let profile = ProfileBootstrap::get()?;
@@ -280,14 +279,6 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
 }
 
 fn validate_cloud_credentials() {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        return;
-    };
-
-    let Some(cloud_config) = &profile.cloud else {
-        return;
-    };
-
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {
             if creds.is_token_expired() {
@@ -295,17 +286,14 @@ fn validate_cloud_credentials() {
                     "Cloud token has expired. Run 'systemprompt cloud login' to refresh.",
                 );
             }
-            if cloud_config.tenant_id.is_none() {
-                CliService::warning(
-                    "No cloud tenant configured. Run 'systemprompt cloud config' to configure.",
-                );
-            }
         },
         Ok(None) => {
-            if cloud_config.validation != CloudValidationMode::Strict {
-                CliService::info("Cloud credentials not configured. Cloud features are disabled.");
-            }
+            CliService::error(
+                "Cloud credentials not found. Run 'systemprompt cloud login' to register.",
+            );
         },
-        Err(_) => {},
+        Err(e) => {
+            CliService::error(&format!("Cloud credential error: {}", e));
+        },
     }
 }

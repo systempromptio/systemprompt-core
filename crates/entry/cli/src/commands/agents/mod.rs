@@ -8,9 +8,11 @@ mod logs;
 mod message;
 mod registry;
 mod run;
+mod shared;
 mod show;
 mod status;
 mod task;
+mod tools;
 mod validate;
 
 use anyhow::{Context, Result};
@@ -54,6 +56,9 @@ pub enum AgentsCommands {
 
     #[command(about = "Get task details and response from an agent")]
     Task(task::TaskArgs),
+
+    #[command(about = "List MCP tools available to an agent")]
+    Tools(tools::ToolsArgs),
 
     #[command(about = "Run an agent server (internal use)", hide = true)]
     Run(run::RunArgs),
@@ -128,6 +133,13 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             let result = task::execute(args, config)
                 .await
                 .context("Failed to get task details")?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Tools(args) => {
+            let result = tools::execute(args, config)
+                .await
+                .context("Failed to list agent tools")?;
             render_result(&result);
             Ok(())
         },
