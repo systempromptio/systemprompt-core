@@ -24,7 +24,10 @@ pub async fn execute(
     let link_id = LinkId::new(args.link_id.clone());
 
     if !args.yes && config.is_interactive() {
-        CliService::warning(&format!("This will permanently delete link: {}", args.link_id));
+        CliService::warning(&format!(
+            "This will permanently delete link: {}",
+            args.link_id
+        ));
         if !CliService::confirm("Are you sure you want to continue?")? {
             return Err(anyhow!("Operation cancelled"));
         }

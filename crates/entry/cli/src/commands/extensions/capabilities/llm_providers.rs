@@ -11,17 +11,16 @@ pub struct LlmProvidersArgs {
     pub extension: Option<String>,
 }
 
-pub fn execute(args: &LlmProvidersArgs, _config: &CliConfig) -> CommandResult<LlmProvidersListOutput> {
+pub fn execute(
+    args: &LlmProvidersArgs,
+    _config: &CliConfig,
+) -> CommandResult<LlmProvidersListOutput> {
     let registry = ExtensionRegistry::discover();
 
     let providers: Vec<LlmProviderWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
             ext.llm_providers()
                 .iter()

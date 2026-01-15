@@ -54,11 +54,13 @@ impl A2aContextExtractor {
         // Per A2A spec: task methods (tasks/get, tasks/cancel, etc.) only have task_id
         // The context is resolved from the task storage by the handler
         let (context_id, task_id) = match context_source {
-            ContextIdSource::Direct(id) => (id, HeaderSource::extract_optional(headers, "x-task-id")),
+            ContextIdSource::Direct(id) => {
+                (id, HeaderSource::extract_optional(headers, "x-task-id"))
+            },
             ContextIdSource::FromTask { task_id } => {
                 // Use marker context_id - the handler will resolve actual context from task
                 (TASK_BASED_CONTEXT_MARKER.to_string(), Some(task_id))
-            }
+            },
         };
 
         let mut context = RequestContext::new(

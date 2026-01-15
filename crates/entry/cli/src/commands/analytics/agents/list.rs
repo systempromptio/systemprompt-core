@@ -102,7 +102,10 @@ async fn fetch_agents(
 ) -> Result<AgentListOutput> {
     let order_clause = match sort_by {
         AgentSortBy::TaskCount => "COUNT(*) DESC",
-        AgentSortBy::SuccessRate => "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE t.status = 'completed')::float / COUNT(*)::float ELSE 0 END DESC",
+        AgentSortBy::SuccessRate => {
+            "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE t.status = 'completed')::float / \
+             COUNT(*)::float ELSE 0 END DESC"
+        },
         AgentSortBy::Cost => "COALESCE(SUM(r.cost_cents), 0) DESC",
         AgentSortBy::LastActive => "MAX(t.started_at) DESC",
     };
@@ -127,13 +130,19 @@ async fn fetch_agents(
         order_clause
     );
 
-    let rows: Vec<(Option<String>, i64, i64, Option<f64>, i64, Option<DateTime<Utc>>)> =
-        sqlx::query_as(&query)
-            .bind(start)
-            .bind(end)
-            .bind(limit)
-            .fetch_all(pool.as_ref())
-            .await?;
+    let rows: Vec<(
+        Option<String>,
+        i64,
+        i64,
+        Option<f64>,
+        i64,
+        Option<DateTime<Utc>>,
+    )> = sqlx::query_as(&query)
+        .bind(start)
+        .bind(end)
+        .bind(limit)
+        .fetch_all(pool.as_ref())
+        .await?;
 
     let agents: Vec<AgentListRow> = rows
         .into_iter()

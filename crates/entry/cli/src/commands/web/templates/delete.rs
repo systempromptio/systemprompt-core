@@ -24,7 +24,10 @@ pub struct DeleteArgs {
     pub delete_file: bool,
 }
 
-pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<TemplateDeleteOutput>> {
+pub fn execute(
+    args: DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<TemplateDeleteOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let web_path = profile.paths.web_path_resolved();
     let templates_dir = Path::new(&web_path).join("templates");
@@ -81,9 +84,8 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Tem
 
     let html_file_path = templates_dir.join(format!("{}.html", name));
     let file_deleted = if args.delete_file && html_file_path.exists() {
-        fs::remove_file(&html_file_path).with_context(|| {
-            format!("Failed to delete HTML file: {}", html_file_path.display())
-        })?;
+        fs::remove_file(&html_file_path)
+            .with_context(|| format!("Failed to delete HTML file: {}", html_file_path.display()))?;
         true
     } else {
         false
@@ -98,10 +100,7 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Tem
     })?;
 
     let message = if file_deleted {
-        format!(
-            "Template '{}' deleted (including HTML file)",
-            name
-        )
+        format!("Template '{}' deleted (including HTML file)", name)
     } else if html_file_path.exists() {
         format!(
             "Template '{}' deleted. HTML file still exists at {}",

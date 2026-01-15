@@ -27,7 +27,10 @@ pub struct ValidateArgs {
     pub only: Option<ValidationCategory>,
 }
 
-pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult<ValidationOutput>> {
+pub fn execute(
+    args: &ValidateArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ValidationOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
 
     let mut errors = Vec::new();
@@ -35,7 +38,10 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult
 
     let category = args.only.unwrap_or(ValidationCategory::All);
 
-    if matches!(category, ValidationCategory::All | ValidationCategory::Config) {
+    if matches!(
+        category,
+        ValidationCategory::All | ValidationCategory::Config
+    ) {
         validate_config(profile, &mut errors, &mut warnings);
     }
 
@@ -46,7 +52,10 @@ pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult
         validate_templates(profile, &mut errors, &mut warnings);
     }
 
-    if matches!(category, ValidationCategory::All | ValidationCategory::Assets) {
+    if matches!(
+        category,
+        ValidationCategory::All | ValidationCategory::Assets
+    ) {
         validate_assets(profile, &mut errors, &mut warnings);
     }
 
@@ -156,7 +165,10 @@ fn validate_templates(
     if !templates_yaml_path.exists() {
         warnings.push(ValidationIssue {
             category: "templates".to_string(),
-            message: format!("templates.yaml not found at {}", templates_yaml_path.display()),
+            message: format!(
+                "templates.yaml not found at {}",
+                templates_yaml_path.display()
+            ),
             suggestion: Some("Create a templates.yaml file".to_string()),
         });
         return;
@@ -330,10 +342,7 @@ fn validate_sitemap(
             if !sitemap.url_pattern.starts_with('/') {
                 warnings.push(ValidationIssue {
                     category: "sitemap".to_string(),
-                    message: format!(
-                        "URL pattern for '{}' should start with '/'",
-                        name
-                    ),
+                    message: format!("URL pattern for '{}' should start with '/'", name),
                     suggestion: Some(format!("Change to /{}", sitemap.url_pattern)),
                 });
             }

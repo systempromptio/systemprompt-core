@@ -106,7 +106,8 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     };
 
     let by_level = build_level_counts(&level_counts);
-    let total_logs = by_level.error + by_level.warn + by_level.info + by_level.debug + by_level.trace;
+    let total_logs =
+        by_level.error + by_level.warn + by_level.info + by_level.debug + by_level.trace;
 
     // Get top modules
     let top_modules = if let Some(since_ts) = since_timestamp {
@@ -165,11 +166,9 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     };
 
     // Get total row count (for database info)
-    let total_row_count: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM logs"
-    )
-    .fetch_one(pool.as_ref())
-    .await?;
+    let total_row_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM logs")
+        .fetch_one(pool.as_ref())
+        .await?;
 
     let span_hours = match (&time_range_row.earliest, &time_range_row.latest) {
         (Some(e), Some(l)) => Some((*l - *e).num_hours()),
@@ -187,8 +186,12 @@ pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
             })
             .collect(),
         time_range: TimeRange {
-            earliest: time_range_row.earliest.map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
-            latest: time_range_row.latest.map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+            earliest: time_range_row
+                .earliest
+                .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
+            latest: time_range_row
+                .latest
+                .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
             span_hours,
         },
         database_info: DatabaseInfo {
@@ -274,5 +277,8 @@ fn render_text_output(output: &LogsSummaryOutput) {
     }
 
     CliService::subsection("Database");
-    CliService::key_value("  Total Rows", &output.database_info.logs_table_rows.to_string());
+    CliService::key_value(
+        "  Total Rows",
+        &output.database_info.logs_table_rows.to_string(),
+    );
 }

@@ -76,24 +76,21 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
 
             let output = FileContentLinksOutput { file_id, links };
 
-            Ok(
-                CommandResult::table(ListOutput::FileContentLinks(output))
-                    .with_title("File Content Links")
-                    .with_columns(vec![
-                        "content_id".to_string(),
-                        "role".to_string(),
-                        "display_order".to_string(),
-                        "created_at".to_string(),
-                    ]),
-            )
+            Ok(CommandResult::table(ListOutput::FileContentLinks(output))
+                .with_title("File Content Links")
+                .with_columns(vec![
+                    "content_id".to_string(),
+                    "role".to_string(),
+                    "display_order".to_string(),
+                    "created_at".to_string(),
+                ]))
         },
         (Some(_), Some(_)) => Err(anyhow!(
             "Cannot specify both --content and --file. Use one or the other."
         )),
         (None, None) => Err(anyhow!(
-            "Either --content or --file is required.\n\
-             Use --content <id> to list files attached to content.\n\
-             Use --file <id> to list content linked to a file."
+            "Either --content or --file is required.\nUse --content <id> to list files attached \
+             to content.\nUse --file <id> to list content linked to a file."
         )),
     }
 }
@@ -101,7 +98,8 @@ pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResul
 fn parse_file_id(id: &str) -> Result<FileId> {
     uuid::Uuid::parse_str(id).map_err(|_| {
         anyhow!(
-            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got '{}'",
+            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
+             got '{}'",
             id
         )
     })?;

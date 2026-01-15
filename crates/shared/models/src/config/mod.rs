@@ -184,7 +184,8 @@ impl Config {
     fn build_config(profile: &Profile, paths: BuildConfigPaths) -> Result<Self> {
         let secrets = SecretsBootstrap::get().map_err(|_| {
             anyhow::anyhow!(
-                "Secrets not initialized. Call SecretsBootstrap::init() before Config::from_profile()"
+                "Secrets not initialized. Call SecretsBootstrap::init() before \
+                 Config::from_profile()"
             )
         })?;
 

@@ -14,7 +14,11 @@ pub struct DeleteArgs {
     #[arg(help = "File ID (UUID format)")]
     pub file_id: String,
 
-    #[arg(short = 'y', long, help = "Skip confirmation (required in non-interactive mode)")]
+    #[arg(
+        short = 'y',
+        long,
+        help = "Skip confirmation (required in non-interactive mode)"
+    )]
     pub yes: bool,
 
     #[arg(long, help = "Preview deletion without executing")]
@@ -60,7 +64,10 @@ pub async fn execute(
     if args.dry_run {
         let output = FileDeleteOutput {
             file_id,
-            message: format!("[DRY-RUN] Would delete file '{}' ({})", file.path, args.file_id),
+            message: format!(
+                "[DRY-RUN] Would delete file '{}' ({})",
+                file.path, args.file_id
+            ),
         };
         return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
     }
@@ -79,7 +86,8 @@ fn parse_file_id(id: &str) -> Result<FileId> {
     // Validate UUID format
     uuid::Uuid::parse_str(id).map_err(|_| {
         anyhow!(
-            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got '{}'",
+            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
+             got '{}'",
             id
         )
     })?;

@@ -9,7 +9,9 @@ pub struct PayloadSource;
 impl PayloadSource {
     /// Extract context information from A2A JSON-RPC payload.
     /// Returns either a direct contextId or task_id for resolution.
-    pub fn extract_context_source(body_bytes: &[u8]) -> Result<ContextIdSource, ContextExtractionError> {
+    pub fn extract_context_source(
+        body_bytes: &[u8],
+    ) -> Result<ContextIdSource, ContextExtractionError> {
         let payload: Value = serde_json::from_slice(body_bytes).map_err(|e| {
             ContextExtractionError::InvalidHeaderValue {
                 header: "payload".to_string(),
@@ -17,10 +19,7 @@ impl PayloadSource {
             }
         })?;
 
-        let method = payload
-            .get("method")
-            .and_then(|m| m.as_str())
-            .unwrap_or("");
+        let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("");
 
         // Per A2A spec Section 7.3: task methods use TaskQueryParams/TaskIdParams
         // which only have 'id' (task UUID), not contextId

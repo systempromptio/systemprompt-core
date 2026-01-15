@@ -1,9 +1,9 @@
+use crate::shared::CommandResult;
 use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::path::{Path, PathBuf};
 use systemprompt_core_logging::CliService;
-use crate::shared::CommandResult;
 
 use super::postgres::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};
@@ -113,12 +113,12 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
             if !config.is_json_output() {
                 CliService::success("Profile validated successfully");
             }
-        }
+        },
         Err(e) => {
             if !config.is_json_output() {
                 CliService::warning(&format!("Profile validation warnings: {}", e));
             }
-        }
+        },
     }
 
     let run_migrations = should_run_migrations(&args, config)?;

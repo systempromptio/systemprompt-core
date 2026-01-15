@@ -6,8 +6,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_scheduler::{RuntimeStatus, ServiceStateManager, VerifiedServiceState};
-use systemprompt_runtime::{display_validation_report, StartupValidator};
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{display_validation_report, AppContext, StartupValidator};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServiceStatusOutput {

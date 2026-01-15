@@ -30,7 +30,9 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Ass
         return Err(anyhow!("'{}' is not a file", args.path));
     }
 
-    let metadata = asset_path.metadata().context("Failed to get file metadata")?;
+    let metadata = asset_path
+        .metadata()
+        .context("Failed to get file metadata")?;
     let size_bytes = metadata.len();
     let modified = metadata.modified().ok().map_or_else(
         || "unknown".to_string(),
@@ -84,10 +86,7 @@ fn determine_asset_type(path: &Path, relative_path: &str) -> AssetType {
     }
 }
 
-fn find_config_references(
-    asset_path: &str,
-    profile: &systemprompt_models::Profile,
-) -> Vec<String> {
+fn find_config_references(asset_path: &str, profile: &systemprompt_models::Profile) -> Vec<String> {
     let mut references = Vec::new();
 
     let web_config_path = profile.paths.web_config();

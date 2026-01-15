@@ -116,7 +116,10 @@ async fn fetch_tools(
 ) -> Result<ToolListOutput> {
     let order_clause = match params.sort_by {
         ToolSortBy::ExecutionCount => "COUNT(*) DESC",
-        ToolSortBy::SuccessRate => "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'success')::float / COUNT(*)::float ELSE 0 END DESC",
+        ToolSortBy::SuccessRate => {
+            "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'success')::float / \
+             COUNT(*)::float ELSE 0 END DESC"
+        },
         ToolSortBy::AvgTime => "COALESCE(AVG(execution_time_ms), 0) DESC",
     };
 

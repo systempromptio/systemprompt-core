@@ -17,11 +17,7 @@ pub fn execute(args: &TemplatesArgs, _config: &CliConfig) -> CommandResult<Templ
     let templates: Vec<TemplateWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
             let ext_id = ext.id().to_string();
             let ext_name = ext.name().to_string();

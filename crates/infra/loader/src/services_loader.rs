@@ -52,9 +52,9 @@ impl ConfigLoader {
 
         merged_config.settings.apply_env_overrides();
 
-        merged_config.validate().map_err(|e| {
-            anyhow::anyhow!("Services config validation failed: {}", e)
-        })?;
+        merged_config
+            .validate()
+            .map_err(|e| anyhow::anyhow!("Services config validation failed: {}", e))?;
 
         Ok(merged_config)
     }
@@ -99,9 +99,9 @@ impl ConfigLoader {
 
     pub fn validate_file(path: &Path) -> Result<()> {
         let config = Self::load_from_path(path)?;
-        config.validate().map_err(|e| {
-            anyhow::anyhow!("Config validation failed: {}", e)
-        })?;
+        config
+            .validate()
+            .map_err(|e| anyhow::anyhow!("Config validation failed: {}", e))?;
         Ok(())
     }
 }
@@ -186,9 +186,9 @@ impl EnhancedConfigLoader {
 
         merged.settings.apply_env_overrides();
 
-        merged.validate().map_err(|e| {
-            anyhow::anyhow!("Services config validation failed: {}", e)
-        })?;
+        merged
+            .validate()
+            .map_err(|e| anyhow::anyhow!("Services config validation failed: {}", e))?;
 
         Ok(merged)
     }

@@ -21,7 +21,10 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeDeleteOutput>> {
+pub fn execute(
+    args: DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<ContentTypeDeleteOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 

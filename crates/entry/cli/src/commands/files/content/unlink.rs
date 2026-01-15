@@ -17,7 +17,11 @@ pub struct UnlinkArgs {
     #[arg(long, help = "Content ID")]
     pub content: String,
 
-    #[arg(short = 'y', long, help = "Skip confirmation (required in non-interactive mode)")]
+    #[arg(
+        short = 'y',
+        long,
+        help = "Skip confirmation (required in non-interactive mode)"
+    )]
     pub yes: bool,
 
     #[arg(long, help = "Preview unlink without executing")]
@@ -82,7 +86,8 @@ pub async fn execute(
 fn parse_file_id(id: &str) -> Result<FileId> {
     uuid::Uuid::parse_str(id).map_err(|_| {
         anyhow!(
-            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got '{}'",
+            "Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', \
+             got '{}'",
             id
         )
     })?;

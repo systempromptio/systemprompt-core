@@ -46,7 +46,8 @@ pub fn execute(cmd: ExtensionsCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         ExtensionsCommands::Config(args) => {
-            let result = config::execute(&args, config).context("Failed to get extension config")?;
+            let result =
+                config::execute(&args, config).context("Failed to get extension config")?;
             render_result(&result);
             Ok(())
         },

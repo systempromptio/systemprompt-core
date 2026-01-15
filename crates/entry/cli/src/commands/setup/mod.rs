@@ -5,9 +5,9 @@ mod secrets;
 mod types;
 mod wizard;
 
+use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
-use crate::shared::CommandResult;
 
 pub use types::*;
 

@@ -7,13 +7,12 @@ use clap::{Args, Subcommand};
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_core_analytics::SessionCleanupService;
-use systemprompt_runtime::AppContext;
 use systemprompt_core_scheduler::{JobRepository, ScheduledJob};
+use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext};
 use types::{
-    BatchJobRunOutput, JobEnableOutput, JobHistoryEntry, JobHistoryOutput, JobInfo,
-    JobListOutput, JobRunOutput, JobRunResult, JobShowOutput, LogCleanupOutput,
-    SessionCleanupOutput,
+    BatchJobRunOutput, JobEnableOutput, JobHistoryEntry, JobHistoryOutput, JobInfo, JobListOutput,
+    JobRunOutput, JobRunResult, JobShowOutput, LogCleanupOutput, SessionCleanupOutput,
 };
 
 use systemprompt_generator as _;
@@ -71,7 +70,12 @@ pub struct HistoryArgs {
     #[arg(long, help = "Filter by job name")]
     pub job: Option<String>,
 
-    #[arg(long, short = 'n', default_value = "20", help = "Number of entries to show")]
+    #[arg(
+        long,
+        short = 'n',
+        default_value = "20",
+        help = "Number of entries to show"
+    )]
     pub limit: i64,
 
     #[arg(long, help = "Filter by status (success, failed, running)")]
@@ -92,7 +96,11 @@ pub struct DisableArgs {
 
 #[derive(Debug, Args)]
 pub struct CleanupSessionsArgs {
-    #[arg(long, default_value = "1", help = "Sessions inactive for more than N hours")]
+    #[arg(
+        long,
+        default_value = "1",
+        help = "Sessions inactive for more than N hours"
+    )]
     pub hours: i32,
 
     #[arg(long, help = "Preview what would be cleaned without executing")]
@@ -114,42 +122,42 @@ pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
             let result = list_jobs().await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::Show(args) => {
             let result = show_job(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::Run(args) => {
             let result = run_jobs(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::History(args) => {
             let result = job_history(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::Enable(args) => {
             let result = enable_job(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::Disable(args) => {
             let result = disable_job(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::CleanupSessions(args) | JobsCommands::SessionCleanup(args) => {
             let result = cleanup_sessions(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
         JobsCommands::LogCleanup(args) => {
             let result = cleanup_logs(args).await?;
             render_result(&result);
             Ok(())
-        }
+        },
     }
 }
 
@@ -187,7 +195,10 @@ async fn show_job(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
         .copied();
 
     let Some(job) = job else {
-        anyhow::bail!("Unknown job: {}. Use 'jobs list' to see available jobs", args.job_name);
+        anyhow::bail!(
+            "Unknown job: {}. Use 'jobs list' to see available jobs",
+            args.job_name
+        );
     };
 
     let ctx = Arc::new(AppContext::new().await?);
@@ -359,7 +370,7 @@ async fn job_history(args: HistoryArgs) -> Result<CommandResult<JobHistoryOutput
             .filter(|e| {
                 args.status
                     .as_ref()
-                    .is_none_or( |s| e.status.eq_ignore_ascii_case(s))
+                    .is_none_or(|s| e.status.eq_ignore_ascii_case(s))
             })
             .collect()
     };
@@ -446,7 +457,9 @@ async fn disable_job(args: DisableArgs) -> Result<CommandResult<JobEnableOutput>
     Ok(CommandResult::text(output).with_title("Job Disabled"))
 }
 
-async fn cleanup_sessions(args: CleanupSessionsArgs) -> Result<CommandResult<SessionCleanupOutput>> {
+async fn cleanup_sessions(
+    args: CleanupSessionsArgs,
+) -> Result<CommandResult<SessionCleanupOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
 
     if args.dry_run {
@@ -479,7 +492,9 @@ async fn cleanup_sessions(args: CleanupSessionsArgs) -> Result<CommandResult<Ses
     }
 
     let cleanup_service = SessionCleanupService::new(Arc::clone(ctx.db_pool()));
-    let closed_count = cleanup_service.cleanup_inactive_sessions(args.hours).await?;
+    let closed_count = cleanup_service
+        .cleanup_inactive_sessions(args.hours)
+        .await?;
 
     let output = SessionCleanupOutput {
         job_name: "session_cleanup".to_string(),
@@ -555,10 +570,10 @@ fn parse_cron_human(schedule: &str) -> String {
         ("0", "0", "*", "*", "*", "*") => "Every hour".to_string(),
         ("0", min, "*", "*", "*", "*") if min.starts_with("*/") => {
             format!("Every {} minutes", &min[2..])
-        }
+        },
         ("0", "0", hour, "*", "*", "*") if hour.starts_with("*/") => {
             format!("Every {} hours", &hour[2..])
-        }
+        },
         ("0", "0", hour, "*", "*", "*") => format!("Daily at {}:00", hour),
         ("0", min, hour, "*", "*", "*") => format!("Daily at {}:{}", hour, min),
         ("*", "*", "*", "*", "*", "*") => "Every second".to_string(),

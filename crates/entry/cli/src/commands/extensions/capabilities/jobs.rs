@@ -20,25 +20,24 @@ pub fn execute(args: &JobsArgs, _config: &CliConfig) -> CommandResult<JobsListOu
     let jobs: Vec<JobWithExtension> = registry
         .extensions()
         .iter()
-        .filter(|ext| {
-            args.extension
-                .as_ref()
-                .is_none_or( |f| ext.id().contains(f))
-        })
+        .filter(|ext| args.extension.as_ref().is_none_or(|f| ext.id().contains(f)))
         .flat_map(|ext| {
-            ext.jobs().iter().filter_map(|job| {
-                if args.enabled && !job.enabled() {
-                    return None;
-                }
+            ext.jobs()
+                .iter()
+                .filter_map(|job| {
+                    if args.enabled && !job.enabled() {
+                        return None;
+                    }
 
-                Some(JobWithExtension {
-                    extension_id: ext.id().to_string(),
-                    extension_name: ext.name().to_string(),
-                    job_name: job.name().to_string(),
-                    schedule: job.schedule().to_string(),
-                    enabled: job.enabled(),
+                    Some(JobWithExtension {
+                        extension_id: ext.id().to_string(),
+                        extension_name: ext.name().to_string(),
+                        job_name: job.name().to_string(),
+                        schedule: job.schedule().to_string(),
+                        enabled: job.enabled(),
+                    })
                 })
-            }).collect::<Vec<_>>()
+                .collect::<Vec<_>>()
         })
         .collect();
 

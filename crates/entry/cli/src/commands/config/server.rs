@@ -100,7 +100,10 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
         && args.api_internal_url.is_none()
         && args.api_external_url.is_none()
     {
-        bail!("Must specify at least one option: --host, --port, --use-https, --api-server-url, --api-internal-url, --api-external-url");
+        bail!(
+            "Must specify at least one option: --host, --port, --use-https, --api-server-url, \
+             --api-internal-url, --api-external-url"
+        );
     }
 
     let profile_path = ProfileBootstrap::get_path()?;
@@ -222,7 +225,10 @@ fn execute_cors_add(args: CorsAddArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    profile.server.cors_allowed_origins.push(args.origin.clone());
+    profile
+        .server
+        .cors_allowed_origins
+        .push(args.origin.clone());
     save_profile(&profile, profile_path)?;
 
     let output = CorsModifyOutput {

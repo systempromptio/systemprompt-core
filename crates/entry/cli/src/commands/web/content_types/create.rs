@@ -41,15 +41,14 @@ pub struct CreateArgs {
     #[arg(long, help = "Sitemap priority (0.0-1.0)", default_value = "0.5")]
     pub priority: f32,
 
-    #[arg(
-        long,
-        help = "Sitemap change frequency",
-        default_value = "weekly"
-    )]
+    #[arg(long, help = "Sitemap change frequency", default_value = "weekly")]
     pub changefreq: String,
 }
 
-pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<ContentTypeCreateOutput>> {
+pub fn execute(
+    args: CreateArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<ContentTypeCreateOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let content_config_path = profile.paths.content_config();
 

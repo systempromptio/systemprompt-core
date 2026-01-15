@@ -6,7 +6,8 @@ use super::{A2ABroadcaster, AgUiBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
 use systemprompt_models::{A2AEvent, AgUiEvent, ContextEvent, SystemEvent};
 
-pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> = LazyLock::new(ContextBroadcaster::new);
+pub static CONTEXT_BROADCASTER: LazyLock<ContextBroadcaster> =
+    LazyLock::new(ContextBroadcaster::new);
 pub static AGUI_BROADCASTER: LazyLock<AgUiBroadcaster> = LazyLock::new(AgUiBroadcaster::new);
 pub static A2A_BROADCASTER: LazyLock<A2ABroadcaster> = LazyLock::new(A2ABroadcaster::new);
 

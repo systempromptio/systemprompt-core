@@ -70,7 +70,7 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         .filter(|(name, _)| {
             args.source
                 .as_ref()
-                .is_none_or( |filter| name.as_str() == filter.as_str())
+                .is_none_or(|filter| name.as_str() == filter.as_str())
         })
         .filter(|(_, source)| !source.allowed_content_types.contains(&"skill".to_string()))
         .collect();

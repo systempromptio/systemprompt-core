@@ -11,7 +11,10 @@ pub struct ValidateArgs {
     pub verbose: bool,
 }
 
-pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> CommandResult<ExtensionValidationOutput> {
+pub fn execute(
+    args: &ValidateArgs,
+    _config: &CliConfig,
+) -> CommandResult<ExtensionValidationOutput> {
     let registry = ExtensionRegistry::discover();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();

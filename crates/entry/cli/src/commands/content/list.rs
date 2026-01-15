@@ -41,7 +41,9 @@ pub async fn execute(
         .into_iter()
         .filter(|c| {
             if let Some(ref cat) = args.category {
-                c.category_id.as_ref().is_some_and(|cid| cid.as_str() == cat)
+                c.category_id
+                    .as_ref()
+                    .is_some_and(|cid| cid.as_str() == cat)
             } else {
                 true
             }

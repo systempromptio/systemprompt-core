@@ -57,7 +57,11 @@ pub struct LogsArgs {
     #[arg(long, help = "Custom logs directory path")]
     pub logs_dir: Option<String>,
 
-    #[arg(long, value_enum, help = "Filter by log level: debug, info, warn, error")]
+    #[arg(
+        long,
+        value_enum,
+        help = "Filter by log level: debug, info, warn, error"
+    )]
     pub level: Option<LogLevel>,
 }
 

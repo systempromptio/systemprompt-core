@@ -5,7 +5,9 @@ use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::AppPaths;
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport, ValidationWarning};
+use systemprompt_traits::validation_report::{
+    ValidationError, ValidationReport, ValidationWarning,
+};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();

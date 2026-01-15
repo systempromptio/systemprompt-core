@@ -46,7 +46,11 @@ impl CapabilitySummary {
             parts.push(format!(
                 "{} {}",
                 self.schemas,
-                if self.schemas == 1 { "schema" } else { "schemas" }
+                if self.schemas == 1 {
+                    "schema"
+                } else {
+                    "schemas"
+                }
             ));
         }
         if self.routes > 0 {

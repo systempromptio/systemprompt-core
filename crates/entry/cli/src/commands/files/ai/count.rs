@@ -10,7 +10,10 @@ use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct CountArgs {
-    #[arg(long, help = "Filter by user ID (optional, counts all if not specified)")]
+    #[arg(
+        long,
+        help = "Filter by user ID (optional, counts all if not specified)"
+    )]
     pub user: Option<String>,
 }
 

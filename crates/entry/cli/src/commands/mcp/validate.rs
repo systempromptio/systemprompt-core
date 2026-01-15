@@ -7,9 +7,7 @@ use dialoguer::Select;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::types::{
-    McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary,
-};
+use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_core_mcp::services::client::validate_connection_with_auth;
@@ -20,7 +18,8 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
-    /// MCP server name to validate (required in non-interactive mode unless --all is used)
+    /// MCP server name to validate (required in non-interactive mode unless
+    /// --all is used)
     #[arg(help = "MCP server name")]
     pub service: Option<String>,
 
@@ -92,7 +91,9 @@ pub async fn execute(
     } else {
         format!(
             "MCP Validation: {}",
-            servers_to_validate.first().unwrap_or(&"unknown".to_string())
+            servers_to_validate
+                .first()
+                .unwrap_or(&"unknown".to_string())
         )
     };
 
@@ -116,7 +117,10 @@ async fn validate_single_service(
                 tools_count: 0,
                 latency_ms: 0,
                 server_info: None,
-                issues: vec![format!("Server '{}' not found in configuration", service_name)],
+                issues: vec![format!(
+                    "Server '{}' not found in configuration",
+                    service_name
+                )],
                 message: format!("MCP server '{}' not found", service_name),
             };
         },
@@ -166,43 +170,39 @@ async fn validate_single_service(
         server.oauth.required,
     );
 
-    let validation_result = match tokio::time::timeout(
-        Duration::from_secs(timeout_secs),
-        validation_future,
-    )
-    .await
-    {
-        Ok(Ok(result)) => result,
-        Ok(Err(e)) => {
-            return McpValidateOutput {
-                server: service_name.to_string(),
-                valid: false,
-                health_status: "unhealthy".to_string(),
-                validation_type: "connection_error".to_string(),
-                tools_count: 0,
-                latency_ms: 0,
-                server_info: None,
-                issues: vec![format!("Connection error: {}", e)],
-                message: format!("Failed to connect to '{}'", service_name),
-            };
-        },
-        Err(_) => {
-            return McpValidateOutput {
-                server: service_name.to_string(),
-                valid: false,
-                health_status: "unhealthy".to_string(),
-                validation_type: "timeout".to_string(),
-                tools_count: 0,
-                latency_ms: timeout_secs as u32 * 1000,
-                server_info: None,
-                issues: vec![format!(
-                    "Connection timed out after {} seconds",
-                    timeout_secs
-                )],
-                message: format!("Timeout connecting to '{}'", service_name),
-            };
-        },
-    };
+    let validation_result =
+        match tokio::time::timeout(Duration::from_secs(timeout_secs), validation_future).await {
+            Ok(Ok(result)) => result,
+            Ok(Err(e)) => {
+                return McpValidateOutput {
+                    server: service_name.to_string(),
+                    valid: false,
+                    health_status: "unhealthy".to_string(),
+                    validation_type: "connection_error".to_string(),
+                    tools_count: 0,
+                    latency_ms: 0,
+                    server_info: None,
+                    issues: vec![format!("Connection error: {}", e)],
+                    message: format!("Failed to connect to '{}'", service_name),
+                };
+            },
+            Err(_) => {
+                return McpValidateOutput {
+                    server: service_name.to_string(),
+                    valid: false,
+                    health_status: "unhealthy".to_string(),
+                    validation_type: "timeout".to_string(),
+                    tools_count: 0,
+                    latency_ms: timeout_secs as u32 * 1000,
+                    server_info: None,
+                    issues: vec![format!(
+                        "Connection timed out after {} seconds",
+                        timeout_secs
+                    )],
+                    message: format!("Timeout connecting to '{}'", service_name),
+                };
+            },
+        };
 
     let health_status = validation_result.health_status().to_string();
     let message = validation_result.status_description();

@@ -35,7 +35,9 @@ pub struct DeleteArgs {
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     if !args.yes && !args.dry_run {
-        CliService::warning("This will permanently delete users. Use --yes to confirm or --dry-run to preview.");
+        CliService::warning(
+            "This will permanently delete users. Use --yes to confirm or --dry-run to preview.",
+        );
         return Err(anyhow!("Operation cancelled - confirmation required"));
     }
 

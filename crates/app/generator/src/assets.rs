@@ -12,26 +12,49 @@ pub async fn organize_css_files(web_dir: &str) -> Result<u32> {
 
     let mut copied = 0;
 
-    copied += copy_css_from_directory(&dist_dir, &css_dir).await?;
+    copied += copy_files_by_extension(&dist_dir, &css_dir, "css").await?;
 
     if let Ok(impl_assets_path) = std::env::var("SYSTEMPROMPT_WEB_ASSETS_PATH") {
         let impl_css_dir = PathBuf::from(&impl_assets_path).join("css");
-        let impl_css_exists = match fs::try_exists(&impl_css_dir).await {
-            Ok(exists) => exists,
-            Err(e) => {
-                tracing::warn!(error = %e, path = %impl_css_dir.display(), "Failed to check path existence");
-                false
-            },
-        };
-        if impl_css_exists {
-            copied += copy_css_from_directory(&impl_css_dir, &css_dir).await?;
+        if path_exists(&impl_css_dir).await {
+            copied += copy_files_by_extension(&impl_css_dir, &css_dir, "css").await?;
         }
     }
 
     Ok(copied)
 }
 
-async fn copy_css_from_directory(source_dir: &Path, dest_dir: &Path) -> Result<u32> {
+pub async fn organize_js_files(web_dir: &str) -> Result<u32> {
+    let dist_dir = PathBuf::from(web_dir);
+    let js_dir = dist_dir.join("js");
+
+    fs::create_dir_all(&js_dir)
+        .await
+        .context("Failed to create js directory")?;
+
+    let mut copied = 0;
+
+    if let Ok(impl_assets_path) = std::env::var("SYSTEMPROMPT_WEB_ASSETS_PATH") {
+        let impl_js_dir = PathBuf::from(&impl_assets_path).join("js");
+        if path_exists(&impl_js_dir).await {
+            copied += copy_files_by_extension(&impl_js_dir, &js_dir, "js").await?;
+        }
+    }
+
+    Ok(copied)
+}
+
+async fn path_exists(path: &Path) -> bool {
+    match fs::try_exists(path).await {
+        Ok(exists) => exists,
+        Err(e) => {
+            tracing::warn!(error = %e, path = %path.display(), "Failed to check path existence");
+            false
+        },
+    }
+}
+
+async fn copy_files_by_extension(source_dir: &Path, dest_dir: &Path, ext: &str) -> Result<u32> {
     let mut copied = 0;
     let mut entries = fs::read_dir(source_dir)
         .await
@@ -39,9 +62,9 @@ async fn copy_css_from_directory(source_dir: &Path, dest_dir: &Path) -> Result<u
 
     while let Some(entry) = entries.next_entry().await.context("Failed to read entry")? {
         let path = entry.path();
-        let is_css = path.extension().is_some_and(|e| e == "css");
+        let matches_ext = path.extension().is_some_and(|e| e == ext);
 
-        if is_css {
+        if matches_ext {
             if let Some(file_name) = path.file_name() {
                 let dest = dest_dir.join(file_name);
                 fs::copy(&path, &dest)
@@ -61,14 +84,7 @@ pub async fn copy_implementation_assets(web_dir: &str) -> Result<u32> {
     };
 
     let impl_assets = PathBuf::from(&impl_assets_path);
-    let impl_assets_exists = match fs::try_exists(&impl_assets).await {
-        Ok(exists) => exists,
-        Err(e) => {
-            tracing::warn!(error = %e, path = %impl_assets.display(), "Failed to check path existence");
-            false
-        },
-    };
-    if !impl_assets_exists {
+    if !path_exists(&impl_assets).await {
         return Ok(0);
     }
 
@@ -81,14 +97,7 @@ pub async fn copy_implementation_assets(web_dir: &str) -> Result<u32> {
 
     for asset_type in asset_types {
         let src_dir = impl_assets.join(asset_type);
-        let src_dir_exists = match fs::try_exists(&src_dir).await {
-            Ok(exists) => exists,
-            Err(e) => {
-                tracing::warn!(error = %e, path = %src_dir.display(), "Failed to check path existence");
-                false
-            },
-        };
-        if !src_dir_exists {
+        if !path_exists(&src_dir).await {
             continue;
         }
 
@@ -110,14 +119,7 @@ pub async fn copy_implementation_assets(web_dir: &str) -> Result<u32> {
 
     for (file_name, dest_path) in static_files {
         let src_path = impl_assets.join(file_name);
-        let src_path_exists = match fs::try_exists(&src_path).await {
-            Ok(exists) => exists,
-            Err(e) => {
-                tracing::warn!(error = %e, path = %src_path.display(), "Failed to check path existence");
-                false
-            },
-        };
-        if src_path_exists {
+        if path_exists(&src_path).await {
             if let Some(parent) = dest_path.parent() {
                 fs::create_dir_all(parent)
                     .await

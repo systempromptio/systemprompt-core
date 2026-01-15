@@ -64,4 +64,3 @@ pub async fn mark_task_failed_with_error(
         tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
     }
 }
-

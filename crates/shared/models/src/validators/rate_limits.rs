@@ -28,9 +28,7 @@ impl DomainConfig for RateLimitsConfigValidator {
             .as_any()
             .downcast_ref::<ValidationConfigProvider>()
             .ok_or_else(|| {
-                DomainConfigError::LoadError(
-                    "Expected ValidationConfigProvider".into(),
-                )
+                DomainConfigError::LoadError("Expected ValidationConfigProvider".into())
             })?;
 
         self.config = Some(provider.config().rate_limits);
@@ -63,7 +61,8 @@ impl RateLimitsConfigValidator {
                 ValidationWarning::new(
                     "rate_limits.stream_per_second",
                     format!(
-                        "stream_per_second={} is very restrictive. Users may experience connection issues.",
+                        "stream_per_second={} is very restrictive. Users may experience \
+                         connection issues.",
                         config.stream_per_second
                     ),
                 )

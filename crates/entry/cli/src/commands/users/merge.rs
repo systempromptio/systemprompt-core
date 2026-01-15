@@ -24,7 +24,8 @@ pub struct MergeArgs {
 pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
     if !args.yes {
         CliService::warning(
-            "This will merge the source user into the target user and DELETE the source. Use --yes to confirm.",
+            "This will merge the source user into the target user and DELETE the source. Use \
+             --yes to confirm.",
         );
         return Err(anyhow!("Operation cancelled - confirmation required"));
     }
@@ -74,7 +75,10 @@ pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
         CliService::success(&output.message);
         CliService::key_value("Source (deleted)", &source_user.name);
         CliService::key_value("Target", &target_user.name);
-        CliService::key_value("Sessions transferred", &output.sessions_transferred.to_string());
+        CliService::key_value(
+            "Sessions transferred",
+            &output.sessions_transferred.to_string(),
+        );
         CliService::key_value("Tasks transferred", &output.tasks_transferred.to_string());
     }
 

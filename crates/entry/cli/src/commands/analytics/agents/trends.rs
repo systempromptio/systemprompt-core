@@ -162,9 +162,10 @@ async fn fetch_trends(
 }
 
 fn render_trends(output: &AgentTrendsOutput) {
-    let title = output
-        .agent
-        .as_ref().map_or_else(|| format!("Agent Trends ({})", output.period), |a| format!("Agent Trends: {} ({})", a, output.period));
+    let title = output.agent.as_ref().map_or_else(
+        || format!("Agent Trends ({})", output.period),
+        |a| format!("Agent Trends: {} ({})", a, output.period),
+    );
 
     CliService::section(&title);
     CliService::key_value("Grouped by", &output.group_by);

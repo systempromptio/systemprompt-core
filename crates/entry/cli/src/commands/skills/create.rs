@@ -52,7 +52,10 @@ pub struct CreateArgs {
     pub no_sync: bool,
 }
 
-pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<SkillCreateOutput>> {
+pub async fn execute(
+    args: CreateArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<SkillCreateOutput>> {
     let name = resolve_input(args.name, "name", config, prompt_name)?;
     validate_skill_name(&name)?;
 
@@ -136,13 +139,13 @@ pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResu
             Ok(()) => {
                 CliService::success("Skill synced to database");
                 synced_to_db = true;
-            }
+            },
             Err(e) => {
                 CliService::warning(&format!(
                     "Skill created but not synced to database: {}. Run 'skills sync' manually.",
                     e
                 ));
-            }
+            },
         }
     }
 
@@ -153,11 +156,7 @@ pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResu
             index_path.display()
         )
     } else {
-        format!(
-            "Skill '{}' created at {}",
-            name,
-            index_path.display()
-        )
+        format!("Skill '{}' created at {}", name, index_path.display())
     };
 
     let output = SkillCreateOutput {
@@ -219,8 +218,8 @@ fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Result<()> {
 
         if existing_normalized == normalized_name {
             return Err(anyhow!(
-                "Skill '{}' conflicts with existing skill '{}' (same normalized name: '{}'). \
-                 Use consistent naming to avoid confusion.",
+                "Skill '{}' conflicts with existing skill '{}' (same normalized name: '{}'). Use \
+                 consistent naming to avoid confusion.",
                 name,
                 existing_name,
                 normalized_name

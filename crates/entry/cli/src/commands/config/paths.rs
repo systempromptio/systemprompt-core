@@ -141,10 +141,7 @@ fn execute_validate(config: &CliConfig) -> Result<()> {
     });
 
     // Calculate validity - only required paths matter
-    let valid = validations
-        .iter()
-        .filter(|v| v.required)
-        .all(|v| v.exists);
+    let valid = validations.iter().filter(|v| v.required).all(|v| v.exists);
 
     let output = PathsValidateOutput {
         valid,

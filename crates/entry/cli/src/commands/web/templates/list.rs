@@ -22,14 +22,16 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Temp
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     if !templates_yaml_path.exists() {
-        return Ok(CommandResult::table(TemplateListOutput { templates: vec![] })
-            .with_title("Templates")
-            .with_columns(vec![
-                "name".to_string(),
-                "content_types".to_string(),
-                "file_exists".to_string(),
-                "file_path".to_string(),
-            ]));
+        return Ok(
+            CommandResult::table(TemplateListOutput { templates: vec![] })
+                .with_title("Templates")
+                .with_columns(vec![
+                    "name".to_string(),
+                    "content_types".to_string(),
+                    "file_exists".to_string(),
+                    "file_path".to_string(),
+                ]),
+        );
     }
 
     let content = fs::read_to_string(&templates_yaml_path).with_context(|| {

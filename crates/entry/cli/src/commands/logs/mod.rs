@@ -55,7 +55,8 @@ pub enum LogsCommands {
 
     #[command(
         about = "Show logs summary statistics",
-        after_help = "EXAMPLES:\n  systemprompt logs summary\n  systemprompt logs summary --since 24h"
+        after_help = "EXAMPLES:\n  systemprompt logs summary\n  systemprompt logs summary --since \
+                      24h"
     )]
     Summary(summary::SummaryArgs),
 

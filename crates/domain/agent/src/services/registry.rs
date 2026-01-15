@@ -118,7 +118,10 @@ fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentSkill
     let index_path = skill_dir.join("index.md");
 
     if !index_path.exists() {
-        anyhow::bail!("Skill directory or index.md not found: {}", index_path.display());
+        anyhow::bail!(
+            "Skill directory or index.md not found: {}",
+            index_path.display()
+        );
     }
 
     let content = fs::read_to_string(&index_path)?;
@@ -161,24 +164,50 @@ fn parse_skill_frontmatter(content: &str) -> Result<SkillFrontmatter> {
         .map_err(|e| anyhow!("Failed to parse skill frontmatter: {}", e))?;
 
     let title = yaml.get("title").and_then(|v| v.as_str()).map(String::from);
-    let description = yaml.get("description").and_then(|v| v.as_str()).map(String::from);
+    let description = yaml
+        .get("description")
+        .and_then(|v| v.as_str())
+        .map(String::from);
 
     let keywords = yaml.get("keywords").and_then(|v| {
         v.as_str()
-            .map(|s| s.split(',').map(|s| s.trim().to_string()).filter(|s| !s.is_empty()).collect())
-            .or_else(|| v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect()))
+            .map(|s| {
+                s.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .or_else(|| {
+                v.as_sequence().map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect()
+                })
+            })
     });
 
     let examples = yaml.get("examples").and_then(|v| {
-        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        v.as_sequence().map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
     });
 
     let input_modes = yaml.get("input_modes").and_then(|v| {
-        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        v.as_sequence().map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
     });
 
     let output_modes = yaml.get("output_modes").and_then(|v| {
-        v.as_sequence().map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+        v.as_sequence().map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(String::from))
+                .collect()
+        })
     });
 
     Ok(SkillFrontmatter {
@@ -302,7 +331,7 @@ impl AgentRegistry {
                             error = %e,
                             "Failed to load skill for agent card, skipping"
                         );
-                    }
+                    },
                 }
             }
         }

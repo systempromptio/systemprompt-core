@@ -91,7 +91,12 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
     let db = DatabaseTool::new().await?;
 
     match cmd {
-        DbCommands::Query { sql, limit, offset, format } => {
+        DbCommands::Query {
+            sql,
+            limit,
+            offset,
+            format,
+        } => {
             let params = query::QueryParams {
                 sql: &sql,
                 limit,
@@ -99,29 +104,29 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
                 format: format.as_deref(),
             };
             query::execute_query(&db.query_executor, &params, config).await
-        }
+        },
         DbCommands::Execute { sql, format } => {
             query::execute_write(&db.query_executor, &sql, format.as_deref(), config).await
-        }
+        },
         DbCommands::Tables { filter } => {
             schema::execute_tables(&db.admin_service, filter, config).await
-        }
+        },
         DbCommands::Describe { table_name } => {
             schema::execute_describe(&db.admin_service, &table_name, config).await
-        }
+        },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
         DbCommands::Migrate => unreachable!(),
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
-        }
+        },
         DbCommands::Status => admin::execute_status(&db.admin_service, config).await,
         DbCommands::Validate => schema::execute_validate(&db.admin_service, config).await,
         DbCommands::Count { table_name } => {
             schema::execute_count(&db.admin_service, &table_name, config).await
-        }
+        },
         DbCommands::Indexes { table } => {
             introspect::execute_indexes(&db.admin_service, table, config).await
-        }
+        },
         DbCommands::Size => introspect::execute_size(&db.admin_service, config).await,
     }
 }

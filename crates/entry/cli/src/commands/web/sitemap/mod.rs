@@ -24,8 +24,7 @@ pub fn execute(command: SitemapCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         SitemapCommands::Generate(args) => {
-            let result = generate::execute(&args, config)
-                .context("Failed to generate sitemap")?;
+            let result = generate::execute(&args, config).context("Failed to generate sitemap")?;
             render_result(&result);
             Ok(())
         },
