@@ -78,7 +78,7 @@ impl JwtContextExtractor {
             .get("x-trace-id")
             .and_then(|h| h.to_str().ok())
             .map_or_else(
-                || TraceId::new(format!("trace_{}", Uuid::new_v4())),
+                || TraceId::new(Uuid::new_v4().to_string()),
                 |s| TraceId::new(s.to_string()),
             );
 

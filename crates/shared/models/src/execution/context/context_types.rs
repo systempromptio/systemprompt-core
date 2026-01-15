@@ -54,7 +54,7 @@ pub struct ExecutionContext {
 impl Default for ExecutionContext {
     fn default() -> Self {
         Self {
-            trace_id: TraceId::new(format!("trace_{}", uuid::Uuid::new_v4())),
+            trace_id: TraceId::new(uuid::Uuid::new_v4().to_string()),
             context_id: ContextId::new(String::new()),
             task_id: None,
             ai_tool_call_id: None,

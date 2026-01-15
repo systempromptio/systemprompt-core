@@ -89,7 +89,7 @@ impl ToolUsageRepository {
                         "Failed to serialize tool execution output"
                     );
                     None
-                }
+                },
             },
             None => None,
         };

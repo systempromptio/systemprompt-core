@@ -147,7 +147,7 @@ impl AuthValidationService {
             .get("x-trace-id")
             .and_then(|h| h.to_str().ok())
             .map_or_else(
-                || TraceId::new(format!("trace_{}", uuid::Uuid::new_v4())),
+                || TraceId::new(uuid::Uuid::new_v4().to_string()),
                 |s| TraceId::new(s.to_string()),
             )
     }
