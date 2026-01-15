@@ -22,6 +22,9 @@ const PresentationCardRenderer = lazy(() => import('../renderers/PresentationCar
 const KnowledgeQueryRenderer = lazy(() => import('../renderers/KnowledgeQueryRenderer').then(m => ({ default: m.KnowledgeQueryRenderer })))
 const ListRenderer = lazy(() => import('../renderers/ListRenderer').then(m => ({ default: m.ListRenderer })))
 const CopyPasteTextRenderer = lazy(() => import('../renderers/CopyPasteTextRenderer').then(m => ({ default: m.CopyPasteTextRenderer })))
+const ImageRenderer = lazy(() => import('../renderers/ImageRenderer').then(m => ({ default: m.ImageRenderer })))
+const VideoRenderer = lazy(() => import('../renderers/VideoRenderer').then(m => ({ default: m.VideoRenderer })))
+const AudioRenderer = lazy(() => import('../renderers/AudioRenderer').then(m => ({ default: m.AudioRenderer })))
 
 interface ArtifactContentRendererProps {
   artifact: Artifact
@@ -98,6 +101,27 @@ export const ArtifactContentRenderer = React.memo(function ArtifactContentRender
       return (
         <Suspense fallback={<LoadingFallback />}>
           <CopyPasteTextRenderer artifact={artifact} />
+        </Suspense>
+      )
+
+    case 'image':
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <ImageRenderer artifact={artifact} hints={metadata?.rendering_hints as Record<string, unknown>} />
+        </Suspense>
+      )
+
+    case 'video':
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <VideoRenderer artifact={artifact} hints={metadata?.rendering_hints as Record<string, unknown>} />
+        </Suspense>
+      )
+
+    case 'audio':
+      return (
+        <Suspense fallback={<LoadingFallback />}>
+          <AudioRenderer artifact={artifact} hints={metadata?.rendering_hints as Record<string, unknown>} />
         </Suspense>
       )
 
