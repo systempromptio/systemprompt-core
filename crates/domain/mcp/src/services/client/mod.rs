@@ -21,8 +21,6 @@ pub use http_client_with_context::HttpClientWithContext;
 pub use types::{McpConnectionResult, McpProtocolInfo, ToolExecutionWithId, ValidationResult};
 pub use validation::{validate_connection, validate_connection_with_auth};
 
-use crate::models::{ToolExecutionRequest, ToolExecutionResult};
-use crate::repository::ToolUsageRepository;
 use systemprompt_core_database::DbPool;
 
 #[derive(Debug, Clone)]
@@ -153,7 +151,7 @@ impl McpClient {
         name: String,
         arguments: Option<serde_json::Value>,
         context: &systemprompt_models::RequestContext,
-        db_pool: &DbPool,
+        _db_pool: &DbPool,
     ) -> Result<rmcp::model::CallToolResult> {
         use crate::services::registry::RegistryManager;
 
@@ -164,42 +162,13 @@ impl McpClient {
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = validation::rewrite_url_for_internal_use(&url);
 
-        let tool_repo = ToolUsageRepository::new(db_pool)?;
-        let (mcp_execution_id, started_at) =
-            start_execution_tracking(&tool_repo, &name, service_name, arguments.clone(), context)
-                .await?;
-
+        // Tool execution logging is handled by the MCP server - no client-side tracking
+        // needed
         let transport = build_transport(&url, server_config.oauth.required, context)?;
-        let tool_result = execute_tool_call(transport, &name, arguments).await;
-        record_execution_result(&tool_repo, &mcp_execution_id, &tool_result, started_at).await?;
-
-        tool_result.map_err(|e| anyhow::anyhow!("Tool execution failed: {e}"))
+        execute_tool_call(transport, &name, arguments)
+            .await
+            .map_err(|e| anyhow::anyhow!("Tool execution failed: {e}"))
     }
-}
-
-async fn start_execution_tracking(
-    tool_repo: &ToolUsageRepository,
-    tool_name: &str,
-    service_name: &str,
-    arguments: Option<serde_json::Value>,
-    context: &systemprompt_models::RequestContext,
-) -> Result<(
-    systemprompt_identifiers::McpExecutionId,
-    chrono::DateTime<chrono::Utc>,
-)> {
-    let started_at = chrono::Utc::now();
-    let request = ToolExecutionRequest {
-        tool_name: tool_name.to_string(),
-        server_name: service_name.to_string(),
-        input: arguments.unwrap_or(serde_json::json!({})),
-        started_at,
-        context: context.clone(),
-        request_method: Some("mcp".to_string()),
-        request_source: Some("ai_service".to_string()),
-        ai_tool_call_id: context.ai_tool_call_id().cloned(),
-    };
-    let id = tool_repo.start_execution(&request).await?;
-    Ok((id, started_at))
 }
 
 fn build_transport(
@@ -266,33 +235,4 @@ async fn execute_tool_call(
 
     client_service.cancel().await?;
     result
-}
-
-async fn record_execution_result(
-    tool_repo: &ToolUsageRepository,
-    execution_id: &systemprompt_identifiers::McpExecutionId,
-    tool_result: &Result<systemprompt_models::CallToolResult, anyhow::Error>,
-    started_at: chrono::DateTime<chrono::Utc>,
-) -> Result<()> {
-    let completed_at = chrono::Utc::now();
-    let result = match tool_result {
-        Ok(res) => ToolExecutionResult {
-            output: Some(serde_json::to_value(&res.content).unwrap_or(serde_json::json!({}))),
-            output_schema: None,
-            status: "success".to_string(),
-            error_message: None,
-            started_at,
-            completed_at,
-        },
-        Err(e) => ToolExecutionResult {
-            output: None,
-            output_schema: None,
-            status: "failed".to_string(),
-            error_message: Some(e.to_string()),
-            started_at,
-            completed_at,
-        },
-    };
-
-    tool_repo.complete_execution(execution_id, &result).await
 }
