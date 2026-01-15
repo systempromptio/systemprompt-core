@@ -122,7 +122,10 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
     let tenant = store.find_tenant(tenant_id);
 
     let (hostname, sync_token) =

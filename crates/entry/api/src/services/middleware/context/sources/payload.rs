@@ -7,8 +7,6 @@ use systemprompt_models::execution::{ContextExtractionError, ContextIdSource};
 pub struct PayloadSource;
 
 impl PayloadSource {
-    /// Extract context information from A2A JSON-RPC payload.
-    /// Returns either a direct contextId or task_id for resolution.
     pub fn extract_context_source(
         body_bytes: &[u8],
     ) -> Result<ContextIdSource, ContextExtractionError> {
@@ -21,8 +19,6 @@ impl PayloadSource {
 
         let method = payload.get("method").and_then(|m| m.as_str()).unwrap_or("");
 
-        // Per A2A spec Section 7.3: task methods use TaskQueryParams/TaskIdParams
-        // which only have 'id' (task UUID), not contextId
         if method.starts_with("tasks/") {
             let task_id = payload
                 .get("params")
@@ -37,8 +33,6 @@ impl PayloadSource {
             return Ok(ContextIdSource::FromTask { task_id });
         }
 
-        // Per A2A spec Section 7.1: message methods use MessageSendParams
-        // which has message.contextId
         payload
             .get("params")
             .and_then(|p| p.get("message"))

@@ -77,7 +77,7 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
     }
 
     let output = UserUpdatedOutput {
-        id: user.id.to_string(),
+        id: user.id.clone(),
         name: user.name.clone(),
         email: user.email.clone(),
         message: format!("User '{}' updated successfully", user.name),
@@ -87,7 +87,7 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         CliService::json(&output);
     } else {
         CliService::success(&output.message);
-        CliService::key_value("ID", &output.id);
+        CliService::key_value("ID", output.id.as_str());
         CliService::key_value("Name", &output.name);
         CliService::key_value("Email", &output.email);
     }

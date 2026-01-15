@@ -80,7 +80,7 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
     match user_admin.promote_to_admin(user).await? {
         PromoteResult::Promoted(u, new_roles) => {
             let output = DbAssignAdminOutput {
-                user_id: u.id.to_string(),
+                user_id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
                 roles: new_roles.clone(),
@@ -97,7 +97,7 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
         },
         PromoteResult::AlreadyAdmin(u) => {
             let output = DbAssignAdminOutput {
-                user_id: u.id.to_string(),
+                user_id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
                 roles: u.roles.clone(),

@@ -45,7 +45,10 @@ pub async fn execute(name: &str, config: &CliConfig) -> Result<()> {
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant_type = select_tenant_type(&store)?;
     let eligible_tenants = get_tenants_by_type(&store, tenant_type);

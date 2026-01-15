@@ -105,7 +105,7 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
         users: users
             .iter()
             .map(|u| UserSummary {
-                id: u.id.to_string(),
+                id: u.id.clone(),
                 name: u.name.clone(),
                 email: u.email.clone(),
                 status: u.status.clone(),

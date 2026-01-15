@@ -21,7 +21,8 @@ pub async fn sync_token_middleware(request: Request<Body>, next: Next) -> Respon
     let provided_token = match auth_header {
         Some(header) if header.starts_with("Bearer ") => &header[7..],
         _ => {
-            return ApiError::unauthorized("Missing or invalid Authorization header").into_response();
+            return ApiError::unauthorized("Missing or invalid Authorization header")
+                .into_response();
         },
     };
 

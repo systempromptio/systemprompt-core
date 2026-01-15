@@ -224,12 +224,6 @@ fn wellknown_router(ctx: &AppContext) -> Router {
         .merge(crate::routes::wellknown_router(ctx))
 }
 
-/// Mount routes from registered API extensions.
-///
-/// # Errors
-///
-/// Returns `LoaderError::ConfigValidationFailed` if any extension's config
-/// validation fails.
 fn mount_extension_routes(
     mut router: Router,
     ctx: &AppContext,

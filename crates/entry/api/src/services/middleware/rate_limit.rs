@@ -1,6 +1,5 @@
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
 use axum::extract::Request;
-use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use axum::Router;
@@ -9,6 +8,7 @@ use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::auth::RateLimitTier;
 use systemprompt_models::config::RateLimitConfig;
 use systemprompt_models::RequestContext;
@@ -165,11 +165,15 @@ pub async fn tiered_rate_limit_middleware(
             key = %key,
             "Rate limit exceeded"
         );
-        (
-            StatusCode::TOO_MANY_REQUESTS,
-            [("Retry-After", "1"), ("X-Rate-Limit-Tier", tier.as_str())],
-            "Rate limit exceeded",
-        )
-            .into_response()
+        let api_error = ApiError::new(ErrorCode::RateLimited, "Rate limit exceeded");
+        let mut response = api_error.into_response();
+        response
+            .headers_mut()
+            .insert("Retry-After", "1".parse().expect("valid header value"));
+        response.headers_mut().insert(
+            "X-Rate-Limit-Tier",
+            tier.as_str().parse().expect("valid header value"),
+        );
+        response
     }
 }

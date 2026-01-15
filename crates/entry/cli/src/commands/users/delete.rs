@@ -34,7 +34,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     user_service.delete(&user.id).await?;
 
     let output = UserDeletedOutput {
-        id: user.id.to_string(),
+        id: user.id.clone(),
         message: format!("User '{}' deleted successfully", user.name),
     };
 

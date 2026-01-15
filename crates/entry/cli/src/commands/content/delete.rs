@@ -66,7 +66,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
 
     let output = DeleteOutput {
         deleted: true,
-        content_id: content.id.to_string(),
+        content_id: content.id.clone(),
     };
 
     Ok(CommandResult::card(output).with_title("Content Deleted"))

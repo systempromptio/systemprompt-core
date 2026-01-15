@@ -45,7 +45,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let export_items: Vec<UserExportItem> = users
         .into_iter()
         .map(|u| UserExportItem {
-            id: u.id.to_string(),
+            id: u.id.clone(),
             name: u.name,
             email: u.email,
             full_name: u.full_name,

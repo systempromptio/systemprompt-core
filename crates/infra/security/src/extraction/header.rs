@@ -8,15 +8,13 @@ pub struct HeaderExtractor;
 impl HeaderExtractor {
     pub fn extract_trace_id(headers: &HeaderMap) -> TraceId {
         Self::extract_header(headers, headers::TRACE_ID)
-            .map(TraceId::new)
-            .unwrap_or_else(TraceId::generate)
+            .map_or_else(TraceId::generate, TraceId::new)
     }
 
     pub fn extract_context_id(headers: &HeaderMap) -> ContextId {
         Self::extract_header(headers, headers::CONTEXT_ID)
             .filter(|s| !s.is_empty())
-            .map(ContextId::new)
-            .unwrap_or_else(ContextId::empty)
+            .map_or_else(ContextId::empty, ContextId::new)
     }
 
     pub fn extract_task_id(headers: &HeaderMap) -> Option<TaskId> {
@@ -25,8 +23,7 @@ impl HeaderExtractor {
 
     pub fn extract_agent_name(headers: &HeaderMap) -> AgentName {
         Self::extract_header(headers, headers::AGENT_NAME)
-            .map(AgentName::new)
-            .unwrap_or_else(AgentName::system)
+            .map_or_else(AgentName::system, AgentName::new)
     }
 
     pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {

@@ -86,9 +86,11 @@ impl<E> ContextMiddleware<E> {
             ContextExtractionError::DatabaseError(_) => {
                 ApiError::internal_error("Internal server error")
             },
-            ContextExtractionError::ForbiddenHeader { header, reason } => ApiError::bad_request(
-                format!("Header '{header}' is not allowed: {reason}. Use JWT authentication instead."),
-            ),
+            ContextExtractionError::ForbiddenHeader { header, reason } => {
+                ApiError::bad_request(format!(
+                    "Header '{header}' is not allowed: {reason}. Use JWT authentication instead."
+                ))
+            },
         }
     }
 
@@ -184,7 +186,8 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
             ctx.clone()
         } else {
             return ApiError::internal_error(
-                "Middleware configuration error: SessionMiddleware must run before ContextMiddleware",
+                "Middleware configuration error: SessionMiddleware must run before \
+                 ContextMiddleware",
             )
             .into_response();
         };

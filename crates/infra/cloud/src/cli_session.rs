@@ -24,30 +24,67 @@ pub struct CliSession {
     pub last_used: DateTime<Utc>,
 }
 
-impl CliSession {
-    #[must_use]
+#[derive(Debug)]
+pub struct CliSessionBuilder {
+    profile_name: String,
+    session_token: SessionToken,
+    session_id: SessionId,
+    context_id: ContextId,
+    user_id: UserId,
+    user_email: String,
+}
+
+impl CliSessionBuilder {
     pub fn new(
-        profile_name: String,
+        profile_name: impl Into<String>,
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
-        user_id: UserId,
-        user_email: String,
     ) -> Self {
-        let now = Utc::now();
-        let expires_at = now + Duration::hours(SESSION_DURATION_HOURS);
         Self {
-            version: CURRENT_VERSION,
-            profile_name,
+            profile_name: profile_name.into(),
             session_token,
             session_id,
             context_id,
-            user_id,
-            user_email,
+            user_id: UserId::system(),
+            user_email: String::new(),
+        }
+    }
+
+    #[must_use]
+    pub fn with_user(mut self, user_id: UserId, user_email: impl Into<String>) -> Self {
+        self.user_id = user_id;
+        self.user_email = user_email.into();
+        self
+    }
+
+    #[must_use]
+    pub fn build(self) -> CliSession {
+        let now = Utc::now();
+        let expires_at = now + Duration::hours(SESSION_DURATION_HOURS);
+        CliSession {
+            version: CURRENT_VERSION,
+            profile_name: self.profile_name,
+            session_token: self.session_token,
+            session_id: self.session_id,
+            context_id: self.context_id,
+            user_id: self.user_id,
+            user_email: self.user_email,
             created_at: now,
             expires_at,
             last_used: now,
         }
+    }
+}
+
+impl CliSession {
+    pub fn builder(
+        profile_name: impl Into<String>,
+        session_token: SessionToken,
+        session_id: SessionId,
+        context_id: ContextId,
+    ) -> CliSessionBuilder {
+        CliSessionBuilder::new(profile_name, session_token, session_id, context_id)
     }
 
     pub fn context_id(&self) -> &ContextId {

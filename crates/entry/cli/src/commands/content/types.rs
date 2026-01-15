@@ -82,19 +82,19 @@ pub struct IngestOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DeleteOutput {
     pub deleted: bool,
-    pub content_id: String,
+    pub content_id: ContentId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct DeleteSourceOutput {
     pub deleted_count: u64,
-    pub source_id: String,
+    pub source_id: SourceId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PopularOutput {
     pub items: Vec<ContentSummary>,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub days: i64,
 }
 
@@ -175,7 +175,7 @@ pub struct LinkPerformanceOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ClicksOutput {
-    pub link_id: String,
+    pub link_id: LinkId,
     pub clicks: Vec<ClickRow>,
     pub total: i64,
 }
@@ -220,14 +220,14 @@ pub struct JourneyNode {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct LinkDeleteOutput {
     pub deleted: bool,
-    pub link_id: String,
+    pub link_id: LinkId,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct VerifyOutput {
-    pub content_id: String,
+    pub content_id: ContentId,
     pub slug: String,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub in_database: bool,
     pub is_public: bool,
     pub expected_url: String,
@@ -245,7 +245,7 @@ pub struct VerifyOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StatusOutput {
     pub items: Vec<ContentStatusRow>,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub total: i64,
     pub healthy: i64,
     pub issues: i64,
@@ -266,9 +266,9 @@ pub struct ContentStatusRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PublishOutput {
-    pub content_id: String,
+    pub content_id: ContentId,
     pub slug: String,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub action: String,
     pub expected_url: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -280,7 +280,7 @@ pub struct PublishOutput {
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct UpdateOutput {
-    pub content_id: String,
+    pub content_id: ContentId,
     pub slug: String,
     pub updated_fields: Vec<String>,
     pub success: bool,

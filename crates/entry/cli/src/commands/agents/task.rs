@@ -77,10 +77,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 
-    let base_url = args
-        .url
-        .as_deref()
-        .unwrap_or_else(|| session_ctx.api_url());
+    let base_url = args.url.as_deref().unwrap_or_else(|| session_ctx.api_url());
     let agent_url = format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), agent);
 
     let auth_token = args
@@ -118,7 +115,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
 
     if !response.status().is_success() {
         let status = response.status();
-        let body = response.text().await.unwrap_or_default();
+        let body = response.text().await.unwrap_or_else(|_| String::new());
         anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 

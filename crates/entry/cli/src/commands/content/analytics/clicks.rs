@@ -46,7 +46,7 @@ pub async fn execute(args: ClicksArgs, _config: &CliConfig) -> Result<CommandRes
         .collect();
 
     let output = ClicksOutput {
-        link_id: args.link_id,
+        link_id,
         clicks: click_rows,
         total,
     };

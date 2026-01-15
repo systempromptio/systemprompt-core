@@ -47,10 +47,7 @@ pub async fn execute(
 
     let deleted = service.delete_link(&link_id).await?;
 
-    let output = LinkDeleteOutput {
-        deleted,
-        link_id: args.link_id,
-    };
+    let output = LinkDeleteOutput { deleted, link_id };
 
     Ok(CommandResult::card(output).with_title("Link Deleted"))
 }

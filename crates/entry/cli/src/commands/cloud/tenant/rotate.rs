@@ -9,7 +9,10 @@ use super::select::{get_credentials, select_tenant};
 pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant_id = if let Some(id) = id {
         id
@@ -77,7 +80,10 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
 pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant_id = if let Some(id) = id {
         id

@@ -1,22 +1,13 @@
-//! Throttle middleware for dynamic rate limit enforcement based on behavioral
-//! bot detection.
-
 use axum::extract::Request;
-use axum::http::StatusCode;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
 
 use systemprompt_core_analytics::{SessionRepository, ThrottleLevel};
 use systemprompt_core_database::DbPool;
+use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::RequestContext;
 
-/// Middleware for checking and enforcing throttle levels on incoming requests.
-///
-/// This middleware integrates with the behavioral bot detection system to
-/// enforce rate limiting escalation. Sessions flagged as behavioral bots or
-/// exhibiting suspicious patterns will have their throttle level increased,
-/// resulting in reduced request rates or complete blocking.
 #[derive(Debug, Clone)]
 pub struct ThrottleMiddleware {
     session_repo: Arc<SessionRepository>,
@@ -29,20 +20,7 @@ impl ThrottleMiddleware {
         }
     }
 
-    /// Check the throttle level for the current request and enforce rate
-    /// limits.
-    ///
-    /// Returns:
-    /// - 200 OK: Request proceeds normally
-    /// - 429 Too Many Requests: Session is blocked (throttle_level = 3)
-    ///
-    /// For throttled sessions (level 1-2), requests proceed but with a header
-    /// indicating the throttle level for client awareness.
-    pub async fn check_throttle(
-        &self,
-        request: Request,
-        next: Next,
-    ) -> Result<Response, StatusCode> {
+    pub async fn check_throttle(&self, request: Request, next: Next) -> Result<Response, ApiError> {
         let Some(req_ctx) = request.extensions().get::<RequestContext>().cloned() else {
             return Ok(next.run(request).await);
         };
@@ -55,21 +33,33 @@ impl ThrottleMiddleware {
             .session_repo
             .get_throttle_level(&req_ctx.request.session_id)
             .await
-            .unwrap_or(0);
+            .unwrap_or_else(|e| {
+                tracing::warn!(error = %e, session_id = %req_ctx.request.session_id, "Failed to get throttle level");
+                0
+            });
 
         let level = ThrottleLevel::from(throttle_level);
 
         if !level.allows_requests() {
-            return Ok((
-                StatusCode::TOO_MANY_REQUESTS,
-                [
-                    ("Retry-After", "3600"),
-                    ("X-Throttle-Level", "blocked"),
-                    ("X-Throttle-Reason", "behavioral_bot_detection"),
-                ],
+            let api_error = ApiError::new(
+                ErrorCode::RateLimited,
                 "Request blocked due to suspicious activity",
-            )
-                .into_response());
+            );
+            let mut response = api_error.into_response();
+            response
+                .headers_mut()
+                .insert("Retry-After", "3600".parse().expect("valid header value"));
+            response.headers_mut().insert(
+                "X-Throttle-Level",
+                "blocked".parse().expect("valid header value"),
+            );
+            response.headers_mut().insert(
+                "X-Throttle-Reason",
+                "behavioral_bot_detection"
+                    .parse()
+                    .expect("valid header value"),
+            );
+            return Ok(response);
         }
 
         let mut response = next.run(request).await;
@@ -99,20 +89,10 @@ impl ThrottleMiddleware {
     }
 }
 
-/// Standalone function for use with axum middleware layer.
-///
-/// Use this when you need to add throttle checking as a layer:
-/// ```ignore
-/// Router::new()
-///     .layer(axum::middleware::from_fn_with_state(
-///         throttle_middleware.clone(),
-///         check_throttle_level
-///     ))
-/// ```
 pub async fn check_throttle_level(
     middleware: axum::extract::State<ThrottleMiddleware>,
     request: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, ApiError> {
     middleware.check_throttle(request, next).await
 }

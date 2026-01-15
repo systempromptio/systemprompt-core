@@ -187,14 +187,9 @@ async fn create_session_for_profile(
         CliService::key_value("Context ID", context_id.as_str());
     }
 
-    Ok(CliSession::new(
-        profile_name.to_string(),
-        session_token,
-        session_id,
-        context_id,
-        admin_user.id,
-        admin_user.email,
-    ))
+    Ok(CliSession::builder(profile_name, session_token, session_id, context_id)
+        .with_user(admin_user.id, admin_user.email)
+        .build())
 }
 
 async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_core_users::User> {

@@ -13,7 +13,10 @@ use crate::cloud::tenant::TenantDeleteArgs;
 pub async fn list_tenants() -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     if store.tenants.is_empty() {
         CliService::section("Tenants");
@@ -89,7 +92,10 @@ fn display_tenant_details(tenant: &StoredTenant) {
 pub async fn show_tenant(id: Option<String>) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant = if let Some(ref id) = id {
         store
@@ -130,7 +136,10 @@ pub async fn show_tenant(id: Option<String>) -> Result<()> {
 pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant_id = if let Some(id) = args.id {
         id
@@ -209,7 +218,10 @@ pub async fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     let tenant_id = if let Some(id) = id {
         id

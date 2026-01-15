@@ -35,7 +35,7 @@ pub async fn execute(args: AssignArgs, config: &CliConfig) -> Result<()> {
         .await?;
 
     let output = RoleAssignOutput {
-        id: user.id.to_string(),
+        id: user.id.clone(),
         name: user.name.clone(),
         roles: user.roles.clone(),
         message: format!("Roles assigned to user '{}'", user.name),

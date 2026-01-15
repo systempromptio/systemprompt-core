@@ -109,7 +109,10 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
 fn select_operation() -> Result<Option<TenantCommands>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
     let has_tenants = !store.tenants.is_empty();
 
     let edit_label = if has_tenants {
@@ -202,7 +205,10 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
+        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        TenantStore::default()
+    });
 
     if let Some(existing) = store.tenants.iter_mut().find(|t| t.id == tenant.id) {
         *existing = tenant.clone();

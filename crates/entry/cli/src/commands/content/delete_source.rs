@@ -43,7 +43,7 @@ pub async fn execute(
 
     let output = DeleteSourceOutput {
         deleted_count,
-        source_id: args.source_id,
+        source_id: source,
     };
 
     Ok(CommandResult::card(output).with_title("Source Content Deleted"))
