@@ -137,7 +137,7 @@ fn scan_skills(skills_path: &Path) -> Result<Vec<SkillSummary>> {
                 let dir_name = skill_path
                     .file_name()
                     .and_then(|n| n.to_str())
-                    .unwrap_or_default();
+                    .unwrap_or("");
 
                 skills.push(SkillSummary {
                     skill_id: dir_name.to_string(),
@@ -194,7 +194,7 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
     let description = frontmatter
         .get("description")
         .and_then(|v| v.as_str())
-        .unwrap_or_default()
+        .unwrap_or("")
         .to_string();
 
     let enabled = frontmatter
@@ -211,7 +211,7 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect()
         })
-        .unwrap_or_default();
+        .unwrap_or_else(Vec::new);
 
     let category = frontmatter
         .get("category")

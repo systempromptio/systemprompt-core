@@ -199,16 +199,16 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
         paths: PathsEnvVars {
             system_path: AppPaths::get()
                 .map(|p| p.system().root().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| String::new()),
             services: AppPaths::get()
                 .map(|p| p.system().services().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| String::new()),
             skills: AppPaths::get()
                 .map(|p| p.system().skills().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| String::new()),
             services_config: AppPaths::get()
                 .map(|p| p.system().settings().display().to_string())
-                .unwrap_or_default(),
+                .unwrap_or_else(|_| String::new()),
         },
     }
 }

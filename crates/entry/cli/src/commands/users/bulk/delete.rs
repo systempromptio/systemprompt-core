@@ -50,7 +50,6 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
-    // Find users matching filter
     let users = user_service
         .list_by_filter(
             args.status.as_deref(),
@@ -100,7 +99,6 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    // Perform bulk delete
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
     let deleted = user_service.bulk_delete(&user_ids).await?;
 

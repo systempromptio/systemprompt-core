@@ -35,7 +35,6 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
 
-    // Case 1: End all sessions for a user
     if args.all {
         let user_identifier = args
             .user
@@ -65,7 +64,6 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    // Case 2: End a specific session
     let session_id_str = args.session_id.ok_or_else(|| {
         anyhow!("Session ID is required (or use --user --all to end all sessions for a user)")
     })?;

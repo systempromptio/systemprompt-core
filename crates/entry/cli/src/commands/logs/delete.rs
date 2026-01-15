@@ -15,7 +15,6 @@ pub struct DeleteArgs {
 }
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
-    // Require --yes for destructive operation
     if !args.yes {
         if config.is_interactive() {
             if !CliService::confirm("Delete ALL log entries? This cannot be undone.")? {

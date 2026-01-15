@@ -109,9 +109,8 @@ impl DeployConfig {
 pub async fn execute(
     skip_push: bool,
     profile_name: Option<String>,
-    config: &CliConfig,
+    _config: &CliConfig,
 ) -> Result<()> {
-    let _ = config; // Used for output format in future
     CliService::section("SystemPrompt Cloud Deploy");
 
     let (profile, profile_path) = resolve_profile(profile_name.as_deref())?;

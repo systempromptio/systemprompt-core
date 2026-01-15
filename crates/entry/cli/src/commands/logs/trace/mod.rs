@@ -16,10 +16,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::CliConfig;
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Commands
-// ═══════════════════════════════════════════════════════════════════════════════
-
 #[derive(Debug, Subcommand)]
 pub enum TraceCommands {
     #[command(
@@ -38,10 +34,6 @@ pub enum TraceCommands {
     )]
     Show(show::ShowArgs),
 }
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// Output Types
-// ═══════════════════════════════════════════════════════════════════════════════
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TraceEventRow {
@@ -199,13 +191,9 @@ pub struct AiLookupOutput {
     pub linked_mcp_calls: Vec<ToolCallRow>,
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// Execute
-// ═══════════════════════════════════════════════════════════════════════════════
-
 pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
     match command {
         TraceCommands::List(args) => list::execute(args, config).await,
-        TraceCommands::Show(args) => show::execute(args, config).await,
+        TraceCommands::Show(args) => show::execute(args).await,
     }
 }

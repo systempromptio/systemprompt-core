@@ -95,7 +95,6 @@ pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
         .await?
     };
 
-    // Apply model and provider filters and transform
     let requests: Vec<RequestListRow> = rows
         .into_iter()
         .filter(|r| {

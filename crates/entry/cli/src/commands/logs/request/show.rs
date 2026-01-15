@@ -120,7 +120,10 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
                 })
                 .collect()
         })
-        .unwrap_or_default()
+        .unwrap_or_else(|e| {
+            tracing::warn!(request_id = %request_id, error = %e, "Failed to fetch conversation messages");
+            Vec::new()
+        })
 }
 
 async fn fetch_linked_mcp_calls(
