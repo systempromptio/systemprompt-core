@@ -6,7 +6,7 @@ use systemprompt_core_database::DbPool;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
-use super::{CopyExtensionAssetsJob, ImageOptimizationJob};
+use super::CopyExtensionAssetsJob;
 use crate::{
     generate_sitemap, organize_css_files, organize_js_files, prerender_content, prerender_homepage,
 };
@@ -44,7 +44,6 @@ impl PublishContentJob {
 
         let mut stats = PublishStats::new();
 
-        run_image_optimization(db_pool, &mut stats).await;
         run_content_ingestion(db_pool, &mut stats).await;
 
         tokio::time::sleep(Duration::from_millis(500)).await;
@@ -68,16 +67,6 @@ impl PublishContentJob {
         Ok(JobResult::success()
             .with_stats(stats.succeeded, stats.failed)
             .with_duration(duration_ms))
-    }
-}
-
-async fn run_image_optimization(db_pool: &DbPool, stats: &mut PublishStats) {
-    match ImageOptimizationJob::execute_optimization(db_pool).await {
-        Ok(result) if result.success => stats.record_success(),
-        Ok(_) | Err(_) => {
-            tracing::warn!("Image optimization had issues");
-            stats.record_failure();
-        },
     }
 }
 
