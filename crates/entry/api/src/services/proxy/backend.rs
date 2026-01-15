@@ -94,9 +94,41 @@ impl IntoResponse for ProxyError {
     fn into_response(self) -> Response {
         match self {
             Self::AuthChallenge(response) => response.into_response(),
-            other => {
-                let status = other.to_status_code();
-                let message = other.to_string();
+            ref error => {
+                let status = error.to_status_code();
+                let error_type = match &self {
+                    Self::ServiceNotFound { .. } => "service_not_found",
+                    Self::ServiceNotRunning { .. } => "service_not_running",
+                    Self::ConnectionFailed { .. } => "connection_failed",
+                    Self::Timeout { .. } => "timeout",
+                    Self::InvalidResponse { .. } => "invalid_response",
+                    Self::UrlConstructionFailed { .. } => "url_construction_failed",
+                    Self::BodyExtractionFailed { .. } => "body_extraction_failed",
+                    Self::InvalidMethod { .. } => "invalid_method",
+                    Self::DatabaseError { .. } => "database_error",
+                    Self::AuthenticationRequired { .. } => "authentication_required",
+                    Self::AuthChallenge(_) => "auth_challenge",
+                    Self::Forbidden { .. } => "forbidden",
+                    Self::MissingContext { .. } => "missing_context",
+                };
+
+                if status.is_server_error() {
+                    tracing::error!(
+                        error_type = %error_type,
+                        status_code = %status.as_u16(),
+                        error = %self,
+                        "Proxy server error"
+                    );
+                } else if status.is_client_error() {
+                    tracing::warn!(
+                        error_type = %error_type,
+                        status_code = %status.as_u16(),
+                        error = %self,
+                        "Proxy client error"
+                    );
+                }
+
+                let message = self.to_string();
                 (status, message).into_response()
             },
         }

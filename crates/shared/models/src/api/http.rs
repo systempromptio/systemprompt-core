@@ -63,6 +63,25 @@ impl IntoResponse for AcceptedResponse {
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let status = self.code.status_code();
+
+        if status.is_server_error() {
+            tracing::error!(
+                error_code = ?self.code,
+                message = %self.message,
+                path = ?self.path,
+                request_id = ?self.request_id,
+                "API server error response"
+            );
+        } else if status.is_client_error() {
+            tracing::warn!(
+                error_code = ?self.code,
+                message = %self.message,
+                path = ?self.path,
+                request_id = ?self.request_id,
+                "API client error response"
+            );
+        }
+
         (status, Json(self)).into_response()
     }
 }
