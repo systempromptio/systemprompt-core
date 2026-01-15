@@ -18,8 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::{Duration, Instant};
 use systemprompt_identifiers::{
-    AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId, TaskId,
-    TraceId, UserId,
+    headers, AgentName, AiToolCallId, ClientId, ContextId, JwtToken, McpExecutionId, SessionId,
+    TaskId, TraceId, UserId,
 };
 use systemprompt_traits::{ContextPropagation, InjectContextHeaders};
 
@@ -293,96 +293,99 @@ fn insert_header_if_present(headers: &mut HeaderMap, name: &'static str, value: 
 }
 
 impl InjectContextHeaders for RequestContext {
-    fn inject_headers(&self, headers: &mut HeaderMap) {
-        insert_header(headers, "x-session-id", self.request.session_id.as_str());
-        insert_header(headers, "x-trace-id", self.execution.trace_id.as_str());
-        insert_header(headers, "x-user-id", self.auth.user_id.as_str());
-        insert_header(headers, "x-user-type", self.auth.user_type.as_str());
-        insert_header(headers, "x-agent-name", self.execution.agent_name.as_str());
+    fn inject_headers(&self, hdrs: &mut HeaderMap) {
+        insert_header(hdrs, headers::SESSION_ID, self.request.session_id.as_str());
+        insert_header(hdrs, headers::TRACE_ID, self.execution.trace_id.as_str());
+        insert_header(hdrs, headers::USER_ID, self.auth.user_id.as_str());
+        insert_header(hdrs, headers::USER_TYPE, self.auth.user_type.as_str());
+        insert_header(hdrs, headers::AGENT_NAME, self.execution.agent_name.as_str());
 
         let context_id = self.execution.context_id.as_str();
         if !context_id.is_empty() {
-            insert_header(headers, "x-context-id", context_id);
+            insert_header(hdrs, headers::CONTEXT_ID, context_id);
         }
 
         insert_header_if_present(
-            headers,
-            "x-task-id",
+            hdrs,
+            headers::TASK_ID,
             self.execution.task_id.as_ref().map(TaskId::as_str),
         );
         insert_header_if_present(
-            headers,
-            "x-ai-tool-call-id",
+            hdrs,
+            headers::AI_TOOL_CALL_ID,
             self.execution.ai_tool_call_id.as_ref().map(AsRef::as_ref),
         );
         insert_header_if_present(
-            headers,
-            "x-call-source",
+            hdrs,
+            headers::CALL_SOURCE,
             self.execution.call_source.as_ref().map(CallSource::as_str),
         );
         insert_header_if_present(
-            headers,
-            "x-client-id",
+            hdrs,
+            headers::CLIENT_ID,
             self.request.client_id.as_ref().map(ClientId::as_str),
         );
 
         let auth_token = self.auth.auth_token.as_str();
         if !auth_token.is_empty() {
             let auth_value = format!("Bearer {}", auth_token);
-            insert_header(headers, "authorization", &auth_value);
+            insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
         }
     }
 }
 
 impl ContextPropagation for RequestContext {
-    fn from_headers(headers: &HeaderMap) -> anyhow::Result<Self> {
-        let session_id = headers
-            .get("x-session-id")
+    fn from_headers(hdrs: &HeaderMap) -> anyhow::Result<Self> {
+        let session_id = hdrs
+            .get(headers::SESSION_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing x-session-id header"))?;
+            .ok_or_else(|| anyhow!("Missing {} header", headers::SESSION_ID))?;
 
-        let trace_id = headers
-            .get("x-trace-id")
+        let trace_id = hdrs
+            .get(headers::TRACE_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing x-trace-id header"))?;
+            .ok_or_else(|| anyhow!("Missing {} header", headers::TRACE_ID))?;
 
-        let user_id = headers
-            .get("x-user-id")
+        let user_id = hdrs
+            .get(headers::USER_ID)
             .and_then(|v| v.to_str().ok())
-            .ok_or_else(|| anyhow!("Missing x-user-id header"))?;
+            .ok_or_else(|| anyhow!("Missing {} header", headers::USER_ID))?;
 
-        let context_id = headers
-            .get("x-context-id")
+        let context_id = hdrs
+            .get(headers::CONTEXT_ID)
             .and_then(|v| v.to_str().ok())
             .map_or_else(
                 || ContextId::new(String::new()),
                 |s| ContextId::new(s.to_string()),
             );
 
-        let agent_name = headers
-            .get("x-agent-name")
+        let agent_name = hdrs
+            .get(headers::AGENT_NAME)
             .and_then(|v| v.to_str().ok())
             .ok_or_else(|| {
-                anyhow!("Missing x-agent-name header - all requests must have agent context")
+                anyhow!(
+                    "Missing {} header - all requests must have agent context",
+                    headers::AGENT_NAME
+                )
             })?;
 
-        let task_id = headers
-            .get("x-task-id")
+        let task_id = hdrs
+            .get(headers::TASK_ID)
             .and_then(|v| v.to_str().ok())
             .map(|s| TaskId::new(s.to_string()));
 
-        let ai_tool_call_id = headers
-            .get("x-ai-tool-call-id")
+        let ai_tool_call_id = hdrs
+            .get(headers::AI_TOOL_CALL_ID)
             .and_then(|v| v.to_str().ok())
             .map(|s| AiToolCallId::from(s.to_string()));
 
-        let call_source = headers
-            .get("x-call-source")
+        let call_source = hdrs
+            .get(headers::CALL_SOURCE)
             .and_then(|v| v.to_str().ok())
             .and_then(|s| CallSource::from_str(s).ok());
 
-        let client_id = headers
-            .get("x-client-id")
+        let client_id = hdrs
+            .get(headers::CLIENT_ID)
             .and_then(|v| v.to_str().ok())
             .map(|s| ClientId::new(s.to_string()));
 

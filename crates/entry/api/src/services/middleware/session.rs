@@ -5,8 +5,9 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_core_analytics::AnalyticsService;
 use systemprompt_core_oauth::services::SessionCreationService;
+use systemprompt_core_security::HeaderExtractor;
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::modules::ApiPaths;
@@ -46,13 +47,7 @@ impl SessionMiddleware {
 
         let should_skip = Self::should_skip_session_tracking(uri.path());
 
-        let trace_id = headers
-            .get("x-trace-id")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || TraceId::new(Uuid::new_v4().to_string()),
-                |s| TraceId::new(s.to_string()),
-            );
+        let trace_id = HeaderExtractor::extract_trace_id(headers);
 
         let (req_ctx, jwt_cookie) = if should_skip {
             let ctx = RequestContext::new(

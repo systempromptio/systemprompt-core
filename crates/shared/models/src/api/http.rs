@@ -69,7 +69,7 @@ impl IntoResponse for ApiError {
                 error_code = ?self.code,
                 message = %self.message,
                 path = ?self.path,
-                request_id = ?self.request_id,
+                trace_id = ?self.trace_id,
                 "API server error response"
             );
         } else if status.is_client_error() {
@@ -77,7 +77,7 @@ impl IntoResponse for ApiError {
                 error_code = ?self.code,
                 message = %self.message,
                 path = ?self.path,
-                request_id = ?self.request_id,
+                trace_id = ?self.trace_id,
                 "API client error response"
             );
         }

@@ -3,10 +3,10 @@ use axum::body::Body;
 use axum::extract::Request;
 use axum::http::HeaderMap;
 use std::sync::Arc;
-use uuid::Uuid;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_core_database::DbPool;
+use systemprompt_core_security::HeaderExtractor;
 use systemprompt_core_users::UserService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
@@ -74,31 +74,12 @@ impl JwtContextExtractor {
     fn extract_common_headers(
         headers: &HeaderMap,
     ) -> (TraceId, Option<TaskId>, Option<String>, AgentName) {
-        let trace_id = headers
-            .get("x-trace-id")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(
-                || TraceId::new(Uuid::new_v4().to_string()),
-                |s| TraceId::new(s.to_string()),
-            );
-
-        let task_id = headers
-            .get("x-task-id")
-            .and_then(|h| h.to_str().ok())
-            .map(|s| TaskId::new(s.to_string()));
-
-        let auth_token = headers
-            .get("authorization")
-            .and_then(|h| h.to_str().ok())
-            .and_then(|s| s.strip_prefix("Bearer "))
-            .map(ToString::to_string);
-
-        let agent_name = headers
-            .get("x-agent-name")
-            .and_then(|h| h.to_str().ok())
-            .map_or_else(AgentName::system, |s| AgentName::new(s.to_string()));
-
-        (trace_id, task_id, auth_token, agent_name)
+        (
+            HeaderExtractor::extract_trace_id(headers),
+            HeaderExtractor::extract_task_id(headers),
+            HeaderExtractor::extract_bearer_token(headers),
+            HeaderExtractor::extract_agent_name(headers),
+        )
     }
 
     fn build_context(

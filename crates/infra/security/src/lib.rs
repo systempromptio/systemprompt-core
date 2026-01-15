@@ -6,8 +6,8 @@ pub mod session;
 
 pub use auth::{AuthMode, AuthValidationService};
 pub use extraction::{
-    CookieExtractionError, CookieExtractor, ExtractionMethod, HeaderInjector, TokenExtractionError,
-    TokenExtractor,
+    CookieExtractionError, CookieExtractor, ExtractionMethod, HeaderExtractor, HeaderInjector,
+    TokenExtractionError, TokenExtractor,
 };
 pub use jwt::{AdminTokenParams, JwtService};
 pub use services::ScannerDetector;

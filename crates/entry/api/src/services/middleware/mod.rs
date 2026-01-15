@@ -8,6 +8,7 @@ pub mod jwt;
 pub mod rate_limit;
 pub mod session;
 pub mod throttle;
+pub mod trace;
 pub mod trailing_slash;
 
 pub use analytics::*;
@@ -20,4 +21,5 @@ pub use jwt::*;
 pub use rate_limit::*;
 pub use session::*;
 pub use throttle::*;
+pub use trace::*;
 pub use trailing_slash::*;

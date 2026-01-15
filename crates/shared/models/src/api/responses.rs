@@ -2,7 +2,6 @@ use super::pagination::PaginationInfo;
 use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseLinks {
@@ -19,8 +18,6 @@ pub struct ResponseLinks {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseMeta {
-    pub request_id: Uuid,
-
     pub timestamp: DateTime<Utc>,
 
     pub version: String,
@@ -29,16 +26,9 @@ pub struct ResponseMeta {
     pub pagination: Option<PaginationInfo>,
 }
 
-impl Default for ResponseMeta {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl ResponseMeta {
     pub fn new() -> Self {
         Self {
-            request_id: Uuid::new_v4(),
             timestamp: Utc::now(),
             version: "1.0.0".to_string(),
             pagination: None,
@@ -48,6 +38,12 @@ impl ResponseMeta {
     pub fn with_pagination(mut self, pagination: PaginationInfo) -> Self {
         self.pagination = Some(pagination);
         self
+    }
+}
+
+impl Default for ResponseMeta {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -195,7 +191,6 @@ impl<T: Serialize + 'static> CreatedResponse<T> {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-
 pub struct AcceptedResponse {
     pub message: String,
 
