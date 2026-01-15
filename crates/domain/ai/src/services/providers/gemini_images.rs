@@ -10,7 +10,9 @@ use crate::models::providers::gemini::{
 use crate::services::providers::image_provider_trait::{ImageProvider, ImageProviderCapabilities};
 use async_trait::async_trait;
 use reqwest::Client;
+use std::collections::HashMap;
 use std::time::Instant;
+use systemprompt_models::services::ModelDefinition;
 
 #[derive(Debug)]
 pub struct GeminiImageProvider {
@@ -18,6 +20,7 @@ pub struct GeminiImageProvider {
     api_key: String,
     endpoint: String,
     default_model: String,
+    model_definitions: HashMap<String, ModelDefinition>,
 }
 
 impl GeminiImageProvider {
@@ -33,6 +36,7 @@ impl GeminiImageProvider {
             api_key,
             endpoint: "https://generativelanguage.googleapis.com/v1beta".to_string(),
             default_model: "gemini-2.5-flash-image".to_string(),
+            model_definitions: HashMap::new(),
         }
     }
 
@@ -47,6 +51,11 @@ impl GeminiImageProvider {
         self
     }
 
+    pub fn with_model_definitions(mut self, models: HashMap<String, ModelDefinition>) -> Self {
+        self.model_definitions = models;
+        self
+    }
+
     fn map_resolution_to_gemini_size(resolution: &ImageResolution) -> String {
         match resolution {
             ImageResolution::OneK => "1K".to_string(),
@@ -55,7 +64,13 @@ impl GeminiImageProvider {
         }
     }
 
-    fn build_image_request(request: &ImageGenerationRequest) -> GeminiRequest {
+    fn model_supports_image_size(&self, model: &str) -> bool {
+        self.model_definitions
+            .get(model)
+            .is_some_and(|def| def.capabilities.image_resolution_config)
+    }
+
+    fn build_image_request(&self, request: &ImageGenerationRequest, model: &str) -> GeminiRequest {
         let mut parts = vec![GeminiPart::Text {
             text: request.prompt.clone(),
         }];
@@ -77,6 +92,10 @@ impl GeminiImageProvider {
             parts,
         }];
 
+        let image_size = self
+            .model_supports_image_size(model)
+            .then(|| Self::map_resolution_to_gemini_size(&request.resolution));
+
         let generation_config = GeminiGenerationConfig {
             temperature: None,
             top_p: None,
@@ -88,7 +107,7 @@ impl GeminiImageProvider {
             response_modalities: Some(vec!["IMAGE".to_string()]),
             image_config: Some(GeminiImageConfig {
                 aspect_ratio: request.aspect_ratio.as_str().to_string(),
-                image_size: Self::map_resolution_to_gemini_size(&request.resolution),
+                image_size,
             }),
             thinking_config: None,
         };
@@ -233,7 +252,7 @@ impl ImageProvider for GeminiImageProvider {
             });
         }
 
-        let gemini_request = Self::build_image_request(request);
+        let gemini_request = self.build_image_request(request, model);
 
         let url = format!("{}/models/{}:generateContent", self.endpoint, model);
 

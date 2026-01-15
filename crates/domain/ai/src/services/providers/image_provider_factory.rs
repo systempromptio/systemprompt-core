@@ -27,10 +27,12 @@ impl ImageProviderFactory {
             |ep| GeminiImageProvider::with_endpoint(config.api_key.clone(), ep.clone()),
         );
 
+        let provider = base.with_model_definitions(config.models.clone());
+
         let provider = if config.default_model.is_empty() {
-            base
+            provider
         } else {
-            base.with_default_model(config.default_model.clone())
+            provider.with_default_model(config.default_model.clone())
         };
 
         Arc::new(provider)
