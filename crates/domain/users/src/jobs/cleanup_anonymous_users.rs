@@ -50,4 +50,4 @@ impl Job for CleanupAnonymousUsersJob {
     }
 }
 
-systemprompt_traits::submit_job!(&CleanupAnonymousUsersJob);
+systemprompt_provider_contracts::submit_job!(&CleanupAnonymousUsersJob);

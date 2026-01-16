@@ -13,6 +13,7 @@ workspace = true
 # Shared layer
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 # Infrastructure layer

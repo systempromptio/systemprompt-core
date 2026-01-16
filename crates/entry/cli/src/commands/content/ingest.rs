@@ -21,7 +21,10 @@ pub struct IngestArgs {
     #[arg(long, help = "Category ID")]
     pub category: Option<String>,
 
-    #[arg(long, help = "Allowed content types (comma-separated, overrides config)")]
+    #[arg(
+        long,
+        help = "Allowed content types (comma-separated, overrides config)"
+    )]
     pub allowed_types: Option<String>,
 
     #[arg(long, help = "Scan recursively")]
@@ -38,17 +41,11 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
     let directory = resolve_directory(&args)?;
 
     if !directory.exists() {
-        return Err(anyhow!(
-            "Directory does not exist: {}",
-            directory.display()
-        ));
+        return Err(anyhow!("Directory does not exist: {}", directory.display()));
     }
 
     if !directory.is_dir() {
-        return Err(anyhow!(
-            "Path is not a directory: {}",
-            directory.display()
-        ));
+        return Err(anyhow!("Path is not a directory: {}", directory.display()));
     }
 
     let ctx = AppContext::new().await?;
@@ -114,7 +111,8 @@ fn resolve_allowed_types(args: &IngestArgs) -> Result<Vec<String>> {
         .map(|source| source.allowed_content_types.clone())
         .ok_or_else(|| {
             anyhow!(
-                "Source '{}' not found in content config. Use --allowed-types to specify types manually.",
+                "Source '{}' not found in content config. Use --allowed-types to specify types \
+                 manually.",
                 args.source
             )
         })

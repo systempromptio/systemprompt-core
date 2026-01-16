@@ -23,8 +23,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 reqwest = { workspace = true }
+systemprompt-provider-contracts = { path = "../provider-contracts" }
 systemprompt-traits = { path = "../traits" }
-systemprompt-template-provider = { path = "../template-provider" }
 
 [dev-dependencies]
 tokio = { workspace = true }

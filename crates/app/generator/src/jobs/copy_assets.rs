@@ -110,4 +110,4 @@ impl Job for CopyExtensionAssetsJob {
     }
 }
 
-systemprompt_traits::submit_job!(&CopyExtensionAssetsJob);
+systemprompt_provider_contracts::submit_job!(&CopyExtensionAssetsJob);

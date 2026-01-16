@@ -15,10 +15,10 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use systemprompt_template_provider::{
-    ComponentRenderer, TemplateDataExtender, TemplateProvider,
+use systemprompt_provider_contracts::{
+    ComponentRenderer, Job, LlmProvider, PageDataProvider, TemplateDataExtender, TemplateProvider,
+    ToolProvider,
 };
-use systemprompt_traits::{Job, LlmProvider, ToolProvider};
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
@@ -188,6 +188,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn page_data_providers(&self) -> Vec<Arc<dyn PageDataProvider>> {
+        vec![]
+    }
+
     fn required_storage_paths(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -252,6 +256,10 @@ pub trait Extension: Send + Sync + 'static {
         !self.template_data_extenders().is_empty()
     }
 
+    fn has_page_data_providers(&self) -> bool {
+        !self.page_data_providers().is_empty()
+    }
+
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }
@@ -314,9 +322,9 @@ pub mod prelude {
         NoDependencies,
     };
 
-    pub use systemprompt_template_provider::{
-        ComponentContext, ComponentRenderer, RenderedComponent, TemplateDataExtender,
-        TemplateDefinition, TemplateProvider, TemplateSource,
+    pub use systemprompt_provider_contracts::{
+        ComponentContext, ComponentRenderer, PageContext, PageDataProvider, RenderedComponent,
+        TemplateDataExtender, TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }
 

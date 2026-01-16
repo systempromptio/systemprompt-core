@@ -16,6 +16,7 @@ systemprompt-core-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

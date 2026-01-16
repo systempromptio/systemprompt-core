@@ -30,10 +30,7 @@ impl ExtendedData {
 
     #[must_use]
     pub const fn with_priority(variables: Value, priority: u32) -> Self {
-        Self {
-            variables,
-            priority,
-        }
+        Self { variables, priority }
     }
 }
 

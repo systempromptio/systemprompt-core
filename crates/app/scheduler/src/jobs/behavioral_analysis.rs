@@ -211,4 +211,4 @@ fn log_ban_result(
     }
 }
 
-systemprompt_traits::submit_job!(&BehavioralAnalysisJob);
+systemprompt_provider_contracts::submit_job!(&BehavioralAnalysisJob);

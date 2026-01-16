@@ -194,4 +194,4 @@ impl Job for PublishContentJob {
     }
 }
 
-systemprompt_traits::submit_job!(&PublishContentJob);
+systemprompt_provider_contracts::submit_job!(&PublishContentJob);

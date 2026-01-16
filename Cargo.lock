@@ -5257,6 +5257,7 @@ dependencies = [
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.17",
@@ -5328,6 +5329,7 @@ dependencies = [
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -5464,6 +5466,7 @@ dependencies = [
  "systemprompt-core-users",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-runtime",
  "systemprompt-traits",
  "tempfile",
@@ -5542,6 +5545,7 @@ dependencies = [
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -5562,7 +5566,7 @@ dependencies = [
  "reqwest",
  "serde",
  "serde_json",
- "systemprompt-template-provider",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -5598,6 +5602,7 @@ dependencies = [
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-provider-contracts",
  "systemprompt-template-provider",
  "systemprompt-templates",
  "systemprompt-traits",
@@ -5668,6 +5673,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-provider-contracts"
+version = "0.0.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures",
+ "inventory",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.17",
+]
+
+[[package]]
 name = "systemprompt-runtime"
 version = "0.0.1"
 dependencies = [
@@ -5730,6 +5749,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "systemprompt-provider-contracts",
  "tokio",
  "tracing",
 ]
@@ -5766,6 +5786,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-core-database",
+ "systemprompt-provider-contracts",
  "thiserror 2.0.17",
  "tokio",
 ]

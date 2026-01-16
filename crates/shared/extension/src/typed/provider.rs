@@ -1,8 +1,6 @@
-//! Provider extension trait.
-
 use std::sync::Arc;
 
-use systemprompt_traits::{LlmProvider, ToolProvider};
+use systemprompt_provider_contracts::{LlmProvider, ToolProvider};
 
 use crate::types::ExtensionMeta;
 

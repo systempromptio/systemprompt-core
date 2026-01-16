@@ -4,10 +4,37 @@ use serde_json::Value;
 
 #[derive(Debug)]
 pub struct ComponentContext<'a> {
-    pub item: &'a Value,
-    pub all_items: &'a [Value],
-    pub popular_ids: &'a [String],
     pub web_config: &'a serde_yaml::Value,
+    pub item: Option<&'a Value>,
+    pub all_items: Option<&'a [Value]>,
+    pub popular_ids: Option<&'a [String]>,
+}
+
+impl<'a> ComponentContext<'a> {
+    #[must_use]
+    pub const fn for_page(web_config: &'a serde_yaml::Value) -> Self {
+        Self {
+            web_config,
+            item: None,
+            all_items: None,
+            popular_ids: None,
+        }
+    }
+
+    #[must_use]
+    pub const fn for_content(
+        web_config: &'a serde_yaml::Value,
+        item: &'a Value,
+        all_items: &'a [Value],
+        popular_ids: &'a [String],
+    ) -> Self {
+        Self {
+            web_config,
+            item: Some(item),
+            all_items: Some(all_items),
+            popular_ids: Some(popular_ids),
+        }
+    }
 }
 
 #[derive(Debug)]

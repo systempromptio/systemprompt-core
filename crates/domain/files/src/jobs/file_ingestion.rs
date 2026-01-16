@@ -244,4 +244,4 @@ fn mime_from_extension(ext: &str) -> String {
     .to_string()
 }
 
-systemprompt_traits::submit_job!(&FileIngestionJob);
+systemprompt_provider_contracts::submit_job!(&FileIngestionJob);
