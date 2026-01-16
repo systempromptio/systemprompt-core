@@ -78,7 +78,7 @@ async fn execute_internal(
 }
 
 async fn fetch_geo(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     limit: i64,
