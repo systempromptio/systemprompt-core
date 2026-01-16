@@ -1,12 +1,30 @@
+mod agents;
+mod cli_sessions;
+mod content_analytics;
+mod conversations;
 mod core_stats;
+mod costs;
 mod engagement;
 mod events;
 mod fingerprint;
 mod funnel;
+mod overview;
 mod queries;
+mod requests;
 mod session;
+mod tools;
+mod traffic;
 
+pub use agents::AgentAnalyticsRepository;
+pub use cli_sessions::CliSessionAnalyticsRepository;
+pub use content_analytics::ContentAnalyticsRepository;
+pub use conversations::ConversationAnalyticsRepository;
 pub use core_stats::CoreStatsRepository;
+pub use costs::CostAnalyticsRepository;
+pub use overview::OverviewAnalyticsRepository;
+pub use requests::RequestAnalyticsRepository;
+pub use tools::ToolAnalyticsRepository;
+pub use traffic::TrafficAnalyticsRepository;
 pub use engagement::{EngagementRepository, SessionEngagementSummary};
 pub use events::{AnalyticsEventsRepository, StoredAnalyticsEvent};
 pub use fingerprint::{

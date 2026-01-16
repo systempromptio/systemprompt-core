@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ConversationAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -27,8 +26,8 @@ pub struct StatsArgs {
 
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -36,17 +35,39 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ConversationAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(pool, start, end).await?;
+
+    let total_contexts = repo.get_context_count(start, end).await?;
+    let (total_tasks, avg_duration) = repo.get_task_stats(start, end).await?;
+    let total_messages = repo.get_message_count(start, end).await?;
+
+    let avg_messages_per_task = if total_tasks > 0 {
+        total_messages as f64 / total_tasks as f64
+    } else {
+        0.0
+    };
+
+    let output = ConversationStatsOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_contexts,
+        total_tasks,
+        total_messages,
+        avg_messages_per_task,
+        avg_task_duration_ms: avg_duration.map_or(0, |v| v as i64),
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -62,59 +83,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_stats(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<ConversationStatsOutput> {
-    let contexts: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let tasks: (i64, Option<f64>) = sqlx::query_as(
-        r"
-        SELECT COUNT(*), AVG(execution_time_ms)::float8
-        FROM agent_tasks
-        WHERE started_at >= $1 AND started_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let messages: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM task_messages WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let avg_messages = if tasks.0 > 0 {
-        messages.0 as f64 / tasks.0 as f64
-    } else {
-        0.0
-    };
-
-    Ok(ConversationStatsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_contexts: contexts.0,
-        total_tasks: tasks.0,
-        total_messages: messages.0,
-        avg_messages_per_task: avg_messages,
-        avg_task_duration_ms: tasks.1.map_or(0, |v| v as i64),
-    })
 }
 
 fn render_stats(output: &ConversationStatsOutput) {

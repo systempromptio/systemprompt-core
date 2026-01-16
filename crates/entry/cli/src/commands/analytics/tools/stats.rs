@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ToolAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -34,8 +33,8 @@ pub struct StatsArgs {
 
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -43,17 +42,40 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ToolAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ToolAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(pool, start, end, args.tool.as_ref()).await?;
+
+    let row = repo.get_stats(start, end, args.tool.as_deref()).await?;
+
+    let success_rate = if row.total_executions > 0 {
+        (row.successful as f64 / row.total_executions as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let output = ToolStatsOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_tools: row.total_tools,
+        total_executions: row.total_executions,
+        successful: row.successful,
+        failed: row.failed,
+        timeout: row.timeout,
+        success_rate,
+        avg_execution_time_ms: row.avg_time as i64,
+        p95_execution_time_ms: row.p95_time as i64,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -69,64 +91,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_stats(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    tool_filter: Option<&String>,
-) -> Result<ToolStatsOutput> {
-    let base_query = r"
-        SELECT
-            COUNT(DISTINCT tool_name) as total_tools,
-            COUNT(*) as total_executions,
-            COUNT(*) FILTER (WHERE status = 'success') as successful,
-            COUNT(*) FILTER (WHERE status = 'failed') as failed,
-            COUNT(*) FILTER (WHERE status = 'timeout') as timeout,
-            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time,
-            COALESCE(PERCENTILE_CONT(0.95) WITHIN GROUP (ORDER BY execution_time_ms)::float8, 0) as p95_time
-        FROM mcp_tool_executions
-        WHERE created_at >= $1 AND created_at < $2
-    ";
-
-    let row: (i64, i64, i64, i64, i64, f64, f64) = if let Some(tool) = tool_filter {
-        let query = format!("{} AND tool_name ILIKE $3", base_query);
-        sqlx::query_as(&query)
-            .bind(start)
-            .bind(end)
-            .bind(format!("%{}%", tool))
-            .fetch_one(pool.as_ref())
-            .await?
-    } else {
-        sqlx::query_as(base_query)
-            .bind(start)
-            .bind(end)
-            .fetch_one(pool.as_ref())
-            .await?
-    };
-
-    let success_rate = if row.1 > 0 {
-        (row.2 as f64 / row.1 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(ToolStatsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_tools: row.0,
-        total_executions: row.1,
-        successful: row.2,
-        failed: row.3,
-        timeout: row.4,
-        success_rate,
-        avg_execution_time_ms: row.5 as i64,
-        p95_execution_time_ms: row.6 as i64,
-    })
 }
 
 fn render_stats(output: &ToolStatsOutput) {

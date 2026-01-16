@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ToolAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -21,12 +20,14 @@ pub enum ToolSortBy {
     AvgTime,
 }
 
-struct ToolQueryParams<'a> {
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-    server_filter: Option<&'a String>,
-    sort_by: ToolSortBy,
+impl ToolSortBy {
+    fn as_str(&self) -> &'static str {
+        match self {
+            ToolSortBy::ExecutionCount => "execution_count",
+            ToolSortBy::SuccessRate => "success_rate",
+            ToolSortBy::AvgTime => "avg_time",
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -66,8 +67,8 @@ pub struct ListArgs {
 
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ToolAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -75,24 +76,51 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ToolAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: ListArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ToolAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let params = ToolQueryParams {
-        start,
-        end,
-        limit: args.limit,
-        server_filter: args.server.as_ref(),
-        sort_by: args.sort_by,
+
+    let rows = repo
+        .list_tools(
+            start,
+            end,
+            args.limit,
+            args.server.as_deref(),
+            args.sort_by.as_str(),
+        )
+        .await?;
+
+    let tools: Vec<ToolListRow> = rows
+        .into_iter()
+        .map(|row| {
+            let success_rate = if row.execution_count > 0 {
+                (row.success_count as f64 / row.execution_count as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            ToolListRow {
+                tool_name: row.tool_name,
+                server_name: row.server_name,
+                execution_count: row.execution_count,
+                success_rate,
+                avg_execution_time_ms: row.avg_time as i64,
+                last_used: row.last_used.format("%Y-%m-%d %H:%M:%S").to_string(),
+            }
+        })
+        .collect();
+
+    let output = ToolListOutput {
+        total: tools.len() as i64,
+        tools,
     };
-    let output = fetch_tools(pool, &params).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.tools, path)?;
@@ -125,85 +153,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_tools(
-    pool: &Arc<sqlx::PgPool>,
-    params: &ToolQueryParams<'_>,
-) -> Result<ToolListOutput> {
-    let order_clause = match params.sort_by {
-        ToolSortBy::ExecutionCount => "COUNT(*) DESC",
-        ToolSortBy::SuccessRate => {
-            "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE status = 'success')::float / \
-             COUNT(*)::float ELSE 0 END DESC"
-        },
-        ToolSortBy::AvgTime => "COALESCE(AVG(execution_time_ms), 0) DESC",
-    };
-
-    let base_query = r"
-        SELECT
-            tool_name,
-            server_name,
-            COUNT(*) as execution_count,
-            COUNT(*) FILTER (WHERE status = 'success') as success_count,
-            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time,
-            MAX(created_at) as last_used
-        FROM mcp_tool_executions
-        WHERE created_at >= $1 AND created_at < $2
-    ";
-
-    let rows: Vec<(String, String, i64, i64, f64, DateTime<Utc>)> =
-        if let Some(server) = params.server_filter {
-            let query = format!(
-                "{} AND server_name ILIKE $3 GROUP BY tool_name, server_name ORDER BY {} LIMIT $4",
-                base_query, order_clause
-            );
-            sqlx::query_as(&query)
-                .bind(params.start)
-                .bind(params.end)
-                .bind(format!("%{}%", server))
-                .bind(params.limit)
-                .fetch_all(pool.as_ref())
-                .await?
-        } else {
-            let query = format!(
-                "{} GROUP BY tool_name, server_name ORDER BY {} LIMIT $3",
-                base_query, order_clause
-            );
-            sqlx::query_as(&query)
-                .bind(params.start)
-                .bind(params.end)
-                .bind(params.limit)
-                .fetch_all(pool.as_ref())
-                .await?
-        };
-
-    let tools: Vec<ToolListRow> = rows
-        .into_iter()
-        .map(
-            |(tool_name, server_name, execution_count, success_count, avg_time, last_used)| {
-                let success_rate = if execution_count > 0 {
-                    (success_count as f64 / execution_count as f64) * 100.0
-                } else {
-                    0.0
-                };
-
-                ToolListRow {
-                    tool_name,
-                    server_name,
-                    execution_count,
-                    success_rate,
-                    avg_execution_time_ms: avg_time as i64,
-                    last_used: last_used.format("%Y-%m-%d %H:%M:%S").to_string(),
-                }
-            },
-        )
-        .collect();
-
-    Ok(ToolListOutput {
-        total: tools.len() as i64,
-        tools,
-    })
 }
 
 fn render_list(output: &ToolListOutput) {

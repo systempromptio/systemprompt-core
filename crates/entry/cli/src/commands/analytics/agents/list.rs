@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::AgentAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -20,6 +19,17 @@ pub enum AgentSortBy {
     SuccessRate,
     Cost,
     LastActive,
+}
+
+impl AgentSortBy {
+    fn as_str(&self) -> &'static str {
+        match self {
+            Self::TaskCount => "task_count",
+            Self::SuccessRate => "success_rate",
+            Self::Cost => "cost",
+            Self::LastActive => "last_active",
+        }
+    }
 }
 
 #[derive(Debug, Args)]
@@ -56,8 +66,8 @@ pub struct ListArgs {
 
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -65,17 +75,44 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: ListArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &AgentAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_agents(pool, start, end, args.limit, args.sort_by).await?;
+    let rows = repo
+        .list_agents(start, end, args.limit, args.sort_by.as_str())
+        .await?;
+
+    let agents: Vec<AgentListRow> = rows
+        .into_iter()
+        .map(|row| {
+            let success_rate = if row.task_count > 0 {
+                (row.completed_count as f64 / row.task_count as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            AgentListRow {
+                agent_name: row.agent_name,
+                task_count: row.task_count,
+                success_rate,
+                avg_execution_time_ms: row.avg_execution_time_ms,
+                total_cost_cents: row.total_cost_cents,
+                last_active: row.last_active.format("%Y-%m-%d %H:%M:%S").to_string(),
+            }
+        })
+        .collect();
+
+    let output = AgentListOutput {
+        total: agents.len() as i64,
+        agents,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.agents, path)?;
@@ -108,89 +145,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_agents(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-    sort_by: AgentSortBy,
-) -> Result<AgentListOutput> {
-    let order_clause = match sort_by {
-        AgentSortBy::TaskCount => "COUNT(*) DESC",
-        AgentSortBy::SuccessRate => {
-            "CASE WHEN COUNT(*) > 0 THEN COUNT(*) FILTER (WHERE t.status = 'completed')::float / \
-             COUNT(*)::float ELSE 0 END DESC"
-        },
-        AgentSortBy::Cost => "COALESCE(SUM(r.cost_cents), 0) DESC",
-        AgentSortBy::LastActive => "MAX(t.started_at) DESC",
-    };
-
-    let query = format!(
-        r"
-        SELECT
-            t.agent_name,
-            COUNT(*)::bigint as task_count,
-            COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as completed_count,
-            AVG(t.execution_time_ms::float8) as avg_execution_time_ms,
-            COALESCE(SUM(r.cost_cents), 0)::bigint as total_cost_cents,
-            MAX(t.started_at) as last_active
-        FROM agent_tasks t
-        LEFT JOIN ai_requests r ON r.task_id = t.task_id
-        WHERE t.started_at >= $1 AND t.started_at < $2
-          AND t.agent_name IS NOT NULL
-        GROUP BY t.agent_name
-        ORDER BY {}
-        LIMIT $3
-        ",
-        order_clause
-    );
-
-    let rows: Vec<(
-        Option<String>,
-        i64,
-        i64,
-        Option<f64>,
-        i64,
-        Option<DateTime<Utc>>,
-    )> = sqlx::query_as(&query)
-        .bind(start)
-        .bind(end)
-        .bind(limit)
-        .fetch_all(pool.as_ref())
-        .await?;
-
-    let agents: Vec<AgentListRow> = rows
-        .into_iter()
-        .filter_map(
-            |(agent_name, task_count, completed_count, avg_time, cost, last_active)| {
-                let agent_name = agent_name?;
-                let success_rate = if task_count > 0 {
-                    (completed_count as f64 / task_count as f64) * 100.0
-                } else {
-                    0.0
-                };
-
-                Some(AgentListRow {
-                    agent_name,
-                    task_count,
-                    success_rate,
-                    avg_execution_time_ms: avg_time.map_or(0, |v| v as i64),
-                    total_cost_cents: cost,
-                    last_active: last_active.map_or_else(
-                        || "N/A".to_string(),
-                        |dt| dt.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    ),
-                })
-            },
-        )
-        .collect();
-
-    Ok(AgentListOutput {
-        total: agents.len() as i64,
-        agents,
-    })
 }
 
 fn render_list(output: &AgentListOutput) {

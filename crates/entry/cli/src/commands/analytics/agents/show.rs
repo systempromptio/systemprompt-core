@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::AgentAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -37,8 +36,8 @@ pub struct ShowArgs {
 
 pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -46,17 +45,98 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: ShowArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &AgentAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_agent_details(pool, &args.agent, start, end).await?;
+
+    // Check if agent exists
+    let count = repo.agent_exists(&args.agent, start, end).await?;
+    if count == 0 {
+        return Err(anyhow!(
+            "Agent '{}' not found in the specified time range",
+            args.agent
+        ));
+    }
+
+    // Fetch all data
+    let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;
+    let status_breakdown_rows = repo.get_status_breakdown(&args.agent, start, end).await?;
+    let top_errors_rows = repo.get_top_errors(&args.agent, start, end).await?;
+    let hourly_rows = repo.get_hourly_distribution(&args.agent, start, end).await?;
+
+    // Build summary
+    let success_rate = if summary_row.total_tasks > 0 {
+        (summary_row.completed as f64 / summary_row.total_tasks as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let period = format!(
+        "{} to {}",
+        start.format("%Y-%m-%d %H:%M"),
+        end.format("%Y-%m-%d %H:%M")
+    );
+
+    let summary = AgentStatsOutput {
+        period: period.clone(),
+        total_agents: 1,
+        total_tasks: summary_row.total_tasks,
+        completed_tasks: summary_row.completed,
+        failed_tasks: summary_row.failed,
+        success_rate,
+        avg_execution_time_ms: summary_row.avg_time as i64,
+        total_ai_requests: 0,
+        total_cost_cents: 0,
+    };
+
+    // Build status breakdown
+    let total: i64 = status_breakdown_rows.iter().map(|r| r.status_count).sum();
+    let status_breakdown: Vec<StatusBreakdownItem> = status_breakdown_rows
+        .into_iter()
+        .map(|row| StatusBreakdownItem {
+            status: row.status,
+            count: row.status_count,
+            percentage: if total > 0 {
+                (row.status_count as f64 / total as f64) * 100.0
+            } else {
+                0.0
+            },
+        })
+        .collect();
+
+    // Build error breakdown
+    let top_errors: Vec<ErrorBreakdownItem> = top_errors_rows
+        .into_iter()
+        .map(|row| ErrorBreakdownItem {
+            error_type: row.error_type.unwrap_or_else(|| "Unknown".to_string()),
+            count: row.error_count,
+        })
+        .collect();
+
+    // Build hourly distribution
+    let hourly_distribution: Vec<HourlyDistributionItem> = hourly_rows
+        .into_iter()
+        .map(|row| HourlyDistributionItem {
+            hour: row.task_hour,
+            count: row.task_count,
+        })
+        .collect();
+
+    let output = AgentShowOutput {
+        agent_name: args.agent.clone(),
+        period,
+        summary,
+        status_breakdown,
+        top_errors,
+        hourly_distribution,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -72,202 +152,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_agent_details(
-    pool: &Arc<sqlx::PgPool>,
-    agent_name: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<AgentShowOutput> {
-    let exists: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND \
-         started_at < $3",
-    )
-    .bind(format!("%{}%", agent_name))
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    if exists.0 == 0 {
-        return Err(anyhow!(
-            "Agent '{}' not found in the specified time range",
-            agent_name
-        ));
-    }
-
-    let summary = fetch_summary(pool, agent_name, start, end).await?;
-    let status_breakdown = fetch_status_breakdown(pool, agent_name, start, end).await?;
-    let top_errors = fetch_top_errors(pool, agent_name, start, end).await?;
-    let hourly_distribution = fetch_hourly_distribution(pool, agent_name, start, end).await?;
-
-    Ok(AgentShowOutput {
-        agent_name: agent_name.to_string(),
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        summary,
-        status_breakdown,
-        top_errors,
-        hourly_distribution,
-    })
-}
-
-async fn fetch_summary(
-    pool: &Arc<sqlx::PgPool>,
-    agent_name: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<AgentStatsOutput> {
-    let row: (i64, i64, i64, f64) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(*) as total_tasks,
-            COUNT(*) FILTER (WHERE status = 'completed') as completed,
-            COUNT(*) FILTER (WHERE status = 'failed') as failed,
-            COALESCE(AVG(execution_time_ms)::float8, 0) as avg_time
-        FROM agent_tasks
-        WHERE agent_name ILIKE $1
-          AND started_at >= $2 AND started_at < $3
-        ",
-    )
-    .bind(format!("%{}%", agent_name))
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let success_rate = if row.0 > 0 {
-        (row.1 as f64 / row.0 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(AgentStatsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_agents: 1,
-        total_tasks: row.0,
-        completed_tasks: row.1,
-        failed_tasks: row.2,
-        success_rate,
-        avg_execution_time_ms: row.3 as i64,
-        total_ai_requests: 0,
-        total_cost_cents: 0,
-    })
-}
-
-async fn fetch_status_breakdown(
-    pool: &Arc<sqlx::PgPool>,
-    agent_name: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<Vec<StatusBreakdownItem>> {
-    let rows: Vec<(String, i64)> = sqlx::query_as(
-        r"
-        SELECT status, COUNT(*) as count
-        FROM agent_tasks
-        WHERE agent_name ILIKE $1
-          AND started_at >= $2 AND started_at < $3
-        GROUP BY status
-        ORDER BY count DESC
-        ",
-    )
-    .bind(format!("%{}%", agent_name))
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let total: i64 = rows.iter().map(|(_, c)| c).sum();
-
-    Ok(rows
-        .into_iter()
-        .map(|(status, count)| StatusBreakdownItem {
-            status,
-            count,
-            percentage: if total > 0 {
-                (count as f64 / total as f64) * 100.0
-            } else {
-                0.0
-            },
-        })
-        .collect())
-}
-
-async fn fetch_top_errors(
-    pool: &Arc<sqlx::PgPool>,
-    agent_name: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<Vec<ErrorBreakdownItem>> {
-    let rows: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r"
-        SELECT
-            COALESCE(
-                SUBSTRING(l.message FROM 1 FOR 100),
-                'Unknown error'
-            ) as error_type,
-            COUNT(*) as count
-        FROM agent_tasks at
-        LEFT JOIN logs l ON l.task_id = at.task_id AND l.level = 'ERROR'
-        WHERE at.agent_name ILIKE $1
-          AND at.started_at >= $2 AND at.started_at < $3
-          AND at.status = 'failed'
-        GROUP BY SUBSTRING(l.message FROM 1 FOR 100)
-        ORDER BY count DESC
-        LIMIT 10
-        ",
-    )
-    .bind(format!("%{}%", agent_name))
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|(error_type, count)| ErrorBreakdownItem {
-            error_type: error_type.unwrap_or_else(|| "Unknown".to_string()),
-            count,
-        })
-        .collect())
-}
-
-async fn fetch_hourly_distribution(
-    pool: &Arc<sqlx::PgPool>,
-    agent_name: &str,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<Vec<HourlyDistributionItem>> {
-    let rows: Vec<(i32, i64)> = sqlx::query_as(
-        r"
-        SELECT
-            EXTRACT(HOUR FROM started_at)::INTEGER as hour,
-            COUNT(*) as count
-        FROM agent_tasks
-        WHERE agent_name ILIKE $1
-          AND started_at >= $2 AND started_at < $3
-        GROUP BY EXTRACT(HOUR FROM started_at)
-        ORDER BY hour
-        ",
-    )
-    .bind(format!("%{}%", agent_name))
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    Ok(rows
-        .into_iter()
-        .map(|(hour, count)| HourlyDistributionItem { hour, count })
-        .collect())
 }
 
 fn render_agent_details(output: &AgentShowOutput) {
