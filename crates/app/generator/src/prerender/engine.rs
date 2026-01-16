@@ -5,9 +5,12 @@ use anyhow::{Context, Result};
 use systemprompt_core_content::models::{Content, ContentError};
 use systemprompt_core_content::ContentRepository;
 use systemprompt_core_database::DbPool;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
+use systemprompt_template_provider::{
+    ComponentContext, DynTemplateLoader, DynTemplateProvider, FileSystemLoader,
+};
 use systemprompt_templates::{CoreTemplateProvider, TemplateRegistry, TemplateRegistryBuilder};
 use tokio::fs;
 
@@ -48,7 +51,7 @@ pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
     let branding = extract_homepage_branding(&ctx.web_config, &ctx.config);
     let footer_html = generate_footer_html(&ctx.web_config).unwrap_or_default();
 
-    let homepage_data = serde_json::json!({
+    let mut homepage_data = serde_json::json!({
         "site": &ctx.web_config,
         "nav": {
             "agent_url": "/agent",
@@ -66,6 +69,33 @@ pub async fn prerender_homepage(db_pool: DbPool) -> Result<()> {
         "JS_BASE_PATH": format!("/{}", storage::JS),
         "CSS_BASE_PATH": format!("/{}", storage::CSS)
     });
+
+    let empty_item = serde_json::json!({});
+    let empty_items: Vec<serde_json::Value> = vec![];
+    let empty_popular: Vec<String> = vec![];
+    let component_ctx = ComponentContext {
+        item: &empty_item,
+        all_items: &empty_items,
+        popular_ids: &empty_popular,
+        web_config: &ctx.web_config,
+    };
+
+    for component in ctx.template_registry.components_for("homepage") {
+        match component.render(&component_ctx).await {
+            Ok(rendered) => {
+                if let Some(obj) = homepage_data.as_object_mut() {
+                    obj.insert(rendered.variable_name, serde_json::Value::String(rendered.html));
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    component_id = %component.component_id(),
+                    error = %e,
+                    "Homepage component render failed"
+                );
+            }
+        }
+    }
 
     let html = ctx
         .template_registry
@@ -194,6 +224,16 @@ async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
     if let Some(core_prov) = core_provider {
         let core_prov: DynTemplateProvider = Arc::new(core_prov);
         registry_builder = registry_builder.with_provider(core_prov);
+    }
+
+    let extensions = ExtensionRegistry::discover();
+    for ext in extensions.extensions() {
+        for component in ext.component_renderers() {
+            registry_builder = registry_builder.with_component(component);
+        }
+        for extender in ext.template_data_extenders() {
+            registry_builder = registry_builder.with_extender(extender);
+        }
     }
 
     let template_registry = registry_builder
@@ -428,7 +468,7 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
 
     let content_html = render_markdown(markdown_content);
 
-    let template_data = prepare_template_data(TemplateDataParams {
+    let mut template_data = prepare_template_data(TemplateDataParams {
         item,
         all_items,
         popular_ids,
@@ -445,6 +485,30 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .get("content_type")
         .and_then(|v| v.as_str())
         .unwrap_or(*source_name);
+
+    let component_ctx = ComponentContext {
+        item,
+        all_items,
+        popular_ids,
+        web_config: &ctx.web_config,
+    };
+
+    for component in ctx.template_registry.components_for(content_type) {
+        match component.render(&component_ctx).await {
+            Ok(rendered) => {
+                if let Some(obj) = template_data.as_object_mut() {
+                    obj.insert(rendered.variable_name, serde_json::Value::String(rendered.html));
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    component_id = %component.component_id(),
+                    error = %e,
+                    "Component render failed"
+                );
+            }
+        }
+    }
 
     let template_name = ctx
         .template_registry
