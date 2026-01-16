@@ -8,6 +8,7 @@ use std::sync::Arc;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
+use super::shared::truncate_id;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -300,12 +301,4 @@ fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
         "Tip: Use 'logs trace show {}' for full trace with AI/MCP details",
         truncate_id(&trace_id, 12)
     ));
-}
-
-fn truncate_id(id: &str, max_len: usize) -> String {
-    if id.len() > max_len {
-        format!("{}...", &id[..max_len])
-    } else {
-        id.to_string()
-    }
 }

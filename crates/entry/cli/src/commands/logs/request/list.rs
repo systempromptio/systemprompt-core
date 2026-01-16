@@ -7,6 +7,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{RequestListOutput, RequestListRow};
 use crate::commands::logs::duration::parse_since;
+use crate::commands::logs::shared::truncate_id;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -133,7 +134,7 @@ async fn execute_with_pool_inner(
             let cost_dollars = f64::from(r.cost_cents) / 1_000_000.0;
 
             RequestListRow {
-                request_id: truncate_id(&r.id),
+                request_id: truncate_id(&r.id, 12),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 provider: r.provider,
                 model: r.model,
@@ -172,14 +173,6 @@ async fn execute_with_pool_inner(
     }
 
     Ok(())
-}
-
-fn truncate_id(id: &str) -> String {
-    if id.len() > 12 {
-        format!("{}...", &id[..12])
-    } else {
-        id.to_string()
-    }
 }
 
 fn render_text_output(output: &RequestListOutput) {
