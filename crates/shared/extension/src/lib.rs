@@ -15,7 +15,9 @@ use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use systemprompt_template_provider::TemplateProvider;
+use systemprompt_template_provider::{
+    ComponentRenderer, TemplateDataExtender, TemplateProvider,
+};
 use systemprompt_traits::{Job, LlmProvider, ToolProvider};
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
@@ -178,6 +180,14 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn component_renderers(&self) -> Vec<Arc<dyn ComponentRenderer>> {
+        vec![]
+    }
+
+    fn template_data_extenders(&self) -> Vec<Arc<dyn TemplateDataExtender>> {
+        vec![]
+    }
+
     fn required_storage_paths(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -232,6 +242,14 @@ pub trait Extension: Send + Sync + 'static {
 
     fn has_template_providers(&self) -> bool {
         !self.template_providers().is_empty()
+    }
+
+    fn has_component_renderers(&self) -> bool {
+        !self.component_renderers().is_empty()
+    }
+
+    fn has_template_data_extenders(&self) -> bool {
+        !self.template_data_extenders().is_empty()
     }
 
     fn has_storage_paths(&self) -> bool {
@@ -297,6 +315,7 @@ pub mod prelude {
     };
 
     pub use systemprompt_template_provider::{
+        ComponentContext, ComponentRenderer, RenderedComponent, TemplateDataExtender,
         TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }
