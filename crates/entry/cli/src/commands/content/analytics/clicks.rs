@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_content::LinkAnalyticsService;
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::LinkId;
 use systemprompt_runtime::AppContext;
 
@@ -19,9 +20,17 @@ pub struct ClicksArgs {
     pub offset: i64,
 }
 
-pub async fn execute(args: ClicksArgs, _config: &CliConfig) -> Result<CommandResult<ClicksOutput>> {
+pub async fn execute(args: ClicksArgs, config: &CliConfig) -> Result<CommandResult<ClicksOutput>> {
     let ctx = AppContext::new().await?;
-    let service = LinkAnalyticsService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: ClicksArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<ClicksOutput>> {
+    let service = LinkAnalyticsService::new(pool)?;
 
     let link_id = LinkId::new(args.link_id.clone());
     let clicks = service

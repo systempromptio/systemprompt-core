@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_content::LinkAnalyticsService;
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::CampaignId;
 use systemprompt_runtime::AppContext;
 
@@ -15,10 +16,18 @@ pub struct CampaignArgs {
 
 pub async fn execute(
     args: CampaignArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<CampaignAnalyticsOutput>> {
     let ctx = AppContext::new().await?;
-    let service = LinkAnalyticsService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: CampaignArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<CampaignAnalyticsOutput>> {
+    let service = LinkAnalyticsService::new(pool)?;
 
     let campaign_id = CampaignId::new(args.campaign_id.clone());
     let performance = service

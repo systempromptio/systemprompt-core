@@ -1,6 +1,7 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::UserService;
 use systemprompt_runtime::AppContext;
@@ -15,7 +16,11 @@ pub struct CountArgs {
 
 pub async fn execute(args: CountArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(args: CountArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let user_service = UserService::new(pool)?;
 
     if args.breakdown {
         let breakdown = user_service.count_with_breakdown().await?;

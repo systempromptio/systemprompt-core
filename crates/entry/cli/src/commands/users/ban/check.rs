@@ -1,6 +1,7 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::BannedIpRepository;
 use systemprompt_runtime::AppContext;
@@ -14,7 +15,11 @@ pub struct CheckArgs {
 
 pub async fn execute(args: CheckArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(args: CheckArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let ban_repository = BannedIpRepository::new(pool)?;
 
     let is_banned = ban_repository.is_banned(&args.ip).await?;
     let ban_info = if is_banned {

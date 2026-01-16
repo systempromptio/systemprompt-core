@@ -15,8 +15,9 @@ mod types;
 mod update;
 
 use crate::cli_settings::CliConfig;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Subcommand;
+use systemprompt_runtime::DatabaseContext;
 
 pub use types::*;
 
@@ -81,5 +82,38 @@ pub async fn execute(cmd: UsersCommands, config: &CliConfig) -> Result<()> {
         UsersCommands::Role(cmd) => role::execute(cmd, config).await,
         UsersCommands::Session(cmd) => session::execute(cmd, config).await,
         UsersCommands::Ban(cmd) => ban::execute(cmd, config).await,
+    }
+}
+
+pub async fn execute_with_db(
+    cmd: UsersCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match cmd {
+        UsersCommands::List(args) => list::execute_with_pool(args, db_ctx.db_pool(), config).await,
+        UsersCommands::Show(args) => show::execute_with_pool(args, db_ctx.db_pool(), config).await,
+        UsersCommands::Search(args) => {
+            search::execute_with_pool(args, db_ctx.db_pool(), config).await
+        },
+        UsersCommands::Count(args) => {
+            count::execute_with_pool(args, db_ctx.db_pool(), config).await
+        },
+        UsersCommands::Export(args) => {
+            export::execute_with_pool(args, db_ctx.db_pool(), config).await
+        },
+        UsersCommands::Stats => stats::execute_with_pool(db_ctx.db_pool(), config).await,
+        UsersCommands::Session(cmd) => {
+            session::execute_with_pool(cmd, db_ctx.db_pool(), config).await
+        },
+        UsersCommands::Ban(cmd) => ban::execute_with_pool(cmd, db_ctx.db_pool(), config).await,
+        UsersCommands::Role(cmd) => role::execute_with_pool(cmd, db_ctx.db_pool(), config).await,
+        UsersCommands::Create(_)
+        | UsersCommands::Update(_)
+        | UsersCommands::Delete(_)
+        | UsersCommands::Merge(_)
+        | UsersCommands::Bulk(_) => {
+            bail!("Write operations require full profile context")
+        },
     }
 }

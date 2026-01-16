@@ -14,8 +14,9 @@ pub mod verify;
 
 use crate::cli_settings::{get_global_config, CliConfig};
 use crate::shared::render_result;
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Subcommand;
+use systemprompt_runtime::DatabaseContext;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentCommands {
@@ -131,6 +132,58 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
                 .await
                 .context("Failed to publish content")?;
             render_result(&result);
+        },
+    }
+    Ok(())
+}
+
+pub async fn execute_with_db(
+    command: ContentCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        ContentCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to list content")?;
+            render_result(&result);
+        },
+        ContentCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to show content")?;
+            render_result(&result);
+        },
+        ContentCommands::Search(args) => {
+            let result = search::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to search content")?;
+            render_result(&result);
+        },
+        ContentCommands::Popular(args) => {
+            let result = popular::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to get popular content")?;
+            render_result(&result);
+        },
+        ContentCommands::Status(args) => {
+            let result = status::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to get content status")?;
+            render_result(&result);
+        },
+        ContentCommands::Analytics(cmd) => {
+            analytics::execute_with_pool(cmd, db_ctx.db_pool(), config).await?;
+        },
+        ContentCommands::Ingest(_)
+        | ContentCommands::Delete(_)
+        | ContentCommands::DeleteSource(_)
+        | ContentCommands::Verify(_)
+        | ContentCommands::Link(_)
+        | ContentCommands::Publish(_)
+        | ContentCommands::Generate(_) => {
+            bail!("This content command requires full profile context")
         },
     }
     Ok(())

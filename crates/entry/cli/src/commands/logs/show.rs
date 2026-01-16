@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
@@ -64,19 +64,35 @@ struct LogRow {
 pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
-    if let Some(log) = find_log_by_id(&pool, &args.id).await? {
+pub async fn execute_with_pool(
+    args: ShowArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: ShowArgs,
+    pool: &Arc<PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
+    if let Some(log) = find_log_by_id(pool, &args.id).await? {
         display_single_log(&log, config, args.json);
         return Ok(());
     }
 
-    let logs = find_logs_by_trace(&pool, &args.id).await?;
+    let logs = find_logs_by_trace(pool, &args.id).await?;
     if !logs.is_empty() {
         display_trace_logs(&logs, config, args.json);
         return Ok(());
     }
 
-    if let Some(log) = find_log_by_partial_id(&pool, &args.id).await? {
+    if let Some(log) = find_log_by_partial_id(pool, &args.id).await? {
         display_single_log(&log, config, args.json);
         return Ok(());
     }

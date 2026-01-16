@@ -5,11 +5,11 @@ mod query;
 mod schema;
 mod types;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_core_database::{DatabaseAdminService, QueryExecutor};
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
 
@@ -128,5 +128,58 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             introspect::execute_indexes(&db.admin_service, table, config).await
         },
         DbCommands::Size => introspect::execute_size(&db.admin_service, config).await,
+    }
+}
+
+pub async fn execute_with_db(
+    cmd: DbCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx
+        .db_pool()
+        .pool_arc()
+        .context("Database must be PostgreSQL")?;
+    let admin_service = DatabaseAdminService::new(Arc::clone(&pool));
+    let query_executor = QueryExecutor::new(pool);
+
+    match cmd {
+        DbCommands::Query {
+            sql,
+            limit,
+            offset,
+            format,
+        } => {
+            let params = query::QueryParams {
+                sql: &sql,
+                limit,
+                offset,
+                format: format.as_deref(),
+            };
+            query::execute_query(&query_executor, &params, config).await
+        },
+        DbCommands::Execute { sql, format } => {
+            query::execute_write(&query_executor, &sql, format.as_deref(), config).await
+        },
+        DbCommands::Tables { filter } => {
+            schema::execute_tables(&admin_service, filter, config).await
+        },
+        DbCommands::Describe { table_name } => {
+            schema::execute_describe(&admin_service, &table_name, config).await
+        },
+        DbCommands::Info => schema::execute_info(&admin_service, config).await,
+        DbCommands::Migrate => admin::execute_migrate_standalone(db_ctx, config).await,
+        DbCommands::AssignAdmin { .. } => {
+            bail!("assign-admin requires full profile context")
+        },
+        DbCommands::Status => admin::execute_status(&admin_service, config).await,
+        DbCommands::Validate => schema::execute_validate(&admin_service, config).await,
+        DbCommands::Count { table_name } => {
+            schema::execute_count(&admin_service, &table_name, config).await
+        },
+        DbCommands::Indexes { table } => {
+            introspect::execute_indexes(&admin_service, table, config).await
+        },
+        DbCommands::Size => introspect::execute_size(&admin_service, config).await,
     }
 }

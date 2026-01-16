@@ -3,8 +3,9 @@ use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
@@ -66,11 +67,27 @@ struct LogRow {
 pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: ExportArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: ExportArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
 
-    let rows = fetch_logs(&pool, since_timestamp, level_filter.as_deref(), args.limit).await?;
+    let rows = fetch_logs(pool, since_timestamp, level_filter.as_deref(), args.limit).await?;
 
     let logs: Vec<LogEntryRow> = rows
         .into_iter()
@@ -138,7 +155,7 @@ pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn fetch_logs(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     since: Option<DateTime<Utc>>,
     level: Option<&str>,
     limit: i64,

@@ -9,24 +9,26 @@ use crate::commands::users::types::BulkDeleteOutput;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
-    /// Filter by role (e.g., 'anonymous')
-    #[arg(long)]
+    #[arg(long, help = "Filter by role (e.g., 'anonymous')")]
     pub role: Option<String>,
 
-    /// Filter by status (e.g., 'inactive')
-    #[arg(long)]
+    #[arg(long, help = "Filter by status (e.g., 'inactive')")]
     pub status: Option<String>,
 
-    /// Filter by age: users older than N days
-    #[arg(long)]
+    #[arg(long, help = "Filter by age: users older than N days")]
     pub older_than: Option<i64>,
 
-    /// Maximum number of users to delete
-    #[arg(long, default_value = "100")]
+    #[arg(
+        long,
+        default_value = "100",
+        help = "Maximum number of users to delete"
+    )]
     pub limit: i64,
 
-    /// Dry run - show what would be deleted without actually deleting
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Dry run - show what would be deleted without actually deleting"
+    )]
     pub dry_run: bool,
 
     #[arg(short = 'y', long)]

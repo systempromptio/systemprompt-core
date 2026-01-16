@@ -12,8 +12,9 @@ mod validate;
 pub mod ai;
 pub mod content;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::Subcommand;
+use systemprompt_runtime::DatabaseContext;
 
 use crate::shared::render_result;
 use crate::CliConfig;
@@ -111,5 +112,50 @@ pub async fn execute_with_config(cmd: FilesCommands, config: &CliConfig) -> Resu
         },
         FilesCommands::Content(cmd) => content::execute(cmd, config).await,
         FilesCommands::Ai(cmd) => ai::execute(cmd, config).await,
+    }
+}
+
+pub async fn execute_with_db(
+    cmd: FilesCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match cmd {
+        FilesCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to list files")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to show file")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Search(args) => {
+            let result = search::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to search files")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Stats(args) => {
+            let result = stats::execute_with_pool(args, db_ctx.db_pool(), config)
+                .await
+                .context("Failed to get file stats")?;
+            render_result(&result);
+            Ok(())
+        },
+        FilesCommands::Upload(_)
+        | FilesCommands::Delete(_)
+        | FilesCommands::Validate(_)
+        | FilesCommands::Config(_)
+        | FilesCommands::Content(_)
+        | FilesCommands::Ai(_) => {
+            bail!("This files command requires full profile context")
+        },
     }
 }

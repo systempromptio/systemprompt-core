@@ -5,6 +5,7 @@ use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_core_content::ContentRepository;
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 
@@ -23,9 +24,17 @@ pub struct StatusArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: StatusArgs, _config: &CliConfig) -> Result<CommandResult<StatusOutput>> {
+pub async fn execute(args: StatusArgs, config: &CliConfig) -> Result<CommandResult<StatusOutput>> {
     let ctx = AppContext::new().await?;
-    let repo = ContentRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: StatusArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<StatusOutput>> {
+    let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
     let contents = repo.list_by_source(&source).await?;

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_files::FileService;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
@@ -21,12 +22,20 @@ pub async fn execute(
     args: SearchArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<FileSearchOutput>> {
+    let ctx = AppContext::new().await?;
+    execute_with_pool(args, ctx.db_pool(), _config).await
+}
+
+pub async fn execute_with_pool(
+    args: SearchArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileSearchOutput>> {
     if args.query.trim().is_empty() {
         return Err(anyhow!("Search query cannot be empty"));
     }
 
-    let ctx = AppContext::new().await?;
-    let service = FileService::new(ctx.db_pool())?;
+    let service = FileService::new(pool)?;
 
     let found_files = service.search_by_path(&args.query, args.limit).await?;
 

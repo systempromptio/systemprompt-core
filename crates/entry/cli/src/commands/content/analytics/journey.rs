@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_content::LinkAnalyticsService;
+use systemprompt_core_database::DbPool;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -17,10 +18,18 @@ pub struct JourneyArgs {
 
 pub async fn execute(
     args: JourneyArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<JourneyOutput>> {
     let ctx = AppContext::new().await?;
-    let service = LinkAnalyticsService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: JourneyArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<JourneyOutput>> {
+    let service = LinkAnalyticsService::new(pool)?;
 
     let nodes = service
         .get_content_journey_map(Some(args.limit), Some(args.offset))

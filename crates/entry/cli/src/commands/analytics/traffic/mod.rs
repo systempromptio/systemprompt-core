@@ -7,6 +7,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -90,5 +91,18 @@ pub async fn execute(command: TrafficCommands, config: &CliConfig) -> Result<()>
         TrafficCommands::Geo(args) => geo::execute(args, config).await,
         TrafficCommands::Devices(args) => devices::execute(args, config).await,
         TrafficCommands::Bots(args) => bots::execute(args, config).await,
+    }
+}
+
+pub async fn execute_with_pool(
+    command: TrafficCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        TrafficCommands::Sources(args) => sources::execute_with_pool(args, db_ctx, config).await,
+        TrafficCommands::Geo(args) => geo::execute_with_pool(args, db_ctx, config).await,
+        TrafficCommands::Devices(args) => devices::execute_with_pool(args, db_ctx, config).await,
+        TrafficCommands::Bots(args) => bots::execute_with_pool(args, db_ctx, config).await,
     }
 }

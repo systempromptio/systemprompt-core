@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_content::{SearchFilters, SearchRequest, SearchService};
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 use systemprompt_runtime::AppContext;
 
@@ -22,9 +23,17 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: SearchArgs, _config: &CliConfig) -> Result<CommandResult<SearchOutput>> {
+pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<CommandResult<SearchOutput>> {
     let ctx = AppContext::new().await?;
-    let service = SearchService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: SearchArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<SearchOutput>> {
+    let service = SearchService::new(pool)?;
 
     let filters = args.category.as_ref().map(|cat| SearchFilters {
         category_id: Some(CategoryId::new(cat.clone())),

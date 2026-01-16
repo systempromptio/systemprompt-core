@@ -5,6 +5,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -39,5 +40,15 @@ pub struct ToolsListOutput {
 pub async fn execute(command: ToolsCommands, config: &CliConfig) -> Result<()> {
     match command {
         ToolsCommands::List(args) => list::execute(args, config).await,
+    }
+}
+
+pub async fn execute_with_pool(
+    command: ToolsCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        ToolsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
     }
 }

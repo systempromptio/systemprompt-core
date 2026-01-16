@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_core_content::ContentRepository;
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 
@@ -42,10 +43,18 @@ pub struct PopularArgs {
 
 pub async fn execute(
     args: PopularArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<PopularOutput>> {
     let ctx = AppContext::new().await?;
-    let repo = ContentRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: PopularArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<PopularOutput>> {
+    let repo = ContentRepository::new(pool)?;
 
     let source = SourceId::new(args.source.clone());
     let days_i64 = parse_duration(&args.since)?;

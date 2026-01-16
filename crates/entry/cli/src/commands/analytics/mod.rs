@@ -11,6 +11,7 @@ pub mod traffic;
 
 use anyhow::Result;
 use clap::Subcommand;
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -55,5 +56,27 @@ pub async fn execute(command: AnalyticsCommands, config: &CliConfig) -> Result<(
         AnalyticsCommands::Content(cmd) => content::execute(cmd, config).await,
         AnalyticsCommands::Traffic(cmd) => traffic::execute(cmd, config).await,
         AnalyticsCommands::Costs(cmd) => costs::execute(cmd, config).await,
+    }
+}
+
+pub async fn execute_with_db(
+    command: AnalyticsCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        AnalyticsCommands::Overview(args) => {
+            overview::execute_with_pool(args, db_ctx, config).await
+        },
+        AnalyticsCommands::Conversations(cmd) => {
+            conversations::execute_with_pool(cmd, db_ctx, config).await
+        },
+        AnalyticsCommands::Agents(cmd) => agents::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Tools(cmd) => tools::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Requests(cmd) => requests::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Sessions(cmd) => sessions::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Content(cmd) => content::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Traffic(cmd) => traffic::execute_with_pool(cmd, db_ctx, config).await,
+        AnalyticsCommands::Costs(cmd) => costs::execute_with_pool(cmd, db_ctx, config).await,
     }
 }

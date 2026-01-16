@@ -1,5 +1,6 @@
 use anyhow::Result;
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{FileService, FileStats};
 use systemprompt_runtime::AppContext;
 
@@ -15,7 +16,15 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<FileStatsOutput>> {
     let ctx = AppContext::new().await?;
-    let service = FileService::new(ctx.db_pool())?;
+    execute_with_pool(_args, ctx.db_pool(), _config).await
+}
+
+pub async fn execute_with_pool(
+    _args: StatsArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileStatsOutput>> {
+    let service = FileService::new(pool)?;
 
     let stats: FileStats = service.get_stats().await?;
 

@@ -2,8 +2,9 @@ use anyhow::Result;
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::search_queries::{search_logs, search_tools};
@@ -58,13 +59,29 @@ pub struct CombinedSearchOutput {
 pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: SearchArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: SearchArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
     let pattern = format!("%{}%", args.pattern);
 
     let rows = search_logs(
-        &pool,
+        pool,
         &pattern,
         since_timestamp,
         level_filter.as_deref(),
@@ -73,7 +90,7 @@ pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
     .await?;
 
     let tool_rows = if args.include_tools {
-        search_tools(&pool, &pattern, since_timestamp, args.limit).await?
+        search_tools(pool, &pattern, since_timestamp, args.limit).await?
     } else {
         vec![]
     };
