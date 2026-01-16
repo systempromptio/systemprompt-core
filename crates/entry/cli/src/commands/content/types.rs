@@ -302,3 +302,21 @@ pub struct EnhancedIngestOutput {
     pub errors: Vec<String>,
     pub success: bool,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PublishPipelineOutput {
+    pub steps: Vec<StepResult>,
+    pub total_steps: usize,
+    pub succeeded: usize,
+    pub failed: usize,
+    pub duration_ms: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct StepResult {
+    pub step: String,
+    pub success: bool,
+    pub duration_ms: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
+}

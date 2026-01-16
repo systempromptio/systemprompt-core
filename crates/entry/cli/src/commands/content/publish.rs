@@ -1,144 +1,170 @@
-use super::types::PublishOutput;
+use super::types::{PublishPipelineOutput, StepResult};
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
-use clap::Args;
-use std::path::PathBuf;
-use systemprompt_core_content::{IngestionOptions, IngestionService, IngestionSource};
-use systemprompt_identifiers::SourceId;
+use anyhow::Result;
+use clap::{Args, ValueEnum};
+use std::sync::Arc;
+use std::time::Instant;
+use systemprompt_core_content::ContentIngestionJob;
+use systemprompt_generator::{generate_sitemap, prerender_content, prerender_homepage};
 use systemprompt_runtime::AppContext;
 
-const ALLOWED_CONTENT_TYPES: &[&str] = &["article", "paper", "guide", "tutorial"];
+#[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
+pub enum PublishStep {
+    /// Ingest markdown from configured sources
+    Ingest,
+    /// Generate static HTML pages
+    Prerender,
+    /// Generate homepage
+    Homepage,
+    /// Generate sitemap.xml
+    Sitemap,
+    /// Run all steps (default)
+    All,
+}
 
 #[derive(Debug, Args)]
 pub struct PublishArgs {
-    #[arg(help = "Markdown file path")]
-    pub file: PathBuf,
+    #[arg(long, short = 's', value_enum, help = "Run specific step(s) only")]
+    pub step: Option<Vec<PublishStep>>,
 
-    #[arg(long, help = "Source ID")]
-    pub source: String,
+    #[arg(long, help = "Skip content ingestion step")]
+    pub skip_ingest: bool,
 
-    #[arg(long, help = "Category ID")]
-    pub category: Option<String>,
+    #[arg(long, help = "Show verbose output")]
+    pub verbose: bool,
+}
 
-    #[arg(long, help = "Web dist directory to verify prerender")]
-    pub web_dist: Option<PathBuf>,
-
-    #[arg(long, help = "Base URL to verify HTTP status")]
-    pub base_url: Option<String>,
-
-    #[arg(long, help = "URL pattern (e.g., /{source}/{slug})")]
-    pub url_pattern: Option<String>,
-
-    #[arg(long, help = "Force republish even if unchanged")]
-    pub force: bool,
+impl PublishArgs {
+    fn should_run(&self, step: PublishStep) -> bool {
+        match &self.step {
+            None => {
+                // Default: run all steps, respecting skip_ingest
+                if step == PublishStep::Ingest {
+                    !self.skip_ingest
+                } else {
+                    true
+                }
+            },
+            Some(steps) => {
+                if steps.contains(&PublishStep::All) {
+                    // All was specified, run everything (respecting skip_ingest for Ingest)
+                    if step == PublishStep::Ingest {
+                        !self.skip_ingest
+                    } else {
+                        true
+                    }
+                } else {
+                    // Run only specified steps
+                    steps.contains(&step)
+                }
+            },
+        }
+    }
 }
 
 pub async fn execute(
     args: PublishArgs,
     _config: &CliConfig,
-) -> Result<CommandResult<PublishOutput>> {
-    if !args.file.exists() {
-        return Err(anyhow!("File does not exist: {}", args.file.display()));
-    }
-
-    if !args.file.is_file() {
-        return Err(anyhow!("Path is not a file: {}", args.file.display()));
-    }
+) -> Result<CommandResult<PublishPipelineOutput>> {
+    let start_time = Instant::now();
+    let verbose = args.verbose;
 
     let ctx = AppContext::new().await?;
-    let service = IngestionService::new(ctx.db_pool())?;
-    let repo = systemprompt_core_content::ContentRepository::new(ctx.db_pool())?;
+    let db_pool = ctx.db_pool();
 
-    let category_id = args.category.as_deref().unwrap_or("default");
-    let ingestion_source = IngestionSource::new(&args.source, category_id, ALLOWED_CONTENT_TYPES);
+    let mut steps: Vec<StepResult> = Vec::new();
 
-    let parent_dir = args
-        .file
-        .parent()
-        .ok_or_else(|| anyhow!("Cannot get parent directory"))?;
-
-    let options = IngestionOptions::default()
-        .with_override(args.force)
-        .with_dry_run(false);
-
-    let report = service
-        .ingest_directory(parent_dir, &ingestion_source, options)
-        .await?;
-
-    if !report.errors.is_empty() {
-        return Err(anyhow!("Ingestion failed: {}", report.errors.join(", ")));
-    }
-
-    let slug = extract_slug_from_file(&args.file)?;
-    let source = SourceId::new(args.source.clone());
-
-    let content = repo
-        .get_by_source_and_slug(&source, &slug)
-        .await?
-        .ok_or_else(|| anyhow!("Content not found after ingestion: {}", slug))?;
-
-    let url_pattern = args
-        .url_pattern
-        .unwrap_or_else(|| format!("/{}/{{}}", args.source));
-    let expected_url = url_pattern.replace("{slug}", &slug).replace("{}", &slug);
-
-    let prerendered = args.web_dist.as_ref().map(|dist_dir| {
-        let html_path =
-            dist_dir.join(format!("{}/index.html", expected_url.trim_start_matches('/')));
-        html_path.exists()
-    });
-
-    let http_status = if let Some(base_url) = &args.base_url {
-        let full_url = format!("{}{}", base_url.trim_end_matches('/'), expected_url);
-        match reqwest::Client::new()
-            .head(&full_url)
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await
-        {
-            Ok(response) => Some(response.status().as_u16()),
-            Err(_) => None,
+    // Step 1: Ingest
+    if args.should_run(PublishStep::Ingest) {
+        let step_start = Instant::now();
+        if verbose {
+            tracing::info!("Starting content ingestion...");
         }
-    } else {
-        None
-    };
 
-    let action = if report.files_processed > 0 {
-        "published"
-    } else {
-        "unchanged"
-    };
+        let result = ContentIngestionJob::execute_ingestion(db_pool).await;
+        let duration_ms = step_start.elapsed().as_millis() as u64;
 
-    let success = prerendered.unwrap_or(true) && http_status.is_none_or( |s| s == 200);
-
-    let output = PublishOutput {
-        content_id: content.id.clone(),
-        slug,
-        source_id: source.clone(),
-        action: action.to_string(),
-        url: expected_url,
-        prerendered,
-        http_status,
-        success,
-    };
-
-    Ok(CommandResult::card(output).with_title("Content Published"))
-}
-
-fn extract_slug_from_file(path: &PathBuf) -> Result<String> {
-    let content = std::fs::read_to_string(path)?;
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-
-    if parts.len() < 3 {
-        return Err(anyhow!("Invalid frontmatter format"));
+        steps.push(StepResult {
+            step: "ingest".to_string(),
+            success: result.is_ok(),
+            duration_ms,
+            message: result.err().map(|e| e.to_string()),
+        });
     }
 
-    #[derive(serde::Deserialize)]
-    struct FrontMatter {
-        slug: String,
+    // Step 2: Prerender
+    if args.should_run(PublishStep::Prerender) {
+        let step_start = Instant::now();
+        if verbose {
+            tracing::info!("Starting content prerendering...");
+        }
+
+        let result = prerender_content(Arc::clone(db_pool)).await;
+        let duration_ms = step_start.elapsed().as_millis() as u64;
+
+        steps.push(StepResult {
+            step: "prerender".to_string(),
+            success: result.is_ok(),
+            duration_ms,
+            message: result.err().map(|e| e.to_string()),
+        });
     }
 
-    let fm: FrontMatter = serde_yaml::from_str(parts[1])?;
-    Ok(fm.slug)
+    // Step 3: Homepage
+    if args.should_run(PublishStep::Homepage) {
+        let step_start = Instant::now();
+        if verbose {
+            tracing::info!("Starting homepage prerendering...");
+        }
+
+        let result = prerender_homepage(Arc::clone(db_pool)).await;
+        let duration_ms = step_start.elapsed().as_millis() as u64;
+
+        steps.push(StepResult {
+            step: "homepage".to_string(),
+            success: result.is_ok(),
+            duration_ms,
+            message: result.err().map(|e| e.to_string()),
+        });
+    }
+
+    // Step 4: Sitemap
+    if args.should_run(PublishStep::Sitemap) {
+        let step_start = Instant::now();
+        if verbose {
+            tracing::info!("Starting sitemap generation...");
+        }
+
+        let result = generate_sitemap(Arc::clone(db_pool)).await;
+        let duration_ms = step_start.elapsed().as_millis() as u64;
+
+        steps.push(StepResult {
+            step: "sitemap".to_string(),
+            success: result.is_ok(),
+            duration_ms,
+            message: result.err().map(|e| e.to_string()),
+        });
+    }
+
+    let total_duration_ms = start_time.elapsed().as_millis() as u64;
+    let succeeded = steps.iter().filter(|s| s.success).count();
+    let failed = steps.iter().filter(|s| !s.success).count();
+    let total_steps = steps.len();
+
+    let output = PublishPipelineOutput {
+        steps,
+        total_steps,
+        succeeded,
+        failed,
+        duration_ms: total_duration_ms,
+    };
+
+    let title = if failed == 0 {
+        "Content Published Successfully"
+    } else {
+        "Content Publish Completed with Errors"
+    };
+
+    Ok(CommandResult::card(output).with_title(title))
 }

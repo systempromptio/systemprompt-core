@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 use systemprompt_cloud::constants::{container, storage};
 use systemprompt_extension::ExtensionRegistry;
@@ -7,6 +8,30 @@ use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::ServicesConfig;
 
 use super::tenant::find_services_config;
+
+/// Extracts the extension directory from a relative asset path.
+///
+/// Given a path like `extensions/blog/assets/css/file.css`, returns `extensions/blog`.
+fn extract_extension_dir(relative_path: &Path) -> Option<PathBuf> {
+    let components: Vec<_> = relative_path.components().collect();
+
+    // Look for "extensions" directory pattern
+    for (i, component) in components.iter().enumerate() {
+        if let std::path::Component::Normal(name) = component {
+            if *name == "extensions" && i + 1 < components.len() {
+                // Return "extensions/<ext_name>"
+                let mut result = PathBuf::new();
+                result.push("extensions");
+                if let std::path::Component::Normal(ext_name) = components[i + 1] {
+                    result.push(ext_name);
+                    return Some(result);
+                }
+            }
+        }
+    }
+
+    None
+}
 
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
@@ -36,6 +61,7 @@ impl<'a> DockerfileBuilder<'a> {
         let mcp_section = self.mcp_copy_section();
         let env_section = self.env_section();
         let extension_dirs = Self::extension_storage_dirs();
+        let extension_assets_section = self.extension_asset_copy_section();
 
         format!(
             r#"# SystemPrompt Application Dockerfile
@@ -66,7 +92,7 @@ COPY core/web/dist {web}/dist
 
 # Copy storage assets (images, etc.)
 COPY storage {storage}
-
+{extension_assets_section}
 # Copy services configuration
 COPY services {services}
 
@@ -103,6 +129,7 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
             extension_dirs = extension_dirs,
             mcp_section = mcp_section,
             env_section = env_section,
+            extension_assets_section = extension_assets_section,
         )
     }
 
@@ -121,6 +148,45 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
             result.push_str(path);
         }
         result
+    }
+
+    fn extension_asset_copy_section(&self) -> String {
+        let registry = ExtensionRegistry::discover();
+        let assets = registry.all_required_assets();
+
+        if assets.is_empty() {
+            return String::new();
+        }
+
+        let mut ext_dirs: HashSet<PathBuf> = HashSet::new();
+
+        for (_ext_id, asset) in &assets {
+            let source = asset.source();
+            if let Ok(relative) = source.strip_prefix(self.project_root) {
+                if let Some(ext_dir) = extract_extension_dir(relative) {
+                    ext_dirs.insert(ext_dir);
+                }
+            }
+        }
+
+        if ext_dirs.is_empty() {
+            return String::new();
+        }
+
+        let mut lines = vec!["# Copy extension assets".to_string()];
+        let mut sorted_dirs: Vec<_> = ext_dirs.into_iter().collect();
+        sorted_dirs.sort();
+
+        for dir in sorted_dirs {
+            lines.push(format!(
+                "COPY {} {}/{}",
+                dir.display(),
+                container::APP,
+                dir.display()
+            ));
+        }
+
+        format!("\n{}\n", lines.join("\n"))
     }
 
     fn mcp_copy_section(&self) -> String {
@@ -246,7 +312,7 @@ pub fn validate_dockerfile_has_no_stale_binaries(
     }
 
     let dockerfile_binaries = extract_mcp_binary_names_from_dockerfile(dockerfile_content);
-    let current_binaries: std::collections::HashSet<String> =
+    let current_binaries: HashSet<String> =
         ExtensionLoader::get_production_mcp_binary_names(project_root, services_config)
             .into_iter()
             .collect();
