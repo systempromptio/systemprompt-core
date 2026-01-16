@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

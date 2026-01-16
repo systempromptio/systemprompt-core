@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -28,7 +27,8 @@ impl AgentAnalyticsRepository {
         limit: i64,
         sort_order: &str,
     ) -> Result<Vec<AgentListRow>> {
-        // We need separate queries for each sort order to satisfy sqlx macro requirements
+        // We need separate queries for each sort order to satisfy sqlx macro
+        // requirements
         match sort_order {
             "success_rate" => {
                 sqlx::query_as!(
@@ -194,7 +194,11 @@ impl AgentAnalyticsRepository {
         }
     }
 
-    pub async fn get_ai_stats(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<AgentAiStatsRow> {
+    pub async fn get_ai_stats(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+    ) -> Result<AgentAiStatsRow> {
         sqlx::query_as!(
             AgentAiStatsRow,
             r#"
@@ -268,7 +272,8 @@ impl AgentAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", agent_name);
         let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND started_at < $3",
+            "SELECT COUNT(*) FROM agent_tasks WHERE agent_name ILIKE $1 AND started_at >= $2 AND \
+             started_at < $3",
         )
         .bind(&pattern)
         .bind(start)

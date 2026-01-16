@@ -41,6 +41,17 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
 
         let enabled_servers = RegistryManager::get_enabled_servers()?;
 
+        let deleted = database.delete_disabled_services(&enabled_servers).await?;
+        if deleted > 0 {
+            tracing::info!(count = deleted, "Cleaned up disabled services");
+            if let Some(tx) = events {
+                let _ = tx.send(StartupEvent::McpServiceCleanup {
+                    name: format!("{} disabled service(s)", deleted),
+                    reason: "no longer enabled in configuration".to_string(),
+                });
+            }
+        }
+
         validate_schemas(&enabled_servers, app_context).await?;
         database.sync_state(&enabled_servers).await?;
         cleanup_orphaned_and_stale(database, &enabled_servers, events).await?;

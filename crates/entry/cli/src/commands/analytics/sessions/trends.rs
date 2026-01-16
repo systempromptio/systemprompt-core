@@ -64,8 +64,10 @@ async fn execute_internal(
         HashMap::new();
 
     for row in rows {
-        let period_key =
-            format_period_label(truncate_to_period(row.started_at, &args.group_by), &args.group_by);
+        let period_key = format_period_label(
+            truncate_to_period(row.started_at, &args.group_by),
+            &args.group_by,
+        );
         let entry = buckets
             .entry(period_key)
             .or_insert_with(|| (0, std::collections::HashSet::new(), 0));

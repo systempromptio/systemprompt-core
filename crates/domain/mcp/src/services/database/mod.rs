@@ -60,6 +60,13 @@ impl DatabaseManager {
         sync::sync_database_state(&self.db_pool, servers).await
     }
 
+    pub async fn delete_disabled_services(
+        &self,
+        enabled_servers: &[McpServerConfig],
+    ) -> Result<usize> {
+        sync::delete_disabled_services(&self.db_pool, enabled_servers).await
+    }
+
     pub async fn register_existing_process(
         &self,
         config: &McpServerConfig,

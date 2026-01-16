@@ -65,8 +65,10 @@ async fn execute_internal(
     let mut total_cost: i64 = 0;
 
     for row in rows {
-        let period_key =
-            format_period_label(truncate_to_period(row.created_at, &args.group_by), &args.group_by);
+        let period_key = format_period_label(
+            truncate_to_period(row.created_at, &args.group_by),
+            &args.group_by,
+        );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
         let cost = i64::from(row.cost_cents.unwrap_or(0));
         entry.0 += cost;

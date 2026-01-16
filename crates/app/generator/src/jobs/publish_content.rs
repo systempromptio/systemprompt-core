@@ -8,7 +8,8 @@ use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
 use crate::{
-    generate_sitemap, organize_css_files, organize_js_files, prerender_content, prerender_homepage,
+    generate_feed, generate_sitemap, organize_css_files, organize_js_files, prerender_content,
+    prerender_homepage,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -52,6 +53,7 @@ impl PublishContentJob {
         run_prerender(db_pool, &mut stats).await;
         run_homepage_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
+        run_rss_generation(db_pool, &mut stats).await;
         run_css_organization(&mut stats).await;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -127,6 +129,19 @@ async fn run_sitemap_generation(db_pool: &DbPool, stats: &mut PublishStats) {
         },
         Err(e) => {
             tracing::warn!(error = %e, "Sitemap generation warning");
+            stats.record_failure();
+        },
+    }
+}
+
+async fn run_rss_generation(db_pool: &DbPool, stats: &mut PublishStats) {
+    match generate_feed(Arc::clone(db_pool)).await {
+        Ok(()) => {
+            tracing::debug!("RSS feed generated");
+            stats.record_success();
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "RSS feed generation warning");
             stats.record_failure();
         },
     }

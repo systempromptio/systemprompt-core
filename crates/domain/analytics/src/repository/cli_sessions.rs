@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -131,11 +130,7 @@ impl CliSessionAnalyticsRepository {
         Ok(row.0)
     }
 
-    pub async fn get_total_count(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-    ) -> Result<i64> {
+    pub async fn get_total_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
         let row: (i64,) = sqlx::query_as(
             "SELECT COUNT(*) FROM user_sessions WHERE started_at >= $1 AND started_at < $2",
         )
