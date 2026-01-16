@@ -20,10 +20,10 @@ pub struct SearchArgs {
 
 pub async fn execute(
     args: SearchArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<FileSearchOutput>> {
     let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), _config).await
+    execute_with_pool(args, ctx.db_pool(), config).await
 }
 
 pub async fn execute_with_pool(

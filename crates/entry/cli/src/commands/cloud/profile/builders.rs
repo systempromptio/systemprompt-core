@@ -213,7 +213,7 @@ impl CloudProfileBuilder {
                 validation: CloudValidationMode::Strict,
             }),
             secrets: Some(SecretsConfig {
-                secrets_path: self.secrets_path.unwrap_or_else(|| String::new()),
+                secrets_path: self.secrets_path.unwrap_or_else(String::new),
                 validation: SecretsValidationMode::Strict,
                 source: SecretsSource::Env,
             }),

@@ -1,9 +1,10 @@
 use anyhow::{bail, Result};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::EnhancedConfigLoader;
-use systemprompt_models::{AppPaths, Config, ContentConfigRaw, SkillsConfig};
+use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
 
 use super::show_display::print_formatted_config;
 use super::show_types::{build_env_config, FullConfig, SettingsOutput};
@@ -88,16 +89,10 @@ fn build_config_for_filter(
 ) -> FullConfig {
     match filter {
         ShowFilter::All => build_full_config(config, services_config),
-        ShowFilter::Agents => FullConfig::empty().with_agents(
-            services_config
-                .map(|s| s.agents.clone())
-                .unwrap_or_default(),
-        ),
-        ShowFilter::Mcp => FullConfig::empty().with_mcp_servers(
-            services_config
-                .map(|s| s.mcp_servers.clone())
-                .unwrap_or_default(),
-        ),
+        ShowFilter::Agents => FullConfig::empty()
+            .with_agents(services_config.map_or_else(HashMap::new, |s| s.agents.clone())),
+        ShowFilter::Mcp => FullConfig::empty()
+            .with_mcp_servers(services_config.map_or_else(HashMap::new, |s| s.mcp_servers.clone())),
         ShowFilter::Skills => {
             let mut full = FullConfig::empty();
             if let Some(cfg) = config {
@@ -107,12 +102,10 @@ fn build_config_for_filter(
             }
             full
         },
-        ShowFilter::Ai => {
-            FullConfig::empty().with_ai(services_config.map(|s| s.ai.clone()).unwrap_or_default())
-        },
-        ShowFilter::Web => {
-            FullConfig::empty().with_web(services_config.map(|s| s.web.clone()).unwrap_or_default())
-        },
+        ShowFilter::Ai => FullConfig::empty()
+            .with_ai(services_config.map_or_else(AiConfig::default, |s| s.ai.clone())),
+        ShowFilter::Web => FullConfig::empty()
+            .with_web(services_config.map_or_else(WebConfig::default, |s| s.web.clone())),
         ShowFilter::Content => {
             let mut full = FullConfig::empty();
             if let Some(content) = load_content_config() {

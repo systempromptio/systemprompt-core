@@ -168,16 +168,16 @@ pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
         RateLimitsCommands::Show => execute_show(config),
         RateLimitsCommands::Tier(args) => execute_tier(args, config),
         RateLimitsCommands::Docs => execute_docs(config),
-        RateLimitsCommands::Set(args) => execute_set(args, config),
+        RateLimitsCommands::Set(args) => execute_set(&args, config),
         RateLimitsCommands::Enable => execute_enable(config),
         RateLimitsCommands::Disable => execute_disable(config),
         RateLimitsCommands::Validate => execute_validate(config),
         RateLimitsCommands::Compare => execute_compare(config),
-        RateLimitsCommands::Reset(args) => execute_reset(args, config),
+        RateLimitsCommands::Reset(args) => execute_reset(&args, config),
         RateLimitsCommands::Preset(cmd) => execute_preset(cmd, config),
-        RateLimitsCommands::Export(args) => execute_export(args, config),
-        RateLimitsCommands::Import(args) => execute_import(args, config),
-        RateLimitsCommands::Diff(args) => execute_diff(args, config),
+        RateLimitsCommands::Export(args) => execute_export(&args, config),
+        RateLimitsCommands::Import(args) => execute_import(&args, config),
+        RateLimitsCommands::Diff(args) => execute_diff(&args, config),
     }
 }
 
@@ -380,7 +380,7 @@ pub fn execute_docs(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
+pub fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.endpoint.is_some() && args.rate.is_none() {
         bail!("--rate is required when --endpoint is specified");
     }
@@ -635,7 +635,7 @@ pub fn execute_compare(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-pub fn execute_reset(args: ResetArgs, config: &CliConfig) -> Result<()> {
+pub fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
     if !args.yes && !args.dry_run && !config.is_interactive() {
         bail!("--yes or --dry-run is required in non-interactive mode");
     }
@@ -950,13 +950,16 @@ fn collect_tier_changes(
 
 fn execute_preset(command: PresetCommands, config: &CliConfig) -> Result<()> {
     match command {
-        PresetCommands::List => execute_preset_list(config),
+        PresetCommands::List => {
+            execute_preset_list(config);
+            Ok(())
+        },
         PresetCommands::Show(args) => execute_preset_show(args, config),
-        PresetCommands::Apply(args) => execute_preset_apply(args, config),
+        PresetCommands::Apply(args) => execute_preset_apply(&args, config),
     }
 }
 
-fn execute_preset_list(_config: &CliConfig) -> Result<()> {
+fn execute_preset_list(_config: &CliConfig) {
     let presets = vec![
         PresetInfo {
             name: "development".to_string(),
@@ -977,8 +980,6 @@ fn execute_preset_list(_config: &CliConfig) -> Result<()> {
 
     let output = PresetListOutput { presets };
     render_result(&CommandResult::table(output).with_title("Available Presets"));
-
-    Ok(())
 }
 
 fn execute_preset_show(args: PresetShowArgs, _config: &CliConfig) -> Result<()> {
@@ -1030,7 +1031,7 @@ fn get_preset_description(name: &str) -> Result<String> {
     }
 }
 
-fn execute_preset_apply(args: PresetApplyArgs, config: &CliConfig) -> Result<()> {
+fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()> {
     if !args.yes && !config.is_interactive() {
         bail!("--yes is required in non-interactive mode");
     }
@@ -1149,7 +1150,7 @@ fn get_preset_config(name: &str) -> Result<RateLimitsConfig> {
 }
 
 
-fn execute_export(args: ExportArgs, config: &CliConfig) -> Result<()> {
+fn execute_export(args: &ExportArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let limits = &profile.rate_limits;
 
@@ -1180,7 +1181,7 @@ fn execute_export(args: ExportArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
+fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<()> {
     if !args.yes && !config.is_interactive() {
         bail!("--yes is required in non-interactive mode");
     }
@@ -1234,7 +1235,7 @@ fn execute_import(args: ImportArgs, config: &CliConfig) -> Result<()> {
 }
 
 
-fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
+fn execute_diff(args: &DiffArgs, config: &CliConfig) -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     let current = &profile.rate_limits;
 
@@ -1266,80 +1267,80 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
     add_diff_if_different(
         &mut differences,
         "disabled",
-        current.disabled,
-        compare_with.disabled,
+        &current.disabled,
+        &compare_with.disabled,
     );
     add_diff_if_different(
         &mut differences,
         "oauth_public_per_second",
-        current.oauth_public_per_second,
-        compare_with.oauth_public_per_second,
+        &current.oauth_public_per_second,
+        &compare_with.oauth_public_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "oauth_auth_per_second",
-        current.oauth_auth_per_second,
-        compare_with.oauth_auth_per_second,
+        &current.oauth_auth_per_second,
+        &compare_with.oauth_auth_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "contexts_per_second",
-        current.contexts_per_second,
-        compare_with.contexts_per_second,
+        &current.contexts_per_second,
+        &compare_with.contexts_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "tasks_per_second",
-        current.tasks_per_second,
-        compare_with.tasks_per_second,
+        &current.tasks_per_second,
+        &compare_with.tasks_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "artifacts_per_second",
-        current.artifacts_per_second,
-        compare_with.artifacts_per_second,
+        &current.artifacts_per_second,
+        &compare_with.artifacts_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "agent_registry_per_second",
-        current.agent_registry_per_second,
-        compare_with.agent_registry_per_second,
+        &current.agent_registry_per_second,
+        &compare_with.agent_registry_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "agents_per_second",
-        current.agents_per_second,
-        compare_with.agents_per_second,
+        &current.agents_per_second,
+        &compare_with.agents_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "mcp_registry_per_second",
-        current.mcp_registry_per_second,
-        compare_with.mcp_registry_per_second,
+        &current.mcp_registry_per_second,
+        &compare_with.mcp_registry_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "mcp_per_second",
-        current.mcp_per_second,
-        compare_with.mcp_per_second,
+        &current.mcp_per_second,
+        &compare_with.mcp_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "stream_per_second",
-        current.stream_per_second,
-        compare_with.stream_per_second,
+        &current.stream_per_second,
+        &compare_with.stream_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "content_per_second",
-        current.content_per_second,
-        compare_with.content_per_second,
+        &current.content_per_second,
+        &compare_with.content_per_second,
     );
     add_diff_if_different(
         &mut differences,
         "burst_multiplier",
-        current.burst_multiplier,
-        compare_with.burst_multiplier,
+        &current.burst_multiplier,
+        &compare_with.burst_multiplier,
     );
 
     add_diff_if_different_f64(
@@ -1401,8 +1402,8 @@ fn execute_diff(args: DiffArgs, config: &CliConfig) -> Result<()> {
 fn add_diff_if_different<T: std::fmt::Display + PartialEq>(
     diffs: &mut Vec<DiffEntry>,
     field: &str,
-    current: T,
-    compare: T,
+    current: &T,
+    compare: &T,
 ) {
     if current != compare {
         diffs.push(DiffEntry {

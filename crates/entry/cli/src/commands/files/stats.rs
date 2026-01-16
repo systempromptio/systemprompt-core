@@ -12,11 +12,11 @@ use crate::CliConfig;
 pub struct StatsArgs;
 
 pub async fn execute(
-    _args: StatsArgs,
-    _config: &CliConfig,
+    args: StatsArgs,
+    config: &CliConfig,
 ) -> Result<CommandResult<FileStatsOutput>> {
     let ctx = AppContext::new().await?;
-    execute_with_pool(_args, ctx.db_pool(), _config).await
+    execute_with_pool(args, ctx.db_pool(), config).await
 }
 
 pub async fn execute_with_pool(

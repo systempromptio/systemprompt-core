@@ -26,11 +26,11 @@ pub struct CliSessionContext {
 }
 
 impl CliSessionContext {
-    pub fn session_token(&self) -> &SessionToken {
+    pub const fn session_token(&self) -> &SessionToken {
         &self.session.session_token
     }
 
-    pub fn context_id(&self) -> &ContextId {
+    pub const fn context_id(&self) -> &ContextId {
         &self.session.context_id
     }
 

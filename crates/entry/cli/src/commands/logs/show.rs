@@ -254,6 +254,7 @@ fn display_single_log(log: &LogRow, config: &CliConfig, json: bool) {
     ));
 }
 
+#[allow(clippy::expect_used)]
 fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
     let trace_id = logs
         .first()

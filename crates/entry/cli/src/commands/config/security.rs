@@ -30,7 +30,7 @@ pub struct SetArgs {
     pub refresh_expiry: Option<i64>,
 }
 
-pub fn execute(command: SecurityCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &SecurityCommands, config: &CliConfig) -> Result<()> {
     match command {
         SecurityCommands::Show => execute_show(),
         SecurityCommands::Set(args) => execute_set(args, config),
@@ -57,7 +57,7 @@ fn execute_show() -> Result<()> {
     Ok(())
 }
 
-fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
+fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.jwt_issuer.is_none() && args.access_expiry.is_none() && args.refresh_expiry.is_none() {
         bail!("Must specify at least one option: --jwt-issuer, --access-expiry, --refresh-expiry");
     }

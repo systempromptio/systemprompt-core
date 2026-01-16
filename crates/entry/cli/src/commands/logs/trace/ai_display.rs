@@ -146,7 +146,7 @@ pub fn print_execution_steps(steps: &[ExecutionStep]) {
         .map(|(i, s)| StepRow {
             step_number: (i + 1) as i32,
             step_type: s.step_type.clone().unwrap_or_else(|| "unknown".to_string()),
-            title: truncate(&s.title.clone().unwrap_or_else(|| String::new()), 40),
+            title: truncate(&s.title.clone().unwrap_or_else(String::new), 40),
             status: s.status.clone(),
             duration: s
                 .duration_ms

@@ -58,16 +58,14 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
     let expected_url = url_pattern.replace("{slug}", &content.slug);
     let expected_url = expected_url.replace("{}", &content.slug);
 
-    let (prerendered, prerender_path) = if let Some(dist_dir) = &args.web_dist {
+    let (prerendered, prerender_path) = args.web_dist.as_ref().map_or((None, None), |dist_dir| {
         let html_path = dist_dir.join(format!(
             "{}/index.html",
             expected_url.trim_start_matches('/')
         ));
         let exists = html_path.exists();
         (Some(exists), Some(html_path.to_string_lossy().to_string()))
-    } else {
-        (None, None)
-    };
+    });
 
     let http_status = if let Some(base_url) = &args.base_url {
         let full_url = format!("{}{}", base_url.trim_end_matches('/'), expected_url);

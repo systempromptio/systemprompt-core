@@ -21,11 +21,11 @@ pub enum ToolSortBy {
 }
 
 impl ToolSortBy {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
-            ToolSortBy::ExecutionCount => "execution_count",
-            ToolSortBy::SuccessRate => "success_rate",
-            ToolSortBy::AvgTime => "avg_time",
+            Self::ExecutionCount => "execution_count",
+            Self::SuccessRate => "success_rate",
+            Self::AvgTime => "avg_time",
         }
     }
 }

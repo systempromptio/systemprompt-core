@@ -22,7 +22,7 @@ pub enum AgentSortBy {
 }
 
 impl AgentSortBy {
-    fn as_str(&self) -> &'static str {
+    const fn as_str(&self) -> &'static str {
         match self {
             Self::TaskCount => "task_count",
             Self::SuccessRate => "success_rate",

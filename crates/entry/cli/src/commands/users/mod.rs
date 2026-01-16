@@ -107,7 +107,7 @@ pub async fn execute_with_db(
             session::execute_with_pool(cmd, db_ctx.db_pool(), config).await
         },
         UsersCommands::Ban(cmd) => ban::execute_with_pool(cmd, db_ctx.db_pool(), config).await,
-        UsersCommands::Role(cmd) => role::execute_with_pool(cmd, db_ctx.db_pool(), config).await,
+        UsersCommands::Role(cmd) => role::execute_with_pool(cmd, db_ctx.db_pool(), config),
         UsersCommands::Create(_)
         | UsersCommands::Update(_)
         | UsersCommands::Delete(_)

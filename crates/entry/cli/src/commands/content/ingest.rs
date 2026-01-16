@@ -52,7 +52,7 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<CommandRes
     let service = IngestionService::new(ctx.db_pool())?;
 
     let allowed_types = resolve_allowed_types(&args)?;
-    let category_id = resolve_category_id(&args)?;
+    let category_id = resolve_category_id(&args);
 
     let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
     let source = IngestionSource::new(&args.source, &category_id, &allowed_types_refs);
@@ -118,24 +118,24 @@ fn resolve_allowed_types(args: &IngestArgs) -> Result<Vec<String>> {
         })
 }
 
-fn resolve_category_id(args: &IngestArgs) -> Result<String> {
+fn resolve_category_id(args: &IngestArgs) -> String {
     if let Some(category) = &args.category {
-        return Ok(category.clone());
+        return category.clone();
     }
 
     let config = load_content_config().ok();
-    let category = config
+    config
         .and_then(|c| c.content_sources.get(&args.source).cloned())
-        .map(|source| source.category_id.as_str().to_string())
-        .unwrap_or_else(|| DEFAULT_CATEGORY.to_string());
-
-    Ok(category)
+        .map_or_else(
+            || DEFAULT_CATEGORY.to_string(),
+            |source| source.category_id.as_str().to_string(),
+        )
 }
 
 fn load_content_config() -> Result<ContentConfigRaw> {
     let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
     let config_path = paths.system().content_config();
-    let yaml_content = std::fs::read_to_string(&config_path)
+    let yaml_content = std::fs::read_to_string(config_path.as_path())
         .with_context(|| format!("Failed to read content config: {}", config_path.display()))?;
     serde_yaml::from_str(&yaml_content)
         .with_context(|| format!("Failed to parse content config: {}", config_path.display()))
