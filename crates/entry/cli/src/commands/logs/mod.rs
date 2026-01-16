@@ -1,3 +1,5 @@
+mod audit;
+mod audit_display;
 mod cleanup;
 mod delete;
 pub mod duration;
@@ -5,12 +7,19 @@ mod export;
 pub mod request;
 mod search;
 mod search_queries;
+pub mod shared;
 mod show;
 mod stream;
 mod summary;
 pub mod tools;
 pub mod trace;
+pub mod types;
 mod view;
+
+pub use shared::{
+    cost_cents_to_dollars, display_log_row, format_duration_ms, format_timestamp, truncate_id,
+};
+pub use types::{MessageRow, ToolCallRow};
 
 use anyhow::{bail, Result};
 use clap::Subcommand;
@@ -79,6 +88,13 @@ pub enum LogsCommands {
 
     #[command(subcommand, about = "List and search MCP tool executions")]
     Tools(tools::ToolsCommands),
+
+    #[command(
+        about = "Full audit of an AI request with all messages and tool calls",
+        after_help = "EXAMPLES:\n  systemprompt logs audit abc123\n  systemprompt logs audit \
+                      abc123 --full\n  systemprompt logs audit task-xyz --json"
+    )]
+    Audit(audit::AuditArgs),
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -148,6 +164,7 @@ pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
         LogsCommands::Request(cmd) => request::execute(cmd, config).await,
         LogsCommands::Tools(cmd) => tools::execute(cmd, config).await,
+        LogsCommands::Audit(args) => audit::execute(args, config).await,
     }
 }
 
@@ -165,6 +182,7 @@ pub async fn execute_with_db(
         LogsCommands::Trace(cmd) => trace::execute_with_pool(cmd, db_ctx, config).await,
         LogsCommands::Request(cmd) => request::execute_with_pool(cmd, db_ctx, config).await,
         LogsCommands::Tools(cmd) => tools::execute_with_pool(cmd, db_ctx, config).await,
+        LogsCommands::Audit(args) => audit::execute_with_pool(args, db_ctx, config).await,
         LogsCommands::Stream(_) | LogsCommands::Cleanup(_) | LogsCommands::Delete(_) => {
             bail!("This logs command requires full profile context")
         },

@@ -8,6 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::search_queries::{search_logs, search_tools};
+use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
@@ -217,29 +218,4 @@ fn render_combined_results(
         logs.len(),
         tools.len()
     ));
-}
-
-fn display_log_row(log: &LogEntryRow) {
-    let time_part = if log.timestamp.len() >= 23 {
-        &log.timestamp[11..23]
-    } else {
-        &log.timestamp
-    };
-
-    let trace_short = if log.trace_id.len() > 8 {
-        format!("{}...", &log.trace_id[..8])
-    } else {
-        log.trace_id.clone()
-    };
-
-    let line = format!(
-        "{} {} [{}] {}  [{}]",
-        time_part, log.level, log.module, log.message, trace_short
-    );
-
-    match log.level.as_str() {
-        "ERROR" => CliService::error(&line),
-        "WARN" => CliService::warning(&line),
-        _ => CliService::info(&line),
-    }
 }

@@ -15,6 +15,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use super::types::{MessageRow, ToolCallRow};
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -138,15 +139,6 @@ pub struct AiRequestRow {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolCallRow {
-    pub tool_name: String,
-    pub server: String,
-    pub status: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub duration_ms: Option<i64>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ArtifactRow {
     pub artifact_id: String,
     pub artifact_type: String,
@@ -170,13 +162,6 @@ pub struct AiTraceOutput {
     pub artifacts: Vec<ArtifactRow>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_response: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct MessageRow {
-    pub sequence: i32,
-    pub role: String,
-    pub content: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
