@@ -20,10 +20,10 @@ pub struct ShowArgs {
 
 pub async fn execute(
     args: ShowArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
     let ctx = AppContext::new().await?;
-    execute_with_pool(args, ctx.db_pool(), _config).await
+    execute_with_pool(args, ctx.db_pool(), config).await
 }
 
 pub async fn execute_with_pool(

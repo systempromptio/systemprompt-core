@@ -37,8 +37,8 @@ pub struct PublishArgs {
 
 impl PublishArgs {
     fn should_run(&self, step: PublishStep) -> bool {
-        match &self.step {
-            None => {
+        self.step.as_ref().map_or_else(
+            || {
                 // Default: run all steps, respecting skip_ingest
                 if step == PublishStep::Ingest {
                     !self.skip_ingest
@@ -46,7 +46,7 @@ impl PublishArgs {
                     true
                 }
             },
-            Some(steps) => {
+            |steps| {
                 if steps.contains(&PublishStep::All) {
                     // All was specified, run everything (respecting skip_ingest for Ingest)
                     if step == PublishStep::Ingest {
@@ -59,7 +59,7 @@ impl PublishArgs {
                     steps.contains(&step)
                 }
             },
-        }
+        )
     }
 }
 

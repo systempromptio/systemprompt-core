@@ -41,7 +41,7 @@ pub async fn execute(
         }
         skills.push(SkillStatusRow {
             skill_id: item.skill_id.clone(),
-            name: item.name.clone().unwrap_or_else(|| String::new()),
+            name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: false,
             status: SyncStatus::DiskOnly,
@@ -56,7 +56,7 @@ pub async fn execute(
         }
         skills.push(SkillStatusRow {
             skill_id: item.skill_id.clone(),
-            name: item.name.clone().unwrap_or_else(|| String::new()),
+            name: item.name.clone().unwrap_or_else(String::new),
             on_disk: false,
             in_db: true,
             status: SyncStatus::DbOnly,
@@ -71,7 +71,7 @@ pub async fn execute(
         }
         skills.push(SkillStatusRow {
             skill_id: item.skill_id.clone(),
-            name: item.name.clone().unwrap_or_else(|| String::new()),
+            name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: true,
             status: SyncStatus::Modified,

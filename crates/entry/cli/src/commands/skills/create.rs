@@ -87,7 +87,7 @@ pub async fn execute(
     let tags: Vec<String> = args
         .tags
         .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
-        .unwrap_or_default();
+        .unwrap_or_else(Vec::new);
 
     let enabled = args.enabled.unwrap_or(true);
     let author = args.author.unwrap_or_else(|| "systemprompt".to_string());

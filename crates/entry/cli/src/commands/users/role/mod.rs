@@ -27,7 +27,7 @@ pub async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-pub async fn execute_with_pool(
+pub fn execute_with_pool(
     _cmd: RoleCommands,
     _pool: &DbPool,
     _config: &CliConfig,

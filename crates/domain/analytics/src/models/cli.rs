@@ -17,7 +17,7 @@ pub struct AgentListRow {
     pub last_active: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentStatsRow {
     pub total_agents: i64,
     pub total_tasks: i64,
@@ -26,7 +26,7 @@ pub struct AgentStatsRow {
     pub avg_execution_time_ms: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentAiStatsRow {
     pub total_ai_requests: i64,
     pub total_cost_cents: i64,
@@ -51,13 +51,13 @@ pub struct AgentErrorRow {
     pub error_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentHourlyRow {
     pub task_hour: i32,
     pub task_count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentSummaryRow {
     pub total_tasks: i64,
     pub completed: i64,
@@ -79,23 +79,23 @@ pub struct ConversationListRow {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ConversationStatsRow {
     pub total_contexts: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct TaskStatsRow {
     pub total_tasks: i64,
     pub avg_execution_time_ms: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct MessageCountRow {
     pub total_messages: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct TimestampRow {
     pub timestamp: DateTime<Utc>,
 }
@@ -104,7 +104,7 @@ pub struct TimestampRow {
 // Session Analytics Models
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct SessionStatsRow {
     pub total_sessions: i64,
     pub unique_users: i64,
@@ -113,7 +113,7 @@ pub struct SessionStatsRow {
     pub conversions: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ActiveSessionCountRow {
     pub count: i64,
 }
@@ -149,7 +149,7 @@ pub struct ToolListRow {
     pub last_used: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ToolStatsRow {
     pub total_tools: i64,
     pub total_executions: i64,
@@ -160,12 +160,12 @@ pub struct ToolStatsRow {
     pub p95_time: f64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ToolExistsRow {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ToolSummaryRow {
     pub total: i64,
     pub successful: i64,
@@ -204,7 +204,7 @@ pub struct ToolExecutionRow {
 // Request Analytics Models
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestStatsRow {
     pub total: i64,
     pub total_tokens: Option<i64>,
@@ -225,7 +225,7 @@ pub struct ModelUsageRow {
     pub avg_latency: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestTrendRow {
     pub created_at: DateTime<Utc>,
     pub tokens_used: Option<i32>,
@@ -237,7 +237,7 @@ pub struct RequestTrendRow {
 // Cost Analytics Models
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 #[allow(clippy::struct_field_names)]
 pub struct CostSummaryRow {
     pub total_requests: i64,
@@ -245,7 +245,7 @@ pub struct CostSummaryRow {
     pub total_tokens: Option<i64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct PreviousCostRow {
     pub cost: Option<i64>,
 }
@@ -258,7 +258,7 @@ pub struct CostBreakdownRow {
     pub tokens: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct CostTrendRow {
     pub created_at: DateTime<Utc>,
     pub cost_cents: Option<i32>,
@@ -278,7 +278,7 @@ pub struct TopContentRow {
     pub trend_direction: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ContentStatsRow {
     pub total_views: i64,
     pub unique_visitors: i64,
@@ -287,7 +287,7 @@ pub struct ContentStatsRow {
     pub total_clicks: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ContentTrendRow {
     pub timestamp: DateTime<Utc>,
     pub views: i64,
@@ -317,7 +317,7 @@ pub struct DeviceRow {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct BotTotalsRow {
     pub human: i64,
     pub bot: i64,
@@ -333,42 +333,42 @@ pub struct BotTypeRow {
 // Overview Analytics Models
 // =============================================================================
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewConversationRow {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewAgentRow {
     pub active_agents: i64,
     pub total_tasks: i64,
     pub completed_tasks: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewRequestRow {
     pub total: i64,
     pub total_tokens: Option<i64>,
     pub avg_latency: Option<f64>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewToolRow {
     pub total: i64,
     pub successful: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewActiveSessionRow {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewTotalSessionRow {
     pub count: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct OverviewCostRow {
     pub cost: Option<i64>,
 }

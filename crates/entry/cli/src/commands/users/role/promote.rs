@@ -38,7 +38,7 @@ pub async fn execute(args: PromoteArgs, config: &CliConfig) -> Result<()> {
         PromoteResult::AlreadyAdmin(user) => {
             if config.is_json_output() {
                 CliService::json(&serde_json::json!({
-                    "id": user.id.clone(),
+                    "id": user.id,
                     "name": user.name,
                     "message": "User is already an admin"
                 }));

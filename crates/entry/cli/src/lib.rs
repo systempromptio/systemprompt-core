@@ -179,7 +179,7 @@ enum Commands {
     Setup(setup::SetupArgs),
 }
 
-fn should_skip_validation(command: &Option<Commands>) -> bool {
+const fn should_skip_validation(command: Option<&Commands>) -> bool {
     matches!(
         command,
         Some(Commands::Skills(skills::SkillsCommands::Create(_)))
@@ -232,7 +232,7 @@ pub async fn run() -> Result<()> {
             Config::try_init().context("Failed to initialize configuration")?;
             FilesConfig::init().context("Failed to initialize files configuration")?;
 
-            if !should_skip_validation(&cli.command) {
+            if !should_skip_validation(cli.command.as_ref()) {
                 let mut validator = StartupValidator::new();
                 let report = validator.validate(Config::get()?);
 

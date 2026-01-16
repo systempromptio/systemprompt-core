@@ -119,7 +119,7 @@ pub struct LogCleanupArgs {
 pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         JobsCommands::List => {
-            let result = list_jobs().await?;
+            let result = list_jobs()?;
             render_result(&result);
             Ok(())
         },
@@ -161,7 +161,7 @@ pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
     }
 }
 
-async fn list_jobs() -> Result<CommandResult<JobListOutput>> {
+fn list_jobs() -> Result<CommandResult<JobListOutput>> {
     let jobs: Vec<JobInfo> = inventory::iter::<&'static dyn Job>
         .into_iter()
         .map(|job| JobInfo {

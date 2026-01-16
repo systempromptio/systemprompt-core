@@ -116,7 +116,7 @@ impl<T> CommandResult<T> {
     }
 
     pub fn with_columns(mut self, columns: Vec<String>) -> Self {
-        let mut hints = self.hints.unwrap_or_default();
+        let mut hints = self.hints.unwrap_or_else(RenderingHints::default);
         hints.columns = Some(columns);
         self.hints = Some(hints);
         self

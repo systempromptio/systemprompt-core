@@ -93,6 +93,9 @@ inefficient_to_string = "warn"
 unnecessary_wraps = "warn"
 unused_async = "warn"
 
+# Project standards: never use unwrap_or_default() - fail explicitly
+unwrap_or_default = "allow"
+
 # Code clarity
 if_not_else = "warn"
 redundant_else = "warn"

@@ -145,7 +145,7 @@ async fn execute_db_mode(
     let level_label = args
         .level
         .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service_label.clone()),
@@ -208,7 +208,7 @@ fn execute_disk_mode(
     let level_label = args
         .level
         .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service.clone()),

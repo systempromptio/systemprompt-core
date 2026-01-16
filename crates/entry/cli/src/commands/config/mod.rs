@@ -37,9 +37,9 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
     match command {
         ConfigCommands::Show => show::execute(config),
         ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, config),
-        ConfigCommands::Server(cmd) => server::execute(cmd, config),
+        ConfigCommands::Server(ref cmd) => server::execute(cmd, config),
         ConfigCommands::Runtime(cmd) => runtime::execute(cmd, config),
-        ConfigCommands::Security(cmd) => security::execute(cmd, config),
+        ConfigCommands::Security(ref cmd) => security::execute(cmd, config),
         ConfigCommands::Paths(cmd) => paths::execute(cmd, config),
     }
 }

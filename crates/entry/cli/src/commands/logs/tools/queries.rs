@@ -12,6 +12,7 @@ pub struct DbToolRow {
     pub execution_time_ms: Option<i32>,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn query_tools(
     pool: &Arc<PgPool>,
     since: Option<DateTime<Utc>>,
@@ -36,6 +37,7 @@ pub async fn query_tools(
     Ok(rows)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn query_all_filters(
     pool: &Arc<PgPool>,
     since: DateTime<Utc>,

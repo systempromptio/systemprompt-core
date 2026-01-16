@@ -94,17 +94,17 @@ pub enum CloudDbCommands {
 impl CloudDbCommands {
     fn profile_name(&self) -> &str {
         match self {
-            Self::Migrate { profile } => profile,
-            Self::Query { profile, .. } => profile,
-            Self::Execute { profile, .. } => profile,
-            Self::Validate { profile } => profile,
-            Self::Status { profile } => profile,
-            Self::Info { profile } => profile,
-            Self::Tables { profile, .. } => profile,
-            Self::Describe { profile, .. } => profile,
-            Self::Count { profile, .. } => profile,
-            Self::Indexes { profile, .. } => profile,
-            Self::Size { profile } => profile,
+            Self::Migrate { profile }
+            | Self::Query { profile, .. }
+            | Self::Execute { profile, .. }
+            | Self::Validate { profile }
+            | Self::Status { profile }
+            | Self::Info { profile }
+            | Self::Tables { profile, .. }
+            | Self::Describe { profile, .. }
+            | Self::Count { profile, .. }
+            | Self::Indexes { profile, .. }
+            | Self::Size { profile } => profile,
         }
     }
 

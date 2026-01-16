@@ -168,6 +168,7 @@ fn convert_content(raw: &RawContent) -> McpToolContent {
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn execute_tool_call(
     server_name: &str,
     port: u16,

@@ -81,7 +81,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
     }
 
     if args.dry_run {
-        return execute_dry_run(&args, &env_name, &systemprompt_dir, config).await;
+        return execute_dry_run(&args, &env_name, &systemprompt_dir, config);
     }
 
     if !config.is_json_output() {
@@ -158,7 +158,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
     }
 }
 
-async fn execute_dry_run(
+fn execute_dry_run(
     args: &SetupArgs,
     env_name: &str,
     systemprompt_dir: &Path,

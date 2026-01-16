@@ -66,7 +66,7 @@ pub struct CorsRemoveArgs {
     pub origin: String,
 }
 
-pub fn execute(command: ServerCommands, config: &CliConfig) -> Result<()> {
+pub fn execute(command: &ServerCommands, config: &CliConfig) -> Result<()> {
     match command {
         ServerCommands::Show => execute_show(config),
         ServerCommands::Set(args) => execute_set(args, config),
@@ -92,7 +92,7 @@ fn execute_show(_config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
+fn execute_set(args: &SetArgs, config: &CliConfig) -> Result<()> {
     if args.host.is_none()
         && args.port.is_none()
         && args.use_https.is_none()
@@ -190,7 +190,7 @@ fn execute_set(args: SetArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_cors(command: CorsCommands, config: &CliConfig) -> Result<()> {
+fn execute_cors(command: &CorsCommands, config: &CliConfig) -> Result<()> {
     match command {
         CorsCommands::List => execute_cors_list(),
         CorsCommands::Add(args) => execute_cors_add(args, config),
@@ -211,7 +211,7 @@ fn execute_cors_list() -> Result<()> {
     Ok(())
 }
 
-fn execute_cors_add(args: CorsAddArgs, config: &CliConfig) -> Result<()> {
+fn execute_cors_add(args: &CorsAddArgs, config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
 
@@ -245,7 +245,7 @@ fn execute_cors_add(args: CorsAddArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn execute_cors_remove(args: CorsRemoveArgs, config: &CliConfig) -> Result<()> {
+fn execute_cors_remove(args: &CorsRemoveArgs, config: &CliConfig) -> Result<()> {
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile(profile_path)?;
 

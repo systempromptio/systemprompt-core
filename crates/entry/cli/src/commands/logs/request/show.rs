@@ -89,13 +89,13 @@ async fn execute_with_pool_inner(
     let cost_dollars = f64::from(row.cost_cents) / 1_000_000.0;
 
     let messages = if args.messages {
-        fetch_messages(&pool, &request_id).await
+        fetch_messages(pool, &request_id).await
     } else {
         Vec::new()
     };
 
     let linked_mcp_calls = if args.tools {
-        fetch_linked_mcp_calls(&pool, &request_id).await?
+        fetch_linked_mcp_calls(pool, &request_id).await?
     } else {
         Vec::new()
     };
@@ -127,19 +127,21 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
     service
         .get_conversation_messages(request_id)
         .await
-        .map(|msgs| {
-            msgs.into_iter()
-                .map(|m| MessageRow {
-                    sequence: m.sequence_number,
-                    role: m.role,
-                    content: m.content,
-                })
-                .collect()
-        })
-        .unwrap_or_else(|e| {
-            tracing::warn!(request_id = %request_id, error = %e, "Failed to fetch conversation messages");
-            Vec::new()
-        })
+        .map_or_else(
+            |e| {
+                tracing::warn!(request_id = %request_id, error = %e, "Failed to fetch conversation messages");
+                Vec::new()
+            },
+            |msgs| {
+                msgs.into_iter()
+                    .map(|m| MessageRow {
+                        sequence: m.sequence_number,
+                        role: m.role,
+                        content: m.content,
+                    })
+                    .collect()
+            },
+        )
 }
 
 async fn fetch_linked_mcp_calls(

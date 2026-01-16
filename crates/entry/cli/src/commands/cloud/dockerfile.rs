@@ -209,16 +209,13 @@ CMD ["{bin}/systemprompt", "services", "serve", "--foreground"]
     }
 
     fn env_section(&self) -> String {
-        let profile_env = self
-            .profile_name
-            .map(|name| {
-                format!(
-                    "    SYSTEMPROMPT_PROFILE={}/{}/profile.yaml \\",
-                    container::PROFILES,
-                    name
-                )
-            })
-            .unwrap_or_else(|| String::new());
+        let profile_env = self.profile_name.map_or_else(String::new, |name| {
+            format!(
+                "    SYSTEMPROMPT_PROFILE={}/{}/profile.yaml \\",
+                container::PROFILES,
+                name
+            )
+        });
 
         if profile_env.is_empty() {
             format!(

@@ -51,11 +51,9 @@ pub async fn execute_with_pool(
         .results
         .into_iter()
         .filter(|r| {
-            if let Some(ref src) = args.source {
-                r.source_id.as_str() == src
-            } else {
-                true
-            }
+            args.source
+                .as_ref()
+                .map_or(true, |src| r.source_id.as_str() == src)
         })
         .map(|r| SearchResultRow {
             id: r.id,

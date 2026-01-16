@@ -145,7 +145,7 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
             providers
                 .as_mapping()
                 .map(|m| m.keys().filter_map(|k| k.as_str()).collect::<Vec<_>>())
-                .unwrap_or_default()
+                .unwrap_or_else(String::new)
         );
     }
 
