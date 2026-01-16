@@ -19,6 +19,9 @@ pub struct ShowArgs {
 
     #[arg(long, short = 't', help = "Show linked MCP tool calls")]
     pub tools: bool,
+
+    #[arg(long, help = "Show full message content without truncation")]
+    pub full: bool,
 }
 
 struct AiRequestRow {
@@ -116,7 +119,7 @@ async fn execute_with_pool_inner(
         let result = CommandResult::card(output).with_title("AI Request Details");
         render_result(&result);
     } else {
-        render_text_output(&output);
+        render_text_output(&output, args.full);
     }
 
     Ok(())
@@ -176,7 +179,7 @@ async fn fetch_linked_mcp_calls(
         .collect())
 }
 
-fn render_text_output(output: &RequestShowOutput) {
+fn render_text_output(output: &RequestShowOutput, full: bool) {
     CliService::section(&format!("AI Request: {}", output.request_id));
     CliService::key_value("Provider", &output.provider);
     CliService::key_value("Model", &output.model);
@@ -188,7 +191,9 @@ fn render_text_output(output: &RequestShowOutput) {
     if !output.messages.is_empty() {
         CliService::section("Messages");
         for msg in &output.messages {
-            let content_preview = if msg.content.len() > 200 {
+            let content_display = if full {
+                msg.content.clone()
+            } else if msg.content.len() > 200 {
                 format!("{}...", &msg.content[..200])
             } else {
                 msg.content.clone()
@@ -197,7 +202,7 @@ fn render_text_output(output: &RequestShowOutput) {
                 "[{}] #{}: {}",
                 msg.role.to_uppercase(),
                 msg.sequence,
-                content_preview
+                content_display
             ));
         }
     }

@@ -35,6 +35,7 @@ impl AiService {
             Ok((mut response, tool_calls)) => {
                 response.request_id = request_id;
                 response.latency_ms = latency_ms;
+                response.tool_calls.clone_from(&tool_calls);
                 let cost = self.estimate_cost(&response);
                 self.storage.store(&StoreParams {
                     request,
