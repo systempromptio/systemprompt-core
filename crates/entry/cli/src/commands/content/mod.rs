@@ -5,6 +5,7 @@ pub mod ingest;
 pub mod link;
 pub mod list;
 pub mod popular;
+pub mod publish;
 pub mod search;
 pub mod show;
 pub mod status;
@@ -50,6 +51,12 @@ pub enum ContentCommands {
 
     #[command(subcommand, about = "Content analytics")]
     Analytics(analytics::AnalyticsCommands),
+
+    #[command(about = "Publish static content (ingest, prerender, sitemap)")]
+    Publish(publish::PublishArgs),
+
+    #[command(about = "Alias for publish", hide = true)]
+    Generate(publish::PublishArgs),
 }
 
 pub async fn execute(command: ContentCommands) -> Result<()> {
@@ -118,6 +125,12 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
         },
         ContentCommands::Analytics(cmd) => {
             analytics::execute(cmd, config).await?;
+        },
+        ContentCommands::Publish(args) | ContentCommands::Generate(args) => {
+            let result = publish::execute(args, config)
+                .await
+                .context("Failed to publish content")?;
+            render_result(&result);
         },
     }
     Ok(())

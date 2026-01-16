@@ -24,6 +24,7 @@ pub struct DeployConfig {
     pub web_dist: PathBuf,
     pub web_images: PathBuf,
     pub dockerfile: PathBuf,
+    project_root: PathBuf,
 }
 
 impl DeployConfig {
@@ -44,6 +45,7 @@ impl DeployConfig {
             web_dist,
             web_images,
             dockerfile,
+            project_root: root.to_path_buf(),
         };
         config.validate()?;
         Ok(config)
@@ -108,24 +110,52 @@ impl DeployConfig {
 
     fn validate_extension_assets(&self) -> Result<()> {
         let registry = ExtensionRegistry::discover();
-        let missing: Vec<_> = registry
-            .asset_extensions()
-            .into_iter()
-            .flat_map(|ext| {
-                let ext_id = ext.id();
-                ext.required_assets()
-                    .into_iter()
-                    .filter(|asset| asset.is_required() && !asset.source().exists())
-                    .map(move |asset| format!("[ext:{}] {}", ext_id, asset.source().display()))
-            })
-            .collect();
+        let mut missing = Vec::new();
+        let mut outside_context = Vec::new();
+
+        for ext in registry.asset_extensions() {
+            let ext_id = ext.id();
+            for asset in ext.required_assets() {
+                if !asset.is_required() {
+                    continue;
+                }
+
+                let source = asset.source();
+
+                // Check 1: Asset exists
+                if !source.exists() {
+                    missing.push(format!("[ext:{}] {}", ext_id, source.display()));
+                    continue;
+                }
+
+                // Check 2: Asset is within build context
+                if !source.starts_with(&self.project_root) {
+                    outside_context.push(format!(
+                        "[ext:{}] {} (not under {})",
+                        ext_id,
+                        source.display(),
+                        self.project_root.display()
+                    ));
+                }
+            }
+        }
 
         if !missing.is_empty() {
             bail!(
-                "Missing required extension assets:\n  {}",
+                "Missing required extension assets:\n  {}\n\nCreate these files or mark them as \
+                 optional.",
                 missing.join("\n  ")
             );
         }
+
+        if !outside_context.is_empty() {
+            bail!(
+                "Extension assets outside Docker build context:\n  {}\n\nMove assets inside the \
+                 project directory.",
+                outside_context.join("\n  ")
+            );
+        }
+
         Ok(())
     }
 }
