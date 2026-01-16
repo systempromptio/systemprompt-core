@@ -3,9 +3,8 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
+use systemprompt_provider_contracts::TemplateSource;
 use tokio::fs;
-
-use super::provider::TemplateSource;
 
 #[async_trait]
 pub trait TemplateLoader: Send + Sync {

@@ -10,23 +10,21 @@ description = "Minimal shared traits and contracts for SystemPrompt"
 workspace = true
 
 [dependencies]
-# Minimal dependencies - traits crate should have almost none
+systemprompt-provider-contracts = { path = "../provider-contracts" }
+
 async-trait = { workspace = true }
 anyhow = { workspace = true }
-axum = { workspace = true }  # For Router type in module trait
-inventory = { workspace = true }  # For module registration
+axum = { workspace = true }
+inventory = { workspace = true }
 
-# Repository trait dependencies
 thiserror = { workspace = true }
 sqlx = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
-# Tool and LLM provider trait dependencies
 serde = { workspace = true }
 futures = { workspace = true }
 
-# Startup events channel
 tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]

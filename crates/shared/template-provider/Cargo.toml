@@ -10,19 +10,17 @@ description = "Template provider traits and abstractions for SystemPrompt"
 workspace = true
 
 [dependencies]
-# Core async traits
+systemprompt-provider-contracts = { path = "../provider-contracts" }
+
 async-trait = { workspace = true }
 anyhow = { workspace = true }
 
-# Serialization for template data
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 
-# Async runtime
 tokio = { workspace = true, features = ["fs", "sync"] }
 
-# Tracing for diagnostics
 tracing = { workspace = true }
 
 [dev-dependencies]

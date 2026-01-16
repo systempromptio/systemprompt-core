@@ -1,9 +1,8 @@
-mod component;
-mod extender;
 mod loader;
-mod provider;
 
-pub use component::{ComponentContext, ComponentRenderer, RenderedComponent};
-pub use extender::{ExtendedData, ExtenderContext, TemplateDataExtender};
 pub use loader::{EmbeddedLoader, FileSystemLoader, TemplateLoader};
-pub use provider::{TemplateDefinition, TemplateProvider, TemplateSource};
+pub use systemprompt_provider_contracts::{
+    ComponentContext, ComponentRenderer, ExtendedData, ExtenderContext, PageContext,
+    PageDataProvider, RenderedComponent, TemplateDataExtender, TemplateDefinition,
+    TemplateProvider, TemplateSource,
+};

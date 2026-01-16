@@ -262,4 +262,4 @@ async fn process_candidates(candidates: &[MaliciousIpCandidate], repo: &BannedIp
     banned
 }
 
-systemprompt_traits::submit_job!(&MaliciousIpBlacklistJob);
+systemprompt_provider_contracts::submit_job!(&MaliciousIpBlacklistJob);

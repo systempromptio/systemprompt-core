@@ -4,8 +4,8 @@ use anyhow::{anyhow, Result};
 use handlebars::Handlebars;
 use serde_json::Value;
 use systemprompt_template_provider::{
-    DynComponentRenderer, DynTemplateDataExtender, DynTemplateLoader, DynTemplateProvider,
-    TemplateDefinition,
+    DynComponentRenderer, DynPageDataProvider, DynTemplateDataExtender, DynTemplateLoader,
+    DynTemplateProvider, TemplateDefinition,
 };
 use tracing::{debug, info, warn};
 
@@ -14,6 +14,7 @@ pub struct TemplateRegistry {
     loaders: Vec<DynTemplateLoader>,
     extenders: Vec<DynTemplateDataExtender>,
     components: Vec<DynComponentRenderer>,
+    page_providers: Vec<DynPageDataProvider>,
     resolved_templates: HashMap<String, TemplateDefinition>,
     handlebars: Handlebars<'static>,
     template_sources: HashMap<String, String>,
@@ -33,6 +34,7 @@ impl TemplateRegistry {
             loaders: Vec::new(),
             extenders: Vec::new(),
             components: Vec::new(),
+            page_providers: Vec::new(),
             resolved_templates: HashMap::new(),
             handlebars: Handlebars::new(),
             template_sources: HashMap::new(),
@@ -70,6 +72,16 @@ impl TemplateRegistry {
             "Registering component renderer"
         );
         self.components.push(component);
+    }
+
+    pub fn register_page_provider(&mut self, provider: DynPageDataProvider) {
+        debug!(
+            provider_id = %provider.provider_id(),
+            pages = ?provider.applies_to_pages(),
+            "Registering page data provider"
+        );
+        self.page_providers.push(provider);
+        self.page_providers.sort_by_key(|p| p.priority());
     }
 
     pub async fn initialize(&mut self) -> Result<()> {
@@ -208,6 +220,17 @@ impl TemplateRegistry {
     }
 
     #[must_use]
+    pub fn page_providers_for(&self, page_type: &str) -> Vec<&DynPageDataProvider> {
+        self.page_providers
+            .iter()
+            .filter(|p| {
+                let pages = p.applies_to_pages();
+                pages.is_empty() || pages.contains(&page_type.to_string())
+            })
+            .collect()
+    }
+
+    #[must_use]
     pub fn get_template_provider(&self, name: &str) -> Option<&str> {
         self.template_sources.get(name).map(String::as_str)
     }
@@ -225,6 +248,7 @@ impl TemplateRegistry {
             loaders: self.loaders.len(),
             extenders: self.extenders.len(),
             components: self.components.len(),
+            page_providers: self.page_providers.len(),
         }
     }
 }
@@ -236,6 +260,7 @@ pub struct RegistryStats {
     pub loaders: usize,
     pub extenders: usize,
     pub components: usize,
+    pub page_providers: usize,
 }
 
 impl std::fmt::Debug for TemplateRegistry {
@@ -249,6 +274,7 @@ impl std::fmt::Debug for TemplateRegistry {
             .field("loaders", &self.loaders.len())
             .field("extenders", &self.extenders.len())
             .field("components", &self.components.len())
+            .field("page_providers", &self.page_providers.len())
             .finish_non_exhaustive()
     }
 }
@@ -259,6 +285,7 @@ pub struct TemplateRegistryBuilder {
     loaders: Vec<DynTemplateLoader>,
     extenders: Vec<DynTemplateDataExtender>,
     components: Vec<DynComponentRenderer>,
+    page_providers: Vec<DynPageDataProvider>,
 }
 
 impl std::fmt::Debug for TemplateRegistryBuilder {
@@ -268,6 +295,7 @@ impl std::fmt::Debug for TemplateRegistryBuilder {
             .field("loaders", &self.loaders.len())
             .field("extenders", &self.extenders.len())
             .field("components", &self.components.len())
+            .field("page_providers", &self.page_providers.len())
             .finish()
     }
 }
@@ -303,6 +331,12 @@ impl TemplateRegistryBuilder {
     }
 
     #[must_use]
+    pub fn with_page_provider(mut self, provider: impl Into<DynPageDataProvider>) -> Self {
+        self.page_providers.push(provider.into());
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> TemplateRegistry {
         let mut registry = TemplateRegistry::new();
 
@@ -317,6 +351,9 @@ impl TemplateRegistryBuilder {
         }
         for component in self.components {
             registry.register_component(component);
+        }
+        for page_provider in self.page_providers {
+            registry.register_page_provider(page_provider);
         }
 
         registry

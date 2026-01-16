@@ -1,6 +1,7 @@
 [workspace]
 members = [
     # Shared layer
+    "crates/shared/provider-contracts",
     "crates/shared/traits",
     "crates/shared/models",
     "crates/shared/client",

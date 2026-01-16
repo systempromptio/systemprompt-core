@@ -67,4 +67,4 @@ impl Job for DatabaseCleanupJob {
     }
 }
 
-systemprompt_traits::submit_job!(&DatabaseCleanupJob);
+systemprompt_provider_contracts::submit_job!(&DatabaseCleanupJob);

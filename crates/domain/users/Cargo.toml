@@ -31,6 +31,7 @@ systemprompt-models = { path = "../../shared/models" }
 systemprompt-core-database = { path = "../../infra/database" }
 systemprompt-core-logging = { path = "../../infra/logging" }
 systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 # Traits

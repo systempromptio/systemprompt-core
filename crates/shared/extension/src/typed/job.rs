@@ -1,8 +1,6 @@
-//! Scheduled job extension trait.
-
 use std::sync::Arc;
 
-use systemprompt_traits::Job;
+use systemprompt_provider_contracts::Job;
 
 use crate::types::ExtensionMeta;
 

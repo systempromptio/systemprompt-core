@@ -7,8 +7,8 @@ pub use error::TemplateError;
 pub use registry::{RegistryStats, TemplateRegistry, TemplateRegistryBuilder};
 
 pub use systemprompt_template_provider::{
-    ComponentContext, ComponentRenderer, DynComponentRenderer, DynTemplateDataExtender,
-    DynTemplateLoader, DynTemplateProvider, EmbeddedLoader, ExtendedData, ExtenderContext,
-    FileSystemLoader, RenderedComponent, TemplateDataExtender, TemplateDefinition, TemplateLoader,
-    TemplateProvider, TemplateSource,
+    ComponentContext, ComponentRenderer, DynComponentRenderer, DynPageDataProvider,
+    DynTemplateDataExtender, DynTemplateLoader, DynTemplateProvider, EmbeddedLoader, ExtendedData,
+    ExtenderContext, FileSystemLoader, PageContext, PageDataProvider, RenderedComponent,
+    TemplateDataExtender, TemplateDefinition, TemplateLoader, TemplateProvider, TemplateSource,
 };

@@ -253,4 +253,4 @@ impl Job for ContentIngestionJob {
     }
 }
 
-systemprompt_traits::submit_job!(&ContentIngestionJob);
+systemprompt_provider_contracts::submit_job!(&ContentIngestionJob);

@@ -11,7 +11,8 @@ use super::tenant::find_services_config;
 
 /// Extracts the extension directory from a relative asset path.
 ///
-/// Given a path like `extensions/blog/assets/css/file.css`, returns `extensions/blog`.
+/// Given a path like `extensions/blog/assets/css/file.css`, returns
+/// `extensions/blog`.
 fn extract_extension_dir(relative_path: &Path) -> Option<PathBuf> {
     let components: Vec<_> = relative_path.components().collect();
 

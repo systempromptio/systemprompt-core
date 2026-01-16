@@ -23,14 +23,14 @@ systemprompt/   # Facade: Public API for external consumers (crates.io)
 
 ### Shared Layer (`crates/shared/`)
 
-Pure types with zero dependencies on other systemprompt crates.
+Pure types with zero dependencies on other systemprompt crates (except within shared/).
 
 | Criterion | Rule |
 |-----------|------|
 | SQL/Database | NEVER |
 | Repository | NEVER |
 | Service | NEVER |
-| Internal deps | NEVER (external crates only) |
+| Internal deps | Other shared/ crates only |
 | State | NEVER (no singletons, no mutability) |
 | I/O | NEVER (no file, network, database) |
 
@@ -38,11 +38,13 @@ Pure types with zero dependencies on other systemprompt crates.
 
 | Crate | Purpose |
 |-------|---------|
+| `provider-contracts/` | Provider trait contracts (`LlmProvider`, `ToolProvider`, `Job`, `ComponentRenderer`, etc.) |
 | `identifiers/` | Typed IDs (`UserId`, `TaskId`, etc.) |
 | `models/` | Domain models, API types, configuration structs, **validation report types** |
-| `traits/` | Shared trait definitions (`LlmProvider`, `ToolProvider`, `Job`, **`DomainConfig`**) |
+| `traits/` | Infrastructure trait definitions (`DomainConfig`, `ConfigProvider`, `DatabaseHandle`) - re-exports provider-contracts |
+| `template-provider/` | Template loading and rendering abstractions - re-exports provider-contracts |
 | `client/` | HTTP client for external API access |
-| `extension/` | Extension framework for user customization |
+| `extension/` | Extension framework for user customization - depends on provider-contracts for provider traits |
 
 ---
 
@@ -917,8 +919,6 @@ The startup validation system ensures configuration is valid before the applicat
 | Entry | facade/ |
 | Facade | (no restrictions - can re-export anything) |
 
-**Note:** The `extension` crate in `shared/` is special - it can depend on `shared/traits` to reference provider types like `LlmProvider` and `ToolProvider`.
-
 ---
 
 ## Cross-Domain Communication
@@ -1055,7 +1055,9 @@ Run these checks after adding or moving crates:
 
 | Crate | Package Name | Purpose |
 |-------|--------------|---------|
-| `shared/traits` | `systemprompt-traits` | Core trait definitions |
+| `shared/provider-contracts` | `systemprompt-provider-contracts` | Provider trait contracts (LlmProvider, ToolProvider, Job, etc.) |
+| `shared/traits` | `systemprompt-traits` | Infrastructure traits, re-exports provider-contracts |
+| `shared/template-provider` | `systemprompt-template-provider` | Template loading, re-exports provider-contracts |
 | `shared/models` | `systemprompt-models` | Data models, config types |
 | `shared/identifiers` | `systemprompt-identifiers` | Typed IDs |
 | `shared/client` | `systemprompt-client` | HTTP client |
