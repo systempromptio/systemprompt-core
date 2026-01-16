@@ -3,8 +3,9 @@ mod demote;
 mod promote;
 
 use crate::cli_settings::CliConfig;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Subcommand;
+use systemprompt_core_database::DbPool;
 
 #[derive(Debug, Subcommand)]
 pub enum RoleCommands {
@@ -24,4 +25,12 @@ pub async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
         RoleCommands::Promote(args) => promote::execute(args, config).await,
         RoleCommands::Demote(args) => demote::execute(args, config).await,
     }
+}
+
+pub async fn execute_with_pool(
+    _cmd: RoleCommands,
+    _pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<()> {
+    bail!("Role management operations require full profile context")
 }

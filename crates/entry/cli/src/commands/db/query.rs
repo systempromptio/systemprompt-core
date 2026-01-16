@@ -37,23 +37,18 @@ pub async fn execute_query(
 ) -> Result<()> {
     let output_format = get_output_format(params.format, config);
 
-    let final_sql = if params.limit.is_some() || params.offset.is_some() {
-        let limit_clause = params
-            .limit
-            .map(|l| format!(" LIMIT {}", l))
-            .unwrap_or_default();
-        let offset_clause = params
-            .offset
-            .map(|o| format!(" OFFSET {}", o))
-            .unwrap_or_default();
-        format!(
-            "{}{}{}",
-            params.sql.trim_end_matches(';'),
-            limit_clause,
-            offset_clause
-        )
-    } else {
-        params.sql.to_string()
+    let final_sql = match (params.limit, params.offset) {
+        (None, None) => params.sql.to_string(),
+        (limit, offset) => {
+            let mut sql = params.sql.trim_end_matches(';').to_string();
+            if let Some(l) = limit {
+                sql.push_str(&format!(" LIMIT {}", l));
+            }
+            if let Some(o) = offset {
+                sql.push_str(&format!(" OFFSET {}", o));
+            }
+            sql
+        },
     };
 
     let result = executor
@@ -67,10 +62,12 @@ pub async fn execute_query(
                 if config.is_json_output() {
                     CliService::json(&json_err);
                 }
-                let hint = suggest_table_name(&table_name)
-                    .map(|s| format!("\nHint: Did you mean '{}'?", s))
-                    .unwrap_or_default();
-                anyhow!("{}{}", json_err.message, hint)
+                match suggest_table_name(&table_name) {
+                    Some(suggestion) => {
+                        anyhow!("{}\nHint: Did you mean '{}'?", json_err.message, suggestion)
+                    },
+                    None => anyhow!("{}", json_err.message),
+                }
             } else if msg.contains("syntax error") {
                 anyhow!("SQL syntax error: {}", msg)
             } else {

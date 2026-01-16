@@ -1,8 +1,9 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_core_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::ai_artifacts::print_artifacts;
 use super::ai_display::{
@@ -55,17 +56,25 @@ struct FormattedDisplayContext<'a> {
 pub async fn execute(args: ShowArgs) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool).await
+}
 
-    let ai_service = AiTraceService::new(std::sync::Arc::clone(&pool));
+pub async fn execute_with_pool(args: ShowArgs, db_ctx: &DatabaseContext) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool).await
+}
+
+async fn execute_with_pool_inner(args: ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+    let ai_service = AiTraceService::new(Arc::clone(pool));
     if let Ok(task_id) = ai_service.resolve_task_id(&args.id).await {
         return execute_ai_trace(&ai_service, &task_id, &args).await;
     }
 
-    execute_trace_view(&args, &pool).await
+    execute_trace_view(&args, pool).await
 }
 
-async fn execute_trace_view(args: &ShowArgs, pool: &std::sync::Arc<sqlx::PgPool>) -> Result<()> {
-    let service = TraceQueryService::new(std::sync::Arc::clone(pool));
+async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
+    let service = TraceQueryService::new(Arc::clone(pool));
 
     let (
         log_events,

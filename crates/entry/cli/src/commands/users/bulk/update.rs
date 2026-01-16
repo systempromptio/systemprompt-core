@@ -9,28 +9,29 @@ use crate::commands::users::types::BulkUpdateOutput;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
-    /// New status to set (active, inactive, suspended)
-    #[arg(long)]
+    #[arg(long, help = "New status to set (active, inactive, suspended)")]
     pub set_status: String,
 
-    /// Filter by current role (e.g., 'anonymous')
-    #[arg(long)]
+    #[arg(long, help = "Filter by current role (e.g., 'anonymous')")]
     pub role: Option<String>,
 
-    /// Filter by current status
-    #[arg(long)]
+    #[arg(long, help = "Filter by current status")]
     pub status: Option<String>,
 
-    /// Filter by age: users older than N days
-    #[arg(long)]
+    #[arg(long, help = "Filter by age: users older than N days")]
     pub older_than: Option<i64>,
 
-    /// Maximum number of users to update
-    #[arg(long, default_value = "100")]
+    #[arg(
+        long,
+        default_value = "100",
+        help = "Maximum number of users to update"
+    )]
     pub limit: i64,
 
-    /// Dry run - show what would be updated without actually updating
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "Dry run - show what would be updated without actually updating"
+    )]
     pub dry_run: bool,
 
     #[arg(short = 'y', long)]

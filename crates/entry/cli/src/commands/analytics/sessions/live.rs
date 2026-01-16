@@ -2,8 +2,9 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
 use crate::commands::analytics::shared::{export_to_csv, format_number};
@@ -33,16 +34,34 @@ pub struct LiveArgs {
 pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: LiveArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    let mut args = args;
+    args.no_refresh = true;
+    execute_internal(args, &pool, config).await
+}
+
+async fn execute_internal(
+    args: LiveArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     if let Some(ref path) = args.export {
-        let output = fetch_live_sessions(&pool, args.limit).await?;
+        let output = fetch_live_sessions(pool, args.limit).await?;
         export_to_csv(&output.sessions, path)?;
         CliService::success(&format!("Exported to {}", path.display()));
         return Ok(());
     }
 
     if args.no_refresh || !config.is_interactive() {
-        let output = fetch_live_sessions(&pool, args.limit).await?;
+        let output = fetch_live_sessions(pool, args.limit).await?;
         render_output(&output, config);
         return Ok(());
     }
@@ -50,7 +69,7 @@ pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
     loop {
         CliService::clear_screen();
 
-        let output = fetch_live_sessions(&pool, args.limit).await?;
+        let output = fetch_live_sessions(pool, args.limit).await?;
         render_output(&output, config);
 
         CliService::info(&format!(
@@ -63,7 +82,7 @@ pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn fetch_live_sessions(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     limit: i64,
 ) -> Result<LiveSessionsOutput> {
     let cutoff = Utc::now() - Duration::minutes(30);

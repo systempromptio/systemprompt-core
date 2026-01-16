@@ -9,12 +9,10 @@ use super::types::UserMergeOutput;
 
 #[derive(Debug, Args)]
 pub struct MergeArgs {
-    /// Source user (will be deleted after merge)
-    #[arg(long)]
+    #[arg(long, help = "Source user (will be deleted after merge)")]
     pub source: String,
 
-    /// Target user (will receive source's data)
-    #[arg(long)]
+    #[arg(long, help = "Target user (will receive source's data)")]
     pub target: String,
 
     #[arg(short = 'y', long)]

@@ -1,4 +1,5 @@
 pub mod auth;
+pub mod db;
 mod deploy;
 pub mod dockerfile;
 mod init;
@@ -74,6 +75,9 @@ pub enum CloudCommands {
 
     #[command(about = "Generate Dockerfile based on discovered extensions")]
     Dockerfile,
+
+    #[command(subcommand, about = "Cloud database operations")]
+    Db(db::CloudDbCommands),
 }
 
 impl CloudCommands {
@@ -106,6 +110,7 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
         CloudCommands::Sync { command } => sync::execute(command, config).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
         CloudCommands::Dockerfile => execute_dockerfile(),
+        CloudCommands::Db(cmd) => db::execute(cmd, config).await,
     }
 }
 

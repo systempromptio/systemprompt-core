@@ -1,5 +1,6 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::UserService;
 use systemprompt_runtime::AppContext;
@@ -8,7 +9,11 @@ use super::types::UserStatsOutput;
 
 pub async fn execute(config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    execute_with_pool(ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let user_service = UserService::new(pool)?;
 
     let stats = user_service.get_stats().await?;
 

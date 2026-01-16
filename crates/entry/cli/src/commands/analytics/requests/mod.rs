@@ -6,6 +6,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -72,5 +73,17 @@ pub async fn execute(command: RequestsCommands, config: &CliConfig) -> Result<()
         RequestsCommands::Stats(args) => stats::execute(args, config).await,
         RequestsCommands::Trends(args) => trends::execute(args, config).await,
         RequestsCommands::Models(args) => models::execute(args, config).await,
+    }
+}
+
+pub async fn execute_with_pool(
+    command: RequestsCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        RequestsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
+        RequestsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
+        RequestsCommands::Models(args) => models::execute_with_pool(args, db_ctx, config).await,
     }
 }

@@ -1,8 +1,9 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TraceListOutput, TraceListRow};
 use crate::commands::logs::duration::parse_since;
@@ -54,7 +55,19 @@ struct TraceRow {
 pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool).await
+}
 
+pub async fn execute_with_pool(
+    args: ListArgs,
+    db_ctx: &DatabaseContext,
+    _config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool).await
+}
+
+async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let tool_pattern = args.tool.as_ref().map(|t| format!("%{}%", t));
 

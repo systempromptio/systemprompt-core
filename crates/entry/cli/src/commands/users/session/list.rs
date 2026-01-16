@@ -1,6 +1,7 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::{UserAdminService, UserService};
 use systemprompt_identifiers::SessionId;
@@ -36,7 +37,11 @@ struct SessionRow {
 
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user_id).await?;

@@ -1,6 +1,7 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::UserService;
 use systemprompt_runtime::AppContext;
@@ -32,7 +33,11 @@ struct UserRow {
 
 pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(args: SearchArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let user_service = UserService::new(pool)?;
 
     let users = user_service.search(&args.query, args.limit).await?;
     let total = users.len() as i64;

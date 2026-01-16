@@ -4,6 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_content::ContentRepository;
+use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 
@@ -24,10 +25,18 @@ pub struct ListArgs {
 
 pub async fn execute(
     args: ListArgs,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<CommandResult<ContentListOutput>> {
     let ctx = AppContext::new().await?;
-    let repo = ContentRepository::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(
+    args: ListArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<ContentListOutput>> {
+    let repo = ContentRepository::new(pool)?;
 
     let items = match &args.source {
         Some(source_id) => {

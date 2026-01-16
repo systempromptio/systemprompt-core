@@ -12,10 +12,11 @@ pub mod tools;
 pub mod trace;
 mod view;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -147,5 +148,25 @@ pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
         LogsCommands::Trace(cmd) => trace::execute(cmd, config).await,
         LogsCommands::Request(cmd) => request::execute(cmd, config).await,
         LogsCommands::Tools(cmd) => tools::execute(cmd, config).await,
+    }
+}
+
+pub async fn execute_with_db(
+    command: LogsCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        LogsCommands::View(args) => view::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Search(args) => search::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Summary(args) => summary::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Export(args) => export::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Trace(cmd) => trace::execute_with_pool(cmd, db_ctx, config).await,
+        LogsCommands::Request(cmd) => request::execute_with_pool(cmd, db_ctx, config).await,
+        LogsCommands::Tools(cmd) => tools::execute_with_pool(cmd, db_ctx, config).await,
+        LogsCommands::Stream(_) | LogsCommands::Cleanup(_) | LogsCommands::Delete(_) => {
+            bail!("This logs command requires full profile context")
+        },
     }
 }

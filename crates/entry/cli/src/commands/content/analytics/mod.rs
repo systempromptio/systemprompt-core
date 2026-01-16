@@ -6,6 +6,7 @@ use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
 use anyhow::{Context, Result};
 use clap::Subcommand;
+use systemprompt_core_database::DbPool;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {
@@ -35,6 +36,34 @@ pub async fn execute(command: AnalyticsCommands, config: &CliConfig) -> Result<(
         },
         AnalyticsCommands::Journey(args) => {
             let result = journey::execute(args, config)
+                .await
+                .context("Failed to get content journey")?;
+            render_result(&result);
+        },
+    }
+    Ok(())
+}
+
+pub async fn execute_with_pool(
+    command: AnalyticsCommands,
+    pool: &DbPool,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        AnalyticsCommands::Clicks(args) => {
+            let result = clicks::execute_with_pool(args, pool, config)
+                .await
+                .context("Failed to get link clicks")?;
+            render_result(&result);
+        },
+        AnalyticsCommands::Campaign(args) => {
+            let result = campaign::execute_with_pool(args, pool, config)
+                .await
+                .context("Failed to get campaign analytics")?;
+            render_result(&result);
+        },
+        AnalyticsCommands::Journey(args) => {
+            let result = journey::execute_with_pool(args, pool, config)
                 .await
                 .context("Failed to get content journey")?;
             render_result(&result);

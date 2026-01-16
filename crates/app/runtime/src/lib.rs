@@ -2,6 +2,7 @@
 #![allow(clippy::let_and_return)]
 
 mod context;
+mod database_context;
 mod installation;
 mod registry;
 mod span;
@@ -10,6 +11,7 @@ mod validation;
 mod wellknown;
 
 pub use context::{AppContext, AppContextBuilder};
+pub use database_context::DatabaseContext;
 pub use installation::{install_module, install_module_with_db};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleRuntime, WellKnownRoute};
 pub use span::create_request_span;

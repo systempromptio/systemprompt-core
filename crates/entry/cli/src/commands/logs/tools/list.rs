@@ -1,7 +1,8 @@
 use anyhow::Result;
 use clap::Args;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::queries::query_tools;
 use super::{ToolExecutionRow, ToolsListOutput};
@@ -30,13 +31,29 @@ pub struct ListArgs {
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: ListArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: ListArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let name_pattern = args.name.as_ref().map(|n| format!("%{}%", n));
     let server_pattern = args.server.as_ref().map(|s| format!("%{}%", s));
 
     let rows = query_tools(
-        &pool,
+        pool,
         since_timestamp,
         name_pattern.as_deref(),
         server_pattern.as_deref(),

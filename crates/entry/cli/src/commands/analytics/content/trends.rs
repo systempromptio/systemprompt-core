@@ -3,8 +3,9 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ContentTrendPoint, ContentTrendsOutput};
 use crate::commands::analytics::shared::{
@@ -36,9 +37,25 @@ struct EngagementRow {
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: TrendsArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
+
+async fn execute_internal(
+    args: TrendsArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_trends(&pool, start, end, &args.group_by).await?;
+    let output = fetch_trends(pool, start, end, &args.group_by).await?;
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.points, path)?;
@@ -59,7 +76,7 @@ pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn fetch_trends(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
     group_by: &str,

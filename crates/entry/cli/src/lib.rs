@@ -11,14 +11,14 @@ pub use commands::{
     services, setup, skills, system, users, web,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::{set_startup_mode, CliService};
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
-    display_validation_report, display_validation_warnings, StartupValidator,
+    display_validation_report, display_validation_warnings, DatabaseContext, StartupValidator,
 };
 
 #[derive(clap::Args)]
@@ -70,6 +70,17 @@ struct DisplayOpts {
     non_interactive: bool,
 }
 
+#[derive(clap::Args)]
+struct DatabaseOpts {
+    #[arg(
+        long,
+        global = true,
+        env = "SYSTEMPROMPT_DATABASE_URL",
+        help = "Direct database URL (bypasses profile)"
+    )]
+    database_url: Option<String>,
+}
+
 #[derive(Parser)]
 #[command(name = "systemprompt")]
 #[command(about = "Agent orchestration and AI operations")]
@@ -86,7 +97,8 @@ GLOBAL OPTIONS (apply to all commands):
       --json            JSON output
       --yaml            YAML output
       --no-color        Disable colors
-      --non-interactive Non-interactive mode")]
+      --non-interactive Non-interactive mode
+      --database-url    Direct database URL (bypasses profile)")]
 struct Cli {
     #[command(flatten)]
     verbosity: VerbosityOpts,
@@ -96,6 +108,9 @@ struct Cli {
 
     #[command(flatten)]
     display: DisplayOpts,
+
+    #[command(flatten)]
+    database: DatabaseOpts,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -186,6 +201,10 @@ pub async fn run() -> Result<()> {
         console::set_colors_enabled(false);
     }
 
+    if let Some(database_url) = cli.database.database_url.clone() {
+        return run_with_database_url(cli.command, &cli_config, &database_url).await;
+    }
+
     let (requires_profile, requires_secrets) = match &cli.command {
         Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
         Some(Commands::Setup(_)) => (false, false),
@@ -261,6 +280,29 @@ pub async fn run() -> Result<()> {
     }
 
     Ok(())
+}
+
+async fn run_with_database_url(
+    command: Option<Commands>,
+    config: &CliConfig,
+    database_url: &str,
+) -> Result<()> {
+    let db_ctx = DatabaseContext::from_url(database_url)
+        .await
+        .context("Failed to connect to database")?;
+
+    match command {
+        Some(Commands::Db(cmd)) => db::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Users(cmd)) => users::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Analytics(cmd)) => analytics::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Content(cmd)) => content::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Logs(cmd)) => logs::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Files(cmd)) => files::execute_with_db(cmd, &db_ctx, config).await,
+        Some(_) => {
+            bail!("This command requires full profile initialization. Remove --database-url flag.")
+        },
+        None => bail!("TUI mode requires full profile initialization. Remove --database-url flag."),
+    }
 }
 
 fn build_cli_config(cli: &Cli) -> CliConfig {

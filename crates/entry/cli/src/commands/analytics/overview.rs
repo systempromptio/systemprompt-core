@@ -5,7 +5,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::shared::{
     format_cost, format_duration_ms, format_number, format_percent, parse_time_range, CsvBuilder,
@@ -82,7 +82,23 @@ pub struct CostMetrics {
 pub async fn execute(args: OverviewArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: OverviewArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
+
+async fn execute_internal(
+    args: OverviewArgs,
+    pool: &std::sync::Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let output = fetch_overview_data(&pool, start, end).await?;
 

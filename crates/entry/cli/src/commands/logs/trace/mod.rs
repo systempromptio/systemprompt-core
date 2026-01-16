@@ -13,6 +13,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_runtime::DatabaseContext;
 
 use crate::CliConfig;
 
@@ -195,5 +196,16 @@ pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
     match command {
         TraceCommands::List(args) => list::execute(args, config).await,
         TraceCommands::Show(args) => show::execute(args).await,
+    }
+}
+
+pub async fn execute_with_pool(
+    command: TraceCommands,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    match command {
+        TraceCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
+        TraceCommands::Show(args) => show::execute_with_pool(args, db_ctx).await,
     }
 }

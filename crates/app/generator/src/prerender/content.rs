@@ -4,7 +4,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_core_content::models::ContentError;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::ComponentContext;
+use systemprompt_template_provider::{ComponentContext, ExtenderContext};
 use tokio::fs;
 
 use crate::content::render_markdown;
@@ -122,10 +122,10 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         config_value,
     } = params;
 
-    let item_slug = item
+    let slug = item
         .get("slug")
         .and_then(|v| v.as_str())
-        .unwrap_or("unknown");
+        .ok_or_else(|| ContentError::missing_field("slug"))?;
 
     let markdown_content = item
         .get("content")
@@ -145,12 +145,12 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         db_pool: Arc::clone(&ctx.db_pool),
     })
     .await
-    .with_context(|| format!("Failed to prepare template data for item '{}'", item_slug))?;
+    .with_context(|| format!("Failed to prepare template data for item '{}'", slug))?;
 
     let content_type = item
         .get("content_type")
         .and_then(|v| v.as_str())
-        .unwrap_or(*source_name);
+        .ok_or_else(|| ContentError::missing_field("content_type"))?;
 
     let component_ctx =
         ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
@@ -175,6 +175,27 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         }
     }
 
+    let extender_ctx = ExtenderContext::new(
+        item,
+        all_items,
+        config_value,
+        &ctx.web_config,
+        &content_html,
+        &sitemap_config.url_pattern,
+        source_name,
+        &ctx.db_pool,
+    );
+
+    for extender in ctx.template_registry.extenders_for(content_type) {
+        if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {
+            tracing::warn!(
+                extender_id = %extender.extender_id(),
+                error = %e,
+                "Template data extender failed"
+            );
+        }
+    }
+
     let template_name = ctx
         .template_registry
         .get_template_for_content_type(content_type)
@@ -185,12 +206,7 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
     let html = ctx
         .template_registry
         .render(template_name, &template_data)
-        .with_context(|| format!("Failed to render template for item '{}'", item_slug))?;
-
-    let slug = item
-        .get("slug")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("slug"))?;
+        .with_context(|| format!("Failed to render template for item '{}'", slug))?;
 
     write_rendered_page(&ctx.dist_dir, &sitemap_config.url_pattern, slug, &html).await
 }

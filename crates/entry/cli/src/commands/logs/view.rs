@@ -4,7 +4,7 @@ use clap::Args;
 use std::sync::Arc;
 use systemprompt_core_logging::models::{LogEntry, LogLevel};
 use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
@@ -38,6 +38,40 @@ pub struct ViewArgs {
 pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+
+    let since_timestamp = parse_since(args.since.as_ref())?;
+    let logs = get_logs(&service, &args, since_timestamp).await?;
+    let output = build_output(&logs, &args);
+
+    if config.is_json_output() {
+        let hints = RenderingHints {
+            columns: Some(vec![
+                "id".to_string(),
+                "trace_id".to_string(),
+                "timestamp".to_string(),
+                "level".to_string(),
+                "module".to_string(),
+                "message".to_string(),
+            ]),
+            ..Default::default()
+        };
+        let result = CommandResult::table(output)
+            .with_title("Log Entries")
+            .with_hints(hints);
+        render_result(&result);
+    } else {
+        render_logs(&output);
+    }
+
+    Ok(())
+}
+
+pub async fn execute_with_pool(
+    args: ViewArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let service = LoggingMaintenanceService::new(db_ctx.db_pool_arc());
 
     let since_timestamp = parse_since(args.since.as_ref())?;
     let logs = get_logs(&service, &args, since_timestamp).await?;

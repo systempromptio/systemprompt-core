@@ -2,8 +2,9 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::ConversationStatsOutput;
 use crate::commands::analytics::shared::{
@@ -27,9 +28,25 @@ pub struct StatsArgs {
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: StatsArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
+
+async fn execute_internal(
+    args: StatsArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(&pool, start, end).await?;
+    let output = fetch_stats(pool, start, end).await?;
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -48,7 +65,7 @@ pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn fetch_stats(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<ConversationStatsOutput> {

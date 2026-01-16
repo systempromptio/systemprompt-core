@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_files::{File, FileService, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
@@ -22,7 +23,15 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<FileDetailOutput>> {
     let ctx = AppContext::new().await?;
-    let service = FileService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), _config).await
+}
+
+pub async fn execute_with_pool(
+    args: ShowArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<FileDetailOutput>> {
+    let service = FileService::new(pool)?;
 
     let file = find_file(&service, &args.identifier).await?;
 

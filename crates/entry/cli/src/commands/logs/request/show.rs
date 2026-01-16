@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_core_logging::{AiTraceService, CliService};
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
 use crate::shared::{render_result, CommandResult};
@@ -41,7 +41,23 @@ struct LinkedMcpRow {
 pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: ShowArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: ShowArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let partial_match = format!("{}%", args.request_id);
     let Some(row) = sqlx::query_as!(
         AiRequestRow,

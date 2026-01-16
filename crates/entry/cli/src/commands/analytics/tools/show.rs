@@ -2,8 +2,9 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
+use std::sync::Arc;
 use systemprompt_core_logging::CliService;
-use systemprompt_runtime::AppContext;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{AgentUsageItem, ErrorItem, StatusBreakdownItem, ToolShowOutput, ToolStatsOutput};
 use crate::commands::analytics::shared::{
@@ -34,9 +35,25 @@ pub struct ShowArgs {
 pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: ShowArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_internal(args, &pool, config).await
+}
+
+async fn execute_internal(
+    args: ShowArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_tool_details(&pool, &args.tool, start, end).await?;
+    let output = fetch_tool_details(pool, &args.tool, start, end).await?;
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -55,7 +72,7 @@ pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
 }
 
 async fn fetch_tool_details(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     tool_name: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
@@ -97,7 +114,7 @@ async fn fetch_tool_details(
 }
 
 async fn fetch_summary(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     tool_name: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
@@ -146,7 +163,7 @@ async fn fetch_summary(
 }
 
 async fn fetch_status_breakdown(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     tool_name: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
@@ -184,7 +201,7 @@ async fn fetch_status_breakdown(
 }
 
 async fn fetch_top_errors(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     tool_name: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
@@ -219,7 +236,7 @@ async fn fetch_top_errors(
 }
 
 async fn fetch_usage_by_agent(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     tool_name: &str,
     start: DateTime<Utc>,
     end: DateTime<Utc>,

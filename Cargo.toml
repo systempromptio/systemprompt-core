@@ -215,7 +215,7 @@ reqwest-eventsource = "0.6"
 wiremock = "0.6"
 
 # Markdown and templating
-comrak = "0.49"
+comrak = { version = "0.49", default-features = false }
 handlebars = "6"
 pulldown-cmark = "0.13"
 
@@ -241,3 +241,5 @@ lto = true
 codegen-units = 1
 panic = "abort"
 strip = true
+debug-assertions = false
+overflow-checks = false

@@ -91,12 +91,12 @@ fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) 
                     Some(base_value) => merge_json_data(base_value, ext_value),
                     None => {
                         base_obj.insert(key.clone(), ext_value.clone());
-                    }
+                    },
                 }
             }
-        }
+        },
         (base, extension) => {
             *base = extension.clone();
-        }
+        },
     }
 }

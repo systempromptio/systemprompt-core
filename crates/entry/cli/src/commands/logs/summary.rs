@@ -3,7 +3,8 @@ use chrono::{DateTime, Utc};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::AppContext;
+use std::sync::Arc;
+use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use crate::shared::{render_result, CommandResult, RenderingHints};
@@ -75,7 +76,23 @@ struct TimeRangeRow {
 pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
 
+pub async fn execute_with_pool(
+    args: SummaryArgs,
+    db_ctx: &DatabaseContext,
+    config: &CliConfig,
+) -> Result<()> {
+    let pool = db_ctx.db_pool().pool_arc()?;
+    execute_with_pool_inner(args, &pool, config).await
+}
+
+async fn execute_with_pool_inner(
+    args: SummaryArgs,
+    pool: &Arc<sqlx::PgPool>,
+    config: &CliConfig,
+) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
     let level_counts = if let Some(since_ts) = since_timestamp {

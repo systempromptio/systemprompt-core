@@ -4,6 +4,7 @@ use chrono::Utc;
 use clap::Args;
 use std::fs::File;
 use std::io::Write;
+use systemprompt_core_database::DbPool;
 use systemprompt_core_logging::CliService;
 use systemprompt_core_users::UserService;
 use systemprompt_runtime::AppContext;
@@ -12,26 +13,34 @@ use super::types::{UserExportItem, UserExportOutput};
 
 #[derive(Debug, Args)]
 pub struct ExportArgs {
-    /// Output file path (prints to stdout if not specified)
-    #[arg(short, long)]
+    #[arg(
+        short,
+        long,
+        help = "Output file path (prints to stdout if not specified)"
+    )]
     pub output: Option<String>,
 
-    /// Filter by role
-    #[arg(long)]
+    #[arg(long, help = "Filter by role")]
     pub role: Option<String>,
 
-    /// Filter by status
-    #[arg(long)]
+    #[arg(long, help = "Filter by status")]
     pub status: Option<String>,
 
-    /// Maximum number of users to export
-    #[arg(long, default_value = "1000")]
+    #[arg(
+        long,
+        default_value = "1000",
+        help = "Maximum number of users to export"
+    )]
     pub limit: i64,
 }
 
 pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let user_service = UserService::new(ctx.db_pool())?;
+    execute_with_pool(args, ctx.db_pool(), config).await
+}
+
+pub async fn execute_with_pool(args: ExportArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+    let user_service = UserService::new(pool)?;
 
     let users = user_service
         .list_by_filter(

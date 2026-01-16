@@ -10,15 +10,19 @@ use crate::commands::users::types::SessionEndOutput;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
-    /// Session ID to end (optional if using --user --all)
+    #[arg(help = "Session ID to end (optional if using --user --all)")]
     pub session_id: Option<String>,
 
-    /// User identifier (ID, email, or username) to end sessions for
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "User identifier (ID, email, or username) to end sessions for"
+    )]
     pub user: Option<String>,
 
-    /// End all sessions for the specified user (requires --user)
-    #[arg(long)]
+    #[arg(
+        long,
+        help = "End all sessions for the specified user (requires --user)"
+    )]
     pub all: bool,
 
     #[arg(short = 'y', long)]

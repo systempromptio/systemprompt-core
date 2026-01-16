@@ -23,15 +23,20 @@ pub async fn execute_indexes(
     let mut all_indexes = Vec::new();
 
     for table in &filtered_tables {
-        if let Ok(indexes) = admin.get_table_indexes(&table.name).await {
-            for idx in indexes {
-                all_indexes.push(TableIndexInfo {
-                    table: table.name.clone(),
-                    name: idx.name,
-                    columns: idx.columns,
-                    unique: idx.unique,
-                });
-            }
+        match admin.get_table_indexes(&table.name).await {
+            Ok(indexes) => {
+                for idx in indexes {
+                    all_indexes.push(TableIndexInfo {
+                        table: table.name.clone(),
+                        name: idx.name,
+                        columns: idx.columns,
+                        unique: idx.unique,
+                    });
+                }
+            },
+            Err(e) => {
+                tracing::warn!(table = %table.name, error = %e, "Failed to get table indexes");
+            },
         }
     }
 
