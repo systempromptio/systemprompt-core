@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::CliSessionAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -33,8 +33,8 @@ pub struct LiveArgs {
 
 pub async fn execute(args: LiveArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -42,26 +42,26 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
+    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
     let mut args = args;
     args.no_refresh = true;
-    execute_internal(args, &pool, config).await
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: LiveArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CliSessionAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     if let Some(ref path) = args.export {
-        let output = fetch_live_sessions(pool, args.limit).await?;
+        let output = fetch_live_sessions(repo, args.limit).await?;
         export_to_csv(&output.sessions, path)?;
         CliService::success(&format!("Exported to {}", path.display()));
         return Ok(());
     }
 
     if args.no_refresh || !config.is_interactive() {
-        let output = fetch_live_sessions(pool, args.limit).await?;
+        let output = fetch_live_sessions(repo, args.limit).await?;
         render_output(&output, config);
         return Ok(());
     }
@@ -69,7 +69,7 @@ async fn execute_internal(
     loop {
         CliService::clear_screen();
 
-        let output = fetch_live_sessions(pool, args.limit).await?;
+        let output = fetch_live_sessions(repo, args.limit).await?;
         render_output(&output, config);
 
         CliService::info(&format!(
@@ -82,41 +82,13 @@ async fn execute_internal(
 }
 
 async fn fetch_live_sessions(
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CliSessionAnalyticsRepository,
     limit: i64,
 ) -> Result<LiveSessionsOutput> {
     let cutoff = Utc::now() - Duration::minutes(30);
 
-    struct SessionRow {
-        session_id: String,
-        user_type: Option<String>,
-        started_at: chrono::DateTime<Utc>,
-        duration_seconds: Option<i32>,
-        request_count: Option<i32>,
-        last_activity_at: chrono::DateTime<Utc>,
-    }
-
-    let rows = sqlx::query_as!(
-        SessionRow,
-        r#"
-        SELECT
-            session_id,
-            COALESCE(user_type, 'unknown') as user_type,
-            started_at,
-            duration_seconds,
-            request_count,
-            last_activity_at
-        FROM user_sessions
-        WHERE ended_at IS NULL
-          AND last_activity_at >= $1
-        ORDER BY last_activity_at DESC
-        LIMIT $2
-        "#,
-        cutoff,
-        limit
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
+    let rows = repo.get_live_sessions(cutoff, limit).await?;
+    let active_count = repo.get_active_count(cutoff).await?;
 
     let sessions: Vec<ActiveSessionRow> = rows
         .into_iter()
@@ -133,13 +105,6 @@ async fn fetch_live_sessions(
             }
         })
         .collect();
-
-    let active_count = sqlx::query_scalar!(
-        r#"SELECT COUNT(*) as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1"#,
-        cutoff
-    )
-    .fetch_one(pool.as_ref())
-    .await?;
 
     Ok(LiveSessionsOutput {
         active_count,

@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::RequestAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -35,8 +34,8 @@ pub struct StatsArgs {
 
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -44,17 +43,39 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = RequestAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &RequestAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(pool, start, end, args.model.as_ref()).await?;
+
+    let row = repo.get_stats(start, end, args.model.as_deref()).await?;
+
+    let cache_hit_rate = if row.total > 0 {
+        (row.cache_hits as f64 / row.total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let output = RequestStatsOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_requests: row.total,
+        total_tokens: row.total_tokens.unwrap_or(0),
+        input_tokens: row.input_tokens.unwrap_or(0),
+        output_tokens: row.output_tokens.unwrap_or(0),
+        total_cost_cents: row.cost.unwrap_or(0),
+        avg_latency_ms: row.avg_latency.map_or(0, |v| v as i64),
+        cache_hit_rate,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -70,84 +91,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_stats(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    model_filter: Option<&String>,
-) -> Result<RequestStatsOutput> {
-    let row: (
-        i64,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<i64>,
-        Option<f64>,
-        i64,
-    ) = if let Some(model) = model_filter {
-        sqlx::query_as(
-            r"
-                SELECT
-                    COUNT(*) as total,
-                    SUM(tokens_used) as total_tokens,
-                    SUM(input_tokens) as input_tokens,
-                    SUM(output_tokens) as output_tokens,
-                    SUM(cost_cents) as cost,
-                    AVG(latency_ms)::float8 as avg_latency,
-                    COUNT(*) FILTER (WHERE cache_hit = true) as cache_hits
-                FROM ai_requests
-                WHERE created_at >= $1 AND created_at < $2
-                  AND model ILIKE $3
-                ",
-        )
-        .bind(start)
-        .bind(end)
-        .bind(format!("%{}%", model))
-        .fetch_one(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as(
-            r"
-                SELECT
-                    COUNT(*) as total,
-                    SUM(tokens_used) as total_tokens,
-                    SUM(input_tokens) as input_tokens,
-                    SUM(output_tokens) as output_tokens,
-                    SUM(cost_cents) as cost,
-                    AVG(latency_ms)::float8 as avg_latency,
-                    COUNT(*) FILTER (WHERE cache_hit = true) as cache_hits
-                FROM ai_requests
-                WHERE created_at >= $1 AND created_at < $2
-                ",
-        )
-        .bind(start)
-        .bind(end)
-        .fetch_one(pool.as_ref())
-        .await?
-    };
-
-    let cache_hit_rate = if row.0 > 0 {
-        (row.6 as f64 / row.0 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(RequestStatsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_requests: row.0,
-        total_tokens: row.1.unwrap_or(0),
-        input_tokens: row.2.unwrap_or(0),
-        output_tokens: row.3.unwrap_or(0),
-        total_cost_cents: row.4.unwrap_or(0),
-        avg_latency_ms: row.5.map_or(0, |v| v as i64),
-        cache_hit_rate,
-    })
 }
 
 fn render_stats(output: &RequestStatsOutput) {

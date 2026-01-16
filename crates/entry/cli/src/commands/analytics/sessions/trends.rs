@@ -1,9 +1,8 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::CliSessionAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -37,16 +36,10 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-struct SessionRow {
-    started_at: DateTime<Utc>,
-    user_id: Option<String>,
-    duration_seconds: Option<i64>,
-}
-
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -54,17 +47,56 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: TrendsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CliSessionAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_trends(pool, start, end, &args.group_by).await?;
+
+    let rows = repo.get_sessions_for_trends(start, end).await?;
+
+    let mut buckets: HashMap<String, (i64, std::collections::HashSet<String>, i64)> =
+        HashMap::new();
+
+    for row in rows {
+        let period_key =
+            format_period_label(truncate_to_period(row.started_at, &args.group_by), &args.group_by);
+        let entry = buckets
+            .entry(period_key)
+            .or_insert_with(|| (0, std::collections::HashSet::new(), 0));
+        entry.0 += 1;
+        if let Some(user_id) = row.user_id {
+            entry.1.insert(user_id);
+        }
+        entry.2 += i64::from(row.duration_seconds.unwrap_or(0));
+    }
+
+    let mut points: Vec<SessionTrendPoint> = buckets
+        .into_iter()
+        .map(|(timestamp, (count, users, duration))| {
+            let avg_duration = if count > 0 { duration / count } else { 0 };
+
+            SessionTrendPoint {
+                timestamp,
+                session_count: count,
+                active_users: users.len() as i64,
+                avg_duration_seconds: avg_duration,
+            }
+        })
+        .collect();
+
+    points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+    let output = SessionTrendsOutput {
+        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        group_by: args.group_by.clone(),
+        points,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.points, path)?;
@@ -85,68 +117,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_trends(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    group_by: &str,
-) -> Result<SessionTrendsOutput> {
-    let rows: Vec<SessionRow> = sqlx::query_as!(
-        SessionRow,
-        r#"
-        SELECT
-            started_at as "started_at!",
-            user_id,
-            duration_seconds::bigint as "duration_seconds: _"
-        FROM user_sessions
-        WHERE started_at >= $1 AND started_at < $2
-        ORDER BY started_at
-        "#,
-        start,
-        end
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let mut buckets: HashMap<String, (i64, std::collections::HashSet<String>, i64)> =
-        HashMap::new();
-
-    for row in rows {
-        let period_key =
-            format_period_label(truncate_to_period(row.started_at, group_by), group_by);
-        let entry = buckets
-            .entry(period_key)
-            .or_insert_with(|| (0, std::collections::HashSet::new(), 0));
-        entry.0 += 1;
-        if let Some(user_id) = row.user_id {
-            entry.1.insert(user_id);
-        }
-        entry.2 += row.duration_seconds.unwrap_or(0);
-    }
-
-    let mut points: Vec<SessionTrendPoint> = buckets
-        .into_iter()
-        .map(|(timestamp, (count, users, duration))| {
-            let avg_duration = if count > 0 { duration / count } else { 0 };
-
-            SessionTrendPoint {
-                timestamp,
-                session_count: count,
-                active_users: users.len() as i64,
-                avg_duration_seconds: avg_duration,
-            }
-        })
-        .collect();
-
-    points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
-    Ok(SessionTrendsOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
-        group_by: group_by.to_string(),
-        points,
-    })
 }
 
 fn render_trends(output: &SessionTrendsOutput) {

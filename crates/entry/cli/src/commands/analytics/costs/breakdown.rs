@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::CostAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -49,8 +48,8 @@ pub struct BreakdownArgs {
 
 pub async fn execute(args: BreakdownArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -58,17 +57,54 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: BreakdownArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CostAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_breakdown(pool, start, end, &args.by, args.limit).await?;
+
+    let rows = match args.by {
+        BreakdownType::Model => repo.get_breakdown_by_model(start, end, args.limit).await?,
+        BreakdownType::Provider => repo.get_breakdown_by_provider(start, end, args.limit).await?,
+        BreakdownType::Agent => repo.get_breakdown_by_agent(start, end, args.limit).await?,
+    };
+
+    let total_cost: i64 = rows.iter().map(|r| r.cost).sum();
+
+    let items: Vec<CostBreakdownItem> = rows
+        .into_iter()
+        .map(|row| {
+            let percentage = if total_cost > 0 {
+                (row.cost as f64 / total_cost as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            CostBreakdownItem {
+                name: row.name,
+                cost_cents: row.cost,
+                request_count: row.requests,
+                tokens: row.tokens,
+                percentage,
+            }
+        })
+        .collect();
+
+    let output = CostBreakdownOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        breakdown_by: format!("{:?}", args.by).to_lowercase(),
+        items,
+        total_cost_cents: total_cost,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.items, path)?;
@@ -101,78 +137,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_breakdown(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    by: &BreakdownType,
-    limit: i64,
-) -> Result<CostBreakdownOutput> {
-    let group_field = match by {
-        BreakdownType::Model => "model",
-        BreakdownType::Agent => {
-            "COALESCE((SELECT agent_name FROM agent_tasks at WHERE at.task_id = \
-             ai_requests.task_id LIMIT 1), 'unknown')"
-        },
-        BreakdownType::Provider => "provider",
-    };
-
-    let query = format!(
-        r"
-        SELECT
-            {} as name,
-            COALESCE(SUM(cost_cents), 0) as cost,
-            COUNT(*) as requests,
-            COALESCE(SUM(tokens_used), 0) as tokens
-        FROM ai_requests
-        WHERE created_at >= $1 AND created_at < $2
-        GROUP BY {}
-        ORDER BY SUM(cost_cents) DESC NULLS LAST
-        LIMIT $3
-        ",
-        group_field, group_field
-    );
-
-    let rows: Vec<(String, i64, i64, i64)> = sqlx::query_as(&query)
-        .bind(start)
-        .bind(end)
-        .bind(limit)
-        .fetch_all(pool.as_ref())
-        .await?;
-
-    let total_cost: i64 = rows.iter().map(|(_, c, _, _)| c).sum();
-
-    let items: Vec<CostBreakdownItem> = rows
-        .into_iter()
-        .map(|(name, cost, requests, tokens)| {
-            let percentage = if total_cost > 0 {
-                (cost as f64 / total_cost as f64) * 100.0
-            } else {
-                0.0
-            };
-
-            CostBreakdownItem {
-                name,
-                cost_cents: cost,
-                request_count: requests,
-                tokens,
-                percentage,
-            }
-        })
-        .collect();
-
-    Ok(CostBreakdownOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        breakdown_by: format!("{:?}", by).to_lowercase(),
-        items,
-        total_cost_cents: total_cost,
-    })
 }
 
 fn render_breakdown(output: &CostBreakdownOutput) {

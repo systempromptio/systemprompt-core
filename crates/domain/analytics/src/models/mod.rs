@@ -1,8 +1,10 @@
+pub mod cli;
 mod engagement;
 mod events;
 mod fingerprint;
 mod funnel;
 
+pub use cli::*;
 pub use engagement::{CreateEngagementEventInput, EngagementEvent, EngagementOptionalMetrics};
 pub use events::{
     AnalyticsEventBatchResponse, AnalyticsEventCreated, AnalyticsEventType, ConversionEventData,

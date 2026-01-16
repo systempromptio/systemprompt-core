@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ContentAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -33,8 +32,8 @@ pub struct TopArgs {
 
 pub async fn execute(args: TopArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ContentAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -42,17 +41,34 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ContentAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: TopArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ContentAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_top(pool, start, end, args.limit).await?;
+
+    let rows = repo.get_top_content(start, end, args.limit).await?;
+
+    let content: Vec<TopContentRow> = rows
+        .into_iter()
+        .map(|row| TopContentRow {
+            content_id: row.content_id,
+            views: row.total_views,
+            unique_visitors: row.unique_visitors,
+            avg_time_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),
+            trend: row.trend_direction.unwrap_or_else(|| "stable".to_string()),
+        })
+        .collect();
+
+    let output = TopContentOutput {
+        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        content,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.content, path)?;
@@ -81,51 +97,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_top(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-) -> Result<TopContentOutput> {
-    let rows: Vec<(String, i64, i64, Option<f64>, Option<String>)> = sqlx::query_as(
-        r"
-        SELECT
-            content_id,
-            total_views,
-            unique_visitors,
-            avg_time_on_page_seconds,
-            trend_direction
-        FROM content_performance_metrics
-        WHERE created_at >= $1 AND created_at < $2
-        ORDER BY total_views DESC
-        LIMIT $3
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .bind(limit)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let content: Vec<TopContentRow> = rows
-        .into_iter()
-        .map(
-            |(content_id, views, visitors, avg_time, trend)| TopContentRow {
-                content_id,
-                views,
-                unique_visitors: visitors,
-                avg_time_seconds: avg_time.map_or(0, |v| v as i64),
-                trend: trend.unwrap_or_else(|| "stable".to_string()),
-            },
-        )
-        .collect();
-
-    Ok(TopContentOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
-        content,
-    })
 }
 
 fn render_top(output: &TopContentOutput) {

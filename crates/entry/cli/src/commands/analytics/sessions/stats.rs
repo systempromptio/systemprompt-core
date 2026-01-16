@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::CliSessionAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -31,8 +30,8 @@ pub struct StatsArgs {
 
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -40,17 +39,39 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CliSessionAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_stats(&pool, start, end).await?;
+
+    let stats = repo.get_stats(start, end).await?;
+    let active_count = repo.get_active_session_count(start).await?;
+
+    let conversion_rate = if stats.total_sessions > 0 {
+        (stats.conversions as f64 / stats.total_sessions as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let output = SessionStatsOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_sessions: stats.total_sessions,
+        active_sessions: active_count,
+        unique_users: stats.unique_users,
+        avg_duration_seconds: stats.avg_duration.map_or(0, |v| v as i64),
+        avg_requests_per_session: stats.avg_requests.unwrap_or(0.0),
+        conversion_rate,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -66,56 +87,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_stats(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<SessionStatsOutput> {
-    let row: (i64, i64, Option<f64>, Option<f64>, i64) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(*) as total_sessions,
-            COUNT(DISTINCT user_id) as unique_users,
-            AVG(duration_seconds)::float8 as avg_duration,
-            AVG(request_count)::float8 as avg_requests,
-            COUNT(*) FILTER (WHERE converted_at IS NOT NULL) as conversions
-        FROM user_sessions
-        WHERE started_at >= $1 AND started_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let active: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1",
-    )
-    .bind(start)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let conversion_rate = if row.0 > 0 {
-        (row.4 as f64 / row.0 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(SessionStatsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_sessions: row.0,
-        active_sessions: active.0,
-        unique_users: row.1,
-        avg_duration_seconds: row.2.map_or(0, |v| v as i64),
-        avg_requests_per_session: row.3.unwrap_or(0.0),
-        conversion_rate,
-    })
 }
 
 fn render_stats(output: &SessionStatsOutput) {

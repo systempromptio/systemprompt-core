@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::CostAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -32,8 +31,8 @@ pub struct SummaryArgs {
 
 pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -41,17 +40,49 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: SummaryArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &CostAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_summary(pool, start, end).await?;
+
+    let period_duration = end - start;
+    let prev_start = start - period_duration;
+
+    let current = repo.get_summary(start, end).await?;
+    let previous = repo.get_previous_cost(prev_start, start).await?;
+
+    let total_cost = current.total_cost.unwrap_or(0);
+    let prev_cost = previous.cost.unwrap_or(0);
+    let change_percent = if prev_cost > 0 {
+        Some(((total_cost - prev_cost) as f64 / prev_cost as f64) * 100.0)
+    } else {
+        None
+    };
+
+    let avg_cost = if current.total_requests > 0 {
+        total_cost as f64 / current.total_requests as f64
+    } else {
+        0.0
+    };
+
+    let output = CostSummaryOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        total_cost_cents: total_cost,
+        total_requests: current.total_requests,
+        total_tokens: current.total_tokens.unwrap_or(0),
+        avg_cost_per_request_cents: avg_cost,
+        change_percent,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -67,62 +98,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_summary(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<CostSummaryOutput> {
-    let period_duration = end - start;
-    let prev_start = start - period_duration;
-
-    let current: (i64, Option<i64>, Option<i64>) = sqlx::query_as(
-        r"
-        SELECT COUNT(*), SUM(cost_cents), SUM(tokens_used)
-        FROM ai_requests
-        WHERE created_at >= $1 AND created_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let previous: (Option<i64>,) = sqlx::query_as(
-        "SELECT SUM(cost_cents) FROM ai_requests WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(prev_start)
-    .bind(start)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let total_cost = current.1.unwrap_or(0);
-    let prev_cost = previous.0.unwrap_or(0);
-    let change_percent = if prev_cost > 0 {
-        Some(((total_cost - prev_cost) as f64 / prev_cost as f64) * 100.0)
-    } else {
-        None
-    };
-
-    let avg_cost = if current.0 > 0 {
-        total_cost as f64 / current.0 as f64
-    } else {
-        0.0
-    };
-
-    Ok(CostSummaryOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        total_cost_cents: total_cost,
-        total_requests: current.0,
-        total_tokens: current.2.unwrap_or(0),
-        avg_cost_per_request_cents: avg_cost,
-        change_percent,
-    })
 }
 
 fn render_summary(output: &CostSummaryOutput) {

@@ -4,6 +4,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
+use systemprompt_core_analytics::OverviewAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -81,8 +82,8 @@ pub struct CostMetrics {
 
 pub async fn execute(args: OverviewArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = OverviewAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -90,17 +91,17 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = OverviewAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: OverviewArgs,
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    repo: &OverviewAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_overview_data(&pool, start, end).await?;
+    let output = fetch_overview_data(repo, start, end).await?;
 
     if let Some(ref path) = args.export {
         export_overview_csv(&output, path)?;
@@ -121,19 +122,71 @@ async fn execute_internal(
 }
 
 async fn fetch_overview_data(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    repo: &OverviewAnalyticsRepository,
     start: DateTime<Utc>,
     end: DateTime<Utc>,
 ) -> Result<OverviewOutput> {
     let period_duration = end - start;
     let prev_start = start - period_duration;
 
-    let conversations = fetch_conversation_metrics(pool, start, end, prev_start).await?;
-    let agents = fetch_agent_metrics(pool, start, end).await?;
-    let requests = fetch_request_metrics(pool, start, end).await?;
-    let tools = fetch_tool_metrics(pool, start, end).await?;
-    let sessions = fetch_session_metrics(pool, start, end).await?;
-    let costs = fetch_cost_metrics(pool, start, end, prev_start).await?;
+    let current_conversations = repo.get_conversation_count(start, end).await?;
+    let prev_conversations = repo.get_conversation_count(prev_start, start).await?;
+
+    let conversations = ConversationMetrics {
+        total: current_conversations,
+        change_percent: calculate_change(current_conversations, prev_conversations),
+    };
+
+    let agent_metrics = repo.get_agent_metrics(start, end).await?;
+    let success_rate = if agent_metrics.total_tasks > 0 {
+        (agent_metrics.completed_tasks as f64 / agent_metrics.total_tasks as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let agents = AgentMetrics {
+        active_count: agent_metrics.active_agents,
+        total_tasks: agent_metrics.total_tasks,
+        success_rate,
+    };
+
+    let request_metrics = repo.get_request_metrics(start, end).await?;
+    let requests = RequestMetrics {
+        total: request_metrics.total,
+        total_tokens: request_metrics.total_tokens.unwrap_or(0),
+        avg_latency_ms: request_metrics.avg_latency.map_or(0, |v| v as i64),
+    };
+
+    let tool_metrics = repo.get_tool_metrics(start, end).await?;
+    let tool_success_rate = if tool_metrics.total > 0 {
+        (tool_metrics.successful as f64 / tool_metrics.total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let tools = ToolMetrics {
+        total_executions: tool_metrics.total,
+        success_rate: tool_success_rate,
+    };
+
+    let active_sessions = repo.get_active_session_count(start).await?;
+    let total_sessions = repo.get_total_session_count(start, end).await?;
+
+    let sessions = SessionMetrics {
+        active: active_sessions,
+        total_today: total_sessions,
+    };
+
+    let current_cost = repo.get_cost(start, end).await?;
+    let prev_cost = repo.get_cost(prev_start, start).await?;
+
+    let costs = CostMetrics {
+        total_cents: current_cost.cost.unwrap_or(0),
+        change_percent: calculate_change(
+            current_cost.cost.unwrap_or(0),
+            prev_cost.cost.unwrap_or(0),
+        ),
+    };
 
     Ok(OverviewOutput {
         period: format_period(start, end),
@@ -143,184 +196,6 @@ async fn fetch_overview_data(
         tools,
         sessions,
         costs,
-    })
-}
-
-async fn fetch_conversation_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    prev_start: DateTime<Utc>,
-) -> Result<ConversationMetrics> {
-    let current: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let previous: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(prev_start)
-    .bind(start)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    Ok(ConversationMetrics {
-        total: current.0,
-        change_percent: calculate_change(current.0, previous.0),
-    })
-}
-
-async fn fetch_agent_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<AgentMetrics> {
-    let stats: (i64, i64, i64) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(DISTINCT agent_name) as active_agents,
-            COUNT(*) as total_tasks,
-            COUNT(*) FILTER (WHERE status = 'completed') as completed_tasks
-        FROM agent_tasks
-        WHERE started_at >= $1 AND started_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let success_rate = if stats.1 > 0 {
-        (stats.2 as f64 / stats.1 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(AgentMetrics {
-        active_count: stats.0,
-        total_tasks: stats.1,
-        success_rate,
-    })
-}
-
-async fn fetch_request_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<RequestMetrics> {
-    let stats: (i64, Option<i64>, Option<f64>) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(*) as total,
-            SUM(tokens_used)::bigint as total_tokens,
-            AVG(latency_ms)::float8 as avg_latency
-        FROM ai_requests
-        WHERE created_at >= $1 AND created_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    Ok(RequestMetrics {
-        total: stats.0,
-        total_tokens: stats.1.unwrap_or(0),
-        avg_latency_ms: stats.2.map_or(0, |v| v as i64),
-    })
-}
-
-async fn fetch_tool_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<ToolMetrics> {
-    let stats: (i64, i64) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(*) as total,
-            COUNT(*) FILTER (WHERE status = 'success') as successful
-        FROM mcp_tool_executions
-        WHERE created_at >= $1 AND created_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let success_rate = if stats.0 > 0 {
-        (stats.1 as f64 / stats.0 as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    Ok(ToolMetrics {
-        total_executions: stats.0,
-        success_rate,
-    })
-}
-
-async fn fetch_session_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<SessionMetrics> {
-    let active: (i64,) = sqlx::query_as(
-        r"
-        SELECT COUNT(*)
-        FROM user_sessions
-        WHERE ended_at IS NULL
-          AND last_activity_at >= $1
-        ",
-    )
-    .bind(start)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let total: (i64,) = sqlx::query_as(
-        "SELECT COUNT(*) FROM user_sessions WHERE started_at >= $1 AND started_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    Ok(SessionMetrics {
-        active: active.0,
-        total_today: total.0,
-    })
-}
-
-async fn fetch_cost_metrics(
-    pool: &std::sync::Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    prev_start: DateTime<Utc>,
-) -> Result<CostMetrics> {
-    let current: (Option<i64>,) = sqlx::query_as(
-        "SELECT SUM(cost_cents) FROM ai_requests WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let previous: (Option<i64>,) = sqlx::query_as(
-        "SELECT SUM(cost_cents) FROM ai_requests WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(prev_start)
-    .bind(start)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    Ok(CostMetrics {
-        total_cents: current.0.unwrap_or(0),
-        change_percent: calculate_change(current.0.unwrap_or(0), previous.0.unwrap_or(0)),
     })
 }
 

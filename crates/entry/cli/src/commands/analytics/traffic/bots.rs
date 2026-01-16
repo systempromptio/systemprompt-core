@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::TrafficAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -27,8 +26,8 @@ pub struct BotsArgs {
 
 pub async fn execute(args: BotsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -36,17 +35,50 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: BotsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &TrafficAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_bots(pool, start, end).await?;
+
+    let totals = repo.get_bot_totals(start, end).await?;
+    let bot_types = repo.get_bot_breakdown(start, end).await?;
+
+    let total = totals.human + totals.bot;
+    let bot_percentage = if total > 0 {
+        (totals.bot as f64 / total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    let bot_breakdown: Vec<BotRow> = bot_types
+        .into_iter()
+        .map(|row| {
+            let percentage = if totals.bot > 0 {
+                (row.count as f64 / totals.bot as f64) * 100.0
+            } else {
+                0.0
+            };
+            BotRow {
+                bot_type: row.bot_type.unwrap_or_else(|| "Unknown".to_string()),
+                request_count: row.count,
+                percentage,
+            }
+        })
+        .collect();
+
+    let output = BotsOutput {
+        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        human_sessions: totals.human,
+        bot_sessions: totals.bot,
+        bot_percentage,
+        bot_breakdown,
+    };
 
     if let Some(ref path) = args.export {
         export_single_to_csv(&output, path)?;
@@ -62,84 +94,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_bots(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-) -> Result<BotsOutput> {
-    let totals: (i64, i64) = sqlx::query_as(
-        r"
-        SELECT
-            COUNT(*) FILTER (WHERE is_bot = false OR is_bot IS NULL) as human,
-            COUNT(*) FILTER (WHERE is_bot = true) as bot
-        FROM user_sessions
-        WHERE started_at >= $1 AND started_at < $2
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_one(pool.as_ref())
-    .await?;
-
-    let total = totals.0 + totals.1;
-    let bot_percentage = if total > 0 {
-        (totals.1 as f64 / total as f64) * 100.0
-    } else {
-        0.0
-    };
-
-    let bot_types: Vec<(Option<String>, i64)> = sqlx::query_as(
-        r"
-        SELECT
-            COALESCE(
-                CASE
-                    WHEN user_agent ILIKE '%googlebot%' THEN 'Googlebot'
-                    WHEN user_agent ILIKE '%bingbot%' THEN 'Bingbot'
-                    WHEN user_agent ILIKE '%chatgpt%' THEN 'ChatGPT'
-                    WHEN user_agent ILIKE '%claude%' THEN 'Claude'
-                    WHEN user_agent ILIKE '%perplexity%' THEN 'Perplexity'
-                    ELSE 'Other'
-                END,
-                'Unknown'
-            ) as bot_type,
-            COUNT(*) as count
-        FROM user_sessions
-        WHERE started_at >= $1 AND started_at < $2
-          AND is_bot = true
-        GROUP BY 1
-        ORDER BY COUNT(*) DESC
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let bot_breakdown: Vec<BotRow> = bot_types
-        .into_iter()
-        .map(|(bot_type, count)| {
-            let percentage = if totals.1 > 0 {
-                (count as f64 / totals.1 as f64) * 100.0
-            } else {
-                0.0
-            };
-            BotRow {
-                bot_type: bot_type.unwrap_or_else(|| "Unknown".to_string()),
-                request_count: count,
-                percentage,
-            }
-        })
-        .collect();
-
-    Ok(BotsOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
-        human_sessions: totals.0,
-        bot_sessions: totals.1,
-        bot_percentage,
-        bot_breakdown,
-    })
 }
 
 fn render_bots(output: &BotsOutput) {

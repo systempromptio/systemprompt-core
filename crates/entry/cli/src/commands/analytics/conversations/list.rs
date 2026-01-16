@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ConversationAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -33,8 +32,8 @@ pub struct ListArgs {
 
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -42,17 +41,34 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: ListArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ConversationAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_list(pool, start, end, args.limit).await?;
+    let rows = repo.list_conversations(start, end, args.limit).await?;
+
+    let conversations: Vec<ConversationListRow> = rows
+        .into_iter()
+        .map(|row| ConversationListRow {
+            context_id: row.context_id,
+            name: row.name,
+            task_count: row.task_count,
+            message_count: row.message_count,
+            created_at: row.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+            updated_at: row.updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
+        })
+        .collect();
+
+    let output = ConversationListOutput {
+        total: conversations.len() as i64,
+        conversations,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.conversations, path)?;
@@ -84,64 +100,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_list(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-) -> Result<ConversationListOutput> {
-    let rows: Vec<(
-        String,
-        Option<String>,
-        i64,
-        i64,
-        DateTime<Utc>,
-        DateTime<Utc>,
-    )> = sqlx::query_as(
-        r"
-        SELECT
-            uc.context_id,
-            uc.name,
-            (SELECT COUNT(*) FROM agent_tasks at WHERE at.context_id = uc.context_id) as task_count,
-            (SELECT COUNT(*) FROM task_messages tm
-             JOIN agent_tasks at ON at.task_id = tm.task_id
-             WHERE at.context_id = uc.context_id) as message_count,
-            uc.created_at,
-            uc.updated_at
-        FROM user_contexts uc
-        WHERE uc.created_at >= $1 AND uc.created_at < $2
-        ORDER BY uc.updated_at DESC
-        LIMIT $3
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .bind(limit)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let conversations: Vec<ConversationListRow> = rows
-        .into_iter()
-        .map(
-            |(context_id, name, task_count, message_count, created_at, updated_at)| {
-                ConversationListRow {
-                    context_id,
-                    name,
-                    task_count,
-                    message_count,
-                    created_at: created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
-                    updated_at: updated_at.format("%Y-%m-%d %H:%M:%S").to_string(),
-                }
-            },
-        )
-        .collect();
-
-    Ok(ConversationListOutput {
-        total: conversations.len() as i64,
-        conversations,
-    })
 }
 
 fn render_list(output: &ConversationListOutput) {

@@ -1,9 +1,8 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::ConversationAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -31,8 +30,8 @@ pub struct TrendsArgs {
 
 pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -40,17 +39,57 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: TrendsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &ConversationAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_trends(pool, start, end, &args.group_by).await?;
+
+    let context_rows = repo.get_context_timestamps(start, end).await?;
+    let task_rows = repo.get_task_timestamps(start, end).await?;
+    let message_rows = repo.get_message_timestamps(start, end).await?;
+
+    let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
+
+    for row in context_rows {
+        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        buckets.entry(key).or_insert((0, 0, 0)).0 += 1;
+    }
+
+    for row in task_rows {
+        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        buckets.entry(key).or_insert((0, 0, 0)).1 += 1;
+    }
+
+    for row in message_rows {
+        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        buckets.entry(key).or_insert((0, 0, 0)).2 += 1;
+    }
+
+    let mut points: Vec<ConversationTrendPoint> = buckets
+        .into_iter()
+        .map(
+            |(timestamp, (contexts, tasks, messages))| ConversationTrendPoint {
+                timestamp,
+                context_count: contexts,
+                task_count: tasks,
+                message_count: messages,
+            },
+        )
+        .collect();
+
+    points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+
+    let output = ConversationTrendsOutput {
+        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        group_by: args.group_by.clone(),
+        points,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.points, path)?;
@@ -72,74 +111,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_trends(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    group_by: &str,
-) -> Result<ConversationTrendsOutput> {
-    let contexts: Vec<(DateTime<Utc>,)> = sqlx::query_as(
-        "SELECT created_at FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let tasks: Vec<(DateTime<Utc>,)> = sqlx::query_as(
-        "SELECT started_at FROM agent_tasks WHERE started_at >= $1 AND started_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let messages: Vec<(DateTime<Utc>,)> = sqlx::query_as(
-        "SELECT created_at FROM task_messages WHERE created_at >= $1 AND created_at < $2",
-    )
-    .bind(start)
-    .bind(end)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
-
-    for (ts,) in contexts {
-        let key = format_period_label(truncate_to_period(ts, group_by), group_by);
-        buckets.entry(key).or_insert((0, 0, 0)).0 += 1;
-    }
-
-    for (ts,) in tasks {
-        let key = format_period_label(truncate_to_period(ts, group_by), group_by);
-        buckets.entry(key).or_insert((0, 0, 0)).1 += 1;
-    }
-
-    for (ts,) in messages {
-        let key = format_period_label(truncate_to_period(ts, group_by), group_by);
-        buckets.entry(key).or_insert((0, 0, 0)).2 += 1;
-    }
-
-    let mut points: Vec<ConversationTrendPoint> = buckets
-        .into_iter()
-        .map(
-            |(timestamp, (contexts, tasks, messages))| ConversationTrendPoint {
-                timestamp,
-                context_count: contexts,
-                task_count: tasks,
-                message_count: messages,
-            },
-        )
-        .collect();
-
-    points.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-
-    Ok(ConversationTrendsOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
-        group_by: group_by.to_string(),
-        points,
-    })
 }
 
 fn render_trends(output: &ConversationTrendsOutput) {

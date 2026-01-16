@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use std::sync::Arc;
+use systemprompt_core_analytics::RequestAnalyticsRepository;
 use systemprompt_core_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -40,8 +39,8 @@ pub struct ModelsArgs {
 
 pub async fn execute(args: ModelsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 pub async fn execute_with_pool(
@@ -49,17 +48,51 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_internal(args, &pool, config).await
+    let repo = RequestAnalyticsRepository::new(db_ctx.db_pool())?;
+    execute_internal(args, &repo, config).await
 }
 
 async fn execute_internal(
     args: ModelsArgs,
-    pool: &Arc<sqlx::PgPool>,
+    repo: &RequestAnalyticsRepository,
     config: &CliConfig,
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
-    let output = fetch_models(pool, start, end, args.limit).await?;
+
+    let rows = repo.list_models(start, end, args.limit).await?;
+
+    let total_requests: i64 = rows.iter().map(|r| r.request_count).sum();
+
+    let models: Vec<ModelUsageRow> = rows
+        .into_iter()
+        .map(|row| {
+            let percentage = if total_requests > 0 {
+                (row.request_count as f64 / total_requests as f64) * 100.0
+            } else {
+                0.0
+            };
+
+            ModelUsageRow {
+                provider: row.provider,
+                model: row.model,
+                request_count: row.request_count,
+                total_tokens: row.total_tokens.unwrap_or(0),
+                total_cost_cents: row.total_cost.unwrap_or(0),
+                avg_latency_ms: row.avg_latency.map_or(0, |v| v as i64),
+                percentage,
+            }
+        })
+        .collect();
+
+    let output = ModelsOutput {
+        period: format!(
+            "{} to {}",
+            start.format("%Y-%m-%d %H:%M"),
+            end.format("%Y-%m-%d %H:%M")
+        ),
+        models,
+        total_requests,
+    };
 
     if let Some(ref path) = args.export {
         export_to_csv(&output.models, path)?;
@@ -92,70 +125,6 @@ async fn execute_internal(
     }
 
     Ok(())
-}
-
-async fn fetch_models(
-    pool: &Arc<sqlx::PgPool>,
-    start: DateTime<Utc>,
-    end: DateTime<Utc>,
-    limit: i64,
-) -> Result<ModelsOutput> {
-    let rows: Vec<(String, String, i64, Option<i64>, Option<i64>, Option<f64>)> = sqlx::query_as(
-        r"
-        SELECT
-            provider,
-            model,
-            COUNT(*) as request_count,
-            SUM(tokens_used) as total_tokens,
-            SUM(cost_cents) as total_cost,
-            AVG(latency_ms)::float8 as avg_latency
-        FROM ai_requests
-        WHERE created_at >= $1 AND created_at < $2
-        GROUP BY provider, model
-        ORDER BY COUNT(*) DESC
-        LIMIT $3
-        ",
-    )
-    .bind(start)
-    .bind(end)
-    .bind(limit)
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    let total_requests: i64 = rows.iter().map(|(_, _, c, _, _, _)| c).sum();
-
-    let models: Vec<ModelUsageRow> = rows
-        .into_iter()
-        .map(
-            |(provider, model, request_count, total_tokens, total_cost, avg_latency)| {
-                let percentage = if total_requests > 0 {
-                    (request_count as f64 / total_requests as f64) * 100.0
-                } else {
-                    0.0
-                };
-
-                ModelUsageRow {
-                    provider,
-                    model,
-                    request_count,
-                    total_tokens: total_tokens.unwrap_or(0),
-                    total_cost_cents: total_cost.unwrap_or(0),
-                    avg_latency_ms: avg_latency.map_or(0, |v| v as i64),
-                    percentage,
-                }
-            },
-        )
-        .collect();
-
-    Ok(ModelsOutput {
-        period: format!(
-            "{} to {}",
-            start.format("%Y-%m-%d %H:%M"),
-            end.format("%Y-%m-%d %H:%M")
-        ),
-        models,
-        total_requests,
-    })
 }
 
 fn render_models(output: &ModelsOutput) {
