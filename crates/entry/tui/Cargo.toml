@@ -13,7 +13,6 @@ workspace = true
 # TUI Framework
 ratatui = "0.30"
 crossterm = { version = "0.29", features = ["event-stream"] }
-tui-textarea = "0.7"
 
 # Async Runtime
 tokio = { workspace = true }
