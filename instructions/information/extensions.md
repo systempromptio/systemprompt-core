@@ -69,12 +69,12 @@ Extensions define templates in `services/web/templates/`:
 ```
 services/web/
   templates/
-    homepage.hbs           <- Homepage template
-    blog.hbs               <- Content type template
-    blog_index.hbs         <- Parent route template
+    homepage.html          <- Homepage template
+    blog-post.html         <- Content type template
+    blog-list.html         <- Parent route template
     partials/
-      header.hbs           <- Shared partials
-      footer.hbs
+      header.html          <- Shared partials
+      footer.html
   web.yaml                 <- Template configuration
 ```
 
@@ -90,7 +90,7 @@ content_types:
   - article
 source:
   type: file
-  path: blog.hbs
+  path: blog-post.html
 ```
 
 | Field | Purpose |
@@ -560,7 +560,7 @@ branding:
    │   └── Each provider adds data (featured_posts, etc.)
    ├── Call ComponentRenderers
    │   └── Each component adds HTML variables
-   └── Render homepage.hbs template
+   └── Render homepage.html template
 ```
 
 ---
@@ -675,7 +675,7 @@ content_sources:
       parent_route:
         enabled: true
         url_pattern: "/blog"
-        template: "blog_index"
+        template: "blog-list"
 
 metadata:
   structured_data:
@@ -693,9 +693,9 @@ metadata:
 
 | Pattern | Description |
 |---------|-------------|
-| One template per content type | `blog.hbs`, `product.hbs`, `event.hbs` |
-| Shared partials in `partials/` | `header.hbs`, `footer.hbs`, `sidebar.hbs` |
-| Index templates with `_index` suffix | `blog_index.hbs` for `/blog` route |
+| One template per content type | `blog-post.html`, `product.html`, `event.html` |
+| Shared partials in `partials/` | `header.html`, `footer.html`, `sidebar.html` |
+| Index templates with `-list` suffix | `blog-list.html` for `/blog` route |
 
 ### Component Design
 

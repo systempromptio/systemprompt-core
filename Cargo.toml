@@ -168,14 +168,14 @@ http = "1.0"
 tower-http = { version = "0.6", features = ["cors", "trace", "fs"] }
 tower = { version = "0.5", features = ["util"] }
 tower_governor = { version = "0.8", default-features = false, features = ["axum"] }
-governor = "0.8"
+governor = "0.10"
 
 # CLI (for system crate)
 clap = { version = "4.4", features = ["derive", "env"] }
-console = "0.15"
+console = "0.16"
 dialoguer = "0.12"
-tabled = "0.17"
-indicatif = "0.17"
+tabled = "0.20"
+indicatif = "0.18"
 atty = "0.2"
 dirs = "5"
 open = "5"
@@ -193,7 +193,7 @@ tempfile = "3.0"
 walkdir = "2.0"
 flate2 = "1.0"
 tar = "0.4"
-tokio-cron-scheduler = "0.10"
+tokio-cron-scheduler = "0.15"
 maxminddb = "0.24"
 
 # Additional utilities
