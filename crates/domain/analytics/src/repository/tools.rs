@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
@@ -33,10 +32,9 @@ impl ToolAnalyticsRepository {
         if let Some(server) = server_filter {
             let pattern = format!("%{}%", server);
             match sort_order {
-                "success_rate" => {
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
+                "success_rate" => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
                         SELECT
                             tool_name as "tool_name!",
                             server_name as "server_name!",
@@ -53,19 +51,17 @@ impl ToolAnalyticsRepository {
                             ELSE 0 END DESC
                         LIMIT $4
                         "#,
-                        start,
-                        end,
-                        pattern,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                }
-                "avg_time" => {
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
+                    start,
+                    end,
+                    pattern,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
+                "avg_time" => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
                         SELECT
                             tool_name as "tool_name!",
                             server_name as "server_name!",
@@ -80,15 +76,14 @@ impl ToolAnalyticsRepository {
                         ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
                         LIMIT $4
                         "#,
-                        start,
-                        end,
-                        pattern,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                }
+                    start,
+                    end,
+                    pattern,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
                 _ => {
                     // Default: execution_count
                     sqlx::query_as!(
@@ -116,14 +111,13 @@ impl ToolAnalyticsRepository {
                     .fetch_all(&*self.pool)
                     .await
                     .map_err(Into::into)
-                }
+                },
             }
         } else {
             match sort_order {
-                "success_rate" => {
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
+                "success_rate" => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
                         SELECT
                             tool_name as "tool_name!",
                             server_name as "server_name!",
@@ -139,18 +133,16 @@ impl ToolAnalyticsRepository {
                             ELSE 0 END DESC
                         LIMIT $3
                         "#,
-                        start,
-                        end,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                }
-                "avg_time" => {
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
+                    start,
+                    end,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
+                "avg_time" => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
                         SELECT
                             tool_name as "tool_name!",
                             server_name as "server_name!",
@@ -164,14 +156,13 @@ impl ToolAnalyticsRepository {
                         ORDER BY COALESCE(AVG(execution_time_ms), 0) DESC
                         LIMIT $3
                         "#,
-                        start,
-                        end,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                }
+                    start,
+                    end,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
                 _ => {
                     // Default: execution_count
                     sqlx::query_as!(
@@ -197,7 +188,7 @@ impl ToolAnalyticsRepository {
                     .fetch_all(&*self.pool)
                     .await
                     .map_err(Into::into)
-                }
+                },
             }
         }
     }
@@ -264,7 +255,8 @@ impl ToolAnalyticsRepository {
     ) -> Result<i64> {
         let pattern = format!("%{}%", tool_name);
         let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3",
+            "SELECT COUNT(*) FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= \
+             $2 AND created_at < $3",
         )
         .bind(&pattern)
         .bind(start)

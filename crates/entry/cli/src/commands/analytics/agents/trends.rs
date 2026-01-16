@@ -70,7 +70,10 @@ async fn execute_internal(
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
 
     for row in rows {
-        let period_key = format_period_label(truncate_to_period(row.started_at, &args.group_by), &args.group_by);
+        let period_key = format_period_label(
+            truncate_to_period(row.started_at, &args.group_by),
+            &args.group_by,
+        );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
         entry.0 += 1;
         if row.status.as_deref() == Some("completed") {

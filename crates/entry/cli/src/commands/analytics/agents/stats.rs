@@ -54,9 +54,7 @@ async fn execute_internal(
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let stats = repo
-        .get_stats(start, end, args.agent.as_deref())
-        .await?;
+    let stats = repo.get_stats(start, end, args.agent.as_deref()).await?;
     let ai_stats = repo.get_ai_stats(start, end).await?;
 
     let success_rate = if stats.total_tasks > 0 {

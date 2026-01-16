@@ -162,6 +162,32 @@ impl ContentRepository {
         .await
     }
 
+    pub async fn list_by_source_limited(
+        &self,
+        source_id: &SourceId,
+        limit: i64,
+    ) -> Result<Vec<Content>, sqlx::Error> {
+        sqlx::query_as!(
+            Content,
+            r#"
+            SELECT id as "id: ContentId", slug, title, description, body, author,
+                   published_at, keywords, kind, image,
+                   category_id as "category_id: CategoryId",
+                   source_id as "source_id: SourceId",
+                   version_hash, public, COALESCE(links, '[]'::jsonb) as "links!",
+                   updated_at
+            FROM markdown_content
+            WHERE source_id = $1
+            ORDER BY published_at DESC
+            LIMIT $2
+            "#,
+            source_id.as_str(),
+            limit
+        )
+        .fetch_all(&*self.pool)
+        .await
+    }
+
     pub async fn update(&self, params: &UpdateContentParams) -> Result<Content, sqlx::Error> {
         let now = Utc::now();
         sqlx::query_as!(

@@ -132,3 +132,35 @@ pub async fn repair_database_inconsistencies(
 
     Ok(())
 }
+
+pub async fn delete_disabled_services(
+    db_pool: &systemprompt_core_database::DbPool,
+    enabled_servers: &[McpServerConfig],
+) -> Result<usize> {
+    let repository = ServiceRepository::new(Arc::clone(db_pool));
+    let enabled_names: std::collections::HashSet<&str> =
+        enabled_servers.iter().map(|s| s.name.as_str()).collect();
+
+    let all_services = repository.get_mcp_services().await?;
+    let mut deleted_count = 0;
+
+    for service in all_services {
+        if !enabled_names.contains(service.name.as_str()) {
+            if let Some(pid) = service.pid {
+                let pid_u32 = pid as u32;
+                if ProcessCleanup::process_exists(pid_u32) {
+                    ProcessCleanup::terminate_gracefully(pid_u32, 500).await;
+                }
+            }
+
+            repository.delete_service(&service.name).await?;
+            tracing::info!(
+                service_name = %service.name,
+                "Deleted disabled service from database"
+            );
+            deleted_count += 1;
+        }
+    }
+
+    Ok(deleted_count)
+}

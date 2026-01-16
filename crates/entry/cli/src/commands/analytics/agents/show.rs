@@ -69,7 +69,9 @@ async fn execute_internal(
     let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;
     let status_breakdown_rows = repo.get_status_breakdown(&args.agent, start, end).await?;
     let top_errors_rows = repo.get_top_errors(&args.agent, start, end).await?;
-    let hourly_rows = repo.get_hourly_distribution(&args.agent, start, end).await?;
+    let hourly_rows = repo
+        .get_hourly_distribution(&args.agent, start, end)
+        .await?;
 
     // Build summary
     let success_rate = if summary_row.total_tasks > 0 {

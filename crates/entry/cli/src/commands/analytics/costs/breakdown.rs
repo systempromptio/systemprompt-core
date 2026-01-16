@@ -70,7 +70,10 @@ async fn execute_internal(
 
     let rows = match args.by {
         BreakdownType::Model => repo.get_breakdown_by_model(start, end, args.limit).await?,
-        BreakdownType::Provider => repo.get_breakdown_by_provider(start, end, args.limit).await?,
+        BreakdownType::Provider => {
+            repo.get_breakdown_by_provider(start, end, args.limit)
+                .await?
+        },
         BreakdownType::Agent => repo.get_breakdown_by_agent(start, end, args.limit).await?,
     };
 

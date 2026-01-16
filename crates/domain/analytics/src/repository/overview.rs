@@ -1,13 +1,10 @@
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_core_database::DbPool;
 
-use crate::models::cli::{
-    OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow,
-};
+use crate::models::cli::{OverviewAgentRow, OverviewCostRow, OverviewRequestRow, OverviewToolRow};
 
 #[derive(Debug)]
 pub struct OverviewAnalyticsRepository {

@@ -55,7 +55,10 @@ async fn execute_internal(
     let mut buckets: HashMap<String, (i64, i64)> = HashMap::new();
 
     for row in rows {
-        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        let key = format_period_label(
+            truncate_to_period(row.timestamp, &args.group_by),
+            &args.group_by,
+        );
         let entry = buckets.entry(key).or_insert((0, 0));
         entry.0 += row.views;
         entry.1 += row.unique_visitors;

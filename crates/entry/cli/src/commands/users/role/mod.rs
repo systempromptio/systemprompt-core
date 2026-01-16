@@ -27,10 +27,6 @@ pub async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
     }
 }
 
-pub fn execute_with_pool(
-    _cmd: RoleCommands,
-    _pool: &DbPool,
-    _config: &CliConfig,
-) -> Result<()> {
+pub fn execute_with_pool(_cmd: RoleCommands, _pool: &DbPool, _config: &CliConfig) -> Result<()> {
     bail!("Role management operations require full profile context")
 }

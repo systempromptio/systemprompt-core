@@ -57,17 +57,26 @@ async fn execute_internal(
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
 
     for row in context_rows {
-        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        let key = format_period_label(
+            truncate_to_period(row.timestamp, &args.group_by),
+            &args.group_by,
+        );
         buckets.entry(key).or_insert((0, 0, 0)).0 += 1;
     }
 
     for row in task_rows {
-        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        let key = format_period_label(
+            truncate_to_period(row.timestamp, &args.group_by),
+            &args.group_by,
+        );
         buckets.entry(key).or_insert((0, 0, 0)).1 += 1;
     }
 
     for row in message_rows {
-        let key = format_period_label(truncate_to_period(row.timestamp, &args.group_by), &args.group_by);
+        let key = format_period_label(
+            truncate_to_period(row.timestamp, &args.group_by),
+            &args.group_by,
+        );
         buckets.entry(key).or_insert((0, 0, 0)).2 += 1;
     }
 

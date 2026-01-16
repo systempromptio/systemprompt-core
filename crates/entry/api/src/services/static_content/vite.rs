@@ -142,15 +142,20 @@ pub async fn serve_vite_app(
     if effective_path == "/sitemap.xml"
         || effective_path == "/robots.txt"
         || effective_path == "/llms.txt"
+        || effective_path == "/feed.xml"
     {
         let trimmed_path = effective_path.trim_start_matches('/');
         let file_path = effective_dist_dir.join(trimmed_path);
         if file_path.exists() {
             match std::fs::read(&file_path) {
                 Ok(content) => {
-                    let mime_type = match file_path.extension().and_then(|ext| ext.to_str()) {
-                        Some("xml") => "application/xml",
-                        _ => "text/plain",
+                    let mime_type = if effective_path == "/feed.xml" {
+                        "application/rss+xml; charset=utf-8"
+                    } else {
+                        match file_path.extension().and_then(|ext| ext.to_str()) {
+                            Some("xml") => "application/xml",
+                            _ => "text/plain",
+                        }
                     };
                     return (StatusCode::OK, [(header::CONTENT_TYPE, mime_type)], content)
                         .into_response();
