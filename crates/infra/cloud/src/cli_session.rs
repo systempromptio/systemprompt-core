@@ -2,19 +2,22 @@ use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
 use systemprompt_models::auth::UserType;
 
 use crate::error::CloudError;
 
-const CURRENT_VERSION: u32 = 3;
+const CURRENT_VERSION: u32 = 4;
+const MIN_SUPPORTED_VERSION: u32 = 3;
 const SESSION_DURATION_HOURS: i64 = 24;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliSession {
     pub version: u32,
     pub profile_name: String,
+    #[serde(default)]
+    pub profile_path: Option<PathBuf>,
     pub session_token: SessionToken,
     pub session_id: SessionId,
     pub context_id: ContextId,
@@ -34,6 +37,7 @@ fn default_user_type() -> UserType {
 #[derive(Debug)]
 pub struct CliSessionBuilder {
     profile_name: String,
+    profile_path: Option<PathBuf>,
     session_token: SessionToken,
     session_id: SessionId,
     context_id: ContextId,
@@ -51,6 +55,7 @@ impl CliSessionBuilder {
     ) -> Self {
         Self {
             profile_name: profile_name.into(),
+            profile_path: None,
             session_token,
             session_id,
             context_id,
@@ -58,6 +63,12 @@ impl CliSessionBuilder {
             user_email: String::new(),
             user_type: UserType::Admin,
         }
+    }
+
+    #[must_use]
+    pub fn with_profile_path(mut self, profile_path: impl Into<PathBuf>) -> Self {
+        self.profile_path = Some(profile_path.into());
+        self
     }
 
     #[must_use]
@@ -80,6 +91,7 @@ impl CliSessionBuilder {
         CliSession {
             version: CURRENT_VERSION,
             profile_name: self.profile_name,
+            profile_path: self.profile_path,
             session_token: self.session_token,
             session_id: self.session_id,
             context_id: self.context_id,
@@ -93,7 +105,23 @@ impl CliSessionBuilder {
     }
 }
 
+#[derive(Debug, Deserialize)]
+struct PartialSession {
+    #[serde(default)]
+    profile_path: Option<PathBuf>,
+}
+
 impl CliSession {
+    pub fn try_load_profile_path(path: &Path) -> Option<PathBuf> {
+        if !path.exists() {
+            return None;
+        }
+
+        let content = fs::read_to_string(path).ok()?;
+        let partial: PartialSession = serde_json::from_str(&content).ok()?;
+        partial.profile_path.filter(|p| p.exists())
+    }
+
     pub fn builder(
         profile_name: impl Into<String>,
         session_token: SessionToken,
@@ -129,17 +157,20 @@ impl CliSession {
         let content = fs::read_to_string(path)
             .with_context(|| format!("Failed to read {}", path.display()))?;
 
-        let session: Self = serde_json::from_str(&content)
+        let mut session: Self = serde_json::from_str(&content)
             .map_err(|e| CloudError::CredentialsCorrupted { source: e })?;
 
-        if session.version != CURRENT_VERSION {
+        if session.version < MIN_SUPPORTED_VERSION || session.version > CURRENT_VERSION {
             return Err(anyhow::anyhow!(
-                "Session file version mismatch: expected {}, got {}. Delete {} and retry.",
+                "Session file version mismatch: expected {}-{}, got {}. Delete {} and retry.",
+                MIN_SUPPORTED_VERSION,
                 CURRENT_VERSION,
                 session.version,
                 path.display()
             ));
         }
+
+        session.version = CURRENT_VERSION;
 
         Ok(session)
     }

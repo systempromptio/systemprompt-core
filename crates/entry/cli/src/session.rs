@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
@@ -103,8 +103,15 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         })?
         .clone();
 
-    let session =
-        create_session_for_profile(&creds, &profile, profile_dir, &profile_name, config).await?;
+    let session = create_session_for_profile(
+        &creds,
+        &profile,
+        profile_dir,
+        &profile_name,
+        PathBuf::from(profile_path_str),
+        config,
+    )
+    .await?;
 
     session
         .save_to_path(&session_path)
@@ -129,6 +136,7 @@ async fn create_session_for_profile(
     profile: &Profile,
     profile_dir: &Path,
     profile_name: &str,
+    profile_path: PathBuf,
     config: &CliConfig,
 ) -> Result<CliSession> {
     profile
@@ -204,6 +212,7 @@ async fn create_session_for_profile(
 
     Ok(
         CliSession::builder(profile_name, session_token, session_id, context_id)
+            .with_profile_path(profile_path)
             .with_user(admin_user.id, admin_user.email)
             .with_user_type(UserType::Admin)
             .build(),

@@ -61,6 +61,7 @@ pub mod paths {
     pub const PROFILE_SECRETS: &str = "secrets.json";
     pub const CREDENTIALS_FILE: &str = "credentials.json";
     pub const TENANTS_FILE: &str = "tenants.json";
+    pub const SESSION_FILE: &str = "session.json";
     pub const PROFILE_DOCKER_DIR: &str = "docker";
     pub const ENTRYPOINT: &str = "entrypoint.sh";
     pub const DOCKERIGNORE: &str = "Dockerfile.dockerignore";

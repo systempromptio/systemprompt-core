@@ -10,6 +10,7 @@ pub use command_result::{
     render_result, ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput,
     RenderingHints, SuccessOutput, TableOutput, TextOutput,
 };
+pub use profile::{resolve_profile_path, ProfileResolutionError};
 
 use anyhow::{anyhow, Result};
 

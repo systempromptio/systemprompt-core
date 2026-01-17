@@ -1,11 +1,66 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
+use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
+
+#[derive(Debug, thiserror::Error)]
+pub enum ProfileResolutionError {
+    #[error(
+        "No profiles found.\n\nCreate a profile with: systemprompt cloud profile create <name>"
+    )]
+    NoProfilesFound,
+
+    #[error("Profile selection cancelled")]
+    SelectionCancelled,
+
+    #[error("Profile discovery failed: {0}")]
+    DiscoveryFailed(#[from] anyhow::Error),
+}
+
+pub fn resolve_profile_path(
+    from_session: Option<PathBuf>,
+) -> Result<PathBuf, ProfileResolutionError> {
+    if let Some(path) = from_session {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
+    if let Ok(path_str) = std::env::var("SYSTEMPROMPT_PROFILE") {
+        return Ok(PathBuf::from(path_str));
+    }
+
+    let profiles = discover_profiles()?;
+    match profiles.len() {
+        0 => Err(ProfileResolutionError::NoProfilesFound),
+        1 => Ok(profiles.into_iter().next().expect("checked len").path),
+        _ => prompt_profile_selection_for_cli(&profiles),
+    }
+}
+
+fn prompt_profile_selection_for_cli(
+    profiles: &[DiscoveredProfile],
+) -> Result<PathBuf, ProfileResolutionError> {
+    let options: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
+
+    let selection = Select::with_theme(&ColorfulTheme::default())
+        .with_prompt("Select a profile")
+        .items(&options)
+        .default(0)
+        .interact_opt()
+        .map_err(|e| ProfileResolutionError::DiscoveryFailed(e.into()))?;
+
+    match selection {
+        Some(idx) => Ok(profiles[idx].path.clone()),
+        None => Err(ProfileResolutionError::SelectionCancelled),
+    }
+}
 
 #[derive(Debug)]
 pub struct DiscoveredProfile {
