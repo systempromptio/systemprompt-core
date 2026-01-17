@@ -76,25 +76,11 @@ impl AiProvider for GeminiProvider {
     }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {
-        generation::generate(
-            self,
-            params.messages,
-            params.sampling,
-            params.max_output_tokens,
-            params.model,
-        )
-        .await
+        generation::generate(self, params).await
     }
 
     async fn generate_with_schema(&self, params: SchemaGenerationParams<'_>) -> Result<AiResponse> {
-        let gen_params = generation::SchemaGenerationParams {
-            messages: params.base.messages,
-            response_schema: params.response_schema,
-            sampling: params.base.sampling,
-            max_output_tokens: params.base.max_output_tokens,
-            model: params.base.model,
-        };
-        generation::generate_with_schema(self, gen_params).await
+        generation::generate_with_schema(self, params).await
     }
 
     async fn generate_with_tools(
@@ -134,14 +120,7 @@ impl AiProvider for GeminiProvider {
         &self,
         params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
-        streaming::generate_stream(
-            self,
-            params.messages,
-            params.sampling,
-            params.max_output_tokens,
-            params.model,
-        )
-        .await
+        streaming::generate_stream(self, params).await
     }
 
     async fn generate_with_google_search(

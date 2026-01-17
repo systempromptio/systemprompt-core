@@ -3,22 +3,19 @@ use futures::stream::StreamExt;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiMessage, SamplingParams};
 use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};
+use crate::services::providers::GenerationParams;
 
 use super::provider::GeminiProvider;
 use super::{converters, request_builders};
 
 pub async fn generate_stream(
     provider: &GeminiProvider,
-    messages: &[AiMessage],
-    sampling: Option<&SamplingParams>,
-    max_output_tokens: u32,
-    model: &str,
+    params: GenerationParams<'_>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
-    let contents = converters::convert_messages(messages);
+    let contents = converters::convert_messages(params.messages);
     let generation_config =
-        request_builders::build_generation_config(sampling, max_output_tokens, None, None);
+        request_builders::build_generation_config(params.sampling, params.max_output_tokens, None, None);
 
     let request = GeminiRequest {
         contents,
@@ -30,7 +27,7 @@ pub async fn generate_stream(
 
     let url = request_builders::build_url(
         &provider.endpoint,
-        model,
+        params.model,
         &provider.api_key,
         "streamGenerateContent",
     );

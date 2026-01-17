@@ -13,6 +13,58 @@ use systemprompt_models::{
 use super::message::StreamEvent;
 use crate::models::AgentRuntimeInfo;
 
+/// Resolves provider, model, and max_output_tokens from tool_model_config or
+/// fallbacks. Priority: tool_model_config > agent_runtime > ai_service defaults
+fn resolve_provider_config(
+    request_context: &RequestContext,
+    agent_runtime: &AgentRuntimeInfo,
+    ai_service: &dyn AiProvider,
+) -> (String, String, u32) {
+    if let Some(config) = request_context.tool_model_config() {
+        let provider = config
+            .provider
+            .as_deref()
+            .or(agent_runtime.provider.as_deref())
+            .unwrap_or_else(|| ai_service.default_provider())
+            .to_string();
+        let model = config
+            .model
+            .as_deref()
+            .or(agent_runtime.model.as_deref())
+            .unwrap_or_else(|| ai_service.default_model())
+            .to_string();
+        let max_tokens = config
+            .max_output_tokens
+            .or(agent_runtime.max_output_tokens)
+            .unwrap_or_else(|| ai_service.default_max_output_tokens());
+
+        tracing::debug!(
+            provider,
+            model,
+            max_output_tokens = max_tokens,
+            "Using tool_model_config"
+        );
+
+        return (provider, model, max_tokens);
+    }
+
+    let provider = agent_runtime
+        .provider
+        .as_deref()
+        .unwrap_or_else(|| ai_service.default_provider())
+        .to_string();
+    let model = agent_runtime
+        .model
+        .as_deref()
+        .unwrap_or_else(|| ai_service.default_model())
+        .to_string();
+    let max_tokens = agent_runtime
+        .max_output_tokens
+        .unwrap_or_else(|| ai_service.default_max_output_tokens());
+
+    (provider, model, max_tokens)
+}
+
 pub async fn synthesize_tool_results_with_artifacts(
     ai_service: Arc<dyn AiProvider>,
     agent_runtime: &AgentRuntimeInfo,
@@ -51,20 +103,14 @@ pub async fn synthesize_tool_results_with_artifacts(
         "Calling AI to synthesize tool results"
     );
 
-    let provider = agent_runtime
-        .provider
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_provider());
-    let model = agent_runtime
-        .model
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_model());
+    let (provider, model, max_output_tokens) =
+        resolve_provider_config(&request_context, agent_runtime, ai_service.as_ref());
 
     let synthesis_request = AiRequest::builder(
         synthesis_messages,
-        provider,
-        model,
-        ai_service.default_max_output_tokens(),
+        &provider,
+        &model,
+        max_output_tokens,
         request_context,
     )
     .build();
@@ -98,20 +144,14 @@ pub async fn process_without_tools(
     tx: mpsc::UnboundedSender<StreamEvent>,
     request_context: RequestContext,
 ) -> Result<(String, Vec<ToolCall>, Vec<CallToolResult>), ()> {
-    let provider = agent_runtime
-        .provider
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_provider());
-    let model = agent_runtime
-        .model
-        .as_deref()
-        .unwrap_or_else(|| ai_service.default_model());
+    let (provider, model, max_output_tokens) =
+        resolve_provider_config(&request_context, agent_runtime, ai_service.as_ref());
 
     let generate_request = AiRequest::builder(
         ai_messages,
-        provider,
-        model,
-        ai_service.default_max_output_tokens(),
+        &provider,
+        &model,
+        max_output_tokens,
         request_context,
     )
     .build();

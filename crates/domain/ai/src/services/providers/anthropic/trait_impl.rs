@@ -11,7 +11,6 @@ use crate::services::providers::{
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider::AnthropicProvider;
-use super::streaming::StreamRequestParams;
 use super::{converters, generation};
 
 #[async_trait]
@@ -57,45 +56,18 @@ impl AiProvider for AnthropicProvider {
     }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {
-        generation::generate(
-            self,
-            params.messages,
-            params.sampling,
-            params.max_output_tokens,
-            params.model,
-        )
-        .await
+        generation::generate(self, params).await
     }
 
     async fn generate_with_tools(
         &self,
         params: ToolGenerationParams<'_>,
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        generation::generate_with_tools(
-            self,
-            generation::ToolGenerationParams {
-                messages: params.base.messages,
-                tools: params.tools,
-                sampling: params.base.sampling,
-                max_output_tokens: params.base.max_output_tokens,
-                model: params.base.model,
-            },
-        )
-        .await
+        generation::generate_with_tools(self, params).await
     }
 
     async fn generate_with_schema(&self, params: SchemaGenerationParams<'_>) -> Result<AiResponse> {
-        generation::generate_with_schema(
-            self,
-            generation::SchemaGenerationParams {
-                messages: params.base.messages,
-                response_schema: params.response_schema,
-                sampling: params.base.sampling,
-                max_output_tokens: params.base.max_output_tokens,
-                model: params.base.model,
-            },
-        )
-        .await
+        generation::generate_with_schema(self, params).await
     }
 
     fn supports_streaming(&self) -> bool {
@@ -106,14 +78,7 @@ impl AiProvider for AnthropicProvider {
         &self,
         params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
-        self.create_stream_request(StreamRequestParams {
-            messages: params.messages,
-            sampling: params.sampling,
-            max_output_tokens: params.max_output_tokens,
-            model: params.model,
-            tools: None,
-        })
-        .await
+        self.create_stream_request(params, None).await
     }
 
     async fn generate_with_tools_stream(
@@ -121,13 +86,6 @@ impl AiProvider for AnthropicProvider {
         params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
         let anthropic_tools = converters::convert_tools(params.tools);
-        self.create_stream_request(StreamRequestParams {
-            messages: params.base.messages,
-            sampling: params.base.sampling,
-            max_output_tokens: params.base.max_output_tokens,
-            model: params.base.model,
-            tools: Some(anthropic_tools),
-        })
-        .await
+        self.create_stream_request(params.base, Some(anthropic_tools)).await
     }
 }

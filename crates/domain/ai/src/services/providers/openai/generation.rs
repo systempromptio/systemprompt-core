@@ -3,39 +3,32 @@ use serde_json::json;
 use std::time::Instant;
 use uuid::Uuid;
 
-use crate::models::ai::{AiMessage, AiResponse, ResponseFormat, SamplingParams};
+use crate::models::ai::AiResponse;
 use crate::models::providers::openai::{
     OpenAiJsonSchema, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
 };
-use crate::models::tools::{McpTool, ToolCall};
+use crate::models::tools::ToolCall;
+use crate::services::providers::{
+    GenerationParams, SchemaGenerationParams, StructuredGenerationParams, ToolGenerationParams,
+};
 use systemprompt_identifiers::AiToolCallId;
 
 use super::provider::OpenAiProvider;
 use super::response_builder::build_response;
 use super::{converters, reasoning};
 
-pub struct SchemaGenerationParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub response_schema: serde_json::Value,
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-}
-
 pub async fn generate(
     provider: &OpenAiProvider,
-    messages: &[AiMessage],
-    sampling: Option<&SamplingParams>,
-    model: &str,
+    params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
     let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        messages.iter().map(Into::into).collect();
+        params.messages.iter().map(Into::into).collect();
 
     let (temperature, top_p, presence_penalty, frequency_penalty) =
-        sampling.map_or((None, None, None, None), |s| {
+        params.sampling.map_or((None, None, None, None), |s| {
             (
                 s.temperature,
                 s.top_p,
@@ -44,16 +37,16 @@ pub async fn generate(
             )
         });
 
-    let reasoning_config = reasoning::build_reasoning_config(model);
+    let reasoning_config = reasoning::build_reasoning_config(params.model);
 
     let request = OpenAiRequest {
-        model: model.to_string(),
+        model: params.model.to_string(),
         messages: openai_messages,
         temperature,
         top_p,
         presence_penalty,
         frequency_penalty,
-        max_tokens: None,
+        max_tokens: Some(params.max_output_tokens),
         tools: None,
         response_format: None,
         reasoning_effort: reasoning_config,
@@ -73,26 +66,23 @@ pub async fn generate(
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
-    build_response(request_id, &openai_response, "openai", model, start)
+    build_response(request_id, &openai_response, "openai", params.model, start)
 }
 
 pub async fn generate_with_tools(
     provider: &OpenAiProvider,
-    messages: &[AiMessage],
-    tools: Vec<McpTool>,
-    sampling: Option<&SamplingParams>,
-    model: &str,
+    params: ToolGenerationParams<'_>,
 ) -> Result<(AiResponse, Vec<ToolCall>)> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
     let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        messages.iter().map(Into::into).collect();
+        params.base.messages.iter().map(Into::into).collect();
 
-    let openai_tools = converters::convert_tools(tools)?;
+    let openai_tools = converters::convert_tools(params.tools)?;
 
     let (temperature, top_p, presence_penalty, frequency_penalty) =
-        sampling.map_or((None, None, None, None), |s| {
+        params.base.sampling.map_or((None, None, None, None), |s| {
             (
                 s.temperature,
                 s.top_p,
@@ -101,16 +91,16 @@ pub async fn generate_with_tools(
             )
         });
 
-    let reasoning_config = reasoning::build_reasoning_config(model);
+    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: model.to_string(),
+        model: params.base.model.to_string(),
         messages: openai_messages,
         temperature,
         top_p,
         presence_penalty,
         frequency_penalty,
-        max_tokens: None,
+        max_tokens: Some(params.base.max_output_tokens),
         tools: Some(openai_tools),
         response_format: None,
         reasoning_effort: reasoning_config,
@@ -154,25 +144,28 @@ pub async fn generate_with_tools(
         })
         .collect();
 
-    let ai_response = build_response(request_id, &openai_response, "openai", model, start)?;
+    let ai_response = build_response(
+        request_id,
+        &openai_response,
+        "openai",
+        params.base.model,
+        start,
+    )?;
     Ok((ai_response, tool_calls))
 }
 
 pub async fn generate_structured(
     provider: &OpenAiProvider,
-    messages: &[AiMessage],
-    sampling: Option<&SamplingParams>,
-    model: &str,
-    response_format: &ResponseFormat,
+    params: StructuredGenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
     let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        messages.iter().map(Into::into).collect();
+        params.base.messages.iter().map(Into::into).collect();
 
     let (temperature, top_p, presence_penalty, frequency_penalty) =
-        sampling.map_or((None, None, None, None), |s| {
+        params.base.sampling.map_or((None, None, None, None), |s| {
             (
                 s.temperature,
                 s.top_p,
@@ -181,18 +174,18 @@ pub async fn generate_structured(
             )
         });
 
-    let reasoning_config = reasoning::build_reasoning_config(model);
+    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: model.to_string(),
+        model: params.base.model.to_string(),
         messages: openai_messages,
         temperature,
         top_p,
         presence_penalty,
         frequency_penalty,
-        max_tokens: None,
+        max_tokens: Some(params.base.max_output_tokens),
         tools: None,
-        response_format: converters::convert_response_format(response_format)?,
+        response_format: converters::convert_response_format(params.response_format)?,
         reasoning_effort: reasoning_config,
     };
 
@@ -210,7 +203,13 @@ pub async fn generate_structured(
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
-    build_response(request_id, &openai_response, "openai", model, start)
+    build_response(
+        request_id,
+        &openai_response,
+        "openai",
+        params.base.model,
+        start,
+    )
 }
 
 pub async fn generate_with_schema(
@@ -221,22 +220,23 @@ pub async fn generate_with_schema(
     let request_id = Uuid::new_v4();
 
     let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
-        params.messages.iter().map(Into::into).collect();
+        params.base.messages.iter().map(Into::into).collect();
 
     let (temperature, top_p) = params
+        .base
         .sampling
         .map_or((None, None), |s| (s.temperature, s.top_p));
 
-    let reasoning_config = reasoning::build_reasoning_config(params.model);
+    let reasoning_config = reasoning::build_reasoning_config(params.base.model);
 
     let request = OpenAiRequest {
-        model: params.model.to_string(),
+        model: params.base.model.to_string(),
         messages: openai_messages,
         temperature,
         top_p,
         presence_penalty: None,
         frequency_penalty: None,
-        max_tokens: Some(params.max_output_tokens),
+        max_tokens: Some(params.base.max_output_tokens),
         tools: None,
         response_format: Some(OpenAiResponseFormat::JsonSchema {
             json_schema: OpenAiJsonSchema {
@@ -262,5 +262,11 @@ pub async fn generate_with_schema(
     }
 
     let openai_response: OpenAiResponse = response.json().await?;
-    build_response(request_id, &openai_response, "openai", params.model, start)
+    build_response(
+        request_id,
+        &openai_response,
+        "openai",
+        params.base.model,
+        start,
+    )
 }

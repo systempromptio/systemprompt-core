@@ -2,55 +2,37 @@ use anyhow::{anyhow, Result};
 use std::time::Instant;
 use uuid::Uuid;
 
-use crate::models::ai::{AiMessage, AiResponse, SamplingParams};
+use crate::models::ai::AiResponse;
 use crate::models::providers::anthropic::{
     AnthropicContentBlock, AnthropicRequest, AnthropicResponse, AnthropicTool, AnthropicToolChoice,
 };
-use crate::models::tools::{McpTool, ToolCall};
+use crate::models::tools::ToolCall;
+use crate::services::providers::{GenerationParams, SchemaGenerationParams, ToolGenerationParams};
 use systemprompt_identifiers::AiToolCallId;
 
 use super::provider::AnthropicProvider;
 use super::{converters, thinking};
 
-pub struct ToolGenerationParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub tools: Vec<McpTool>,
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-}
-
-pub struct SchemaGenerationParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub response_schema: serde_json::Value,
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-}
-
 pub async fn generate(
     provider: &AnthropicProvider,
-    messages: &[AiMessage],
-    sampling: Option<&SamplingParams>,
-    max_output_tokens: u32,
-    model: &str,
+    params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
-    let (system_prompt, anthropic_messages) = converters::convert_messages(messages);
+    let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
 
-    let (temperature, top_p, top_k, stop_sequences) = sampling
-        .map_or((None, None, None, None), |s| {
+    let (temperature, top_p, top_k, stop_sequences) =
+        params.sampling.map_or((None, None, None, None), |s| {
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
-    let thinking_config = thinking::build_thinking_config(model);
+    let thinking_config = thinking::build_thinking_config(params.model);
 
     let request = AnthropicRequest {
-        model: model.to_string(),
+        model: params.model.to_string(),
         messages: anthropic_messages,
-        max_tokens: max_output_tokens,
+        max_tokens: params.max_output_tokens,
         temperature,
         top_p,
         top_k,
@@ -82,7 +64,7 @@ pub async fn generate(
         request_id,
         &anthropic_response,
         "anthropic",
-        model,
+        params.model,
         start,
     ))
 }
@@ -94,20 +76,20 @@ pub async fn generate_with_tools(
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
+    let (system_prompt, anthropic_messages) = converters::convert_messages(params.base.messages);
     let anthropic_tools = converters::convert_tools(params.tools);
 
     let (temperature, top_p, top_k, stop_sequences) =
-        params.sampling.map_or((None, None, None, None), |s| {
+        params.base.sampling.map_or((None, None, None, None), |s| {
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
-    let thinking_config = thinking::build_thinking_config(params.model);
+    let thinking_config = thinking::build_thinking_config(params.base.model);
 
     let request = AnthropicRequest {
-        model: params.model.to_string(),
+        model: params.base.model.to_string(),
         messages: anthropic_messages,
-        max_tokens: params.max_output_tokens,
+        max_tokens: params.base.max_output_tokens,
         temperature,
         top_p,
         top_k,
@@ -163,7 +145,7 @@ pub async fn generate_with_tools(
         request_id,
         content,
         provider: "anthropic".to_string(),
-        model: params.model.to_string(),
+        model: params.base.model.to_string(),
         finish_reason: anthropic_response.stop_reason.clone(),
         tokens_used,
         input_tokens: Some(usage.input),
@@ -187,7 +169,7 @@ pub async fn generate_with_schema(
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
-    let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
+    let (system_prompt, anthropic_messages) = converters::convert_messages(params.base.messages);
 
     let structured_tool = AnthropicTool {
         name: "structured_output".to_string(),
@@ -196,16 +178,16 @@ pub async fn generate_with_schema(
     };
 
     let (temperature, top_p, top_k, stop_sequences) =
-        params.sampling.map_or((None, None, None, None), |s| {
+        params.base.sampling.map_or((None, None, None, None), |s| {
             (s.temperature, s.top_p, s.top_k, s.stop_sequences.clone())
         });
 
-    let thinking_config = thinking::build_thinking_config(params.model);
+    let thinking_config = thinking::build_thinking_config(params.base.model);
 
     let request = AnthropicRequest {
-        model: params.model.to_string(),
+        model: params.base.model.to_string(),
         messages: anthropic_messages,
-        max_tokens: params.max_output_tokens,
+        max_tokens: params.base.max_output_tokens,
         temperature,
         top_p,
         top_k,
@@ -259,7 +241,7 @@ pub async fn generate_with_schema(
         request_id,
         content,
         provider: "anthropic".to_string(),
-        model: params.model.to_string(),
+        model: params.base.model.to_string(),
         finish_reason: anthropic_response.stop_reason,
         tokens_used,
         input_tokens: Some(usage.input),

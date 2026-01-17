@@ -3,21 +3,14 @@ use reqwest::Client;
 use std::time::Instant;
 use uuid::Uuid;
 
-use crate::models::ai::{AiMessage, AiResponse, SamplingParams};
+use crate::models::ai::AiResponse;
 use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};
+use crate::services::providers::{GenerationParams, SchemaGenerationParams};
 
 use super::constants::timeout;
 use super::provider::GeminiProvider;
 use super::request_builders::AiResponseParams;
 use super::{converters, request_builders};
-
-pub struct SchemaGenerationParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub response_schema: serde_json::Value,
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-}
 
 pub fn build_client() -> Result<Client> {
     Client::builder()
@@ -29,40 +22,7 @@ pub fn build_client() -> Result<Client> {
 
 pub async fn generate(
     provider: &GeminiProvider,
-    messages: &[AiMessage],
-    sampling: Option<&SamplingParams>,
-    max_output_tokens: u32,
-    model: &str,
-) -> Result<AiResponse> {
-    let start = Instant::now();
-    let request_id = Uuid::new_v4();
-
-    let contents = converters::convert_messages(messages);
-    let generation_config =
-        request_builders::build_generation_config(sampling, max_output_tokens, None, None);
-
-    let request = GeminiRequest {
-        contents,
-        generation_config: Some(generation_config),
-        safety_settings: None,
-        tools: None,
-        tool_config: None,
-    };
-
-    let response_text =
-        request_builders::send_request(provider, &request, model, "generateContent").await?;
-
-    let gemini_response: GeminiResponse = request_builders::parse_response(&response_text)?;
-    let content = extract_content(&gemini_response)?;
-
-    Ok(request_builders::build_ai_response(
-        AiResponseParams::builder(request_id, &gemini_response, model, start, content).build(),
-    ))
-}
-
-pub async fn generate_with_schema(
-    provider: &GeminiProvider,
-    params: SchemaGenerationParams<'_>,
+    params: GenerationParams<'_>,
 ) -> Result<AiResponse> {
     let start = Instant::now();
     let request_id = Uuid::new_v4();
@@ -71,7 +31,7 @@ pub async fn generate_with_schema(
     let generation_config = request_builders::build_generation_config(
         params.sampling,
         params.max_output_tokens,
-        Some(("application/json".to_string(), params.response_schema)),
+        None,
         None,
     );
 
@@ -91,6 +51,42 @@ pub async fn generate_with_schema(
 
     Ok(request_builders::build_ai_response(
         AiResponseParams::builder(request_id, &gemini_response, params.model, start, content)
+            .build(),
+    ))
+}
+
+pub async fn generate_with_schema(
+    provider: &GeminiProvider,
+    params: SchemaGenerationParams<'_>,
+) -> Result<AiResponse> {
+    let start = Instant::now();
+    let request_id = Uuid::new_v4();
+
+    let contents = converters::convert_messages(params.base.messages);
+    let generation_config = request_builders::build_generation_config(
+        params.base.sampling,
+        params.base.max_output_tokens,
+        Some(("application/json".to_string(), params.response_schema)),
+        None,
+    );
+
+    let request = GeminiRequest {
+        contents,
+        generation_config: Some(generation_config),
+        safety_settings: None,
+        tools: None,
+        tool_config: None,
+    };
+
+    let response_text =
+        request_builders::send_request(provider, &request, params.base.model, "generateContent")
+            .await?;
+
+    let gemini_response: GeminiResponse = request_builders::parse_response(&response_text)?;
+    let content = extract_content(&gemini_response)?;
+
+    Ok(request_builders::build_ai_response(
+        AiResponseParams::builder(request_id, &gemini_response, params.base.model, start, content)
             .build(),
     ))
 }
