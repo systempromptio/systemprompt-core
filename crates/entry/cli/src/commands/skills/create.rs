@@ -84,10 +84,9 @@ pub async fn execute(
         config,
     )?;
 
-    let tags: Vec<String> = args
-        .tags
-        .map(|t| t.split(',').map(|s| s.trim().to_string()).collect())
-        .unwrap_or_else(Vec::new);
+    let tags: Vec<String> = args.tags.map_or_else(Vec::new, |t| {
+        t.split(',').map(|s| s.trim().to_string()).collect()
+    });
 
     let enabled = args.enabled.unwrap_or(true);
     let author = args.author.unwrap_or_else(|| "systemprompt".to_string());
@@ -207,7 +206,7 @@ fn check_normalized_conflicts(name: &str, skills_dir: &Path) -> Result<()> {
     let entries = fs::read_dir(skills_dir)
         .with_context(|| format!("Failed to read skills directory: {}", skills_dir.display()))?;
 
-    for entry in entries.filter_map(|e| e.ok()) {
+    for entry in entries.filter_map(std::result::Result::ok) {
         if !entry.path().is_dir() {
             continue;
         }

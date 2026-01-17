@@ -85,7 +85,7 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
         curr_row[0] = i + 1;
 
         for (j, c2) in s2.chars().enumerate() {
-            let cost = if c1 == c2 { 0 } else { 1 };
+            let cost = usize::from(c1 != c2);
             curr_row[j + 1] = (prev_row[j + 1] + 1)
                 .min(curr_row[j] + 1)
                 .min(prev_row[j] + cost);

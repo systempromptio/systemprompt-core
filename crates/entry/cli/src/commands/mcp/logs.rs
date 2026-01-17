@@ -142,10 +142,9 @@ async fn execute_db_mode(
         .collect();
 
     let service_label = args.service.clone().unwrap_or_else(|| "all".to_string());
-    let level_label = args
-        .level
-        .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
-        .unwrap_or_else(String::new);
+    let level_label = args.level.map_or_else(String::new, |l| {
+        format!(" [{}+]", format!("{:?}", l).to_uppercase())
+    });
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service_label.clone()),
@@ -205,10 +204,9 @@ fn execute_disk_mode(
     let log_file = find_log_file(logs_path, &service)?;
     let logs = read_log_lines(&log_file, args.lines, args.level)?;
 
-    let level_label = args
-        .level
-        .map(|l| format!(" [{}+]", format!("{:?}", l).to_uppercase()))
-        .unwrap_or_else(String::new);
+    let level_label = args.level.map_or_else(String::new, |l| {
+        format!(" [{}+]", format!("{:?}", l).to_uppercase())
+    });
 
     Ok(CommandResult::text(McpLogsOutput {
         service: Some(service.clone()),

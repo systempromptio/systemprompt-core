@@ -314,6 +314,9 @@ pub fn build_multiturn_task(
             let call_id = tool_call.ai_tool_call_id.as_ref();
             let is_error = result.is_error?;
 
+            let structured_content = result.structured_content.as_ref()?;
+            let artifact_id = extract_artifact_id(structured_content).map(ArtifactId::new)?;
+
             let mut data_map = serde_json::Map::new();
             data_map.insert("call_id".to_string(), json!(call_id));
             data_map.insert("tool_name".to_string(), json!(tool_name));
@@ -322,13 +325,6 @@ pub fn build_multiturn_task(
                 "status".to_string(),
                 json!(if is_error { "error" } else { "success" }),
             );
-
-            let artifact_id = result
-                .structured_content
-                .as_ref()
-                .and_then(extract_artifact_id)
-                .map(ArtifactId::new)
-                .unwrap_or_else(ArtifactId::generate);
 
             Some(Artifact {
                 id: artifact_id,

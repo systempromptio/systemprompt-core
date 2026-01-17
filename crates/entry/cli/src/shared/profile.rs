@@ -36,10 +36,10 @@ pub fn resolve_profile_path(
         return Ok(PathBuf::from(path_str));
     }
 
-    let profiles = discover_profiles()?;
+    let mut profiles = discover_profiles()?;
     match profiles.len() {
         0 => Err(ProfileResolutionError::NoProfilesFound),
-        1 => Ok(profiles.into_iter().next().expect("checked len").path),
+        1 => Ok(profiles.swap_remove(0).path),
         _ => prompt_profile_selection_for_cli(&profiles),
     }
 }
@@ -56,10 +56,9 @@ fn prompt_profile_selection_for_cli(
         .interact_opt()
         .map_err(|e| ProfileResolutionError::DiscoveryFailed(e.into()))?;
 
-    match selection {
-        Some(idx) => Ok(profiles[idx].path.clone()),
-        None => Err(ProfileResolutionError::SelectionCancelled),
-    }
+    selection.map_or(Err(ProfileResolutionError::SelectionCancelled), |idx| {
+        Ok(profiles[idx].path.clone())
+    })
 }
 
 #[derive(Debug)]

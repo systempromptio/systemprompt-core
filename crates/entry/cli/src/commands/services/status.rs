@@ -101,9 +101,7 @@ pub fn execute_command(
 pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfig) -> Result<()> {
     let ctx = Arc::new(AppContext::new().await?);
 
-    let configs = if let Ok(c) = super::load_service_configs(&ctx) {
-        c
-    } else {
+    let Ok(configs) = super::load_service_configs(&ctx) else {
         let mut validator = StartupValidator::new();
         let report = validator.validate(ctx.config());
         if report.has_errors() {

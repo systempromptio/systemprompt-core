@@ -48,14 +48,15 @@ pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResul
         .await
         .context("Failed to get running servers")?;
 
-    let servers_to_query: Vec<_> = if let Some(ref filter) = args.server {
-        running_servers
-            .iter()
-            .filter(|s| &s.name == filter)
-            .collect()
-    } else {
-        running_servers.iter().collect()
-    };
+    let servers_to_query: Vec<_> = args.server.as_ref().map_or_else(
+        || running_servers.iter().collect(),
+        |filter| {
+            running_servers
+                .iter()
+                .filter(|s| &s.name == filter)
+                .collect()
+        },
+    );
 
     if servers_to_query.is_empty() {
         let message = args.server.as_ref().map_or_else(
@@ -86,8 +87,8 @@ pub async fn execute(args: ToolsArgs, config: &CliConfig) -> Result<CommandResul
                         server: server.name.clone(),
                         description: tool.description,
                         parameters_count: tool.parameters_count,
-                        input_schema: args.detailed.then(|| tool.input_schema).flatten(),
-                        output_schema: args.detailed.then(|| tool.output_schema).flatten(),
+                        input_schema: args.detailed.then_some(tool.input_schema).flatten(),
+                        output_schema: args.detailed.then_some(tool.output_schema).flatten(),
                     });
                 }
                 servers_queried += 1;
@@ -177,7 +178,7 @@ async fn list_tools_unauthenticated(
                 .as_ref()
                 .and_then(|s| s.get("properties"))
                 .and_then(|p| p.as_object())
-                .map_or(0, |o| o.len());
+                .map_or(0, serde_json::Map::len);
 
             ToolInfo {
                 name: tool.name.to_string(),
@@ -242,7 +243,7 @@ async fn list_tools_authenticated(
                 .as_ref()
                 .and_then(|s| s.get("properties"))
                 .and_then(|p| p.as_object())
-                .map_or(0, |o| o.len());
+                .map_or(0, serde_json::Map::len);
 
             ToolInfo {
                 name: tool.name.to_string(),

@@ -27,14 +27,11 @@ pub async fn execute_api(config: &CliConfig) -> Result<()> {
     CliService::section("Restarting API Server");
 
     let port = get_api_port();
-    let api_pid = ProcessCleanup::check_port(port);
-    if api_pid.is_none() {
+    let Some(pid) = ProcessCleanup::check_port(port) else {
         CliService::warning("API server is not running");
         CliService::info("Starting API server...");
         return super::serve::execute(true, false, config).await;
-    }
-
-    let pid = api_pid.expect("API PID should be present at this point");
+    };
     CliService::info(&format!("Stopping API server (PID: {})...", pid));
 
     ProcessCleanup::terminate_gracefully(pid, 100).await;

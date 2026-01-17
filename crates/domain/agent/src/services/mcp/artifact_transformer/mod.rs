@@ -132,7 +132,9 @@ impl McpToA2aTransformer {
             .as_ref()
             .and_then(extract_artifact_id)
             .map(ArtifactId::new)
-            .unwrap_or_else(ArtifactId::generate);
+            .ok_or_else(|| ArtifactError::MissingField {
+                field: "artifact_id".to_string(),
+            })?;
 
         Ok(Artifact {
             id: artifact_id,
@@ -178,7 +180,9 @@ impl McpToA2aTransformer {
 
         let artifact_id = extract_artifact_id(tool_result_json)
             .map(ArtifactId::new)
-            .unwrap_or_else(ArtifactId::generate);
+            .ok_or_else(|| ArtifactError::MissingField {
+                field: "artifact_id".to_string(),
+            })?;
 
         Ok(Artifact {
             id: artifact_id,

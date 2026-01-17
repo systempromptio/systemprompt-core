@@ -53,7 +53,7 @@ pub async fn execute_with_pool(
         .filter(|r| {
             args.source
                 .as_ref()
-                .map_or(true, |src| r.source_id.as_str() == src)
+                .is_none_or(|src| r.source_id.as_str() == src)
         })
         .map(|r| SearchResultRow {
             id: r.id,

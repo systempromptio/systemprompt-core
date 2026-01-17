@@ -153,7 +153,12 @@ impl ArtifactBuilder {
 
                     let artifact_id = extract_artifact_id(structured_content)
                         .map(ArtifactId::new)
-                        .unwrap_or_else(ArtifactId::generate);
+                        .ok_or_else(|| {
+                            anyhow::anyhow!(
+                                "MCP tool '{}' returned structured_content without required artifact_id field",
+                                tool_call.name
+                            )
+                        })?;
 
                     let artifact = Artifact {
                         id: artifact_id,

@@ -135,7 +135,7 @@ fn resolve_category_id(args: &IngestArgs) -> String {
 fn load_content_config() -> Result<ContentConfigRaw> {
     let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
     let config_path = paths.system().content_config();
-    let yaml_content = std::fs::read_to_string(&config_path)
+    let yaml_content = std::fs::read_to_string(config_path)
         .with_context(|| format!("Failed to read content config: {}", config_path.display()))?;
     serde_yaml::from_str(&yaml_content)
         .with_context(|| format!("Failed to parse content config: {}", config_path.display()))

@@ -81,7 +81,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
     }
 
     if args.dry_run {
-        return execute_dry_run(&args, &env_name, &systemprompt_dir, config);
+        return Ok(execute_dry_run(&args, &env_name, &systemprompt_dir, config));
     }
 
     if !config.is_json_output() {
@@ -163,7 +163,7 @@ fn execute_dry_run(
     env_name: &str,
     systemprompt_dir: &Path,
     config: &CliConfig,
-) -> Result<CommandResult<SetupOutput>> {
+) -> CommandResult<SetupOutput> {
     if !config.is_json_output() {
         CliService::section("Dry Run - No changes will be made");
     }
@@ -264,9 +264,9 @@ fn execute_dry_run(
 
     let result = CommandResult::text(output).with_title("Setup Dry Run");
     if config.is_json_output() {
-        Ok(result)
+        result
     } else {
-        Ok(result.with_skip_render())
+        result.with_skip_render()
     }
 }
 

@@ -1,44 +1,32 @@
-//! Unit tests for HeaderInjector
-//!
-//! Tests cover:
-//! - Individual header injection methods
-//! - Injection from RequestContext
-//! - Header constant values
-//! - Error handling for invalid header values
-
 use axum::http::HeaderMap;
 use systemprompt_core_security::HeaderInjector;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
+use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 
-// ============================================================================
-// Header Name Constants Tests
-// ============================================================================
-
 #[test]
 fn test_header_session_id_constant() {
-    assert_eq!(HeaderInjector::HEADER_SESSION_ID, "x-session-id");
+    assert_eq!(headers::SESSION_ID, "x-session-id");
 }
 
 #[test]
 fn test_header_user_id_constant() {
-    assert_eq!(HeaderInjector::HEADER_USER_ID, "x-user-id");
+    assert_eq!(headers::USER_ID, "x-user-id");
 }
 
 #[test]
 fn test_header_trace_id_constant() {
-    assert_eq!(HeaderInjector::HEADER_TRACE_ID, "x-trace-id");
+    assert_eq!(headers::TRACE_ID, "x-trace-id");
 }
 
 #[test]
 fn test_header_context_id_constant() {
-    assert_eq!(HeaderInjector::HEADER_CONTEXT_ID, "x-context-id");
+    assert_eq!(headers::CONTEXT_ID, "x-context-id");
 }
 
 #[test]
 fn test_header_agent_name_constant() {
-    assert_eq!(HeaderInjector::HEADER_AGENT_NAME, "x-agent-name");
+    assert_eq!(headers::AGENT_NAME, "x-agent-name");
 }
 
 // ============================================================================
