@@ -2,7 +2,6 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
-use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 

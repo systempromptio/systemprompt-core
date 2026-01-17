@@ -13,8 +13,6 @@ use systemprompt_models::{
 use super::message::StreamEvent;
 use crate::models::AgentRuntimeInfo;
 
-/// Resolves provider, model, and max_output_tokens from tool_model_config or
-/// fallbacks. Priority: tool_model_config > agent_runtime > ai_service defaults
 fn resolve_provider_config(
     request_context: &RequestContext,
     agent_runtime: &AgentRuntimeInfo,

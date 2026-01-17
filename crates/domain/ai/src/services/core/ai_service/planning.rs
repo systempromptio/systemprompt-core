@@ -81,7 +81,6 @@ impl AiService {
             params.execution_summary
         )));
 
-        // Priority: tool_model_config > params (agent-level) > service defaults
         let tool_config = params.context.tool_model_config();
 
         let provider = tool_config

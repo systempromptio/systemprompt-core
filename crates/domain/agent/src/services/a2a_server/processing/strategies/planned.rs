@@ -29,8 +29,6 @@ impl Default for PlannedAgenticStrategy {
     }
 }
 
-/// Builds an AI request with proper config hierarchy.
-/// Priority: tool_model_config > agent_runtime > ai_service defaults
 fn build_ai_request(context: &ExecutionContext, messages: Vec<AiMessage>) -> AiRequest {
     let tool_config = context.request_ctx.tool_model_config();
 

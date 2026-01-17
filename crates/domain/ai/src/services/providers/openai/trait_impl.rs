@@ -109,6 +109,7 @@ impl AiProvider for OpenAiProvider {
         params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
         let openai_tools = converters::convert_tools(params.tools)?;
-        self.create_stream_request(params.base, Some(openai_tools)).await
+        self.create_stream_request(params.base, Some(openai_tools))
+            .await
     }
 }
