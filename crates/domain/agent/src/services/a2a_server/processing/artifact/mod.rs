@@ -8,7 +8,7 @@ use systemprompt_models::a2a::ArtifactMetadata;
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
 
 use crate::models::a2a::{Artifact, Part, TextPart};
-use crate::services::mcp::extract_skill_id;
+use crate::services::mcp::{extract_artifact_id, extract_skill_id};
 
 #[async_trait]
 pub trait ToolProvider: Send + Sync {
@@ -141,8 +141,12 @@ impl ArtifactBuilder {
                         metadata = metadata.with_skill_id(sid);
                     }
 
+                    let artifact_id = extract_artifact_id(structured_content)
+                        .map(ArtifactId::new)
+                        .unwrap_or_else(ArtifactId::generate);
+
                     let artifact = Artifact {
-                        id: ArtifactId::generate(),
+                        id: artifact_id,
                         name: Some(tool_call.name.clone()),
                         description: None,
                         parts: vec![Part::Text(TextPart {

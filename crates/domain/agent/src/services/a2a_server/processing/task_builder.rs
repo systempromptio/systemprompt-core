@@ -1,6 +1,7 @@
 use crate::models::a2a::{
     Artifact, DataPart, Message, Part, Task, TaskState, TaskStatus, TextPart,
 };
+use crate::services::mcp::extract_artifact_id;
 use rmcp::model::{Content, RawContent};
 use serde_json::json;
 use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
@@ -322,8 +323,15 @@ pub fn build_multiturn_task(
                 json!(if is_error { "error" } else { "success" }),
             );
 
+            let artifact_id = result
+                .structured_content
+                .as_ref()
+                .and_then(extract_artifact_id)
+                .map(ArtifactId::new)
+                .unwrap_or_else(ArtifactId::generate);
+
             Some(Artifact {
-                id: ArtifactId::generate(),
+                id: artifact_id,
                 name: Some(format!("tool_execution_{}", idx + 1)),
                 description: Some(format!("Result from tool: {tool_name}")),
                 parts: vec![Part::Data(DataPart { data: data_map })],

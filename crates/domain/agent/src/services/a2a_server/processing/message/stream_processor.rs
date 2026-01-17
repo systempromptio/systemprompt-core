@@ -296,14 +296,23 @@ impl StreamProcessor {
                 "Processing complete"
             );
 
-            let artifacts = build_artifacts_from_results(
+            let artifacts = match build_artifacts_from_results(
                 &tool_results,
                 &tool_calls,
                 db_pool.clone(),
                 &context_id_str,
                 &task_id_str,
             )
-            .await;
+            .await
+            {
+                Ok(artifacts) => artifacts,
+                Err(e) => {
+                    tracing::error!(error = %e, "Failed to build artifacts from tool results");
+                    tx.send(StreamEvent::Error(format!("Artifact building failed: {e}")))
+                        .ok();
+                    return;
+                },
+            };
 
             let final_text = synthesize_final_response(
                 &tool_calls,
@@ -352,12 +361,12 @@ async fn build_artifacts_from_results(
     db_pool: DbPool,
     context_id_str: &str,
     task_id_str: &str,
-) -> Vec<Artifact> {
+) -> Result<Vec<Artifact>> {
     use crate::services::a2a_server::processing::artifact::DatabaseExecutionIdLookup;
 
     if tool_results.is_empty() {
         tracing::info!("No tool_results - no artifacts expected");
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     let has_structured_content = tool_results.iter().any(|r| r.structured_content.is_some());
@@ -366,7 +375,7 @@ async fn build_artifacts_from_results(
         tracing::info!(
             "No structured_content - ephemeral tool calls, skipping A2A artifact building"
         );
-        return Vec::new();
+        return Ok(Vec::new());
     }
 
     tracing::info!(
@@ -383,13 +392,7 @@ async fn build_artifacts_from_results(
         task_id_str.to_string(),
     );
 
-    match artifact_builder.build_artifacts().await {
-        Ok(artifacts) => artifacts,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to build artifacts");
-            Vec::new()
-        },
-    }
+    artifact_builder.build_artifacts().await
 }
 
 async fn synthesize_final_response(
