@@ -14,8 +14,12 @@ pub async fn generate_stream(
     params: GenerationParams<'_>,
 ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
     let contents = converters::convert_messages(params.messages);
-    let generation_config =
-        request_builders::build_generation_config(params.sampling, params.max_output_tokens, None, None);
+    let generation_config = request_builders::build_generation_config(
+        params.sampling,
+        params.max_output_tokens,
+        None,
+        None,
+    );
 
     let request = GeminiRequest {
         contents,

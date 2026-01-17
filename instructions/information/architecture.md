@@ -389,6 +389,48 @@ Files attached to messages are stored in `message_parts` table:
 
 ---
 
+### AI Configuration Hierarchy
+
+The AI generation system uses a strict 3-level configuration hierarchy:
+
+```
+Global (ai.yaml) → Agent (agents.yaml) → Tool (runtime override)
+```
+
+**Priority**: Tool > Agent > Global (highest to lowest)
+
+| Level | Source | Scope |
+|-------|--------|-------|
+| Global | `ai.yaml` | All requests (default_provider, default_model, default_max_output_tokens) |
+| Agent | `agents.yaml` metadata | All requests from this agent (provider, model, max_output_tokens) |
+| Tool | `tool_model_overrides` | Specific tool executions |
+
+**Canonical Execution Struct:**
+
+All providers use the same `GenerationParams` struct:
+
+```rust
+pub struct GenerationParams<'a> {
+    pub messages: &'a [AiMessage],
+    pub model: &'a str,
+    pub max_output_tokens: u32,
+    pub sampling: Option<&'a SamplingParams>,
+}
+```
+
+**Key Files:**
+
+| File | Purpose |
+|------|---------|
+| `shared/models/src/services/ai.rs` | AiConfig (global defaults) |
+| `shared/models/src/services/agent_config.rs` | AgentMetadataConfig (agent overrides) |
+| `domain/ai/src/services/providers/provider_trait.rs` | GenerationParams (canonical struct) |
+| `domain/agent/src/services/a2a_server/processing/ai_executor.rs` | resolve_provider_config() |
+
+For complete documentation including YAML examples and data flow diagrams, see **[generation.md](generation.md)**.
+
+---
+
 ### Multimodal AI Integration
 
 The system supports sending images, audio, and video to AI providers (currently Gemini).

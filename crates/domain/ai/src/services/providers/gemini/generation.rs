@@ -86,8 +86,14 @@ pub async fn generate_with_schema(
     let content = extract_content(&gemini_response)?;
 
     Ok(request_builders::build_ai_response(
-        AiResponseParams::builder(request_id, &gemini_response, params.base.model, start, content)
-            .build(),
+        AiResponseParams::builder(
+            request_id,
+            &gemini_response,
+            params.base.model,
+            start,
+            content,
+        )
+        .build(),
     ))
 }
 
