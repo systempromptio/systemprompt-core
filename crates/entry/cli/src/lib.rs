@@ -7,8 +7,8 @@ mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{
-    agents, analytics, build, cloud, config, content, db, ext, extensions, files, jobs, logs, mcp,
-    services, setup, skills, system, users, web,
+    agents, analytics, build, cloud, config, content, contexts, db, ext, extensions, files, jobs,
+    logs, mcp, services, setup, skills, system, users, web,
 };
 
 use anyhow::{bail, Context, Result};
@@ -137,6 +137,9 @@ enum Commands {
 
     #[command(subcommand, about = "Agent management")]
     Agents(agents::AgentsCommands),
+
+    #[command(subcommand, about = "Context management")]
+    Contexts(contexts::ContextsCommands),
 
     #[command(subcommand, about = "MCP server management")]
     Mcp(mcp::McpCommands),
@@ -270,6 +273,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Jobs(cmd)) => jobs::execute(cmd, &cli_config).await?,
         Some(Commands::Cloud(cmd)) => cloud::execute(cmd, &cli_config).await?,
         Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
+        Some(Commands::Contexts(cmd)) => contexts::execute(cmd, &cli_config).await?,
         Some(Commands::Mcp(cmd)) => mcp::execute(cmd).await?,
         Some(Commands::Logs(cmd)) => logs::execute(cmd, &cli_config).await?,
         Some(Commands::Build(cmd)) => {
