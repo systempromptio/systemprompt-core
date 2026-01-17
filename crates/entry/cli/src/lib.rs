@@ -13,13 +13,15 @@ pub use commands::{
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_cloud::{CliSession, CredentialsBootstrap, ProjectContext};
 use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::{set_startup_mode, CliService};
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, DatabaseContext, StartupValidator,
 };
+
+use crate::shared::resolve_profile_path;
 
 #[derive(clap::Args)]
 struct VerbosityOpts {
@@ -213,10 +215,21 @@ pub async fn run() -> Result<()> {
     };
 
     if requires_profile {
-        ProfileBootstrap::init().context(
-            "Profile initialization failed. Set SYSTEMPROMPT_PROFILE environment variable to the \
-             full path of your profile file",
+        let project_ctx = ProjectContext::discover();
+        let session_path = project_ctx.local_session();
+        let session_profile_path = CliSession::try_load_profile_path(&session_path);
+
+        let profile_path = resolve_profile_path(session_profile_path).context(
+            "Profile resolution failed. Set SYSTEMPROMPT_PROFILE environment variable or create a \
+             profile with 'systemprompt cloud profile create'",
         )?;
+
+        ProfileBootstrap::init_from_path(&profile_path).with_context(|| {
+            format!(
+                "Profile initialization failed from: {}",
+                profile_path.display()
+            )
+        })?;
 
         if requires_secrets {
             SecretsBootstrap::init().context("Secrets initialization failed")?;

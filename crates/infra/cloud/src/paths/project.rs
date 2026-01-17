@@ -11,6 +11,7 @@ pub enum ProjectPath {
     Dockerfile,
     LocalCredentials,
     LocalTenants,
+    LocalSession,
 }
 
 impl ProjectPath {
@@ -24,6 +25,7 @@ impl ProjectPath {
             Self::Dockerfile => &[paths::ROOT_DIR, paths::DOCKERFILE],
             Self::LocalCredentials => &[paths::ROOT_DIR, paths::CREDENTIALS_FILE],
             Self::LocalTenants => &[paths::ROOT_DIR, paths::TENANTS_FILE],
+            Self::LocalSession => &[paths::ROOT_DIR, paths::SESSION_FILE],
         }
     }
 
@@ -198,6 +200,11 @@ impl ProjectContext {
     #[must_use]
     pub fn local_tenants(&self) -> PathBuf {
         self.resolve(ProjectPath::LocalTenants)
+    }
+
+    #[must_use]
+    pub fn local_session(&self) -> PathBuf {
+        self.resolve(ProjectPath::LocalSession)
     }
 
     #[must_use]
