@@ -15,6 +15,7 @@ src/
 ├── build/              # systemprompt build [...]
 ├── cloud/              # systemprompt cloud [...]
 ├── common/             # Common utilities
+├── contexts/           # systemprompt contexts [...]
 ├── db/                 # systemprompt db [...]
 ├── jobs/               # systemprompt jobs [...]
 ├── logs/               # systemprompt logs [...]
@@ -640,6 +641,79 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
     }
     // ... TUI code
 }
+```
+
+---
+
+## 2.11 contexts/
+
+**Commands:** `systemprompt contexts [list|show|create|edit|delete|use|new]`
+
+### Command Structure
+
+```
+contexts
+├── list                              # List all contexts with stats
+├── show <ID|NAME>                    # Show context details
+├── create [--name NAME]              # Create new context
+├── edit <ID|NAME> --name NAME        # Rename a context
+├── delete <ID|NAME> [-y]             # Delete a context
+├── use <ID|NAME>                     # Set session's active context
+└── new [--name NAME]                 # Create and switch (shortcut)
+```
+
+### Context Resolution
+
+Contexts can be referenced by:
+- Full UUID
+- Partial UUID prefix (minimum 4 characters)
+- Context name (exact or case-insensitive match)
+
+### Requirements
+
+| Requirement | Status |
+|-------------|--------|
+| All `execute` functions accept `config: &CliConfig` | Compliant |
+| Destructive operations have `--yes` | Compliant |
+| No interactive prompts without flag equivalents | Compliant |
+
+### Required Flags
+
+| Command | Required Flags |
+|---------|---------------|
+| `contexts delete` | `--yes` / `-y` |
+| `contexts edit` | `--name` |
+
+### JSON Output
+
+| Command | JSON Structure |
+|---------|---------------|
+| `contexts list` | `{"contexts": [...], "total": N, "active_context_id": "..."}` |
+| `contexts show` | `{"id": "...", "name": "...", "task_count": N, ...}` |
+| `contexts create` | `{"id": "...", "name": "...", "message": "..."}` |
+| `contexts use` | `{"id": "...", "name": "...", "message": "..."}` |
+| `contexts new` | `{"id": "...", "name": "...", "message": "..."}` |
+
+### Non-Interactive Examples
+
+```bash
+# List contexts as JSON
+systemprompt --json contexts list
+
+# Create context with name
+systemprompt contexts create --name "My Project"
+
+# Switch context by partial ID
+systemprompt contexts use a1b2c3d4
+
+# Switch context by name
+systemprompt contexts use "My Project"
+
+# Delete context without confirmation
+systemprompt contexts delete a1b2c3d4 --yes
+
+# Create and switch in one command
+systemprompt contexts new --name "New Session"
 ```
 
 ---
