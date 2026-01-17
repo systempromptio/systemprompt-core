@@ -6,6 +6,7 @@ use crate::error::ArtifactError;
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde_json::{json, Value as JsonValue};
+use systemprompt_identifiers::ArtifactId;
 use systemprompt_models::artifacts::types::ArtifactType;
 
 use metadata_builder::build_metadata;
@@ -130,10 +131,11 @@ impl McpToA2aTransformer {
             .structured_content
             .as_ref()
             .and_then(extract_artifact_id)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            .map(ArtifactId::new)
+            .unwrap_or_else(ArtifactId::generate);
 
         Ok(Artifact {
-            id: artifact_id.into(),
+            id: artifact_id,
             name: Some(tool_name.to_string()),
             description: None,
             parts,
@@ -175,10 +177,11 @@ impl McpToA2aTransformer {
         }
 
         let artifact_id = extract_artifact_id(tool_result_json)
-            .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            .map(ArtifactId::new)
+            .unwrap_or_else(ArtifactId::generate);
 
         Ok(Artifact {
-            id: artifact_id.into(),
+            id: artifact_id,
             name: Some(tool_name.to_string()),
             description: None,
             parts,
