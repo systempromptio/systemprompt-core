@@ -12,6 +12,7 @@ pub struct AgentRuntimeInfo {
     pub mcp_servers: Vec<String>,
     pub provider: Option<String>,
     pub model: Option<String>,
+    pub max_output_tokens: Option<u32>,
     #[serde(default)]
     pub skills: Vec<String>,
     #[serde(default)]
@@ -29,6 +30,7 @@ impl From<systemprompt_models::AgentConfig> for AgentRuntimeInfo {
             mcp_servers: config.metadata.mcp_servers,
             provider: config.metadata.provider,
             model: config.metadata.model,
+            max_output_tokens: config.metadata.max_output_tokens,
             skills: config.metadata.skills,
             tool_model_overrides: config.metadata.tool_model_overrides,
         }

@@ -3,24 +3,17 @@ use futures::{Stream, StreamExt};
 use serde_json::json;
 use std::pin::Pin;
 
-use crate::models::ai::{AiMessage, SamplingParams};
 use crate::models::providers::openai::OpenAiTool;
+use crate::services::providers::GenerationParams;
 
 use super::provider::OpenAiProvider;
 use super::reasoning;
 
-pub struct StreamRequestParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-    pub tools: Option<Vec<OpenAiTool>>,
-}
-
 impl OpenAiProvider {
     pub(crate) async fn create_stream_request(
         &self,
-        params: StreamRequestParams<'_>,
+        params: GenerationParams<'_>,
+        tools: Option<Vec<OpenAiTool>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
         let openai_messages: Vec<crate::models::providers::openai::OpenAiMessage> =
             params.messages.iter().map(Into::into).collect();
@@ -35,7 +28,7 @@ impl OpenAiProvider {
             "stream": true
         });
 
-        if let Some(tools) = params.tools {
+        if let Some(tools) = tools {
             request_body["tools"] = json!(tools);
         }
 

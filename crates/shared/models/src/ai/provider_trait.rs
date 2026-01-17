@@ -20,6 +20,7 @@ pub struct GenerateResponseParams<'a> {
     pub context: &'a RequestContext,
     pub provider: Option<&'a str>,
     pub model: Option<&'a str>,
+    pub max_output_tokens: Option<u32>,
 }
 
 #[derive(Debug)]

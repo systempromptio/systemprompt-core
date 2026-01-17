@@ -29,23 +29,38 @@ impl Default for PlannedAgenticStrategy {
     }
 }
 
+/// Builds an AI request with proper config hierarchy.
+/// Priority: tool_model_config > agent_runtime > ai_service defaults
 fn build_ai_request(context: &ExecutionContext, messages: Vec<AiMessage>) -> AiRequest {
-    let provider = context
-        .agent_runtime
-        .provider
-        .as_deref()
+    let tool_config = context.request_ctx.tool_model_config();
+
+    let provider = tool_config
+        .and_then(|c| c.provider.as_deref())
+        .or(context.agent_runtime.provider.as_deref())
         .unwrap_or_else(|| context.ai_service.default_provider());
-    let model = context
-        .agent_runtime
-        .model
-        .as_deref()
+    let model = tool_config
+        .and_then(|c| c.model.as_deref())
+        .or(context.agent_runtime.model.as_deref())
         .unwrap_or_else(|| context.ai_service.default_model());
+    let max_output_tokens = tool_config
+        .and_then(|c| c.max_output_tokens)
+        .or(context.agent_runtime.max_output_tokens)
+        .unwrap_or_else(|| context.ai_service.default_max_output_tokens());
+
+    if tool_config.is_some() {
+        tracing::debug!(
+            provider,
+            model,
+            max_output_tokens,
+            "Using tool_model_config in planned strategy"
+        );
+    }
 
     AiRequest::builder(
         messages,
         provider,
         model,
-        context.ai_service.default_max_output_tokens(),
+        max_output_tokens,
         context.request_ctx.clone(),
     )
     .build()
@@ -216,6 +231,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                             context: &context.request_ctx,
                             provider: context.agent_runtime.provider.as_deref(),
                             model: context.agent_runtime.model.as_deref(),
+                            max_output_tokens: context.agent_runtime.max_output_tokens,
                         })
                         .await?;
 
@@ -343,6 +359,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                         context: &context.request_ctx,
                         provider: context.agent_runtime.provider.as_deref(),
                         model: context.agent_runtime.model.as_deref(),
+                        max_output_tokens: context.agent_runtime.max_output_tokens,
                     })
                     .await?;
 

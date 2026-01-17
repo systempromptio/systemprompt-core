@@ -2,26 +2,19 @@ use anyhow::{anyhow, Result};
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 
-use crate::models::ai::{AiMessage, SamplingParams};
 use crate::models::providers::anthropic::{
     AnthropicDelta, AnthropicRequest, AnthropicStreamEvent, AnthropicTool,
 };
+use crate::services::providers::GenerationParams;
 
 use super::provider::AnthropicProvider;
 use super::{converters, thinking};
 
-pub struct StreamRequestParams<'a> {
-    pub messages: &'a [AiMessage],
-    pub sampling: Option<&'a SamplingParams>,
-    pub max_output_tokens: u32,
-    pub model: &'a str,
-    pub tools: Option<Vec<AnthropicTool>>,
-}
-
 impl AnthropicProvider {
     pub(crate) async fn create_stream_request(
         &self,
-        params: StreamRequestParams<'_>,
+        params: GenerationParams<'_>,
+        tools: Option<Vec<AnthropicTool>>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
         let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
 
@@ -41,7 +34,7 @@ impl AnthropicProvider {
             top_k,
             stop_sequences,
             system: system_prompt,
-            tools: params.tools,
+            tools,
             tool_choice: None,
             stream: Some(true),
             thinking: thinking_config,

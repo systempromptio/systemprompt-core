@@ -117,7 +117,7 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
                     .model
                     .unwrap_or_else(|| "claude-3-5-sonnet-20241022".to_string()),
             ),
-            tool_model_overrides: HashMap::default(),
+            ..Default::default()
         },
         oauth: OAuthConfig::default(),
     };

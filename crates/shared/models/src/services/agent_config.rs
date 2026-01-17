@@ -109,6 +109,8 @@ pub struct AgentMetadataConfig {
     pub provider: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
     #[serde(default)]
     pub tool_model_overrides: ToolModelOverrides,
 }

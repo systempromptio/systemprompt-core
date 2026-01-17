@@ -81,14 +81,36 @@ impl AiService {
             params.execution_summary
         )));
 
-        let provider = params.provider.unwrap_or_else(|| self.default_provider());
-        let model = params.model.unwrap_or_else(|| self.default_model());
+        // Priority: tool_model_config > params (agent-level) > service defaults
+        let tool_config = params.context.tool_model_config();
+
+        let provider = tool_config
+            .and_then(|c| c.provider.as_deref())
+            .or(params.provider)
+            .unwrap_or_else(|| self.default_provider());
+        let model = tool_config
+            .and_then(|c| c.model.as_deref())
+            .or(params.model)
+            .unwrap_or_else(|| self.default_model());
+        let max_output_tokens = tool_config
+            .and_then(|c| c.max_output_tokens)
+            .or(params.max_output_tokens)
+            .unwrap_or_else(|| self.default_max_output_tokens());
+
+        if tool_config.is_some() {
+            tracing::debug!(
+                provider,
+                model,
+                max_output_tokens,
+                "Using tool_model_config in generate_response"
+            );
+        }
 
         let request = AiRequest::builder(
             response_messages,
             provider,
             model,
-            self.default_max_output_tokens(),
+            max_output_tokens,
             params.context.clone(),
         )
         .build();

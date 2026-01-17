@@ -12,7 +12,7 @@ use crate::services::providers::{
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider::OpenAiProvider;
-use super::{converters, generation, streaming};
+use super::{converters, generation};
 
 #[async_trait]
 impl AiProvider for OpenAiProvider {
@@ -64,49 +64,25 @@ impl AiProvider for OpenAiProvider {
     }
 
     async fn generate(&self, params: GenerationParams<'_>) -> Result<AiResponse> {
-        generation::generate(self, params.messages, params.sampling, params.model).await
+        generation::generate(self, params).await
     }
 
     async fn generate_with_tools(
         &self,
         params: ToolGenerationParams<'_>,
     ) -> Result<(AiResponse, Vec<ToolCall>)> {
-        generation::generate_with_tools(
-            self,
-            params.base.messages,
-            params.tools,
-            params.base.sampling,
-            params.base.model,
-        )
-        .await
+        generation::generate_with_tools(self, params).await
     }
 
     async fn generate_structured(
         &self,
         params: StructuredGenerationParams<'_>,
     ) -> Result<AiResponse> {
-        generation::generate_structured(
-            self,
-            params.base.messages,
-            params.base.sampling,
-            params.base.model,
-            params.response_format,
-        )
-        .await
+        generation::generate_structured(self, params).await
     }
 
     async fn generate_with_schema(&self, params: SchemaGenerationParams<'_>) -> Result<AiResponse> {
-        generation::generate_with_schema(
-            self,
-            generation::SchemaGenerationParams {
-                messages: params.base.messages,
-                response_schema: params.response_schema,
-                sampling: params.base.sampling,
-                max_output_tokens: params.base.max_output_tokens,
-                model: params.base.model,
-            },
-        )
-        .await
+        generation::generate_with_schema(self, params).await
     }
 
     fn supports_json_mode(&self) -> bool {
@@ -125,14 +101,7 @@ impl AiProvider for OpenAiProvider {
         &self,
         params: GenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
-        self.create_stream_request(streaming::StreamRequestParams {
-            messages: params.messages,
-            sampling: params.sampling,
-            max_output_tokens: params.max_output_tokens,
-            model: params.model,
-            tools: None,
-        })
-        .await
+        self.create_stream_request(params, None).await
     }
 
     async fn generate_with_tools_stream(
@@ -140,13 +109,6 @@ impl AiProvider for OpenAiProvider {
         params: ToolGenerationParams<'_>,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
         let openai_tools = converters::convert_tools(params.tools)?;
-        self.create_stream_request(streaming::StreamRequestParams {
-            messages: params.base.messages,
-            sampling: params.base.sampling,
-            max_output_tokens: params.base.max_output_tokens,
-            model: params.base.model,
-            tools: Some(openai_tools),
-        })
-        .await
+        self.create_stream_request(params.base, Some(openai_tools)).await
     }
 }
