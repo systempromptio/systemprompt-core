@@ -112,11 +112,21 @@ impl ArtifactBuilder {
         for (index, result) in self.tool_results.iter().enumerate() {
             if let Some(structured_content) = &result.structured_content {
                 if let Some(tool_call) = self.tool_calls.get(index) {
-                    let mcp_execution_id = self
+                    let mcp_execution_id = match self
                         .execution_lookup
                         .get_mcp_execution_id(&tool_call.ai_tool_call_id)
                         .await
-                        .unwrap_or(None);
+                    {
+                        Ok(id) => id,
+                        Err(e) => {
+                            tracing::warn!(
+                                error = %e,
+                                ai_tool_call_id = %tool_call.ai_tool_call_id,
+                                "Failed to lookup MCP execution ID"
+                            );
+                            None
+                        },
+                    };
 
                     let skill_id = extract_skill_id(structured_content);
 
