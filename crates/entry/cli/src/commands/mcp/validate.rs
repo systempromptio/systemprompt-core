@@ -91,7 +91,7 @@ pub async fn execute(
             "MCP Validation: {}",
             servers_to_validate
                 .first()
-                .unwrap_or(&"unknown".to_string())
+                .map_or("unknown", String::as_str)
         )
     };
 
@@ -104,24 +104,21 @@ async fn validate_single_service(
     database: &DatabaseManager,
     timeout_secs: u64,
 ) -> McpValidateOutput {
-    let server = match services_config.mcp_servers.get(service_name) {
-        Some(s) => s,
-        None => {
-            return McpValidateOutput {
-                server: service_name.to_string(),
-                valid: false,
-                health_status: "not_found".to_string(),
-                validation_type: "config_error".to_string(),
-                tools_count: 0,
-                latency_ms: 0,
-                server_info: None,
-                issues: vec![format!(
-                    "Server '{}' not found in configuration",
-                    service_name
-                )],
-                message: format!("MCP server '{}' not found", service_name),
-            };
-        },
+    let Some(server) = services_config.mcp_servers.get(service_name) else {
+        return McpValidateOutput {
+            server: service_name.to_string(),
+            valid: false,
+            health_status: "not_found".to_string(),
+            validation_type: "config_error".to_string(),
+            tools_count: 0,
+            latency_ms: 0,
+            server_info: None,
+            issues: vec![format!(
+                "Server '{}' not found in configuration",
+                service_name
+            )],
+            message: format!("MCP server '{}' not found", service_name),
+        };
     };
 
     let service_info = match database.get_service_by_name(service_name).await {
@@ -209,15 +206,11 @@ async fn validate_single_service(
         protocol_version: info.protocol_version,
     });
 
-    let issues = if let Some(ref error) = validation_result.error_message {
-        if error.is_empty() {
-            vec![]
-        } else {
-            vec![error.clone()]
-        }
-    } else {
-        vec![]
-    };
+    let issues = validation_result
+        .error_message
+        .as_ref()
+        .filter(|e| !e.is_empty())
+        .map_or_else(Vec::new, |e| vec![e.clone()]);
 
     McpValidateOutput {
         server: service_name.to_string(),

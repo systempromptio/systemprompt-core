@@ -206,12 +206,11 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
         .get("keywords")
         .or_else(|| frontmatter.get("tags"))
         .and_then(|v| v.as_sequence())
-        .map(|seq| {
+        .map_or_else(Vec::new, |seq| {
             seq.iter()
                 .filter_map(|v| v.as_str().map(String::from))
                 .collect()
-        })
-        .unwrap_or_else(Vec::new);
+        });
 
     let category = frontmatter
         .get("category")

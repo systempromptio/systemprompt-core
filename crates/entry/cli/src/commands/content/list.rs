@@ -49,7 +49,7 @@ pub async fn execute_with_pool(
     let summaries: Vec<ContentSummary> = items
         .into_iter()
         .filter(|c| {
-            args.category.as_ref().map_or(true, |cat| {
+            args.category.as_ref().is_none_or(|cat| {
                 c.category_id
                     .as_ref()
                     .is_some_and(|cid| cid.as_str() == cat)

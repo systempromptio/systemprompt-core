@@ -19,6 +19,12 @@ use systemprompt_models::Profile;
 
 use crate::CliConfig;
 
+struct ProfileContext<'a> {
+    dir: &'a Path,
+    name: &'a str,
+    path: PathBuf,
+}
+
 #[derive(Debug)]
 pub struct CliSessionContext {
     pub session: CliSession,
@@ -103,15 +109,13 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         })?
         .clone();
 
-    let session = create_session_for_profile(
-        &creds,
-        &profile,
-        profile_dir,
-        &profile_name,
-        PathBuf::from(profile_path_str),
-        config,
-    )
-    .await?;
+    let profile_ctx = ProfileContext {
+        dir: profile_dir,
+        name: &profile_name,
+        path: PathBuf::from(profile_path_str),
+    };
+
+    let session = create_session_for_profile(&creds, &profile, &profile_ctx, config).await?;
 
     session
         .save_to_path(&session_path)
@@ -134,20 +138,18 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
 async fn create_session_for_profile(
     creds: &CloudCredentials,
     profile: &Profile,
-    profile_dir: &Path,
-    profile_name: &str,
-    profile_path: PathBuf,
+    profile_ctx: &ProfileContext<'_>,
     config: &CliConfig,
 ) -> Result<CliSession> {
     profile
         .validate()
-        .with_context(|| format!("Failed to validate profile: {}", profile_name))?;
+        .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
     let cloud_email = creds.user_email.as_ref().ok_or_else(|| {
         anyhow::anyhow!("No email in cloud credentials. Run 'systemprompt cloud auth login'.")
     })?;
 
-    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+    let secrets_path = ProfilePath::Secrets.resolve(profile_ctx.dir);
     let secrets_content = std::fs::read_to_string(&secrets_path)
         .with_context(|| format!("Failed to read secrets from {}", secrets_path.display()))?;
     let secrets: serde_json::Value =
@@ -164,7 +166,7 @@ async fn create_session_for_profile(
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
-        CliService::key_value("Profile", profile_name);
+        CliService::key_value("Profile", profile_ctx.name);
         CliService::key_value("User", cloud_email);
     }
 
@@ -189,7 +191,7 @@ async fn create_session_for_profile(
         .create_context(
             &admin_user.id,
             Some(&session_id),
-            &format!("CLI Session - {}", profile_name),
+            &format!("CLI Session - {}", profile_ctx.name),
         )
         .await
         .context("Failed to create CLI context")?;
@@ -211,8 +213,8 @@ async fn create_session_for_profile(
     }
 
     Ok(
-        CliSession::builder(profile_name, session_token, session_id, context_id)
-            .with_profile_path(profile_path)
+        CliSession::builder(profile_ctx.name, session_token, session_id, context_id)
+            .with_profile_path(profile_ctx.path.clone())
             .with_user(admin_user.id, admin_user.email)
             .with_user_type(UserType::Admin)
             .build(),

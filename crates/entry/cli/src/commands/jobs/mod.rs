@@ -119,7 +119,7 @@ pub struct LogCleanupArgs {
 pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         JobsCommands::List => {
-            let result = list_jobs()?;
+            let result = list_jobs();
             render_result(&result);
             Ok(())
         },
@@ -161,7 +161,7 @@ pub async fn execute(cmd: JobsCommands, _config: &CliConfig) -> Result<()> {
     }
 }
 
-fn list_jobs() -> Result<CommandResult<JobListOutput>> {
+fn list_jobs() -> CommandResult<JobListOutput> {
     let jobs: Vec<JobInfo> = inventory::iter::<&'static dyn Job>
         .into_iter()
         .map(|job| JobInfo {
@@ -175,7 +175,7 @@ fn list_jobs() -> Result<CommandResult<JobListOutput>> {
     let total = jobs.len();
     let output = JobListOutput { jobs, total };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Available Jobs")
         .with_hints(RenderingHints {
             columns: Some(vec![
@@ -185,7 +185,7 @@ fn list_jobs() -> Result<CommandResult<JobListOutput>> {
                 "enabled".to_string(),
             ]),
             ..Default::default()
-        }))
+        })
 }
 
 async fn show_job(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
@@ -211,7 +211,7 @@ async fn show_job(args: ShowArgs) -> Result<CommandResult<JobShowOutput>> {
         description: job.description().to_string(),
         schedule: job.schedule().to_string(),
         schedule_human: parse_cron_human(job.schedule()),
-        enabled: db_job.as_ref().map_or(job.enabled(), |j| j.enabled),
+        enabled: db_job.as_ref().map_or_else(|| job.enabled(), |j| j.enabled),
         last_run: db_job.as_ref().and_then(|j| j.last_run),
         next_run: db_job.as_ref().and_then(|j| j.next_run),
         last_status: db_job.as_ref().and_then(|j| j.last_status.clone()),

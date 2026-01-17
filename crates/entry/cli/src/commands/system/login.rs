@@ -53,7 +53,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
 
     if !args.force_new {
-        if let Some(output) = try_use_existing_session(&args)? {
+        if let Some(output) = try_use_existing_session(&args) {
             return Ok(output);
         }
     }
@@ -100,7 +100,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let output = LoginOutput {
         user_id: admin_user.id.clone(),
         email: admin_user.email.clone(),
-        session_id: session_id.clone(),
+        session_id,
         token: session_token.clone(),
         expires_in_hours: args.duration_hours,
     };
@@ -114,17 +114,15 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     Ok(CommandResult::card(output).with_title("Session Created"))
 }
 
-fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<LoginOutput>>> {
-    let cloud_paths = match get_cloud_paths() {
-        Ok(paths) => paths,
-        Err(_) => return Ok(None),
+fn try_use_existing_session(args: &LoginArgs) -> Option<CommandResult<LoginOutput>> {
+    let Ok(cloud_paths) = get_cloud_paths() else {
+        return None;
     };
 
     let session_path = cloud_paths.resolve(CloudPath::CliSession);
 
-    let profile_path = match ProfileBootstrap::get_path() {
-        Ok(path) => path,
-        Err(_) => return Ok(None),
+    let Ok(profile_path) = ProfileBootstrap::get_path() else {
+        return None;
     };
 
     let profile_dir = Path::new(profile_path).parent();
@@ -135,7 +133,7 @@ fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<Log
     let (Some(profile_name), Ok(session)) =
         (profile_name, CliSession::load_from_path(&session_path))
     else {
-        return Ok(None);
+        return None;
     };
 
     if !session.is_valid_for_profile(profile_name) {
@@ -149,7 +147,7 @@ fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<Log
                 ));
             }
         }
-        return Ok(None);
+        return None;
     }
 
     let output = LoginOutput {
@@ -162,13 +160,11 @@ fn try_use_existing_session(args: &LoginArgs) -> Result<Option<CommandResult<Log
 
     if args.token_only {
         CliService::output(session.session_token.as_str());
-        return Ok(Some(CommandResult::text(output).with_skip_render()));
+        return Some(CommandResult::text(output).with_skip_render());
     }
 
     CliService::success("Using existing valid session");
-    Ok(Some(
-        CommandResult::card(output).with_title("Existing Session"),
-    ))
+    Some(CommandResult::card(output).with_title("Existing Session"))
 }
 
 async fn fetch_admin_user(database_url: &str, email: &str) -> Result<User> {

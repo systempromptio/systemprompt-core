@@ -588,8 +588,8 @@ mod tests {
     async fn test_connection_guard_debug() {
         use std::sync::LazyLock;
 
-        static TEST_BROADCASTER: Lazy<GenericBroadcaster<SystemEvent>> =
-            Lazy::new(GenericBroadcaster::new);
+        static TEST_BROADCASTER: LazyLock<GenericBroadcaster<SystemEvent>> =
+            LazyLock::new(GenericBroadcaster::new);
 
         let guard = ConnectionGuard::new(
             &TEST_BROADCASTER,

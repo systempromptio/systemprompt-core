@@ -67,19 +67,18 @@ pub async fn execute(args: VerifyArgs, _config: &CliConfig) -> Result<CommandRes
         (Some(exists), Some(html_path.to_string_lossy().to_string()))
     });
 
-    let http_status = if let Some(base_url) = &args.base_url {
-        let full_url = format!("{}{}", base_url.trim_end_matches('/'), expected_url);
-        match reqwest::Client::new()
-            .head(&full_url)
-            .timeout(std::time::Duration::from_secs(5))
-            .send()
-            .await
-        {
-            Ok(response) => Some(response.status().as_u16()),
-            Err(_) => None,
-        }
-    } else {
-        None
+    let http_status = match &args.base_url {
+        Some(base_url) => {
+            let full_url = format!("{}{}", base_url.trim_end_matches('/'), expected_url);
+            reqwest::Client::new()
+                .head(&full_url)
+                .timeout(std::time::Duration::from_secs(5))
+                .send()
+                .await
+                .ok()
+                .map(|response| response.status().as_u16())
+        },
+        None => None,
     };
 
     let output = VerifyOutput {
