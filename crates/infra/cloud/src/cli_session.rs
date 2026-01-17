@@ -139,6 +139,11 @@ impl CliSession {
         self.last_used = Utc::now();
     }
 
+    pub fn set_context_id(&mut self, context_id: ContextId) {
+        self.context_id = context_id;
+        self.last_used = Utc::now();
+    }
+
     #[must_use]
     pub fn is_expired(&self) -> bool {
         Utc::now() >= self.expires_at

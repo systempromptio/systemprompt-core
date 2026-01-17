@@ -4,6 +4,7 @@ pub mod build;
 pub mod cloud;
 pub mod config;
 pub mod content;
+pub mod contexts;
 pub mod db;
 pub mod ext;
 pub mod extensions;
