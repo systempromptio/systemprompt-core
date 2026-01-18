@@ -43,6 +43,7 @@ struct AiRequestRow {
     output_tokens: Option<i32>,
     cost_cents: i32,
     latency_ms: Option<i32>,
+    status: String,
 }
 
 pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
@@ -79,7 +80,8 @@ async fn execute_with_pool_inner(
                 input_tokens,
                 output_tokens,
                 cost_cents as "cost_cents!",
-                latency_ms
+                latency_ms,
+                status as "status!"
             FROM ai_requests
             WHERE created_at >= $1
             ORDER BY created_at DESC
@@ -102,7 +104,8 @@ async fn execute_with_pool_inner(
                 input_tokens,
                 output_tokens,
                 cost_cents as "cost_cents!",
-                latency_ms
+                latency_ms,
+                status as "status!"
             FROM ai_requests
             ORDER BY created_at DESC
             LIMIT $1
@@ -141,6 +144,7 @@ async fn execute_with_pool_inner(
                 tokens: format!("{}/{}", input, output),
                 cost: format!("${:.6}", cost_dollars),
                 latency_ms: r.latency_ms.map(i64::from),
+                status: r.status,
             }
         })
         .collect();
@@ -166,6 +170,7 @@ async fn execute_with_pool_inner(
                 "tokens".to_string(),
                 "cost".to_string(),
                 "latency_ms".to_string(),
+                "status".to_string(),
             ]);
         render_result(&result);
     } else {
@@ -183,9 +188,15 @@ fn render_text_output(output: &RequestListOutput) {
             .latency_ms
             .map_or_else(String::new, |ms| format!(" ({}ms)", ms));
 
+        let status_indicator = if req.status == "failed" {
+            " [FAILED]"
+        } else {
+            ""
+        };
+
         CliService::info(&format!(
-            "{} | {} | {} | {} | {}{}",
-            req.request_id, req.timestamp, req.model, req.tokens, req.cost, latency
+            "{} | {} | {} | {} | {}{}{}",
+            req.request_id, req.timestamp, req.model, req.tokens, req.cost, latency, status_indicator
         ));
     }
 

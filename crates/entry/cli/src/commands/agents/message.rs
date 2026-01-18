@@ -1,7 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use systemprompt_core_agent::models::a2a::jsonrpc::{
+    JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
+};
+use systemprompt_core_agent::models::a2a::protocol::{MessageSendConfiguration, MessageSendParams};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
@@ -9,8 +12,6 @@ use super::types::MessageOutput;
 use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-
-const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Debug, Args)]
 pub struct MessageArgs {
@@ -44,42 +45,6 @@ pub struct MessageArgs {
         help = "Timeout in seconds for blocking mode"
     )]
     pub timeout: u64,
-}
-
-#[derive(Debug, Serialize)]
-struct JsonRpcRequest {
-    jsonrpc: String,
-    method: String,
-    params: MessageSendParams,
-    id: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct MessageSendParams {
-    message: Message,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    configuration: Option<MessageConfiguration>,
-}
-
-#[derive(Debug, Serialize)]
-struct MessageConfiguration {
-    blocking: Option<bool>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JsonRpcResponse {
-    jsonrpc: String,
-    #[serde(default)]
-    result: Option<Task>,
-    #[serde(default)]
-    error: Option<JsonRpcError>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JsonRpcError {
-    code: i32,
-    message: String,
 }
 
 fn extract_text_from_parts(parts: &[Part]) -> String {
@@ -121,7 +86,7 @@ pub async fn execute(
     let task_id: Option<TaskId> = args.task_id.map(TaskId::new);
 
     let message_id = MessageId::generate();
-    let request_id = MessageId::generate().to_string();
+    let request_id = RequestId::String(MessageId::generate().to_string());
 
     let method = if args.stream {
         "message/stream"
@@ -129,8 +94,8 @@ pub async fn execute(
         "message/send"
     };
 
-    let request = JsonRpcRequest {
-        jsonrpc: JSON_RPC_VERSION.to_string(),
+    let request = Request {
+        jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
         method: method.to_string(),
         params: MessageSendParams {
             message: Message {
@@ -146,9 +111,13 @@ pub async fn execute(
                 extensions: None,
                 reference_task_ids: None,
             },
-            configuration: args.blocking.then_some(MessageConfiguration {
+            configuration: args.blocking.then_some(MessageSendConfiguration {
                 blocking: Some(true),
+                accepted_output_modes: None,
+                history_length: None,
+                push_notification_config: None,
             }),
+            metadata: None,
         },
         id: request_id,
     };
@@ -173,21 +142,30 @@ pub async fn execute(
         anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 
-    let json_response: JsonRpcResponse = response
+    let json_response: JsonRpcResponse<Task> = response
         .json()
         .await
         .context("Failed to parse agent response")?;
 
-    if json_response.jsonrpc != JSON_RPC_VERSION {
+    if json_response.jsonrpc != JSON_RPC_VERSION_2_0 {
         anyhow::bail!(
             "Invalid JSON-RPC version: expected {}, got {}",
-            JSON_RPC_VERSION,
+            JSON_RPC_VERSION_2_0,
             json_response.jsonrpc
         );
     }
 
     if let Some(error) = json_response.error {
-        anyhow::bail!("Agent returned error ({}): {}", error.code, error.message);
+        let details = error
+            .data
+            .map(|d| format!("\n\nDetails: {}", d))
+            .unwrap_or_default();
+        anyhow::bail!(
+            "Agent returned error ({}): {}{}",
+            error.code,
+            error.message,
+            details
+        );
     }
 
     let task = json_response

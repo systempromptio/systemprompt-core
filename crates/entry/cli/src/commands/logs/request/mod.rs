@@ -45,6 +45,7 @@ pub struct RequestListRow {
     pub cost: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub latency_ms: Option<i64>,
+    pub status: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -62,6 +63,9 @@ pub struct RequestShowOutput {
     pub output_tokens: i32,
     pub cost_dollars: f64,
     pub latency_ms: i64,
+    pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error_message: Option<String>,
     pub messages: Vec<MessageRow>,
     pub linked_mcp_calls: Vec<ToolCallRow>,
 }

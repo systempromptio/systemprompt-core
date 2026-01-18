@@ -32,6 +32,8 @@ struct AiRequestRow {
     output_tokens: Option<i32>,
     cost_cents: i32,
     latency_ms: Option<i32>,
+    status: String,
+    error_message: Option<String>,
 }
 
 struct LinkedMcpRow {
@@ -72,7 +74,9 @@ async fn execute_with_pool_inner(
             input_tokens,
             output_tokens,
             cost_cents as "cost_cents!",
-            latency_ms
+            latency_ms,
+            status as "status!",
+            error_message
         FROM ai_requests
         WHERE id = $1 OR id LIKE $2
         LIMIT 1
@@ -111,6 +115,8 @@ async fn execute_with_pool_inner(
         output_tokens: row.output_tokens.unwrap_or(0),
         cost_dollars,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
+        status: row.status,
+        error_message: row.error_message,
         messages,
         linked_mcp_calls,
     };
@@ -187,6 +193,15 @@ fn render_text_output(output: &RequestShowOutput, full: bool) {
     CliService::key_value("Output Tokens", &output.output_tokens.to_string());
     CliService::key_value("Cost", &format!("${:.6}", output.cost_dollars));
     CliService::key_value("Latency", &format!("{}ms", output.latency_ms));
+
+    if output.status == "failed" {
+        CliService::key_value("Status", "FAILED");
+        if let Some(err) = &output.error_message {
+            CliService::key_value("Error", err);
+        }
+    } else {
+        CliService::key_value("Status", &output.status);
+    }
 
     if !output.messages.is_empty() {
         CliService::section("Messages");

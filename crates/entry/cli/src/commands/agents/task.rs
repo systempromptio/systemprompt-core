@@ -1,14 +1,15 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use systemprompt_core_agent::models::a2a::jsonrpc::{
+    JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
+};
+use systemprompt_core_agent::models::a2a::protocol::TaskQueryParams;
 use systemprompt_models::a2a::Task;
 
 use crate::session::get_or_create_session;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-
-const JSON_RPC_VERSION: &str = "2.0";
 
 #[derive(Debug, Args)]
 pub struct TaskArgs {
@@ -35,37 +36,6 @@ pub struct TaskArgs {
     pub timeout: u64,
 }
 
-#[derive(Debug, Serialize)]
-struct JsonRpcRequest {
-    jsonrpc: String,
-    method: String,
-    params: TaskGetParams,
-    id: String,
-}
-
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
-struct TaskGetParams {
-    id: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    history_length: Option<u32>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JsonRpcResponse {
-    jsonrpc: String,
-    #[serde(default)]
-    result: Option<Task>,
-    #[serde(default)]
-    error: Option<JsonRpcError>,
-}
-
-#[derive(Debug, Deserialize)]
-struct JsonRpcError {
-    code: i32,
-    message: String,
-}
-
 pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
     let session_ctx = get_or_create_session(config).await?;
 
@@ -85,12 +55,12 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         .as_deref()
         .unwrap_or_else(|| session_ctx.session_token().as_str());
 
-    let request_id = uuid::Uuid::new_v4().to_string();
+    let request_id = RequestId::String(uuid::Uuid::new_v4().to_string());
 
-    let request = JsonRpcRequest {
-        jsonrpc: JSON_RPC_VERSION.to_string(),
+    let request = Request {
+        jsonrpc: JSON_RPC_VERSION_2_0.to_string(),
         method: "tasks/get".to_string(),
-        params: TaskGetParams {
+        params: TaskQueryParams {
             id: task_id.clone(),
             history_length: args.history_length,
         },
@@ -119,21 +89,30 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
         anyhow::bail!("Agent request failed with status {}: {}", status, body);
     }
 
-    let json_response: JsonRpcResponse = response
+    let json_response: JsonRpcResponse<Task> = response
         .json()
         .await
         .context("Failed to parse agent response")?;
 
-    if json_response.jsonrpc != JSON_RPC_VERSION {
+    if json_response.jsonrpc != JSON_RPC_VERSION_2_0 {
         anyhow::bail!(
             "Invalid JSON-RPC version: expected {}, got {}",
-            JSON_RPC_VERSION,
+            JSON_RPC_VERSION_2_0,
             json_response.jsonrpc
         );
     }
 
     if let Some(error) = json_response.error {
-        anyhow::bail!("Agent returned error ({}): {}", error.code, error.message);
+        let details = error
+            .data
+            .map(|d| format!("\n\nDetails: {}", d))
+            .unwrap_or_default();
+        anyhow::bail!(
+            "Agent returned error ({}): {}{}",
+            error.code,
+            error.message,
+            details
+        );
     }
 
     let task = json_response
