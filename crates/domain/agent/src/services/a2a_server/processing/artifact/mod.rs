@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use std::sync::Arc;
 use systemprompt_core_database::DbPool;
-use systemprompt_identifiers::{AgentName, AiToolCallId, ArtifactId, ContextId, TaskId};
+use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, TaskId};
 use systemprompt_models::a2a::ArtifactMetadata;
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
 
