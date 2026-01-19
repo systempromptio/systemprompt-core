@@ -68,5 +68,6 @@ fn load_session() -> Result<CliSession> {
             .resolve(CloudPath::CliSession)
     };
 
-    CliSession::load_from_path(&session_path).context("No active session. Run 'systemprompt system login'.")
+    CliSession::load_from_path(&session_path)
+        .context("No active session. Run 'systemprompt system login'.")
 }

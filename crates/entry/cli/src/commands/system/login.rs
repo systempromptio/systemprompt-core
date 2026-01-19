@@ -11,12 +11,12 @@ use super::types::LoginOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
-use systemprompt_cloud::CliSession;
+use systemprompt_cloud::{CliSession, ProjectContext};
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_users::{User, UserService};
-use systemprompt_identifiers::SessionId;
+use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]
@@ -51,6 +51,7 @@ struct SessionResponse {
 
 pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
+    let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
 
     if !args.force_new {
         if let Some(output) = try_use_existing_session(&args) {
@@ -96,6 +97,15 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
             duration,
         })
         .context("Failed to generate session token")?;
+
+    // Save the session to the session file so it can be used for remote CLI commands
+    save_session(
+        &profile_path,
+        session_token.clone(),
+        session_id.clone(),
+        admin_user.id.clone(),
+        &admin_user.email,
+    )?;
 
     let output = LoginOutput {
         user_id: admin_user.id.clone(),
@@ -234,4 +244,40 @@ async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<Ses
         .context("Failed to parse session response")?;
 
     Ok(SessionId::new(session_response.session_id))
+}
+
+fn save_session(
+    profile_path: &str,
+    session_token: systemprompt_identifiers::SessionToken,
+    session_id: SessionId,
+    user_id: systemprompt_identifiers::UserId,
+    user_email: &str,
+) -> Result<()> {
+    let project_ctx = ProjectContext::discover();
+
+    let session_path = if project_ctx.systemprompt_dir().exists() {
+        project_ctx.local_session()
+    } else {
+        get_cloud_paths()
+            .context("Failed to resolve cloud paths")?
+            .resolve(CloudPath::CliSession)
+    };
+
+    let profile_dir = Path::new(profile_path).parent();
+    let profile_name = profile_dir
+        .and_then(|d| d.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+
+    let cli_session = CliSession::builder(profile_name, session_token, session_id, ContextId::new(String::new()))
+        .with_profile_path(profile_path)
+        .with_user(user_id, user_email)
+        .build();
+
+    cli_session
+        .save_to_path(&session_path)
+        .context("Failed to save session")?;
+
+    tracing::debug!("Session saved to {}", session_path.display());
+    Ok(())
 }
