@@ -67,9 +67,14 @@ pub fn execute(
     }
 
     let valid = errors.is_empty();
+    let items_checked = match category {
+        ValidationCategory::All => 4,
+        _ => 1,
+    };
 
     let output = ValidationOutput {
         valid,
+        items_checked,
         errors,
         warnings,
     };
@@ -85,13 +90,13 @@ fn validate_config(
     let web_config_path = profile.paths.web_config();
     if !Path::new(&web_config_path).exists() {
         errors.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Web config not found at {}", web_config_path),
             suggestion: Some("Create a web config.yaml file".to_string()),
         });
     } else if let Err(e) = fs::read_to_string(&web_config_path) {
         errors.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Failed to read web config: {}", e),
             suggestion: None,
         });
@@ -100,7 +105,7 @@ fn validate_config(
     let content_config_path = profile.paths.content_config();
     if !Path::new(&content_config_path).exists() {
         errors.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Content config not found at {}", content_config_path),
             suggestion: Some("Create a content config.yaml file".to_string()),
         });
@@ -109,7 +114,7 @@ fn validate_config(
 
     let Ok(content) = fs::read_to_string(&content_config_path) else {
         errors.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: "Failed to read content config".to_string(),
             suggestion: None,
         });
@@ -118,7 +123,7 @@ fn validate_config(
 
     let Ok(_content_config) = serde_yaml::from_str::<ContentConfigRaw>(&content) else {
         errors.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: "Failed to parse content config".to_string(),
             suggestion: Some("Check YAML syntax".to_string()),
         });
@@ -128,7 +133,7 @@ fn validate_config(
     let web_path = profile.paths.web_path_resolved();
     if !Path::new(&web_path).exists() {
         warnings.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Web path does not exist: {}", web_path),
             suggestion: Some("Create the web directory structure".to_string()),
         });
@@ -137,7 +142,7 @@ fn validate_config(
     let templates_dir = Path::new(&web_path).join("templates");
     if !templates_dir.exists() {
         warnings.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Templates directory not found: {}", templates_dir.display()),
             suggestion: Some("Create the templates directory".to_string()),
         });
@@ -146,7 +151,7 @@ fn validate_config(
     let assets_dir = Path::new(&web_path).join("assets");
     if !assets_dir.exists() {
         warnings.push(ValidationIssue {
-            category: "config".to_string(),
+            source: "config".to_string(),
             message: format!("Assets directory not found: {}", assets_dir.display()),
             suggestion: Some("Create the assets directory".to_string()),
         });
@@ -164,7 +169,7 @@ fn validate_templates(
 
     if !templates_yaml_path.exists() {
         warnings.push(ValidationIssue {
-            category: "templates".to_string(),
+            source: "templates".to_string(),
             message: format!(
                 "templates.yaml not found at {}",
                 templates_yaml_path.display()
@@ -176,7 +181,7 @@ fn validate_templates(
 
     let Ok(content) = fs::read_to_string(&templates_yaml_path) else {
         errors.push(ValidationIssue {
-            category: "templates".to_string(),
+            source: "templates".to_string(),
             message: "Failed to read templates.yaml".to_string(),
             suggestion: None,
         });
@@ -185,7 +190,7 @@ fn validate_templates(
 
     let Ok(templates_config) = serde_yaml::from_str::<TemplatesConfig>(&content) else {
         errors.push(ValidationIssue {
-            category: "templates".to_string(),
+            source: "templates".to_string(),
             message: "Failed to parse templates.yaml".to_string(),
             suggestion: Some("Check YAML syntax".to_string()),
         });
@@ -196,7 +201,7 @@ fn validate_templates(
         let html_path = templates_dir.join(format!("{}.html", name));
         if !html_path.exists() {
             errors.push(ValidationIssue {
-                category: "templates".to_string(),
+                source: "templates".to_string(),
                 message: format!("Missing HTML file for template '{}'", name),
                 suggestion: Some(format!("Create {}", html_path.display())),
             });
@@ -217,7 +222,7 @@ fn validate_templates(
         for ct in &entry.content_types {
             if !content_type_names.contains(ct) {
                 warnings.push(ValidationIssue {
-                    category: "templates".to_string(),
+                    source: "templates".to_string(),
                     message: format!(
                         "Template '{}' references unknown content type '{}'",
                         template_name, ct
@@ -237,7 +242,7 @@ fn validate_templates(
     for name in content_type_names {
         if !template_content_types.contains(name) {
             warnings.push(ValidationIssue {
-                category: "templates".to_string(),
+                source: "templates".to_string(),
                 message: format!("Content type '{}' has no associated template", name),
                 suggestion: Some("Link a template to this content type".to_string()),
             });
@@ -275,7 +280,7 @@ fn validate_assets(
             let logo_path = assets_dir.join("logos").join(logo);
             if !logo_path.exists() {
                 errors.push(ValidationIssue {
-                    category: "assets".to_string(),
+                    source: "assets".to_string(),
                     message: format!("Referenced logo not found: {}", logo_path.display()),
                     suggestion: Some("Add the missing logo file".to_string()),
                 });
@@ -288,7 +293,7 @@ fn validate_assets(
         let favicon_svg = assets_dir.join("logos").join("logo.svg");
         if !favicon_path.exists() && !favicon_svg.exists() {
             errors.push(ValidationIssue {
-                category: "assets".to_string(),
+                source: "assets".to_string(),
                 message: "Referenced favicon not found".to_string(),
                 suggestion: Some("Add a favicon.ico or logo.svg file".to_string()),
             });
@@ -319,7 +324,7 @@ fn validate_sitemap(
         if let Some(sitemap) = &source.sitemap {
             if sitemap.priority < 0.0 || sitemap.priority > 1.0 {
                 errors.push(ValidationIssue {
-                    category: "sitemap".to_string(),
+                    source: "sitemap".to_string(),
                     message: format!(
                         "Invalid priority {} for '{}' (must be 0.0-1.0)",
                         sitemap.priority, name
@@ -330,7 +335,7 @@ fn validate_sitemap(
 
             if !valid_changefreq.contains(&sitemap.changefreq.as_str()) {
                 warnings.push(ValidationIssue {
-                    category: "sitemap".to_string(),
+                    source: "sitemap".to_string(),
                     message: format!(
                         "Invalid changefreq '{}' for '{}' (should be one of: {:?})",
                         sitemap.changefreq, name, valid_changefreq
@@ -341,7 +346,7 @@ fn validate_sitemap(
 
             if !sitemap.url_pattern.starts_with('/') {
                 warnings.push(ValidationIssue {
-                    category: "sitemap".to_string(),
+                    source: "sitemap".to_string(),
                     message: format!("URL pattern for '{}' should start with '/'", name),
                     suggestion: Some(format!("Change to /{}", sitemap.url_pattern)),
                 });
@@ -350,7 +355,7 @@ fn validate_sitemap(
             if let Some(parent) = &sitemap.parent_route {
                 if parent.priority < 0.0 || parent.priority > 1.0 {
                     errors.push(ValidationIssue {
-                        category: "sitemap".to_string(),
+                        source: "sitemap".to_string(),
                         message: format!(
                             "Invalid parent route priority {} for '{}'",
                             parent.priority, name
@@ -361,7 +366,7 @@ fn validate_sitemap(
 
                 if !valid_changefreq.contains(&parent.changefreq.as_str()) {
                     warnings.push(ValidationIssue {
-                        category: "sitemap".to_string(),
+                        source: "sitemap".to_string(),
                         message: format!(
                             "Invalid parent route changefreq '{}' for '{}'",
                             parent.changefreq, name

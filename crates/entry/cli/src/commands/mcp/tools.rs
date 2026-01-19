@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_identifiers::SessionToken;
 use tokio::time::timeout;
+use tracing::debug;
 
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
 use crate::session::get_or_create_session;
@@ -170,10 +171,14 @@ async fn list_tools_unauthenticated(
         .tools
         .into_iter()
         .map(|tool| {
-            let input_schema = serde_json::to_value(&tool.input_schema).ok();
-            let output_schema = tool
-                .output_schema
-                .and_then(|s| serde_json::to_value(s.as_ref()).ok());
+            let input_schema = serde_json::to_value(&tool.input_schema)
+                .inspect_err(|e| debug!("Failed to serialize input schema: {}", e))
+                .ok();
+            let output_schema = tool.output_schema.and_then(|s| {
+                serde_json::to_value(s.as_ref())
+                    .inspect_err(|e| debug!("Failed to serialize output schema: {}", e))
+                    .ok()
+            });
             let parameters_count = input_schema
                 .as_ref()
                 .and_then(|s| s.get("properties"))
@@ -235,10 +240,14 @@ async fn list_tools_authenticated(
         .tools
         .into_iter()
         .map(|tool| {
-            let input_schema = serde_json::to_value(&tool.input_schema).ok();
-            let output_schema = tool
-                .output_schema
-                .and_then(|s| serde_json::to_value(s.as_ref()).ok());
+            let input_schema = serde_json::to_value(&tool.input_schema)
+                .inspect_err(|e| debug!("Failed to serialize input schema: {}", e))
+                .ok();
+            let output_schema = tool.output_schema.and_then(|s| {
+                serde_json::to_value(s.as_ref())
+                    .inspect_err(|e| debug!("Failed to serialize output schema: {}", e))
+                    .ok()
+            });
             let parameters_count = input_schema
                 .as_ref()
                 .and_then(|s| s.get("properties"))

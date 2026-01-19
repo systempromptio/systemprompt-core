@@ -4,6 +4,8 @@ use systemprompt_models::a2a::Task;
 
 use crate::commands::mcp::types::McpToolEntry;
 
+pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {
     pub agents: Vec<AgentSummary>,
@@ -31,27 +33,6 @@ pub struct AgentDetailOutput {
     pub model: String,
     pub mcp_servers: Vec<String>,
     pub skills_count: usize,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ValidationOutput {
-    pub valid: bool,
-    pub agents_checked: usize,
-    pub issues: Vec<ValidationIssue>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ValidationIssue {
-    pub agent: String,
-    pub severity: ValidationSeverity,
-    pub message: String,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "lowercase")]
-pub enum ValidationSeverity {
-    Error,
-    Warning,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

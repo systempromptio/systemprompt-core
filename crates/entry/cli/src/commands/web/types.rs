@@ -1,6 +1,8 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+pub use crate::commands::shared::{ValidationIssue, ValidationOutput};
+
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ContentTypeListOutput {
     pub content_types: Vec<ContentTypeSummary>,
@@ -192,21 +194,6 @@ pub struct SitemapGenerateOutput {
     pub output_path: String,
     pub routes_count: usize,
     pub message: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ValidationOutput {
-    pub valid: bool,
-    pub errors: Vec<ValidationIssue>,
-    pub warnings: Vec<ValidationIssue>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ValidationIssue {
-    pub category: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub suggestion: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

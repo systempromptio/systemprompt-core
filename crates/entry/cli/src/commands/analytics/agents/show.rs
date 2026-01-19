@@ -56,7 +56,6 @@ async fn execute_internal(
 ) -> Result<()> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    // Check if agent exists
     let count = repo.agent_exists(&args.agent, start, end).await?;
     if count == 0 {
         return Err(anyhow!(
@@ -65,7 +64,6 @@ async fn execute_internal(
         ));
     }
 
-    // Fetch all data
     let summary_row = repo.get_agent_summary(&args.agent, start, end).await?;
     let status_breakdown_rows = repo.get_status_breakdown(&args.agent, start, end).await?;
     let top_errors_rows = repo.get_top_errors(&args.agent, start, end).await?;
@@ -73,7 +71,6 @@ async fn execute_internal(
         .get_hourly_distribution(&args.agent, start, end)
         .await?;
 
-    // Build summary
     let success_rate = if summary_row.total_tasks > 0 {
         (summary_row.completed as f64 / summary_row.total_tasks as f64) * 100.0
     } else {
@@ -98,7 +95,6 @@ async fn execute_internal(
         total_cost_cents: 0,
     };
 
-    // Build status breakdown
     let total: i64 = status_breakdown_rows.iter().map(|r| r.status_count).sum();
     let status_breakdown: Vec<StatusBreakdownItem> = status_breakdown_rows
         .into_iter()
@@ -113,7 +109,6 @@ async fn execute_internal(
         })
         .collect();
 
-    // Build error breakdown
     let top_errors: Vec<ErrorBreakdownItem> = top_errors_rows
         .into_iter()
         .map(|row| ErrorBreakdownItem {
@@ -122,7 +117,6 @@ async fn execute_internal(
         })
         .collect();
 
-    // Build hourly distribution
     let hourly_distribution: Vec<HourlyDistributionItem> = hourly_rows
         .into_iter()
         .map(|row| HourlyDistributionItem {

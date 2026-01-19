@@ -14,6 +14,7 @@ pub mod logs;
 pub mod mcp;
 pub mod services;
 pub mod setup;
+pub mod shared;
 pub mod skills;
 pub mod system;
 pub mod users;

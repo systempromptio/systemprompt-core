@@ -16,9 +16,8 @@ pub fn execute(
     filter: ShowFilter,
     json_output: bool,
     yaml_output: bool,
-    cli_config: &CliConfig,
+    _cli_config: &CliConfig,
 ) -> Result<()> {
-    let _ = cli_config;
     let profile_path = resolve_profile_path(name)?;
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
@@ -45,7 +44,7 @@ fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> 
 
     std::env::set_var("SYSTEMPROMPT_PROFILE", profile_path.display().to_string());
     ProfileBootstrap::init()?;
-    let _ = SecretsBootstrap::init();
+    SecretsBootstrap::init()?;
     let profile = ProfileBootstrap::get()?;
     AppPaths::init(&profile.paths)?;
     Config::try_init()?;

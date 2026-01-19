@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 
-use super::types::{ValidationIssue, ValidationOutput, ValidationSeverity};
+use super::types::{ValidationIssue, ValidationOutput};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
@@ -18,7 +18,8 @@ pub fn execute(
 ) -> Result<CommandResult<ValidationOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let mut issues = Vec::new();
+    let mut errors = Vec::new();
+    let mut warnings = Vec::new();
     let mut agents_checked = 0;
 
     let agents_to_check: Vec<(&String, &systemprompt_models::AgentConfig)> = match &args.name {
@@ -36,42 +37,42 @@ pub fn execute(
         agents_checked += 1;
 
         if let Err(e) = agent.validate(name) {
-            issues.push(ValidationIssue {
-                agent: name.clone(),
-                severity: ValidationSeverity::Error,
+            errors.push(ValidationIssue {
+                source: name.clone(),
                 message: e.to_string(),
+                suggestion: None,
             });
         }
 
         if agent.port == 0 {
-            issues.push(ValidationIssue {
-                agent: name.clone(),
-                severity: ValidationSeverity::Error,
+            errors.push(ValidationIssue {
+                source: name.clone(),
                 message: "Port cannot be 0".to_string(),
+                suggestion: None,
             });
         }
 
         if agent.card.display_name.is_empty() {
-            issues.push(ValidationIssue {
-                agent: name.clone(),
-                severity: ValidationSeverity::Warning,
+            warnings.push(ValidationIssue {
+                source: name.clone(),
                 message: "Display name is empty".to_string(),
+                suggestion: None,
             });
         }
 
         if agent.card.description.is_empty() {
-            issues.push(ValidationIssue {
-                agent: name.clone(),
-                severity: ValidationSeverity::Warning,
+            warnings.push(ValidationIssue {
+                source: name.clone(),
                 message: "Description is empty".to_string(),
+                suggestion: None,
             });
         }
 
         if agent.enabled && agent.metadata.provider.is_none() {
-            issues.push(ValidationIssue {
-                agent: name.clone(),
-                severity: ValidationSeverity::Warning,
+            warnings.push(ValidationIssue {
+                source: name.clone(),
                 message: "Enabled agent has no AI provider configured".to_string(),
+                suggestion: None,
             });
         }
 
@@ -79,37 +80,37 @@ pub fn execute(
             if let Some(provider_name) = &agent.metadata.provider {
                 match services_config.ai.providers.get(provider_name) {
                     None => {
-                        issues.push(ValidationIssue {
-                            agent: name.clone(),
-                            severity: ValidationSeverity::Error,
+                        errors.push(ValidationIssue {
+                            source: name.clone(),
                             message: format!(
                                 "Provider '{}' is not configured in ai.providers",
                                 provider_name
                             ),
+                            suggestion: None,
                         });
                     },
                     Some(provider_config) => {
                         if !provider_config.enabled {
-                            issues.push(ValidationIssue {
-                                agent: name.clone(),
-                                severity: ValidationSeverity::Error,
+                            errors.push(ValidationIssue {
+                                source: name.clone(),
                                 message: format!(
                                     "Provider '{}' is disabled in AI config (set enabled: true)",
                                     provider_name
                                 ),
+                                suggestion: None,
                             });
                         }
 
                         if provider_config.api_key.is_empty()
                             || provider_config.api_key.starts_with("${")
                         {
-                            issues.push(ValidationIssue {
-                                agent: name.clone(),
-                                severity: ValidationSeverity::Error,
+                            errors.push(ValidationIssue {
+                                source: name.clone(),
                                 message: format!(
                                     "No API key configured for provider '{}' (check secrets file)",
                                     provider_name
                                 ),
+                                suggestion: None,
                             });
                         }
                     },
@@ -119,23 +120,20 @@ pub fn execute(
 
         for mcp_server in &agent.metadata.mcp_servers {
             if !services_config.mcp_servers.contains_key(mcp_server) {
-                issues.push(ValidationIssue {
-                    agent: name.clone(),
-                    severity: ValidationSeverity::Error,
+                errors.push(ValidationIssue {
+                    source: name.clone(),
                     message: format!("Referenced MCP server '{}' not found in config", mcp_server),
+                    suggestion: None,
                 });
             }
         }
     }
 
-    let valid = issues
-        .iter()
-        .all(|i| matches!(i.severity, ValidationSeverity::Warning));
-
     let output = ValidationOutput {
-        valid,
-        agents_checked,
-        issues,
+        valid: errors.is_empty(),
+        items_checked: agents_checked,
+        errors,
+        warnings,
     };
 
     Ok(CommandResult::table(output).with_title("Validation Results"))

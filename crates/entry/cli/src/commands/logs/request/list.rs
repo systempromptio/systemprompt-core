@@ -196,7 +196,13 @@ fn render_text_output(output: &RequestListOutput) {
 
         CliService::info(&format!(
             "{} | {} | {} | {} | {}{}{}",
-            req.request_id, req.timestamp, req.model, req.tokens, req.cost, latency, status_indicator
+            req.request_id,
+            req.timestamp,
+            req.model,
+            req.tokens,
+            req.cost,
+            latency,
+            status_indicator
         ));
     }
 
