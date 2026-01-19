@@ -5,15 +5,50 @@ mod type_inference;
 use crate::error::ArtifactError;
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
+use serde::Deserialize;
 use serde_json::{json, Value as JsonValue};
-use systemprompt_identifiers::ArtifactId;
+use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::artifacts::types::ArtifactType;
 
 use metadata_builder::build_metadata;
-use parts_builder::{build_parts, build_parts_from_result};
-use type_inference::{infer_type, infer_type_from_result};
+use parts_builder::build_parts;
+use type_inference::infer_type;
 
-pub fn unwrap_tool_response(structured_content: &JsonValue) -> (&JsonValue, Option<&JsonValue>) {
+#[derive(Debug, Deserialize)]
+pub struct ParsedMetadata {
+    pub skill_id: Option<String>,
+    pub skill_name: Option<String>,
+    pub execution_id: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ParsedToolResponse {
+    pub artifact_id: ArtifactId,
+    pub mcp_execution_id: McpExecutionId,
+    pub artifact: JsonValue,
+    #[serde(rename = "_metadata")]
+    pub metadata: ParsedMetadata,
+}
+
+pub fn parse_tool_response(
+    structured_content: &JsonValue,
+) -> Result<ParsedToolResponse, ArtifactError> {
+    serde_json::from_value(structured_content.clone()).map_err(|e| {
+        let actual_keys = structured_content
+            .as_object()
+            .map(|o| o.keys().cloned().collect())
+            .unwrap_or_default();
+        ArtifactError::InvalidSchema {
+            expected: "ToolResponse {artifact_id, mcp_execution_id, artifact, _metadata}",
+            actual_keys,
+            source: e,
+        }
+    })
+}
+
+pub(super) fn unwrap_tool_response(
+    structured_content: &JsonValue,
+) -> (&JsonValue, Option<&JsonValue>) {
     if let (Some(artifact), Some(metadata)) = (
         structured_content.get("artifact"),
         structured_content.get("_metadata"),
@@ -22,35 +57,6 @@ pub fn unwrap_tool_response(structured_content: &JsonValue) -> (&JsonValue, Opti
     } else {
         (structured_content, None)
     }
-}
-
-pub fn extract_artifact_id(structured_content: &JsonValue) -> Option<String> {
-    structured_content
-        .get("artifact_id")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-}
-
-pub fn extract_skill_id(structured_content: &JsonValue) -> Option<String> {
-    structured_content
-        .get("skill_id")
-        .and_then(|v| v.as_str())
-        .map(String::from)
-        .or_else(|| {
-            structured_content
-                .get("_metadata")
-                .and_then(|m| m.get("skill_id"))
-                .and_then(|v| v.as_str())
-                .map(String::from)
-        })
-}
-
-pub fn extract_execution_id(structured_content: &JsonValue) -> Option<String> {
-    structured_content
-        .get("_metadata")
-        .and_then(|m| m.get("execution_id"))
-        .and_then(|v| v.as_str())
-        .map(String::from)
 }
 
 pub fn artifact_type_to_string(artifact_type: &ArtifactType) -> String {
@@ -97,25 +103,24 @@ impl McpToA2aTransformer {
         task_id: &str,
         tool_arguments: Option<&JsonValue>,
     ) -> Result<Artifact, ArtifactError> {
-        let artifact_type = infer_type_from_result(tool_result, output_schema, tool_name)?;
+        let structured_content =
+            tool_result
+                .structured_content
+                .as_ref()
+                .ok_or_else(|| ArtifactError::MissingField {
+                    field: "structured_content".to_string(),
+                })?;
 
-        let execution_id = tool_result
-            .structured_content
-            .as_ref()
-            .and_then(extract_execution_id);
+        let parsed = parse_tool_response(structured_content)?;
 
+        let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
         let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
+        let parts = build_parts(&parsed.artifact)?;
 
-        let skill_id = tool_result
-            .structured_content
-            .as_ref()
-            .and_then(extract_skill_id);
-
-        let parts = build_parts_from_result(tool_result)?;
         let mut metadata = build_metadata(
             &artifact_type,
             output_schema,
-            execution_id,
+            parsed.metadata.execution_id.clone(),
             context_id,
             task_id,
             tool_name,
@@ -123,21 +128,12 @@ impl McpToA2aTransformer {
 
         metadata = metadata.with_fingerprint(fingerprint);
 
-        if let Some(sid) = skill_id {
-            metadata = metadata.with_skill_id(sid);
+        if let Some(sid) = &parsed.metadata.skill_id {
+            metadata = metadata.with_skill_id(sid.clone());
         }
 
-        let artifact_id = tool_result
-            .structured_content
-            .as_ref()
-            .and_then(extract_artifact_id)
-            .map(ArtifactId::new)
-            .ok_or_else(|| ArtifactError::MissingField {
-                field: "artifact_id".to_string(),
-            })?;
-
         Ok(Artifact {
-            id: artifact_id,
+            id: parsed.artifact_id,
             name: Some(tool_name.to_string()),
             description: None,
             parts,
@@ -156,17 +152,16 @@ impl McpToA2aTransformer {
         task_id: &str,
         tool_arguments: Option<&JsonValue>,
     ) -> Result<Artifact, ArtifactError> {
-        let artifact_type = infer_type(tool_result_json, output_schema, tool_name)?;
+        let parsed = parse_tool_response(tool_result_json)?;
 
-        let execution_id = extract_execution_id(tool_result_json);
+        let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
         let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
-        let skill_id = extract_skill_id(tool_result_json);
+        let parts = build_parts(&parsed.artifact)?;
 
-        let parts = build_parts(tool_result_json)?;
         let mut metadata = build_metadata(
             &artifact_type,
             output_schema,
-            execution_id,
+            parsed.metadata.execution_id.clone(),
             context_id,
             task_id,
             tool_name,
@@ -174,18 +169,12 @@ impl McpToA2aTransformer {
 
         metadata = metadata.with_fingerprint(fingerprint);
 
-        if let Some(sid) = skill_id {
-            metadata = metadata.with_skill_id(sid);
+        if let Some(sid) = &parsed.metadata.skill_id {
+            metadata = metadata.with_skill_id(sid.clone());
         }
 
-        let artifact_id = extract_artifact_id(tool_result_json)
-            .map(ArtifactId::new)
-            .ok_or_else(|| ArtifactError::MissingField {
-                field: "artifact_id".to_string(),
-            })?;
-
         Ok(Artifact {
-            id: artifact_id,
+            id: parsed.artifact_id,
             name: Some(tool_name.to_string()),
             description: None,
             parts,

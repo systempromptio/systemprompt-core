@@ -107,6 +107,14 @@ pub enum ArtifactError {
         source: serde_json::Error,
     },
 
+    #[error("Invalid tool response schema: expected {expected}, found keys: {actual_keys:?}")]
+    InvalidSchema {
+        expected: &'static str,
+        actual_keys: Vec<String>,
+        #[source]
+        source: serde_json::Error,
+    },
+
     #[error("Metadata parse error: {0}")]
     InvalidMetadata(#[from] serde_json::Error),
 

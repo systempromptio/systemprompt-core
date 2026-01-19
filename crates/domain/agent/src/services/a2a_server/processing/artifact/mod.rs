@@ -8,7 +8,7 @@ use systemprompt_models::a2a::ArtifactMetadata;
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
 
 use crate::models::a2a::{Artifact, Part, TextPart};
-use crate::services::mcp::{extract_artifact_id, extract_skill_id};
+use crate::services::mcp::parse_tool_response;
 
 #[async_trait]
 pub trait ToolProvider: Send + Sync {
@@ -112,6 +112,13 @@ impl ArtifactBuilder {
         for (index, result) in self.tool_results.iter().enumerate() {
             if let Some(structured_content) = &result.structured_content {
                 if let Some(tool_call) = self.tool_calls.get(index) {
+                    let parsed = parse_tool_response(structured_content).map_err(|e| {
+                        anyhow::anyhow!(
+                            "Tool '{}' structured_content parse failed: {e}",
+                            tool_call.name
+                        )
+                    })?;
+
                     let mcp_execution_id = match self
                         .execution_lookup
                         .get_mcp_execution_id(&tool_call.ai_tool_call_id)
@@ -127,8 +134,6 @@ impl ArtifactBuilder {
                             None
                         },
                     };
-
-                    let skill_id = extract_skill_id(structured_content);
 
                     let mut metadata = ArtifactMetadata {
                         artifact_type: "mcp_tool_result".to_string(),
@@ -147,27 +152,12 @@ impl ArtifactBuilder {
                         skill_name: None,
                     };
 
-                    if let Some(sid) = skill_id {
-                        metadata = metadata.with_skill_id(sid);
+                    if let Some(sid) = &parsed.metadata.skill_id {
+                        metadata = metadata.with_skill_id(sid.clone());
                     }
 
-                    let artifact_id = extract_artifact_id(structured_content)
-                        .map(ArtifactId::new)
-                        .ok_or_else(|| {
-                            tracing::error!(
-                                structured_content = %structured_content,
-                                tool_name = %tool_call.name,
-                                "structured_content missing artifact_id"
-                            );
-                            anyhow::anyhow!(
-                                "MCP tool '{}' returned structured_content without required \
-                                 artifact_id field",
-                                tool_call.name
-                            )
-                        })?;
-
                     let artifact = Artifact {
-                        id: artifact_id,
+                        id: parsed.artifact_id,
                         name: Some(tool_call.name.clone()),
                         description: None,
                         parts: vec![Part::Text(TextPart {

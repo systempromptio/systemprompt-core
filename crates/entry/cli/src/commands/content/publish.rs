@@ -6,13 +6,17 @@ use clap::{Args, ValueEnum};
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_core_content::ContentIngestionJob;
-use systemprompt_generator::{generate_sitemap, prerender_content, prerender_homepage};
+use systemprompt_generator::{
+    generate_sitemap, prerender_content, prerender_homepage, CopyExtensionAssetsJob,
+};
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, ValueEnum, PartialEq, Eq)]
 pub enum PublishStep {
     /// Ingest markdown from configured sources
     Ingest,
+    /// Copy extension assets (CSS, JS) to web dist
+    Assets,
     /// Generate static HTML pages
     Prerender,
     /// Generate homepage
@@ -83,6 +87,23 @@ pub async fn execute(
 
         steps.push(StepResult {
             step: "ingest".to_string(),
+            success: result.is_ok(),
+            duration_ms,
+            message: result.err().map(|e| e.to_string()),
+        });
+    }
+
+    if args.should_run(PublishStep::Assets) {
+        let step_start = Instant::now();
+        if verbose {
+            tracing::info!("Starting extension asset copy...");
+        }
+
+        let result = CopyExtensionAssetsJob::execute_copy().await;
+        let duration_ms = step_start.elapsed().as_millis() as u64;
+
+        steps.push(StepResult {
+            step: "assets".to_string(),
             success: result.is_ok(),
             duration_ms,
             message: result.err().map(|e| e.to_string()),

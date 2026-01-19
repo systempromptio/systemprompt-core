@@ -20,4 +20,4 @@ pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapC
 pub use systemprompt_templates::TemplateRegistry;
 pub use templates::{generate_footer_html, load_web_config, prepare_template_data};
 
-pub use jobs::PublishContentJob;
+pub use jobs::{CopyExtensionAssetsJob, PublishContentJob};
