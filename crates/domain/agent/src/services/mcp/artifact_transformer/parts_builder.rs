@@ -1,63 +1,8 @@
 use crate::error::ArtifactError;
 use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
-use rmcp::model::{CallToolResult, RawContent};
 use serde_json::Value as JsonValue;
 
 use super::unwrap_tool_response;
-
-pub fn build_parts_from_result(tool_result: &CallToolResult) -> Result<Vec<Part>, ArtifactError> {
-    let mut parts = Vec::new();
-
-    if let Some(structured) = &tool_result.structured_content {
-        let (actual_data, _) = unwrap_tool_response(structured);
-
-        if let Some(obj) = actual_data.as_object() {
-            let cleaned_data = obj.clone();
-            parts.push(Part::Data(DataPart { data: cleaned_data }));
-            return Ok(parts);
-        }
-    }
-
-    for content_item in &tool_result.content {
-        match &content_item.raw {
-            RawContent::Text(text_content) => {
-                parts.push(Part::Text(TextPart {
-                    text: text_content.text.clone(),
-                }));
-            },
-            RawContent::Image(image_content) => {
-                parts.push(Part::File(FilePart {
-                    file: FileWithBytes {
-                        bytes: image_content.data.clone(),
-                        mime_type: Some(image_content.mime_type.clone()),
-                        name: None,
-                    },
-                }));
-            },
-            RawContent::ResourceLink(resource) => {
-                parts.push(Part::File(FilePart {
-                    file: FileWithBytes {
-                        name: Some(resource.uri.clone()),
-                        mime_type: resource.mime_type.clone(),
-                        bytes: String::new(),
-                    },
-                }));
-            },
-            _ => {},
-        }
-    }
-
-    if !parts.is_empty() {
-        return Ok(parts);
-    }
-
-    Err(ArtifactError::Transform(format!(
-        "Tool result must have either 'structured_content' or 'content' array. Received \
-         CallToolResult with {} content items and structured_content: {}",
-        tool_result.content.len(),
-        tool_result.structured_content.is_some()
-    )))
-}
 
 pub fn build_parts(tool_result: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
     let mut parts = Vec::new();

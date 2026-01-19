@@ -1,27 +1,21 @@
 use crate::error::ArtifactError;
-use rmcp::model::CallToolResult;
 use serde_json::{json, Value as JsonValue};
 use systemprompt_models::artifacts::types::ArtifactType;
-
-use super::unwrap_tool_response;
 
 pub fn infer_type(
     tool_result: &JsonValue,
     schema: Option<&JsonValue>,
     tool_name: &str,
 ) -> Result<ArtifactType, ArtifactError> {
-    // Check for explicit artifact type in data
     if let Some(artifact_type) = extract_artifact_type_from_data(tool_result) {
         return Ok(parse_artifact_type(&artifact_type));
     }
 
     if let Some(schema) = schema {
-        // Check for explicit artifact type in schema
         if let Some(artifact_type) = extract_artifact_type_from_schema(schema) {
             return Ok(parse_artifact_type(&artifact_type));
         }
 
-        // Try to infer from schema structure
         if is_tabular_schema(schema) {
             return Ok(ArtifactType::Table);
         }
@@ -33,53 +27,8 @@ pub fn infer_type(
         }
     }
 
-    // Try to infer from data structure
     if is_tabular_data(tool_result) {
         return Ok(ArtifactType::Table);
-    }
-
-    Err(ArtifactError::Transform(format!(
-        "Tool '{}' missing required x-artifact-type. Add x-artifact-type to tool output or schema.",
-        tool_name
-    )))
-}
-
-pub fn infer_type_from_result(
-    tool_result: &CallToolResult,
-    schema: Option<&JsonValue>,
-    tool_name: &str,
-) -> Result<ArtifactType, ArtifactError> {
-    // Check for explicit artifact type in structured content
-    if let Some(structured) = &tool_result.structured_content {
-        if let Some(artifact_type) = extract_artifact_type_from_data(structured) {
-            return Ok(parse_artifact_type(&artifact_type));
-        }
-    }
-
-    if let Some(schema) = schema {
-        // Check for explicit artifact type in schema
-        if let Some(artifact_type) = extract_artifact_type_from_schema(schema) {
-            return Ok(parse_artifact_type(&artifact_type));
-        }
-
-        // Try to infer from schema structure
-        if is_tabular_schema(schema) {
-            return Ok(ArtifactType::Table);
-        }
-        if is_form_schema(schema) {
-            return Ok(ArtifactType::Form);
-        }
-        if is_chart_schema(schema) {
-            return Ok(ArtifactType::Chart);
-        }
-    }
-
-    // Try to infer from data structure
-    if let Some(structured) = &tool_result.structured_content {
-        let (actual_data, _) = unwrap_tool_response(structured);
-        if is_tabular_data(actual_data) {
-            return Ok(ArtifactType::Table);
-        }
     }
 
     Err(ArtifactError::Transform(format!(
@@ -101,7 +50,6 @@ fn parse_artifact_type(type_str: &str) -> ArtifactType {
         "image" => ArtifactType::Image,
         "video" => ArtifactType::Video,
         "audio" => ArtifactType::Audio,
-        // Any other type is treated as a custom extension type
         custom => ArtifactType::Custom(custom.to_string()),
     }
 }
