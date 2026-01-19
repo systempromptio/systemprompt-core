@@ -164,6 +164,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                     accumulated_text: content,
                     tool_calls: vec![],
                     tool_results: vec![],
+                    tools: vec![],
                     iterations: 1,
                 })
             },
@@ -245,6 +246,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                         accumulated_text: response,
                         tool_calls: vec![],
                         tool_results: vec![],
+                        tools: vec![],
                         iterations: 1,
                     });
                 }
@@ -409,6 +411,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                     accumulated_text: response,
                     tool_calls,
                     tool_results,
+                    tools,
                     iterations: 1,
                 })
             },

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_identifiers::AgentName;
 use systemprompt_models::{
-    AiMessage, AiProvider, CallToolResult, ContextId, RequestContext, TaskId, ToolCall,
+    AiMessage, AiProvider, CallToolResult, ContextId, McpTool, RequestContext, TaskId, ToolCall,
 };
 use tokio::sync::mpsc;
 
@@ -40,6 +40,7 @@ pub struct ExecutionResult {
     pub accumulated_text: String,
     pub tool_calls: Vec<ToolCall>,
     pub tool_results: Vec<CallToolResult>,
+    pub tools: Vec<McpTool>,
     pub iterations: usize,
 }
 
@@ -49,6 +50,7 @@ impl Default for ExecutionResult {
             accumulated_text: String::new(),
             tool_calls: Vec::new(),
             tool_results: Vec::new(),
+            tools: Vec::new(),
             iterations: 1,
         }
     }

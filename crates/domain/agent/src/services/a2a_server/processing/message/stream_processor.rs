@@ -279,10 +279,11 @@ impl StreamProcessor {
                 },
             };
 
-            let (accumulated_text, tool_calls, tool_results, _iterations) = (
+            let (accumulated_text, tool_calls, tool_results, tools, _iterations) = (
                 execution_result.accumulated_text,
                 execution_result.tool_calls,
                 execution_result.tool_results,
+                execution_result.tools,
                 execution_result.iterations,
             );
 
@@ -296,6 +297,7 @@ impl StreamProcessor {
             let artifacts = match build_artifacts_from_results(
                 &tool_results,
                 &tool_calls,
+                &tools,
                 &context_id_str,
                 &task_id_str,
             ) {
@@ -352,6 +354,7 @@ impl StreamProcessor {
 fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
     tool_calls: &[systemprompt_models::ToolCall],
+    tools: &[systemprompt_models::McpTool],
     context_id_str: &str,
     task_id_str: &str,
 ) -> Result<Vec<Artifact>> {
@@ -376,6 +379,7 @@ fn build_artifacts_from_results(
     let artifact_builder = ArtifactBuilder::new(
         tool_calls.to_vec(),
         tool_results.to_vec(),
+        tools.to_vec(),
         context_id_str.to_string(),
         task_id_str.to_string(),
     );
