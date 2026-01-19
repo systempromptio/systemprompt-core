@@ -105,8 +105,7 @@ pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult
     if let Some(error) = json_response.error {
         let details = error
             .data
-            .map(|d| format!("\n\nDetails: {}", d))
-            .unwrap_or_default();
+            .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
         anyhow::bail!(
             "Agent returned error ({}): {}{}",
             error.code,

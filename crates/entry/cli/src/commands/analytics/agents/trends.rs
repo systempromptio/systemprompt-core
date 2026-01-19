@@ -66,7 +66,6 @@ async fn execute_internal(
         .get_tasks_for_trends(start, end, args.agent.as_deref())
         .await?;
 
-    // Aggregate by period
     let mut buckets: HashMap<String, (i64, i64, i64)> = HashMap::new();
 
     for row in rows {

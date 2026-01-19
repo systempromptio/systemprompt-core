@@ -39,7 +39,6 @@ impl PublishArgs {
     fn should_run(&self, step: PublishStep) -> bool {
         self.step.as_ref().map_or_else(
             || {
-                // Default: run all steps, respecting skip_ingest
                 if step == PublishStep::Ingest {
                     !self.skip_ingest
                 } else {
@@ -48,14 +47,12 @@ impl PublishArgs {
             },
             |steps| {
                 if steps.contains(&PublishStep::All) {
-                    // All was specified, run everything (respecting skip_ingest for Ingest)
                     if step == PublishStep::Ingest {
                         !self.skip_ingest
                     } else {
                         true
                     }
                 } else {
-                    // Run only specified steps
                     steps.contains(&step)
                 }
             },
@@ -75,7 +72,6 @@ pub async fn execute(
 
     let mut steps: Vec<StepResult> = Vec::new();
 
-    // Step 1: Ingest
     if args.should_run(PublishStep::Ingest) {
         let step_start = Instant::now();
         if verbose {
@@ -93,7 +89,6 @@ pub async fn execute(
         });
     }
 
-    // Step 2: Prerender
     if args.should_run(PublishStep::Prerender) {
         let step_start = Instant::now();
         if verbose {
@@ -111,7 +106,6 @@ pub async fn execute(
         });
     }
 
-    // Step 3: Homepage
     if args.should_run(PublishStep::Homepage) {
         let step_start = Instant::now();
         if verbose {
@@ -129,7 +123,6 @@ pub async fn execute(
         });
     }
 
-    // Step 4: Sitemap
     if args.should_run(PublishStep::Sitemap) {
         let step_start = Instant::now();
         if verbose {

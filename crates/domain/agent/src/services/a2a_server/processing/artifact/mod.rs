@@ -154,8 +154,14 @@ impl ArtifactBuilder {
                     let artifact_id = extract_artifact_id(structured_content)
                         .map(ArtifactId::new)
                         .ok_or_else(|| {
+                            tracing::error!(
+                                structured_content = %structured_content,
+                                tool_name = %tool_call.name,
+                                "structured_content missing artifact_id"
+                            );
                             anyhow::anyhow!(
-                                "MCP tool '{}' returned structured_content without required artifact_id field",
+                                "MCP tool '{}' returned structured_content without required \
+                                 artifact_id field",
                                 tool_call.name
                             )
                         })?;

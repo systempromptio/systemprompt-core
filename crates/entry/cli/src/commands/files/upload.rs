@@ -52,9 +52,10 @@ pub async fn execute(
     let bytes = fs::read(&file_path).await?;
     let bytes_base64 = STANDARD.encode(&bytes);
     let digest = Sha256::digest(&bytes);
-    let checksum_sha256 = digest.iter().fold(String::new(), |mut acc, b| {
+    #[allow(clippy::expect_used)]
+    let checksum_sha256 = digest.iter().fold(String::with_capacity(64), |mut acc, b| {
         use std::fmt::Write;
-        let _ = write!(acc, "{b:02x}");
+        write!(acc, "{b:02x}").expect("write to String is infallible");
         acc
     });
     let size_bytes = bytes.len() as i64;

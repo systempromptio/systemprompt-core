@@ -122,13 +122,11 @@ impl DeployConfig {
 
                 let source = asset.source();
 
-                // Check 1: Asset exists
                 if !source.exists() {
                     missing.push(format!("[ext:{}] {}", ext_id, source.display()));
                     continue;
                 }
 
-                // Check 2: Asset is within build context
                 if !source.starts_with(&self.project_root) {
                     outside_context.push(format!(
                         "[ext:{}] {} (not under {})",

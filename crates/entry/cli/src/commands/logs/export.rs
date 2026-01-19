@@ -103,10 +103,14 @@ async fn execute_with_pool_inner(
             level: r.level.to_uppercase(),
             module: r.module,
             message: r.message,
-            metadata: r
-                .metadata
-                .as_ref()
-                .and_then(|m| serde_json::from_str(m).ok()),
+            metadata: r.metadata.as_ref().and_then(|m| {
+                serde_json::from_str(m)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Failed to parse log metadata");
+                        e
+                    })
+                    .ok()
+            }),
         })
         .collect();
 

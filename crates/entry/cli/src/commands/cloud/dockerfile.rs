@@ -9,18 +9,12 @@ use systemprompt_models::ServicesConfig;
 
 use super::tenant::find_services_config;
 
-/// Extracts the extension directory from a relative asset path.
-///
-/// Given a path like `extensions/blog/assets/css/file.css`, returns
-/// `extensions/blog`.
 fn extract_extension_dir(relative_path: &Path) -> Option<PathBuf> {
     let components: Vec<_> = relative_path.components().collect();
 
-    // Look for "extensions" directory pattern
     for (i, component) in components.iter().enumerate() {
         if let std::path::Component::Normal(name) = component {
             if *name == "extensions" && i + 1 < components.len() {
-                // Return "extensions/<ext_name>"
                 let mut result = PathBuf::new();
                 result.push("extensions");
                 if let std::path::Component::Normal(ext_name) = components[i + 1] {
