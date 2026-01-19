@@ -1,9 +1,11 @@
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
+use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
+use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {
     "video".to_string()
@@ -40,7 +42,7 @@ pub struct VideoArtifact {
 }
 
 impl VideoArtifact {
-    pub fn new(src: impl Into<String>) -> Self {
+    pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "video".to_string(),
             src: src.into(),
@@ -51,7 +53,7 @@ impl VideoArtifact {
             autoplay: false,
             loop_playback: false,
             muted: false,
-            metadata: ExecutionMetadata::default(),
+            metadata: ExecutionMetadata::with_request(ctx),
         }
     }
 
@@ -86,17 +88,14 @@ impl VideoArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: String) -> Self {
-        self.metadata.execution_id = Some(id);
+    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
+        self.metadata.execution_id = Some(id.into());
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: impl Into<String>,
-        skill_name: impl Into<String>,
-    ) -> Self {
-        self.metadata = self.metadata.with_skill(skill_id.into(), skill_name.into());
+    pub fn with_skill(mut self, skill_id: impl Into<SkillId>, skill_name: impl Into<String>) -> Self {
+        self.metadata.skill_id = Some(skill_id.into());
+        self.metadata.skill_name = Some(skill_name.into());
         self
     }
 }
