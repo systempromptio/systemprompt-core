@@ -239,7 +239,10 @@ webauthn-rs = { version = "0.5", features = ["danger-allow-state-serialisation"]
 
 
 [profile.release]
-lto = true
+# Use thin LTO instead of full LTO to preserve inventory crate registrations.
+# Full LTO can strip the static initializers used by inventory::submit!, causing
+# ExtensionRegistry::discover() to return empty results.
+lto = "thin"
 codegen-units = 1
 panic = "abort"
 strip = true

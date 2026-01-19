@@ -14,6 +14,7 @@ pub mod tenant;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use crate::cli_settings::CliConfig;
+use crate::requirements::{CommandRequirements, HasRequirements};
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -78,6 +79,18 @@ pub enum CloudCommands {
 
     #[command(subcommand, about = "Cloud database operations")]
     Db(db::CloudDbCommands),
+}
+
+impl HasRequirements for CloudCommands {
+    fn requirements(&self) -> CommandRequirements {
+        match self {
+            Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
+                CommandRequirements::PROFILE_AND_SECRETS
+            },
+            Self::Status | Self::Restart { .. } => CommandRequirements::PROFILE_ONLY,
+            _ => CommandRequirements::NONE,
+        }
+    }
 }
 
 impl CloudCommands {

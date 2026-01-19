@@ -41,8 +41,8 @@ pub use credentials_bootstrap::{CredentialsBootstrap, CredentialsBootstrapError}
 pub use error::{CloudError, CloudResult};
 pub use oauth::{run_oauth_flow, OAuthTemplates};
 pub use paths::{
-    expand_home, get_cloud_paths, resolve_path, CloudPath, CloudPaths, ProfilePath, ProjectContext,
-    ProjectPath,
+    expand_home, get_cloud_paths, resolve_path, CloudPath, CloudPaths, DiscoveredProject,
+    ProfilePath, ProjectContext, ProjectPath, UnifiedContext,
 };
 pub use tenants::{StoredTenant, TenantStore, TenantType};
 

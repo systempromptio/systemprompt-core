@@ -1,9 +1,13 @@
 mod cloud;
+mod context;
+mod discovery;
 mod project;
 
 use std::path::{Path, PathBuf};
 
 pub use cloud::{get_cloud_paths, CloudPath, CloudPaths};
+pub use context::UnifiedContext;
+pub use discovery::DiscoveredProject;
 pub use project::{ProfilePath, ProjectContext, ProjectPath};
 pub use systemprompt_models::profile::{expand_home, resolve_with_home};
 

@@ -100,7 +100,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
 
     // Save the session to the session file so it can be used for remote CLI commands
     save_session(
-        &profile_path,
+        profile_path,
         session_token.clone(),
         session_id.clone(),
         admin_user.id.clone(),

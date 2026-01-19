@@ -4218,6 +4218,7 @@ dependencies = [
  "systemprompt-core-logging",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "tempfile",
  "thiserror 2.0.17",
  "tokio",
  "tracing",
@@ -4741,6 +4742,7 @@ dependencies = [
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
+ "tracing",
 ]
 
 [[package]]

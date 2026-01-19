@@ -11,6 +11,7 @@ pub mod ai;
 pub mod api;
 pub mod artifacts;
 pub mod auth;
+pub mod bootstrap;
 pub mod config;
 pub mod content;
 pub mod content_config;
@@ -113,7 +114,9 @@ pub use modules::{
     ModuleType, Modules, ServiceCategory,
 };
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
-pub use paths::{AppPaths, BuildPaths, PathError, SystemPaths, WebPaths};
+pub use paths::{
+    cloud_container, dir_names, file_names, AppPaths, BuildPaths, PathError, SystemPaths, WebPaths,
+};
 pub use profile::{
     CloudConfig, CloudValidationMode, DatabaseConfig as ProfileDatabaseConfig, Environment,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig,

@@ -1,5 +1,7 @@
 //! Switch to a different profile.
 
+#![allow(clippy::single_match_else)]
+
 use anyhow::{Context, Result};
 use systemprompt_cloud::{get_cloud_paths, CliSession, CloudPath, ProfilePath, ProjectContext};
 use systemprompt_core_logging::CliService;
@@ -90,7 +92,7 @@ fn load_profile(path: &std::path::Path) -> Result<Profile> {
     Profile::parse(&content, path).context("Failed to parse profile")
 }
 
-fn get_current_tenant_id(project_ctx: &ProjectContext, session: &CliSession) -> Option<String> {
+fn get_current_tenant_id(_project_ctx: &ProjectContext, session: &CliSession) -> Option<String> {
     let profile_path = session.profile_path.as_ref()?;
     if !profile_path.exists() {
         return None;

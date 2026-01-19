@@ -3,6 +3,7 @@ use crate::error::LoaderError;
 use crate::Extension;
 use std::collections::HashMap;
 use std::sync::Arc;
+use tracing::{debug, info, warn};
 
 pub const RESERVED_PATHS: &[&str] = &[
     "/api/v1/oauth",
@@ -43,15 +44,47 @@ impl ExtensionRegistry {
     pub fn discover() -> Self {
         let mut registry = Self::new();
 
+        debug!("Starting extension discovery via inventory");
+
         for ext in inventory::iter::<ExtensionRegistration> {
             let ext_arc = (ext.factory)();
+            let ext_id = ext_arc.id().to_string();
+            let ext_name = ext_arc.name();
+            debug!(
+                id = %ext_id,
+                name = %ext_name,
+                priority = ext_arc.priority(),
+                "Discovered extension"
+            );
             registry
                 .extensions
-                .insert(ext_arc.id().to_string(), Arc::clone(&ext_arc));
+                .insert(ext_id, Arc::clone(&ext_arc));
             registry.sorted_extensions.push(ext_arc);
         }
 
         registry.sort_by_priority();
+
+        let extension_names: Vec<_> = registry
+            .sorted_extensions
+            .iter()
+            .map(|e| e.name())
+            .collect();
+
+        if registry.is_empty() {
+            warn!(
+                "No extensions discovered via inventory. This may indicate LTO stripped \
+                 the inventory registrations, or no extensions were registered with \
+                 register_extension!(). Check that extension crates are linked and \
+                 #[used] attributes are present if using LTO."
+            );
+        } else {
+            info!(
+                count = registry.len(),
+                extensions = ?extension_names,
+                "Extension discovery completed"
+            );
+        }
+
         registry
     }
 

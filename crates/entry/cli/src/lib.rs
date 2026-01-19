@@ -1,6 +1,8 @@
+mod bootstrap;
 pub mod cli_settings;
 mod commands;
 mod presentation;
+pub mod requirements;
 mod routing;
 pub mod session;
 pub mod shared;
@@ -13,15 +15,10 @@ pub use commands::{
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use systemprompt_cloud::{CliSession, CredentialsBootstrap, ProjectContext};
-use systemprompt_core_files::FilesConfig;
-use systemprompt_core_logging::{set_startup_mode, CliService};
-use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
-use systemprompt_runtime::{
-    display_validation_report, display_validation_warnings, DatabaseContext, StartupValidator,
-};
+use systemprompt_core_logging::set_startup_mode;
+use systemprompt_runtime::DatabaseContext;
 
-use crate::shared::resolve_profile_path;
+use crate::requirements::{CommandRequirements, HasRequirements};
 
 #[derive(clap::Args)]
 struct VerbosityOpts {
@@ -187,6 +184,18 @@ enum Commands {
     Setup(setup::SetupArgs),
 }
 
+impl HasRequirements for Commands {
+    fn requirements(&self) -> CommandRequirements {
+        match self {
+            Self::Cloud(cmd) => cmd.requirements(),
+            Self::Setup(_) | Self::Session(_) => CommandRequirements::NONE,
+            Self::Build(_) | Self::Extensions(_) => CommandRequirements::PROFILE_ONLY,
+            Self::System(_) => CommandRequirements::PROFILE_AND_SECRETS,
+            _ => CommandRequirements::FULL,
+        }
+    }
+}
+
 const fn should_skip_validation(command: Option<&Commands>) -> bool {
     matches!(
         command,
@@ -210,40 +219,18 @@ pub async fn run() -> Result<()> {
         return run_with_database_url(cli.command, &cli_config, &database_url).await;
     }
 
-    let (requires_profile, requires_secrets, requires_paths) = match &cli.command {
-        Some(Commands::Cloud(cmd)) => (
-            cmd.requires_profile(),
-            cmd.requires_secrets(),
-            cmd.requires_secrets(),
-        ),
-        Some(Commands::Setup(_) | Commands::Session(_)) => (false, false, false),
-        Some(Commands::Build(_) | Commands::Extensions(_)) => (true, false, false),
-        Some(Commands::System(_)) => (true, true, false), /* needs secrets for jwt_secret, but
-                                                            * not paths */
-        Some(_) | None => (true, true, true),
-    };
+    let reqs = cli
+        .command
+        .as_ref()
+        .map_or(CommandRequirements::FULL, HasRequirements::requirements);
 
-    if requires_profile {
-        let project_ctx = ProjectContext::discover();
-        let session_path = project_ctx.local_session();
-        let session_profile_path = CliSession::try_load_profile_path(&session_path);
+    // Initialize based on requirements
+    if reqs.profile {
+        let profile_path = bootstrap::resolve_profile()?;
+        bootstrap::init_profile(&profile_path)?;
+        bootstrap::init_credentials().await?;
 
-        let profile_path = resolve_profile_path(session_profile_path).context(
-            "Profile resolution failed. Set SYSTEMPROMPT_PROFILE environment variable or create a \
-             profile with 'systemprompt cloud profile create'",
-        )?;
-
-        ProfileBootstrap::init_from_path(&profile_path).with_context(|| {
-            format!(
-                "Profile initialization failed from: {}",
-                profile_path.display()
-            )
-        })?;
-
-        CredentialsBootstrap::init()
-            .await
-            .context("Cloud credentials required. Run 'systemprompt cloud login'")?;
-
+        // Check for remote routing before continuing
         if should_check_remote_routing(cli.command.as_ref()) {
             if let Ok(routing::ExecutionTarget::Remote { hostname, token }) =
                 routing::determine_execution_target()
@@ -256,33 +243,18 @@ pub async fn run() -> Result<()> {
             }
         }
 
-        if requires_secrets {
-            SecretsBootstrap::init().context("Secrets initialization failed")?;
+        if reqs.secrets {
+            bootstrap::init_secrets()?;
         }
 
-        if requires_paths {
-            let profile = ProfileBootstrap::get()?;
-            AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
-            Config::try_init().context("Failed to initialize configuration")?;
-            FilesConfig::init().context("Failed to initialize files configuration")?;
-
+        if reqs.paths {
+            bootstrap::init_paths()?;
             if !should_skip_validation(cli.command.as_ref()) {
-                let mut validator = StartupValidator::new();
-                let report = validator.validate(Config::get()?);
-
-                if report.has_errors() {
-                    display_validation_report(&report);
-                    #[allow(clippy::exit)]
-                    std::process::exit(1);
-                }
-
-                if report.has_warnings() {
-                    display_validation_warnings(&report);
-                }
+                bootstrap::run_validation()?;
             }
         }
 
-        validate_cloud_credentials();
+        bootstrap::validate_cloud_credentials();
     }
 
     match cli.command {
@@ -369,26 +341,6 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
     }
 
     cfg
-}
-
-fn validate_cloud_credentials() {
-    match CredentialsBootstrap::get() {
-        Ok(Some(creds)) => {
-            if creds.is_token_expired() {
-                CliService::warning(
-                    "Cloud token has expired. Run 'systemprompt cloud login' to refresh.",
-                );
-            }
-        },
-        Ok(None) => {
-            CliService::error(
-                "Cloud credentials not found. Run 'systemprompt cloud login' to register.",
-            );
-        },
-        Err(e) => {
-            CliService::error(&format!("Cloud credential error: {}", e));
-        },
-    }
 }
 
 const fn should_check_remote_routing(command: Option<&Commands>) -> bool {

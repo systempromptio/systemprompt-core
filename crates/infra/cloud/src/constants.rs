@@ -1,3 +1,25 @@
+//! Constants for cloud infrastructure.
+//!
+//! Re-exports unified path constants from `systemprompt_models` and provides
+//! cloud-specific constants for OAuth, API endpoints, and Docker configuration.
+
+// Re-export unified path constants from shared models
+pub use systemprompt_models::paths::constants::{build, dir_names, file_names, storage};
+
+/// Container path constants with backward-compatible aliases.
+pub mod container {
+    use systemprompt_models::paths::constants::cloud_container;
+
+    pub const APP: &str = cloud_container::APP_ROOT;
+    pub const APP_ROOT: &str = cloud_container::APP_ROOT;
+    pub const BIN: &str = cloud_container::BIN;
+    pub const LOGS: &str = cloud_container::LOGS;
+    pub const SERVICES: &str = cloud_container::SERVICES;
+    pub const STORAGE: &str = cloud_container::STORAGE;
+    pub const WEB: &str = cloud_container::WEB;
+    pub const PROFILES: &str = cloud_container::PROFILES;
+}
+
 pub mod oauth {
     pub const CALLBACK_PORT: u16 = 8765;
     pub const CALLBACK_TIMEOUT_SECS: u64 = 300;
@@ -10,18 +32,27 @@ pub mod checkout {
 }
 
 pub mod credentials {
-    pub const DEFAULT_DIR_NAME: &str = ".systemprompt";
-    pub const DEFAULT_FILE_NAME: &str = "credentials.json";
+    use super::dir_names;
+    use super::file_names;
+
+    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
+    pub const DEFAULT_FILE_NAME: &str = file_names::CREDENTIALS;
 }
 
 pub mod tenants {
-    pub const DEFAULT_DIR_NAME: &str = ".systemprompt";
-    pub const DEFAULT_FILE_NAME: &str = "tenants.json";
+    use super::dir_names;
+    use super::file_names;
+
+    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
+    pub const DEFAULT_FILE_NAME: &str = file_names::TENANTS;
 }
 
 pub mod cli_session {
-    pub const DEFAULT_DIR_NAME: &str = ".systemprompt";
-    pub const DEFAULT_FILE_NAME: &str = "session.json";
+    use super::dir_names;
+    use super::file_names;
+
+    pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
+    pub const DEFAULT_FILE_NAME: &str = file_names::SESSION;
 }
 
 pub mod docker {
@@ -51,32 +82,30 @@ pub mod regions {
     ];
 }
 
+/// Path constants - re-exports from unified module with backward-compatible names.
 pub mod paths {
-    pub const ROOT_DIR: &str = ".systemprompt";
-    pub const PROFILES_DIR: &str = "profiles";
-    pub const DOCKER_DIR: &str = "docker";
-    pub const STORAGE_DIR: &str = "storage";
-    pub const DOCKERFILE: &str = "Dockerfile";
-    pub const PROFILE_CONFIG: &str = "profile.yaml";
-    pub const PROFILE_SECRETS: &str = "secrets.json";
-    pub const CREDENTIALS_FILE: &str = "credentials.json";
-    pub const TENANTS_FILE: &str = "tenants.json";
-    pub const SESSION_FILE: &str = "session.json";
-    pub const PROFILE_DOCKER_DIR: &str = "docker";
-    pub const ENTRYPOINT: &str = "entrypoint.sh";
-    pub const DOCKERIGNORE: &str = "Dockerfile.dockerignore";
-    pub const COMPOSE_FILE: &str = "compose.yaml";
-}
+    use super::dir_names;
+    use super::file_names;
 
-pub mod build {
-    pub const CARGO_TARGET: &str = "target";
-    pub const WEB_DIST: &str = "core/web/dist";
-    pub const WEB_IMAGES: &str = "core/web/src/assets/images";
-    pub const BINARY_NAME: &str = "systemprompt";
-    pub const DOCKERFILE: &str = ".systemprompt/Dockerfile";
+    pub const ROOT_DIR: &str = dir_names::SYSTEMPROMPT;
+    pub const PROFILES_DIR: &str = dir_names::PROFILES;
+    pub const DOCKER_DIR: &str = dir_names::DOCKER;
+    pub const STORAGE_DIR: &str = dir_names::STORAGE;
+    pub const DOCKERFILE: &str = file_names::DOCKERFILE;
+    pub const PROFILE_CONFIG: &str = file_names::PROFILE_CONFIG;
+    pub const PROFILE_SECRETS: &str = file_names::PROFILE_SECRETS;
+    pub const CREDENTIALS_FILE: &str = file_names::CREDENTIALS;
+    pub const TENANTS_FILE: &str = file_names::TENANTS;
+    pub const SESSION_FILE: &str = file_names::SESSION;
+    pub const PROFILE_DOCKER_DIR: &str = dir_names::DOCKER;
+    pub const ENTRYPOINT: &str = file_names::ENTRYPOINT;
+    pub const DOCKERIGNORE: &str = file_names::DOCKERIGNORE;
+    pub const COMPOSE_FILE: &str = file_names::COMPOSE;
 }
 
 pub mod profile {
+    use super::container;
+
     pub const DEFAULT_DB_TYPE: &str = "postgres";
     pub const DEFAULT_PORT: u16 = 8080;
     pub const LOCAL_HOST: &str = "127.0.0.1";
@@ -86,32 +115,7 @@ pub mod profile {
     pub const CLOUD_ISSUER: &str = "systemprompt";
     pub const ACCESS_TOKEN_EXPIRATION: i64 = 86400;
     pub const REFRESH_TOKEN_EXPIRATION: i64 = 2_592_000;
-    pub const CLOUD_APP_PATH: &str = "/app";
+    pub const CLOUD_APP_PATH: &str = container::APP_ROOT;
     pub const CREDENTIALS_PATH: &str = "../../credentials.json";
     pub const TENANTS_PATH: &str = "../../tenants.json";
-}
-
-pub mod container {
-    use super::profile::CLOUD_APP_PATH;
-
-    pub const APP: &str = CLOUD_APP_PATH;
-    pub const BIN: &str = "/app/bin";
-    pub const LOGS: &str = "/app/logs";
-    pub const SERVICES: &str = "/app/services";
-    pub const STORAGE: &str = "/app/storage";
-    pub const WEB: &str = "/app/web";
-    pub const PROFILES: &str = "/app/services/profiles";
-}
-
-pub mod storage {
-    pub const FILES: &str = "files";
-    pub const IMAGES: &str = "files/images";
-    pub const GENERATED: &str = "files/images/generated";
-    pub const LOGOS: &str = "files/images/logos";
-    pub const AUDIO: &str = "files/audio";
-    pub const VIDEO: &str = "files/video";
-    pub const DOCUMENTS: &str = "files/documents";
-    pub const UPLOADS: &str = "files/uploads";
-    pub const CSS: &str = "files/css";
-    pub const JS: &str = "files/js";
 }
