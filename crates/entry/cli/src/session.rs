@@ -6,7 +6,8 @@ use chrono::Duration as ChronoDuration;
 use serde::{Deserialize, Serialize};
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{
-    CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, ProjectContext,
+    CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, ProjectContext, SessionKey,
+    SessionStore,
 };
 use systemprompt_core_agent::repository::context::ContextRepository;
 use systemprompt_core_database::{Database, DbPool};
@@ -85,6 +86,20 @@ fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
     })
 }
 
+fn resolve_session_paths(project_ctx: &ProjectContext) -> Result<(PathBuf, Option<PathBuf>)> {
+    if project_ctx.systemprompt_dir().exists() {
+        let sessions_dir = project_ctx.sessions_dir();
+        let legacy_path = project_ctx.local_session();
+        Ok((sessions_dir, Some(legacy_path)))
+    } else {
+        let cloud_paths = get_cloud_paths()
+            .context("Failed to resolve cloud paths from profile configuration")?;
+        let sessions_dir = cloud_paths.resolve(CloudPath::SessionsDir);
+        let legacy_path = cloud_paths.resolve(CloudPath::CliSession);
+        Ok((sessions_dir, Some(legacy_path)))
+    }
+}
+
 pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
     let profile = ProfileBootstrap::get()
         .map_err(|_| {
@@ -113,24 +128,19 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         .ok_or_else(|| anyhow::anyhow!("Invalid profile directory name"))?
         .to_string();
 
-    let project_ctx = ProjectContext::discover();
-    let session_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_session()
-    } else {
-        get_cloud_paths()
-            .context("Failed to resolve cloud paths from profile configuration")?
-            .resolve(CloudPath::CliSession)
-    };
+    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+    let session_key = SessionKey::from_tenant_id(tenant_id);
 
-    if let Ok(session) = CliSession::load_from_path(&session_path) {
-        if session.is_valid_for_profile(&profile_name) {
-            let mut session = session;
-            session.touch();
-            session
-                .save_to_path(&session_path)
-                .context("Failed to update session file")?;
-            return Ok(CliSessionContext { session, profile });
-        }
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+
+    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+
+    if let Some(mut session) = store.get_valid_session(&session_key).cloned() {
+        session.touch();
+        store.upsert_session(&session_key, session.clone());
+        store.save(&sessions_dir)?;
+        return Ok(CliSessionContext { session, profile });
     }
 
     CredentialsBootstrap::try_init()
@@ -152,18 +162,12 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         path: PathBuf::from(profile_path_str),
     };
 
-    let session = create_session_for_profile(&creds, &profile, &profile_ctx, config).await?;
+    let session =
+        create_session_for_tenant(&creds, &profile, &profile_ctx, &session_key, config).await?;
 
-    session
-        .save_to_path(&session_path)
-        .with_context(|| format!("Failed to save session to {}", session_path.display()))?;
-
-    if !session_path.exists() {
-        anyhow::bail!(
-            "Session file was not created at {}. Check write permissions.",
-            session_path.display()
-        );
-    }
+    store.upsert_session(&session_key, session.clone());
+    store.set_active(&session_key);
+    store.save(&sessions_dir)?;
 
     if session.session_token.as_str().is_empty() {
         anyhow::bail!("Session token is empty. Session creation failed.");
@@ -172,10 +176,11 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
     Ok(CliSessionContext { session, profile })
 }
 
-async fn create_session_for_profile(
+async fn create_session_for_tenant(
     creds: &CloudCredentials,
     profile: &Profile,
     profile_ctx: &ProfileContext<'_>,
+    session_key: &SessionKey,
     config: &CliConfig,
 ) -> Result<CliSession> {
     profile
@@ -251,6 +256,7 @@ async fn create_session_for_profile(
 
     Ok(
         CliSession::builder(profile_ctx.name, session_token, session_id, context_id)
+            .with_session_key(session_key)
             .with_profile_path(profile_ctx.path.clone())
             .with_user(admin_user.id, admin_user.email)
             .with_user_type(UserType::Admin)
@@ -284,10 +290,51 @@ async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_
 }
 
 pub fn clear_session() -> Result<()> {
-    let cloud_paths = get_cloud_paths()?;
-    let session_path = cloud_paths.resolve(CloudPath::CliSession);
-    CliSession::delete_from_path(&session_path)?;
+    let profile = ProfileBootstrap::get().ok();
+    let tenant_id = profile
+        .as_ref()
+        .and_then(|p| p.cloud.as_ref())
+        .and_then(|c| c.tenant_id.as_deref());
+    let session_key = SessionKey::from_tenant_id(tenant_id);
+
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+
+    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    store.remove_session(&session_key);
+    store.save(&sessions_dir)?;
+
     Ok(())
+}
+
+pub fn clear_all_sessions() -> Result<()> {
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+
+    let store = SessionStore::new();
+    store.save(&sessions_dir)?;
+
+    if let Some(legacy) = legacy_path {
+        if legacy.exists() {
+            std::fs::remove_file(legacy).ok();
+        }
+    }
+
+    Ok(())
+}
+
+pub fn get_session_for_key(session_key: &SessionKey) -> Result<Option<CliSession>> {
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+
+    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    Ok(store.get_valid_session(session_key).cloned())
+}
+
+pub fn load_session_store() -> Result<SessionStore> {
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())
 }
 
 #[derive(Debug, Serialize)]

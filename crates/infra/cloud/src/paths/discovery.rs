@@ -1,33 +1,20 @@
-//! Unified project discovery.
-//!
-//! This module provides a clean interface for discovering project roots
-//! and resolving cloud-related paths within a project structure.
-
 use std::path::{Path, PathBuf};
 
 use crate::constants::{dir_names, file_names};
 
-/// Result of discovering a `SystemPrompt` project.
 #[derive(Debug, Clone)]
 pub struct DiscoveredProject {
-    /// The root directory of the project (parent of .systemprompt).
     root: PathBuf,
-    /// The .systemprompt directory within the project.
     systemprompt_dir: PathBuf,
 }
 
 impl DiscoveredProject {
-    /// Attempts to discover a project starting from the current directory.
-    ///
-    /// Walks up the directory tree looking for a `.systemprompt` directory.
-    /// Returns `Some` if found, `None` otherwise.
     #[must_use]
     pub fn discover() -> Option<Self> {
         let cwd = std::env::current_dir().ok()?;
         Self::discover_from(&cwd)
     }
 
-    /// Attempts to discover a project starting from a given path.
     #[must_use]
     pub fn discover_from(start: &Path) -> Option<Self> {
         let mut current = start.to_path_buf();
@@ -46,9 +33,6 @@ impl DiscoveredProject {
         None
     }
 
-    /// Creates a `DiscoveredProject` from a known root directory.
-    ///
-    /// Does not validate that the .systemprompt directory exists.
     #[must_use]
     pub fn from_root(root: PathBuf) -> Self {
         let systemprompt_dir = root.join(dir_names::SYSTEMPROMPT);
@@ -58,98 +42,86 @@ impl DiscoveredProject {
         }
     }
 
-    /// Returns the project root directory.
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// Returns the .systemprompt directory path.
     #[must_use]
     pub fn systemprompt_dir(&self) -> &Path {
         &self.systemprompt_dir
     }
 
-    /// Returns the path to the credentials file.
     #[must_use]
     pub fn credentials_path(&self) -> PathBuf {
         self.systemprompt_dir.join(file_names::CREDENTIALS)
     }
 
-    /// Returns the path to the tenants file.
     #[must_use]
     pub fn tenants_path(&self) -> PathBuf {
         self.systemprompt_dir.join(file_names::TENANTS)
     }
 
-    /// Returns the path to the session file.
     #[must_use]
     pub fn session_path(&self) -> PathBuf {
         self.systemprompt_dir.join(file_names::SESSION)
     }
 
-    /// Returns the path to the profiles directory.
+    #[must_use]
+    pub fn sessions_dir(&self) -> PathBuf {
+        self.systemprompt_dir.join(dir_names::SESSIONS)
+    }
+
     #[must_use]
     pub fn profiles_dir(&self) -> PathBuf {
         self.systemprompt_dir.join(dir_names::PROFILES)
     }
 
-    /// Returns the path to a specific profile directory.
     #[must_use]
     pub fn profile_dir(&self, name: &str) -> PathBuf {
         self.profiles_dir().join(name)
     }
 
-    /// Returns the path to a profile's config file.
     #[must_use]
     pub fn profile_config(&self, name: &str) -> PathBuf {
         self.profile_dir(name).join(file_names::PROFILE_CONFIG)
     }
 
-    /// Returns the path to a profile's secrets file.
     #[must_use]
     pub fn profile_secrets(&self, name: &str) -> PathBuf {
         self.profile_dir(name).join(file_names::PROFILE_SECRETS)
     }
 
-    /// Returns the path to the docker directory.
     #[must_use]
     pub fn docker_dir(&self) -> PathBuf {
         self.systemprompt_dir.join(dir_names::DOCKER)
     }
 
-    /// Returns the path to the storage directory.
     #[must_use]
     pub fn storage_dir(&self) -> PathBuf {
         self.systemprompt_dir.join(dir_names::STORAGE)
     }
 
-    /// Checks if this project has been initialized (has .systemprompt
-    /// directory).
     #[must_use]
     pub fn is_initialized(&self) -> bool {
         self.systemprompt_dir.is_dir()
     }
 
-    /// Checks if credentials exist.
     #[must_use]
     pub fn has_credentials(&self) -> bool {
         self.credentials_path().exists()
     }
 
-    /// Checks if tenants configuration exists.
     #[must_use]
     pub fn has_tenants(&self) -> bool {
         self.tenants_path().exists()
     }
 
-    /// Checks if a session file exists.
     #[must_use]
     pub fn has_session(&self) -> bool {
         self.session_path().exists()
     }
 
-    /// Checks if a specific profile exists.
     #[must_use]
     pub fn has_profile(&self, name: &str) -> bool {
         self.profile_dir(name).is_dir()

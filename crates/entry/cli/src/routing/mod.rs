@@ -1,10 +1,8 @@
-//! CLI routing layer for local vs remote execution.
-
 pub mod remote;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{
-    get_cloud_paths, CliSession, CloudPath, ProjectContext, StoredTenant, TenantStore,
+    get_cloud_paths, CloudPath, ProjectContext, SessionKey, SessionStore, StoredTenant, TenantStore,
 };
 use systemprompt_models::ProfileBootstrap;
 
@@ -33,7 +31,8 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
         .context("Tenant has no hostname configured")?
         .clone();
 
-    let session = load_session()?;
+    let session_key = SessionKey::Tenant(tenant_id.clone());
+    let session = load_session_for_key(&session_key)?;
 
     Ok(ExecutionTarget::Remote {
         hostname,
@@ -62,17 +61,26 @@ fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
         .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant_id))
 }
 
-fn load_session() -> Result<CliSession> {
+fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::CliSession> {
     let project_ctx = ProjectContext::discover();
 
-    let session_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_session()
+    let (sessions_dir, legacy_path) = if project_ctx.systemprompt_dir().exists() {
+        (
+            project_ctx.sessions_dir(),
+            Some(project_ctx.local_session()),
+        )
     } else {
-        get_cloud_paths()
-            .context("Failed to resolve cloud paths")?
-            .resolve(CloudPath::CliSession)
+        let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
+        (
+            cloud_paths.resolve(CloudPath::SessionsDir),
+            Some(cloud_paths.resolve(CloudPath::CliSession)),
+        )
     };
 
-    CliSession::load_from_path(&session_path)
+    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+
+    store
+        .get_valid_session(session_key)
+        .cloned()
         .context("No active session. Run 'systemprompt system login'.")
 }

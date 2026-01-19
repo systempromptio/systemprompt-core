@@ -1,27 +1,21 @@
-//! Show current session and routing info.
-
-use anyhow::{Context, Result};
-use systemprompt_cloud::{get_cloud_paths, CliSession, CloudPath, ProjectContext, TenantStore};
+use anyhow::Result;
+use systemprompt_cloud::{
+    get_cloud_paths, CloudPath, ProjectContext, SessionStore, TenantStore, LOCAL_SESSION_KEY,
+};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use crate::cli_settings::CliConfig;
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn execute(config: &CliConfig) -> Result<()> {
     let project_ctx = ProjectContext::discover();
-    let session_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_session()
-    } else {
-        get_cloud_paths()
-            .context("Failed to resolve cloud paths")?
-            .resolve(CloudPath::CliSession)
-    };
 
     if config.is_interactive() {
-        CliService::section("Session Info");
+        CliService::section("Sessions");
     }
 
-    display_session_info(&session_path);
+    display_all_sessions(&project_ctx);
 
     CliService::output("");
 
@@ -29,9 +23,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
         CliService::section("Routing Info");
     }
 
-    let execution_target = display_routing_info(&project_ctx);
-
-    if let Some((hostname, target_type)) = execution_target {
+    if let Some((hostname, target_type)) = display_routing_info(&project_ctx) {
         CliService::key_value("Target", target_type);
         CliService::key_value("Hostname", &hostname);
         CliService::info("Commands will be forwarded to the remote tenant");
@@ -40,42 +32,87 @@ pub fn execute(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn display_session_info(session_path: &std::path::Path) {
-    let session = CliSession::load_from_path(session_path).ok();
+fn display_all_sessions(project_ctx: &ProjectContext) {
+    let (sessions_dir, legacy_path) = resolve_session_paths(project_ctx);
 
-    let Some(session) = session else {
-        CliService::warning("No active session found");
+    let Ok(store) = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref()) else {
+        CliService::warning("No sessions found");
         return;
     };
 
-    CliService::key_value("Profile", &session.profile_name);
-    CliService::key_value("User", &session.user_email);
-    CliService::key_value("Session ID", session.session_id.as_str());
-    CliService::key_value("Context ID", session.context_id.as_str());
+    if store.is_empty() {
+        CliService::warning("No sessions found");
+        return;
+    }
 
-    if session.is_expired() {
-        CliService::warning("Session has expired");
+    let active_key = store.active_key.clone();
+
+    for (key, session) in store.all_sessions() {
+        let is_active = active_key.as_ref() == Some(key);
+        let status_marker = if is_active { " (active)" } else { "" };
+        let expired_marker = if session.is_expired() {
+            " [expired]"
+        } else {
+            ""
+        };
+
+        let display_key = if key == LOCAL_SESSION_KEY {
+            "local".to_string()
+        } else {
+            key.strip_prefix("tenant_")
+                .map_or_else(|| key.clone(), String::from)
+        };
+
+        CliService::output(&format!(
+            "\n  {}{}{}",
+            display_key, status_marker, expired_marker
+        ));
+        CliService::key_value("    Profile", &session.profile_name);
+        CliService::key_value("    User", &session.user_email);
+        CliService::key_value("    Session ID", session.session_id.as_str());
+        CliService::key_value("    Context ID", session.context_id.as_str());
+
+        if session.is_expired() {
+            CliService::warning("    Session has expired");
+        } else {
+            let expires_in = session.expires_at - chrono::Utc::now();
+            let hours = expires_in.num_hours();
+            let minutes = expires_in.num_minutes() % 60;
+            CliService::key_value("    Expires in", &format!("{}h {}m", hours, minutes));
+        }
+    }
+}
+
+fn resolve_session_paths(
+    project_ctx: &ProjectContext,
+) -> (std::path::PathBuf, Option<std::path::PathBuf>) {
+    if project_ctx.systemprompt_dir().exists() {
+        (
+            project_ctx.sessions_dir(),
+            Some(project_ctx.local_session()),
+        )
     } else {
-        let expires_in = session.expires_at - chrono::Utc::now();
-        let hours = expires_in.num_hours();
-        let minutes = expires_in.num_minutes() % 60;
-        CliService::key_value("Expires in", &format!("{}h {}m", hours, minutes));
+        get_cloud_paths().map_or_else(
+            |_| (project_ctx.sessions_dir(), None),
+            |paths| {
+                (
+                    paths.resolve(CloudPath::SessionsDir),
+                    Some(paths.resolve(CloudPath::CliSession)),
+                )
+            },
+        )
     }
 }
 
 fn display_routing_info(project_ctx: &ProjectContext) -> Option<(String, &'static str)> {
-    let profile = ProfileBootstrap::get().ok();
-
-    let Some(p) = profile else {
+    let Ok(profile) = ProfileBootstrap::get() else {
         CliService::warning("No profile loaded");
         return None;
     };
 
-    CliService::key_value("Profile name", &p.name);
+    CliService::key_value("Profile name", &profile.name);
 
-    let tenant_id = p.cloud.as_ref().and_then(|c| c.tenant_id.as_ref());
-
-    let Some(tenant_id) = tenant_id else {
+    let Some(tenant_id) = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref()) else {
         CliService::key_value("Target", "Local");
         return None;
     };

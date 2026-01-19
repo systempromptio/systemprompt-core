@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::constants::{cli_session, credentials, tenants};
+use crate::constants::{cli_session, credentials, dir_names, tenants};
 
 use super::resolve_path;
 
@@ -9,6 +9,7 @@ pub enum CloudPath {
     Credentials,
     Tenants,
     CliSession,
+    SessionsDir,
 }
 
 impl CloudPath {
@@ -18,6 +19,7 @@ impl CloudPath {
             Self::Credentials => credentials::DEFAULT_FILE_NAME,
             Self::Tenants => tenants::DEFAULT_FILE_NAME,
             Self::CliSession => cli_session::DEFAULT_FILE_NAME,
+            Self::SessionsDir => dir_names::SESSIONS,
         }
     }
 
@@ -26,8 +28,13 @@ impl CloudPath {
         match self {
             Self::Credentials => credentials::DEFAULT_DIR_NAME,
             Self::Tenants => tenants::DEFAULT_DIR_NAME,
-            Self::CliSession => cli_session::DEFAULT_DIR_NAME,
+            Self::CliSession | Self::SessionsDir => cli_session::DEFAULT_DIR_NAME,
         }
+    }
+
+    #[must_use]
+    pub const fn is_dir(&self) -> bool {
+        matches!(self, Self::SessionsDir)
     }
 }
 
@@ -97,6 +104,7 @@ impl CloudPaths {
                 .clone()
                 .unwrap_or_else(|| self.base_dir.join(tenants::DEFAULT_FILE_NAME)),
             CloudPath::CliSession => self.base_dir.join(cli_session::DEFAULT_FILE_NAME),
+            CloudPath::SessionsDir => self.base_dir.join(dir_names::SESSIONS),
         }
     }
 
