@@ -3,11 +3,11 @@ use serde_json::{json, Value as JsonValue};
 use systemprompt_models::artifacts::types::ArtifactType;
 
 pub fn infer_type(
-    tool_result: &JsonValue,
+    artifact: &JsonValue,
     schema: Option<&JsonValue>,
     tool_name: &str,
 ) -> Result<ArtifactType, ArtifactError> {
-    if let Some(artifact_type) = extract_artifact_type_from_data(tool_result) {
+    if let Some(artifact_type) = extract_artifact_type_from_data(artifact) {
         return Ok(parse_artifact_type(&artifact_type));
     }
 
@@ -27,7 +27,7 @@ pub fn infer_type(
         }
     }
 
-    if is_tabular_data(tool_result) {
+    if is_tabular_data(artifact) {
         return Ok(ArtifactType::Table);
     }
 

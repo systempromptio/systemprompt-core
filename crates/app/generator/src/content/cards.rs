@@ -17,35 +17,14 @@ pub fn normalize_image_url(image: Option<&str>) -> Option<String> {
     }
 
     if let Some(local_path) = convert_external_url_to_local(img) {
-        return Some(convert_to_webp(&local_path));
+        return Some(local_path);
     }
 
     if let Some(local_path) = convert_root_images_to_content_path(img) {
-        return Some(convert_to_webp(&local_path));
+        return Some(local_path);
     }
 
-    Some(convert_to_webp(img))
-}
-
-fn convert_to_webp(path: &str) -> String {
-    if std::path::Path::new(path)
-        .extension()
-        .is_some_and(|ext| ext.eq_ignore_ascii_case("webp"))
-    {
-        return path.to_string();
-    }
-
-    for ext in ["png", "jpg", "jpeg"] {
-        if std::path::Path::new(path)
-            .extension()
-            .is_some_and(|e| e.eq_ignore_ascii_case(ext))
-        {
-            let stem = &path[..path.rfind('.').unwrap_or(path.len())];
-            return format!("{stem}.webp");
-        }
-    }
-
-    path.to_string()
+    Some(img.to_string())
 }
 
 fn convert_external_url_to_local(url: &str) -> Option<String> {

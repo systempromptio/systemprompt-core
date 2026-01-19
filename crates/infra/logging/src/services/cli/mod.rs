@@ -25,7 +25,7 @@ use serde::Serialize;
 use std::time::Duration;
 use systemprompt_traits::LogEventLevel;
 
-use super::output::{is_console_output_enabled, publish_log};
+use super::output::publish_log;
 
 #[derive(Copy, Clone, Debug)]
 pub struct CliService;
@@ -33,45 +33,33 @@ pub struct CliService;
 impl CliService {
     pub fn success(message: &str) {
         publish_log(LogEventLevel::Info, "cli", message);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Success, message);
-        }
+        DisplayUtils::message(MessageLevel::Success, message);
     }
 
     pub fn warning(message: &str) {
         publish_log(LogEventLevel::Warn, "cli", message);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Warning, message);
-        }
+        DisplayUtils::message(MessageLevel::Warning, message);
     }
 
     pub fn error(message: &str) {
         publish_log(LogEventLevel::Error, "cli", message);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Error, message);
-        }
+        DisplayUtils::message(MessageLevel::Error, message);
     }
 
     pub fn info(message: &str) {
         publish_log(LogEventLevel::Info, "cli", message);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Info, message);
-        }
+        DisplayUtils::message(MessageLevel::Info, message);
     }
 
     pub fn debug(message: &str) {
         let debug_msg = format!("DEBUG: {message}");
         publish_log(LogEventLevel::Debug, "cli", &debug_msg);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Info, &debug_msg);
-        }
+        DisplayUtils::message(MessageLevel::Info, &debug_msg);
     }
 
     pub fn verbose(message: &str) {
         publish_log(LogEventLevel::Debug, "cli", message);
-        if is_console_output_enabled() {
-            DisplayUtils::message(MessageLevel::Info, message);
-        }
+        DisplayUtils::message(MessageLevel::Info, message);
     }
 
     #[allow(clippy::exit)] // Intentional for CLI fatal errors
@@ -94,9 +82,7 @@ impl CliService {
     }
 
     pub fn output(content: &str) {
-        if is_console_output_enabled() {
-            println!("{content}");
-        }
+        println!("{content}");
     }
 
     pub fn json<T: Serialize>(value: &T) {
@@ -244,37 +230,27 @@ impl CliService {
     }
 
     pub fn startup_banner(subtitle: Option<&str>) {
-        if is_console_output_enabled() {
-            render_startup_banner(subtitle);
-        }
+        render_startup_banner(subtitle);
     }
 
     pub fn phase(name: &str) {
         publish_log(LogEventLevel::Info, "cli", &format!("Phase: {}", name));
-        if is_console_output_enabled() {
-            render_phase_header(name);
-        }
+        render_phase_header(name);
     }
 
     pub fn phase_success(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Info, "cli", message);
-        if is_console_output_enabled() {
-            render_phase_success(message, detail);
-        }
+        render_phase_success(message, detail);
     }
 
     pub fn phase_info(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Info, "cli", message);
-        if is_console_output_enabled() {
-            render_phase_info(message, detail);
-        }
+        render_phase_info(message, detail);
     }
 
     pub fn phase_warning(message: &str, detail: Option<&str>) {
         publish_log(LogEventLevel::Warn, "cli", message);
-        if is_console_output_enabled() {
-            render_phase_warning(message, detail);
-        }
+        render_phase_warning(message, detail);
     }
 
     #[allow(clippy::literal_string_with_formatting_args)]
@@ -295,9 +271,7 @@ impl CliService {
     }
 
     pub fn service_table(title: &str, services: &[ServiceTableEntry]) {
-        if is_console_output_enabled() {
-            render_service_table(title, services);
-        }
+        render_service_table(title, services);
     }
 
     pub fn startup_complete(duration: Duration, api_url: &str) {
@@ -306,9 +280,7 @@ impl CliService {
             "cli",
             &format!("Startup complete in {:.1}s", duration.as_secs_f64()),
         );
-        if is_console_output_enabled() {
-            render_startup_complete(duration, api_url);
-        }
+        render_startup_complete(duration, api_url);
     }
 }
 

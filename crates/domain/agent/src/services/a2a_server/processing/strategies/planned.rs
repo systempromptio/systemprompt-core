@@ -349,7 +349,23 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                     }
                 }
 
-                let response = context
+                // Capture tool errors BEFORE attempting AI synthesis
+                // This ensures we don't lose tool errors if AI fails with MALFORMED_FUNCTION_CALL
+                let tool_error_message: Option<String> = if has_failures {
+                    Some(
+                        state
+                            .failed_results()
+                            .iter()
+                            .filter_map(|r| r.error.as_ref())
+                            .map(|e| e.as_str())
+                            .collect::<Vec<_>>()
+                            .join("; "),
+                    )
+                } else {
+                    None
+                };
+
+                let response = match context
                     .ai_service
                     .generate_response(GenerateResponseParams {
                         messages,
@@ -359,7 +375,24 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                         model: context.agent_runtime.model.as_deref(),
                         max_output_tokens: context.agent_runtime.max_output_tokens,
                     })
-                    .await?;
+                    .await
+                {
+                    Ok(response) => response,
+                    Err(ai_error) => {
+                        // If AI synthesis fails AND we had tool errors, return the tool errors
+                        // instead of the AI error (e.g., MALFORMED_FUNCTION_CALL)
+                        if let Some(tool_err) = tool_error_message {
+                            tracing::warn!(
+                                ai_error = %ai_error,
+                                tool_error = %tool_err,
+                                "AI synthesis failed after tool errors - returning tool errors"
+                            );
+                            return Err(anyhow::anyhow!("Tool execution failed: {}", tool_err));
+                        }
+                        // No tool errors, propagate AI error as-is
+                        return Err(ai_error);
+                    },
+                };
 
                 if context
                     .tx

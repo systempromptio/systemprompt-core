@@ -8,10 +8,9 @@ pub use layer::DatabaseLayer;
 pub use models::{LogEntry, LogFilter, LogLevel};
 pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 pub use services::{
-    get_output_mode, init_tui_mode, is_console_output_enabled, is_startup_mode, publish_log,
-    set_log_publisher, set_output_mode, set_startup_mode, CliService, DatabaseLogService,
-    FilterSystemFields, LoggingMaintenanceService, OutputMode, RequestSpan, RequestSpanBuilder,
-    SystemSpan,
+    is_startup_mode, publish_log, set_log_publisher, set_startup_mode, CliService,
+    DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
+    RequestSpanBuilder, SystemSpan,
 };
 pub use trace::{
     AiRequestInfo, AiRequestSummary, AiTraceService, ConversationMessage, ExecutionStep,

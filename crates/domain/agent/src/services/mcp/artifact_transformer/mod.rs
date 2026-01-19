@@ -61,19 +61,6 @@ pub fn parse_tool_response(
     })
 }
 
-pub(super) fn unwrap_tool_response(
-    structured_content: &JsonValue,
-) -> (&JsonValue, Option<&JsonValue>) {
-    if let (Some(artifact), Some(metadata)) = (
-        structured_content.get("artifact"),
-        structured_content.get("_metadata"),
-    ) {
-        (artifact, Some(metadata))
-    } else {
-        (structured_content, None)
-    }
-}
-
 pub fn artifact_type_to_string(artifact_type: &ArtifactType) -> String {
     match artifact_type {
         ArtifactType::Text => "text".to_string(),
@@ -106,6 +93,49 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     format!("{}-{:x}", tool_name, hash)
 }
 
+fn transform_parsed(
+    tool_name: &str,
+    parsed: ParsedToolResponse,
+    output_schema: Option<&JsonValue>,
+    context_id: &str,
+    task_id: &str,
+    tool_arguments: Option<&JsonValue>,
+) -> Result<Artifact, ArtifactError> {
+    let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
+    let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
+    let parts = build_parts(&parsed.artifact)?;
+
+    let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
+        .filter(|s| !s.is_empty())
+        .or_else(|| parsed.metadata.execution_id.clone());
+
+    let mut metadata = build_metadata(
+        &artifact_type,
+        output_schema,
+        mcp_execution_id,
+        context_id,
+        task_id,
+        tool_name,
+    )?;
+
+    metadata = metadata.with_fingerprint(fingerprint);
+
+    if let Some(sid) = &parsed.metadata.skill_id {
+        metadata = metadata.with_skill_id(sid.clone());
+    }
+
+    Ok(Artifact {
+        id: parsed.artifact_id,
+        name: Some(tool_name.to_string()),
+        description: None,
+        parts,
+        metadata,
+        extensions: vec![json!(
+            "https://systemprompt.io/extensions/artifact-rendering/v1"
+        )],
+    })
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct McpToA2aTransformer;
 
@@ -127,40 +157,14 @@ impl McpToA2aTransformer {
                 })?;
 
         let parsed = parse_tool_response(structured_content)?;
-
-        let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
-        let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
-        let parts = build_parts(&parsed.artifact)?;
-
-        let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
-            .filter(|s| !s.is_empty())
-            .or_else(|| parsed.metadata.execution_id.clone());
-
-        let mut metadata = build_metadata(
-            &artifact_type,
+        transform_parsed(
+            tool_name,
+            parsed,
             output_schema,
-            mcp_execution_id,
             context_id,
             task_id,
-            tool_name,
-        )?;
-
-        metadata = metadata.with_fingerprint(fingerprint);
-
-        if let Some(sid) = &parsed.metadata.skill_id {
-            metadata = metadata.with_skill_id(sid.clone());
-        }
-
-        Ok(Artifact {
-            id: parsed.artifact_id,
-            name: Some(tool_name.to_string()),
-            description: None,
-            parts,
-            metadata,
-            extensions: vec![json!(
-                "https://systemprompt.io/extensions/artifact-rendering/v1"
-            )],
-        })
+            tool_arguments,
+        )
     }
 
     pub fn transform_from_json(
@@ -172,39 +176,13 @@ impl McpToA2aTransformer {
         tool_arguments: Option<&JsonValue>,
     ) -> Result<Artifact, ArtifactError> {
         let parsed = parse_tool_response(tool_result_json)?;
-
-        let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
-        let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
-        let parts = build_parts(&parsed.artifact)?;
-
-        let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
-            .filter(|s| !s.is_empty())
-            .or_else(|| parsed.metadata.execution_id.clone());
-
-        let mut metadata = build_metadata(
-            &artifact_type,
+        transform_parsed(
+            tool_name,
+            parsed,
             output_schema,
-            mcp_execution_id,
             context_id,
             task_id,
-            tool_name,
-        )?;
-
-        metadata = metadata.with_fingerprint(fingerprint);
-
-        if let Some(sid) = &parsed.metadata.skill_id {
-            metadata = metadata.with_skill_id(sid.clone());
-        }
-
-        Ok(Artifact {
-            id: parsed.artifact_id,
-            name: Some(tool_name.to_string()),
-            description: None,
-            parts,
-            metadata,
-            extensions: vec![json!(
-                "https://systemprompt.io/extensions/artifact-rendering/v1"
-            )],
-        })
+            tool_arguments,
+        )
     }
 }

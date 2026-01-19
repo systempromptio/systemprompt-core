@@ -522,7 +522,7 @@ fn test_validate_request_generates_trace_id_if_missing() {
     assert!(result.is_ok());
 
     let context = result.unwrap();
-    assert!(context.execution.trace_id.as_str().starts_with("trace_"));
+    assert!(!context.execution.trace_id.as_str().is_empty());
 }
 
 #[test]

@@ -2,33 +2,15 @@ use crate::error::ArtifactError;
 use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
 use serde_json::Value as JsonValue;
 
-use super::unwrap_tool_response;
-
-pub fn build_parts(tool_result: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
+pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
     let mut parts = Vec::new();
 
-    let (actual_data, _) = unwrap_tool_response(tool_result);
-
-    if let Some(structured) = tool_result.get("structured_content") {
-        let (unwrapped, _) = unwrap_tool_response(structured);
-        let obj = unwrapped.as_object().ok_or_else(|| {
-            ArtifactError::Transform(format!(
-                "'structured_content' must be an object, got: {}",
-                serde_json::to_string_pretty(structured)
-                    .unwrap_or_else(|_| "invalid JSON".to_string())
-            ))
-        })?;
-
+    if let Some(obj) = artifact.as_object() {
         parts.push(Part::Data(DataPart { data: obj.clone() }));
         return Ok(parts);
     }
 
-    if let Some(obj) = actual_data.as_object() {
-        parts.push(Part::Data(DataPart { data: obj.clone() }));
-        return Ok(parts);
-    }
-
-    if let Some(content) = tool_result.get("content") {
+    if let Some(content) = artifact.get("content") {
         if let Some(arr) = content.as_array() {
             for item in arr {
                 if let Some(content_type) = item.get("type").and_then(|t| t.as_str()) {
@@ -83,7 +65,7 @@ pub fn build_parts(tool_result: &JsonValue) -> Result<Vec<Part>, ArtifactError> 
     }
 
     Err(ArtifactError::Transform(format!(
-        "Tool result must have either 'structured_content' or 'content' array. Received: {}",
-        serde_json::to_string_pretty(tool_result).unwrap_or_else(|_| "invalid JSON".to_string())
+        "Artifact must be an object or contain a 'content' array. Received: {}",
+        serde_json::to_string_pretty(artifact).unwrap_or_else(|_| "invalid JSON".to_string())
     )))
 }

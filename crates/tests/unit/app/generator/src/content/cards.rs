@@ -28,30 +28,30 @@ fn test_normalize_image_url_already_webp() {
 }
 
 #[test]
-fn test_normalize_image_url_converts_png_to_webp() {
+fn test_normalize_image_url_preserves_png() {
     let result = normalize_image_url(Some("/images/photo.png"));
-    assert_eq!(result, Some("/images/photo.webp".to_string()));
+    assert_eq!(result, Some("/images/photo.png".to_string()));
 }
 
 #[test]
-fn test_normalize_image_url_converts_jpg_to_webp() {
+fn test_normalize_image_url_preserves_jpg() {
     let result = normalize_image_url(Some("/images/photo.jpg"));
-    assert_eq!(result, Some("/images/photo.webp".to_string()));
+    assert_eq!(result, Some("/images/photo.jpg".to_string()));
 }
 
 #[test]
-fn test_normalize_image_url_converts_jpeg_to_webp() {
+fn test_normalize_image_url_preserves_jpeg() {
     let result = normalize_image_url(Some("/images/photo.jpeg"));
-    assert_eq!(result, Some("/images/photo.webp".to_string()));
+    assert_eq!(result, Some("/images/photo.jpeg".to_string()));
 }
 
 #[test]
-fn test_normalize_image_url_case_insensitive_extension() {
+fn test_normalize_image_url_preserves_case() {
     let result = normalize_image_url(Some("/images/photo.PNG"));
-    assert_eq!(result, Some("/images/photo.webp".to_string()));
+    assert_eq!(result, Some("/images/photo.PNG".to_string()));
 
     let result = normalize_image_url(Some("/images/photo.JPG"));
-    assert_eq!(result, Some("/images/photo.webp".to_string()));
+    assert_eq!(result, Some("/images/photo.JPG".to_string()));
 
     let result = normalize_image_url(Some("/images/photo.WEBP"));
     assert_eq!(result, Some("/images/photo.WEBP".to_string()));
@@ -77,7 +77,7 @@ fn test_normalize_image_url_complex_path() {
     let result = normalize_image_url(Some("/content/blog/2024/01/featured-image.png"));
     assert_eq!(
         result,
-        Some("/content/blog/2024/01/featured-image.webp".to_string())
+        Some("/content/blog/2024/01/featured-image.png".to_string())
     );
 }
 
@@ -96,7 +96,7 @@ fn test_get_absolute_image_url_relative_path() {
     let result = get_absolute_image_url(Some("/images/photo.png"), "https://example.com");
     assert_eq!(
         result,
-        Some("https://example.com/images/photo.webp".to_string())
+        Some("https://example.com/images/photo.png".to_string())
     );
 }
 
@@ -105,7 +105,7 @@ fn test_get_absolute_image_url_relative_path_base_with_slash() {
     let result = get_absolute_image_url(Some("/images/photo.jpg"), "https://example.com/");
     assert_eq!(
         result,
-        Some("https://example.com/images/photo.webp".to_string())
+        Some("https://example.com/images/photo.jpg".to_string())
     );
 }
 
@@ -160,11 +160,10 @@ fn test_generate_image_html_empty_image() {
 }
 
 #[test]
-fn test_generate_image_html_converts_to_webp() {
+fn test_generate_image_html_preserves_format() {
     let result = generate_image_html(Some("/images/photo.jpg"), "Photo");
 
-    assert!(result.contains(".webp"));
-    assert!(!result.contains(".jpg"));
+    assert!(result.contains(".jpg"));
 }
 
 // ============================================================================
