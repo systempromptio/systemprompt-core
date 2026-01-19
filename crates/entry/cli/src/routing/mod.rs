@@ -10,7 +10,11 @@ use systemprompt_models::ProfileBootstrap;
 
 pub enum ExecutionTarget {
     Local,
-    Remote { hostname: String, token: String },
+    Remote {
+        hostname: String,
+        token: String,
+        context_id: String,
+    },
 }
 
 pub fn determine_execution_target() -> Result<ExecutionTarget> {
@@ -34,6 +38,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
     Ok(ExecutionTarget::Remote {
         hostname,
         token: session.session_token.to_string(),
+        context_id: session.context_id.to_string(),
     })
 }
 
