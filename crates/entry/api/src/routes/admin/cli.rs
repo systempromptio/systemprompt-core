@@ -42,9 +42,7 @@ async fn execute_cli(
     );
 
     let auth_token = req_ctx.auth_token().as_str();
-    let context_id = request
-        .context_id
-        .unwrap_or_else(|| req_ctx.context_id().to_string());
+    let context_id = req_ctx.context_id().to_string();
     let session_env = SessionEnv {
         session_id: req_ctx.session_id().to_string(),
         context_id,

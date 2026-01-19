@@ -30,11 +30,16 @@ pub async fn execute_remote(
         .build()
         .context("Failed to create HTTP client")?;
 
-    let request_builder = client
+    let mut request_builder = client
         .post(&url)
         .header("Authorization", format!("Bearer {}", token))
-        .header("Accept", "text/event-stream")
-        .json(&request);
+        .header("Accept", "text/event-stream");
+
+    if !context_id.is_empty() {
+        request_builder = request_builder.header("x-context-id", context_id);
+    }
+
+    let request_builder = request_builder.json(&request);
 
     stream_response(request_builder).await
 }

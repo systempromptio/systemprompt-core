@@ -105,6 +105,10 @@ pub fn run_validation() -> Result<()> {
 
 /// Validates and warns about cloud credential status.
 pub fn validate_cloud_credentials() {
+    if std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_ok() {
+        return;
+    }
+
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {
             if creds.is_token_expired() {
