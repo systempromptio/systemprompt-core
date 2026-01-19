@@ -70,7 +70,6 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let database_url = &secrets.database_url;
     let jwt_secret = &secrets.jwt_secret;
 
-    // Connect to database
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
@@ -123,7 +122,6 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         })
         .context("Failed to generate session token")?;
 
-    // Save the session to the session file so it can be used for remote CLI commands
     save_session(
         profile_path,
         session_token.clone(),

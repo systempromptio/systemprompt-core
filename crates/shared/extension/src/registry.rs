@@ -56,9 +56,7 @@ impl ExtensionRegistry {
                 priority = ext_arc.priority(),
                 "Discovered extension"
             );
-            registry
-                .extensions
-                .insert(ext_id, Arc::clone(&ext_arc));
+            registry.extensions.insert(ext_id, Arc::clone(&ext_arc));
             registry.sorted_extensions.push(ext_arc);
         }
 
@@ -72,10 +70,10 @@ impl ExtensionRegistry {
 
         if registry.is_empty() {
             warn!(
-                "No extensions discovered via inventory. This may indicate LTO stripped \
-                 the inventory registrations, or no extensions were registered with \
-                 register_extension!(). Check that extension crates are linked and \
-                 #[used] attributes are present if using LTO."
+                "No extensions discovered via inventory. This may indicate LTO stripped the \
+                 inventory registrations, or no extensions were registered with \
+                 register_extension!(). Check that extension crates are linked and #[used] \
+                 attributes are present if using LTO."
             );
         } else {
             info!(

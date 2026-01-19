@@ -124,7 +124,8 @@ impl DiscoveredProject {
         self.systemprompt_dir.join(dir_names::STORAGE)
     }
 
-    /// Checks if this project has been initialized (has .systemprompt directory).
+    /// Checks if this project has been initialized (has .systemprompt
+    /// directory).
     #[must_use]
     pub fn is_initialized(&self) -> bool {
         self.systemprompt_dir.is_dir()

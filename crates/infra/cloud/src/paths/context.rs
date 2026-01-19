@@ -24,7 +24,8 @@ pub struct UnifiedContext {
 }
 
 impl UnifiedContext {
-    /// Creates a new context by discovering the project from the current directory.
+    /// Creates a new context by discovering the project from the current
+    /// directory.
     #[must_use]
     pub fn discover() -> Self {
         let project = DiscoveredProject::discover();
