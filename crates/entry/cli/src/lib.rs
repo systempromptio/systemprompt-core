@@ -213,7 +213,7 @@ pub async fn run() -> Result<()> {
     let (requires_profile, requires_secrets) = match &cli.command {
         Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
         Some(Commands::Setup(_) | Commands::Session(_)) => (false, false),
-        Some(Commands::Build(_)) => (true, false),
+        Some(Commands::Build(_) | Commands::System(_)) => (true, false),
         Some(_) | None => (true, true),
     };
 
@@ -388,7 +388,11 @@ fn validate_cloud_credentials() {
 const fn should_check_remote_routing(command: Option<&Commands>) -> bool {
     match command {
         Some(
-            Commands::Session(_) | Commands::Setup(_) | Commands::Cloud(_) | Commands::Build(_),
+            Commands::Session(_)
+            | Commands::Setup(_)
+            | Commands::Cloud(_)
+            | Commands::Build(_)
+            | Commands::System(_),
         )
         | None => false,
         Some(_) => true,
