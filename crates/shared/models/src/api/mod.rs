@@ -1,3 +1,4 @@
+pub mod cli_gateway;
 pub mod cloud;
 pub mod contexts;
 pub mod errors;
@@ -7,6 +8,7 @@ pub mod modules;
 pub mod pagination;
 pub mod responses;
 
+pub use cli_gateway::{CliExecuteRequest, CliOutputEvent};
 pub use cloud::{
     CheckoutEvent, CheckoutRequest, CheckoutResponse, CloudApiError, CloudApiErrorDetail,
     CloudApiResponse, CloudCustomerInfo, CloudListResponse, CloudLogEntry, CloudLogsResponse,
