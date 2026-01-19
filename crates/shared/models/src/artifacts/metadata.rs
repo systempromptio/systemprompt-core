@@ -1,5 +1,3 @@
-#![allow(clippy::trait_duplication_in_bounds)]
-
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -179,7 +177,7 @@ impl ExecutionMetadata {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct ToolResponse<T: JsonSchema> {
+pub struct ToolResponse<T> {
     pub artifact_id: ArtifactId,
     pub mcp_execution_id: McpExecutionId,
     pub artifact: T,
