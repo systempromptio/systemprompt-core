@@ -218,6 +218,39 @@ At runtime, `ExtensionRegistry::discover()` collects all registered extensions.
 
 ---
 
+### Unified Path Constants
+
+Path constants are centralized in `shared/models/src/paths/constants.rs` with re-exports in `infra/cloud/src/constants.rs` for backward compatibility.
+
+**Constant modules:**
+
+| Module | Purpose |
+|--------|---------|
+| `dir_names` | Directory names (`.systemprompt`, `profiles`, `docker`, `storage`) |
+| `file_names` | File names (`profile.yaml`, `secrets.json`, `credentials.json`, etc.) |
+| `cloud_container` | Container paths for Docker deployments (`/app`, `/app/bin`, etc.) |
+| `storage` | Storage subdirectory structure |
+| `build` | Build-related paths |
+
+**Usage:**
+
+```rust
+use systemprompt_models::paths::constants::{dir_names, file_names};
+
+let systemprompt_dir = root.join(dir_names::SYSTEMPROMPT);
+let credentials = systemprompt_dir.join(file_names::CREDENTIALS);
+```
+
+**Cloud crate re-exports** (with backward compatibility):
+
+```rust
+use systemprompt_cloud::constants::{container, paths, dir_names, file_names};
+
+let app_root = container::APP;  // backward-compatible alias for APP_ROOT
+```
+
+---
+
 ### Storage Path Constants
 
 Storage paths are centralized in `infra/cloud/src/constants.rs` to ensure consistency across core and extensions.
@@ -830,6 +863,94 @@ pub async fn execute(args: Args, config: &CliConfig) -> Result<CommandResult<Out
 | Context via API | Context IDs are created/fetched via Systemprompt API |
 | Local persistence | Session data stored locally in JSON (not cloud) |
 | Token fallback removed | No `--token` flag override - use cloud login |
+
+---
+
+### CLI Bootstrap System
+
+The CLI uses a type-safe bootstrap system with compile-time dependency enforcement.
+
+**Components:**
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `CommandRequirements` | `entry/cli/src/requirements.rs` | Specifies what initialization a command needs |
+| `HasRequirements` trait | Same file | Trait for commands to declare requirements |
+| `BootstrapSequence<S>` | `shared/models/src/bootstrap/mod.rs` | Type-state pattern for safe initialization order |
+| `bootstrap` module | `entry/cli/src/bootstrap.rs` | Bootstrap helper functions |
+
+**Command Requirements:**
+
+Commands declare their initialization needs via `HasRequirements`:
+
+```rust
+impl HasRequirements for Commands {
+    fn requirements(&self) -> CommandRequirements {
+        match self {
+            Self::Cloud(cmd) => cmd.requirements(),
+            Self::Setup(_) | Self::Session(_) => CommandRequirements::NONE,
+            Self::Build(_) | Self::Extensions(_) => CommandRequirements::PROFILE_ONLY,
+            Self::System(_) => CommandRequirements::PROFILE_AND_SECRETS,
+            _ => CommandRequirements::FULL,
+        }
+    }
+}
+```
+
+**Requirement presets:**
+
+| Preset | Profile | Secrets | Paths |
+|--------|---------|---------|-------|
+| `NONE` | No | No | No |
+| `PROFILE_ONLY` | Yes | No | No |
+| `PROFILE_AND_SECRETS` | Yes | Yes | No |
+| `FULL` | Yes | Yes | Yes |
+
+**Type-safe bootstrap sequence:**
+
+The `BootstrapSequence<S>` uses the type-state pattern to enforce initialization order at compile time:
+
+```rust
+BootstrapSequence::new()
+    .with_profile(&path)?      // Returns BootstrapSequence<ProfileInitialized>
+    .with_secrets()?           // Returns BootstrapSequence<SecretsInitialized>
+    .with_paths()?             // Returns BootstrapSequence<PathsInitialized>
+    .complete()                // Returns BootstrapComplete
+```
+
+Attempting to call `.with_secrets()` before `.with_profile()` is a compile-time error.
+
+---
+
+### Project Discovery
+
+The `DiscoveredProject` and `UnifiedContext` types provide unified project root discovery and path resolution.
+
+**Components:**
+
+| Type | Location | Purpose |
+|------|----------|---------|
+| `DiscoveredProject` | `infra/cloud/src/paths/discovery.rs` | Discovers project root by walking up for `.systemprompt` |
+| `UnifiedContext` | `infra/cloud/src/paths/context.rs` | Combines project discovery with cloud path resolution |
+
+**Usage:**
+
+```rust
+use systemprompt_cloud::{DiscoveredProject, UnifiedContext};
+
+// Simple discovery
+if let Some(project) = DiscoveredProject::discover() {
+    let creds = project.credentials_path();
+    let session = project.session_path();
+}
+
+// Unified context with profile paths
+let ctx = UnifiedContext::discover()
+    .with_profile_paths(&profile_dir, creds_path, tenants_path);
+
+let credentials = ctx.credentials_path();
+let session = ctx.session_path();
+```
 
 ---
 

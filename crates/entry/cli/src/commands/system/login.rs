@@ -12,6 +12,7 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{CliSession, ProjectContext};
+use systemprompt_core_agent::repository::context::ContextRepository;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
@@ -69,10 +70,16 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let database_url = &secrets.database_url;
     let jwt_secret = &secrets.jwt_secret;
 
+    // Connect to database
+    let db = Database::new_postgres(database_url)
+        .await
+        .context("Failed to connect to database")?;
+    let db_pool = DbPool::from(Arc::new(db));
+
     if !args.token_only {
         CliService::info(&format!("Fetching admin user: {}", email));
     }
-    let admin_user = fetch_admin_user(database_url, &email).await?;
+    let admin_user = fetch_admin_user(&db_pool, &email).await?;
 
     if !args.token_only {
         CliService::info("Creating session...");
@@ -83,6 +90,24 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         &admin_user.email,
     )
     .await?;
+
+    if !args.token_only {
+        CliService::info("Creating context...");
+    }
+    let profile_name = Path::new(profile_path)
+        .parent()
+        .and_then(|d| d.file_name())
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    let context_repo = ContextRepository::new(db_pool);
+    let context_id = context_repo
+        .create_context(
+            &admin_user.id,
+            Some(&session_id),
+            &format!("CLI Session - {}", profile_name),
+        )
+        .await
+        .context("Failed to create CLI context")?;
 
     if !args.token_only {
         CliService::info("Generating token...");
@@ -103,6 +128,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         profile_path,
         session_token.clone(),
         session_id.clone(),
+        context_id,
         admin_user.id.clone(),
         &admin_user.email,
     )?;
@@ -177,15 +203,8 @@ fn try_use_existing_session(args: &LoginArgs) -> Option<CommandResult<LoginOutpu
     Some(CommandResult::card(output).with_title("Existing Session"))
 }
 
-async fn fetch_admin_user(database_url: &str, email: &str) -> Result<User> {
-    let db = Database::new_postgres(database_url)
-        .await
-        .context("Failed to connect to database")?;
-
-    let db_arc = Arc::new(db);
-    let db_pool = DbPool::from(db_arc);
-
-    let user_service = UserService::new(&db_pool)?;
+async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<User> {
+    let user_service = UserService::new(db_pool)?;
     let user = user_service
         .find_by_email(email)
         .await
@@ -246,10 +265,12 @@ async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<Ses
     Ok(SessionId::new(session_response.session_id))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn save_session(
     profile_path: &str,
     session_token: systemprompt_identifiers::SessionToken,
     session_id: SessionId,
+    context_id: ContextId,
     user_id: systemprompt_identifiers::UserId,
     user_email: &str,
 ) -> Result<()> {
@@ -269,7 +290,7 @@ fn save_session(
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
 
-    let cli_session = CliSession::builder(profile_name, session_token, session_id, ContextId::new(String::new()))
+    let cli_session = CliSession::builder(profile_name, session_token, session_id, context_id)
         .with_profile_path(profile_path)
         .with_user(user_id, user_email)
         .build();
