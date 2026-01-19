@@ -192,8 +192,7 @@ impl Job for PublishContentJob {
     }
 
     fn description(&self) -> &'static str {
-        "Publishes content through the full pipeline: images, ingestion, prerender, sitemap, CSS, \
-         JS"
+        "Publishes content through the full pipeline: ingestion, prerender, sitemap, CSS, JS"
     }
 
     fn schedule(&self) -> &'static str {

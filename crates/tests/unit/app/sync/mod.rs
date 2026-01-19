@@ -28,12 +28,6 @@ use tempfile::TempDir;
 // ============================================================================
 
 #[test]
-fn test_sync_error_database_url_missing() {
-    let error = SyncError::DatabaseUrlMissing;
-    assert_eq!(error.to_string(), "Database URL not configured");
-}
-
-#[test]
 fn test_sync_error_api_error() {
     let error = SyncError::ApiError {
         status: 500,
@@ -116,7 +110,6 @@ fn test_sync_config_builder_defaults() {
     assert_eq!(config.direction, SyncDirection::Push);
     assert!(!config.dry_run);
     assert!(!config.verbose);
-    assert!(config.database_url.is_none());
 }
 
 #[test]
@@ -125,16 +118,11 @@ fn test_sync_config_builder_with_all_options() {
         .with_direction(SyncDirection::Pull)
         .with_dry_run(true)
         .with_verbose(true)
-        .with_database_url("postgres://localhost/db")
         .build();
 
     assert_eq!(config.direction, SyncDirection::Pull);
     assert!(config.dry_run);
     assert!(config.verbose);
-    assert_eq!(
-        config.database_url,
-        Some("postgres://localhost/db".to_string())
-    );
 }
 
 #[test]
@@ -439,6 +427,7 @@ fn test_database_export_full() {
     let now = Utc::now();
 
     let export = DatabaseExport {
+        users: vec![],
         skills: vec![SkillExport {
             skill_id: "skill_1".to_string(),
             file_path: "/skills/skill-1/index.md".to_string(),
@@ -470,6 +459,7 @@ fn test_database_export_full() {
 #[test]
 fn test_database_export_empty() {
     let export = DatabaseExport {
+        users: vec![],
         skills: vec![],
         contexts: vec![],
         timestamp: Utc::now(),
@@ -483,6 +473,7 @@ fn test_database_export_empty() {
 fn test_database_export_serialization() {
     let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
     let export = DatabaseExport {
+        users: vec![],
         skills: vec![],
         contexts: vec![],
         timestamp: now,
@@ -1092,8 +1083,9 @@ fn test_generate_content_markdown_structure() {
         category_id: None,
         source_id: SourceId::new("blog"),
         version_hash: "hash123".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: Some(Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).unwrap()),
+        updated_at: Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).unwrap(),
     };
 
     let markdown = generate_content_markdown(&content);
@@ -1127,14 +1119,15 @@ fn test_generate_content_markdown_no_image() {
         category_id: None,
         source_id: SourceId::new("blog"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let markdown = generate_content_markdown(&content);
 
     assert!(markdown.contains("image: \"\""));
-    assert!(markdown.contains("updated_at: \"\""));
+    assert!(markdown.contains("updated_at:"));
 }
 
 #[test]
@@ -1157,8 +1150,9 @@ fn test_export_content_to_file_docs() {
         category_id: None,
         source_id: SourceId::new("docs"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let result = export_content_to_file(&content, temp_dir.path(), "docs");
@@ -1191,8 +1185,9 @@ fn test_export_content_to_file_blog_creates_directory() {
         category_id: None,
         source_id: SourceId::new("blog"),
         version_hash: "hash".to_string(),
+        public: true,
         links: serde_json::json!([]),
-        updated_at: None,
+        updated_at: Utc::now(),
     };
 
     let result = export_content_to_file(&content, temp_dir.path(), "blog");
@@ -1310,6 +1305,7 @@ fn test_database_export_multiple_skills() {
         .collect();
 
     let export = DatabaseExport {
+        users: vec![],
         skills,
         contexts: vec![],
         timestamp: now,
@@ -1413,6 +1409,7 @@ fn test_file_manifest_roundtrip() {
 fn test_database_export_roundtrip() {
     let now = Utc::now();
     let original = DatabaseExport {
+        users: vec![],
         skills: vec![SkillExport {
             skill_id: "test_skill".to_string(),
             file_path: "/skills/test/index.md".to_string(),

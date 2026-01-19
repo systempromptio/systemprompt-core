@@ -5,7 +5,7 @@
 //! - LogEntry creation, builder pattern, and validation
 //! - LogFilter construction and accessor methods
 //! - LoggingError variants and display messages
-//! - OutputMode state management and mode switching
+//! - Startup mode state management
 //! - RetentionPolicy and RetentionConfig configuration
 //! - FieldVisitor and SpanContext field recording
 

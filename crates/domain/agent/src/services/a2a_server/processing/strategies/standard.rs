@@ -53,7 +53,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
             context.request_ctx.clone(),
         )
         .await
-        .map_err(|_| anyhow::anyhow!("Standard execution failed"))?;
+        .map_err(|()| anyhow::anyhow!("Standard execution failed - see stream errors for details"))?;
 
         if let Ok(step) = tracking.track_completion(task_id).await {
             if context

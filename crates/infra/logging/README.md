@@ -34,7 +34,7 @@ src/
     ├── database_log.rs             - DatabaseLogService implementing LogService trait
     │
     ├── output/
-    │   └── mod.rs                  - OutputMode, global output control
+    │   └── mod.rs                  - Startup mode control, log publisher
     │
     ├── spans/
     │   └── mod.rs                  - RequestSpan, SystemSpan, RequestSpanBuilder
@@ -64,5 +64,5 @@ src/
 - `AnalyticsRepository`, `AnalyticsEvent` - Analytics tracking
 - `RequestSpan`, `SystemSpan`, `RequestSpanBuilder` - Tracing context wrappers
 - `CliService` - CLI output facade
-- `OutputMode`, `set_output_mode()`, `is_console_output_enabled()` - Output routing
+- `is_startup_mode()`, `set_startup_mode()` - Startup mode control
 - `RetentionConfig`, `RetentionPolicy`, `RetentionScheduler` - Log lifecycle management
