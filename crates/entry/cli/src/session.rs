@@ -13,7 +13,7 @@ use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -59,6 +59,32 @@ impl CliSessionContext {
     }
 }
 
+fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
+    if std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_err() {
+        return None;
+    }
+
+    let session_id = std::env::var("SYSTEMPROMPT_SESSION_ID").ok()?;
+    let context_id = std::env::var("SYSTEMPROMPT_CONTEXT_ID").ok()?;
+    let user_id = std::env::var("SYSTEMPROMPT_USER_ID").ok()?;
+    let auth_token = std::env::var("SYSTEMPROMPT_AUTH_TOKEN").ok()?;
+
+    let session = CliSession::builder(
+        "remote",
+        SessionToken::new(auth_token),
+        SessionId::new(session_id),
+        ContextId::new(context_id),
+    )
+    .with_user(UserId::new(user_id), "remote@cli.local")
+    .with_user_type(UserType::Admin)
+    .build();
+
+    Some(CliSessionContext {
+        session,
+        profile: profile.clone(),
+    })
+}
+
 pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
     let profile = ProfileBootstrap::get()
         .map_err(|_| {
@@ -68,6 +94,10 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
             )
         })?
         .clone();
+
+    if let Some(ctx) = try_session_from_env(&profile) {
+        return Ok(ctx);
+    }
 
     let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
         anyhow::anyhow!("Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable.")
