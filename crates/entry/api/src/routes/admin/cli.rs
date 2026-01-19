@@ -41,22 +41,50 @@ async fn execute_cli(
         "CLI gateway: executing command"
     );
 
-    let stream = create_cli_stream(args, timeout);
+    let auth_token = req_ctx.auth_token().as_str();
+    let session_env = SessionEnv {
+        session_id: req_ctx.session_id().to_string(),
+        context_id: req_ctx.context_id().to_string(),
+        user_id: req_ctx.user_id().to_string(),
+        auth_token: if auth_token.is_empty() {
+            None
+        } else {
+            Some(auth_token.to_string())
+        },
+    };
+
+    let stream = create_cli_stream(args, timeout, session_env);
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
+}
+
+struct SessionEnv {
+    session_id: String,
+    context_id: String,
+    user_id: String,
+    auth_token: Option<String>,
 }
 
 fn create_cli_stream(
     args: Vec<String>,
     timeout: Duration,
+    session_env: SessionEnv,
 ) -> impl Stream<Item = Result<Event, Infallible>> {
     async_stream::stream! {
-        let mut child = match Command::new(CLI_BINARY_PATH)
-            .args(&args)
+        let mut cmd = Command::new(CLI_BINARY_PATH);
+        cmd.args(&args)
             .env("SYSTEMPROMPT_CLI_REMOTE", "1")
+            .env("SYSTEMPROMPT_SESSION_ID", &session_env.session_id)
+            .env("SYSTEMPROMPT_CONTEXT_ID", &session_env.context_id)
+            .env("SYSTEMPROMPT_USER_ID", &session_env.user_id)
             .stdout(std::process::Stdio::piped())
-            .stderr(std::process::Stdio::piped())
-            .spawn()
+            .stderr(std::process::Stdio::piped());
+
+        if let Some(token) = &session_env.auth_token {
+            cmd.env("SYSTEMPROMPT_AUTH_TOKEN", token);
+        }
+
+        let mut child = match cmd.spawn()
         {
             Ok(c) => c,
             Err(e) => {
