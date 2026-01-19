@@ -68,7 +68,19 @@ impl ProxyEngine {
             req_context = req_context.with_agent_name(AgentName::new(service_name.to_string()));
         }
 
+        let has_auth_before = headers.get("authorization").is_some();
+        let ctx_has_token = !req_context.auth_token().as_str().is_empty();
+
         HeaderInjector::inject_context(&mut headers, &req_context);
+
+        let has_auth_after = headers.get("authorization").is_some();
+        tracing::debug!(
+            service = %service_name,
+            has_auth_before = has_auth_before,
+            ctx_has_token = ctx_has_token,
+            has_auth_after = has_auth_after,
+            "Proxy forwarding request"
+        );
 
         let body = RequestBuilder::extract_body(request.into_body())
             .await

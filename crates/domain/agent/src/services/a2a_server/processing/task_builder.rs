@@ -1,10 +1,10 @@
 use crate::models::a2a::{
     Artifact, DataPart, Message, Part, Task, TaskState, TaskStatus, TextPart,
 };
-use crate::services::mcp::extract_artifact_id;
+use crate::services::mcp::parse_tool_response;
 use rmcp::model::{Content, RawContent};
 use serde_json::json;
-use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::{agent_names, ArtifactMetadata, TaskMetadata};
 use systemprompt_models::{CallToolResult, ToolCall};
 
@@ -315,7 +315,7 @@ pub fn build_multiturn_task(
             let is_error = result.is_error?;
 
             let structured_content = result.structured_content.as_ref()?;
-            let artifact_id = extract_artifact_id(structured_content).map(ArtifactId::new)?;
+            let parsed = parse_tool_response(structured_content).ok()?;
 
             let mut data_map = serde_json::Map::new();
             data_map.insert("call_id".to_string(), json!(call_id));
@@ -327,7 +327,7 @@ pub fn build_multiturn_task(
             );
 
             Some(Artifact {
-                id: artifact_id,
+                id: parsed.artifact_id,
                 name: Some(format!("tool_execution_{}", idx + 1)),
                 description: Some(format!("Result from tool: {tool_name}")),
                 parts: vec![Part::Data(DataPart { data: data_map })],
