@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::constants::paths;
+use crate::constants::{dir_names, paths};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ProjectPath {
@@ -8,6 +8,7 @@ pub enum ProjectPath {
     ProfilesDir,
     DockerDir,
     StorageDir,
+    SessionsDir,
     Dockerfile,
     LocalCredentials,
     LocalTenants,
@@ -22,6 +23,7 @@ impl ProjectPath {
             Self::ProfilesDir => &[paths::ROOT_DIR, paths::PROFILES_DIR],
             Self::DockerDir => &[paths::ROOT_DIR, paths::DOCKER_DIR],
             Self::StorageDir => &[paths::ROOT_DIR, paths::STORAGE_DIR],
+            Self::SessionsDir => &[paths::ROOT_DIR, dir_names::SESSIONS],
             Self::Dockerfile => &[paths::ROOT_DIR, paths::DOCKERFILE],
             Self::LocalCredentials => &[paths::ROOT_DIR, paths::CREDENTIALS_FILE],
             Self::LocalTenants => &[paths::ROOT_DIR, paths::TENANTS_FILE],
@@ -33,7 +35,7 @@ impl ProjectPath {
     pub const fn is_dir(&self) -> bool {
         matches!(
             self,
-            Self::Root | Self::ProfilesDir | Self::DockerDir | Self::StorageDir
+            Self::Root | Self::ProfilesDir | Self::DockerDir | Self::StorageDir | Self::SessionsDir
         )
     }
 
@@ -205,6 +207,11 @@ impl ProjectContext {
     #[must_use]
     pub fn local_session(&self) -> PathBuf {
         self.resolve(ProjectPath::LocalSession)
+    }
+
+    #[must_use]
+    pub fn sessions_dir(&self) -> PathBuf {
+        self.resolve(ProjectPath::SessionsDir)
     }
 
     #[must_use]

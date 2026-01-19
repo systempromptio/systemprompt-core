@@ -1,9 +1,9 @@
-//! Switch to a different profile.
-
 #![allow(clippy::single_match_else)]
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{get_cloud_paths, CliSession, CloudPath, ProfilePath, ProjectContext};
+use systemprompt_cloud::{
+    get_cloud_paths, CloudPath, ProfilePath, ProjectContext, SessionKey, SessionStore,
+};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::Profile;
 
@@ -26,54 +26,19 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
 
     let new_profile = load_profile(&profile_config_path)?;
     let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
+    let session_key = SessionKey::from_tenant_id(new_tenant_id.as_deref());
 
-    let session_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_session()
-    } else {
-        get_cloud_paths()
-            .context("Failed to resolve cloud paths")?
-            .resolve(CloudPath::CliSession)
-    };
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
 
-    match CliSession::load_from_path(&session_path) {
-        Ok(mut session) => {
-            if session.profile_name == profile_name {
-                if config.is_interactive() {
-                    CliService::info(&format!("Already using profile '{}'", profile_name));
-                }
-                return Ok(());
-            }
+    store.set_active(&session_key);
+    store.save(&sessions_dir)?;
 
-            let old_tenant_id = get_current_tenant_id(&project_ctx, &session);
-            let tenant_changed = old_tenant_id != new_tenant_id;
-
-            session.profile_name = profile_name.to_string();
-            session.profile_path = Some(profile_config_path.clone());
-
-            if tenant_changed {
-                session.session_token = String::new().into();
-                session.session_id = String::new().into();
-                session.context_id = String::new().into();
-            }
-
-            session.touch();
-            session.save_to_path(&session_path)?;
-
-            if tenant_changed && new_tenant_id.is_some() {
-                CliService::warning(
-                    "Tenant changed. Run 'systemprompt system login' to authenticate with the new \
-                     tenant.",
-                );
-            }
-        },
-        Err(_) => {
-            create_minimal_session(&session_path, profile_name, &profile_config_path)?;
-            if new_tenant_id.is_some() {
-                CliService::warning(
-                    "Run 'systemprompt system login' to authenticate with the tenant.",
-                );
-            }
-        },
+    let has_session = store.get_valid_session(&session_key).is_some();
+    if !has_session && new_tenant_id.is_some() {
+        CliService::warning(
+            "No session for this tenant. Run 'systemprompt system login' to authenticate.",
+        );
     }
 
     if config.is_interactive() {
@@ -82,65 +47,32 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
         if let Some(tid) = &new_tenant_id {
             CliService::key_value("Tenant", tid);
         }
+        if has_session {
+            CliService::info("Session available for this tenant");
+        }
     }
 
     Ok(())
+}
+
+fn resolve_session_paths(
+    project_ctx: &ProjectContext,
+) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>)> {
+    if project_ctx.systemprompt_dir().exists() {
+        Ok((
+            project_ctx.sessions_dir(),
+            Some(project_ctx.local_session()),
+        ))
+    } else {
+        let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
+        Ok((
+            cloud_paths.resolve(CloudPath::SessionsDir),
+            Some(cloud_paths.resolve(CloudPath::CliSession)),
+        ))
+    }
 }
 
 fn load_profile(path: &std::path::Path) -> Result<Profile> {
     let content = std::fs::read_to_string(path).context("Failed to read profile")?;
     Profile::parse(&content, path).context("Failed to parse profile")
-}
-
-fn get_current_tenant_id(_project_ctx: &ProjectContext, session: &CliSession) -> Option<String> {
-    let profile_path = session.profile_path.as_ref()?;
-    if !profile_path.exists() {
-        return None;
-    }
-    let profile = load_profile(profile_path).ok()?;
-    profile.cloud.as_ref().and_then(|c| c.tenant_id.clone())
-}
-
-fn create_minimal_session(
-    session_path: &std::path::Path,
-    profile_name: &str,
-    profile_config_path: &std::path::Path,
-) -> Result<()> {
-    use chrono::{Duration, Utc};
-    use serde_json::json;
-
-    let now = Utc::now();
-    let expires_at = now + Duration::hours(24);
-
-    let session_data = json!({
-        "version": 4,
-        "profile_name": profile_name,
-        "profile_path": profile_config_path,
-        "session_token": "",
-        "session_id": "",
-        "context_id": "",
-        "user_id": "system",
-        "user_email": "",
-        "user_type": "admin",
-        "created_at": now,
-        "expires_at": expires_at,
-        "last_used": now,
-    });
-
-    if let Some(dir) = session_path.parent() {
-        std::fs::create_dir_all(dir).context("Failed to create session directory")?;
-    }
-
-    let content = serde_json::to_string_pretty(&session_data)?;
-    std::fs::write(session_path, content).context("Failed to write session file")?;
-
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        let mut perms = std::fs::metadata(session_path)?.permissions();
-        perms.set_mode(0o600);
-        std::fs::set_permissions(session_path, perms)?;
-    }
-
-    Ok(())
 }

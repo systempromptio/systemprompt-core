@@ -14,6 +14,7 @@ pub mod dir_names {
     pub const DOCKER: &str = "docker";
     /// Directory for application storage.
     pub const STORAGE: &str = "storage";
+    pub const SESSIONS: &str = "sessions";
 }
 
 /// File names used throughout the application.
@@ -26,8 +27,8 @@ pub mod file_names {
     pub const CREDENTIALS: &str = "credentials.json";
     /// Tenants configuration file name.
     pub const TENANTS: &str = "tenants.json";
-    /// CLI session state file name.
     pub const SESSION: &str = "session.json";
+    pub const SESSIONS_INDEX: &str = "index.json";
     /// Dockerfile name.
     pub const DOCKERFILE: &str = "Dockerfile";
     /// Docker entrypoint script name.
