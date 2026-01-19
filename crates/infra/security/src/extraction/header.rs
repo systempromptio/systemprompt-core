@@ -26,11 +26,6 @@ impl HeaderExtractor {
             .map_or_else(AgentName::system, AgentName::new)
     }
 
-    pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
-        Self::extract_header(headers, headers::AUTHORIZATION)
-            .and_then(|s| s.strip_prefix("Bearer ").map(ToString::to_string))
-    }
-
     fn extract_header(headers: &HeaderMap, name: &str) -> Option<String> {
         headers
             .get(name)

@@ -12,7 +12,8 @@ use systemprompt_models::artifacts::types::ArtifactType;
 
 use metadata_builder::build_metadata;
 use parts_builder::build_parts;
-use type_inference::infer_type;
+
+pub use type_inference::infer_type;
 
 #[derive(Debug, Deserialize)]
 pub struct ParsedMetadata {
@@ -33,6 +34,20 @@ pub struct ParsedToolResponse {
 pub fn parse_tool_response(
     structured_content: &JsonValue,
 ) -> Result<ParsedToolResponse, ArtifactError> {
+    if structured_content.is_null() {
+        return Err(ArtifactError::MissingField {
+            field: "structured_content (received null)".to_string(),
+        });
+    }
+
+    if let Some(obj) = structured_content.as_object() {
+        if obj.is_empty() {
+            return Err(ArtifactError::MissingField {
+                field: "structured_content (received empty object {})".to_string(),
+            });
+        }
+    }
+
     serde_json::from_value(structured_content.clone()).map_err(|e| {
         let actual_keys = structured_content
             .as_object()
@@ -117,10 +132,14 @@ impl McpToA2aTransformer {
         let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
         let parts = build_parts(&parsed.artifact)?;
 
+        let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
+            .filter(|s| !s.is_empty())
+            .or_else(|| parsed.metadata.execution_id.clone());
+
         let mut metadata = build_metadata(
             &artifact_type,
             output_schema,
-            parsed.metadata.execution_id.clone(),
+            mcp_execution_id,
             context_id,
             task_id,
             tool_name,
@@ -158,10 +177,14 @@ impl McpToA2aTransformer {
         let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
         let parts = build_parts(&parsed.artifact)?;
 
+        let mcp_execution_id = Some(parsed.mcp_execution_id.to_string())
+            .filter(|s| !s.is_empty())
+            .or_else(|| parsed.metadata.execution_id.clone());
+
         let mut metadata = build_metadata(
             &artifact_type,
             output_schema,
-            parsed.metadata.execution_id.clone(),
+            mcp_execution_id,
             context_id,
             task_id,
             tool_name,

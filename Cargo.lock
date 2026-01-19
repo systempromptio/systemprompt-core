@@ -4626,6 +4626,7 @@ dependencies = [
  "systemprompt-core-analytics",
  "systemprompt-core-database",
  "systemprompt-core-logging",
+ "systemprompt-core-security",
  "systemprompt-core-users",
  "systemprompt-identifiers",
  "systemprompt-models",

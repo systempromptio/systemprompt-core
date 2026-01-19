@@ -108,7 +108,6 @@ impl MessageProcessor {
             context_service: self.context_service.clone(),
             skill_service: self.skill_service.clone(),
             execution_step_repo: self.execution_step_repo.clone(),
-            db_pool: self.db_pool.clone(),
         };
 
         let mut chunk_rx = stream_processor

@@ -5,11 +5,10 @@ use axum::http::HeaderMap;
 use systemprompt_core_oauth::{
     validate_jwt_token, CreateAnonymousSessionInput, SessionCreationService,
 };
+use systemprompt_core_security::TokenExtractor;
 use systemprompt_core_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_runtime::AppContext;
-
-use crate::services::middleware::jwt::extract_token_from_headers;
 
 #[derive(Debug, Clone)]
 pub struct SessionInfo {
@@ -27,7 +26,7 @@ pub async fn ensure_session(
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
 
-    if let Some(token) = extract_token_from_headers(headers) {
+    if let Ok(token) = TokenExtractor::browser_only().extract(headers) {
         if let Ok(claims) = validate_jwt_token(
             &token,
             jwt_secret,

@@ -12,7 +12,6 @@ use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategySelector,
 };
 use crate::services::{ContextService, SkillService};
-use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::{AgentName, TaskId};
 use systemprompt_models::{
     is_supported_audio, is_supported_image, is_supported_text, is_supported_video, AiContentPart,
@@ -25,7 +24,6 @@ pub struct StreamProcessor {
     pub context_service: ContextService,
     pub skill_service: Arc<SkillService>,
     pub execution_step_repo: Arc<ExecutionStepRepository>,
-    pub db_pool: DbPool,
 }
 
 impl StreamProcessor {
@@ -164,7 +162,6 @@ impl StreamProcessor {
             .clone()
             .with_task_id(task_id.clone())
             .with_context_id(context_id.clone());
-        let db_pool = self.db_pool.clone();
         let skill_service = self.skill_service.clone();
         let execution_step_repo = self.execution_step_repo.clone();
 
@@ -299,12 +296,9 @@ impl StreamProcessor {
             let artifacts = match build_artifacts_from_results(
                 &tool_results,
                 &tool_calls,
-                db_pool.clone(),
                 &context_id_str,
                 &task_id_str,
-            )
-            .await
-            {
+            ) {
                 Ok(artifacts) => artifacts,
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to build artifacts from tool results");
@@ -355,15 +349,12 @@ impl StreamProcessor {
     }
 }
 
-async fn build_artifacts_from_results(
+fn build_artifacts_from_results(
     tool_results: &[systemprompt_models::CallToolResult],
     tool_calls: &[systemprompt_models::ToolCall],
-    db_pool: DbPool,
     context_id_str: &str,
     task_id_str: &str,
 ) -> Result<Vec<Artifact>> {
-    use crate::services::a2a_server::processing::artifact::DatabaseExecutionIdLookup;
-
     if tool_results.is_empty() {
         tracing::info!("No tool_results - no artifacts expected");
         return Ok(Vec::new());
@@ -382,17 +373,14 @@ async fn build_artifacts_from_results(
         "Tool results contain structured_content - building A2A artifacts from agentic MCP calls"
     );
 
-    let execution_lookup = Arc::new(DatabaseExecutionIdLookup::new(db_pool));
-
     let artifact_builder = ArtifactBuilder::new(
         tool_calls.to_vec(),
         tool_results.to_vec(),
-        execution_lookup,
         context_id_str.to_string(),
         task_id_str.to_string(),
     );
 
-    artifact_builder.build_artifacts().await
+    artifact_builder.build_artifacts()
 }
 
 async fn synthesize_final_response(

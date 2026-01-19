@@ -3,9 +3,8 @@ use axum::http::HeaderMap;
 use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
+use systemprompt_core_security::TokenExtractor;
 use systemprompt_models::modules::ApiPaths;
-
-use super::jwt::extract_token_from_headers;
 
 #[derive(Debug, Clone)]
 pub struct ApiAuthMiddlewareConfig {
@@ -82,7 +81,7 @@ fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::Aut
     use systemprompt_models::SecretsBootstrap;
     use uuid::Uuid;
 
-    let token = extract_token_from_headers(headers)?;
+    let token = TokenExtractor::browser_only().extract(headers).ok()?;
 
     if token.trim().is_empty() {
         return None;

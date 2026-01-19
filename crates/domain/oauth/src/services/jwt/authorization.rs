@@ -1,8 +1,8 @@
-use super::extraction::TokenExtractor;
 use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
+use systemprompt_core_security::TokenExtractor;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use uuid::Uuid;
 
@@ -14,7 +14,9 @@ impl AuthorizationService {
         headers: &HeaderMap,
         service_name: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let token = TokenExtractor::extract_bearer_token(headers)?;
+        let token = TokenExtractor::standard()
+            .extract(headers)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
@@ -39,7 +41,9 @@ impl AuthorizationService {
         headers: &HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let token = TokenExtractor::extract_bearer_token(headers)?;
+        let token = TokenExtractor::standard()
+            .extract(headers)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
@@ -67,7 +71,9 @@ impl AuthorizationService {
         headers: &HeaderMap,
         allowed_audiences: &[&str],
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let token = TokenExtractor::extract_bearer_token(headers)?;
+        let token = TokenExtractor::standard()
+            .extract(headers)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =

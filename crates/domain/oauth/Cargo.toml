@@ -61,6 +61,7 @@ systemprompt-core-users = { path = "../users" }
 systemprompt-core-logging = { path = "../../infra/logging" }
 systemprompt-core-database = { path = "../../infra/database" }
 systemprompt-core-analytics = { path = "../analytics" }
+systemprompt-core-security = { path = "../../infra/security" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 

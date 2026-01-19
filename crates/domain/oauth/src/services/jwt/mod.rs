@@ -1,13 +1,11 @@
 pub mod authentication;
 pub mod authorization;
-pub mod extraction;
 
 use async_trait::async_trait;
 use systemprompt_models::auth::{AuthError, AuthenticatedUser};
 
 pub use authentication::AuthenticationService;
 pub use authorization::AuthorizationService;
-pub use extraction::TokenExtractor;
 
 #[async_trait]
 pub trait TokenValidator: Send + Sync {
@@ -15,16 +13,11 @@ pub trait TokenValidator: Send + Sync {
 }
 
 pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Result<String, AuthError> {
-    headers
-        .get("authorization")
-        .ok_or(AuthError::AuthenticationFailed {
-            message: "Authorization header missing".to_string(),
-        })?
-        .to_str()
-        .map_err(|_| AuthError::InvalidTokenFormat)?
-        .strip_prefix("Bearer ")
-        .ok_or(AuthError::InvalidTokenFormat)
-        .map(ToString::to_string)
+    systemprompt_core_security::TokenExtractor::standard()
+        .extract(headers)
+        .map_err(|_| AuthError::AuthenticationFailed {
+            message: "Authorization header missing or invalid".to_string(),
+        })
 }
 
 pub fn extract_cookie_token(headers: &axum::http::HeaderMap) -> Result<String, AuthError> {
@@ -58,7 +51,9 @@ impl AuthService {
     pub fn extract_bearer_token(
         headers: &axum::http::HeaderMap,
     ) -> Result<String, axum::http::StatusCode> {
-        TokenExtractor::extract_bearer_token(headers)
+        systemprompt_core_security::TokenExtractor::standard()
+            .extract(headers)
+            .map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
     }
 
     pub async fn authenticate(
