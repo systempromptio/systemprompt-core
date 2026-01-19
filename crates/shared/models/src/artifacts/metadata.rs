@@ -27,44 +27,58 @@ use crate::execution::context::RequestContext;
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ExecutionMetadata {
-    /// Context ID for the conversation/execution
+    #[schemars(with = "String")]
     pub context_id: ContextId,
 
-    /// Trace ID for distributed tracing
+    #[schemars(with = "String")]
     pub trace_id: TraceId,
 
-    /// Session ID for the user session
+    #[schemars(with = "String")]
     pub session_id: SessionId,
 
-    /// User ID of the authenticated user
+    #[schemars(with = "String")]
     pub user_id: UserId,
 
-    /// Name of the agent handling this request
+    #[schemars(with = "String")]
     pub agent_name: AgentName,
 
-    /// Timestamp when the metadata was created
     #[schemars(with = "String")]
     pub timestamp: DateTime<Utc>,
 
-    /// Optional task ID for AI operations
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
     pub task_id: Option<TaskId>,
 
-    /// Optional tool name for the operation
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
 
-    /// Optional skill ID
     #[serde(skip_serializing_if = "Option::is_none")]
+    #[schemars(with = "Option<String>")]
     pub skill_id: Option<SkillId>,
 
-    /// Optional skill name
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_name: Option<String>,
 
-    /// Optional execution ID for tracking
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_id: Option<String>,
+}
+
+impl Default for ExecutionMetadata {
+    fn default() -> Self {
+        Self {
+            context_id: ContextId::new("default"),
+            trace_id: TraceId::new("default"),
+            session_id: SessionId::new("default"),
+            user_id: UserId::new("default"),
+            agent_name: AgentName::new("default"),
+            timestamp: Utc::now(),
+            task_id: None,
+            tool_name: None,
+            skill_id: None,
+            skill_name: None,
+            execution_id: None,
+        }
+    }
 }
 
 /// Builder for `ExecutionMetadata`.
