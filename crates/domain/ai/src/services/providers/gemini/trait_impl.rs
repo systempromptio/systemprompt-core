@@ -59,7 +59,8 @@ impl AiProvider for GeminiProvider {
             | "gemini-2.5-flash-preview-04-17"
             | "gemini-2.5-flash-preview-09-2025" => ModelPricing::new(0.0003, 0.0025),
             "gemini-1.5-pro" => ModelPricing::new(0.00125, 0.005),
-            "gemini-2.0-flash-lite"
+            "gemini-2.5-flash-lite"
+            | "gemini-2.0-flash-lite"
             | "gemini-1.5-flash"
             | "gemini-1.5-flash-8b"
             | "gemini-1.5-flash-latest" => ModelPricing::new(0.000_075, 0.0003),

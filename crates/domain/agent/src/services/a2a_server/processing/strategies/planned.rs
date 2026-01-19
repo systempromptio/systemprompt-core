@@ -352,7 +352,8 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                 }
 
                 // Capture tool errors BEFORE attempting AI synthesis
-                // This ensures we don't lose tool errors if AI fails with MALFORMED_FUNCTION_CALL
+                // This ensures we don't lose tool errors if AI fails with
+                // MALFORMED_FUNCTION_CALL
                 let tool_error_message: Option<String> = if has_failures {
                     Some(
                         state

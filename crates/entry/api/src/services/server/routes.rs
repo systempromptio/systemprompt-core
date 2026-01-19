@@ -151,6 +151,14 @@ pub fn configure_routes(
             .with_auth_middleware(user_middleware.clone()),
     );
 
+    router = router.nest(
+        "/api/v1/admin",
+        crate::routes::admin::router()
+            .with_state(ctx.clone())
+            .with_rate_limit(rate_config, 10)
+            .with_auth_middleware(user_middleware.clone()),
+    );
+
     router = mount_extension_routes(router, ctx, &user_middleware, events)?;
 
     let paths = match AppPaths::get() {

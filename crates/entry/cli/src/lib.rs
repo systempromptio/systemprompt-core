@@ -1,6 +1,7 @@
 pub mod cli_settings;
 mod commands;
 mod presentation;
+mod routing;
 pub mod session;
 pub mod shared;
 
@@ -179,6 +180,9 @@ enum Commands {
     #[command(subcommand, about = "System authentication and session management")]
     System(system::SystemCommands),
 
+    #[command(subcommand, about = "Manage CLI session and profile switching")]
+    Session(commands::session::SessionCommands),
+
     #[command(about = "Interactive setup wizard for local development environment")]
     Setup(setup::SetupArgs),
 }
@@ -208,7 +212,7 @@ pub async fn run() -> Result<()> {
 
     let (requires_profile, requires_secrets) = match &cli.command {
         Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
-        Some(Commands::Setup(_)) => (false, false),
+        Some(Commands::Setup(_) | Commands::Session(_)) => (false, false),
         Some(Commands::Build(_)) => (true, false),
         Some(_) | None => (true, true),
     };
@@ -261,6 +265,18 @@ pub async fn run() -> Result<()> {
         }
 
         validate_cloud_credentials();
+
+        if should_check_remote_routing(cli.command.as_ref()) {
+            if let Ok(routing::ExecutionTarget::Remote { hostname, token }) =
+                routing::determine_execution_target()
+            {
+                let args = reconstruct_args(&cli);
+                let exit_code =
+                    routing::remote::execute_remote(&hostname, &token, &args, 300).await?;
+                #[allow(clippy::exit)]
+                std::process::exit(exit_code);
+            }
+        }
     }
 
     match cli.command {
@@ -285,6 +301,7 @@ pub async fn run() -> Result<()> {
         Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
         Some(Commands::Ext(cmd)) => ext::execute(cmd, &cli_config).await?,
         Some(Commands::System(cmd)) => system::execute(cmd).await?,
+        Some(Commands::Session(cmd)) => commands::session::execute(cmd, &cli_config)?,
         Some(Commands::Setup(args)) => {
             let result = setup::execute(args, &cli_config).await?;
             shared::render_result(&result);
@@ -366,4 +383,62 @@ fn validate_cloud_credentials() {
             CliService::error(&format!("Cloud credential error: {}", e));
         },
     }
+}
+
+const fn should_check_remote_routing(command: Option<&Commands>) -> bool {
+    match command {
+        Some(
+            Commands::Session(_) | Commands::Setup(_) | Commands::Cloud(_) | Commands::Build(_),
+        )
+        | None => false,
+        Some(_) => true,
+    }
+}
+
+fn reconstruct_args(cli: &Cli) -> Vec<String> {
+    let mut args = Vec::new();
+
+    if cli.verbosity.debug {
+        args.push("--debug".to_string());
+    } else if cli.verbosity.verbose {
+        args.push("--verbose".to_string());
+    } else if cli.verbosity.quiet {
+        args.push("--quiet".to_string());
+    }
+
+    if cli.output.json {
+        args.push("--json".to_string());
+    } else if cli.output.yaml {
+        args.push("--yaml".to_string());
+    }
+
+    if cli.display.no_color {
+        args.push("--no-color".to_string());
+    }
+
+    if cli.display.non_interactive {
+        args.push("--non-interactive".to_string());
+    }
+
+    let original_args: Vec<String> = std::env::args().skip(1).collect();
+    for arg in &original_args {
+        if !args.contains(arg)
+            && !matches!(
+                arg.as_str(),
+                "--debug"
+                    | "--verbose"
+                    | "-v"
+                    | "--quiet"
+                    | "-q"
+                    | "--json"
+                    | "--yaml"
+                    | "--no-color"
+                    | "--non-interactive"
+            )
+        {
+            args.push(arg.clone());
+        }
+    }
+
+    args
 }

@@ -4127,6 +4127,7 @@ dependencies = [
  "dirs",
  "dotenvy",
  "futures",
+ "futures-util",
  "indicatif",
  "inventory",
  "jsonwebtoken",
@@ -4134,6 +4135,7 @@ dependencies = [
  "rand 0.9.2",
  "regex",
  "reqwest",
+ "reqwest-eventsource",
  "rmcp",
  "schemars",
  "serde",
@@ -4356,6 +4358,7 @@ name = "systemprompt-core-api"
 version = "0.0.1"
 dependencies = [
  "anyhow",
+ "async-stream",
  "async-trait",
  "axum 0.8.8",
  "chrono",

@@ -13,6 +13,7 @@ pub mod jobs;
 pub mod logs;
 pub mod mcp;
 pub mod services;
+pub mod session;
 pub mod setup;
 pub mod shared;
 pub mod skills;

@@ -132,6 +132,6 @@ impl AiService {
         let input_cost = (input / 1000.0) * f64::from(pricing.input_cost_per_1k);
         let output_cost = (output / 1000.0) * f64::from(pricing.output_cost_per_1k);
 
-        ((input_cost + output_cost) * 1_000_000.0).round() as i32
+        ((input_cost + output_cost) * 100.0).round() as i32
     }
 }
