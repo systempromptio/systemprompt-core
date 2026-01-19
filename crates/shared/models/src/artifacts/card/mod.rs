@@ -1,9 +1,11 @@
 use crate::artifacts::metadata::ExecutionMetadata;
 use crate::artifacts::traits::Artifact;
 use crate::artifacts::types::ArtifactType;
+use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value as JsonValue};
+use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
 pub struct PresentationCardResponse {
@@ -112,7 +114,7 @@ fn default_card_artifact_type() -> String {
 }
 
 impl PresentationCardArtifact {
-    pub fn new(title: impl Into<String>) -> Self {
+    pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "presentation_card".to_string(),
             title: title.into(),
@@ -123,7 +125,7 @@ impl PresentationCardArtifact {
             execution_id: None,
             skill_id: None,
             skill_name: None,
-            metadata: ExecutionMetadata::default(),
+            metadata: ExecutionMetadata::with_request(ctx),
         }
     }
 
@@ -157,19 +159,18 @@ impl PresentationCardArtifact {
         self
     }
 
-    pub fn with_execution_id(mut self, id: String) -> Self {
-        self.execution_id = Some(id.clone());
-        self.metadata.execution_id = Some(id);
+    pub fn with_execution_id(mut self, id: impl Into<String>) -> Self {
+        let id_str = id.into();
+        self.execution_id = Some(id_str.clone());
+        self.metadata.execution_id = Some(id_str);
         self
     }
 
-    pub fn with_skill(
-        mut self,
-        skill_id: impl Into<String>,
-        skill_name: impl Into<String>,
-    ) -> Self {
-        self.skill_id = Some(skill_id.into());
+    pub fn with_skill(mut self, skill_id: impl Into<SkillId>, skill_name: impl Into<String>) -> Self {
+        let id = skill_id.into();
+        self.skill_id = Some(id.as_str().to_string());
         self.skill_name = Some(skill_name.into());
+        self.metadata.skill_id = Some(id);
         self
     }
 }
