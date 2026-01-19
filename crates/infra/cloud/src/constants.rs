@@ -32,24 +32,21 @@ pub mod checkout {
 }
 
 pub mod credentials {
-    use super::dir_names;
-    use super::file_names;
+    use super::{dir_names, file_names};
 
     pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
     pub const DEFAULT_FILE_NAME: &str = file_names::CREDENTIALS;
 }
 
 pub mod tenants {
-    use super::dir_names;
-    use super::file_names;
+    use super::{dir_names, file_names};
 
     pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
     pub const DEFAULT_FILE_NAME: &str = file_names::TENANTS;
 }
 
 pub mod cli_session {
-    use super::dir_names;
-    use super::file_names;
+    use super::{dir_names, file_names};
 
     pub const DEFAULT_DIR_NAME: &str = dir_names::SYSTEMPROMPT;
     pub const DEFAULT_FILE_NAME: &str = file_names::SESSION;
@@ -82,10 +79,10 @@ pub mod regions {
     ];
 }
 
-/// Path constants - re-exports from unified module with backward-compatible names.
+/// Path constants - re-exports from unified module with backward-compatible
+/// names.
 pub mod paths {
-    use super::dir_names;
-    use super::file_names;
+    use super::{dir_names, file_names};
 
     pub const ROOT_DIR: &str = dir_names::SYSTEMPROMPT;
     pub const PROFILES_DIR: &str = dir_names::PROFILES;

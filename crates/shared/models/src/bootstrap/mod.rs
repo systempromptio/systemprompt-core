@@ -66,9 +66,8 @@ impl BootstrapSequence<Uninitialized> {
     /// This must be called first before secrets or paths can be initialized.
     #[allow(clippy::unused_self)]
     pub fn with_profile(self, path: &Path) -> Result<BootstrapSequence<ProfileInitialized>> {
-        ProfileBootstrap::init_from_path(path).with_context(|| {
-            format!("Profile initialization failed from: {}", path.display())
-        })?;
+        ProfileBootstrap::init_from_path(path)
+            .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
 
         Ok(BootstrapSequence {
             _state: PhantomData,

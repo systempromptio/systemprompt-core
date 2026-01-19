@@ -1,7 +1,8 @@
 //! Unified path constants for the SystemPrompt application.
 //!
 //! This module centralizes all path-related constants to ensure a single source
-//! of truth across the codebase. Import from here rather than duplicating constants.
+//! of truth across the codebase. Import from here rather than duplicating
+//! constants.
 
 /// Directory names used throughout the application.
 pub mod dir_names {

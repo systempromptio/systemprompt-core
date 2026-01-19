@@ -10,7 +10,9 @@ use systemprompt_cloud::{CliSession, CredentialsBootstrap, ProjectContext};
 use systemprompt_core_files::FilesConfig;
 use systemprompt_core_logging::CliService;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
-use systemprompt_runtime::{display_validation_report, display_validation_warnings, StartupValidator};
+use systemprompt_runtime::{
+    display_validation_report, display_validation_warnings, StartupValidator,
+};
 
 use crate::requirements::CommandRequirements;
 use crate::shared::resolve_profile_path;
