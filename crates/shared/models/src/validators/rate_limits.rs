@@ -56,13 +56,13 @@ impl DomainConfig for RateLimitsConfigValidator {
 
 impl RateLimitsConfigValidator {
     fn validate_stream_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
-        if config.stream_per_second < 5 {
+        if config.stream_per_second < 10 {
             report.add_warning(
                 ValidationWarning::new(
                     "rate_limits.stream_per_second",
                     format!(
-                        "stream_per_second={} is very restrictive. Users may experience \
-                         connection issues.",
+                        "stream_per_second={} is restrictive. Users may experience connection \
+                         issues.",
                         config.stream_per_second
                     ),
                 )
@@ -100,7 +100,7 @@ impl RateLimitsConfigValidator {
     }
 
     fn validate_agent_limits(report: &mut ValidationReport, config: &RateLimitConfig) {
-        if config.agents_per_second < 3 {
+        if config.agents_per_second < 5 {
             report.add_warning(
                 ValidationWarning::new(
                     "rate_limits.agents_per_second",
@@ -109,7 +109,7 @@ impl RateLimitsConfigValidator {
                         config.agents_per_second
                     ),
                 )
-                .with_suggestion("Consider at least 3 for stable agent operations"),
+                .with_suggestion("Consider at least 10 for stable agent operations"),
             );
         }
 
@@ -122,7 +122,7 @@ impl RateLimitsConfigValidator {
                         config.contexts_per_second
                     ),
                 )
-                .with_suggestion("Consider at least 20 for responsive context management"),
+                .with_suggestion("Consider at least 50 for responsive context management"),
             );
         }
     }

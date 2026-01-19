@@ -101,40 +101,40 @@ pub struct RateLimitsConfig {
 }
 
 pub const fn default_oauth_public() -> u64 {
-    2
+    10
 }
 pub const fn default_oauth_auth() -> u64 {
-    2
+    10
 }
 pub const fn default_contexts() -> u64 {
-    50
-}
-pub const fn default_tasks() -> u64 {
-    10
-}
-pub const fn default_artifacts() -> u64 {
-    15
-}
-pub const fn default_agent_registry() -> u64 {
-    20
-}
-pub const fn default_agents() -> u64 {
-    3
-}
-pub const fn default_mcp_registry() -> u64 {
-    20
-}
-pub const fn default_mcp() -> u64 {
     100
 }
-pub const fn default_stream() -> u64 {
-    10
+pub const fn default_tasks() -> u64 {
+    50
 }
-pub const fn default_content() -> u64 {
+pub const fn default_artifacts() -> u64 {
+    50
+}
+pub const fn default_agent_registry() -> u64 {
+    50
+}
+pub const fn default_agents() -> u64 {
     20
 }
+pub const fn default_mcp_registry() -> u64 {
+    50
+}
+pub const fn default_mcp() -> u64 {
+    200
+}
+pub const fn default_stream() -> u64 {
+    100
+}
+pub const fn default_content() -> u64 {
+    50
+}
 pub const fn default_burst() -> u64 {
-    2
+    3
 }
 
 impl Default for RateLimitsConfig {
