@@ -5,7 +5,7 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_core_analytics::AnalyticsService;
 use systemprompt_core_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
-use systemprompt_core_security::HeaderExtractor;
+use systemprompt_core_security::{HeaderExtractor, TokenExtractor};
 use systemprompt_core_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, SessionSource, UserId};
 use systemprompt_models::api::ApiError;
@@ -15,7 +15,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 use uuid::Uuid;
 
-use super::jwt::{extract_token_from_headers, JwtExtractor};
+use super::jwt::JwtExtractor;
 
 #[derive(Clone, Debug)]
 pub struct SessionMiddleware {
@@ -79,7 +79,7 @@ impl SessionMiddleware {
                 .with_tracked(false);
                 (ctx, None)
             } else {
-                let token_result = extract_token_from_headers(headers);
+                let token_result = TokenExtractor::browser_only().extract(headers).ok();
 
                 let (session_id, user_id, jwt_token, jwt_cookie) = if let Some(token) = token_result
                 {

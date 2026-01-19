@@ -1,37 +1,9 @@
 use anyhow::{anyhow, Result};
-use axum::http::{header, HeaderMap};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
 use systemprompt_core_oauth::models::JwtClaims;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
-
-pub fn extract_token_from_headers(headers: &HeaderMap) -> Option<String> {
-    if let Some(auth_header) = headers.get(header::AUTHORIZATION) {
-        if let Ok(auth_str) = auth_header.to_str() {
-            if let Some(token) = auth_str.strip_prefix("Bearer ") {
-                if !token.is_empty() {
-                    return Some(token.to_string());
-                }
-            }
-        }
-    }
-
-    if let Some(cookie_header) = headers.get(header::COOKIE) {
-        if let Ok(cookie_str) = cookie_header.to_str() {
-            for cookie in cookie_str.split(';') {
-                let cookie = cookie.trim();
-                if let Some(value) = cookie.strip_prefix("access_token=") {
-                    if !value.is_empty() {
-                        return Some(value.to_string());
-                    }
-                }
-            }
-        }
-    }
-
-    None
-}
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {

@@ -1,7 +1,7 @@
-use super::extraction::TokenExtractor;
 use crate::services::validation::jwt as jwt_validation;
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
+use systemprompt_core_security::TokenExtractor;
 use systemprompt_models::auth::AuthenticatedUser;
 use uuid::Uuid;
 
@@ -10,7 +10,9 @@ pub struct AuthenticationService;
 
 impl AuthenticationService {
     pub async fn authenticate(headers: &HeaderMap) -> Result<AuthenticatedUser, StatusCode> {
-        let token = TokenExtractor::extract_bearer_token(headers)?;
+        let token = TokenExtractor::standard()
+            .extract(headers)
+            .map_err(|_| StatusCode::UNAUTHORIZED)?;
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =

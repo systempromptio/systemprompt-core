@@ -6,16 +6,17 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_core_database::DbPool;
-use systemprompt_core_security::HeaderExtractor;
+use systemprompt_core_security::{HeaderExtractor, TokenExtractor};
 use systemprompt_core_users::UserService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 
-use super::token::{extract_token_from_headers, JwtExtractor, JwtUserContext};
+use super::token::{JwtExtractor, JwtUserContext};
 
 #[derive(Debug, Clone)]
 pub struct JwtContextExtractor {
     jwt_extractor: Arc<JwtExtractor>,
+    token_extractor: TokenExtractor,
     db_pool: DbPool,
 }
 
@@ -23,6 +24,7 @@ impl JwtContextExtractor {
     pub fn new(jwt_secret: &str, db_pool: &DbPool) -> Self {
         Self {
             jwt_extractor: Arc::new(JwtExtractor::new(jwt_secret)),
+            token_extractor: TokenExtractor::browser_only(),
             db_pool: db_pool.clone(),
         }
     }
@@ -31,8 +33,10 @@ impl JwtContextExtractor {
         &self,
         headers: &HeaderMap,
     ) -> Result<JwtUserContext, ContextExtractionError> {
-        let token =
-            extract_token_from_headers(headers).ok_or(ContextExtractionError::MissingAuthHeader)?;
+        let token = self
+            .token_extractor
+            .extract(headers)
+            .map_err(|_| ContextExtractionError::MissingAuthHeader)?;
         self.jwt_extractor
             .extract_user_context(&token)
             .map_err(|e| ContextExtractionError::InvalidToken(e.to_string()))
@@ -72,12 +76,13 @@ impl JwtContextExtractor {
     }
 
     fn extract_common_headers(
+        &self,
         headers: &HeaderMap,
     ) -> (TraceId, Option<TaskId>, Option<String>, AgentName) {
         (
             HeaderExtractor::extract_trace_id(headers),
             HeaderExtractor::extract_task_id(headers),
-            HeaderExtractor::extract_bearer_token(headers),
+            self.token_extractor.extract(headers).ok(),
             HeaderExtractor::extract_agent_name(headers),
         )
     }
@@ -158,7 +163,7 @@ impl JwtContextExtractor {
                 |s| ContextId::new(s.to_string()),
             );
 
-        let (trace_id, task_id, auth_token, agent_name) = Self::extract_common_headers(headers);
+        let (trace_id, task_id, auth_token, agent_name) = self.extract_common_headers(headers);
 
         Ok(Self::build_context(
             &jwt_context,
@@ -224,7 +229,7 @@ impl JwtContextExtractor {
         };
 
         let (trace_id, task_id_from_header, auth_token, agent_name) =
-            Self::extract_common_headers(&headers);
+            self.extract_common_headers(&headers);
 
         let task_id = task_id_from_payload.or(task_id_from_header);
 

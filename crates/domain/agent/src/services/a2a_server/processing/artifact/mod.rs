@@ -1,14 +1,11 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use chrono::Utc;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
-use systemprompt_identifiers::{AgentName, AiToolCallId, ContextId, TaskId};
-use systemprompt_models::a2a::ArtifactMetadata;
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::{AiProvider, CallToolResult, McpTool, RequestContext, ToolCall};
 
-use crate::models::a2a::{Artifact, Part, TextPart};
-use crate::services::mcp::parse_tool_response;
+use crate::models::a2a::Artifact;
+use crate::services::mcp::McpToA2aTransformer;
 
 #[async_trait]
 pub trait ToolProvider: Send + Sync {
@@ -17,11 +14,6 @@ pub trait ToolProvider: Send + Sync {
         agent_name: &AgentName,
         context: &RequestContext,
     ) -> Result<Vec<McpTool>>;
-}
-
-#[async_trait]
-pub trait ExecutionIdLookup: Send + Sync {
-    async fn get_mcp_execution_id(&self, ai_tool_call_id: &AiToolCallId) -> Result<Option<String>>;
 }
 
 pub struct AiServiceToolProvider {
@@ -56,35 +48,9 @@ impl ToolProvider for AiServiceToolProvider {
 }
 
 #[derive(Debug)]
-pub struct DatabaseExecutionIdLookup {
-    db_pool: DbPool,
-}
-
-impl DatabaseExecutionIdLookup {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
-    }
-}
-
-#[async_trait]
-impl ExecutionIdLookup for DatabaseExecutionIdLookup {
-    async fn get_mcp_execution_id(&self, ai_tool_call_id: &AiToolCallId) -> Result<Option<String>> {
-        use systemprompt_core_mcp::repository::ToolUsageRepository;
-
-        let tool_usage_repo = ToolUsageRepository::new(&self.db_pool)?;
-        match tool_usage_repo.find_by_ai_call_id(ai_tool_call_id).await {
-            Ok(Some(exec_id)) => Ok(Some(exec_id.to_string())),
-            Ok(None) => Ok(None),
-            Err(e) => Err(e),
-        }
-    }
-}
-
-#[derive(Debug)]
 pub struct ArtifactBuilder {
     tool_calls: Vec<ToolCall>,
     tool_results: Vec<CallToolResult>,
-    execution_lookup: Arc<DatabaseExecutionIdLookup>,
     context_id: String,
     task_id: String,
 }
@@ -93,79 +59,37 @@ impl ArtifactBuilder {
     pub const fn new(
         tool_calls: Vec<ToolCall>,
         tool_results: Vec<CallToolResult>,
-        execution_lookup: Arc<DatabaseExecutionIdLookup>,
         context_id: String,
         task_id: String,
     ) -> Self {
         Self {
             tool_calls,
             tool_results,
-            execution_lookup,
             context_id,
             task_id,
         }
     }
 
-    pub async fn build_artifacts(&self) -> Result<Vec<Artifact>> {
+    pub fn build_artifacts(&self) -> Result<Vec<Artifact>> {
         let mut artifacts = Vec::new();
 
         for (index, result) in self.tool_results.iter().enumerate() {
             if let Some(structured_content) = &result.structured_content {
                 if let Some(tool_call) = self.tool_calls.get(index) {
-                    let parsed = parse_tool_response(structured_content).map_err(|e| {
-                        anyhow::anyhow!(
-                            "Tool '{}' structured_content parse failed: {e}",
-                            tool_call.name
-                        )
+                    let mut artifact = McpToA2aTransformer::transform_from_json(
+                        &tool_call.name,
+                        structured_content,
+                        None,
+                        &self.context_id,
+                        &self.task_id,
+                        Some(&tool_call.arguments),
+                    )
+                    .map_err(|e| {
+                        anyhow::anyhow!("Tool '{}' artifact transform failed: {e}", tool_call.name)
                     })?;
 
-                    let mcp_execution_id = match self
-                        .execution_lookup
-                        .get_mcp_execution_id(&tool_call.ai_tool_call_id)
-                        .await
-                    {
-                        Ok(id) => id,
-                        Err(e) => {
-                            tracing::warn!(
-                                error = %e,
-                                ai_tool_call_id = %tool_call.ai_tool_call_id,
-                                "Failed to lookup MCP execution ID"
-                            );
-                            None
-                        },
-                    };
+                    artifact.metadata = artifact.metadata.with_execution_index(index);
 
-                    let mut metadata = ArtifactMetadata {
-                        artifact_type: "mcp_tool_result".to_string(),
-                        context_id: ContextId::new(self.context_id.clone()),
-                        created_at: Utc::now().to_rfc3339(),
-                        task_id: TaskId::new(self.task_id.clone()),
-                        rendering_hints: None,
-                        source: Some("mcp_tool".to_string()),
-                        mcp_execution_id,
-                        mcp_schema: None,
-                        is_internal: None,
-                        fingerprint: None,
-                        tool_name: Some(tool_call.name.clone()),
-                        execution_index: Some(index),
-                        skill_id: None,
-                        skill_name: None,
-                    };
-
-                    if let Some(sid) = &parsed.metadata.skill_id {
-                        metadata = metadata.with_skill_id(sid.clone());
-                    }
-
-                    let artifact = Artifact {
-                        id: parsed.artifact_id,
-                        name: Some(tool_call.name.clone()),
-                        description: None,
-                        parts: vec![Part::Text(TextPart {
-                            text: structured_content.to_string(),
-                        })],
-                        extensions: Vec::new(),
-                        metadata,
-                    };
                     artifacts.push(artifact);
                 }
             }
