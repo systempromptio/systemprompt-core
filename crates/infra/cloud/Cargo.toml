@@ -53,3 +53,6 @@ systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-client = { path = "../../shared/client" }
 systemprompt-core-logging = { path = "../logging" }
+
+[dev-dependencies]
+tempfile.workspace = true
