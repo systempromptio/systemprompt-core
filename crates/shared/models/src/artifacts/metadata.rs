@@ -1,3 +1,5 @@
+#![allow(clippy::trait_duplication_in_bounds)]
+
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -155,8 +157,13 @@ impl ExecutionMetadata {
     }
 
     pub fn schema() -> JsonValue {
-        serde_json::to_value(schemars::schema_for!(Self))
-            .expect("ExecutionMetadata schema serialization cannot fail")
+        match serde_json::to_value(schemars::schema_for!(Self)) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "ExecutionMetadata schema serialization failed");
+                JsonValue::Null
+            },
+        }
     }
 
     pub fn to_meta(&self) -> Option<rmcp::model::Meta> {
@@ -216,7 +223,12 @@ impl<T: Serialize + JsonSchema> ToolResponse<T> {
 
 impl<T: JsonSchema> ToolResponse<T> {
     pub fn schema() -> JsonValue {
-        serde_json::to_value(schemars::schema_for!(Self))
-            .expect("ToolResponse schema serialization cannot fail")
+        match serde_json::to_value(schemars::schema_for!(Self)) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "ToolResponse schema serialization failed");
+                JsonValue::Null
+            },
+        }
     }
 }
