@@ -5,7 +5,9 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use serde::{Deserialize, Serialize};
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
-use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath};
+use systemprompt_cloud::{
+    CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, ProjectContext,
+};
 use systemprompt_core_agent::repository::context::ContextRepository;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
@@ -81,9 +83,14 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         .ok_or_else(|| anyhow::anyhow!("Invalid profile directory name"))?
         .to_string();
 
-    let cloud_paths =
-        get_cloud_paths().context("Failed to resolve cloud paths from profile configuration")?;
-    let session_path = cloud_paths.resolve(CloudPath::CliSession);
+    let project_ctx = ProjectContext::discover();
+    let session_path = if project_ctx.systemprompt_dir().exists() {
+        project_ctx.local_session()
+    } else {
+        get_cloud_paths()
+            .context("Failed to resolve cloud paths from profile configuration")?
+            .resolve(CloudPath::CliSession)
+    };
 
     if let Ok(session) = CliSession::load_from_path(&session_path) {
         if session.is_valid_for_profile(&profile_name) {
