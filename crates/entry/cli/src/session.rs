@@ -3,15 +3,15 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
+use serde::{Deserialize, Serialize};
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath};
 use systemprompt_core_agent::repository::context::ContextRepository;
 use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
-use systemprompt_core_tui::services::cloud_api::create_tui_session;
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{AgentName, ContextId, SessionToken, TraceId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -178,7 +178,7 @@ async fn create_session_for_profile(
 
     let admin_user = fetch_admin_user(&db_pool, cloud_email).await?;
 
-    let session_id = create_tui_session(
+    let session_id = create_cli_session(
         &profile.server.api_external_url,
         admin_user.id.as_str(),
         &admin_user.email,
@@ -251,4 +251,57 @@ pub fn clear_session() -> Result<()> {
     let session_path = cloud_paths.resolve(CloudPath::CliSession);
     CliSession::delete_from_path(&session_path)?;
     Ok(())
+}
+
+#[derive(Debug, Serialize)]
+struct CliSessionRequest {
+    client_id: String,
+    user_id: String,
+    email: String,
+}
+
+#[derive(Debug, Deserialize)]
+struct CliSessionResponse {
+    session_id: String,
+}
+
+async fn create_cli_session(api_url: &str, user_id: &str, email: &str) -> Result<SessionId> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .context("Failed to create HTTP client")?;
+
+    let url = format!(
+        "{}/api/v1/core/oauth/session",
+        api_url.trim_end_matches('/')
+    );
+
+    let request = CliSessionRequest {
+        client_id: "sp_cli".to_string(),
+        user_id: user_id.to_string(),
+        email: email.to_string(),
+    };
+
+    let response = client
+        .post(&url)
+        .json(&request)
+        .send()
+        .await
+        .context("Failed to send session creation request")?;
+
+    if !response.status().is_success() {
+        let status = response.status();
+        let body = response
+            .text()
+            .await
+            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
+        anyhow::bail!("Session creation failed with status {}: {}", status, body);
+    }
+
+    let session_response: CliSessionResponse = response
+        .json()
+        .await
+        .context("Failed to parse session response")?;
+
+    Ok(SessionId::new(session_response.session_id))
 }

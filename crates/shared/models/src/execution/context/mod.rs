@@ -331,9 +331,12 @@ impl InjectContextHeaders for RequestContext {
         );
 
         let auth_token = self.auth.auth_token.as_str();
-        if !auth_token.is_empty() {
+        if auth_token.is_empty() {
+            tracing::trace!(user_id = %self.auth.user_id, "No auth_token to inject - Authorization header not added");
+        } else {
             let auth_value = format!("Bearer {}", auth_token);
             insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
+            tracing::trace!(user_id = %self.auth.user_id, "Injected Authorization header for proxy");
         }
     }
 }

@@ -35,6 +35,16 @@ impl<'a> ComponentContext<'a> {
             popular_ids: Some(popular_ids),
         }
     }
+
+    #[must_use]
+    pub const fn for_list(web_config: &'a serde_yaml::Value, all_items: &'a [Value]) -> Self {
+        Self {
+            web_config,
+            item: None,
+            all_items: Some(all_items),
+            popular_ids: None,
+        }
+    }
 }
 
 #[derive(Debug)]

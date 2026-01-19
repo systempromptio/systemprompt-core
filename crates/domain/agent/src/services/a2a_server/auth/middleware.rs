@@ -13,11 +13,28 @@ pub async fn agent_oauth_middleware(
     next: Next,
 ) -> Result<Response, StatusCode> {
     let headers = request.headers();
+    let has_auth_header = headers.get("authorization").is_some();
 
     let context = state
         .auth_service
         .validate_request(headers, state.auth_mode())
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        .map_err(|e| {
+            tracing::warn!(
+                has_auth_header = has_auth_header,
+                auth_mode = ?state.auth_mode(),
+                error = %e,
+                "Agent auth validation failed"
+            );
+            StatusCode::UNAUTHORIZED
+        })?;
+
+    let has_auth_token = !context.auth_token().as_str().is_empty();
+    tracing::debug!(
+        has_auth_header = has_auth_header,
+        has_auth_token = has_auth_token,
+        user_id = %context.user_id(),
+        "Agent request authenticated"
+    );
 
     request.extensions_mut().insert(context);
 

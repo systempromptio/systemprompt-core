@@ -33,7 +33,6 @@ members = [
     "crates/app/sync",
     # Entry layer
     "crates/entry/api",
-    "crates/entry/tui",
     "crates/entry/cli",
     # Main library crate (for crates.io)
     "systemprompt",

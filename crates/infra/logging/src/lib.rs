@@ -31,7 +31,8 @@ pub fn init_logging(db_pool: DbPool) {
     let console_filter = if is_startup_mode() {
         EnvFilter::new("warn")
     } else {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"))
+        EnvFilter::try_from_default_env()
+            .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn"))
     };
 
     let fmt_layer = tracing_subscriber::fmt::layer()
@@ -50,7 +51,8 @@ pub fn init_logging(db_pool: DbPool) {
 }
 
 pub fn init_console_logging() {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn"));
 
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 }
