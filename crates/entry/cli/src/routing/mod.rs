@@ -4,8 +4,7 @@ pub mod remote;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::{
-    get_cloud_paths, CloudCredentials, CloudPath, CredentialsBootstrap, ProjectContext,
-    StoredTenant, TenantStore,
+    get_cloud_paths, CliSession, CloudPath, ProjectContext, StoredTenant, TenantStore,
 };
 use systemprompt_models::ProfileBootstrap;
 
@@ -30,11 +29,11 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
         .context("Tenant has no hostname configured")?
         .clone();
 
-    let credentials = load_credentials()?;
+    let session = load_session()?;
 
     Ok(ExecutionTarget::Remote {
         hostname,
-        token: credentials.api_token,
+        token: session.session_token.to_string(),
     })
 }
 
@@ -58,9 +57,16 @@ fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
         .with_context(|| format!("Tenant '{}' not found in local tenant store", tenant_id))
 }
 
-fn load_credentials() -> Result<CloudCredentials> {
-    CredentialsBootstrap::get()
-        .context("Failed to get credentials")?
-        .cloned()
-        .context("Cloud credentials required. Run 'systemprompt cloud login'.")
+fn load_session() -> Result<CliSession> {
+    let project_ctx = ProjectContext::discover();
+
+    let session_path = if project_ctx.systemprompt_dir().exists() {
+        project_ctx.local_session()
+    } else {
+        get_cloud_paths()
+            .context("Failed to resolve cloud paths")?
+            .resolve(CloudPath::CliSession)
+    };
+
+    CliSession::load_from_path(&session_path).context("No active session. Run 'systemprompt system login'.")
 }

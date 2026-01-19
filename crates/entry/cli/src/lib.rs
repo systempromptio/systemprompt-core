@@ -234,13 +234,25 @@ pub async fn run() -> Result<()> {
             )
         })?;
 
-        if requires_secrets {
-            SecretsBootstrap::init().context("Secrets initialization failed")?;
-        }
-
         CredentialsBootstrap::init()
             .await
             .context("Cloud credentials required. Run 'systemprompt cloud login'")?;
+
+        if should_check_remote_routing(cli.command.as_ref()) {
+            if let Ok(routing::ExecutionTarget::Remote { hostname, token }) =
+                routing::determine_execution_target()
+            {
+                let args = reconstruct_args(&cli);
+                let exit_code =
+                    routing::remote::execute_remote(&hostname, &token, &args, 300).await?;
+                #[allow(clippy::exit)]
+                std::process::exit(exit_code);
+            }
+        }
+
+        if requires_secrets {
+            SecretsBootstrap::init().context("Secrets initialization failed")?;
+        }
 
         if requires_secrets {
             let profile = ProfileBootstrap::get()?;
@@ -265,18 +277,6 @@ pub async fn run() -> Result<()> {
         }
 
         validate_cloud_credentials();
-
-        if should_check_remote_routing(cli.command.as_ref()) {
-            if let Ok(routing::ExecutionTarget::Remote { hostname, token }) =
-                routing::determine_execution_target()
-            {
-                let args = reconstruct_args(&cli);
-                let exit_code =
-                    routing::remote::execute_remote(&hostname, &token, &args, 300).await?;
-                #[allow(clippy::exit)]
-                std::process::exit(exit_code);
-            }
-        }
     }
 
     match cli.command {
