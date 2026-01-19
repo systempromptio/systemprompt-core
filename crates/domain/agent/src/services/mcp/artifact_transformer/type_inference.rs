@@ -7,10 +7,6 @@ pub fn infer_type(
     schema: Option<&JsonValue>,
     tool_name: &str,
 ) -> Result<ArtifactType, ArtifactError> {
-    if let Some(artifact_type) = extract_artifact_type_from_data(artifact) {
-        return Ok(parse_artifact_type(&artifact_type));
-    }
-
     if let Some(schema) = schema {
         if let Some(artifact_type) = extract_artifact_type_from_schema(schema) {
             return Ok(parse_artifact_type(&artifact_type));
@@ -25,6 +21,10 @@ pub fn infer_type(
         if is_chart_schema(schema) {
             return Ok(ArtifactType::Chart);
         }
+    }
+
+    if let Some(artifact_type) = extract_artifact_type_from_data(artifact) {
+        return Ok(parse_artifact_type(&artifact_type));
     }
 
     if is_tabular_data(artifact) {

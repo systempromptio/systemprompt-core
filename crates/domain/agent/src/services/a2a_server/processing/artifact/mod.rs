@@ -51,23 +51,33 @@ impl ToolProvider for AiServiceToolProvider {
 pub struct ArtifactBuilder {
     tool_calls: Vec<ToolCall>,
     tool_results: Vec<CallToolResult>,
+    tools: Vec<McpTool>,
     context_id: String,
     task_id: String,
 }
 
 impl ArtifactBuilder {
-    pub const fn new(
+    pub fn new(
         tool_calls: Vec<ToolCall>,
         tool_results: Vec<CallToolResult>,
+        tools: Vec<McpTool>,
         context_id: String,
         task_id: String,
     ) -> Self {
         Self {
             tool_calls,
             tool_results,
+            tools,
             context_id,
             task_id,
         }
+    }
+
+    fn get_output_schema(&self, tool_name: &str) -> Option<&serde_json::Value> {
+        self.tools
+            .iter()
+            .find(|t| t.name == tool_name)
+            .and_then(|t| t.output_schema.as_ref())
     }
 
     pub fn build_artifacts(&self) -> Result<Vec<Artifact>> {
@@ -76,10 +86,12 @@ impl ArtifactBuilder {
         for (index, result) in self.tool_results.iter().enumerate() {
             if let Some(structured_content) = &result.structured_content {
                 if let Some(tool_call) = self.tool_calls.get(index) {
+                    let output_schema = self.get_output_schema(&tool_call.name);
+
                     let mut artifact = McpToA2aTransformer::transform_from_json(
                         &tool_call.name,
                         structured_content,
-                        None,
+                        output_schema,
                         &self.context_id,
                         &self.task_id,
                         Some(&tool_call.arguments),

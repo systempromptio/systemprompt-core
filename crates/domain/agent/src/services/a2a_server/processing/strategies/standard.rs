@@ -69,6 +69,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
             accumulated_text,
             tool_calls,
             tool_results,
+            tools: vec![],
             iterations: 1,
         })
     }
