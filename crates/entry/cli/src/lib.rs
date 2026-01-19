@@ -211,10 +211,15 @@ pub async fn run() -> Result<()> {
     }
 
     let (requires_profile, requires_secrets, requires_paths) = match &cli.command {
-        Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets(), cmd.requires_secrets()),
+        Some(Commands::Cloud(cmd)) => (
+            cmd.requires_profile(),
+            cmd.requires_secrets(),
+            cmd.requires_secrets(),
+        ),
         Some(Commands::Setup(_) | Commands::Session(_)) => (false, false, false),
-        Some(Commands::Build(_)) => (true, false, false),
-        Some(Commands::System(_)) => (true, true, false), // needs secrets for jwt_secret, but not paths
+        Some(Commands::Build(_) | Commands::Extensions(_)) => (true, false, false),
+        Some(Commands::System(_)) => (true, true, false), /* needs secrets for jwt_secret, but
+                                                            * not paths */
         Some(_) | None => (true, true, true),
     };
 

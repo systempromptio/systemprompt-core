@@ -23,10 +23,7 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     }
 
     let new_profile = load_profile(&profile_config_path)?;
-    let new_tenant_id = new_profile
-        .cloud
-        .as_ref()
-        .and_then(|c| c.tenant_id.clone());
+    let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
 
     let session_path = if project_ctx.systemprompt_dir().exists() {
         project_ctx.local_session()
@@ -61,13 +58,18 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
             session.save_to_path(&session_path)?;
 
             if tenant_changed && new_tenant_id.is_some() {
-                CliService::warning("Tenant changed. Run 'systemprompt system login' to authenticate with the new tenant.");
+                CliService::warning(
+                    "Tenant changed. Run 'systemprompt system login' to authenticate with the new \
+                     tenant.",
+                );
             }
         },
         Err(_) => {
             create_minimal_session(&session_path, profile_name, &profile_config_path)?;
             if new_tenant_id.is_some() {
-                CliService::warning("Run 'systemprompt system login' to authenticate with the tenant.");
+                CliService::warning(
+                    "Run 'systemprompt system login' to authenticate with the tenant.",
+                );
             }
         },
     }
