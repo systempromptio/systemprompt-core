@@ -210,11 +210,12 @@ pub async fn run() -> Result<()> {
         return run_with_database_url(cli.command, &cli_config, &database_url).await;
     }
 
-    let (requires_profile, requires_secrets) = match &cli.command {
-        Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets()),
-        Some(Commands::Setup(_) | Commands::Session(_)) => (false, false),
-        Some(Commands::Build(_) | Commands::System(_)) => (true, false),
-        Some(_) | None => (true, true),
+    let (requires_profile, requires_secrets, requires_paths) = match &cli.command {
+        Some(Commands::Cloud(cmd)) => (cmd.requires_profile(), cmd.requires_secrets(), cmd.requires_secrets()),
+        Some(Commands::Setup(_) | Commands::Session(_)) => (false, false, false),
+        Some(Commands::Build(_)) => (true, false, false),
+        Some(Commands::System(_)) => (true, true, false), // needs secrets for jwt_secret, but not paths
+        Some(_) | None => (true, true, true),
     };
 
     if requires_profile {
@@ -254,7 +255,7 @@ pub async fn run() -> Result<()> {
             SecretsBootstrap::init().context("Secrets initialization failed")?;
         }
 
-        if requires_secrets {
+        if requires_paths {
             let profile = ProfileBootstrap::get()?;
             AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
             Config::try_init().context("Failed to initialize configuration")?;
