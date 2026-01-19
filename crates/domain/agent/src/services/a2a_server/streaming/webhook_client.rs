@@ -24,7 +24,15 @@ pub async fn broadcast_agui_event(
     let url = format!("{}/api/v1/webhook/agui", get_api_url());
     let event_type = event.event_type();
 
-    tracing::debug!(event_type = ?event_type, url = %url, "Sending AGUI event");
+    if auth_token.is_empty() {
+        tracing::warn!(
+            event_type = ?event_type,
+            user_id = %user_id,
+            "Attempting to broadcast AGUI event with empty auth_token - webhook will fail"
+        );
+    }
+
+    tracing::debug!(event_type = ?event_type, url = %url, has_token = !auth_token.is_empty(), "Sending AGUI event");
 
     #[derive(Serialize)]
     struct AgUiWebhookPayload {

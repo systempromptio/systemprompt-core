@@ -60,19 +60,7 @@ impl ToolExecutorTrait for ContextToolExecutor {
         }
 
         result
-            .content
-            .into_iter()
-            .next()
-            .and_then(|c| {
-                if let rmcp::model::RawContent::Text(text_content) = c.raw {
-                    let text = text_content.text;
-                    serde_json::from_str(&text)
-                        .ok()
-                        .or(Some(Value::String(text)))
-                } else {
-                    None
-                }
-            })
-            .ok_or_else(|| anyhow::anyhow!("Tool {} returned empty or non-text content", tool_name))
+            .structured_content
+            .ok_or_else(|| anyhow::anyhow!("Tool {} returned no structured_content", tool_name))
     }
 }

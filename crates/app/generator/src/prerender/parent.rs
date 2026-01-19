@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use systemprompt_cloud::constants::storage;
 use systemprompt_core_content::models::ContentError;
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_template_provider::ComponentContext;
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
 
@@ -98,7 +99,7 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
     let org = &config.metadata.structured_data.organization;
     let source_branding = source.branding.as_ref();
 
-    let parent_data = build_parent_data(&BuildParentDataParams {
+    let mut parent_data = build_parent_data(&BuildParentDataParams {
         posts_html: &posts_html,
         footer_html: &footer_html,
         org,
@@ -107,6 +108,28 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
         language: &config.metadata.language,
         source_name,
     })?;
+
+    let component_ctx = ComponentContext::for_list(web_config, items);
+
+    for component in template_registry.components_for(&list_content_type) {
+        match component.render(&component_ctx).await {
+            Ok(rendered) => {
+                if let Some(obj) = parent_data.as_object_mut() {
+                    obj.insert(
+                        rendered.variable_name.clone(),
+                        serde_json::Value::String(rendered.html),
+                    );
+                }
+            },
+            Err(e) => {
+                tracing::warn!(
+                    component_id = %component.component_id(),
+                    error = %e,
+                    "Parent route component render failed"
+                );
+            },
+        }
+    }
 
     let parent_html = template_registry
         .render(template_name, &parent_data)

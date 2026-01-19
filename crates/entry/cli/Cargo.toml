@@ -40,7 +40,6 @@ systemprompt-core-scheduler = { path = "../../app/scheduler" }
 systemprompt-core-config = { path = "../../infra/config" }
 systemprompt-core-analytics = { path = "../../domain/analytics" }
 systemprompt-core-security = { path = "../../infra/security" }
-systemprompt-core-tui = { path = "../tui" }
 systemprompt-core-ai = { path = "../../domain/ai" }
 systemprompt-sync = { path = "../../app/sync" }
 systemprompt-generator = { path = "../../app/generator" }

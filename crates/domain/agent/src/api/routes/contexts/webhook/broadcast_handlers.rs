@@ -18,7 +18,7 @@ pub async fn broadcast_a2a_event(
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
 
-    tracing::info!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
+    tracing::debug!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
 
     if authenticated_user_id != &request_user_id {
         tracing::warn!(auth_user_id = %authenticated_user_id, request_user_id = %request_user_id, "User ID mismatch");
@@ -35,7 +35,7 @@ pub async fn broadcast_a2a_event(
     let (a2a_count, context_count) = EventRouter::route_a2a(&request_user_id, request.event).await;
     let count = a2a_count + context_count;
 
-    tracing::info!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
+    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
 
     (
         StatusCode::OK,
@@ -56,7 +56,7 @@ pub async fn broadcast_agui_event(
     let request_user_id = UserId::new(&request.user_id);
     let event_type = request.event.event_type();
 
-    tracing::info!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
+    tracing::debug!(event_type = ?event_type, user_id = %request_user_id, auth_user_id = %authenticated_user_id, "Received event");
 
     if authenticated_user_id != &request_user_id {
         tracing::warn!(auth_user_id = %authenticated_user_id, request_user_id = %request_user_id, "User ID mismatch");
@@ -74,7 +74,7 @@ pub async fn broadcast_agui_event(
         EventRouter::route_agui(&request_user_id, request.event).await;
     let count = agui_count + context_count;
 
-    tracing::info!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
+    tracing::debug!(event_type = ?event_type, count = %count, user_id = %request.user_id, "Event broadcasted to connections");
 
     (
         StatusCode::OK,

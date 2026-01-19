@@ -1,6 +1,6 @@
 use std::sync::LazyLock;
 use systemprompt_identifiers::UserId;
-use tracing::info;
+use tracing::debug;
 
 use super::{A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ContextBroadcaster};
 use crate::Broadcaster;
@@ -23,7 +23,7 @@ impl EventRouter {
         let context_count = CONTEXT_BROADCASTER
             .broadcast(user_id, ContextEvent::AgUi(event))
             .await;
-        info!(
+        debug!(
             event_type = ?event_type,
             user_id = %user_id,
             agui_count = agui_count,

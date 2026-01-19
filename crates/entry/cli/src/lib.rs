@@ -3,7 +3,6 @@ mod commands;
 mod presentation;
 pub mod session;
 pub mod shared;
-mod tui;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{
@@ -194,10 +193,7 @@ const fn should_skip_validation(command: Option<&Commands>) -> bool {
 pub async fn run() -> Result<()> {
     let cli = Cli::parse();
 
-    // Only show full validation output (success checkmarks, etc.) when launching
-    // TUI. For specific CLI commands, only errors should be displayed.
-    let is_tui_startup = cli.command.is_none();
-    set_startup_mode(is_tui_startup);
+    set_startup_mode(cli.command.is_none());
 
     let cli_config = build_cli_config(&cli);
     cli_settings::set_global_config(cli_config);
@@ -293,7 +289,9 @@ pub async fn run() -> Result<()> {
             let result = setup::execute(args, &cli_config).await?;
             shared::render_result(&result);
         },
-        None => tui::execute(&cli_config).await?,
+        None => {
+            Cli::parse_from(["systemprompt", "--help"]);
+        },
     }
 
     Ok(())
@@ -318,7 +316,7 @@ async fn run_with_database_url(
         Some(_) => {
             bail!("This command requires full profile initialization. Remove --database-url flag.")
         },
-        None => bail!("TUI mode requires full profile initialization. Remove --database-url flag."),
+        None => bail!("No subcommand provided. Use --help to see available commands."),
     }
 }
 
