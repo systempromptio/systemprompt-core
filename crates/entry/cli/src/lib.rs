@@ -230,14 +230,17 @@ pub async fn run() -> Result<()> {
         bootstrap::init_profile(&profile_path)?;
         bootstrap::init_credentials().await?;
 
-        // Check for remote routing before continuing
         if should_check_remote_routing(cli.command.as_ref()) {
-            if let Ok(routing::ExecutionTarget::Remote { hostname, token }) =
-                routing::determine_execution_target()
+            if let Ok(routing::ExecutionTarget::Remote {
+                hostname,
+                token,
+                context_id,
+            }) = routing::determine_execution_target()
             {
                 let args = reconstruct_args(&cli);
                 let exit_code =
-                    routing::remote::execute_remote(&hostname, &token, &args, 300).await?;
+                    routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300)
+                        .await?;
                 #[allow(clippy::exit)]
                 std::process::exit(exit_code);
             }
