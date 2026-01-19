@@ -85,6 +85,7 @@ impl Default for ExecutionMetadata {
 ///
 /// Required fields are set from `RequestContext` at construction time.
 /// Optional fields can be added via builder methods.
+#[derive(Debug)]
 pub struct ExecutionMetadataBuilder {
     context_id: ContextId,
     trace_id: TraceId,
