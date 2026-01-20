@@ -190,13 +190,44 @@ impl ContentRepository {
 
     pub async fn update(&self, params: &UpdateContentParams) -> Result<Content, sqlx::Error> {
         let now = Utc::now();
+
+        // Determine final category_id value
+        let category_id_value: Option<String> = match &params.category_id {
+            Some(Some(cat)) => Some(cat.as_str().to_string()),
+            Some(None) => None,
+            None => {
+                // Keep current value - fetch it first
+                let current = self.get_by_id(&params.id).await?;
+                current.and_then(|c| c.category_id.map(|cat| cat.as_str().to_string()))
+            },
+        };
+
+        // Determine final kind value
+        let kind_value: String = match &params.kind {
+            Some(k) => k.clone(),
+            None => {
+                let current = self.get_by_id(&params.id).await?;
+                current.map(|c| c.kind).unwrap_or_else(|| "article".to_string())
+            },
+        };
+
+        // Determine final public value
+        let public_value: bool = match params.public {
+            Some(p) => p,
+            None => {
+                let current = self.get_by_id(&params.id).await?;
+                current.map(|c| c.public).unwrap_or(false)
+            },
+        };
+
         sqlx::query_as!(
             Content,
             r#"
             UPDATE markdown_content
             SET title = $1, description = $2, body = $3, keywords = $4,
-                image = $5, version_hash = $6, updated_at = $7
-            WHERE id = $8
+                image = $5, version_hash = $6, updated_at = $7,
+                category_id = $8, kind = $9, public = $10
+            WHERE id = $11
             RETURNING id as "id: ContentId", slug, title, description, body, author,
                       published_at, keywords, kind, image,
                       category_id as "category_id: CategoryId",
@@ -211,10 +242,23 @@ impl ContentRepository {
             params.image,
             params.version_hash,
             now,
+            category_id_value,
+            kind_value,
+            public_value,
             params.id.as_str()
         )
         .fetch_one(&*self.pool)
         .await
+    }
+
+    pub async fn category_exists(&self, category_id: &CategoryId) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM markdown_categories WHERE id = $1) as "exists!""#,
+            category_id.as_str()
+        )
+        .fetch_one(&*self.pool)
+        .await?;
+        Ok(result)
     }
 
     pub async fn delete(&self, id: &ContentId) -> Result<(), sqlx::Error> {

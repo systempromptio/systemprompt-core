@@ -50,10 +50,10 @@ const ENTRYPOINT_CONTENT: &str = r#"#!/bin/sh
 set -e
 
 echo "Running database migrations..."
-/app/bin/systemprompt services db migrate
+/app/bin/systemprompt infra services db migrate
 
 echo "Starting services..."
-exec /app/bin/systemprompt services serve --foreground
+exec /app/bin/systemprompt infra services serve --foreground
 "#;
 
 pub fn execute(force: bool, _config: &CliConfig) -> Result<()> {

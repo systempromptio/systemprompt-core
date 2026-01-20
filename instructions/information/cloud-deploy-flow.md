@@ -592,7 +592,7 @@ ENV HOST=0.0.0.0 \
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-CMD ["/app/bin/systemprompt", "services", "serve", "--foreground"]
+CMD ["/app/bin/systemprompt", "infra", "services", "serve", "--foreground"]
 ```
 
 ### What's NOT in the Docker Image
@@ -664,7 +664,7 @@ USER app
 WORKDIR /app
 
 ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["systemprompt", "services", "serve", "--foreground"]
+CMD ["systemprompt", "infra", "services", "serve", "--foreground"]
 
 HEALTHCHECK --interval=30s --timeout=5s \
   CMD curl -f http://localhost:8080/api/v1/health || exit 1
@@ -676,7 +676,7 @@ HEALTHCHECK --interval=30s --timeout=5s \
 set -e
 
 # Run database migrations
-systemprompt services db migrate
+systemprompt infra services db migrate
 
 # Start services
 exec "$@"

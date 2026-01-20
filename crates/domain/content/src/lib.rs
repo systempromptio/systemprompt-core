@@ -20,7 +20,7 @@ pub use services::{
 
 pub use models::{
     Content, ContentMetadata, IngestionOptions, IngestionReport, IngestionSource, SearchFilters,
-    SearchRequest, SearchResponse, SearchResult,
+    SearchRequest, SearchResponse, SearchResult, UpdateContentParams,
 };
 
 pub use repository::{ContentRepository, SearchRepository};
