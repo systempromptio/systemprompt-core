@@ -186,7 +186,7 @@ fn try_use_existing_session(args: &LoginArgs) -> Option<CommandResult<LoginOutpu
 
     let output = LoginOutput {
         user_id: session.user_id.clone(),
-        email: session.user_email.clone(),
+        email: session.user_email.to_string(),
         session_id: session.session_id.clone(),
         token: session.session_token.clone(),
         expires_in_hours: 24,
@@ -283,14 +283,20 @@ fn save_session(
     };
 
     let profile_dir = Path::new(profile_path).parent();
-    let profile_name = profile_dir
+    let profile_name_str = profile_dir
         .and_then(|d| d.file_name())
         .and_then(|n| n.to_str())
-        .unwrap_or("unknown");
+        .context("Invalid profile path")?;
+
+    let profile_name = systemprompt_identifiers::ProfileName::try_new(profile_name_str)
+        .map_err(|e| anyhow::anyhow!("Invalid profile name: {}", e))?;
+
+    let email = systemprompt_identifiers::Email::try_new(user_email)
+        .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     let cli_session = CliSession::builder(profile_name, session_token, session_id, context_id)
         .with_profile_path(profile_path)
-        .with_user(user_id, user_email)
+        .with_user(user_id, email)
         .build();
 
     cli_session

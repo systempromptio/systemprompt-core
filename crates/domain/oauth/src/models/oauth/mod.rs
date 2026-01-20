@@ -7,6 +7,42 @@ use std::str::FromStr;
 pub use systemprompt_models::auth::JwtClaims;
 pub use systemprompt_models::oauth::OAuthServerConfig as OAuthConfig;
 
+/// Error type for OAuth-related parsing failures.
+#[derive(Debug, Clone)]
+#[allow(clippy::enum_variant_names)]
+pub enum OAuthParseError {
+    /// Unknown grant type.
+    InvalidGrantType(String),
+    /// Unknown PKCE method.
+    InvalidPkceMethod(String),
+    /// Unknown response type.
+    InvalidResponseType(String),
+    /// Unknown response mode.
+    InvalidResponseMode(String),
+    /// Unknown display mode.
+    InvalidDisplayMode(String),
+    /// Unknown prompt type.
+    InvalidPrompt(String),
+    /// Unknown token auth method.
+    InvalidTokenAuthMethod(String),
+}
+
+impl fmt::Display for OAuthParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidGrantType(s) => write!(f, "unknown grant type: '{}'", s),
+            Self::InvalidPkceMethod(s) => write!(f, "unknown PKCE method: '{}'", s),
+            Self::InvalidResponseType(s) => write!(f, "unknown response type: '{}'", s),
+            Self::InvalidResponseMode(s) => write!(f, "unknown response mode: '{}'", s),
+            Self::InvalidDisplayMode(s) => write!(f, "unknown display mode: '{}'", s),
+            Self::InvalidPrompt(s) => write!(f, "unknown prompt type: '{}'", s),
+            Self::InvalidTokenAuthMethod(s) => write!(f, "unknown token auth method: '{}'", s),
+        }
+    }
+}
+
+impl std::error::Error for OAuthParseError {}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GrantType {
     AuthorizationCode,
@@ -29,14 +65,14 @@ impl GrantType {
 }
 
 impl FromStr for GrantType {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "authorization_code" => Ok(Self::AuthorizationCode),
             "refresh_token" => Ok(Self::RefreshToken),
             "client_credentials" => Ok(Self::ClientCredentials),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidGrantType(s.to_string())),
         }
     }
 }
@@ -63,13 +99,13 @@ impl PkceMethod {
 }
 
 impl FromStr for PkceMethod {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "S256" => Ok(Self::S256),
             "plain" => Ok(Self::Plain),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidPkceMethod(s.to_string())),
         }
     }
 }
@@ -94,12 +130,12 @@ impl ResponseType {
 }
 
 impl FromStr for ResponseType {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "code" => Ok(Self::Code),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidResponseType(s.to_string())),
         }
     }
 }
@@ -126,13 +162,13 @@ impl ResponseMode {
 }
 
 impl FromStr for ResponseMode {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "query" => Ok(Self::Query),
             "fragment" => Ok(Self::Fragment),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidResponseMode(s.to_string())),
         }
     }
 }
@@ -163,7 +199,7 @@ impl DisplayMode {
 }
 
 impl FromStr for DisplayMode {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -171,7 +207,7 @@ impl FromStr for DisplayMode {
             "popup" => Ok(Self::Popup),
             "touch" => Ok(Self::Touch),
             "wap" => Ok(Self::Wap),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidDisplayMode(s.to_string())),
         }
     }
 }
@@ -202,7 +238,7 @@ impl Prompt {
 }
 
 impl FromStr for Prompt {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
@@ -210,7 +246,7 @@ impl FromStr for Prompt {
             "login" => Ok(Self::Login),
             "consent" => Ok(Self::Consent),
             "select_account" => Ok(Self::SelectAccount),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidPrompt(s.to_string())),
         }
     }
 }
@@ -243,14 +279,14 @@ impl TokenAuthMethod {
 }
 
 impl FromStr for TokenAuthMethod {
-    type Err = ();
+    type Err = OAuthParseError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "client_secret_post" => Ok(Self::ClientSecretPost),
             "client_secret_basic" => Ok(Self::ClientSecretBasic),
             "none" => Ok(Self::None),
-            _ => Err(()),
+            _ => Err(OAuthParseError::InvalidTokenAuthMethod(s.to_string())),
         }
     }
 }

@@ -4,6 +4,7 @@ use anyhow::{Context, Result};
 use systemprompt_cloud::{
     get_cloud_paths, CloudPath, ProjectContext, SessionKey, SessionStore, StoredTenant, TenantStore,
 };
+use systemprompt_identifiers::TenantId;
 use systemprompt_models::ProfileBootstrap;
 
 pub enum ExecutionTarget {
@@ -31,7 +32,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
         .context("Tenant has no hostname configured")?
         .clone();
 
-    let session_key = SessionKey::Tenant(tenant_id.clone());
+    let session_key = SessionKey::Tenant(TenantId::new(tenant_id.clone()));
     let session = load_session_for_key(&session_key)?;
 
     Ok(ExecutionTarget::Remote {

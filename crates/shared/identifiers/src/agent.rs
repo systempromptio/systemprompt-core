@@ -1,10 +1,10 @@
 //! Agent identifier types.
 
+use crate::error::IdValidationError;
 use crate::{DbValue, ToDbValue};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Agent identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -56,44 +56,35 @@ impl ToDbValue for &AgentId {
     }
 }
 
-/// Agent identifier for request routing and task attribution
-///
-/// Represents the name/ID of an agent service that handles requests.
-/// Unlike [`ClientId`] (OAuth), this identifies which agent service processes
-/// the request, not which application made it.
-///
-/// # Format
-/// - Lowercase alphanumeric with hyphens
-/// - Examples: "edward", "content-research", "system"
-/// - Cannot be empty or "unknown"
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct AgentName(String);
 
 impl AgentName {
-    /// Create a new agent name
-    ///
-    /// # Panics
-    /// - If name is empty
-    /// - If name is "unknown" (reserved for error detection)
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn try_new(name: impl Into<String>) -> Result<Self, IdValidationError> {
         let name = name.into();
-        assert!(!name.is_empty(), "Agent name cannot be empty");
-        assert_ne!(
-            name.to_lowercase().as_str(),
-            "unknown",
-            "Agent name 'unknown' is reserved for error detection"
-        );
-        Self(name)
+        if name.is_empty() {
+            return Err(IdValidationError::empty("AgentName"));
+        }
+        if name.to_lowercase() == "unknown" {
+            return Err(IdValidationError::invalid(
+                "AgentName",
+                "'unknown' is reserved for error detection",
+            ));
+        }
+        Ok(Self(name))
     }
 
-    /// Get the agent name as a string slice
+    #[allow(clippy::expect_used)]
+    pub fn new(name: impl Into<String>) -> Self {
+        Self::try_new(name).expect("AgentName validation failed")
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
 
-    /// Create a system agent name
     pub fn system() -> Self {
         Self("system".to_string())
     }
@@ -111,15 +102,37 @@ impl fmt::Display for AgentName {
     }
 }
 
-impl From<String> for AgentName {
-    fn from(s: String) -> Self {
-        Self::new(s)
+impl TryFrom<String> for AgentName {
+    type Error = IdValidationError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_new(s)
     }
 }
 
-impl From<&str> for AgentName {
-    fn from(s: &str) -> Self {
-        Self::new(s)
+impl TryFrom<&str> for AgentName {
+    type Error = IdValidationError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::try_new(s)
+    }
+}
+
+impl std::str::FromStr for AgentName {
+    type Err = IdValidationError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_new(s)
+    }
+}
+
+impl<'de> Deserialize<'de> for AgentName {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s = String::deserialize(deserializer)?;
+        Self::try_new(s).map_err(serde::de::Error::custom)
     }
 }
 

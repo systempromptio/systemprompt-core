@@ -14,7 +14,9 @@ use systemprompt_core_database::{Database, DbPool};
 use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_users::UserService;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, Email, ProfileName, SessionId, SessionToken, TraceId, UserId,
+};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -71,13 +73,15 @@ fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
     let user_id = std::env::var("SYSTEMPROMPT_USER_ID").ok()?;
     let auth_token = std::env::var("SYSTEMPROMPT_AUTH_TOKEN").ok()?;
 
+    let profile_name = ProfileName::new("remote");
+    let email = Email::new("remote@cli.local");
     let session = CliSession::builder(
-        "remote",
+        profile_name,
         SessionToken::new(auth_token),
         SessionId::new(session_id),
         ContextId::new(context_id),
     )
-    .with_user(UserId::new(user_id), "remote@cli.local")
+    .with_user(UserId::new(user_id), email)
     .with_user_type(UserType::Admin)
     .build();
 
@@ -209,9 +213,8 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
     let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
     let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
 
-    let active_session = match store.active_session() {
-        Some(session) => session,
-        None => return Ok(None),
+    let Some(active_session) = store.active_session() else {
+        return Ok(None);
     };
 
     let profile_path = match &active_session.profile_path {
@@ -241,9 +244,13 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
     let ctx = resolve_session(config).await?;
 
     if config.is_interactive() {
-        let tenant = ctx.session.tenant_key.as_deref().unwrap_or("local");
+        let tenant = ctx
+            .session
+            .tenant_key
+            .as_ref()
+            .map_or("local", systemprompt_identifiers::TenantId::as_str);
         CliService::session_context(
-            &ctx.session.profile_name,
+            ctx.session.profile_name.as_str(),
             &ctx.session.session_id,
             Some(tenant),
         );
@@ -363,11 +370,16 @@ async fn create_session_for_tenant(
         CliService::key_value("Context ID", context_id.as_str());
     }
 
+    let profile_name = ProfileName::try_new(profile_ctx.name)
+        .map_err(|e| anyhow::anyhow!("Invalid profile name: {}", e))?;
+    let email = Email::try_new(&admin_user.email)
+        .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
+
     Ok(
-        CliSession::builder(profile_ctx.name, session_token, session_id, context_id)
+        CliSession::builder(profile_name, session_token, session_id, context_id)
             .with_session_key(session_key)
             .with_profile_path(profile_ctx.path.clone())
-            .with_user(admin_user.id, admin_user.email)
+            .with_user(admin_user.id, email)
             .with_user_type(UserType::Admin)
             .build(),
     )

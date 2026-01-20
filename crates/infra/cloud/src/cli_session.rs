@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::{ContextId, SessionId, SessionToken, UserId};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId};
 use systemprompt_models::auth::UserType;
 
 use crate::error::CloudError;
@@ -20,13 +20,13 @@ pub const LOCAL_SESSION_KEY: &str = "local";
 #[serde(tag = "type", content = "value")]
 pub enum SessionKey {
     Local,
-    Tenant(String),
+    Tenant(TenantId),
 }
 
 impl SessionKey {
     #[must_use]
     pub fn from_tenant_id(tenant_id: Option<&str>) -> Self {
-        tenant_id.map_or(Self::Local, |id| Self::Tenant(id.to_string()))
+        tenant_id.map_or(Self::Local, |id| Self::Tenant(TenantId::new(id)))
     }
 
     #[must_use]
@@ -38,11 +38,17 @@ impl SessionKey {
     }
 
     #[must_use]
-    pub fn tenant_id(&self) -> Option<&str> {
+    pub fn tenant_id(&self) -> Option<&TenantId> {
         match self {
             Self::Local => None,
             Self::Tenant(id) => Some(id),
         }
+    }
+
+    /// Get tenant ID as a string slice for backward compatibility.
+    #[must_use]
+    pub fn tenant_id_str(&self) -> Option<&str> {
+        self.tenant_id().map(TenantId::as_str)
     }
 
     #[must_use]
@@ -132,7 +138,7 @@ impl SessionStore {
                 SessionKey::Local
             } else {
                 k.strip_prefix("tenant_")
-                    .map(|id| SessionKey::Tenant(id.to_string()))
+                    .map(|id| SessionKey::Tenant(TenantId::new(id)))
                     .unwrap_or(SessionKey::Local)
             }
         })
@@ -195,7 +201,7 @@ impl SessionStore {
 
         if let Some(legacy_path) = legacy_session_path.filter(|p| p.exists()) {
             if let Ok(legacy_session) = CliSession::load_from_path(legacy_path) {
-                let key = SessionKey::from_tenant_id(legacy_session.tenant_key.as_deref());
+                let key = legacy_session.session_key();
                 store.upsert_session(&key, legacy_session);
                 store.set_active(&key);
                 store.save(sessions_dir)?;
@@ -235,16 +241,16 @@ impl SessionStore {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CliSession {
     pub version: u32,
-    #[serde(default)]
-    pub tenant_key: Option<String>,
-    pub profile_name: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tenant_key: Option<TenantId>,
+    pub profile_name: ProfileName,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub profile_path: Option<PathBuf>,
     pub session_token: SessionToken,
     pub session_id: SessionId,
     pub context_id: ContextId,
     pub user_id: UserId,
-    pub user_email: String,
+    pub user_email: Email,
     #[serde(default = "default_user_type")]
     pub user_type: UserType,
     pub created_at: DateTime<Utc>,
@@ -258,49 +264,49 @@ fn default_user_type() -> UserType {
 
 #[derive(Debug)]
 pub struct CliSessionBuilder {
-    tenant_key: Option<String>,
-    profile_name: String,
+    tenant_key: Option<TenantId>,
+    profile_name: ProfileName,
     profile_path: Option<PathBuf>,
     session_token: SessionToken,
     session_id: SessionId,
     context_id: ContextId,
     user_id: UserId,
-    user_email: String,
+    user_email: Email,
     user_type: UserType,
 }
 
 impl CliSessionBuilder {
     pub fn new(
-        profile_name: impl Into<String>,
+        profile_name: ProfileName,
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
     ) -> Self {
         Self {
             tenant_key: None,
-            profile_name: profile_name.into(),
+            profile_name,
             profile_path: None,
             session_token,
             session_id,
             context_id,
             user_id: UserId::system(),
-            user_email: String::new(),
+            user_email: Email::new("system@local.invalid"),
             user_type: UserType::Admin,
         }
     }
 
     #[must_use]
-    pub fn with_tenant_key(mut self, tenant_key: impl Into<String>) -> Self {
-        self.tenant_key = Some(tenant_key.into());
+    pub fn with_tenant_key(mut self, tenant_key: TenantId) -> Self {
+        self.tenant_key = Some(tenant_key);
         self
     }
 
     #[must_use]
     pub fn with_session_key(mut self, key: &SessionKey) -> Self {
-        self.tenant_key = Some(match key {
-            SessionKey::Local => LOCAL_SESSION_KEY.to_string(),
-            SessionKey::Tenant(id) => id.clone(),
-        });
+        self.tenant_key = match key {
+            SessionKey::Local => Some(TenantId::new(LOCAL_SESSION_KEY)),
+            SessionKey::Tenant(id) => Some(id.clone()),
+        };
         self
     }
 
@@ -311,9 +317,9 @@ impl CliSessionBuilder {
     }
 
     #[must_use]
-    pub fn with_user(mut self, user_id: UserId, user_email: impl Into<String>) -> Self {
+    pub fn with_user(mut self, user_id: UserId, user_email: Email) -> Self {
         self.user_id = user_id;
-        self.user_email = user_email.into();
+        self.user_email = user_email;
         self
     }
 
@@ -363,7 +369,7 @@ impl CliSession {
     }
 
     pub fn builder(
-        profile_name: impl Into<String>,
+        profile_name: ProfileName,
         session_token: SessionToken,
         session_id: SessionId,
         context_id: ContextId,
@@ -391,7 +397,7 @@ impl CliSession {
 
     #[must_use]
     pub fn is_valid_for_profile(&self, profile_name: &str) -> bool {
-        self.profile_name == profile_name && !self.is_expired()
+        self.profile_name.as_str() == profile_name && !self.is_expired()
     }
 
     #[must_use]
@@ -407,7 +413,7 @@ impl CliSession {
 
         match (key, &self.tenant_key) {
             (SessionKey::Local, None) => true,
-            (SessionKey::Local, Some(k)) => k == LOCAL_SESSION_KEY,
+            (SessionKey::Local, Some(k)) => k.as_str() == LOCAL_SESSION_KEY,
             (SessionKey::Tenant(id), Some(k)) => k == id,
             (SessionKey::Tenant(_), None) => false,
         }
@@ -417,7 +423,7 @@ impl CliSession {
     pub fn session_key(&self) -> SessionKey {
         match &self.tenant_key {
             None => SessionKey::Local,
-            Some(k) if k == LOCAL_SESSION_KEY => SessionKey::Local,
+            Some(k) if k.as_str() == LOCAL_SESSION_KEY => SessionKey::Local,
             Some(k) => SessionKey::Tenant(k.clone()),
         }
     }
