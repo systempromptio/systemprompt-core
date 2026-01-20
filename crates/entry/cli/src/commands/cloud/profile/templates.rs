@@ -34,12 +34,14 @@ pub fn save_entrypoint(path: &Path) -> Result<()> {
 set -e
 
 echo "Running database migrations..."
-{bin}/systemprompt infra db migrate
+{bin}/systemprompt {db_migrate_cmd}
 
 echo "Starting services..."
-exec {bin}/systemprompt infra services serve --foreground
+exec {bin}/systemprompt {services_serve_cmd} --foreground
 "#,
-        bin = container::BIN
+        bin = container::BIN,
+        db_migrate_cmd = CliPaths::db_migrate_cmd(),
+        services_serve_cmd = CliPaths::services_serve_cmd(),
     );
 
     if let Some(parent) = path.parent() {

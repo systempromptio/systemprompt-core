@@ -3,6 +3,7 @@ use std::path::Path;
 use std::process::Command;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_core_logging::CliService;
+use systemprompt_models::CliPaths;
 
 mod templates;
 
@@ -46,15 +47,21 @@ logs
 *.log
 ";
 
-const ENTRYPOINT_CONTENT: &str = r#"#!/bin/sh
+fn entrypoint_content() -> String {
+    format!(
+        r#"#!/bin/sh
 set -e
 
 echo "Running database migrations..."
-/app/bin/systemprompt infra db migrate
+/app/bin/systemprompt {db_migrate_cmd}
 
 echo "Starting services..."
-exec /app/bin/systemprompt infra services serve --foreground
-"#;
+exec /app/bin/systemprompt {services_serve_cmd} --foreground
+"#,
+        db_migrate_cmd = CliPaths::db_migrate_cmd(),
+        services_serve_cmd = CliPaths::services_serve_cmd(),
+    )
+}
 
 pub fn execute(force: bool, _config: &CliConfig) -> Result<()> {
     let project_root = std::env::current_dir().context("Failed to get current directory")?;
@@ -113,7 +120,7 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
         .context("Failed to create Dockerfile")?;
     CliService::info("  Created .systemprompt/Dockerfile");
 
-    std::fs::write(dir.join("entrypoint.sh"), ENTRYPOINT_CONTENT)
+    std::fs::write(dir.join("entrypoint.sh"), entrypoint_content())
         .context("Failed to create entrypoint.sh")?;
     CliService::info("  Created .systemprompt/entrypoint.sh");
 

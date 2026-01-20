@@ -1,4 +1,5 @@
-//! CLI command path constants - prevents hardcoded strings from getting out of sync.
+//! CLI command path constants - prevents hardcoded strings from getting out of
+//! sync.
 
 #[derive(Debug, Clone, Copy)]
 pub struct CliPaths;
@@ -42,31 +43,46 @@ impl CliPaths {
     pub const MIGRATE: &'static str = "migrate";
     pub const SERVE: &'static str = "serve";
 
-    pub fn agent_run_args() -> [&'static str; 3] {
+    pub const fn agent_run_args() -> [&'static str; 3] {
         [Self::ADMIN, Self::AGENTS, Self::RUN]
     }
 
-    pub fn db_migrate_args() -> [&'static str; 3] {
+    pub const fn db_migrate_args() -> [&'static str; 3] {
         [Self::INFRA, Self::DB, Self::MIGRATE]
     }
 
-    pub fn services_serve_args() -> [&'static str; 3] {
+    pub const fn services_serve_args() -> [&'static str; 3] {
         [Self::INFRA, Self::SERVICES, Self::SERVE]
     }
 
-    pub fn infra_db_args(subcommand: &str) -> [&str; 3] {
+    pub const fn infra_db_args(subcommand: &str) -> [&str; 3] {
         [Self::INFRA, Self::DB, subcommand]
     }
 
-    pub fn infra_services_args(subcommand: &str) -> [&str; 3] {
+    pub const fn infra_services_args(subcommand: &str) -> [&str; 3] {
         [Self::INFRA, Self::SERVICES, subcommand]
     }
 
-    pub fn admin_agents_args(subcommand: &str) -> [&str; 3] {
+    pub const fn admin_agents_args(subcommand: &str) -> [&str; 3] {
         [Self::ADMIN, Self::AGENTS, subcommand]
     }
 
-    pub fn plugins_mcp_args(subcommand: &str) -> [&str; 3] {
+    pub const fn plugins_mcp_args(subcommand: &str) -> [&str; 3] {
         [Self::PLUGINS, Self::MCP, subcommand]
+    }
+
+    /// Returns "infra db migrate" for use in scripts and templates
+    pub const fn db_migrate_cmd() -> &'static str {
+        "infra db migrate"
+    }
+
+    /// Returns "infra services serve" for use in scripts and templates
+    pub const fn services_serve_cmd() -> &'static str {
+        "infra services serve"
+    }
+
+    /// Returns "admin agents run" for process detection patterns
+    pub const fn agent_run_cmd_pattern() -> &'static str {
+        "admin agents run"
     }
 }

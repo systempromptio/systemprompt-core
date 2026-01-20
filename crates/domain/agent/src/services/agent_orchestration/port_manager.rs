@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use std::process::Command;
 use std::time::Duration;
+use systemprompt_models::CliPaths;
 
 use crate::services::agent_orchestration::{process, OrchestrationError, OrchestrationResult};
 
@@ -75,8 +76,7 @@ impl PortManager {
         match self.get_process_info(pid) {
             Ok(Some(info)) => {
                 let is_agent = info.command.contains("systemprompt")
-                    && (info.command.contains("infra admin agents run")
-                        || info.command.contains("agents agent run")
+                    && (info.command.contains(CliPaths::agent_run_cmd_pattern())
                         || info.command.contains("agent-worker"));
                 Ok(is_agent)
             },

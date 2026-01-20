@@ -22,17 +22,17 @@ use crate::CliConfig;
 pub enum TraceCommands {
     #[command(
         about = "List recent traces",
-        after_help = "EXAMPLES:\n  systemprompt infra logs trace list\n  systemprompt infra logs trace list \
-                      --limit 50 --since 1h\n  systemprompt infra logs trace list --agent researcher \
-                      --status completed"
+        after_help = "EXAMPLES:\n  systemprompt infra logs trace list\n  systemprompt infra logs \
+                      trace list --limit 50 --since 1h\n  systemprompt infra logs trace list \
+                      --agent researcher --status completed"
     )]
     List(list::ListArgs),
 
     #[command(
         about = "Show trace details",
-        after_help = "EXAMPLES:\n  systemprompt infra logs trace show abc123\n  systemprompt infra logs trace \
-                      show abc123 --verbose\n  systemprompt infra logs trace show abc123 --steps --ai \
-                      --mcp"
+        after_help = "EXAMPLES:\n  systemprompt infra logs trace show abc123\n  systemprompt \
+                      infra logs trace show abc123 --verbose\n  systemprompt infra logs trace \
+                      show abc123 --steps --ai --mcp"
     )]
     Show(show::ShowArgs),
 }

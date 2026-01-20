@@ -13,9 +13,9 @@ use crate::CliConfig;
 pub enum ToolsCommands {
     #[command(
         about = "List MCP tool executions",
-        after_help = "EXAMPLES:\n  systemprompt infra logs tools list\n  systemprompt infra logs tools list \
-                      --name research_blog\n  systemprompt infra logs tools list --server \
-                      content-manager --since 1h"
+        after_help = "EXAMPLES:\n  systemprompt infra logs tools list\n  systemprompt infra logs \
+                      tools list --name research_blog\n  systemprompt infra logs tools list \
+                      --server content-manager --since 1h"
     )]
     List(list::ListArgs),
 }

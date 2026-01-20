@@ -33,23 +33,23 @@ use crate::CliConfig;
 pub enum LogsCommands {
     #[command(
         about = "View log entries",
-        after_help = "EXAMPLES:\n  systemprompt infra logs view --tail 20\n  systemprompt infra logs view \
-                      --level error\n  systemprompt infra logs view --since 1h"
+        after_help = "EXAMPLES:\n  systemprompt infra logs view --tail 20\n  systemprompt infra \
+                      logs view --level error\n  systemprompt infra logs view --since 1h"
     )]
     View(view::ViewArgs),
 
     #[command(
         about = "Search logs by pattern",
-        after_help = "EXAMPLES:\n  systemprompt infra logs search \"error\"\n  systemprompt infra logs search \
-                      \"timeout\" --level error --since 1h"
+        after_help = "EXAMPLES:\n  systemprompt infra logs search \"error\"\n  systemprompt infra \
+                      logs search \"timeout\" --level error --since 1h"
     )]
     Search(search::SearchArgs),
 
     #[command(
         about = "Stream logs in real-time (like tail -f)",
         visible_alias = "follow",
-        after_help = "EXAMPLES:\n  systemprompt infra logs stream\n  systemprompt infra logs stream --level \
-                      error --module agent\n  systemprompt infra logs follow"
+        after_help = "EXAMPLES:\n  systemprompt infra logs stream\n  systemprompt infra logs \
+                      stream --level error --module agent\n  systemprompt infra logs follow"
     )]
     Stream(stream::StreamArgs),
 
@@ -68,15 +68,15 @@ pub enum LogsCommands {
 
     #[command(
         about = "Show logs summary statistics",
-        after_help = "EXAMPLES:\n  systemprompt infra logs summary\n  systemprompt infra logs summary --since \
-                      24h"
+        after_help = "EXAMPLES:\n  systemprompt infra logs summary\n  systemprompt infra logs \
+                      summary --since 24h"
     )]
     Summary(summary::SummaryArgs),
 
     #[command(
         about = "Show details of a log entry or all logs for a trace",
-        after_help = "EXAMPLES:\n  systemprompt infra logs show log_abc123\n  systemprompt infra logs show \
-                      trace_def456"
+        after_help = "EXAMPLES:\n  systemprompt infra logs show log_abc123\n  systemprompt infra \
+                      logs show trace_def456"
     )]
     Show(show::ShowArgs),
 
@@ -91,8 +91,8 @@ pub enum LogsCommands {
 
     #[command(
         about = "Full audit of an AI request with all messages and tool calls",
-        after_help = "EXAMPLES:\n  systemprompt infra logs audit abc123\n  systemprompt infra logs audit \
-                      abc123 --full\n  systemprompt infra logs audit task-xyz --json"
+        after_help = "EXAMPLES:\n  systemprompt infra logs audit abc123\n  systemprompt infra \
+                      logs audit abc123 --full\n  systemprompt infra logs audit task-xyz --json"
     )]
     Audit(audit::AuditArgs),
 }
