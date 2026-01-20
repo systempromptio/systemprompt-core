@@ -133,4 +133,8 @@ impl ApiPaths {
     pub fn agent_endpoint(agent_id: &str) -> String {
         format!("{}/{}/", Self::AGENTS_BASE, agent_id)
     }
+
+    pub fn tenant_custom_domain(tenant_id: &str) -> String {
+        format!("{}/{}/custom-domain", Self::CLOUD_TENANTS, tenant_id)
+    }
 }

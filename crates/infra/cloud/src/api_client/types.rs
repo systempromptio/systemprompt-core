@@ -2,8 +2,9 @@
 
 pub use systemprompt_models::api::cloud::{
     ApiError, ApiErrorDetail, ApiResponse, CheckoutEvent, CheckoutRequest, CheckoutResponse,
-    DeployResponse, ExternalDbAccessResponse, ListResponse, ListSecretsResponse, Plan,
-    ProvisioningEvent, ProvisioningEventType, RegistryToken, RotateCredentialsResponse,
-    RotateSyncTokenResponse, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse,
-    SubscriptionStatus, Tenant, TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
+    CustomDomainResponse, DeployResponse, ExternalDbAccessResponse, ListResponse,
+    ListSecretsResponse, Plan, ProvisioningEvent, ProvisioningEventType, RegistryToken,
+    RotateCredentialsResponse, RotateSyncTokenResponse, SetCustomDomainRequest,
+    SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, SubscriptionStatus, Tenant,
+    TenantInfo, TenantSecrets, TenantStatus, UserInfo, UserMeResponse,
 };

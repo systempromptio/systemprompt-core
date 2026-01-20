@@ -5,10 +5,11 @@ use serde::Serialize;
 use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
-    ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, DeployResponse,
-    ExternalDbAccessResponse, ListResponse, ListSecretsResponse, Plan, RegistryToken,
-    RotateCredentialsResponse, RotateSyncTokenResponse, SetExternalDbAccessRequest,
-    SetSecretsRequest, StatusResponse, Tenant, TenantSecrets, TenantStatus, UserMeResponse,
+    ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse,
+    CustomDomainResponse, DeployResponse, ExternalDbAccessResponse, ListResponse,
+    ListSecretsResponse, Plan, RegistryToken, RotateCredentialsResponse, RotateSyncTokenResponse,
+    SetCustomDomainRequest, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse, Tenant,
+    TenantSecrets, TenantStatus, UserMeResponse,
 };
 
 #[derive(Serialize)]
@@ -306,5 +307,30 @@ impl CloudApiClient {
 
     pub async fn list_secrets(&self, tenant_id: &str) -> Result<ListSecretsResponse> {
         self.get(&ApiPaths::tenant_secrets(tenant_id)).await
+    }
+
+    pub async fn set_custom_domain(
+        &self,
+        tenant_id: &str,
+        domain: &str,
+    ) -> Result<CustomDomainResponse> {
+        let request = SetCustomDomainRequest {
+            domain: domain.to_string(),
+        };
+        let response: ApiResponse<CustomDomainResponse> = self
+            .post(&ApiPaths::tenant_custom_domain(tenant_id), &request)
+            .await?;
+        Ok(response.data)
+    }
+
+    pub async fn get_custom_domain(&self, tenant_id: &str) -> Result<CustomDomainResponse> {
+        let response: ApiResponse<CustomDomainResponse> =
+            self.get(&ApiPaths::tenant_custom_domain(tenant_id)).await?;
+        Ok(response.data)
+    }
+
+    pub async fn delete_custom_domain(&self, tenant_id: &str) -> Result<()> {
+        self.delete(&ApiPaths::tenant_custom_domain(tenant_id))
+            .await
     }
 }
