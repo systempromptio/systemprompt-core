@@ -137,14 +137,28 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
     }
 
     let extensions = ExtensionRegistry::discover();
+    tracing::info!(
+        extension_count = extensions.extensions().len(),
+        "Discovered extensions for prerender context"
+    );
+
     for ext in extensions.extensions() {
+        let providers = ext.page_data_providers();
+        tracing::info!(
+            extension_id = %ext.metadata().id,
+            page_provider_count = providers.len(),
+            component_count = ext.component_renderers().len(),
+            extender_count = ext.template_data_extenders().len(),
+            "Extension page data providers"
+        );
+
         for component in ext.component_renderers() {
             registry_builder = registry_builder.with_component(component);
         }
         for extender in ext.template_data_extenders() {
             registry_builder = registry_builder.with_extender(extender);
         }
-        for provider in ext.page_data_providers() {
+        for provider in providers {
             registry_builder = registry_builder.with_page_provider(provider);
         }
     }

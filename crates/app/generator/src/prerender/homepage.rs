@@ -36,38 +36,38 @@ pub async fn prerender_homepage(ctx: &PrerenderContext) -> Result<()> {
 
     let page_ctx = PageContext::new("homepage", &ctx.web_config, &ctx.db_pool);
 
-    for provider in ctx.template_registry.page_providers_for("homepage") {
-        match provider.provide_page_data(&page_ctx).await {
-            Ok(data) => merge_json_data(&mut homepage_data, &data),
-            Err(e) => {
-                tracing::warn!(
-                    provider_id = %provider.provider_id(),
-                    error = %e,
-                    "Page data provider failed"
-                );
-            },
-        }
+    let providers = ctx.template_registry.page_providers_for("homepage");
+    let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
+    tracing::info!(
+        provider_count = providers.len(),
+        provider_ids = ?provider_ids,
+        "Homepage page data providers"
+    );
+
+    for provider in &providers {
+        let data = provider
+            .provide_page_data(&page_ctx)
+            .await
+            .context(format!(
+                "Page data provider '{}' failed",
+                provider.provider_id()
+            ))?;
+        merge_json_data(&mut homepage_data, &data);
     }
 
     let component_ctx = ComponentContext::for_page(&ctx.web_config);
 
     for component in ctx.template_registry.components_for("homepage") {
-        match component.render(&component_ctx).await {
-            Ok(rendered) => {
-                if let Some(obj) = homepage_data.as_object_mut() {
-                    obj.insert(
-                        rendered.variable_name,
-                        serde_json::Value::String(rendered.html),
-                    );
-                }
-            },
-            Err(e) => {
-                tracing::warn!(
-                    component_id = %component.component_id(),
-                    error = %e,
-                    "Homepage component render failed"
-                );
-            },
+        let rendered = component.render(&component_ctx).await.context(format!(
+            "Homepage component '{}' failed",
+            component.component_id()
+        ))?;
+
+        if let Some(obj) = homepage_data.as_object_mut() {
+            obj.insert(
+                rendered.variable_name,
+                serde_json::Value::String(rendered.html),
+            );
         }
     }
 
