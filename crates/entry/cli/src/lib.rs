@@ -8,10 +8,7 @@ pub mod session;
 pub mod shared;
 
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
-pub use commands::{
-    agents, analytics, build, cloud, config, content, contexts, db, ext, extensions, files, jobs,
-    logs, mcp, services, setup, skills, system, users, web,
-};
+pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
@@ -119,48 +116,24 @@ struct Cli {
 enum Commands {
     #[command(
         subcommand,
-        about = "Service lifecycle management (start, stop, status)"
+        about = "Core platform operations (content, files, contexts, skills)"
     )]
-    Services(services::ServicesCommands),
+    Core(core::CoreCommands),
 
-    #[command(subcommand, about = "Database operations and administration")]
-    Db(db::DbCommands),
+    #[command(
+        subcommand,
+        about = "Infrastructure management (services, db, jobs, logs, system)"
+    )]
+    Infra(infrastructure::InfraCommands),
 
-    #[command(subcommand, about = "Background jobs and scheduling")]
-    Jobs(jobs::JobsCommands),
+    #[command(
+        subcommand,
+        about = "Administration (users, agents, config, setup, session)"
+    )]
+    Admin(admin::AdminCommands),
 
     #[command(subcommand, about = "Cloud deployment, sync, and setup")]
     Cloud(cloud::CloudCommands),
-
-    #[command(subcommand, about = "Agent management")]
-    Agents(agents::AgentsCommands),
-
-    #[command(subcommand, about = "Context management")]
-    Contexts(contexts::ContextsCommands),
-
-    #[command(subcommand, about = "MCP server management")]
-    Mcp(mcp::McpCommands),
-
-    #[command(subcommand, about = "Log streaming and tracing")]
-    Logs(logs::LogsCommands),
-
-    #[command(subcommand, about = "Build MCP extensions")]
-    Build(build::BuildCommands),
-
-    #[command(subcommand, about = "Skill management and database sync")]
-    Skills(skills::SkillsCommands),
-
-    #[command(subcommand, about = "User management and IP banning")]
-    Users(users::UsersCommands),
-
-    #[command(subcommand, about = "File management and uploads")]
-    Files(files::FilesCommands),
-
-    #[command(subcommand, about = "Content management and analytics")]
-    Content(content::ContentCommands),
-
-    #[command(subcommand, about = "Configuration management and rate limits")]
-    Config(config::ConfigCommands),
 
     #[command(subcommand, about = "Analytics and metrics reporting")]
     Analytics(analytics::AnalyticsCommands),
@@ -168,29 +141,24 @@ enum Commands {
     #[command(subcommand, about = "Web service configuration management")]
     Web(web::WebCommands),
 
-    #[command(subcommand, about = "Extension management and discovery")]
-    Extensions(extensions::ExtensionsCommands),
+    #[command(subcommand, about = "Plugins, extensions, and MCP server management")]
+    Plugins(plugins::PluginsCommands),
 
-    #[command(subcommand, about = "Run CLI extension commands")]
-    Ext(ext::ExtCommands),
-
-    #[command(subcommand, about = "System authentication and session management")]
-    System(system::SystemCommands),
-
-    #[command(subcommand, about = "Manage CLI session and profile switching")]
-    Session(commands::session::SessionCommands),
-
-    #[command(about = "Interactive setup wizard for local development environment")]
-    Setup(setup::SetupArgs),
+    #[command(subcommand, about = "Build MCP extensions")]
+    Build(build::BuildCommands),
 }
 
 impl HasRequirements for Commands {
     fn requirements(&self) -> CommandRequirements {
         match self {
             Self::Cloud(cmd) => cmd.requirements(),
-            Self::Setup(_) | Self::Session(_) => CommandRequirements::NONE,
-            Self::Build(_) | Self::Extensions(_) => CommandRequirements::PROFILE_ONLY,
-            Self::System(_) => CommandRequirements::PROFILE_AND_SECRETS,
+            Self::Admin(admin::AdminCommands::Setup(_) | admin::AdminCommands::Session(_)) => {
+                CommandRequirements::NONE
+            },
+            Self::Build(_) | Self::Plugins(_) => CommandRequirements::PROFILE_ONLY,
+            Self::Infra(infrastructure::InfraCommands::System(_)) => {
+                CommandRequirements::PROFILE_AND_SECRETS
+            },
             _ => CommandRequirements::FULL,
         }
     }
@@ -199,7 +167,9 @@ impl HasRequirements for Commands {
 const fn should_skip_validation(command: Option<&Commands>) -> bool {
     matches!(
         command,
-        Some(Commands::Skills(skills::SkillsCommands::Create(_)))
+        Some(Commands::Core(core::CoreCommands::Skills(
+            core::skills::SkillsCommands::Create(_)
+        )))
     )
 }
 
@@ -261,31 +231,15 @@ pub async fn run() -> Result<()> {
     }
 
     match cli.command {
-        Some(Commands::Services(cmd)) => services::execute(cmd, &cli_config).await?,
-        Some(Commands::Db(cmd)) => db::execute(cmd, &cli_config).await?,
-        Some(Commands::Jobs(cmd)) => jobs::execute(cmd, &cli_config).await?,
+        Some(Commands::Core(cmd)) => core::execute(cmd, &cli_config).await?,
+        Some(Commands::Infra(cmd)) => infrastructure::execute(cmd, &cli_config).await?,
+        Some(Commands::Admin(cmd)) => admin::execute(cmd, &cli_config).await?,
         Some(Commands::Cloud(cmd)) => cloud::execute(cmd, &cli_config).await?,
-        Some(Commands::Agents(cmd)) => agents::execute(cmd).await?,
-        Some(Commands::Contexts(cmd)) => contexts::execute(cmd, &cli_config).await?,
-        Some(Commands::Mcp(cmd)) => mcp::execute(cmd).await?,
-        Some(Commands::Logs(cmd)) => logs::execute(cmd, &cli_config).await?,
-        Some(Commands::Build(cmd)) => {
-            build::execute(cmd, &cli_config)?;
-        },
-        Some(Commands::Skills(cmd)) => skills::execute(cmd).await?,
-        Some(Commands::Users(cmd)) => users::execute(cmd, &cli_config).await?,
-        Some(Commands::Files(cmd)) => files::execute(cmd, &cli_config).await?,
-        Some(Commands::Content(cmd)) => content::execute(cmd).await?,
-        Some(Commands::Config(cmd)) => config::execute(cmd, &cli_config)?,
         Some(Commands::Analytics(cmd)) => analytics::execute(cmd, &cli_config).await?,
         Some(Commands::Web(cmd)) => web::execute(cmd)?,
-        Some(Commands::Extensions(cmd)) => extensions::execute(cmd, &cli_config)?,
-        Some(Commands::Ext(cmd)) => ext::execute(cmd, &cli_config).await?,
-        Some(Commands::System(cmd)) => system::execute(cmd).await?,
-        Some(Commands::Session(cmd)) => commands::session::execute(cmd, &cli_config)?,
-        Some(Commands::Setup(args)) => {
-            let result = setup::execute(args, &cli_config).await?;
-            shared::render_result(&result);
+        Some(Commands::Plugins(cmd)) => plugins::execute(cmd, &cli_config).await?,
+        Some(Commands::Build(cmd)) => {
+            build::execute(cmd, &cli_config)?;
         },
         None => {
             Cli::parse_from(["systemprompt", "--help"]);
@@ -305,12 +259,10 @@ async fn run_with_database_url(
         .context("Failed to connect to database")?;
 
     match command {
-        Some(Commands::Db(cmd)) => db::execute_with_db(cmd, &db_ctx, config).await,
-        Some(Commands::Users(cmd)) => users::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Core(cmd)) => core::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Infra(cmd)) => infrastructure::execute_with_db(cmd, &db_ctx, config).await,
+        Some(Commands::Admin(cmd)) => admin::execute_with_db(cmd, &db_ctx, config).await,
         Some(Commands::Analytics(cmd)) => analytics::execute_with_db(cmd, &db_ctx, config).await,
-        Some(Commands::Content(cmd)) => content::execute_with_db(cmd, &db_ctx, config).await,
-        Some(Commands::Logs(cmd)) => logs::execute_with_db(cmd, &db_ctx, config).await,
-        Some(Commands::Files(cmd)) => files::execute_with_db(cmd, &db_ctx, config).await,
         Some(_) => {
             bail!("This command requires full profile initialization. Remove --database-url flag.")
         },
@@ -349,11 +301,10 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
 const fn should_check_remote_routing(command: Option<&Commands>) -> bool {
     match command {
         Some(
-            Commands::Session(_)
-            | Commands::Setup(_)
+            Commands::Admin(admin::AdminCommands::Session(_) | admin::AdminCommands::Setup(_))
             | Commands::Cloud(_)
             | Commands::Build(_)
-            | Commands::System(_),
+            | Commands::Infra(infrastructure::InfraCommands::System(_)),
         )
         | None => false,
         Some(_) => true,
