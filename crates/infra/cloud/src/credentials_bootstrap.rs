@@ -47,7 +47,12 @@ impl CredentialsBootstrap {
             tracing::debug!("Fly.io container detected, loading credentials from environment");
             let creds = Self::load_from_env();
             if let Some(ref c) = creds {
-                Self::validate_with_api(c).await?;
+                if let Err(e) = Self::validate_with_api(c).await {
+                    tracing::warn!(
+                        error = %e,
+                        "Cloud credential validation failed on Fly.io, continuing with unvalidated credentials"
+                    );
+                }
             }
             CREDENTIALS
                 .set(creds)
