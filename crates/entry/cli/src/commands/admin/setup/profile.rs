@@ -181,8 +181,9 @@ pub fn run_migrations(profile_path: &Path) -> Result<()> {
 
     CliService::info("Run manually with:");
     CliService::info(&format!(
-        "  SYSTEMPROMPT_PROFILE={} systemprompt infra db migrate",
-        profile_path_str
+        "  SYSTEMPROMPT_PROFILE={} systemprompt {}",
+        profile_path_str,
+        CliPaths::db_migrate_cmd()
     ));
 
     Ok(())

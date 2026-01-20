@@ -15,8 +15,8 @@ use systemprompt_runtime::AppContext;
 pub enum ServicesCommands {
     #[command(
         about = "Start API, agents, and MCP servers",
-        after_help = "EXAMPLES:\n  systemprompt infra services start\n  systemprompt infra services start \
-                      --api\n  systemprompt infra services start --agents --mcp"
+        after_help = "EXAMPLES:\n  systemprompt infra services start\n  systemprompt infra \
+                      services start --api\n  systemprompt infra services start --agents --mcp"
     )]
     Start {
         #[arg(long, help = "Start all services")]

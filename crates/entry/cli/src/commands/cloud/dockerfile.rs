@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 use systemprompt_cloud::constants::{container, storage};
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
-use systemprompt_models::ServicesConfig;
+use systemprompt_models::{CliPaths, ServicesConfig};
 
 use super::tenant::find_services_config;
 
@@ -105,7 +105,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-CMD ["{bin}/systemprompt", "infra", "services", "serve", "--foreground"]
+CMD ["{bin}/systemprompt", "{infra}", "{services}", "{serve}", "--foreground"]
 "#,
             app = container::APP,
             bin = container::BIN,
@@ -125,6 +125,9 @@ CMD ["{bin}/systemprompt", "infra", "services", "serve", "--foreground"]
             mcp_section = mcp_section,
             env_section = env_section,
             extension_assets_section = extension_assets_section,
+            infra = CliPaths::INFRA,
+            services = CliPaths::SERVICES,
+            serve = CliPaths::SERVE,
         )
     }
 

@@ -207,7 +207,9 @@ impl ContentRepository {
             Some(k) => k.clone(),
             None => {
                 let current = self.get_by_id(&params.id).await?;
-                current.map(|c| c.kind).unwrap_or_else(|| "article".to_string())
+                current
+                    .map(|c| c.kind)
+                    .unwrap_or_else(|| "article".to_string())
             },
         };
 
