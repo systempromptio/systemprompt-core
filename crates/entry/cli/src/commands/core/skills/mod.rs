@@ -4,6 +4,7 @@ mod create;
 mod delete;
 mod edit;
 mod list;
+mod show;
 mod status;
 mod sync;
 
@@ -18,6 +19,9 @@ use crate::CliConfig;
 pub enum SkillsCommands {
     #[command(about = "List configured skills")]
     List(list::ListArgs),
+
+    #[command(about = "Show skill details")]
+    Show(show::ShowArgs),
 
     #[command(about = "Create new skill")]
     Create(create::CreateArgs),
@@ -44,6 +48,11 @@ pub async fn execute_with_config(command: SkillsCommands, config: &CliConfig) ->
     match command {
         SkillsCommands::List(args) => {
             let result = list::execute(args, config).context("Failed to list skills")?;
+            render_result(&result);
+            Ok(())
+        },
+        SkillsCommands::Show(args) => {
+            let result = show::execute(args, config).context("Failed to show skill")?;
             render_result(&result);
             Ok(())
         },

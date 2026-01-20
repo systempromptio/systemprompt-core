@@ -15,6 +15,7 @@ use systemprompt_core_logging::CliService;
 use systemprompt_core_security::{SessionGenerator, SessionParams};
 use systemprompt_core_users::UserService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionToken, TraceId, UserId};
+use systemprompt_loader::ProfileLoader;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -100,25 +101,46 @@ fn resolve_session_paths(project_ctx: &ProjectContext) -> Result<(PathBuf, Optio
     }
 }
 
-pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
-    let profile = ProfileBootstrap::get()
-        .map_err(|_| {
-            anyhow::anyhow!(
-                "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
-                 profile.yaml path."
-            )
-        })?
-        .clone();
+fn resolve_profile_by_name(profile_name: &str) -> Result<(PathBuf, Profile)> {
+    let project_ctx = ProjectContext::discover();
+    let profile_dir = project_ctx.profile_dir(profile_name);
+    let profile_config_path = ProfilePath::Config.resolve(&profile_dir);
 
-    if let Some(ctx) = try_session_from_env(&profile) {
+    if !profile_config_path.exists() {
+        anyhow::bail!(
+            "Profile '{}' not found.\n\nAvailable profiles can be listed with: systemprompt admin \
+             session list",
+            profile_name
+        );
+    }
+
+    let profile = ProfileLoader::load_from_path(&profile_config_path)
+        .with_context(|| format!("Failed to load profile '{}'", profile_name))?;
+
+    Ok((profile_config_path, profile))
+}
+
+async fn get_session_for_profile(
+    profile_name: &str,
+    config: &CliConfig,
+) -> Result<CliSessionContext> {
+    let (profile_path, profile) = resolve_profile_by_name(profile_name)?;
+
+    ProfileBootstrap::init_from_path(&profile_path)
+        .with_context(|| format!("Failed to initialize profile '{}'", profile_name))?;
+
+    get_session_for_loaded_profile(&profile, &profile_path, config).await
+}
+
+async fn get_session_for_loaded_profile(
+    profile: &Profile,
+    profile_path: &Path,
+    config: &CliConfig,
+) -> Result<CliSessionContext> {
+    if let Some(ctx) = try_session_from_env(profile) {
         return Ok(ctx);
     }
 
-    let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
-        anyhow::anyhow!("Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable.")
-    })?;
-
-    let profile_path = Path::new(profile_path_str);
     let profile_dir = profile_path
         .parent()
         .ok_or_else(|| anyhow::anyhow!("Invalid profile path: no parent directory"))?;
@@ -140,7 +162,10 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         session.touch();
         store.upsert_session(&session_key, session.clone());
         store.save(&sessions_dir)?;
-        return Ok(CliSessionContext { session, profile });
+        return Ok(CliSessionContext {
+            session,
+            profile: profile.clone(),
+        });
     }
 
     CredentialsBootstrap::try_init()
@@ -159,11 +184,11 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
     let profile_ctx = ProfileContext {
         dir: profile_dir,
         name: &profile_name,
-        path: PathBuf::from(profile_path_str),
+        path: profile_path.to_path_buf(),
     };
 
     let session =
-        create_session_for_tenant(&creds, &profile, &profile_ctx, &session_key, config).await?;
+        create_session_for_tenant(&creds, profile, &profile_ctx, &session_key, config).await?;
 
     store.upsert_session(&session_key, session.clone());
     store.set_active(&session_key);
@@ -173,7 +198,91 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
         anyhow::bail!("Session token is empty. Session creation failed.");
     }
 
-    Ok(CliSessionContext { session, profile })
+    Ok(CliSessionContext {
+        session,
+        profile: profile.clone(),
+    })
+}
+
+async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
+    let project_ctx = ProjectContext::discover();
+    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+
+    let active_session = match store.active_session() {
+        Some(session) => session,
+        None => return Ok(None),
+    };
+
+    let profile_path = match &active_session.profile_path {
+        Some(path) if path.exists() => path,
+        _ => return Ok(None),
+    };
+
+    let profile = ProfileLoader::load_from_path(profile_path).with_context(|| {
+        format!(
+            "Failed to load profile from stored path: {}",
+            profile_path.display()
+        )
+    })?;
+
+    ProfileBootstrap::init_from_path(profile_path).with_context(|| {
+        format!(
+            "Failed to initialize profile from {}",
+            profile_path.display()
+        )
+    })?;
+
+    let ctx = get_session_for_loaded_profile(&profile, profile_path, config).await?;
+    Ok(Some(ctx))
+}
+
+pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionContext> {
+    let ctx = resolve_session(config).await?;
+
+    if config.is_interactive() {
+        let tenant = ctx.session.tenant_key.as_deref().unwrap_or("local");
+        CliService::session_context(
+            &ctx.session.profile_name,
+            &ctx.session.session_id,
+            Some(tenant),
+        );
+    }
+
+    Ok(ctx)
+}
+
+async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
+    if let Some(ref profile_name) = config.profile_override {
+        return get_session_for_profile(profile_name, config).await;
+    }
+
+    let env_profile_set = std::env::var("SYSTEMPROMPT_PROFILE").is_ok();
+
+    if !env_profile_set {
+        if let Some(ctx) = try_session_from_active_key(config).await? {
+            return Ok(ctx);
+        }
+    }
+
+    let profile = ProfileBootstrap::get()
+        .map_err(|_| {
+            anyhow::anyhow!(
+                "Profile required.\n\nSet SYSTEMPROMPT_PROFILE environment variable to your \
+                 profile.yaml path, or use --profile <name>."
+            )
+        })?
+        .clone();
+
+    let profile_path_str = ProfileBootstrap::get_path().map_err(|_| {
+        anyhow::anyhow!(
+            "Profile path required.\n\nSet SYSTEMPROMPT_PROFILE environment variable or use \
+             --profile <name>."
+        )
+    })?;
+
+    let profile_path = Path::new(profile_path_str);
+    get_session_for_loaded_profile(&profile, profile_path, config).await
 }
 
 async fn create_session_for_tenant(

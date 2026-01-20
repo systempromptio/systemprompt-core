@@ -134,7 +134,7 @@ async fn execute_with_pool_inner(
         .map(|r| {
             let input = r.input_tokens.unwrap_or(0);
             let output = r.output_tokens.unwrap_or(0);
-            let cost_dollars = f64::from(r.cost_cents) / 1_000_000.0;
+            let cost_dollars = f64::from(r.cost_cents) / 100.0;
 
             RequestListRow {
                 request_id: truncate_id(&r.id, 12),

@@ -232,6 +232,19 @@ pub struct RequestTrendRow {
     pub latency_ms: Option<i32>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct RequestListRow {
+    pub id: String,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub cost_cents: Option<i32>,
+    pub latency_ms: Option<i32>,
+    pub cache_hit: Option<bool>,
+    pub created_at: DateTime<Utc>,
+}
+
 // =============================================================================
 // Cost Analytics Models
 // =============================================================================

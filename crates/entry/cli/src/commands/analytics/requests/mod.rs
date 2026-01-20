@@ -1,3 +1,4 @@
+mod list;
 mod models;
 mod stats;
 mod trends;
@@ -14,6 +15,9 @@ use crate::CliConfig;
 pub enum RequestsCommands {
     #[command(about = "Aggregate AI request statistics")]
     Stats(stats::StatsArgs),
+
+    #[command(about = "List individual AI requests")]
+    List(list::ListArgs),
 
     #[command(about = "AI request trends over time")]
     Trends(trends::TrendsArgs),
@@ -71,6 +75,7 @@ pub struct ModelsOutput {
 pub async fn execute(command: RequestsCommands, config: &CliConfig) -> Result<()> {
     match command {
         RequestsCommands::Stats(args) => stats::execute(args, config).await,
+        RequestsCommands::List(args) => list::execute(args, config).await,
         RequestsCommands::Trends(args) => trends::execute(args, config).await,
         RequestsCommands::Models(args) => models::execute(args, config).await,
     }
@@ -83,6 +88,7 @@ pub async fn execute_with_pool(
 ) -> Result<()> {
     match command {
         RequestsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
+        RequestsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
         RequestsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
         RequestsCommands::Models(args) => models::execute_with_pool(args, db_ctx, config).await,
     }

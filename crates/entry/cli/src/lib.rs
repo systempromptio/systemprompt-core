@@ -77,6 +77,16 @@ struct DatabaseOpts {
     database_url: Option<String>,
 }
 
+#[derive(clap::Args)]
+struct ProfileOpts {
+    #[arg(
+        long,
+        global = true,
+        help = "Profile name to use (overrides active session)"
+    )]
+    profile: Option<String>,
+}
+
 #[derive(Parser)]
 #[command(name = "systemprompt")]
 #[command(about = "Agent orchestration and AI operations")]
@@ -94,7 +104,8 @@ GLOBAL OPTIONS (apply to all commands):
       --yaml            YAML output
       --no-color        Disable colors
       --non-interactive Non-interactive mode
-      --database-url    Direct database URL (bypasses profile)")]
+      --database-url    Direct database URL (bypasses profile)
+      --profile         Profile name to use (overrides active session)")]
 struct Cli {
     #[command(flatten)]
     verbosity: VerbosityOpts,
@@ -107,6 +118,9 @@ struct Cli {
 
     #[command(flatten)]
     database: DatabaseOpts,
+
+    #[command(flatten)]
+    profile_opts: ProfileOpts,
 
     #[command(subcommand)]
     command: Option<Commands>,
@@ -180,7 +194,7 @@ pub async fn run() -> Result<()> {
     set_startup_mode(cli.command.is_none());
 
     let cli_config = build_cli_config(&cli);
-    cli_settings::set_global_config(cli_config);
+    cli_settings::set_global_config(cli_config.clone());
 
     if cli.display.no_color || !cli_config.should_use_color() {
         console::set_colors_enabled(false);
@@ -296,6 +310,8 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
         cfg = cfg.with_interactive(false);
     }
 
+    cfg = cfg.with_profile_override(cli.profile_opts.profile.clone());
+
     cfg
 }
 
@@ -337,6 +353,11 @@ fn reconstruct_args(cli: &Cli) -> Vec<String> {
         args.push("--non-interactive".to_string());
     }
 
+    if let Some(ref profile) = cli.profile_opts.profile {
+        args.push("--profile".to_string());
+        args.push(profile.clone());
+    }
+
     let original_args: Vec<String> = std::env::args().skip(1).collect();
     for arg in &original_args {
         if !args.contains(arg)
@@ -351,6 +372,7 @@ fn reconstruct_args(cli: &Cli) -> Vec<String> {
                     | "--yaml"
                     | "--no-color"
                     | "--non-interactive"
+                    | "--profile"
             )
         {
             args.push(arg.clone());

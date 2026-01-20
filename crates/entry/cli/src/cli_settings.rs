@@ -23,12 +23,13 @@ pub enum ColorMode {
     Never,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct CliConfig {
     pub output_format: OutputFormat,
     pub verbosity: VerbosityLevel,
     pub color_mode: ColorMode,
     pub interactive: bool,
+    pub profile_override: Option<String>,
 }
 
 impl Default for CliConfig {
@@ -38,6 +39,7 @@ impl Default for CliConfig {
             verbosity: VerbosityLevel::Normal,
             color_mode: ColorMode::Auto,
             interactive: true,
+            profile_override: None,
         }
     }
 }
@@ -66,6 +68,11 @@ impl CliConfig {
 
     pub const fn with_interactive(mut self, interactive: bool) -> Self {
         self.interactive = interactive;
+        self
+    }
+
+    pub fn with_profile_override(mut self, profile: Option<String>) -> Self {
+        self.profile_override = profile;
         self
     }
 
@@ -134,5 +141,5 @@ pub fn set_global_config(config: CliConfig) {
 }
 
 pub fn get_global_config() -> CliConfig {
-    CLI_CONFIG.with(|c| *c.borrow())
+    CLI_CONFIG.with(|c| c.borrow().clone())
 }

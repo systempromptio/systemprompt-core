@@ -4,7 +4,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_core_database::DbPool;
 
-use crate::models::cli::{ModelUsageRow, RequestStatsRow, RequestTrendRow};
+use crate::models::cli::{ModelUsageRow, RequestListRow, RequestStatsRow, RequestTrendRow};
 
 #[derive(Debug)]
 pub struct RequestAnalyticsRepository {
@@ -125,5 +125,70 @@ impl RequestAnalyticsRepository {
         .fetch_all(&*self.pool)
         .await
         .map_err(Into::into)
+    }
+
+    pub async fn list_requests(
+        &self,
+        start: DateTime<Utc>,
+        end: DateTime<Utc>,
+        limit: i64,
+        model_filter: Option<&str>,
+    ) -> Result<Vec<RequestListRow>> {
+        if let Some(model) = model_filter {
+            let pattern = format!("%{}%", model);
+            sqlx::query_as!(
+                RequestListRow,
+                r#"
+                SELECT
+                    id as "id!",
+                    provider as "provider!",
+                    model as "model!",
+                    input_tokens,
+                    output_tokens,
+                    cost_cents,
+                    latency_ms,
+                    cache_hit,
+                    created_at as "created_at!"
+                FROM ai_requests
+                WHERE created_at >= $1 AND created_at < $2
+                  AND model ILIKE $3
+                ORDER BY created_at DESC
+                LIMIT $4
+                "#,
+                start,
+                end,
+                pattern,
+                limit
+            )
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(Into::into)
+        } else {
+            sqlx::query_as!(
+                RequestListRow,
+                r#"
+                SELECT
+                    id as "id!",
+                    provider as "provider!",
+                    model as "model!",
+                    input_tokens,
+                    output_tokens,
+                    cost_cents,
+                    latency_ms,
+                    cache_hit,
+                    created_at as "created_at!"
+                FROM ai_requests
+                WHERE created_at >= $1 AND created_at < $2
+                ORDER BY created_at DESC
+                LIMIT $3
+                "#,
+                start,
+                end,
+                limit
+            )
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(Into::into)
+        }
     }
 }

@@ -203,7 +203,7 @@ async fn build_output(pool: &Arc<sqlx::PgPool>, row: AiRequestRow) -> Result<Aud
         model: row.model,
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
-        cost_dollars: f64::from(row.cost_cents) / 1_000_000.0,
+        cost_dollars: f64::from(row.cost_cents) / 100.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
         task_id: row.task_id,
         trace_id: row.trace_id,
