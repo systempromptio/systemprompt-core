@@ -3,13 +3,16 @@ use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use std::path::Path;
+use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
+use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_core_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -23,7 +26,10 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<AgentDeleteOutput>> {
+pub async fn execute(
+    args: DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<AgentDeleteOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let agents_to_delete: Vec<String> = if args.all {
@@ -70,11 +76,29 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Age
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let services_dir = Path::new(&profile.paths.services);
 
+    let orchestrator = match AppContext::new().await {
+        Ok(ctx) => {
+            let ctx = Arc::new(ctx);
+            AgentOrchestrator::new(ctx, None).await.ok()
+        },
+        Err(_) => None,
+    };
+
     let mut deleted = Vec::new();
     let mut errors = Vec::new();
 
     for agent_name in &agents_to_delete {
         CliService::info(&format!("Deleting agent '{}'...", agent_name));
+
+        if let Some(ref orch) = orchestrator {
+            if let Err(e) = orch.delete_agent(agent_name).await {
+                tracing::debug!(
+                    agent = %agent_name,
+                    error = %e,
+                    "Orchestrator delete failed, agent may not be running"
+                );
+            }
+        }
 
         match ConfigWriter::delete_agent(agent_name, services_dir) {
             Ok(()) => {

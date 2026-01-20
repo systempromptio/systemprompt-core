@@ -60,7 +60,7 @@ pub enum AgentsCommands {
     #[command(about = "List MCP tools available to an agent")]
     Tools(tools::ToolsArgs),
 
-    #[command(about = "Run an agent server (internal use)", hide = true)]
+    #[command(about = "Run an agent server directly (bypasses orchestration)")]
     Run(run::RunArgs),
 }
 
@@ -97,7 +97,9 @@ pub async fn execute_with_config(command: AgentsCommands, config: &CliConfig) ->
             Ok(())
         },
         AgentsCommands::Delete(args) => {
-            let result = delete::execute(args, config).context("Failed to delete agent")?;
+            let result = delete::execute(args, config)
+                .await
+                .context("Failed to delete agent")?;
             render_result(&result);
             Ok(())
         },

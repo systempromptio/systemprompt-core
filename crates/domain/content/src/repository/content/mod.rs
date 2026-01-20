@@ -191,18 +191,15 @@ impl ContentRepository {
     pub async fn update(&self, params: &UpdateContentParams) -> Result<Content, sqlx::Error> {
         let now = Utc::now();
 
-        // Determine final category_id value
         let category_id_value: Option<String> = match &params.category_id {
             Some(Some(cat)) => Some(cat.as_str().to_string()),
             Some(None) => None,
             None => {
-                // Keep current value - fetch it first
                 let current = self.get_by_id(&params.id).await?;
                 current.and_then(|c| c.category_id.map(|cat| cat.as_str().to_string()))
             },
         };
 
-        // Determine final kind value
         let kind_value: String = if let Some(k) = &params.kind {
             k.clone()
         } else {
@@ -210,7 +207,6 @@ impl ContentRepository {
             current.map_or_else(|| "article".to_string(), |c| c.kind)
         };
 
-        // Determine final public value
         let public_value: bool = if let Some(p) = params.public {
             p
         } else {
