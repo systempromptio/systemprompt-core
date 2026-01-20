@@ -12,6 +12,7 @@ pub mod mcp;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
+use crate::requirements::{CommandRequirements, HasRequirements};
 use crate::shared::render_result;
 use crate::CliConfig;
 
@@ -37,6 +38,15 @@ pub enum PluginsCommands {
 
     #[command(subcommand, about = "MCP server management")]
     Mcp(mcp::McpCommands),
+}
+
+impl HasRequirements for PluginsCommands {
+    fn requirements(&self) -> CommandRequirements {
+        match self {
+            Self::Mcp(_) | Self::Run(_) => CommandRequirements::FULL,
+            _ => CommandRequirements::PROFILE_ONLY,
+        }
+    }
 }
 
 pub async fn execute(cmd: PluginsCommands, config: &CliConfig) -> Result<()> {
