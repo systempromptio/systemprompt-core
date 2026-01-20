@@ -105,7 +105,7 @@ EXPOSE 8080
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
     CMD curl -f http://localhost:8080/api/v1/health || exit 1
 
-CMD ["{bin}/systemprompt", "{infra}", "{services}", "{serve}", "--foreground"]
+CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--foreground"]
 "#,
             app = container::APP,
             bin = container::BIN,
@@ -125,9 +125,9 @@ CMD ["{bin}/systemprompt", "{infra}", "{services}", "{serve}", "--foreground"]
             mcp_section = mcp_section,
             env_section = env_section,
             extension_assets_section = extension_assets_section,
-            infra = CliPaths::INFRA,
-            services = CliPaths::SERVICES,
-            serve = CliPaths::SERVE,
+            cmd_infra = CliPaths::INFRA,
+            cmd_services = "services",
+            cmd_serve = CliPaths::SERVE,
         )
     }
 
