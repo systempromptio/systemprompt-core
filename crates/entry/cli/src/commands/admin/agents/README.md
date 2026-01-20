@@ -20,17 +20,17 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `agents list` | List configured agents | `Table` | No |
-| `agents show <name>` | Display agent configuration | `Card` | No |
-| `agents validate [name]` | Check agent configs for errors | `Table` | No |
-| `agents create` | Create new agent | `Text` | No |
-| `agents edit <name>` | Edit agent configuration | `Text` | No |
-| `agents delete <name>` | Delete an agent | `Text` | No |
-| `agents status [name]` | Show agent process status | `Table` | No |
-| `agents logs [name]` | View agent logs | `Text`/`List` | No |
-| `agents registry` | Get running agents from gateway | `Table` | Yes |
-| `agents message <agent>` | Send A2A message to agent | `Card` | Yes |
-| `agents task <agent>` | Get task details and response | `Card` | Yes |
+| `admin agents list` | List configured agents | `Table` | No |
+| `admin agents show <name>` | Display agent configuration | `Card` | No |
+| `admin agents validate [name]` | Check agent configs for errors | `Table` | No |
+| `admin agents create` | Create new agent | `Text` | No |
+| `admin agents edit <name>` | Edit agent configuration | `Text` | No |
+| `admin agents delete <name>` | Delete an agent | `Text` | No |
+| `admin agents status [name]` | Show agent process status | `Table` | No |
+| `admin agents logs [name]` | View agent logs | `Text`/`List` | No |
+| `admin agents registry` | Get running agents from gateway | `Table` | Yes |
+| `admin agents message <agent>` | Send A2A message to agent | `Card` | Yes |
+| `admin agents task <agent>` | Get task details and response | `Card` | Yes |
 
 ---
 
@@ -41,10 +41,10 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all configured agents from the services configuration.
 
 ```bash
-sp agents list
+sp admin agents list
 sp --json agents list
-sp agents list --enabled
-sp agents list --disabled
+sp admin agents list --enabled
+sp admin agents list --disabled
 ```
 
 **Flags:**
@@ -79,7 +79,7 @@ sp agents list --disabled
 Display detailed configuration for a specific agent.
 
 ```bash
-sp agents show <agent_name>
+sp admin agents show <agent_name>
 sp --json agents show primary
 ```
 
@@ -113,9 +113,9 @@ sp --json agents show primary
 Check agent configurations for errors and warnings.
 
 ```bash
-sp agents validate
+sp admin agents validate
 sp --json agents validate
-sp agents validate <agent_name>
+sp admin agents validate <agent_name>
 ```
 
 **Output Structure:**
@@ -146,7 +146,7 @@ sp agents validate <agent_name>
 Create a new agent configuration.
 
 ```bash
-sp agents create \
+sp admin agents create \
   --name "my_agent" \
   --port 8099 \
   --display-name "My Agent" \
@@ -192,11 +192,11 @@ sp agents create \
 Edit an existing agent configuration.
 
 ```bash
-sp agents edit <agent_name> --enable
-sp agents edit <agent_name> --disable
-sp agents edit <agent_name> --port 8098
-sp agents edit <agent_name> --provider openai --model gpt-4
-sp agents edit <agent_name> --set card.description="New description"
+sp admin agents edit <agent_name> --enable
+sp admin agents edit <agent_name> --disable
+sp admin agents edit <agent_name> --port 8098
+sp admin agents edit <agent_name> --provider openai --model gpt-4
+sp admin agents edit <agent_name> --set card.description="New description"
 ```
 
 **Required Arguments:**
@@ -245,8 +245,8 @@ sp agents edit <agent_name> --set card.description="New description"
 Delete an agent configuration.
 
 ```bash
-sp agents delete <agent_name> --yes
-sp agents delete --all --yes
+sp admin agents delete <agent_name> --yes
+sp admin agents delete --all --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -277,9 +277,9 @@ sp agents delete --all --yes
 Show agent process status (running state, PID, port).
 
 ```bash
-sp agents status
+sp admin agents status
 sp --json agents status
-sp agents status <agent_name>
+sp admin agents status <agent_name>
 ```
 
 **Output Structure:**
@@ -307,10 +307,10 @@ sp agents status <agent_name>
 View agent logs from database or disk.
 
 ```bash
-sp agents logs <agent_name>
-sp agents logs <agent_name> --lines 100
-sp agents logs <agent_name> --disk
-sp agents logs <agent_name> --follow
+sp admin agents logs <agent_name>
+sp admin agents logs <agent_name> --lines 100
+sp admin agents logs <agent_name> --disk
+sp admin agents logs <agent_name> --follow
 ```
 
 **Flags:**
@@ -361,11 +361,11 @@ These commands interact with running agent services via the A2A protocol.
 Discover running agents from the gateway registry endpoint.
 
 ```bash
-sp agents registry
+sp admin agents registry
 sp --json agents registry
-sp agents registry --url http://localhost:8080
-sp agents registry --running
-sp agents registry --verbose
+sp admin agents registry --url http://localhost:8080
+sp admin agents registry --running
+sp admin agents registry --verbose
 ```
 
 **Flags:**
@@ -407,10 +407,10 @@ sp agents registry --verbose
 Send a message to a running agent via the A2A protocol. Returns a task ID for tracking.
 
 ```bash
-sp agents message <agent_name> -m "Hello, how can you help me?"
-sp agents message primary -m "What tools do you have?" --blocking
-sp agents message primary -m "Search for files" --stream
-sp agents message primary -m "Continue task" --context-id <ctx-id> --task-id <task-id>
+sp admin agents message <agent_name> -m "Hello, how can you help me?"
+sp admin agents message primary -m "What tools do you have?" --blocking
+sp admin agents message primary -m "Search for files" --stream
+sp admin agents message primary -m "Continue task" --context-id <ctx-id> --task-id <task-id>
 ```
 
 **Required Arguments:**
@@ -487,9 +487,9 @@ The command sends a JSON-RPC 2.0 request to the agent endpoint:
 Get task details including conversation history and agent response.
 
 ```bash
-sp agents task <agent_name> --task-id <task-id> --token "$TOKEN"
+sp admin agents task <agent_name> --task-id <task-id> --token "$TOKEN"
 sp --json agents task primary --task-id task_abc123 --token "$TOKEN"
-sp agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TOKEN"
+sp admin agents task admin --task-id "$TASK_ID" --history-length 10 --token "$TOKEN"
 ```
 
 **Required Arguments:**
@@ -539,7 +539,7 @@ sp --json agents list
 sp --json agents validate
 
 # Phase 3: Create new agent
-sp agents create \
+sp admin agents create \
   --name "test-agent" \
   --port 8199 \
   --display-name "Test Agent" \
@@ -551,7 +551,7 @@ sp agents create \
 sp --json agents show test-agent
 
 # Phase 5: Edit agent
-sp agents edit test-agent --enable --port 8198
+sp admin agents edit test-agent --enable --port 8198
 
 # Phase 6: Validate after edit
 sp --json agents validate test-agent
@@ -560,10 +560,10 @@ sp --json agents validate test-agent
 sp --json agents status test-agent
 
 # Phase 8: View logs (after agent runs)
-sp agents logs test-agent --lines 20
+sp admin agents logs test-agent --lines 20
 
 # Phase 9: Delete agent
-sp agents delete test-agent --yes
+sp admin agents delete test-agent --yes
 
 # Phase 10: Verify deletion
 sp --json agents list
@@ -580,7 +580,7 @@ This flow demonstrates interacting with running agents with authentication:
 cd /var/www/html/tyingshoelaces && just start
 
 # Step 2: Get authentication token
-TOKEN=$(sp system login --email your-admin@email.com --token-only)
+TOKEN=$(sp infra system login --email your-admin@email.com --token-only)
 # Verify token was captured
 echo "Token length: ${#TOKEN}"
 
@@ -595,7 +595,7 @@ TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 CONTEXT_ID=$(echo "$RESPONSE" | jq -r '.data.task.context_id')
 
 # Step 5: Get task details with agent response (no --context-id needed per A2A spec)
-sp agents task admin --task-id "$TASK_ID" --token "$TOKEN"
+sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 # Returns structured history and artifacts in JSON output
 
 # Step 6: Continue conversation (use context_id from previous response)
@@ -606,26 +606,26 @@ sp --json agents message admin \
   --blocking
 
 # Step 7: Get full conversation history
-sp agents task admin --task-id "$TASK_ID" --token "$TOKEN"
+sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 ```
 
 ### Authentication
 
-A2A protocol commands require authentication. Use `system login` to get a token:
+A2A protocol commands require authentication. Use `infra system login` to get a token:
 
 ```bash
 # Get token interactively
-sp system login --email admin@example.com
+sp infra system login --email admin@example.com
 
 # Get token for scripting (outputs only the token)
-TOKEN=$(sp system login --email admin@example.com --token-only)
+TOKEN=$(sp infra system login --email admin@example.com --token-only)
 
 # Use token with message command
-sp agents message admin -m "Hello" --token "$TOKEN"
+sp admin agents message admin -m "Hello" --token "$TOKEN"
 
 # Or set as environment variable
 export SYSTEMPROMPT_TOKEN="$TOKEN"
-sp agents message admin -m "Hello"  # Uses env var automatically
+sp admin agents message admin -m "Hello"  # Uses env var automatically
 ```
 
 The token is a JWT with 24-hour default expiration. Use `--duration-hours` to customize.
@@ -655,49 +655,49 @@ The token is a JWT with 24-hour default expiration. Use `--duration-hours` to cu
 ### Missing Required Flags
 
 ```bash
-sp agents show
+sp admin agents show
 # Error: --name is required in non-interactive mode
 
-sp agents delete test-agent
+sp admin agents delete test-agent
 # Error: --yes is required to delete agents in non-interactive mode
 
-sp agents create --name test
+sp admin agents create --name test
 # Error: --port is required in non-interactive mode
 
-sp agents message primary
+sp admin agents message primary
 # Error: Message text is required. Use -m or --message
 ```
 
 ### Validation Errors
 
 ```bash
-sp agents create --name "Test Agent" --port 8099
+sp admin agents create --name "Test Agent" --port 8099
 # Error: Agent name must be lowercase alphanumeric with underscores only
 
-sp agents create --name "ab" --port 8099
+sp admin agents create --name "ab" --port 8099
 # Error: Agent name must be between 3 and 50 characters
 
-sp agents create --name "test-agent" --port 80
+sp admin agents create --name "test-agent" --port 80
 # Error: Port must be >= 1024 (non-privileged)
 ```
 
 ### Not Found Errors
 
 ```bash
-sp agents show nonexistent
+sp admin agents show nonexistent
 # Error: Agent 'nonexistent' not found
 
-sp agents message nonexistent -m "test"
+sp admin agents message nonexistent -m "test"
 # Error: Failed to send message to agent at http://localhost:8080/api/v1/agents/nonexistent
 ```
 
 ### Service Connection Errors
 
 ```bash
-sp agents registry
+sp admin agents registry
 # Error: Failed to connect to gateway at http://localhost:8080/api/v1/agents/registry
 
-sp agents message primary -m "test"
+sp admin agents message primary -m "test"
 # Error: Failed to send message to agent at http://localhost:8080/api/v1/agents/primary
 ```
 
@@ -732,14 +732,14 @@ RESPONSE=$(sp --json agents message admin -m "What is 2+2?" --token "$TOKEN" --b
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 
 # View the execution trace (accepts task ID directly)
-sp logs trace show "$TASK_ID" --all
+sp infra logs trace show "$TASK_ID" --all
 
 # View AI requests made during the task
-sp logs request list --since 5m
-sp logs request show <request-id> --messages --tools
+sp infra logs request list --since 5m
+sp infra logs request show <request-id> --messages --tools
 
 # Get aggregate statistics
-sp logs request stats --since 1h
+sp infra logs request stats --since 1h
 ```
 
 **Related Documentation:** See [logs/README.md](../logs/README.md) for complete logs command documentation.

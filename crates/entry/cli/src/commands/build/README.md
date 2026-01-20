@@ -179,7 +179,7 @@ sp build mcp --release
 sp build web --production --minify --no-sourcemaps
 
 # Or use the services command for full startup
-sp services start --skip-migrate
+sp infra services start --skip-migrate
 ```
 
 ---
@@ -236,10 +236,10 @@ The build commands integrate with the services workflow:
 sp build core --release
 sp build mcp --release
 sp build web --production
-sp services start --skip-web
+sp infra services start --skip-web
 
 # Or let services handle the build
-sp services start
+sp infra services start
 # This automatically builds as needed
 ```
 

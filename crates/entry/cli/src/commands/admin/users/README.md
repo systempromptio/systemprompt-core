@@ -25,29 +25,29 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Requires `--yes` |
 |---------|-------------|------------------|
-| `users list` | List users with pagination | No |
-| `users show <USER>` | Show detailed user information | No |
-| `users search <QUERY>` | Search users by name/email | No |
-| `users create` | Create a new user | No |
-| `users update <USER>` | Update user fields | No |
-| `users delete <USER>` | Delete a user | **Yes** |
-| `users count` | Get total user count | No |
-| `users export` | Export users to JSON | No |
-| `users stats` | Show user statistics dashboard | No |
-| `users merge` | Merge source user into target | **Yes** |
-| `users bulk delete` | Bulk delete users by filter | **Yes** |
-| `users bulk update` | Bulk update user status | **Yes** |
-| `users role assign <USER>` | Assign roles to user | No |
-| `users role promote <USER>` | Promote user to admin | No |
-| `users role demote <USER>` | Demote user from admin | No |
-| `users session list <USER>` | List user sessions | No |
-| `users session end` | End user session(s) | **Yes** |
-| `users session cleanup` | Clean up old anonymous users | **Yes** |
-| `users ban list` | List active IP bans | No |
-| `users ban add <IP>` | Ban IP address | No |
-| `users ban remove <IP>` | Remove IP ban | **Yes** |
-| `users ban check <IP>` | Check if IP is banned | No |
-| `users ban cleanup` | Clean up expired bans | **Yes** |
+| `admin users list` | List users with pagination | No |
+| `admin users show <USER>` | Show detailed user information | No |
+| `admin users search <QUERY>` | Search users by name/email | No |
+| `admin users create` | Create a new user | No |
+| `admin users update <USER>` | Update user fields | No |
+| `admin users delete <USER>` | Delete a user | **Yes** |
+| `admin users count` | Get total user count | No |
+| `admin users export` | Export users to JSON | No |
+| `admin users stats` | Show user statistics dashboard | No |
+| `admin users merge` | Merge source user into target | **Yes** |
+| `admin users bulk delete` | Bulk delete users by filter | **Yes** |
+| `admin users bulk update` | Bulk update user status | **Yes** |
+| `admin users role assign <USER>` | Assign roles to user | No |
+| `admin users role promote <USER>` | Promote user to admin | No |
+| `admin users role demote <USER>` | Demote user from admin | No |
+| `admin users session list <USER>` | List user sessions | No |
+| `admin users session end` | End user session(s) | **Yes** |
+| `admin users session cleanup` | Clean up old anonymous users | **Yes** |
+| `admin users ban list` | List active IP bans | No |
+| `admin users ban add <IP>` | Ban IP address | No |
+| `admin users ban remove <IP>` | Remove IP ban | **Yes** |
+| `admin users ban check <IP>` | Check if IP is banned | No |
+| `admin users ban cleanup` | Clean up expired bans | **Yes** |
 
 ---
 
@@ -58,11 +58,11 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all users with pagination and filtering.
 
 ```bash
-sp users list
+sp admin users list
 sp --json users list
-sp users list --limit 50 --offset 0
-sp users list --role admin
-sp users list --status active
+sp admin users list --limit 50 --offset 0
+sp admin users list --role admin
+sp admin users list --status active
 ```
 
 **Flags:**
@@ -99,12 +99,12 @@ sp users list --status active
 Display detailed information for a specific user.
 
 ```bash
-sp users show johndoe
-sp users show john@example.com
-sp users show a602013b-f059-47eb-9169-df6e8f1372d4
+sp admin users show johndoe
+sp admin users show john@example.com
+sp admin users show a602013b-f059-47eb-9169-df6e8f1372d4
 sp --json users show johndoe
-sp users show johndoe --sessions
-sp users show johndoe --activity
+sp admin users show johndoe --sessions
+sp admin users show johndoe --activity
 ```
 
 **Arguments:**
@@ -145,9 +145,9 @@ sp users show johndoe --activity
 Search users by name, email, or full name.
 
 ```bash
-sp users search "john"
+sp admin users search "john"
 sp --json users search "john"
-sp users search "example.com" --limit 10
+sp admin users search "example.com" --limit 10
 ```
 
 **Arguments:**
@@ -186,8 +186,8 @@ sp users search "example.com" --limit 10
 Create a new user.
 
 ```bash
-sp users create --name "johndoe" --email "john@example.com"
-sp users create --name "johndoe" --email "john@example.com" --full-name "John Doe" --display-name "John"
+sp admin users create --name "johndoe" --email "john@example.com"
+sp admin users create --name "johndoe" --email "john@example.com" --full-name "John Doe" --display-name "John"
 ```
 
 **Required Flags:**
@@ -219,10 +219,10 @@ sp users create --name "johndoe" --email "john@example.com" --full-name "John Do
 Update user fields. Accepts username, email, or UUID.
 
 ```bash
-sp users update johndoe --email "newemail@example.com"
-sp users update johndoe --full-name "John Smith" --display-name "Johnny"
-sp users update johndoe --status suspended
-sp users update a602013b-f059-47eb-9169-df6e8f1372d4 --email-verified true
+sp admin users update johndoe --email "newemail@example.com"
+sp admin users update johndoe --full-name "John Smith" --display-name "Johnny"
+sp admin users update johndoe --status suspended
+sp admin users update a602013b-f059-47eb-9169-df6e8f1372d4 --email-verified true
 ```
 
 **Arguments:**
@@ -256,9 +256,9 @@ sp users update a602013b-f059-47eb-9169-df6e8f1372d4 --email-verified true
 Delete a user permanently. Requires `--yes` flag.
 
 ```bash
-sp users delete johndoe --yes
-sp users delete john@example.com --yes
-sp users delete a602013b-f059-47eb-9169-df6e8f1372d4 --yes
+sp admin users delete johndoe --yes
+sp admin users delete john@example.com --yes
+sp admin users delete a602013b-f059-47eb-9169-df6e8f1372d4 --yes
 ```
 
 **Arguments:**
@@ -286,7 +286,7 @@ sp users delete a602013b-f059-47eb-9169-df6e8f1372d4 --yes
 Get total user count.
 
 ```bash
-sp users count
+sp admin users count
 sp --json users count
 ```
 
@@ -306,9 +306,9 @@ sp --json users count
 Assign roles to a user. Accepts username, email, or UUID.
 
 ```bash
-sp users role assign johndoe --roles admin,user
-sp users role assign john@example.com --roles admin
-sp users role assign a602013b-f059-47eb-9169-df6e8f1372d4 --roles user
+sp admin users role assign johndoe --roles admin,user
+sp admin users role assign john@example.com --roles admin
+sp admin users role assign a602013b-f059-47eb-9169-df6e8f1372d4 --roles user
 ```
 
 **Arguments:**
@@ -338,8 +338,8 @@ sp users role assign a602013b-f059-47eb-9169-df6e8f1372d4 --roles user
 Promote a user to admin. Accepts username, email, or UUID.
 
 ```bash
-sp users role promote johndoe
-sp users role promote john@example.com
+sp admin users role promote johndoe
+sp admin users role promote john@example.com
 ```
 
 **Arguments:**
@@ -364,8 +364,8 @@ sp users role promote john@example.com
 Demote a user from admin. Accepts username, email, or UUID.
 
 ```bash
-sp users role demote johndoe
-sp users role demote john@example.com
+sp admin users role demote johndoe
+sp admin users role demote john@example.com
 ```
 
 **Arguments:**
@@ -392,10 +392,10 @@ sp users role demote john@example.com
 List sessions for a specific user. Accepts username, email, or UUID.
 
 ```bash
-sp users session list johndoe
+sp admin users session list johndoe
 sp --json users session list johndoe
-sp users session list johndoe --active
-sp users session list johndoe --limit 10
+sp admin users session list johndoe --active
+sp admin users session list johndoe --limit 10
 ```
 
 **Arguments:**
@@ -435,11 +435,11 @@ End a user session. Requires `--yes` flag.
 
 ```bash
 # End specific session
-sp users session end sess_4460f4d4-57ab-4996-a70a-5b6c086e4ae5 --yes
+sp admin users session end sess_4460f4d4-57ab-4996-a70a-5b6c086e4ae5 --yes
 
 # End all sessions for a user
-sp users session end --user johndoe --all --yes
-sp users session end --user john@example.com --all --yes
+sp admin users session end --user johndoe --all --yes
+sp admin users session end --user john@example.com --all --yes
 ```
 
 **Arguments:**
@@ -470,7 +470,7 @@ sp users session end --user john@example.com --all --yes
 Clean up old anonymous users. Requires `--yes` flag.
 
 ```bash
-sp users session cleanup --days 30 --yes
+sp admin users session cleanup --days 30 --yes
 ```
 
 **Required Flags:**
@@ -496,9 +496,9 @@ sp users session cleanup --days 30 --yes
 List active IP bans.
 
 ```bash
-sp users ban list
+sp admin users ban list
 sp --json users ban list
-sp users ban list --limit 50
+sp admin users ban list --limit 50
 ```
 
 **Flags:**
@@ -531,9 +531,9 @@ sp users ban list --limit 50
 Ban an IP address.
 
 ```bash
-sp users ban add 192.168.1.100 --reason "Suspicious activity"
-sp users ban add 192.168.1.100 --reason "Abuse" --duration 7d
-sp users ban add 192.168.1.100 --reason "Permanent ban" --permanent
+sp admin users ban add 192.168.1.100 --reason "Suspicious activity"
+sp admin users ban add 192.168.1.100 --reason "Abuse" --duration 7d
+sp admin users ban add 192.168.1.100 --reason "Permanent ban" --permanent
 ```
 
 **Arguments:**
@@ -570,7 +570,7 @@ sp users ban add 192.168.1.100 --reason "Permanent ban" --permanent
 Remove an IP ban. Requires `--yes` flag.
 
 ```bash
-sp users ban remove 192.168.1.100 --yes
+sp admin users ban remove 192.168.1.100 --yes
 ```
 
 **Arguments:**
@@ -599,7 +599,7 @@ sp users ban remove 192.168.1.100 --yes
 Check if an IP address is banned.
 
 ```bash
-sp users ban check 192.168.1.100
+sp admin users ban check 192.168.1.100
 sp --json users ban check 192.168.1.100
 ```
 
@@ -632,7 +632,7 @@ sp --json users ban check 192.168.1.100
 Clean up expired bans. Requires `--yes` flag.
 
 ```bash
-sp users ban cleanup --yes
+sp admin users ban cleanup --yes
 ```
 
 **Required Flags:**
@@ -660,30 +660,30 @@ sp --json users list
 sp --json users count
 
 # Phase 2: Create new user
-sp users create --name "newuser" --email "new@example.com" --full-name "New User"
+sp admin users create --name "newuser" --email "new@example.com" --full-name "New User"
 
 # Phase 3: Verify creation
 sp --json users show newuser
 sp --json users search "newuser"
 
 # Phase 4: Update user
-sp users update newuser --display-name "Newbie"
+sp admin users update newuser --display-name "Newbie"
 
 # Phase 5: Promote to admin
-sp users role promote newuser
+sp admin users role promote newuser
 
 # Phase 6: Verify role
 sp --json users show newuser
 # Should show roles: ["user", "admin"]
 
 # Phase 7: Demote from admin
-sp users role demote newuser
+sp admin users role demote newuser
 
 # Phase 8: Check sessions
 sp --json users session list newuser
 
 # Phase 9: Delete user
-sp users delete newuser --yes
+sp admin users delete newuser --yes
 
 # Phase 10: Verify deletion
 sp --json users list
@@ -698,13 +698,13 @@ sp --json users list
 sp --json users session list johndoe --active
 
 # End specific session
-sp users session end sess_suspicious123 --yes
+sp admin users session end sess_suspicious123 --yes
 
 # End all sessions for a user
-sp users session end --user johndoe --all --yes
+sp admin users session end --user johndoe --all --yes
 
 # Ban suspicious IP
-sp users ban add 10.0.0.100 --reason "Multiple failed login attempts"
+sp admin users ban add 10.0.0.100 --reason "Multiple failed login attempts"
 
 # Check ban status
 sp --json users ban check 10.0.0.100
@@ -713,10 +713,10 @@ sp --json users ban check 10.0.0.100
 sp --json users ban list
 
 # Remove ban after investigation
-sp users ban remove 10.0.0.100 --yes
+sp admin users ban remove 10.0.0.100 --yes
 
 # Cleanup expired bans
-sp users ban cleanup --yes
+sp admin users ban cleanup --yes
 ```
 
 ---
@@ -726,33 +726,33 @@ sp users ban cleanup --yes
 ### Missing Required Flags
 
 ```bash
-sp users create --name test
+sp admin users create --name test
 # Error: --email is required
 
-sp users delete johndoe
+sp admin users delete johndoe
 # Error: --yes is required to delete users in non-interactive mode
 
-sp users role assign johndoe
+sp admin users role assign johndoe
 # Error: At least one role must be specified
 
-sp users ban add 10.0.0.1
+sp admin users ban add 10.0.0.1
 # Error: --reason is required
 ```
 
 ### Not Found Errors
 
 ```bash
-sp users show nonexistent
+sp admin users show nonexistent
 # Error: User 'nonexistent' not found
 
-sp users role promote nonexistent
+sp admin users role promote nonexistent
 # Error: User 'nonexistent' not found
 ```
 
 ### Duplicate Errors
 
 ```bash
-sp users create --name "existing" --email "existing@example.com"
+sp admin users create --name "existing" --email "existing@example.com"
 # Error: User with email 'existing@example.com' already exists
 ```
 
