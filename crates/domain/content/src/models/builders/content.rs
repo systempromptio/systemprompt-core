@@ -93,6 +93,10 @@ pub struct UpdateContentParams {
     pub keywords: String,
     pub image: Option<String>,
     pub version_hash: String,
+    /// None = keep current, Some(None) = clear, Some(Some(x)) = set to x
+    pub category_id: Option<Option<CategoryId>>,
+    pub public: Option<bool>,
+    pub kind: Option<String>,
 }
 
 impl UpdateContentParams {
@@ -105,6 +109,9 @@ impl UpdateContentParams {
             keywords: String::new(),
             image: None,
             version_hash: String::new(),
+            category_id: None,
+            public: None,
+            kind: None,
         }
     }
 
@@ -120,6 +127,21 @@ impl UpdateContentParams {
 
     pub fn with_version_hash(mut self, version_hash: String) -> Self {
         self.version_hash = version_hash;
+        self
+    }
+
+    pub fn with_category_id(mut self, category_id: Option<Option<CategoryId>>) -> Self {
+        self.category_id = category_id;
+        self
+    }
+
+    pub fn with_public(mut self, public: Option<bool>) -> Self {
+        self.public = public;
+        self
+    }
+
+    pub fn with_kind(mut self, kind: Option<String>) -> Self {
+        self.kind = kind;
         self
     }
 }

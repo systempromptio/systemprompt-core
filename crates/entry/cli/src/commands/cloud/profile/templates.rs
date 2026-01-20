@@ -34,10 +34,10 @@ pub fn save_entrypoint(path: &Path) -> Result<()> {
 set -e
 
 echo "Running database migrations..."
-{bin}/systemprompt services db migrate
+{bin}/systemprompt infra services db migrate
 
 echo "Starting services..."
-exec {bin}/systemprompt services serve --foreground
+exec {bin}/systemprompt infra services serve --foreground
 "#,
         bin = container::BIN
     );

@@ -195,7 +195,7 @@ async fn main() -> anyhow::Result<()> {
 **Verification:**
 
 ```bash
-./target/debug/systemprompt services scheduler list
+./target/debug/systemprompt infra services scheduler list
 ```
 
 ---

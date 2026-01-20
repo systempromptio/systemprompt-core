@@ -20,7 +20,7 @@ src/
 ├── jobs/               # systemprompt jobs [...]
 ├── logs/               # systemprompt logs [...]
 ├── presentation/       # Output formatting
-├── services/           # systemprompt services [...]
+├── services/           # systemprompt infra services [...]
 ├── setup/              # systemprompt setup
 ├── web/                # systemprompt web [...]
 ├── shared/             # Cross-cutting infrastructure
@@ -372,7 +372,7 @@ logs
 
 ## 2.5 services/
 
-**Commands:** `systemprompt services [start|stop|restart|status|cleanup|serve]`
+**Commands:** `systemprompt infra services [start|stop|restart|status|cleanup|serve]`
 
 ### Requirements
 
@@ -634,7 +634,7 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
         return Err(anyhow!(
             "TUI requires interactive mode.\n\n\
              Use specific commands instead:\n\
-             - systemprompt services status\n\
+             - systemprompt infra services status\n\
              - systemprompt cloud status\n\
              - systemprompt agents agent list"
         ));

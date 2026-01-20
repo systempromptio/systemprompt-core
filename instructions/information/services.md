@@ -383,7 +383,7 @@ ls core/web/dist/css/
 
 **Fix**:
 ```bash
-systemprompt services generator build --full
+systemprompt infra services generator build --full
 ```
 
 ### Profile Not Found

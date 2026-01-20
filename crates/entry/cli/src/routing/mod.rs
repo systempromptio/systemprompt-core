@@ -82,5 +82,5 @@ fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::
     store
         .get_valid_session(session_key)
         .cloned()
-        .context("No active session. Run 'systemprompt system login'.")
+        .context("No active session. Run 'systemprompt infra system login'.")
 }
