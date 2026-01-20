@@ -51,11 +51,13 @@ fn get_api_suggestions(path: &str) -> Vec<String> {
     if path.starts_with(ApiPaths::API_BASE) {
         vec![
             format!("{} - API discovery endpoint", ApiPaths::DISCOVERY),
-            format!("{}/openapi - OpenAPI specification", ApiPaths::API_V1),
             format!("{} - Health check", ApiPaths::HEALTH),
-            format!("{} - Core services discovery", ApiPaths::CORE_BASE),
-            format!("{} - Agent services discovery", ApiPaths::AGENTS_BASE),
-            format!("{} - MCP services discovery", ApiPaths::MCP_BASE),
+            format!(
+                "{} - Core services (contexts, tasks, artifacts)",
+                ApiPaths::CORE_BASE
+            ),
+            format!("{} - Agent registry", ApiPaths::AGENTS_REGISTRY),
+            format!("{} - MCP server registry", ApiPaths::MCP_REGISTRY),
         ]
     } else if path.starts_with(ApiPaths::WELLKNOWN_BASE) {
         vec![
@@ -66,8 +68,8 @@ fn get_api_suggestions(path: &str) -> Vec<String> {
         vec![format!("{} - Health check endpoint", ApiPaths::HEALTH)]
     } else if path.contains("openapi") || path.contains("swagger") {
         vec![format!(
-            "{}/openapi - OpenAPI specification",
-            ApiPaths::API_V1
+            "{} - API discovery (OpenAPI not yet available)",
+            ApiPaths::DISCOVERY
         )]
     } else {
         vec![

@@ -282,6 +282,26 @@ impl CliService {
         );
         render_startup_complete(duration, api_url);
     }
+
+    pub fn session_context(
+        profile: &str,
+        session_id: &systemprompt_identifiers::SessionId,
+        tenant: Option<&str>,
+    ) {
+        let session_str = session_id.as_str();
+        let truncated_session = session_str
+            .get(..12)
+            .map_or_else(|| session_str.to_string(), |s| format!("{}...", s));
+
+        let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
+
+        let banner = format!(
+            "[profile: {} | session: {}{}]",
+            profile, truncated_session, tenant_info
+        );
+
+        println!("{}", Theme::color(&banner, EmphasisType::Dim));
+    }
 }
 
 #[macro_export]

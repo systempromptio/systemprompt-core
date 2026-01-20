@@ -1,5 +1,6 @@
 mod count;
 mod list;
+mod show;
 
 use anyhow::{Context, Result};
 use clap::Subcommand;
@@ -12,6 +13,9 @@ pub enum AiCommands {
     #[command(about = "List AI-generated images")]
     List(list::ListArgs),
 
+    #[command(about = "Show AI-generated image details")]
+    Show(show::ShowArgs),
+
     #[command(about = "Count AI-generated images")]
     Count(count::CountArgs),
 }
@@ -22,6 +26,13 @@ pub async fn execute(cmd: AiCommands, config: &CliConfig) -> Result<()> {
             let result = list::execute(args, config)
                 .await
                 .context("Failed to list AI images")?;
+            render_result(&result);
+            Ok(())
+        },
+        AiCommands::Show(args) => {
+            let result = show::execute(args, config)
+                .await
+                .context("Failed to show AI image")?;
             render_result(&result);
             Ok(())
         },

@@ -93,7 +93,7 @@ async fn execute_with_pool_inner(
     };
 
     let request_id = row.id.clone();
-    let cost_dollars = f64::from(row.cost_cents) / 1_000_000.0;
+    let cost_dollars = f64::from(row.cost_cents) / 100.0;
 
     let messages = if args.messages {
         fetch_messages(pool, &request_id).await

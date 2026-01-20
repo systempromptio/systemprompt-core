@@ -83,6 +83,8 @@ pub struct IngestOutput {
 pub struct DeleteOutput {
     pub deleted: bool,
     pub content_id: ContentId,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub message: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

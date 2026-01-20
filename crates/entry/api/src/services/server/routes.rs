@@ -203,6 +203,12 @@ pub fn configure_routes(
         route_classifier: ctx.route_classifier().clone(),
     };
 
+    // Merge discovery and wellknown routes BEFORE static router
+    // This ensures API routes take precedence over the static fallback
+    router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
+
+    router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
+
     let static_router = Router::new()
         .route("/", get(serve_homepage))
         .route("/agent", get(serve_vite_app))
@@ -212,10 +218,6 @@ pub fn configure_routes(
         .with_auth_middleware(public_middleware.clone());
 
     router = router.merge(static_router);
-
-    router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
-
-    router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 
     let banned_ip_repo = Arc::new(BannedIpRepository::new(ctx.db_pool()).map_err(|e| {
         LoaderError::InitializationFailed {

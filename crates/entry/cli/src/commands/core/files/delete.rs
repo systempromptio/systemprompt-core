@@ -39,6 +39,19 @@ pub async fn execute(
         .await?
         .ok_or_else(|| anyhow!("File not found: {}", args.file_id))?;
 
+    // Dry-run doesn't require confirmation since no changes are made
+    if args.dry_run {
+        let output = FileDeleteOutput {
+            file_id,
+            message: format!(
+                "[DRY-RUN] Would delete file '{}' ({})",
+                file.path, args.file_id
+            ),
+        };
+        return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
+    }
+
+    // Only require confirmation for actual deletions
     if !args.yes {
         if config.is_interactive() {
             let confirmed = Confirm::new()
@@ -57,17 +70,6 @@ pub async fn execute(
                 "--yes is required to delete files in non-interactive mode"
             ));
         }
-    }
-
-    if args.dry_run {
-        let output = FileDeleteOutput {
-            file_id,
-            message: format!(
-                "[DRY-RUN] Would delete file '{}' ({})",
-                file.path, args.file_id
-            ),
-        };
-        return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
     }
 
     service.delete(&file_id).await?;

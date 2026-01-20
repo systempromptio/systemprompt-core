@@ -18,23 +18,12 @@ pub struct DeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation")]
     pub yes: bool,
+
+    #[arg(long, help = "Preview deletion without executing")]
+    pub dry_run: bool,
 }
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<DeleteOutput>> {
-    if !args.yes && config.is_interactive() {
-        CliService::warning(&format!(
-            "This will permanently delete content: {}",
-            args.identifier
-        ));
-        if !CliService::confirm("Are you sure you want to continue?")? {
-            return Err(anyhow!("Operation cancelled"));
-        }
-    } else if !args.yes {
-        return Err(anyhow!(
-            "Use --yes to confirm deletion in non-interactive mode"
-        ));
-    }
-
     let ctx = AppContext::new().await?;
     let repo = ContentRepository::new(ctx.db_pool())?;
 
@@ -62,11 +51,40 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
             })?
     };
 
+    // Dry-run doesn't require confirmation since no changes are made
+    if args.dry_run {
+        let output = DeleteOutput {
+            deleted: false,
+            content_id: content.id.clone(),
+            message: Some(format!(
+                "[DRY-RUN] Would delete content '{}' ({})",
+                content.title, content.id
+            )),
+        };
+        return Ok(CommandResult::card(output).with_title("Content Delete (Dry Run)"));
+    }
+
+    // Only require confirmation for actual deletions
+    if !args.yes && config.is_interactive() {
+        CliService::warning(&format!(
+            "This will permanently delete content: {}",
+            args.identifier
+        ));
+        if !CliService::confirm("Are you sure you want to continue?")? {
+            return Err(anyhow!("Operation cancelled"));
+        }
+    } else if !args.yes {
+        return Err(anyhow!(
+            "Use --yes to confirm deletion in non-interactive mode"
+        ));
+    }
+
     repo.delete(&content.id).await?;
 
     let output = DeleteOutput {
         deleted: true,
         content_id: content.id.clone(),
+        message: None,
     };
 
     Ok(CommandResult::card(output).with_title("Content Deleted"))
