@@ -71,17 +71,14 @@ impl CliPaths {
         [Self::PLUGINS, Self::MCP, subcommand]
     }
 
-    /// Returns "infra db migrate" for use in scripts and templates
     pub const fn db_migrate_cmd() -> &'static str {
         "infra db migrate"
     }
 
-    /// Returns "infra services serve" for use in scripts and templates
     pub const fn services_serve_cmd() -> &'static str {
         "infra services serve"
     }
 
-    /// Returns "admin agents run" for process detection patterns
     pub const fn agent_run_cmd_pattern() -> &'static str {
         "admin agents run"
     }

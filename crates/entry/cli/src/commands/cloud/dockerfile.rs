@@ -89,7 +89,7 @@ COPY core/web/dist {web}/dist
 COPY storage {storage}
 {extension_assets_section}
 # Copy services configuration
-COPY services {services}
+COPY services {services_path}
 
 # Copy profiles
 COPY .systemprompt/profiles {profiles}
@@ -111,7 +111,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             bin = container::BIN,
             logs = container::LOGS,
             storage = container::STORAGE,
-            services = container::SERVICES,
+            services_path = container::SERVICES,
             web = container::WEB,
             profiles = container::PROFILES,
             images = storage::IMAGES,
@@ -126,7 +126,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             env_section = env_section,
             extension_assets_section = extension_assets_section,
             cmd_infra = CliPaths::INFRA,
-            cmd_services = "services",
+            cmd_services = CliPaths::SERVICES,
             cmd_serve = CliPaths::SERVE,
         )
     }
