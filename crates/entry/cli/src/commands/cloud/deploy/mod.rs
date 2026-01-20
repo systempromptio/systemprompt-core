@@ -10,6 +10,7 @@ use systemprompt_cloud::{
 use systemprompt_core_logging::CliService;
 
 use super::dockerfile::validate_profile_dockerfile;
+use super::secrets::sync_cloud_credentials;
 use super::tenant::{find_services_config, get_credentials};
 use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
@@ -277,6 +278,12 @@ pub async fn execute(
         CliService::warning("No secrets.json found - skipping secrets sync");
     }
 
+    CliService::section("Syncing Cloud Credentials");
+    let spinner = CliService::spinner("Syncing cloud credentials...");
+    let keys = sync_cloud_credentials(&api_client, tenant_id, &creds).await?;
+    spinner.finish_and_clear();
+    CliService::success(&format!("Synced {} cloud credentials", keys.len()));
+
     let profile_env_path = format!(
         "{}/{}/{}",
         container::PROFILES,
@@ -353,6 +360,13 @@ pub async fn deploy_with_secrets(
             CliService::success(&format!("Synced {} secrets", keys.len()));
         }
     }
+
+    // Sync cloud credentials for CLI to work on the VM
+    let creds = get_credentials()?;
+    let spinner = CliService::spinner("Syncing cloud credentials...");
+    let keys = sync_cloud_credentials(client, tenant_id, &creds).await?;
+    spinner.finish_and_clear();
+    CliService::success(&format!("Synced {} cloud credentials", keys.len()));
 
     let profile_env_path = format!(
         "{}/{}/{}",

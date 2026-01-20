@@ -1,10 +1,14 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
+use futures_util::StreamExt;
 use reqwest::Client;
+use reqwest_eventsource::{Event, EventSource};
 use systemprompt_core_agent::models::a2a::jsonrpc::{
     JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
 };
-use systemprompt_core_agent::models::a2a::protocol::{MessageSendConfiguration, MessageSendParams};
+use systemprompt_core_agent::models::a2a::protocol::{
+    MessageSendConfiguration, MessageSendParams, TaskStatusUpdateEvent,
+};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
@@ -122,16 +126,137 @@ pub async fn execute(
         id: request_id,
     };
 
+    if args.stream {
+        execute_streaming(&agent, &agent_url, auth_token, &request, &message_text).await
+    } else {
+        execute_non_streaming(&agent, &agent_url, auth_token, &request, &message_text, args.timeout).await
+    }
+}
+
+async fn execute_streaming(
+    agent: &str,
+    agent_url: &str,
+    auth_token: &str,
+    request: &Request<MessageSendParams>,
+    message_text: &str,
+) -> Result<CommandResult<MessageOutput>> {
+    let client = Client::new();
+    let http_request = client
+        .post(agent_url)
+        .header("Content-Type", "application/json")
+        .header("Accept", "text/event-stream")
+        .header("Authorization", format!("Bearer {}", auth_token))
+        .json(request);
+
+    let mut es = EventSource::new(http_request)
+        .map_err(|e| anyhow!("Failed to create SSE connection: {}", e))?;
+
+    let mut final_task: Option<Task> = None;
+    let mut accumulated_text = String::new();
+
+    while let Some(event) = es.next().await {
+        match event {
+            Ok(Event::Open) => {
+                tracing::debug!("SSE connection opened");
+            },
+            Ok(Event::Message(message)) => {
+                // Parse the SSE data as JSON-RPC response
+                match serde_json::from_str::<JsonRpcResponse<TaskStatusUpdateEvent>>(&message.data)
+                {
+                    Ok(response) => {
+                        if let Some(error) = response.error {
+                            let details = error
+                                .data
+                                .map_or_else(String::new, |d| format!("\n\nDetails: {}", d));
+                            anyhow::bail!(
+                                "Agent returned error ({}): {}{}",
+                                error.code,
+                                error.message,
+                                details
+                            );
+                        }
+
+                        if let Some(event) = response.result {
+                            // Extract text from the status message if present
+                            if let Some(ref msg) = event.status.message {
+                                let text = extract_text_from_parts(&msg.parts);
+                                if !text.is_empty() {
+                                    // Print streaming text to stdout
+                                    print!("{}", text);
+                                    accumulated_text.push_str(&text);
+                                }
+                            }
+
+                            // Check if this is the final event
+                            if event.is_final {
+                                println!(); // New line after streaming output
+                                final_task = Some(Task {
+                                    id: event.task_id.into(),
+                                    context_id: event.context_id.into(),
+                                    kind: "task".to_string(),
+                                    status: event.status,
+                                    history: None,
+                                    artifacts: None,
+                                    metadata: None,
+                                });
+                                break;
+                            }
+                        }
+                    },
+                    Err(e) => {
+                        tracing::debug!(error = %e, data = %message.data, "Failed to parse SSE event");
+                    },
+                }
+            },
+            Err(reqwest_eventsource::Error::StreamEnded) => {
+                tracing::debug!("SSE stream ended");
+                break;
+            },
+            Err(e) => {
+                anyhow::bail!("SSE stream error: {}", e);
+            },
+        }
+    }
+
+    let task = final_task.ok_or_else(|| anyhow!("Stream ended without final task"))?;
+
+    let response = if accumulated_text.is_empty() {
+        task.status
+            .message
+            .as_ref()
+            .map(|msg| extract_text_from_parts(&msg.parts))
+    } else {
+        Some(accumulated_text)
+    };
+
+    let output = MessageOutput {
+        agent: agent.to_string(),
+        task,
+        message_sent: message_text.to_string(),
+        response,
+    };
+
+    Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
+}
+
+async fn execute_non_streaming(
+    agent: &str,
+    agent_url: &str,
+    auth_token: &str,
+    request: &Request<MessageSendParams>,
+    message_text: &str,
+    timeout: u64,
+) -> Result<CommandResult<MessageOutput>> {
     let client = Client::builder()
-        .timeout(std::time::Duration::from_secs(args.timeout))
+        .timeout(std::time::Duration::from_secs(timeout))
         .build()
         .context("Failed to create HTTP client")?;
 
     let response = client
-        .post(&agent_url)
+        .post(agent_url)
         .header("Content-Type", "application/json")
         .header("Authorization", format!("Bearer {}", auth_token))
-        .json(&request)
+        .json(request)
         .send()
         .await
         .with_context(|| format!("Failed to send message to agent at {}", agent_url))?;
@@ -178,9 +303,9 @@ pub async fn execute(
         .map(|msg| extract_text_from_parts(&msg.parts));
 
     let output = MessageOutput {
-        agent: agent.clone(),
+        agent: agent.to_string(),
         task,
-        message_sent: message_text,
+        message_sent: message_text.to_string(),
         response,
     };
 

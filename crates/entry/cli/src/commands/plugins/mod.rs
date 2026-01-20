@@ -33,8 +33,8 @@ pub enum PluginsCommands {
     #[command(about = "Show extension configuration")]
     Config(config::ConfigArgs),
 
-    #[command(subcommand, about = "List capabilities across all extensions")]
-    Capabilities(capabilities::CapabilitiesCommands),
+    #[command(about = "List capabilities across all extensions")]
+    Capabilities(capabilities::CapabilitiesArgs),
 
     #[command(subcommand, about = "MCP server management")]
     Mcp(mcp::McpCommands),
@@ -71,8 +71,8 @@ pub async fn execute(cmd: PluginsCommands, config: &CliConfig) -> Result<()> {
             render_result(&result);
             Ok(())
         },
-        PluginsCommands::Capabilities(cmd) => {
-            capabilities::execute(cmd, config);
+        PluginsCommands::Capabilities(args) => {
+            capabilities::execute(args, config);
             Ok(())
         },
         PluginsCommands::Mcp(cmd) => mcp::execute_with_config(cmd, config).await,

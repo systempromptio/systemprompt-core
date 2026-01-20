@@ -20,7 +20,7 @@ pub struct ListArgs {
     #[arg(long, help = "Filter by user ID")]
     pub user: Option<String>,
 
-    #[arg(long, help = "Filter by MIME type pattern")]
+    #[arg(long, visible_alias = "type", help = "Filter by MIME type pattern")]
     pub mime: Option<String>,
 }
 

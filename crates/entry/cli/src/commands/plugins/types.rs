@@ -234,6 +234,19 @@ pub struct ExtensionConfigOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExtensionConfigSummary {
+    pub extension_id: String,
+    pub config_prefix: Option<String>,
+    pub has_config: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ExtensionConfigListOutput {
+    pub extensions: Vec<ExtensionConfigSummary>,
+    pub total: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct JobWithExtension {
     pub extension_id: String,
     pub extension_name: String,
@@ -331,4 +344,15 @@ pub struct LlmProviderWithExtension {
 pub struct LlmProvidersListOutput {
     pub providers: Vec<LlmProviderWithExtension>,
     pub total: usize,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+pub struct CapabilitiesSummaryOutput {
+    pub jobs: usize,
+    pub templates: usize,
+    pub schemas: usize,
+    pub tools: usize,
+    pub roles: usize,
+    pub llm_providers: usize,
+    pub extension_count: usize,
 }
