@@ -94,6 +94,7 @@ pub struct UpdateContentParams {
     pub image: Option<String>,
     pub version_hash: String,
     /// None = keep current, Some(None) = clear, Some(Some(x)) = set to x
+    #[allow(clippy::option_option)]
     pub category_id: Option<Option<CategoryId>>,
     pub public: Option<bool>,
     pub kind: Option<String>,
@@ -130,12 +131,13 @@ impl UpdateContentParams {
         self
     }
 
+    #[allow(clippy::option_option)]
     pub fn with_category_id(mut self, category_id: Option<Option<CategoryId>>) -> Self {
         self.category_id = category_id;
         self
     }
 
-    pub fn with_public(mut self, public: Option<bool>) -> Self {
+    pub const fn with_public(mut self, public: Option<bool>) -> Self {
         self.public = public;
         self
     }

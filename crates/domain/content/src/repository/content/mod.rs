@@ -203,23 +203,19 @@ impl ContentRepository {
         };
 
         // Determine final kind value
-        let kind_value: String = match &params.kind {
-            Some(k) => k.clone(),
-            None => {
-                let current = self.get_by_id(&params.id).await?;
-                current
-                    .map(|c| c.kind)
-                    .unwrap_or_else(|| "article".to_string())
-            },
+        let kind_value: String = if let Some(k) = &params.kind {
+            k.clone()
+        } else {
+            let current = self.get_by_id(&params.id).await?;
+            current.map_or_else(|| "article".to_string(), |c| c.kind)
         };
 
         // Determine final public value
-        let public_value: bool = match params.public {
-            Some(p) => p,
-            None => {
-                let current = self.get_by_id(&params.id).await?;
-                current.map(|c| c.public).unwrap_or(false)
-            },
+        let public_value: bool = if let Some(p) = params.public {
+            p
+        } else {
+            let current = self.get_by_id(&params.id).await?;
+            current.is_some_and(|c| c.public)
         };
 
         sqlx::query_as!(
