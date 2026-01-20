@@ -4,8 +4,13 @@ use std::fmt;
 
 #[derive(Debug, Clone)]
 pub enum IdValidationError {
-    Empty { id_type: &'static str },
-    Invalid { id_type: &'static str, message: String },
+    Empty {
+        id_type: &'static str,
+    },
+    Invalid {
+        id_type: &'static str,
+        message: String,
+    },
 }
 
 impl fmt::Display for IdValidationError {

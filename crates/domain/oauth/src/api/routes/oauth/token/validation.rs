@@ -1,6 +1,7 @@
 use super::{TokenError, TokenResult};
 use crate::repository::OAuthRepository;
 use anyhow::Result;
+use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 pub fn extract_required_field<'a>(
     field: Option<&'a str>,
@@ -14,11 +15,11 @@ pub fn extract_required_field<'a>(
 
 pub async fn validate_client_credentials(
     repo: &OAuthRepository,
-    client_id: &str,
+    client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<()> {
     let client = repo
-        .find_client_by_id(client_id)
+        .find_client_by_id(client_id.as_str())
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
@@ -46,11 +47,11 @@ pub async fn validate_client_credentials(
 
 pub async fn validate_authorization_code(
     repo: &OAuthRepository,
-    code: &str,
-    client_id: &str,
+    code: &AuthorizationCode,
+    client_id: &ClientId,
     redirect_uri: Option<&str>,
     code_verifier: Option<&str>,
-) -> Result<(String, String)> {
+) -> Result<(UserId, String)> {
     let (user_id, scope) = repo
         .validate_authorization_code(code, client_id, redirect_uri, code_verifier)
         .await?;

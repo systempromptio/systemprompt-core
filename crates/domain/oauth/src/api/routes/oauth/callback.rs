@@ -5,7 +5,9 @@ use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::SessionSource;
+use systemprompt_identifiers::{
+    AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
+};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_runtime::AppContext;
@@ -57,11 +59,13 @@ pub async fn handle_callback(
         },
     };
 
+    let code = AuthorizationCode::new(&params.code);
+    let client_id = ClientId::new(&browser_client.client_id);
     let token_response = match exchange_code_for_token(
         &repo,
         CodeExchangeParams {
-            code: &params.code,
-            client_id: &browser_client.client_id,
+            code: &code,
+            client_id: &client_id,
             redirect_uri: &redirect_uri,
             headers: &headers,
         },
@@ -121,8 +125,8 @@ async fn find_browser_client(
 }
 
 struct CodeExchangeParams<'a> {
-    code: &'a str,
-    client_id: &'a str,
+    code: &'a AuthorizationCode,
+    client_id: &'a ClientId,
     redirect_uri: &'a str,
     headers: &'a HeaderMap,
 }
@@ -149,14 +153,13 @@ async fn exchange_code_for_token(
 
     let permissions = parse_permissions(&scope)?;
 
-    let user_id_typed = systemprompt_identifiers::UserId::new(user_id.clone());
     let user_provider = Arc::new(UserProviderImpl::new(UserService::new(ctx.db_pool())?));
     let session_service = crate::services::SessionCreationService::new(
         Arc::clone(ctx.analytics_service()),
         user_provider,
     );
     let session_id = session_service
-        .create_authenticated_session(&user_id_typed, params.headers, SessionSource::Oauth)
+        .create_authenticated_session(&user_id, params.headers, SessionSource::Oauth)
         .await?;
 
     let access_token_jti = generate_access_token_jti();
@@ -173,10 +176,11 @@ async fn exchange_code_for_token(
     let access_token = generate_jwt(&user, config, access_token_jti, &session_id, &signing)?;
 
     let refresh_token_value = generate_secure_token("rt");
+    let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
     let refresh_expires_at = chrono::Utc::now().timestamp() + (86400 * 30);
 
     let refresh_params = RefreshTokenParams::builder(
-        &refresh_token_value,
+        &refresh_token_id,
         params.client_id,
         &user_id,
         &scope,
@@ -189,14 +193,13 @@ async fn exchange_code_for_token(
 }
 
 async fn load_authenticated_user(
-    user_id: &str,
+    user_id: &UserId,
     db_pool: systemprompt_core_database::DbPool,
 ) -> anyhow::Result<AuthenticatedUser> {
     let user_service = UserService::new(&db_pool)?;
 
-    let user_id_typed = systemprompt_identifiers::UserId::new(user_id.to_string());
     let user = user_service
-        .find_by_id(&user_id_typed)
+        .find_by_id(user_id)
         .await?
         .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
 

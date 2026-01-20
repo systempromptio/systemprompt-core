@@ -1,0 +1,30 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                COALESCE(country, 'Unknown') as \"country\",\n                COUNT(*)::bigint as \"count!\"\n            FROM user_sessions\n            WHERE started_at >= $1 AND started_at < $2\n            GROUP BY country\n            ORDER BY COUNT(*) DESC\n            LIMIT $3\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "country",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "count!",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      null,
+      null
+    ]
+  },
+  "hash": "9e49c7dec1f34d2c67aa596e0afc8b044276395c3488d50e73a7ba30c4b1e42c"
+}

@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                id, user_id, session_id, event_type, event_category,\n                endpoint as page_url, event_data, timestamp\n            FROM analytics_events\n            WHERE event_data->>'content_id' = $1\n            ORDER BY timestamp DESC\n            LIMIT $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "session_id",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 3,
+        "name": "event_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "event_category",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "page_url",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "event_data",
+        "type_info": "Jsonb"
+      },
+      {
+        "ordinal": 7,
+        "name": "timestamp",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "0d864561bcb4ed94c8a42d2db645208b16228899e76c8aedca38c82c2354593f"
+}
