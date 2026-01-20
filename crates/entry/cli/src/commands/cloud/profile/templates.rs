@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_core_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_models::{CliPaths, Profile};
 
 use crate::cloud::dockerfile::DockerfileBuilder;
 
@@ -34,7 +34,7 @@ pub fn save_entrypoint(path: &Path) -> Result<()> {
 set -e
 
 echo "Running database migrations..."
-{bin}/systemprompt infra services db migrate
+{bin}/systemprompt infra db migrate
 
 echo "Starting services..."
 exec {bin}/systemprompt infra services serve --foreground
@@ -181,7 +181,7 @@ pub async fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
     let profile_path_str = profile_path.to_string_lossy();
 
     let output = Command::new(&current_exe)
-        .args(["services", "db", "migrate"])
+        .args(CliPaths::db_migrate_args())
         .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
         .output()
         .context("Failed to run migrations")?;

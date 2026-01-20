@@ -32,7 +32,7 @@ Initialize a new environment with PostgreSQL database and configuration.
 
 ```bash
 # Interactive mode (prompts for values)
-./target/debug/systemprompt setup
+./target/debug/systemprompt admin setup
 
 # Non-interactive mode with all required flags
 sp admin setup \

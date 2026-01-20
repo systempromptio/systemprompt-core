@@ -11,17 +11,17 @@ Command-line interface for SystemPrompt OS. Every command supports both human-fr
 
 ```
 src/
-├── agents/             # systemprompt agents [...]
+├── agents/             # systemprompt admin agents [...]
 ├── build/              # systemprompt build [...]
 ├── cloud/              # systemprompt cloud [...]
 ├── common/             # Common utilities
-├── contexts/           # systemprompt contexts [...]
-├── db/                 # systemprompt db [...]
-├── jobs/               # systemprompt jobs [...]
-├── logs/               # systemprompt logs [...]
+├── contexts/           # systemprompt core contexts [...]
+├── db/                 # systemprompt infra db [...]
+├── jobs/               # systemprompt infra jobs [...]
+├── logs/               # systemprompt infra logs [...]
 ├── presentation/       # Output formatting
 ├── services/           # systemprompt infra services [...]
-├── setup/              # systemprompt setup
+├── setup/              # systemprompt admin setup
 ├── web/                # systemprompt web [...]
 ├── shared/             # Cross-cutting infrastructure
 │   ├── mod.rs
@@ -207,7 +207,7 @@ CliService::raw(&text);  // Unformatted output
 
 ## 2.1 agents/
 
-**Commands:** `systemprompt agents [agent|mcp] [...]`
+**Commands:** `systemprompt admin agents [agent|mcp] [...]`
 
 ### Requirements
 
@@ -332,7 +332,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<()> {
 
 ## 2.4 logs/
 
-**Commands:** `systemprompt logs [view|search|stream|export|cleanup|delete|trace|request]`
+**Commands:** `systemprompt infra logs [view|search|stream|export|cleanup|delete|trace|request]`
 
 ### Command Structure
 
@@ -407,7 +407,7 @@ if should_kill {
 
 ## 2.6 db/
 
-**Commands:** `systemprompt db [query|execute|tables|describe|info|status|migrate|assign-admin|reset]`
+**Commands:** `systemprompt infra db [query|execute|tables|describe|info|status|migrate|assign-admin|reset]`
 
 ### Requirements
 
@@ -434,7 +434,7 @@ if should_kill {
 
 ## 2.7 jobs/
 
-**Commands:** `systemprompt jobs [list|run|cleanup-sessions|session-cleanup|log-cleanup]`
+**Commands:** `systemprompt infra jobs [list|run|cleanup-sessions|session-cleanup|log-cleanup]`
 
 ### Requirements
 
@@ -452,7 +452,7 @@ if should_kill {
 
 ## 2.8 setup/
 
-**Commands:** `systemprompt setup`
+**Commands:** `systemprompt admin setup`
 
 ### Requirements
 
@@ -636,7 +636,7 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
              Use specific commands instead:\n\
              - systemprompt infra services status\n\
              - systemprompt cloud status\n\
-             - systemprompt agents agent list"
+             - systemprompt admin agents agent list"
         ));
     }
     // ... TUI code
@@ -647,7 +647,7 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
 
 ## 2.11 contexts/
 
-**Commands:** `systemprompt contexts [list|show|create|edit|delete|use|new]`
+**Commands:** `systemprompt core contexts [list|show|create|edit|delete|use|new]`
 
 ### Command Structure
 
@@ -701,19 +701,19 @@ Contexts can be referenced by:
 systemprompt --json contexts list
 
 # Create context with name
-systemprompt contexts create --name "My Project"
+systemprompt core contexts create --name "My Project"
 
 # Switch context by partial ID
-systemprompt contexts use a1b2c3d4
+systemprompt core contexts use a1b2c3d4
 
 # Switch context by name
-systemprompt contexts use "My Project"
+systemprompt core contexts use "My Project"
 
 # Delete context without confirmation
-systemprompt contexts delete a1b2c3d4 --yes
+systemprompt core contexts delete a1b2c3d4 --yes
 
 # Create and switch in one command
-systemprompt contexts new --name "New Session"
+systemprompt core contexts new --name "New Session"
 ```
 
 ---
@@ -973,7 +973,7 @@ systemprompt --non-interactive cloud profile edit prod \
 
 ```bash
 # Full setup with flags
-systemprompt setup --non-interactive \
+systemprompt admin setup --non-interactive \
   --db-host localhost \
   --db-user admin \
   --db-password secret \
@@ -986,10 +986,10 @@ export SYSTEMPROMPT_DB_HOST=localhost
 export SYSTEMPROMPT_DB_USER=admin
 export SYSTEMPROMPT_DB_PASSWORD=secret
 export ANTHROPIC_API_KEY=sk-ant-xxx
-systemprompt setup --non-interactive --yes
+systemprompt admin setup --non-interactive --yes
 
 # Setup from config file
-systemprompt setup --config setup.toml
+systemprompt admin setup --config setup.toml
 ```
 
 ## 5.4 JSON Output Parsing
