@@ -5,8 +5,8 @@ use systemprompt_core_logging::CliService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
-    CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig, Profile,
-    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    CliPaths, CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig,
+    Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
     ServerConfig, SiteConfig,
 };
 
@@ -152,7 +152,7 @@ pub fn run_migrations(profile_path: &Path) -> Result<()> {
     let profile_path_str = profile_path.to_string_lossy();
 
     let output = std::process::Command::new(&current_exe)
-        .args(["db", "migrate"])
+        .args(CliPaths::db_migrate_args())
         .env("SYSTEMPROMPT_PROFILE", profile_path_str.as_ref())
         .output()
         .context("Failed to run migrations")?;
@@ -181,7 +181,7 @@ pub fn run_migrations(profile_path: &Path) -> Result<()> {
 
     CliService::info("Run manually with:");
     CliService::info(&format!(
-        "  SYSTEMPROMPT_PROFILE={} systemprompt db migrate",
+        "  SYSTEMPROMPT_PROFILE={} systemprompt infra db migrate",
         profile_path_str
     ));
 

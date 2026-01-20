@@ -141,7 +141,7 @@ agents-reload:
     done
 
     # Kill all agent processes by name
-    pkill -9 -f "systemprompt agents run" 2>/dev/null || true
+    pkill -9 -f "systemprompt admin agents run" 2>/dev/null || true
     pkill -9 -f "systemprompt-admin" 2>/dev/null || true
     pkill -9 -f "systemprompt-introduction" 2>/dev/null || true
     pkill -9 -f "systemprompt-helper" 2>/dev/null || true
@@ -152,7 +152,7 @@ agents-reload:
     echo "🚀 Starting agents with new binary via API reconciliation..."
 
     # Trigger API to restart all enabled agents
-    ./target/debug/systemprompt agents restart --all 2>/dev/null || echo "Note: Agents will auto-start with API"
+    ./target/debug/systemprompt admin agents restart --all 2>/dev/null || echo "Note: Agents will auto-start with API"
 
     echo "✅ Agents reloaded with latest binary"
     echo ""
@@ -175,7 +175,7 @@ api-nuke:
 
     # Kill any remaining systemprompt service processes by name
     pkill -9 -f "systemprompt serve api" 2>/dev/null || true
-    pkill -9 -f "systemprompt agents run" 2>/dev/null || true
+    pkill -9 -f "systemprompt admin agents run" 2>/dev/null || true
     pkill -9 -f "systemprompt-admin" 2>/dev/null || true
     pkill -9 -f "systemprompt-introduction" 2>/dev/null || true
     pkill -9 -f "systemprompt-helper" 2>/dev/null || true
@@ -187,7 +187,7 @@ api-nuke:
     sleep 1
 
     # Clean up services database (remove crashed/orphaned entries)
-    ./target/debug/systemprompt db execute "DELETE FROM services" 2>/dev/null || true
+    ./target/debug/systemprompt infra db execute "DELETE FROM services" 2>/dev/null || true
 
     echo "✅ Nuclear cleanup complete, starting fresh API server..."
 
@@ -296,10 +296,10 @@ test-clean:
     echo "🧹 Cleaning test database..."
     echo ""
     export DATABASE_URL="database/test.db"
-    ./target/debug/systemprompt db execute "DELETE FROM task_artifacts WHERE artifact_id LIKE 'test-%' OR created_by LIKE 'test-%'"
-    ./target/debug/systemprompt db execute "DELETE FROM user_contexts WHERE context_id LIKE 'test-%'"
-    ./target/debug/systemprompt db execute "DELETE FROM user_sessions WHERE session_id LIKE 'test-%'"
-    ./target/debug/systemprompt db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
+    ./target/debug/systemprompt infra db execute "DELETE FROM task_artifacts WHERE artifact_id LIKE 'test-%' OR created_by LIKE 'test-%'"
+    ./target/debug/systemprompt infra db execute "DELETE FROM user_contexts WHERE context_id LIKE 'test-%'"
+    ./target/debug/systemprompt infra db execute "DELETE FROM user_sessions WHERE session_id LIKE 'test-%'"
+    ./target/debug/systemprompt infra db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
     echo "✅ Test data cleaned!"
 
 # Reset test database completely (use with caution!)
@@ -318,7 +318,7 @@ test-info:
     export DATABASE_URL="database/test.db"
     echo "📊 Test Database Information:"
     echo ""
-    ./target/debug/systemprompt db info --verbose || echo "Database not initialized. Run: just test-setup"
+    ./target/debug/systemprompt infra db info --verbose || echo "Database not initialized. Run: just test-setup"
 
 # Stream logs from test database (newest logs at bottom, chronological order)
 test-logs:
@@ -327,7 +327,7 @@ test-logs:
     echo "📋 Streaming logs from test database (chronological order, newest at bottom)..."
     echo "════════════════════════════════════════════════════════════"
     echo ""
-    ./target/debug/systemprompt db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No logs found in test database"
+    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No logs found in test database"
 
 # Stream only errors and warnings from test database
 test-logs-errors:
@@ -336,7 +336,7 @@ test-logs-errors:
     echo "📋 Streaming ERROR and WARN logs from test database..."
     echo "════════════════════════════════════════════════════════════"
     echo ""
-    ./target/debug/systemprompt db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level IN ('ERROR', 'WARN') ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No errors/warnings found in test database"
+    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level IN ('ERROR', 'WARN') ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No errors/warnings found in test database"
 
 # Stream debug logs from test database
 test-logs-debug:
@@ -345,7 +345,7 @@ test-logs-debug:
     echo "📋 Streaming DEBUG logs from test database..."
     echo "════════════════════════════════════════════════════════════"
     echo ""
-    ./target/debug/systemprompt db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level = 'DEBUG' ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No debug logs found in test database"
+    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message, context_id, trace_id FROM logs WHERE level = 'DEBUG' ORDER BY timestamp ASC LIMIT 1000" --format table || echo "No debug logs found in test database"
 
 # =============================================================================
 # OPERATIONS
@@ -353,15 +353,15 @@ test-logs-debug:
 
 # List agents (use --json, --verbose flags as needed)
 agents:
-    ./target/debug/systemprompt agents list
+    ./target/debug/systemprompt admin agents list
 
 # Agent orchestrator operations (alias for agents command)
 a2a *ARGS:
-    ./target/debug/systemprompt agents {{ARGS}}
+    ./target/debug/systemprompt admin agents {{ARGS}}
 
 # MCP server operations
 mcp *ARGS:
-    ./target/debug/systemprompt mcp {{ARGS}}
+    ./target/debug/systemprompt plugins mcp {{ARGS}}
 
 # Tenant management (create, list, show, edit, delete)
 tenant *ARGS:
@@ -393,33 +393,33 @@ db *ARGS:
             [[ "$arg" != "--test" ]] && ARGS_WITHOUT_TEST+=("$arg")
         done
         echo "📝 Using test database: database/test.db"
-        DATABASE_URL="database/test.db" ./target/debug/systemprompt db "${ARGS_WITHOUT_TEST[@]}"
+        DATABASE_URL="database/test.db" ./target/debug/systemprompt infra db "${ARGS_WITHOUT_TEST[@]}"
     else
-        ./target/debug/systemprompt db "$@"
+        ./target/debug/systemprompt infra db "$@"
     fi
 
 # Execute database query (supports table, json, or csv format)
 query SQL FORMAT="table":
     #!/usr/bin/env bash
     if [[ "{{FORMAT}}" == "json" ]]; then
-        ./target/debug/systemprompt db query "{{SQL}}" --format json
+        ./target/debug/systemprompt infra db query "{{SQL}}" --format json
     elif [[ "{{FORMAT}}" == "csv" ]]; then
-        ./target/debug/systemprompt db query "{{SQL}}" --format csv
+        ./target/debug/systemprompt infra db query "{{SQL}}" --format csv
     else
-        ./target/debug/systemprompt db query "{{SQL}}"
+        ./target/debug/systemprompt infra db query "{{SQL}}"
     fi
 
 # Sync skills to Claude Code
 skills:
-    ./target/debug/systemprompt skills
+    ./target/debug/systemprompt core skills
 
 # Stream logs (use --level, --module flags to filter)
 logs *ARGS:
-    ./target/debug/systemprompt logs --stream {{ARGS}}
+    ./target/debug/systemprompt infra logs --stream {{ARGS}}
 
 # Stream logs (alias for logs)
 log *ARGS:
-    ./target/debug/systemprompt logs --stream {{ARGS}}
+    ./target/debug/systemprompt infra logs --stream {{ARGS}}
 
 # Trace a request flow by trace_id (shows execution steps, logs, artifacts)
 trace TRACE_ID:
@@ -432,25 +432,25 @@ trace TRACE_ID:
     # Get task info first
     echo "📋 TASK INFO"
     echo "------------------------------------------------------------"
-    ./target/debug/systemprompt db query "SELECT task_id, context_id, agent_name, status, execution_time_ms, created_at FROM agent_tasks WHERE trace_id = '{{TRACE_ID}}'" || echo "No task found"
+    ./target/debug/systemprompt infra db query "SELECT task_id, context_id, agent_name, status, execution_time_ms, created_at FROM agent_tasks WHERE trace_id = '{{TRACE_ID}}'" || echo "No task found"
     echo ""
 
     # Execution steps with lifecycle transitions
     echo "🔄 EXECUTION STEPS"
     echo "------------------------------------------------------------"
-    ./target/debug/systemprompt db query "SELECT s.step_type, s.title, s.subtitle, s.status, s.duration_ms, s.tool_name, s.started_at FROM task_execution_steps s JOIN agent_tasks t ON s.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY s.started_at" || echo "No execution steps found"
+    ./target/debug/systemprompt infra db query "SELECT s.step_type, s.title, s.subtitle, s.status, s.duration_ms, s.tool_name, s.started_at FROM task_execution_steps s JOIN agent_tasks t ON s.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY s.started_at" || echo "No execution steps found"
     echo ""
 
     # Logs (INFO and above, skip DEBUG)
     echo "📝 LOGS (INFO+)"
     echo "------------------------------------------------------------"
-    ./target/debug/systemprompt db query "SELECT timestamp, level, module, message FROM logs WHERE trace_id = '{{TRACE_ID}}' AND level != 'DEBUG' ORDER BY timestamp" || echo "No logs found"
+    ./target/debug/systemprompt infra db query "SELECT timestamp, level, module, message FROM logs WHERE trace_id = '{{TRACE_ID}}' AND level != 'DEBUG' ORDER BY timestamp" || echo "No logs found"
     echo ""
 
     # Artifacts
     echo "📦 ARTIFACTS"
     echo "------------------------------------------------------------"
-    ./target/debug/systemprompt db query "SELECT ta.artifact_id, ta.name, ta.artifact_type, ta.skill_name, ta.created_at FROM task_artifacts ta JOIN agent_tasks t ON ta.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY ta.created_at" || echo "No artifacts found"
+    ./target/debug/systemprompt infra db query "SELECT ta.artifact_id, ta.name, ta.artifact_type, ta.skill_name, ta.created_at FROM task_artifacts ta JOIN agent_tasks t ON ta.task_id = t.task_id WHERE t.trace_id = '{{TRACE_ID}}' ORDER BY ta.created_at" || echo "No artifacts found"
     echo ""
     echo "============================================================"
 
@@ -464,7 +464,7 @@ admin-token:
 
 # Assign admin role to a user (by username or email)
 assign-admin USER:
-    ./target/debug/systemprompt db assign-admin {{USER}}
+    ./target/debug/systemprompt infra db assign-admin {{USER}}
 
 # =============================================================================
 # POSTGRESQL (Docker Database)
@@ -584,7 +584,7 @@ migrate:
     fi
     source ../.env.remote
     echo "Running migrations on remote database..."
-    ./target/debug/systemprompt db migrate
+    ./target/debug/systemprompt infra db migrate
 
 # Create new site database on remote
 db-create-site SITENAME:
@@ -707,7 +707,7 @@ restart-failed:
 
 # Health check
 health:
-    ./target/debug/systemprompt agents health --all
+    ./target/debug/systemprompt admin agents health --all
 
 # =============================================================================
 # WEB & BLOG

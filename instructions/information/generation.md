@@ -507,13 +507,13 @@ Using tool_model_config in planned strategy
 
 ```bash
 # View recent AI requests with full details
-systemprompt logs request list --since 1h
-systemprompt logs request show <REQUEST_ID> --messages --full
+systemprompt infra logs request list --since 1h
+systemprompt infra logs request show <REQUEST_ID> --messages --full
 ```
 
 ### Verify Config Loading
 
 ```bash
 # Check if agent config is loaded correctly
-systemprompt agents list --verbose
+systemprompt admin agents list --verbose
 ```

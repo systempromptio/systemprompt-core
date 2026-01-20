@@ -110,8 +110,8 @@ pub use mcp::{
     RUNNING as MCP_RUNNING, STARTING as MCP_STARTING, STOPPED as MCP_STOPPED,
 };
 pub use modules::{
-    ApiConfig, ApiPaths, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed,
-    ModuleType, Modules, ServiceCategory,
+    ApiConfig, ApiPaths, CliPaths, Module, ModuleDefinition, ModulePermission, ModuleSchema,
+    ModuleSeed, ModuleType, Modules, ServiceCategory,
 };
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
 pub use paths::{

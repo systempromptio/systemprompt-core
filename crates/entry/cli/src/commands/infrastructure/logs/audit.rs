@@ -189,8 +189,8 @@ async fn find_by_trace_id(
 fn render_not_found(id: &str) {
     use systemprompt_core_logging::CliService;
     CliService::warning(&format!("No AI request found for: {id}"));
-    CliService::info("Tip: Use 'systemprompt logs request list' to see recent requests");
-    CliService::info("     Use 'systemprompt logs trace list' to see recent traces");
+    CliService::info("Tip: Use 'systemprompt infra logs request list' to see recent requests");
+    CliService::info("     Use 'systemprompt infra logs trace list' to see recent traces");
 }
 
 async fn build_output(pool: &Arc<sqlx::PgPool>, row: AiRequestRow) -> Result<AuditOutput> {

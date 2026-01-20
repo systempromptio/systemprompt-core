@@ -32,8 +32,8 @@ Formats: `table` (default), `json`, `csv`
 ### Alternative (direct binary)
 
 ```bash
-core/target/debug/systemprompt db query "SQL_STATEMENT"
-core/target/debug/systemprompt db query "SQL_STATEMENT" --format json
+core/target/debug/systemprompt infra db query "SQL_STATEMENT"
+core/target/debug/systemprompt infra db query "SQL_STATEMENT" --format json
 ```
 
 ## Common Queries

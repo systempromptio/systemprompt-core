@@ -3,7 +3,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use systemprompt_core_scheduler::ProcessCleanup;
-use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{AppPaths, CliPaths, Config, ProfileBootstrap, SecretsBootstrap};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -70,11 +70,10 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
     })?;
 
     let mut command = Command::new(&binary_path);
+    for arg in CliPaths::agent_run_args() {
+        command.arg(arg);
+    }
     command
-        .arg("infra")
-        .arg("admin")
-        .arg("agents")
-        .arg("run")
         .arg("--agent-name")
         .arg(agent_name)
         .arg("--port")

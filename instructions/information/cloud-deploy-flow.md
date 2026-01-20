@@ -676,7 +676,7 @@ HEALTHCHECK --interval=30s --timeout=5s \
 set -e
 
 # Run database migrations
-systemprompt infra services db migrate
+systemprompt infra db migrate
 
 # Start services
 exec "$@"

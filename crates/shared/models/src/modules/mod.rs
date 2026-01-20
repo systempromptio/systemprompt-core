@@ -1,8 +1,10 @@
 mod api_paths;
+mod cli_paths;
 mod service_category;
 mod types;
 
 pub use api_paths::ApiPaths;
+pub use cli_paths::CliPaths;
 pub use service_category::ServiceCategory;
 pub use types::{
     ApiConfig, Module, ModuleDefinition, ModulePermission, ModuleSchema, ModuleSeed, ModuleType,

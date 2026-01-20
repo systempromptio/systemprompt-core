@@ -15,21 +15,21 @@ use crate::CliConfig;
 pub enum RequestCommands {
     #[command(
         about = "List recent AI requests",
-        after_help = "EXAMPLES:\n  systemprompt logs request list\n  systemprompt logs request \
+        after_help = "EXAMPLES:\n  systemprompt infra logs request list\n  systemprompt infra logs request \
                       list --model gpt-4 --since 1h"
     )]
     List(list::ListArgs),
 
     #[command(
         about = "Show AI request details",
-        after_help = "EXAMPLES:\n  systemprompt logs request show abc123\n  systemprompt logs \
+        after_help = "EXAMPLES:\n  systemprompt infra logs request show abc123\n  systemprompt infra logs \
                       request show abc123 --messages --tools"
     )]
     Show(show::ShowArgs),
 
     #[command(
         about = "Show aggregate AI request statistics",
-        after_help = "EXAMPLES:\n  systemprompt logs request stats\n  systemprompt logs request \
+        after_help = "EXAMPLES:\n  systemprompt infra logs request stats\n  systemprompt infra logs request \
                       stats --since 24h"
     )]
     Stats(stats::StatsArgs),

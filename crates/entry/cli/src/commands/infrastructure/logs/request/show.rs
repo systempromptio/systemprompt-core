@@ -88,7 +88,7 @@ async fn execute_with_pool_inner(
     .await?
     else {
         CliService::warning(&format!("AI request not found: {}", args.request_id));
-        CliService::info("Tip: Use 'systemprompt logs request list' to see recent requests");
+        CliService::info("Tip: Use 'systemprompt infra logs request list' to see recent requests");
         return Ok(());
     };
 
