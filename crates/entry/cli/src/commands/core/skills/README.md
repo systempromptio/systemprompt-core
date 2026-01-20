@@ -20,12 +20,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `skills list` | List configured skills | `Table` | No |
-| `skills create` | Create new skill | `Text` | No |
-| `skills edit <name>` | Edit skill configuration | `Text` | No |
-| `skills delete <name>` | Delete a skill | `Text` | No |
-| `skills status` | Show database sync status | `Table` | No (DB only) |
-| `skills sync` | Sync skills between disk and database | `Text` | No (DB only) |
+| `core skills list` | List configured skills | `Table` | No |
+| `core skills create` | Create new skill | `Text` | No |
+| `core skills edit <name>` | Edit skill configuration | `Text` | No |
+| `core skills delete <name>` | Delete a skill | `Text` | No |
+| `core skills status` | Show database sync status | `Table` | No (DB only) |
+| `core skills sync` | Sync skills between disk and database | `Text` | No (DB only) |
 
 ---
 
@@ -36,11 +36,11 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all configured skills from disk and database.
 
 ```bash
-sp skills list
+sp core skills list
 sp --json skills list
-sp skills list --source disk
-sp skills list --source database
-sp skills list --agent primary
+sp core skills list --source disk
+sp core skills list --source database
+sp core skills list --agent primary
 ```
 
 **Flags:**
@@ -77,14 +77,14 @@ sp skills list --agent primary
 Create a new skill configuration.
 
 ```bash
-sp skills create \
+sp core skills create \
   --name "my_skill" \
   --display-name "My Skill" \
   --description "A custom skill" \
   --agent primary \
   --prompt "You are a helpful assistant that..."
 
-sp skills create \
+sp core skills create \
   --name "code_helper" \
   --display-name "Code Helper" \
   --description "Helps with coding tasks" \
@@ -129,12 +129,12 @@ sp skills create \
 Edit an existing skill configuration.
 
 ```bash
-sp skills edit <skill_name> --enable
-sp skills edit <skill_name> --disable
-sp skills edit <skill_name> --description "Updated description"
-sp skills edit <skill_name> --prompt "New prompt text..."
-sp skills edit <skill_name> --prompt-file ./prompts/updated.txt
-sp skills edit <skill_name> --set display_name="New Display Name"
+sp core skills edit <skill_name> --enable
+sp core skills edit <skill_name> --disable
+sp core skills edit <skill_name> --description "Updated description"
+sp core skills edit <skill_name> --prompt "New prompt text..."
+sp core skills edit <skill_name> --prompt-file ./prompts/updated.txt
+sp core skills edit <skill_name> --set display_name="New Display Name"
 ```
 
 **Required Arguments:**
@@ -177,8 +177,8 @@ sp skills edit <skill_name> --set display_name="New Display Name"
 Delete a skill configuration.
 
 ```bash
-sp skills delete <skill_name> --yes
-sp skills delete my_skill --yes
+sp core skills delete <skill_name> --yes
+sp core skills delete my_skill --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -204,9 +204,9 @@ sp skills delete my_skill --yes
 Show database sync status for skills.
 
 ```bash
-sp skills status
+sp core skills status
 sp --json skills status
-sp skills status --agent primary
+sp core skills status --agent primary
 ```
 
 **Flags:**
@@ -254,11 +254,11 @@ sp skills status --agent primary
 Sync skills between disk and database.
 
 ```bash
-sp skills sync
-sp skills sync --direction to-db
-sp skills sync --direction from-db
-sp skills sync --agent primary
-sp skills sync --dry-run
+sp core skills sync
+sp core skills sync --direction to-db
+sp core skills sync --direction from-db
+sp core skills sync --agent primary
+sp core skills sync --dry-run
 ```
 
 **Flags:**
@@ -299,7 +299,7 @@ sp --json skills list
 sp --json skills status
 
 # Phase 2: Create new skill
-sp skills create \
+sp core skills create \
   --name "documentation_helper" \
   --display-name "Documentation Helper" \
   --description "Helps write and improve documentation" \
@@ -311,24 +311,24 @@ sp --json skills list --source disk
 sp --json skills status
 
 # Phase 4: Sync to database
-sp skills sync --direction to-db
+sp core skills sync --direction to-db
 
 # Phase 5: Enable skill
-sp skills edit documentation_helper --enable
+sp core skills edit documentation_helper --enable
 
 # Phase 6: Update skill
-sp skills edit documentation_helper \
+sp core skills edit documentation_helper \
   --description "Professional documentation assistance" \
   --prompt "You are an expert technical writer..."
 
 # Phase 7: Re-sync after update
-sp skills sync --direction to-db
+sp core skills sync --direction to-db
 
 # Phase 8: Delete skill
-sp skills delete documentation_helper --yes
+sp core skills delete documentation_helper --yes
 
 # Phase 9: Sync deletion
-sp skills sync --direction to-db
+sp core skills sync --direction to-db
 
 # Phase 10: Verify deletion
 sp --json skills list
@@ -377,7 +377,7 @@ Always follow best practices and consider edge cases.
 EOF
 
 # Create skill with prompt file
-sp skills create \
+sp core skills create \
   --name "dev_helper" \
   --agent primary \
   --prompt-file ./prompts/my_skill.txt
@@ -390,43 +390,43 @@ sp skills create \
 ### Missing Required Flags
 
 ```bash
-sp skills create --name test
+sp core skills create --name test
 # Error: --agent is required in non-interactive mode
 
-sp skills create --name test --agent primary
+sp core skills create --name test --agent primary
 # Error: --prompt or --prompt-file is required in non-interactive mode
 
-sp skills delete my_skill
+sp core skills delete my_skill
 # Error: --yes is required to delete skills in non-interactive mode
 ```
 
 ### Validation Errors
 
 ```bash
-sp skills create --name "Test Skill" --agent primary --prompt "test"
+sp core skills create --name "Test Skill" --agent primary --prompt "test"
 # Error: Skill name must be lowercase alphanumeric with underscores only
 
-sp skills create --name "ab" --agent primary --prompt "test"
+sp core skills create --name "ab" --agent primary --prompt "test"
 # Error: Skill name must be between 3 and 50 characters
 
-sp skills create --name "new_skill" --agent nonexistent --prompt "test"
+sp core skills create --name "new_skill" --agent nonexistent --prompt "test"
 # Error: Agent 'nonexistent' not found
 ```
 
 ### Not Found Errors
 
 ```bash
-sp skills edit nonexistent --enable
+sp core skills edit nonexistent --enable
 # Error: Skill 'nonexistent' not found
 
-sp skills delete nonexistent --yes
+sp core skills delete nonexistent --yes
 # Error: Skill 'nonexistent' not found
 ```
 
 ### Sync Errors
 
 ```bash
-sp skills sync
+sp core skills sync
 # Error: Failed to connect to database. Check your profile configuration.
 ```
 

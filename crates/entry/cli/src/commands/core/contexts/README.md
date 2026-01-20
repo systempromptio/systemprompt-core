@@ -20,13 +20,13 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type |
 |---------|-------------|---------------|
-| `contexts list` | List all contexts with stats | `Table` |
-| `contexts show <id\|name>` | Display context details | `Card` |
-| `contexts create` | Create new context | `Card` |
-| `contexts edit <id\|name>` | Rename a context | `Card` |
-| `contexts delete <id\|name>` | Delete a context | `Card` |
-| `contexts use <id\|name>` | Switch active context | `Card` |
-| `contexts new` | Create and switch (shortcut) | `Card` |
+| `core contexts list` | List all contexts with stats | `Table` |
+| `core contexts show <id\|name>` | Display context details | `Card` |
+| `core contexts create` | Create new context | `Card` |
+| `core contexts edit <id\|name>` | Rename a context | `Card` |
+| `core contexts delete <id\|name>` | Delete a context | `Card` |
+| `core contexts use <id\|name>` | Switch active context | `Card` |
+| `core contexts new` | Create and switch (shortcut) | `Card` |
 
 ---
 
@@ -49,7 +49,7 @@ All commands that accept `<id|name>` support flexible resolution:
 List all contexts with statistics.
 
 ```bash
-sp contexts list
+sp core contexts list
 sp --json contexts list
 ```
 
@@ -82,8 +82,8 @@ sp --json contexts list
 Display detailed information about a context.
 
 ```bash
-sp contexts show a1b2c3d4
-sp contexts show "My Project"
+sp core contexts show a1b2c3d4
+sp core contexts show "My Project"
 sp --json contexts show a1b2c3d4
 ```
 
@@ -97,8 +97,8 @@ sp --json contexts show a1b2c3d4
 Create a new context without switching to it.
 
 ```bash
-sp contexts create
-sp contexts create --name "My Project"
+sp core contexts create
+sp core contexts create --name "My Project"
 sp --json contexts create --name "API Testing"
 ```
 
@@ -114,8 +114,8 @@ sp --json contexts create --name "API Testing"
 Rename an existing context.
 
 ```bash
-sp contexts edit a1b2c3d4 --name "New Name"
-sp contexts edit "Old Name" --name "New Name"
+sp core contexts edit a1b2c3d4 --name "New Name"
+sp core contexts edit "Old Name" --name "New Name"
 ```
 
 **Arguments:**
@@ -133,8 +133,8 @@ sp contexts edit "Old Name" --name "New Name"
 Delete a context. Cannot delete the active context.
 
 ```bash
-sp contexts delete a1b2c3d4 --yes
-sp contexts delete "Old Project" -y
+sp core contexts delete a1b2c3d4 --yes
+sp core contexts delete "Old Project" -y
 ```
 
 **Arguments:**
@@ -145,7 +145,7 @@ sp contexts delete "Old Project" -y
 |------|-------------|
 | `-y, --yes` | Skip confirmation prompt |
 
-**Note:** You cannot delete the currently active context. Switch to a different context first using `contexts use`.
+**Note:** You cannot delete the currently active context. Switch to a different context first using `core contexts use`.
 
 ---
 
@@ -154,14 +154,14 @@ sp contexts delete "Old Project" -y
 Switch the session's active context.
 
 ```bash
-sp contexts use a1b2c3d4
-sp contexts use "My Project"
+sp core contexts use a1b2c3d4
+sp core contexts use "My Project"
 ```
 
 **Arguments:**
 - `<context>` - Context ID (full or partial) or name
 
-This updates the session file so subsequent `agents message` commands use the selected context.
+This updates the session file so subsequent `admin agents message` commands use the selected context.
 
 ---
 
@@ -170,8 +170,8 @@ This updates the session file so subsequent `agents message` commands use the se
 Create a new context and immediately switch to it (shortcut for `create` + `use`).
 
 ```bash
-sp contexts new
-sp contexts new --name "New Session"
+sp core contexts new
+sp core contexts new --name "New Session"
 sp --json contexts new --name "Debug Session"
 ```
 
@@ -188,23 +188,23 @@ sp --json contexts new --name "Debug Session"
 
 ```bash
 # Create new context and switch to it
-sp contexts new --name "Bug Investigation"
+sp core contexts new --name "Bug Investigation"
 
 # Send messages in the new context
-sp agents message primary -m "Help me debug this issue"
+sp admin agents message primary -m "Help me debug this issue"
 ```
 
 ### Switching between projects
 
 ```bash
 # List available contexts
-sp contexts list
+sp core contexts list
 
 # Switch to a different context
-sp contexts use "Project A"
+sp core contexts use "Project A"
 
 # Continue conversation in that context
-sp agents message primary -m "Continue from where we left off"
+sp admin agents message primary -m "Continue from where we left off"
 ```
 
 ### Cleaning up old contexts
@@ -214,5 +214,5 @@ sp agents message primary -m "Continue from where we left off"
 sp --json contexts list | jq '.contexts[] | select(.message_count == 0)'
 
 # Delete unused context
-sp contexts delete "Old Test" --yes
+sp core contexts delete "Old Test" --yes
 ```

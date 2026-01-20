@@ -20,12 +20,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `services start` | Start API, agents, and MCP servers | `Text` | No |
-| `services stop` | Stop running services gracefully | `Text` | No |
-| `services restart` | Restart services | `Text` | Yes |
-| `services status` | Show detailed service status | `Table` | No |
-| `services cleanup` | Clean up orphaned processes | `Text` | No |
-| `services serve` | Start API server (with agents/MCP) | `Text` | No |
+| `infra services start` | Start API, agents, and MCP servers | `Text` | No |
+| `infra services stop` | Stop running services gracefully | `Text` | No |
+| `infra services restart` | Restart services | `Text` | Yes |
+| `infra services status` | Show detailed service status | `Table` | No |
+| `infra services cleanup` | Clean up orphaned processes | `Text` | No |
+| `infra services serve` | Start API server (with agents/MCP) | `Text` | No |
 
 ---
 
@@ -36,13 +36,13 @@ alias sp="./target/debug/systemprompt --non-interactive"
 Start API server, agents, and MCP servers.
 
 ```bash
-sp services start
-sp services start --all
-sp services start --api
-sp services start --agents
-sp services start --mcp
-sp services start --skip-web
-sp services start --skip-migrate
+sp infra services start
+sp infra services start --all
+sp infra services start --api
+sp infra services start --agents
+sp infra services start --mcp
+sp infra services start --skip-web
+sp infra services start --skip-migrate
 ```
 
 **Optional Flags:**
@@ -89,12 +89,12 @@ sp services start --skip-migrate
 Stop running services gracefully.
 
 ```bash
-sp services stop
-sp services stop --all
-sp services stop --api
-sp services stop --agents
-sp services stop --mcp
-sp services stop --force
+sp infra services stop
+sp infra services stop --all
+sp infra services stop --api
+sp infra services stop --agents
+sp infra services stop --mcp
+sp infra services stop --force
 ```
 
 **Optional Flags:**
@@ -133,10 +133,10 @@ sp services stop --force
 Restart services.
 
 ```bash
-sp services restart api
-sp services restart agent primary
-sp services restart mcp filesystem
-sp services restart --failed
+sp infra services restart api
+sp infra services restart agent primary
+sp infra services restart mcp filesystem
+sp infra services restart --failed
 ```
 
 **Subcommands:**
@@ -144,7 +144,7 @@ sp services restart --failed
 |------------|-------------|
 | `api` | Restart API server |
 | `agent <name>` | Restart specific agent |
-| `mcp <name>` | Restart specific MCP server |
+| `plugins mcp <name>` | Restart specific MCP server |
 
 **Optional Flags:**
 | Flag | Default | Description |
@@ -168,10 +168,10 @@ sp services restart --failed
 Show detailed service status.
 
 ```bash
-sp services status
+sp infra services status
 sp --json services status
-sp services status --detailed
-sp services status --health
+sp infra services status --detailed
+sp infra services status --health
 ```
 
 **Optional Flags:**
@@ -230,9 +230,9 @@ sp services status --health
 Clean up orphaned processes and stale entries.
 
 ```bash
-sp services cleanup              # Interactive mode prompts for confirmation
-sp services cleanup --yes        # Skip confirmation
-sp services cleanup --dry-run    # Preview what would be cleaned
+sp infra services cleanup              # Interactive mode prompts for confirmation
+sp infra services cleanup --yes        # Skip confirmation
+sp infra services cleanup --dry-run    # Preview what would be cleaned
 sp --json services cleanup --yes
 ```
 
@@ -268,9 +268,9 @@ sp --json services cleanup --yes
 Start API server with automatic agent and MCP startup.
 
 ```bash
-sp services serve
-sp services serve --foreground
-sp services serve --kill-port-process
+sp infra services serve
+sp infra services serve --foreground
+sp infra services serve --kill-port-process
 ```
 
 **Optional Flags:**
@@ -302,7 +302,7 @@ This flow demonstrates managing services:
 sp --json services status
 
 # Phase 2: Start all services
-sp services start
+sp infra services start
 
 # Phase 3: Verify status
 sp --json services status --health
@@ -311,13 +311,13 @@ sp --json services status --health
 sp --json services status | jq '.agents[] | select(.name == "primary")'
 
 # Phase 5: Restart failed services
-sp services restart --failed
+sp infra services restart --failed
 
 # Phase 6: Stop all services
-sp services stop
+sp infra services stop
 
 # Phase 7: Cleanup
-sp services cleanup
+sp infra services cleanup
 ```
 
 ---
@@ -326,14 +326,14 @@ sp services cleanup
 
 ```bash
 # Start with skip options for faster iteration
-sp services start --skip-migrate
+sp infra services start --skip-migrate
 
 # Restart specific agent after code changes
-sp services restart agent primary
+sp infra services restart agent primary
 
 # Force restart if hanging
-sp services stop --force
-sp services start
+sp infra services stop --force
+sp infra services start
 ```
 
 ---
@@ -342,14 +342,14 @@ sp services start
 
 ```bash
 # Full startup with migrations and build
-sp services start
+sp infra services start
 
 # Health check
 sp --json services status --health
 
 # Graceful restart
-sp services stop
-sp services start
+sp infra services stop
+sp infra services start
 
 # Monitor status
 watch -n 5 'sp --json services status | jq .summary'
@@ -387,34 +387,34 @@ mcp_servers:
 ### Port Already in Use
 
 ```bash
-sp services start
+sp infra services start
 # Error: Port 8080 is already in use. Use --kill-port-process to terminate existing process.
 
-sp services serve --kill-port-process
+sp infra services serve --kill-port-process
 # Killed process on port 8080, starting server...
 ```
 
 ### Service Already Running
 
 ```bash
-sp services start --api
+sp infra services start --api
 # Warning: API server is already running on port 8080
 
-sp services status
+sp infra services status
 # Shows current running services
 ```
 
 ### Database Connection Error
 
 ```bash
-sp services start
+sp infra services start
 # Error: Failed to connect to database. Check your profile configuration.
 ```
 
 ### Target Required
 
 ```bash
-sp services restart
+sp infra services restart
 # Error: Must specify target (api, agent, mcp) or use --failed flag
 ```
 

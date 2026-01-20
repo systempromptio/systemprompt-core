@@ -20,21 +20,21 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `content list` | List content with pagination | `Table` | No (DB only) |
-| `content show <id>` | Show content details | `Card` | No (DB only) |
-| `content search <query>` | Search content | `Table` | No (DB only) |
-| `content ingest` | Ingest markdown files | `Card` | No (DB only) |
-| `content delete <id>` | Delete content by ID | `Card` | No (DB only) |
-| `content delete-source` | Delete all content from source | `Card` | No (DB only) |
-| `content popular` | Get popular content | `Table` | No (DB only) |
-| `content link generate` | Generate trackable link | `Card` | No (DB only) |
-| `content link show` | Show link details | `Card` | No (DB only) |
-| `content link list` | List links | `Table` | No (DB only) |
-| `content link performance` | Link performance metrics | `Card` | No (DB only) |
-| `content link delete` | Delete a link | `Card` | No (DB only) |
-| `content analytics clicks` | Link click history | `Table` | No (DB only) |
-| `content analytics campaign` | Campaign analytics | `Card` | No (DB only) |
-| `content analytics journey` | Content navigation graph | `Table` | No (DB only) |
+| `core content list` | List content with pagination | `Table` | No (DB only) |
+| `core content show <id>` | Show content details | `Card` | No (DB only) |
+| `core content search <query>` | Search content | `Table` | No (DB only) |
+| `core content ingest` | Ingest markdown files | `Card` | No (DB only) |
+| `core content delete <id>` | Delete content by ID | `Card` | No (DB only) |
+| `core content delete-source` | Delete all content from source | `Card` | No (DB only) |
+| `core content popular` | Get popular content | `Table` | No (DB only) |
+| `core content link generate` | Generate trackable link | `Card` | No (DB only) |
+| `core content link show` | Show link details | `Card` | No (DB only) |
+| `core content link list` | List links | `Table` | No (DB only) |
+| `core content link performance` | Link performance metrics | `Card` | No (DB only) |
+| `core content link delete` | Delete a link | `Card` | No (DB only) |
+| `core content analytics clicks` | Link click history | `Table` | No (DB only) |
+| `core content analytics campaign` | Campaign analytics | `Card` | No (DB only) |
+| `core content analytics journey` | Content navigation graph | `Table` | No (DB only) |
 
 ---
 
@@ -45,11 +45,11 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List content with pagination and filtering.
 
 ```bash
-sp content list
+sp core content list
 sp --json content list
-sp content list --limit 50 --offset 0
-sp content list --source blog
-sp content list --category tutorials
+sp core content list --limit 50 --offset 0
+sp core content list --source blog
+sp core content list --category tutorials
 ```
 
 **Flags:**
@@ -90,9 +90,9 @@ sp content list --category tutorials
 Show detailed content information.
 
 ```bash
-sp content show <content-id>
+sp core content show <content-id>
 sp --json content show dc2ae776-debb-4a75-9e8d-90c9131382e0
-sp content show getting-started --source blog
+sp core content show getting-started --source blog
 ```
 
 **Required Arguments:**
@@ -135,10 +135,10 @@ sp content show getting-started --source blog
 Search content by query.
 
 ```bash
-sp content search <query>
+sp core content search <query>
 sp --json content search "getting started"
-sp content search "tutorial" --source blog
-sp content search "api" --category docs --limit 10
+sp core content search "tutorial" --source blog
+sp core content search "api" --category docs --limit 10
 ```
 
 **Required Arguments:**
@@ -182,10 +182,10 @@ sp content search "api" --category docs --limit 10
 Ingest markdown files from a directory into the database.
 
 ```bash
-sp content ingest <directory> --source blog
-sp content ingest ./content/blog --source blog --recursive
-sp content ingest ./content --source docs --category documentation
-sp content ingest ./content --source test --dry-run
+sp core content ingest <directory> --source blog
+sp core content ingest ./content/blog --source blog --recursive
+sp core content ingest ./content --source docs --category documentation
+sp core content ingest ./content --source test --dry-run
 ```
 
 **Required Arguments:**
@@ -252,9 +252,9 @@ author: Author Name
 Delete content by ID.
 
 ```bash
-sp content delete <content-id> --yes
-sp content delete dc2ae776-debb-4a75-9e8d-90c9131382e0 --yes
-sp content delete getting-started --source blog --yes
+sp core content delete <content-id> --yes
+sp core content delete dc2ae776-debb-4a75-9e8d-90c9131382e0 --yes
+sp core content delete getting-started --source blog --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -285,8 +285,8 @@ sp content delete getting-started --source blog --yes
 Delete all content from a source.
 
 ```bash
-sp content delete-source <source-id> --yes
-sp content delete-source test-source --yes
+sp core content delete-source <source-id> --yes
+sp core content delete-source test-source --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -312,11 +312,11 @@ sp content delete-source test-source --yes
 Get popular content based on views.
 
 ```bash
-sp content popular --source blog
+sp core content popular --source blog
 sp --json content popular --source blog
-sp content popular --source blog --limit 10
-sp content popular --source blog --since 7d
-sp content popular --source docs --since 1w
+sp core content popular --source blog --limit 10
+sp core content popular --source blog --since 7d
+sp core content popular --source docs --since 1w
 ```
 
 **Required Flags:**
@@ -361,10 +361,10 @@ sp content popular --source docs --since 1w
 Generate a trackable campaign link.
 
 ```bash
-sp content link generate --url https://example.com
-sp content link generate --url https://example.com --campaign my-campaign
-sp content link generate --url https://example.com --utm-source twitter --utm-medium social
-sp content link generate --url https://example.com --link-type redirect
+sp core content link generate --url https://example.com
+sp core content link generate --url https://example.com --campaign my-campaign
+sp core content link generate --url https://example.com --utm-source twitter --utm-medium social
+sp core content link generate --url https://example.com --link-type redirect
 ```
 
 **Required Flags:**
@@ -410,7 +410,7 @@ sp content link generate --url https://example.com --link-type redirect
 Show link details by short code.
 
 ```bash
-sp content link show <short-code>
+sp core content link show <short-code>
 sp --json content link show 6WRVOTgT
 ```
 
@@ -446,8 +446,8 @@ sp --json content link show 6WRVOTgT
 List links by campaign or content.
 
 ```bash
-sp content link list --campaign my-campaign
-sp content link list --content content_abc123
+sp core content link list --campaign my-campaign
+sp core content link list --content content_abc123
 sp --json content link list --campaign my-campaign
 ```
 
@@ -485,7 +485,7 @@ sp --json content link list --campaign my-campaign
 Show link performance metrics.
 
 ```bash
-sp content link performance <link-id>
+sp core content link performance <link-id>
 sp --json content link performance abc123
 ```
 
@@ -514,8 +514,8 @@ sp --json content link performance abc123
 Delete a link.
 
 ```bash
-sp content link delete <link-id> --yes
-sp content link delete abc123 --yes
+sp core content link delete <link-id> --yes
+sp core content link delete abc123 --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -543,9 +543,9 @@ sp content link delete abc123 --yes
 Show click history for a link.
 
 ```bash
-sp content analytics clicks <link-id>
+sp core content analytics clicks <link-id>
 sp --json content analytics clicks abc123
-sp content analytics clicks abc123 --limit 50
+sp core content analytics clicks abc123 --limit 50
 ```
 
 **Required Arguments:**
@@ -589,7 +589,7 @@ sp content analytics clicks abc123 --limit 50
 Show campaign-level analytics.
 
 ```bash
-sp content analytics campaign <campaign-id>
+sp core content analytics campaign <campaign-id>
 sp --json content analytics campaign my-campaign
 ```
 
@@ -618,9 +618,9 @@ sp --json content analytics campaign my-campaign
 Show content navigation graph.
 
 ```bash
-sp content analytics journey
+sp core content analytics journey
 sp --json content analytics journey
-sp content analytics journey --limit 50
+sp core content analytics journey --limit 50
 ```
 
 **Optional Flags:**
@@ -668,10 +668,10 @@ Welcome to our platform...
 EOF
 
 # Phase 2: Dry-run to preview ingestion
-sp content ingest /tmp/tutorials --source tutorials --dry-run
+sp core content ingest /tmp/tutorials --source tutorials --dry-run
 
 # Phase 3: Ingest content
-sp content ingest /tmp/tutorials --source tutorials
+sp core content ingest /tmp/tutorials --source tutorials
 
 # Phase 4: Verify content
 sp --json content list --source tutorials
@@ -684,16 +684,16 @@ sp --json content search "getting started"
 sp --json content popular --source tutorials --since 7d
 
 # Phase 7: Generate trackable link
-sp content link generate --url https://example.com --campaign test --utm-source cli
+sp core content link generate --url https://example.com --campaign test --utm-source cli
 
 # Phase 8: View link analytics
 sp --json content analytics clicks <link-id>
 
 # Phase 9: Delete content
-sp content delete getting-started --source tutorials --yes
+sp core content delete getting-started --source tutorials --yes
 
 # Phase 10: Delete all from source
-sp content delete-source tutorials --yes
+sp core content delete-source tutorials --yes
 ```
 
 ---
@@ -703,26 +703,26 @@ sp content delete-source tutorials --yes
 ### Missing Required Flags
 
 ```bash
-sp content ingest /path
+sp core content ingest /path
 # Error: --source is required
 
-sp content delete content_abc
+sp core content delete content_abc
 # Error: --yes is required to delete content in non-interactive mode
 
-sp content link list
+sp core content link list
 # Error: Either --campaign or --content must be specified
 ```
 
 ### Content Not Found
 
 ```bash
-sp content show nonexistent
+sp core content show nonexistent
 # Error: Source ID required when using slug
 
-sp content show nonexistent --source blog
+sp core content show nonexistent --source blog
 # Error: Content not found: nonexistent in source blog
 
-sp content delete nonexistent --yes
+sp core content delete nonexistent --yes
 # Error: Source ID required when using slug (use --source)
 ```
 

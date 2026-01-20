@@ -20,12 +20,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `mcp list` | List MCP server configurations | `Table` | No |
-| `mcp status` | Show running MCP server status | `Table` | No |
-| `mcp validate <name>` | Validate MCP server connection | `Card` | Yes |
-| `mcp validate --all` | Validate all MCP servers | `Card` | Yes |
-| `mcp logs <name>` | View MCP server logs | `Text` | No |
-| `mcp list-packages` | List package names for build | `List` | No |
+| `plugins mcp list` | List MCP server configurations | `Table` | No |
+| `plugins mcp status` | Show running MCP server status | `Table` | No |
+| `plugins mcp validate <name>` | Validate MCP server connection | `Card` | Yes |
+| `plugins mcp validate --all` | Validate all MCP servers | `Card` | Yes |
+| `plugins mcp logs <name>` | View MCP server logs | `Text` | No |
+| `plugins mcp list-packages` | List package names for build | `List` | No |
 
 ---
 
@@ -36,10 +36,10 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all configured MCP servers from the services configuration.
 
 ```bash
-sp mcp list
+sp plugins mcp list
 sp --json mcp list
-sp mcp list --enabled
-sp mcp list --disabled
+sp plugins mcp list --enabled
+sp plugins mcp list --disabled
 ```
 
 **Flags:**
@@ -83,10 +83,10 @@ sp mcp list --disabled
 Show running MCP server status with binary information.
 
 ```bash
-sp mcp status
+sp plugins mcp status
 sp --json mcp status
-sp mcp status --detailed
-sp mcp status --server content-manager
+sp plugins mcp status --detailed
+sp plugins mcp status --server content-manager
 ```
 
 **Flags:**
@@ -128,11 +128,11 @@ sp mcp status --server content-manager
 Validate MCP server connection and capabilities. Returns rich validation data including tools count, latency, and server info.
 
 ```bash
-sp mcp validate <server-name>
+sp plugins mcp validate <server-name>
 sp --json mcp validate filesystem
-sp mcp validate database --timeout 30
-sp mcp validate --all
-sp mcp validate --all --timeout 5
+sp plugins mcp validate database --timeout 30
+sp plugins mcp validate --all
+sp plugins mcp validate --all --timeout 5
 ```
 
 **Arguments:**
@@ -208,13 +208,13 @@ sp mcp validate --all --timeout 5
 View MCP server logs from database or disk files.
 
 ```bash
-sp mcp logs <server-name>
-sp mcp logs filesystem
-sp mcp logs filesystem --lines 100
-sp mcp logs filesystem --follow
-sp mcp logs filesystem --level error
-sp mcp logs filesystem --disk
-sp mcp logs --logs-dir /custom/path
+sp plugins mcp logs <server-name>
+sp plugins mcp logs filesystem
+sp plugins mcp logs filesystem --lines 100
+sp plugins mcp logs filesystem --follow
+sp plugins mcp logs filesystem --level error
+sp plugins mcp logs filesystem --disk
+sp plugins mcp logs --logs-dir /custom/path
 ```
 
 **Arguments:**
@@ -259,9 +259,9 @@ sp mcp logs --logs-dir /custom/path
 List MCP package names for build commands.
 
 ```bash
-sp mcp list-packages
+sp plugins mcp list-packages
 sp --json mcp list-packages
-sp mcp list-packages --raw
+sp plugins mcp list-packages --raw
 ```
 
 **Flags:**
@@ -318,10 +318,10 @@ sp --json mcp validate filesystem --timeout 30
 sp --json mcp validate --all
 
 # Phase 6: Check logs with level filtering
-sp mcp logs filesystem --lines 20 --level error
+sp plugins mcp logs filesystem --lines 20 --level error
 
 # Phase 7: Follow logs in real-time
-sp mcp logs filesystem --follow
+sp plugins mcp logs filesystem --follow
 ```
 
 ---
@@ -379,13 +379,13 @@ sp --json mcp status --server filesystem
 
 ```bash
 # Validate connection with extended timeout
-sp mcp validate filesystem --timeout 30
+sp plugins mcp validate filesystem --timeout 30
 
 # Check validation type in response
 sp --json mcp validate filesystem | jq '.results[0].validation_type'
 
 # Check logs for errors
-sp mcp logs filesystem --level error --lines 100
+sp plugins mcp logs filesystem --level error --lines 100
 ```
 
 ### Tool Registration Issues
@@ -418,36 +418,36 @@ sp --json mcp validate --all | jq '.results[] | select(.health_status != "health
 ### Server Not Found
 
 ```bash
-sp mcp validate nonexistent
+sp plugins mcp validate nonexistent
 # Error: MCP server 'nonexistent' not found
 
-sp mcp logs nonexistent
+sp plugins mcp logs nonexistent
 # Error: Log file not found for service 'nonexistent'. Available: [...]
 ```
 
 ### Service Not Running
 
 ```bash
-sp mcp validate filesystem
+sp plugins mcp validate filesystem
 # Returns: health_status: "stopped", validation_type: "not_running"
 ```
 
 ### Connection Timeout
 
 ```bash
-sp mcp validate filesystem --timeout 5
+sp plugins mcp validate filesystem --timeout 5
 # Returns: health_status: "unhealthy", validation_type: "timeout"
 ```
 
 ### Non-Interactive Mode Requirements
 
 ```bash
-sp mcp validate
+sp plugins mcp validate
 # Error: --service is required in non-interactive mode
 
 # Solution: Use --all flag or provide service name
-sp mcp validate --all
-sp mcp validate filesystem
+sp plugins mcp validate --all
+sp plugins mcp validate filesystem
 ```
 
 ---
@@ -482,13 +482,13 @@ MCP servers are started automatically with services:
 
 ```bash
 # Start all services including MCP
-sp services start
+sp infra services start
 
 # Start only MCP servers
-sp services start --mcp
+sp infra services start --mcp
 
 # Stop MCP servers
-sp services stop --mcp
+sp infra services stop --mcp
 ```
 
 ---

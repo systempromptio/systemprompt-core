@@ -709,7 +709,7 @@ curl https://tenant_abc123.systemprompt.cloud/health
 ```bash
 # Development (local)
 export SYSTEMPROMPT_PROFILE=~/.systemprompt/profiles/local/profile.yaml
-sp services start
+sp infra services start
 
 # Staging deployment
 sp cloud profile create --name staging --environment staging

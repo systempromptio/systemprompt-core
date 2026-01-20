@@ -20,15 +20,15 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type |
 |---------|-------------|---------------|
-| `jobs list` | List available scheduled jobs | `Table` |
-| `jobs show <name>` | Show detailed job information | `PresentationCard` |
-| `jobs run <name...>` | Run job(s) manually | `Table` |
-| `jobs run --all` | Run all enabled jobs | `Table` |
-| `jobs history` | View job execution history | `Table` |
-| `jobs enable <name>` | Enable a job | `Text` |
-| `jobs disable <name>` | Disable a job | `Text` |
-| `jobs cleanup-sessions` | Clean up inactive sessions | `Text` |
-| `jobs log-cleanup` | Clean up old log entries | `Text` |
+| `infra jobs list` | List available scheduled jobs | `Table` |
+| `infra jobs show <name>` | Show detailed job information | `PresentationCard` |
+| `infra jobs run <name...>` | Run job(s) manually | `Table` |
+| `infra jobs run --all` | Run all enabled jobs | `Table` |
+| `infra jobs history` | View job execution history | `Table` |
+| `infra jobs enable <name>` | Enable a job | `Text` |
+| `infra jobs disable <name>` | Disable a job | `Text` |
+| `infra jobs cleanup-sessions` | Clean up inactive sessions | `Text` |
+| `infra jobs log-cleanup` | Clean up old log entries | `Text` |
 
 ---
 
@@ -39,7 +39,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all available scheduled jobs from the registry.
 
 ```bash
-sp jobs list
+sp infra jobs list
 sp --json jobs list
 ```
 
@@ -69,7 +69,7 @@ sp --json jobs list
 Show detailed information about a specific job.
 
 ```bash
-sp jobs show content_ingestion
+sp infra jobs show content_ingestion
 sp --json jobs show database_cleanup
 ```
 
@@ -101,13 +101,13 @@ Run one or more scheduled jobs manually.
 
 ```bash
 # Run a single job
-sp jobs run content_ingestion
+sp infra jobs run content_ingestion
 
 # Run multiple jobs
-sp jobs run content_ingestion publish_content database_cleanup
+sp infra jobs run content_ingestion publish_content database_cleanup
 
 # Run all enabled jobs
-sp jobs run --all
+sp infra jobs run --all
 ```
 
 **Arguments & Flags:**
@@ -150,10 +150,10 @@ sp jobs run --all
 View job execution history.
 
 ```bash
-sp jobs history
-sp jobs history --job content_ingestion
-sp jobs history --status failed
-sp jobs history -n 50
+sp infra jobs history
+sp infra jobs history --job content_ingestion
+sp infra jobs history --status failed
+sp infra jobs history -n 50
 ```
 
 **Flags:**
@@ -189,8 +189,8 @@ sp jobs history -n 50
 Enable or disable a job.
 
 ```bash
-sp jobs enable behavioral_analysis
-sp jobs disable behavioral_analysis
+sp infra jobs enable behavioral_analysis
+sp infra jobs disable behavioral_analysis
 ```
 
 **Output Structure:**
@@ -213,9 +213,9 @@ sp jobs disable behavioral_analysis
 Clean up inactive user sessions.
 
 ```bash
-sp jobs cleanup-sessions
-sp jobs cleanup-sessions --hours 2
-sp jobs cleanup-sessions --dry-run
+sp infra jobs cleanup-sessions
+sp infra jobs cleanup-sessions --hours 2
+sp infra jobs cleanup-sessions --dry-run
 ```
 
 **Flags:**
@@ -245,9 +245,9 @@ sp jobs cleanup-sessions --dry-run
 Clean up old log entries.
 
 ```bash
-sp jobs log-cleanup
-sp jobs log-cleanup --days 7
-sp jobs log-cleanup --days 7 --dry-run
+sp infra jobs log-cleanup
+sp infra jobs log-cleanup --days 7
+sp infra jobs log-cleanup --days 7 --dry-run
 ```
 
 **Flags:**
@@ -380,7 +380,7 @@ pub mod jobs;
 
 ### Step 5: Link to CLI
 
-The job will automatically appear in `jobs list` after rebuilding, as long as the crate is linked to the CLI binary. For extensions, this happens through the generator crate dependency.
+The job will automatically appear in `infra jobs list` after rebuilding, as long as the crate is linked to the CLI binary. For extensions, this happens through the generator crate dependency.
 
 ---
 
@@ -514,14 +514,14 @@ systemprompt_traits::submit_job!(&BlogContentIngestionJob);
 sp --json jobs list | jq '.data.jobs[].name'
 
 # Check job details before running
-sp jobs show content_ingestion
+sp infra jobs show content_ingestion
 
 # Preview cleanup without executing
-sp jobs cleanup-sessions --dry-run
-sp jobs log-cleanup --days 7 --dry-run
+sp infra jobs cleanup-sessions --dry-run
+sp infra jobs log-cleanup --days 7 --dry-run
 
 # Run the job
-sp jobs run content_ingestion
+sp infra jobs run content_ingestion
 
 # Check execution history
 sp --json jobs history --job content_ingestion
@@ -531,10 +531,10 @@ sp --json jobs history --job content_ingestion
 
 ```bash
 # Run all maintenance jobs
-sp jobs run cleanup_inactive_sessions cleanup_empty_contexts database_cleanup
+sp infra jobs run cleanup_inactive_sessions cleanup_empty_contexts database_cleanup
 
 # Or run everything
-sp jobs run --all
+sp infra jobs run --all
 
 # Check results
 sp --json jobs history -n 10
@@ -544,13 +544,13 @@ sp --json jobs history -n 10
 
 ```bash
 # Temporarily disable a job
-sp jobs disable behavioral_analysis
+sp infra jobs disable behavioral_analysis
 
 # Re-enable when ready
-sp jobs enable behavioral_analysis
+sp infra jobs enable behavioral_analysis
 
 # Verify status
-sp jobs show behavioral_analysis
+sp infra jobs show behavioral_analysis
 ```
 
 ---

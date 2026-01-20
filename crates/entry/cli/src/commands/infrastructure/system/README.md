@@ -20,7 +20,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `system login` | Create session and get auth token | `Card` | No (DB only) |
+| `infra system login` | Create session and get auth token | `Card` | No (DB only) |
 
 ---
 
@@ -31,10 +31,10 @@ alias sp="./target/debug/systemprompt --non-interactive"
 Create a session and get an authentication token for API access.
 
 ```bash
-sp system login --user <user-id>
+sp infra system login --user <user-id>
 sp --json system login --user user_abc123
-sp system login --user johndoe --device "CLI Client"
-sp system login --email john@example.com
+sp infra system login --user johndoe --device "CLI Client"
+sp infra system login --email john@example.com
 ```
 
 **Required Flags (non-interactive):**
@@ -98,7 +98,7 @@ curl -X POST \
 # Phase 1: Create or find user
 sp --json users list | jq '.users[0]'
 # or create a new user
-sp users create --name "apiuser" --email "api@example.com"
+sp admin users create --name "apiuser" --email "api@example.com"
 
 # Phase 2: Create session
 sp --json system login --user apiuser --device "Automation Script"
@@ -147,10 +147,10 @@ The authentication token is a JWT (JSON Web Token) containing:
 
 ```bash
 # Short session for testing
-sp system login --user johndoe --duration 1h
+sp infra system login --user johndoe --duration 1h
 
 # Long session for automation
-sp system login --user apiuser --duration 30d
+sp infra system login --user apiuser --duration 30d
 ```
 
 ---
@@ -160,21 +160,21 @@ sp system login --user apiuser --duration 30d
 ### User Not Found
 
 ```bash
-sp system login --user nonexistent
+sp infra system login --user nonexistent
 # Error: User 'nonexistent' not found
 ```
 
 ### Missing Required Flags
 
 ```bash
-sp system login
+sp infra system login
 # Error: --user or --email is required in non-interactive mode
 ```
 
 ### Database Connection Error
 
 ```bash
-sp system login --user johndoe
+sp infra system login --user johndoe
 # Error: Failed to connect to database. Check your profile configuration.
 ```
 
@@ -205,10 +205,10 @@ sp --json system login --user johndoe | jq '.expires_at'
 
 ```bash
 # Good: Descriptive device name
-sp system login --user apiuser --device "CI/CD Pipeline - Build Server 1"
+sp infra system login --user apiuser --device "CI/CD Pipeline - Build Server 1"
 
 # Good: Short duration for sensitive operation
-sp system login --user admin --duration 1h --device "Admin Task"
+sp infra system login --user admin --duration 1h --device "Admin Task"
 ```
 
 ---

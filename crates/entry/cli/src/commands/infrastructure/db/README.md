@@ -20,15 +20,15 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `db query <sql>` | Execute SQL query (read-only) | `Table` | No (DB only) |
-| `db execute <sql>` | Execute write operation | `Table` | No (DB only) |
-| `db tables` | List all tables with sizes | `Table` | No (DB only) |
-| `db describe <table>` | Describe table schema with indexes | `Table` | No (DB only) |
-| `db info` | Database information | `Card` | No (DB only) |
-| `db migrate` | Run database migrations | `Text` | No (DB only) |
-| `db assign-admin <user>` | Assign admin role to user | `Text` | No (DB only) |
-| `db status` | Show database connection status | `Card` | No (DB only) |
-| `db validate` | Validate schema against expected tables | `Text` | No (DB only) |
+| `infra db query <sql>` | Execute SQL query (read-only) | `Table` | No (DB only) |
+| `infra db execute <sql>` | Execute write operation | `Table` | No (DB only) |
+| `infra db tables` | List all tables with sizes | `Table` | No (DB only) |
+| `infra db describe <table>` | Describe table schema with indexes | `Table` | No (DB only) |
+| `infra db info` | Database information | `Card` | No (DB only) |
+| `infra db migrate` | Run database migrations | `Text` | No (DB only) |
+| `infra db assign-admin <user>` | Assign admin role to user | `Text` | No (DB only) |
+| `infra db status` | Show database connection status | `Card` | No (DB only) |
+| `infra db validate` | Validate schema against expected tables | `Text` | No (DB only) |
 
 ---
 
@@ -39,10 +39,10 @@ alias sp="./target/debug/systemprompt --non-interactive"
 Execute a read-only SQL query.
 
 ```bash
-sp db query "SELECT * FROM users LIMIT 10"
+sp infra db query "SELECT * FROM users LIMIT 10"
 sp --json db query "SELECT * FROM users LIMIT 10"
-sp db query "SELECT COUNT(*) FROM user_sessions" --format json
-sp db query "SELECT id, name FROM users WHERE status = 'active'"
+sp infra db query "SELECT COUNT(*) FROM user_sessions" --format json
+sp infra db query "SELECT id, name FROM users WHERE status = 'active'"
 ```
 
 **Required Arguments:**
@@ -81,8 +81,8 @@ sp db query "SELECT id, name FROM users WHERE status = 'active'"
 Execute a write operation (INSERT, UPDATE, DELETE).
 
 ```bash
-sp db execute "UPDATE users SET status = 'active' WHERE id = 'user_abc'"
-sp db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '7 days'"
+sp infra db execute "UPDATE users SET status = 'active' WHERE id = 'user_abc'"
+sp infra db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '7 days'"
 sp --json db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'enabled')"
 ```
 
@@ -114,7 +114,7 @@ sp --json db execute "INSERT INTO settings (key, value) VALUES ('feature_x', 'en
 List all tables in the database with row counts and sizes.
 
 ```bash
-sp db tables
+sp infra db tables
 sp --json db tables
 ```
 
@@ -148,9 +148,9 @@ sp --json db tables
 Describe table schema with columns and indexes.
 
 ```bash
-sp db describe <table-name>
+sp infra db describe <table-name>
 sp --json db describe users
-sp db describe user_sessions
+sp infra db describe user_sessions
 ```
 
 **Required Arguments:**
@@ -202,7 +202,7 @@ sp db describe user_sessions
 Show database information.
 
 ```bash
-sp db info
+sp infra db info
 sp --json db info
 ```
 
@@ -226,7 +226,7 @@ sp --json db info
 Run database migrations.
 
 ```bash
-sp db migrate
+sp infra db migrate
 sp --json db migrate
 ```
 
@@ -253,7 +253,7 @@ sp --json db migrate
 Assign admin role to a user.
 
 ```bash
-sp db assign-admin <user>
+sp infra db assign-admin <user>
 sp --json db assign-admin johndoe
 sp --json db assign-admin john@example.com
 ```
@@ -284,7 +284,7 @@ sp --json db assign-admin john@example.com
 Show database connection status.
 
 ```bash
-sp db status
+sp infra db status
 sp --json db status
 ```
 
@@ -307,7 +307,7 @@ sp --json db status
 Validate database schema against expected tables.
 
 ```bash
-sp db validate
+sp infra db validate
 sp --json db validate
 ```
 
@@ -346,7 +346,7 @@ sp --json db describe users
 sp --json db query "SELECT COUNT(*) as count FROM users"
 
 # Phase 6: Run migrations
-sp db migrate
+sp infra db migrate
 
 # Phase 7: Validate schema
 sp --json db validate
@@ -363,29 +363,29 @@ sp --json db assign-admin developer@example.com
 
 ```bash
 # Count users by status
-sp db query "SELECT status, COUNT(*) FROM users GROUP BY status"
+sp infra db query "SELECT status, COUNT(*) FROM users GROUP BY status"
 
 # Get recent sessions
-sp db query "SELECT * FROM user_sessions ORDER BY started_at DESC LIMIT 10"
+sp infra db query "SELECT * FROM user_sessions ORDER BY started_at DESC LIMIT 10"
 
 # Find content by source
-sp db query "SELECT id, slug, title FROM markdown_content WHERE source_id = 'blog'"
+sp infra db query "SELECT id, slug, title FROM markdown_content WHERE source_id = 'blog'"
 
 # Check AI request costs
-sp db query "SELECT DATE(created_at), SUM(cost_cents) FROM ai_requests GROUP BY DATE(created_at) ORDER BY 1 DESC LIMIT 7"
+sp infra db query "SELECT DATE(created_at), SUM(cost_cents) FROM ai_requests GROUP BY DATE(created_at) ORDER BY 1 DESC LIMIT 7"
 ```
 
 ### Common Write Operations
 
 ```bash
 # Update user status
-sp db execute "UPDATE users SET status = 'suspended' WHERE id = 'user_abc'"
+sp infra db execute "UPDATE users SET status = 'suspended' WHERE id = 'user_abc'"
 
 # Clean old sessions
-sp db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '30 days'"
+sp infra db execute "DELETE FROM user_sessions WHERE ended_at < NOW() - INTERVAL '30 days'"
 
 # Update setting
-sp db execute "UPDATE settings SET value = 'enabled' WHERE key = 'feature_x'"
+sp infra db execute "UPDATE settings SET value = 'enabled' WHERE key = 'feature_x'"
 ```
 
 ---
@@ -395,24 +395,24 @@ sp db execute "UPDATE settings SET value = 'enabled' WHERE key = 'feature_x'"
 ### Connection Errors
 
 ```bash
-sp db status
+sp infra db status
 # Error: Failed to connect to database. Check your profile configuration.
 ```
 
 ### Query Errors
 
 ```bash
-sp db query "SELECT * FROM nonexistent_table"
+sp infra db query "SELECT * FROM nonexistent_table"
 # Error: Table or column not found: nonexistent_table
 
-sp db query "INVALID SQL"
+sp infra db query "INVALID SQL"
 # Error: Query failed: Write query not allowed in read-only mode
 ```
 
 ### Table Not Found
 
 ```bash
-sp db describe nonexistent
+sp infra db describe nonexistent
 # Error: Table 'nonexistent' not found
 ```
 
@@ -446,5 +446,5 @@ sp --json db query "SELECT * FROM users LIMIT 5" | jq '.rows[].email'
 - [x] JSON output supported via `--json` flag
 - [x] No destructive operations (reset removed for safety)
 - [x] User-friendly error messages
-- [x] Schema validation via `db validate`
+- [x] Schema validation via `infra db validate`
 - [x] Table sizes and index information included

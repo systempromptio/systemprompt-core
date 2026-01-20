@@ -676,7 +676,7 @@ The web CLI integrates with scheduled jobs for content ingestion and publishing.
 ### List Available Jobs
 
 ```bash
-sp jobs list
+sp infra jobs list
 sp --json jobs list
 ```
 
@@ -685,7 +685,7 @@ sp --json jobs list
 Ingests markdown files from the content path into the database:
 
 ```bash
-sp jobs run content_ingestion
+sp infra jobs run content_ingestion
 ```
 
 This job:
@@ -699,7 +699,7 @@ This job:
 Executes the complete publishing workflow:
 
 ```bash
-sp jobs run publish_content
+sp infra jobs run publish_content
 ```
 
 This job performs:
@@ -721,7 +721,7 @@ This flow demonstrates creating a new content type with a template, adding conte
 sp --json web validate
 sp --json web content-types list
 sp --json web templates list
-sp jobs list
+sp infra jobs list
 ```
 
 ### Phase 2: Create New Content Type
@@ -833,9 +833,9 @@ EOF
 Ingest the markdown content into the database:
 
 ```bash
-sp jobs run content_ingestion
+sp infra jobs run content_ingestion
 
-sp content list --source tutorials
+sp core content list --source tutorials
 sp --json content show getting-started-rust --source tutorials
 ```
 
@@ -852,7 +852,7 @@ sp --json web validate --only sitemap
 Execute the complete publishing workflow:
 
 ```bash
-sp jobs run publish_content
+sp infra jobs run publish_content
 ```
 
 This will:
@@ -891,7 +891,7 @@ curl -s "https://example.com/tutorials/getting-started-rust" | head -20
 ### Phase 10: Cleanup (Optional)
 
 ```bash
-sp content delete getting-started-rust --source tutorials --yes
+sp core content delete getting-started-rust --source tutorials --yes
 rm /var/www/html/tyingshoelaces/services/content/tutorials/getting-started-rust.md
 sp web templates delete tutorial --yes --delete-file
 sp web content-types delete tutorials --yes
@@ -908,14 +908,14 @@ The web CLI works alongside the content CLI and jobs for full content management
 |------|---------|
 | Create content type schema | `sp web content-types create` |
 | Create content template | `sp web templates create` |
-| Create actual content | `sp content create --source <type>` |
-| List content | `sp content list --source <type>` |
-| Show content | `sp content show <slug> --source <type>` |
-| Delete content | `sp content delete <slug> --source <type> --yes` |
-| Index content | `sp content index --source <type>` |
-| Ingest from markdown | `sp jobs run content_ingestion` |
-| Full publish pipeline | `sp jobs run publish_content` |
-| Generate sitemap | `sp jobs run publish_content` (preferred) or `sp web sitemap generate` |
+| Create actual content | `sp core content create --source <type>` |
+| List content | `sp core content list --source <type>` |
+| Show content | `sp core content show <slug> --source <type>` |
+| Delete content | `sp core content delete <slug> --source <type> --yes` |
+| Index content | `sp core content index --source <type>` |
+| Ingest from markdown | `sp infra jobs run content_ingestion` |
+| Full publish pipeline | `sp infra jobs run publish_content` |
+| Generate sitemap | `sp infra jobs run publish_content` (preferred) or `sp web sitemap generate` |
 | Validate all | `sp web validate` |
 
 ### Workflow Diagram

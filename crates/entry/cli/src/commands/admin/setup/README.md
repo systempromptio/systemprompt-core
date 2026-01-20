@@ -20,7 +20,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `setup` | Interactive/non-interactive environment setup wizard | `Text` | No |
+| `admin setup` | Interactive/non-interactive environment setup wizard | `Text` | No |
 
 ---
 
@@ -35,7 +35,7 @@ Initialize a new environment with PostgreSQL database and configuration.
 ./target/debug/systemprompt setup
 
 # Non-interactive mode with all required flags
-sp setup \
+sp admin setup \
   --environment dev \
   --db-host localhost \
   --db-port 5432 \
@@ -46,14 +46,14 @@ sp setup \
   --migrate
 
 # Using Docker for PostgreSQL
-sp setup \
+sp admin setup \
   --environment dev \
   --docker \
   --anthropic-key "sk-ant-..." \
   --migrate
 
 # Minimal setup (uses defaults)
-sp setup --environment dev --no-migrate
+sp admin setup --environment dev --no-migrate
 ```
 
 **Required Flags (non-interactive):**
@@ -156,21 +156,21 @@ This flow demonstrates setting up a new development environment:
 
 ```bash
 # Phase 1: Setup with Docker PostgreSQL
-sp setup \
+sp admin setup \
   --environment dev \
   --docker \
   --anthropic-key "$ANTHROPIC_API_KEY" \
   --migrate
 
 # Phase 2: Verify database connection
-sp db status
+sp infra db status
 
 # Phase 3: Verify profile was created
 cat /var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
 
 # Phase 4: Test with the new profile
 export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
-sp agents list
+sp admin agents list
 ```
 
 ---
@@ -186,7 +186,7 @@ GRANT ALL PRIVILEGES ON DATABASE systemprompt_dev TO systemprompt_dev;
 EOF
 
 # Phase 2: Run setup pointing to existing database
-sp setup \
+sp admin setup \
   --environment dev \
   --db-host localhost \
   --db-port 5432 \
@@ -197,7 +197,7 @@ sp setup \
   --migrate
 
 # Phase 3: Verify connection
-sp db status
+sp infra db status
 ```
 
 ---
@@ -206,7 +206,7 @@ sp db status
 
 ```bash
 # Phase 1: Setup with Docker (creates container automatically)
-sp setup \
+sp admin setup \
   --environment dev \
   --docker \
   --anthropic-key "$ANTHROPIC_API_KEY" \
@@ -225,14 +225,14 @@ docker exec -it systemprompt-postgres-dev psql -U systemprompt_dev
 
 ```bash
 # Development environment
-sp setup \
+sp admin setup \
   --environment dev \
   --docker \
   --anthropic-key "$ANTHROPIC_API_KEY" \
   --migrate
 
 # Staging environment
-sp setup \
+sp admin setup \
   --environment staging \
   --db-host staging-db.example.com \
   --db-port 5432 \
@@ -243,7 +243,7 @@ sp setup \
   --migrate
 
 # Production environment
-sp setup \
+sp admin setup \
   --environment prod \
   --db-host prod-db.example.com \
   --db-port 5432 \
@@ -261,35 +261,35 @@ sp setup \
 ### Missing Required Flags
 
 ```bash
-sp setup
+sp admin setup
 # Error: --environment is required in non-interactive mode
 ```
 
 ### Database Connection Errors
 
 ```bash
-sp setup --environment dev --db-host invalid-host --no-migrate
+sp admin setup --environment dev --db-host invalid-host --no-migrate
 # Error: Failed to connect to PostgreSQL at invalid-host:5432
 ```
 
 ### Docker Errors
 
 ```bash
-sp setup --environment dev --docker --no-migrate
+sp admin setup --environment dev --docker --no-migrate
 # Error: Docker is not running. Please start Docker and try again.
 ```
 
 ### Invalid API Keys
 
 ```bash
-sp setup --environment dev --anthropic-key "invalid" --no-migrate
+sp admin setup --environment dev --anthropic-key "invalid" --no-migrate
 # Warning: Anthropic API key format appears invalid (should start with sk-ant-)
 ```
 
 ### Migration Conflicts
 
 ```bash
-sp setup --environment dev --migrate --no-migrate
+sp admin setup --environment dev --migrate --no-migrate
 # Error: Cannot specify both --migrate and --no-migrate
 ```
 
@@ -330,19 +330,19 @@ logs_path: ./logs
 export SYSTEMPROMPT_PROFILE=/var/www/html/tyingshoelaces/.systemprompt/profiles/dev/profile.yaml
 
 # Verify database connection
-sp db status
+sp infra db status
 
 # Verify database tables
-sp db tables
+sp infra db tables
 
 # List configured agents
-sp agents list
+sp admin agents list
 
 # List MCP servers
-sp mcp list
+sp plugins mcp list
 
 # Run a test query
-sp db query "SELECT version()"
+sp infra db query "SELECT version()"
 ```
 
 ---

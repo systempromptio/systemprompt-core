@@ -20,20 +20,20 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `files list` | List files with pagination | `Table` | No (DB only) |
-| `files show <id>` | Show detailed file information | `Card` | No (DB only) |
-| `files upload <path>` | Upload a file | `Card` | No (DB only) |
-| `files delete <id>` | Delete a file | `Card` | No (DB only) |
-| `files validate <path>` | Validate a file before upload | `Card` | No |
-| `files config` | Show file upload configuration | `Card` | No |
-| `files search <query>` | Search files by path pattern | `Table` | No (DB only) |
-| `files stats` | Show file storage statistics | `Card` | No (DB only) |
-| `files content list` | List content-file links | `Table` | No (DB only) |
-| `files content link` | Link file to content | `Card` | No (DB only) |
-| `files content unlink` | Unlink file from content | `Card` | No (DB only) |
-| `files content featured` | Get/set featured image | `Card` | No (DB only) |
-| `files ai list` | List AI-generated images | `Table` | No (DB only) |
-| `files ai count` | Count AI-generated images | `Card` | No (DB only) |
+| `core files list` | List files with pagination | `Table` | No (DB only) |
+| `core files show <id>` | Show detailed file information | `Card` | No (DB only) |
+| `core files upload <path>` | Upload a file | `Card` | No (DB only) |
+| `core files delete <id>` | Delete a file | `Card` | No (DB only) |
+| `core files validate <path>` | Validate a file before upload | `Card` | No |
+| `core files config` | Show file upload configuration | `Card` | No |
+| `core files search <query>` | Search files by path pattern | `Table` | No (DB only) |
+| `core files stats` | Show file storage statistics | `Card` | No (DB only) |
+| `core files content list` | List content-file links | `Table` | No (DB only) |
+| `core files content link` | Link file to content | `Card` | No (DB only) |
+| `core files content unlink` | Unlink file from content | `Card` | No (DB only) |
+| `core files content featured` | Get/set featured image | `Card` | No (DB only) |
+| `core files ai list` | List AI-generated images | `Table` | No (DB only) |
+| `core files ai count` | Count AI-generated images | `Card` | No (DB only) |
 
 ---
 
@@ -44,12 +44,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 List all files with pagination and filtering.
 
 ```bash
-sp files list
+sp core files list
 sp --json files list
-sp files list --limit 50 --offset 0
-sp files list --user user_abc123
-sp files list --mime "image/*"
-sp files list --mime "application/pdf"
+sp core files list --limit 50 --offset 0
+sp core files list --user user_abc123
+sp core files list --mime "image/*"
+sp core files list --mime "application/pdf"
 ```
 
 **Flags:**
@@ -94,7 +94,7 @@ sp files list --mime "application/pdf"
 Display detailed information for a specific file.
 
 ```bash
-sp files show <file-id>
+sp core files show <file-id>
 sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 ```
 
@@ -129,10 +129,10 @@ sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 Upload a file from the local filesystem.
 
 ```bash
-sp files upload <path> --context <context-id>
-sp files upload ./image.png --context ctx_abc123
-sp files upload ./document.pdf --context ctx_abc123 --user user_xyz
-sp files upload ./generated.png --context ctx_abc123 --ai
+sp core files upload <path> --context <context-id>
+sp core files upload ./image.png --context ctx_abc123
+sp core files upload ./document.pdf --context ctx_abc123 --user user_xyz
+sp core files upload ./generated.png --context ctx_abc123 --ai
 ```
 
 **Required Arguments:**
@@ -176,9 +176,9 @@ sp files upload ./generated.png --context ctx_abc123 --ai
 Delete a file permanently.
 
 ```bash
-sp files delete <file-id> --yes
-sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
-sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
+sp core files delete <file-id> --yes
+sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
+sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -217,7 +217,7 @@ sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
 Validate a file before upload.
 
 ```bash
-sp files validate <path>
+sp core files validate <path>
 sp --json files validate ./image.png
 ```
 
@@ -253,7 +253,7 @@ sp --json files validate ./image.png
 Show file upload configuration.
 
 ```bash
-sp files config
+sp core files config
 sp --json files config
 ```
 
@@ -290,9 +290,9 @@ sp --json files config
 Search files by path pattern.
 
 ```bash
-sp files search <query>
+sp core files search <query>
 sp --json files search uploads
-sp files search logo --limit 10
+sp core files search logo --limit 10
 ```
 
 **Required Arguments:**
@@ -334,7 +334,7 @@ sp files search logo --limit 10
 Show file storage statistics.
 
 ```bash
-sp files stats
+sp core files stats
 sp --json files stats
 ```
 
@@ -380,8 +380,8 @@ sp --json files stats
 List content-file links. Use `--content` to list files attached to content, or `--file` to list content linked to a file.
 
 ```bash
-sp files content list --content content_abc123
-sp files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp core files content list --content content_abc123
+sp core files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 sp --json files content list --content content_abc123
 ```
 
@@ -431,9 +431,9 @@ sp --json files content list --content content_abc123
 Link a file to content with a specific role.
 
 ```bash
-sp files content link <file-id> --content <content-id> --role <role>
-sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role attachment
-sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role featured --order 0
+sp core files content link <file-id> --content <content-id> --role <role>
+sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role attachment
+sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --role featured --order 0
 ```
 
 **Required Arguments:**
@@ -474,9 +474,9 @@ sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc
 Unlink a file from content.
 
 ```bash
-sp files content unlink <file-id> --content <content-id> --yes
-sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --yes
-sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --dry-run --yes
+sp core files content unlink <file-id> --content <content-id> --yes
+sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --yes
+sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc123 --dry-run --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -509,8 +509,8 @@ sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_a
 Get or set the featured image for content.
 
 ```bash
-sp files content featured <content-id>
-sp files content featured content_abc123 --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp core files content featured <content-id>
+sp core files content featured content_abc123 --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 sp --json files content featured content_abc123
 ```
 
@@ -561,10 +561,10 @@ sp --json files content featured content_abc123
 List AI-generated images.
 
 ```bash
-sp files ai list
+sp core files ai list
 sp --json files ai list
-sp files ai list --limit 50
-sp files ai list --user user_abc123
+sp core files ai list --limit 50
+sp core files ai list --user user_abc123
 ```
 
 **Flags:**
@@ -604,9 +604,9 @@ sp files ai list --user user_abc123
 Count AI-generated images. The `--user` flag is optional; when omitted, counts all AI images.
 
 ```bash
-sp files ai count
+sp core files ai count
 sp --json files ai count
-sp files ai count --user user_abc123
+sp core files ai count --user user_abc123
 ```
 
 **Flags:**
@@ -657,22 +657,22 @@ sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 sp --json files search uploads
 
 # Phase 6: Link file to content
-sp files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --role attachment
+sp core files content link b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --role attachment
 
 # Phase 7: List content-file links (both directions)
 sp --json files content list --content content_xyz
 sp --json files content list --file b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
 # Phase 8: Set featured image
-sp files content featured content_xyz --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp core files content featured content_xyz --set b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 
 # Phase 9: Cleanup with dry-run preview
-sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --dry-run --yes
-sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
+sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --dry-run --yes
+sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --dry-run --yes
 
 # Phase 10: Actual cleanup
-sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --yes
-sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
+sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_xyz --yes
+sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --yes
 
 # Phase 11: Verify deletion
 sp --json files stats
@@ -693,7 +693,7 @@ sp --json files ai list --limit 10
 sp --json files ai count --user user_abc123
 
 # Phase 4: Upload new AI-generated image
-sp files upload ./generated.png --context ctx_abc123 --ai
+sp core files upload ./generated.png --context ctx_abc123 --ai
 
 # Phase 5: Verify AI flag
 sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
@@ -707,53 +707,53 @@ sp --json files show b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 ### Missing Required Flags
 
 ```bash
-sp files upload ./image.png
+sp core files upload ./image.png
 # Error: --context is required
 
-sp files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
+sp core files delete b75940ac-c50f-4d46-9fdd-ebb4970b2a7d
 # Error: --yes is required to delete files in non-interactive mode
 
-sp files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc
+sp core files content unlink b75940ac-c50f-4d46-9fdd-ebb4970b2a7d --content content_abc
 # Error: --yes is required to unlink files in non-interactive mode
 
-sp files content list
+sp core files content list
 # Error: Either --content or --file is required
 ```
 
 ### Invalid UUID Format
 
 ```bash
-sp files show invalid-id
+sp core files show invalid-id
 # Error: Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got 'invalid-id'
 
-sp files delete not-a-uuid --yes
+sp core files delete not-a-uuid --yes
 # Error: Invalid file ID format. Expected UUID like 'b75940ac-c50f-4d46-9fdd-ebb4970b2a7d', got 'not-a-uuid'
 ```
 
 ### File Not Found
 
 ```bash
-sp files upload ./nonexistent.png --context ctx_abc
+sp core files upload ./nonexistent.png --context ctx_abc
 # Error: File not found: ./nonexistent.png
 
-sp files show 00000000-0000-0000-0000-000000000000
+sp core files show 00000000-0000-0000-0000-000000000000
 # Error: File not found: 00000000-0000-0000-0000-000000000000
 ```
 
 ### Validation Errors
 
 ```bash
-sp files upload ./toolarge.zip --context ctx_abc
+sp core files upload ./toolarge.zip --context ctx_abc
 # Error: File size 52428800 exceeds maximum 10485760 bytes
 
-sp files upload ./script.exe --context ctx_abc
+sp core files upload ./script.exe --context ctx_abc
 # Error: MIME type 'application/x-msdownload' not allowed
 ```
 
 ### Upload Disabled
 
 ```bash
-sp files upload ./image.png --context ctx_abc
+sp core files upload ./image.png --context ctx_abc
 # Error: File uploads are disabled in configuration
 ```
 

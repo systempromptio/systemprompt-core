@@ -1141,10 +1141,10 @@ sp analytics costs trends --since 30d --export monthly-costs.csv
 | `conversations stats` | `ConversationStatsOutput` | `Card` | title |
 | `conversations trends` | `ConversationTrendsOutput` | `Table` | columns |
 | `conversations list` | `ConversationListOutput` | `Table` | columns |
-| `agents stats` | `AgentStatsOutput` | `Card` | title |
-| `agents list` | `AgentListOutput` | `Table` | columns |
-| `agents trends` | `AgentTrendsOutput` | `Table` | columns |
-| `agents show` | `AgentShowOutput` | `Card` | title |
+| `admin agents stats` | `AgentStatsOutput` | `Card` | title |
+| `admin agents list` | `AgentListOutput` | `Table` | columns |
+| `admin agents trends` | `AgentTrendsOutput` | `Table` | columns |
+| `admin agents show` | `AgentShowOutput` | `Card` | title |
 | `tools stats` | `ToolStatsOutput` | `Card` | title |
 | `tools list` | `ToolListOutput` | `Table` | columns |
 | `tools trends` | `ToolTrendsOutput` | `Table` | columns |
@@ -1155,9 +1155,9 @@ sp analytics costs trends --since 30d --export monthly-costs.csv
 | `sessions stats` | `SessionStatsOutput` | `Card` | title |
 | `sessions trends` | `SessionTrendsOutput` | `Table` | columns |
 | `sessions live` | `LiveSessionsOutput` | `Table` | columns |
-| `content stats` | `ContentStatsOutput` | `Card` | title |
-| `content top` | `TopContentOutput` | `Table` | columns |
-| `content trends` | `ContentTrendsOutput` | `Table` | columns |
+| `core content stats` | `ContentStatsOutput` | `Card` | title |
+| `core content top` | `TopContentOutput` | `Table` | columns |
+| `core content trends` | `ContentTrendsOutput` | `Table` | columns |
 | `traffic sources` | `TrafficSourcesOutput` | `Table` | columns |
 | `traffic geo` | `GeoOutput` | `Table` | columns |
 | `traffic devices` | `DevicesOutput` | `Table` | columns |

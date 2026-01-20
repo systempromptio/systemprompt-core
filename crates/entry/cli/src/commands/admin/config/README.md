@@ -20,15 +20,15 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `config rate-limits show` | Show rate limit configuration | `Card` | No |
-| `config rate-limits tier <TIER>` | Show effective limits for a tier | `Card` | No |
-| `config rate-limits docs` | Show rate limits documentation | `Table` | No |
-| `config rate-limits set` | Set a rate limit value | `Text` | No |
-| `config rate-limits enable` | Enable rate limiting | `Text` | No |
-| `config rate-limits disable` | Disable rate limiting | `Text` | No |
-| `config rate-limits validate` | Validate configuration | `Card` | No |
-| `config rate-limits compare` | Compare limits across tiers | `Table` | No |
-| `config rate-limits reset` | Reset to default values | `Table` | No |
+| `admin config rate-limits show` | Show rate limit configuration | `Card` | No |
+| `admin config rate-limits tier <TIER>` | Show effective limits for a tier | `Card` | No |
+| `admin config rate-limits docs` | Show rate limits documentation | `Table` | No |
+| `admin config rate-limits set` | Set a rate limit value | `Text` | No |
+| `admin config rate-limits enable` | Enable rate limiting | `Text` | No |
+| `admin config rate-limits disable` | Disable rate limiting | `Text` | No |
+| `admin config rate-limits validate` | Validate configuration | `Card` | No |
+| `admin config rate-limits compare` | Compare limits across tiers | `Table` | No |
+| `admin config rate-limits reset` | Reset to default values | `Table` | No |
 
 ---
 
@@ -39,7 +39,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 Show current rate limit configuration from the profile.
 
 ```bash
-sp config rate-limits show
+sp admin config rate-limits show
 sp --json config rate-limits show
 ```
 
@@ -79,9 +79,9 @@ sp --json config rate-limits show
 Show effective limits for a specific tier (base rates multiplied by tier multiplier).
 
 ```bash
-sp config rate-limits tier admin
-sp config rate-limits tier user
-sp config rate-limits tier anon
+sp admin config rate-limits tier admin
+sp admin config rate-limits tier user
+sp admin config rate-limits tier anon
 sp --json config rate-limits tier a2a
 ```
 
@@ -120,7 +120,7 @@ sp --json config rate-limits tier a2a
 Show comprehensive rate limits documentation including base rates, tier multipliers, and effective limits comparison.
 
 ```bash
-sp config rate-limits docs
+sp admin config rate-limits docs
 sp --json config rate-limits docs
 ```
 
@@ -153,15 +153,15 @@ Set a rate limit value. Modifies the profile YAML file.
 
 ```bash
 # Set endpoint rate
-sp config rate-limits set --endpoint contexts --rate 100
-sp config rate-limits set --endpoint tasks --rate 20
+sp admin config rate-limits set --endpoint contexts --rate 100
+sp admin config rate-limits set --endpoint tasks --rate 20
 
 # Set tier multiplier
-sp config rate-limits set --tier admin --multiplier 15.0
-sp config rate-limits set --tier anon --multiplier 0.25
+sp admin config rate-limits set --tier admin --multiplier 15.0
+sp admin config rate-limits set --tier anon --multiplier 0.25
 
 # Set burst multiplier
-sp config rate-limits set --burst 3
+sp admin config rate-limits set --burst 3
 ```
 
 **Flags:**
@@ -192,7 +192,7 @@ sp config rate-limits set --burst 3
 Enable rate limiting.
 
 ```bash
-sp config rate-limits enable
+sp admin config rate-limits enable
 sp --json config rate-limits enable
 ```
 
@@ -213,7 +213,7 @@ sp --json config rate-limits enable
 Disable rate limiting.
 
 ```bash
-sp config rate-limits disable
+sp admin config rate-limits disable
 sp --json config rate-limits disable
 ```
 
@@ -234,7 +234,7 @@ sp --json config rate-limits disable
 Validate rate limit configuration for errors and warnings.
 
 ```bash
-sp config rate-limits validate
+sp admin config rate-limits validate
 sp --json config rate-limits validate
 ```
 
@@ -264,7 +264,7 @@ sp --json config rate-limits validate
 Compare effective limits across all tiers side-by-side.
 
 ```bash
-sp config rate-limits compare
+sp admin config rate-limits compare
 sp --json config rate-limits compare
 ```
 
@@ -295,16 +295,16 @@ Reset rate limits to default values.
 
 ```bash
 # Preview changes (dry run)
-sp config rate-limits reset --dry-run
+sp admin config rate-limits reset --dry-run
 
 # Reset all to defaults
-sp config rate-limits reset --yes
+sp admin config rate-limits reset --yes
 
 # Reset specific endpoint
-sp config rate-limits reset --endpoint contexts --yes
+sp admin config rate-limits reset --endpoint contexts --yes
 
 # Reset specific tier multiplier
-sp config rate-limits reset --tier admin --yes
+sp admin config rate-limits reset --tier admin --yes
 ```
 
 **Flags:**
@@ -369,22 +369,22 @@ sp config rate-limits reset --tier admin --yes
 
 ### Invalid Tier
 ```bash
-sp config rate-limits tier invalid
+sp admin config rate-limits tier invalid
 # Error: Unknown tier: invalid. Valid tiers: admin, user, a2a, mcp, service, anon
 ```
 
 ### Invalid Endpoint
 ```bash
-sp config rate-limits set --endpoint invalid --rate 100
+sp admin config rate-limits set --endpoint invalid --rate 100
 # Error: Unknown endpoint: invalid. Valid endpoints: oauth_public, oauth_auth, contexts, tasks, artifacts, agent_registry, agents, mcp_registry, mcp, stream, content
 ```
 
 ### Missing Required Flags
 ```bash
-sp config rate-limits set --endpoint contexts
+sp admin config rate-limits set --endpoint contexts
 # Error: --rate is required when --endpoint is specified
 
-sp config rate-limits reset
+sp admin config rate-limits reset
 # Error: --yes or --dry-run is required in non-interactive mode
 ```
 
@@ -426,16 +426,16 @@ sp --json config rate-limits validate
 sp --json config rate-limits compare
 
 # Phase 4: Make changes
-sp config rate-limits set --endpoint contexts --rate 100
-sp config rate-limits set --tier admin --multiplier 15.0
-sp config rate-limits enable
+sp admin config rate-limits set --endpoint contexts --rate 100
+sp admin config rate-limits set --tier admin --multiplier 15.0
+sp admin config rate-limits enable
 
 # Phase 5: Verify changes
 sp --json config rate-limits show
 
 # Phase 6: Reset if needed
-sp config rate-limits reset --dry-run
-sp config rate-limits reset --yes
+sp admin config rate-limits reset --dry-run
+sp admin config rate-limits reset --yes
 ```
 
 ---

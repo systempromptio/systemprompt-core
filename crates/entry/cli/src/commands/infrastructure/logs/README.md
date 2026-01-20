@@ -20,18 +20,18 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `logs view` | View log entries | `Table` | No (DB only) |
-| `logs search <query>` | Search logs by pattern | `Table` | No (DB only) |
-| `logs stream` | Stream logs in real-time | `Text` | No (DB only) |
-| `logs export` | Export logs to file | `Text` | No (DB only) |
-| `logs cleanup` | Clean up old log entries | `Card` | No (DB only) |
-| `logs delete` | Delete all log entries | `Card` | No (DB only) |
-| `logs summary` | Show logs summary statistics | `Card` | No (DB only) |
-| `logs trace list` | List execution traces | `Table` | No (DB only) |
-| `logs trace show <id>` | View specific trace | `Card` | No (DB only) |
-| `logs request list` | List AI requests | `Table` | No (DB only) |
-| `logs request show <id>` | Show AI request details | `Card` | No (DB only) |
-| `logs request stats` | Show aggregate AI statistics | `Card` | No (DB only) |
+| `infra logs view` | View log entries | `Table` | No (DB only) |
+| `infra logs search <query>` | Search logs by pattern | `Table` | No (DB only) |
+| `infra logs stream` | Stream logs in real-time | `Text` | No (DB only) |
+| `infra logs export` | Export logs to file | `Text` | No (DB only) |
+| `infra logs cleanup` | Clean up old log entries | `Card` | No (DB only) |
+| `infra logs delete` | Delete all log entries | `Card` | No (DB only) |
+| `infra logs summary` | Show logs summary statistics | `Card` | No (DB only) |
+| `infra logs trace list` | List execution traces | `Table` | No (DB only) |
+| `infra logs trace show <id>` | View specific trace | `Card` | No (DB only) |
+| `infra logs request list` | List AI requests | `Table` | No (DB only) |
+| `infra logs request show <id>` | Show AI request details | `Card` | No (DB only) |
+| `infra logs request stats` | Show aggregate AI statistics | `Card` | No (DB only) |
 
 ---
 
@@ -42,12 +42,12 @@ alias sp="./target/debug/systemprompt --non-interactive"
 View log entries with filtering.
 
 ```bash
-sp logs view
+sp infra logs view
 sp --json logs view
-sp logs view --tail 100
-sp logs view --level error
-sp logs view --since 1h
-sp logs view --module agent
+sp infra logs view --tail 100
+sp infra logs view --level error
+sp infra logs view --since 1h
+sp infra logs view --module agent
 ```
 
 **Flags:**
@@ -90,11 +90,11 @@ sp logs view --module agent
 Search logs by pattern.
 
 ```bash
-sp logs search <pattern>
+sp infra logs search <pattern>
 sp --json logs search "error"
-sp logs search "timeout" --level error
-sp logs search "agent" --since 1h
-sp logs search "failed" --module database
+sp infra logs search "timeout" --level error
+sp infra logs search "agent" --since 1h
+sp infra logs search "failed" --module database
 ```
 
 **Required Arguments:**
@@ -136,9 +136,9 @@ sp logs search "failed" --module database
 Stream logs in real-time (like `tail -f`).
 
 ```bash
-sp logs stream
-sp logs stream --level error
-sp logs stream --module agent
+sp infra logs stream
+sp infra logs stream --level error
+sp infra logs stream --module agent
 ```
 
 **Flags:**
@@ -163,11 +163,11 @@ Continuously streams log entries to stdout. Press Ctrl+C to stop.
 Export logs to a file.
 
 ```bash
-sp logs export --format json
-sp logs export --format csv --since 24h
-sp logs export --format json -o ./logs-export.json
-sp logs export --format csv --since 7d --level error -o ./errors.csv
-sp logs export --format jsonl --limit 1000
+sp infra logs export --format json
+sp infra logs export --format csv --since 24h
+sp infra logs export --format json -o ./logs-export.json
+sp infra logs export --format csv --since 7d --level error -o ./errors.csv
+sp infra logs export --format jsonl --limit 1000
 ```
 
 **Flags:**
@@ -197,10 +197,10 @@ sp logs export --format jsonl --limit 1000
 Clean up old log entries.
 
 ```bash
-sp logs cleanup --older-than 30d --dry-run
-sp logs cleanup --keep-last-days 7 --dry-run
-sp logs cleanup --older-than 30d --yes
-sp logs cleanup --keep-last-days 7 --yes
+sp infra logs cleanup --older-than 30d --dry-run
+sp infra logs cleanup --keep-last-days 7 --dry-run
+sp infra logs cleanup --older-than 30d --yes
+sp infra logs cleanup --keep-last-days 7 --yes
 ```
 
 **Required Flags (one of):**
@@ -234,7 +234,7 @@ sp logs cleanup --keep-last-days 7 --yes
 Delete all log entries.
 
 ```bash
-sp logs delete --yes
+sp infra logs delete --yes
 ```
 
 **Required Flags (non-interactive):**
@@ -259,9 +259,9 @@ sp logs delete --yes
 Show aggregate statistics about logs.
 
 ```bash
-sp logs summary
+sp infra logs summary
 sp --json logs summary
-sp logs summary --since 24h
+sp infra logs summary --since 24h
 ```
 
 **Flags:**
@@ -306,12 +306,12 @@ sp logs summary --since 24h
 List execution traces for debugging.
 
 ```bash
-sp logs trace list
+sp infra logs trace list
 sp --json logs trace list
-sp logs trace list -n 50
-sp logs trace list --since 1h
-sp logs trace list --agent primary
-sp logs trace list --status completed
+sp infra logs trace list -n 50
+sp infra logs trace list --since 1h
+sp infra logs trace list --agent primary
+sp infra logs trace list --status completed
 ```
 
 **Flags:**
@@ -350,11 +350,11 @@ sp logs trace list --status completed
 View detailed execution trace. Supports both trace IDs and task IDs.
 
 ```bash
-sp logs trace show <trace-id>
-sp logs trace show <task-id>
-sp logs trace show abc123 --verbose
-sp logs trace show abc123 --all
-sp logs trace show abc123 --steps --ai --mcp
+sp infra logs trace show <trace-id>
+sp infra logs trace show <task-id>
+sp infra logs trace show abc123 --verbose
+sp infra logs trace show abc123 --all
+sp infra logs trace show abc123 --steps --ai --mcp
 ```
 
 **Required Arguments:**
@@ -413,12 +413,12 @@ sp logs trace show abc123 --steps --ai --mcp
 List AI requests.
 
 ```bash
-sp logs request list
+sp infra logs request list
 sp --json logs request list
-sp logs request list -n 50
-sp logs request list --since 1h
-sp logs request list --provider anthropic
-sp logs request list --model claude-3-5-sonnet-20241022
+sp infra logs request list -n 50
+sp infra logs request list --since 1h
+sp infra logs request list --provider anthropic
+sp infra logs request list --model claude-3-5-sonnet-20241022
 ```
 
 **Flags:**
@@ -457,11 +457,11 @@ sp logs request list --model claude-3-5-sonnet-20241022
 Show detailed AI request.
 
 ```bash
-sp logs request show <request-id>
+sp infra logs request show <request-id>
 sp --json logs request show req_abc123
-sp logs request show abc123 --messages
-sp logs request show abc123 --tools
-sp logs request show abc123 --messages --tools
+sp infra logs request show abc123 --messages
+sp infra logs request show abc123 --tools
+sp infra logs request show abc123 --messages --tools
 ```
 
 **Required Arguments:**
@@ -505,10 +505,10 @@ sp logs request show abc123 --messages --tools
 Show aggregate AI request statistics.
 
 ```bash
-sp logs request stats
+sp infra logs request stats
 sp --json logs request stats
-sp logs request stats --since 24h
-sp logs request stats --since 7d
+sp infra logs request stats --since 24h
+sp infra logs request stats --since 7d
 ```
 
 **Flags:**
@@ -579,53 +579,53 @@ echo "Task ID: $TASK_ID"
 
 ### Step 2: View the Trace
 
-The `logs trace show` command accepts both trace IDs and task IDs:
+The `infra logs trace show` command accepts both trace IDs and task IDs:
 
 ```bash
 # View trace by task ID (automatically resolves to trace)
-sp logs trace show "$TASK_ID" --all
+sp infra logs trace show "$TASK_ID" --all
 
 # Or list recent traces and find your trace
-sp logs trace list --since 5m
+sp infra logs trace list --since 5m
 ```
 
 ### Step 3: Inspect AI Requests
 
 ```bash
 # List recent AI requests
-sp logs request list --since 5m
+sp infra logs request list --since 5m
 
 # Show details of a specific request including the full conversation
-sp logs request show <request-id> --messages --tools
+sp infra logs request show <request-id> --messages --tools
 ```
 
 ### Step 4: Get Aggregate Statistics
 
 ```bash
 # Summary of all logs
-sp logs summary --since 1h
+sp infra logs summary --since 1h
 
 # AI request statistics
-sp logs request stats --since 1h
+sp infra logs request stats --since 1h
 ```
 
 ### Complete Tracing Flow Example
 
 ```bash
 # Phase 1: Send message to agent
-TOKEN=$(sp system login --email admin@example.com --token-only)
+TOKEN=$(sp infra system login --email admin@example.com --token-only)
 RESPONSE=$(sp --json agents message admin -m "Show me traffic stats" --token "$TOKEN" --blocking)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 
 # Phase 2: View the execution trace
-sp logs trace show "$TASK_ID" --all
+sp infra logs trace show "$TASK_ID" --all
 
 # Phase 3: View specific AI requests made during the task
-sp logs request list --since 5m
-sp logs request show <request-id> --messages
+sp infra logs request list --since 5m
+sp infra logs request show <request-id> --messages
 
 # Phase 4: Check aggregate statistics
-sp logs request stats --since 1h
+sp infra logs request stats --since 1h
 ```
 
 **Related Documentation:** See [agents/README.md](../agents/README.md) for details on sending messages to agents.
@@ -648,11 +648,11 @@ sp --json logs search "error" --since 24h
 sp --json logs view --module agent --level warn
 
 # Phase 5: Export logs for analysis
-sp logs export --format json --since 7d -o ./weekly-logs.json
+sp infra logs export --format json --since 7d -o ./weekly-logs.json
 
 # Phase 6: Trace debugging
 sp --json logs trace list --since 1h
-sp logs trace show trace_abc123 --all
+sp infra logs trace show trace_abc123 --all
 
 # Phase 7: AI request analysis
 sp --json logs request list --since 24h --provider anthropic
@@ -660,8 +660,8 @@ sp --json logs request show req_abc123 --messages --tools
 sp --json logs request stats --since 24h
 
 # Phase 8: Cleanup old logs
-sp logs cleanup --older-than 30d --dry-run
-sp logs cleanup --older-than 30d --yes
+sp infra logs cleanup --older-than 30d --dry-run
+sp infra logs cleanup --older-than 30d --yes
 ```
 
 ---
@@ -696,17 +696,17 @@ sp logs cleanup --older-than 30d --yes
 ### Missing Required Flags
 
 ```bash
-sp logs delete
+sp infra logs delete
 # Error: --yes is required in non-interactive mode
 
-sp logs cleanup
+sp infra logs cleanup
 # Error: Either --older-than or --keep-last-days is required
 ```
 
 ### Trace Not Found
 
 ```bash
-sp logs trace show nonexistent
+sp infra logs trace show nonexistent
 # Warning: No events found for trace: nonexistent
 # Tip: The trace may take a moment to populate. Try again in a few seconds.
 ```
@@ -714,7 +714,7 @@ sp logs trace show nonexistent
 ### Request Not Found
 
 ```bash
-sp logs request show nonexistent
+sp infra logs request show nonexistent
 # Warning: AI request not found: nonexistent
 # Tip: Use 'systemprompt logs request list' to see recent requests
 ```
