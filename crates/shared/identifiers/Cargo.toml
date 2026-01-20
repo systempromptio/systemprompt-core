@@ -15,3 +15,6 @@ uuid = { workspace = true }
 schemars = { workspace = true }
 sqlx = { workspace = true }
 systemprompt-traits = { path = "../traits" }
+
+[dev-dependencies]
+serde_json = { workspace = true }

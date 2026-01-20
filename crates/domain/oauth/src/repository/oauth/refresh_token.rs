@@ -147,4 +147,15 @@ impl OAuthRepository {
 
         Ok(result.rows_affected())
     }
+
+    pub async fn get_client_id_from_refresh_token(&self, token_id: &str) -> Result<Option<String>> {
+        let result = sqlx::query_scalar!(
+            "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
+            token_id
+        )
+        .fetch_optional(self.pool_ref())
+        .await?;
+
+        Ok(result)
+    }
 }

@@ -67,8 +67,8 @@ fn display_all_sessions(project_ctx: &ProjectContext) {
             "\n  {}{}{}",
             display_key, status_marker, expired_marker
         ));
-        CliService::key_value("    Profile", &session.profile_name);
-        CliService::key_value("    User", &session.user_email);
+        CliService::key_value("    Profile", session.profile_name.as_str());
+        CliService::key_value("    User", session.user_email.as_str());
         CliService::key_value("    Session ID", session.session_id.as_str());
         CliService::key_value("    Context ID", session.context_id.as_str());
 

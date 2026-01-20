@@ -4795,6 +4795,7 @@ version = "0.0.1"
 dependencies = [
  "schemars",
  "serde",
+ "serde_json",
  "sqlx",
  "systemprompt-traits",
  "uuid",
