@@ -4,7 +4,7 @@ use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::cli_settings::CliConfig;
-use crate::commands::db;
+use crate::commands::infrastructure::db;
 
 #[derive(Debug, Subcommand)]
 pub enum CloudDbCommands {
