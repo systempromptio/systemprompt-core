@@ -75,7 +75,8 @@ impl PortManager {
         match self.get_process_info(pid) {
             Ok(Some(info)) => {
                 let is_agent = info.command.contains("systemprompt")
-                    && (info.command.contains("agents agent run")
+                    && (info.command.contains("infra admin agents run")
+                        || info.command.contains("agents agent run")
                         || info.command.contains("agent-worker"));
                 Ok(is_agent)
             },
