@@ -129,10 +129,19 @@ pub async fn execute(
     if args.stream {
         execute_streaming(&agent, &agent_url, auth_token, &request, &message_text).await
     } else {
-        execute_non_streaming(&agent, &agent_url, auth_token, &request, &message_text, args.timeout).await
+        execute_non_streaming(
+            &agent,
+            &agent_url,
+            auth_token,
+            &request,
+            &message_text,
+            args.timeout,
+        )
+        .await
     }
 }
 
+#[allow(clippy::print_stdout)]
 async fn execute_streaming(
     agent: &str,
     agent_url: &str,
@@ -160,7 +169,6 @@ async fn execute_streaming(
                 tracing::debug!("SSE connection opened");
             },
             Ok(Event::Message(message)) => {
-                // Parse the SSE data as JSON-RPC response
                 match serde_json::from_str::<JsonRpcResponse<TaskStatusUpdateEvent>>(&message.data)
                 {
                     Ok(response) => {
@@ -177,19 +185,16 @@ async fn execute_streaming(
                         }
 
                         if let Some(event) = response.result {
-                            // Extract text from the status message if present
                             if let Some(ref msg) = event.status.message {
                                 let text = extract_text_from_parts(&msg.parts);
                                 if !text.is_empty() {
-                                    // Print streaming text to stdout
                                     print!("{}", text);
                                     accumulated_text.push_str(&text);
                                 }
                             }
 
-                            // Check if this is the final event
                             if event.is_final {
-                                println!(); // New line after streaming output
+                                println!();
                                 final_task = Some(Task {
                                     id: event.task_id.into(),
                                     context_id: event.context_id.into(),
@@ -239,6 +244,7 @@ async fn execute_streaming(
     Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn execute_non_streaming(
     agent: &str,
     agent_url: &str,

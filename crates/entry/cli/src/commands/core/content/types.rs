@@ -76,6 +76,45 @@ pub struct IngestOutput {
     pub files_found: usize,
     pub files_processed: usize,
     pub errors: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_create: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_update: Vec<String>,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub unchanged_count: usize,
+    pub success: bool,
+}
+
+const fn is_zero(val: &usize) -> bool {
+    *val == 0
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct AllSourcesIngestOutput {
+    pub sources_processed: usize,
+    pub total_files_found: usize,
+    pub total_files_processed: usize,
+    pub source_results: Vec<SourceIngestResult>,
+    pub success: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct SourceIngestResult {
+    pub source_id: SourceId,
+    pub files_found: usize,
+    pub files_processed: usize,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub errors: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_create: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_update: Vec<String>,
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub unchanged_count: usize,
     pub success: bool,
 }
 

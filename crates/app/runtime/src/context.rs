@@ -81,6 +81,10 @@ impl AppContext {
             content_routing,
         ));
 
+        // Initialize logging with database persistence.
+        // The guard in init_logging prevents double initialization.
+        systemprompt_core_logging::init_logging(Arc::clone(&database));
+
         Ok(Self {
             config,
             database,

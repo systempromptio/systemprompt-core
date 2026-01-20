@@ -18,14 +18,21 @@ pub use trace::{
     ToolLogEntry, TraceEvent, TraceQueryService,
 };
 
+use std::sync::OnceLock;
+
 use systemprompt_core_database::DbPool;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
+/// Guard to prevent double initialization of the tracing subscriber.
+/// The tracing subscriber can only be set once per process.
+static LOGGING_INITIALIZED: OnceLock<()> = OnceLock::new();
+
 pub fn init_logging(db_pool: DbPool) {
-    use crate::services::output::is_startup_mode;
-    use crate::services::FilterSystemFields;
+    if LOGGING_INITIALIZED.set(()).is_err() {
+        return;
+    }
 
     let console_filter = if is_startup_mode() {
         EnvFilter::new("warn")
@@ -50,6 +57,10 @@ pub fn init_logging(db_pool: DbPool) {
 }
 
 pub fn init_console_logging() {
+    if LOGGING_INITIALIZED.set(()).is_err() {
+        return; // Already initialized
+    }
+
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn"));
 

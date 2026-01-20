@@ -85,6 +85,7 @@ impl DeployConfig {
 
         self.validate_images_structure()?;
         self.validate_extension_assets()?;
+        self.validate_templates_directory()?;
 
         if !self.dockerfile.exists() {
             return Err(anyhow!(
@@ -157,17 +158,31 @@ impl DeployConfig {
 
         Ok(())
     }
+
+    fn validate_templates_directory(&self) -> Result<()> {
+        let templates_dir = self.project_root.join("services/web/templates");
+
+        if !templates_dir.exists() {
+            bail!(
+                "Templates directory not found: {}\n\nExpected: services/web/templates/\n\nCreate \
+                 this directory with your HTML templates.",
+                templates_dir.display()
+            );
+        }
+
+        Ok(())
+    }
 }
 
 
 pub async fn execute(
     skip_push: bool,
     profile_name: Option<String>,
-    _config: &CliConfig,
+    config: &CliConfig,
 ) -> Result<()> {
     CliService::section("SystemPrompt Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(profile_name.as_deref())?;
+    let (profile, profile_path) = resolve_profile(profile_name.as_deref(), config)?;
 
     let cloud_config = profile
         .cloud

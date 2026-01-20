@@ -98,12 +98,8 @@ pub async fn execute(
         let agent_port = services_config.agents.get(agent_name).map(|c| c.port);
 
         // Attempt to stop the running process
-        let process_stopped = stop_agent_process(
-            agent_name,
-            agent_port,
-            orchestrator.as_ref(),
-        )
-        .await;
+        let process_stopped =
+            stop_agent_process(agent_name, agent_port, orchestrator.as_ref()).await;
 
         // If process couldn't be stopped and --force not set, abort this agent
         if !process_stopped && !args.force {
@@ -174,8 +170,9 @@ fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Resul
     Ok(agents[selection].clone())
 }
 
-/// Attempts to stop an agent process using orchestrator first, then falling back to port-based cleanup.
-/// Returns true if the process was successfully stopped or wasn't running.
+/// Attempts to stop an agent process using orchestrator first, then falling
+/// back to port-based cleanup. Returns true if the process was successfully
+/// stopped or wasn't running.
 async fn stop_agent_process(
     agent_name: &str,
     agent_port: Option<u16>,

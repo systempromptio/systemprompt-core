@@ -221,9 +221,13 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     RUST_LOG=info \
     PATH="{}:$PATH" \
     SYSTEMPROMPT_SERVICES_PATH={} \
+    SYSTEMPROMPT_TEMPLATES_PATH={} \
+    SYSTEMPROMPT_ASSETS_PATH={} \
     WEB_DIR={}"#,
                 container::BIN,
                 container::SERVICES,
+                container::TEMPLATES,
+                container::ASSETS,
                 container::WEB
             )
         } else {
@@ -234,10 +238,14 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     PATH="{}:$PATH" \
 {}
     SYSTEMPROMPT_SERVICES_PATH={} \
+    SYSTEMPROMPT_TEMPLATES_PATH={} \
+    SYSTEMPROMPT_ASSETS_PATH={} \
     WEB_DIR={}"#,
                 container::BIN,
                 profile_env,
                 container::SERVICES,
+                container::TEMPLATES,
+                container::ASSETS,
                 container::WEB
             )
         }

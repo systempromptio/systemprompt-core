@@ -13,6 +13,8 @@ pub struct CommandRequirements {
     pub secrets: bool,
     /// Whether the command needs application paths to be initialized.
     pub paths: bool,
+    /// Whether the command needs database access.
+    pub database: bool,
 }
 
 impl CommandRequirements {
@@ -21,6 +23,7 @@ impl CommandRequirements {
         profile: false,
         secrets: false,
         paths: false,
+        database: false,
     };
 
     /// Command requires only a profile to be loaded.
@@ -28,6 +31,7 @@ impl CommandRequirements {
         profile: true,
         secrets: false,
         paths: false,
+        database: false,
     };
 
     /// Command requires profile and secrets but not paths.
@@ -35,13 +39,16 @@ impl CommandRequirements {
         profile: true,
         secrets: true,
         paths: false,
+        database: false,
     };
 
-    /// Command requires full initialization (profile, secrets, and paths).
+    /// Command requires full initialization (profile, secrets, paths, and
+    /// database).
     pub const FULL: Self = Self {
         profile: true,
         secrets: true,
         paths: true,
+        database: true,
     };
 }
 

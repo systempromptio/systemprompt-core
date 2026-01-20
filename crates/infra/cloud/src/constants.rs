@@ -18,6 +18,8 @@ pub mod container {
     pub const STORAGE: &str = cloud_container::STORAGE;
     pub const WEB: &str = cloud_container::WEB;
     pub const PROFILES: &str = cloud_container::PROFILES;
+    pub const TEMPLATES: &str = cloud_container::TEMPLATES;
+    pub const ASSETS: &str = cloud_container::ASSETS;
 }
 
 pub mod oauth {
@@ -110,9 +112,39 @@ pub mod profile {
     pub const DEFAULT_CLOUD_URL: &str = "https://cloud.systemprompt.io";
     pub const LOCAL_ISSUER: &str = "systemprompt-local";
     pub const CLOUD_ISSUER: &str = "systemprompt";
-    pub const ACCESS_TOKEN_EXPIRATION: i64 = 86400;
-    pub const REFRESH_TOKEN_EXPIRATION: i64 = 2_592_000;
+    /// Access token expiration in seconds. Default: 30 days.
+    pub const ACCESS_TOKEN_EXPIRATION: i64 = 2_592_000;
+    /// Refresh token expiration in seconds. Default: 180 days.
+    pub const REFRESH_TOKEN_EXPIRATION: i64 = 15_552_000;
     pub const CLOUD_APP_PATH: &str = container::APP_ROOT;
     pub const CREDENTIALS_PATH: &str = "../../credentials.json";
     pub const TENANTS_PATH: &str = "../../tenants.json";
+}
+
+pub mod env_vars {
+    /// System-managed environment variables that should never be set by users.
+    /// These are managed by the cloud infrastructure or deployment process.
+    pub const SYSTEM_MANAGED: &[&str] = &[
+        "DATABASE_URL",
+        "JWT_SECRET",
+        "SYSTEMPROMPT_API_URL",
+        "FLY_APP_NAME",
+        "FLY_MACHINE_ID",
+        "APP_URL",
+        "API_EXTERNAL_URL",
+    ];
+
+    /// Environment variables synced by the CLI during deployment.
+    /// These are set automatically and should not be manually modified.
+    pub const CLI_SYNCED: &[&str] = &[
+        "SYSTEMPROMPT_API_TOKEN",
+        "SYSTEMPROMPT_USER_EMAIL",
+        "SYSTEMPROMPT_CLI_REMOTE",
+        "SYSTEMPROMPT_PROFILE",
+    ];
+
+    /// Check if a key is a system-managed variable (case-insensitive).
+    pub fn is_system_managed(key: &str) -> bool {
+        SYSTEM_MANAGED.iter().any(|&k| k.eq_ignore_ascii_case(key))
+    }
 }

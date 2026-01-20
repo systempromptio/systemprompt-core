@@ -25,6 +25,9 @@ pub enum SecretsCommands {
         #[arg(required = true)]
         keys: Vec<String>,
     },
+
+    #[command(about = "Remove incorrectly synced system-managed variables")]
+    Cleanup,
 }
 
 pub async fn execute(cmd: SecretsCommands, _config: &CliConfig) -> Result<()> {
@@ -32,6 +35,7 @@ pub async fn execute(cmd: SecretsCommands, _config: &CliConfig) -> Result<()> {
         SecretsCommands::Sync => sync_secrets().await,
         SecretsCommands::Set { key_values } => set_secrets(key_values).await,
         SecretsCommands::Unset { keys } => unset_secrets(keys).await,
+        SecretsCommands::Cleanup => cleanup_secrets().await,
     }
 }
 
@@ -71,10 +75,13 @@ async fn sync_secrets() -> Result<()> {
 }
 
 async fn set_secrets(key_values: Vec<String>) -> Result<()> {
+    use systemprompt_cloud::constants::env_vars;
+
     CliService::section("Set Secrets");
 
     let tenant_id = get_tenant_id()?;
     let mut secrets = HashMap::new();
+    let mut rejected = Vec::new();
 
     for kv in &key_values {
         let parts: Vec<&str> = kv.splitn(2, '=').collect();
@@ -83,11 +90,22 @@ async fn set_secrets(key_values: Vec<String>) -> Result<()> {
         }
         let key = parts[0].to_uppercase();
         let value = parts[1].to_string();
+
+        if env_vars::is_system_managed(&key) {
+            rejected.push(key);
+            continue;
+        }
         secrets.insert(key, value);
     }
 
+    if !rejected.is_empty() {
+        for key in &rejected {
+            CliService::warning(&format!("Skipping system-managed variable: {key}"));
+        }
+    }
+
     if secrets.is_empty() {
-        bail!("No secrets provided");
+        bail!("No valid secrets to set (all provided keys are system-managed)");
     }
 
     let creds = get_credentials()?;
@@ -220,12 +238,18 @@ pub fn load_secrets_json(path: &PathBuf) -> Result<HashMap<String, String>> {
 }
 
 pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<String, String> {
+    use systemprompt_cloud::constants::env_vars;
+
     let has_internal = secrets.contains_key("internal_database_url");
 
     secrets
         .into_iter()
         .filter_map(|(k, v)| {
             let env_key = to_env_var_name(&k, has_internal)?;
+            if env_vars::is_system_managed(&env_key) {
+                tracing::warn!(key = %env_key, "Skipping system-managed variable from secrets.json");
+                return None;
+            }
             Some((env_key, v))
         })
         .collect()
@@ -257,7 +281,6 @@ pub async fn sync_cloud_credentials(
         "SYSTEMPROMPT_API_TOKEN".to_string(),
         creds.api_token.clone(),
     );
-    secrets.insert("SYSTEMPROMPT_API_URL".to_string(), creds.api_url.clone());
 
     if let Some(email) = &creds.user_email {
         secrets.insert("SYSTEMPROMPT_USER_EMAIL".to_string(), email.clone());
@@ -267,4 +290,52 @@ pub async fn sync_cloud_credentials(
     secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
 
     api_client.set_secrets(tenant_id, secrets).await
+}
+
+async fn cleanup_secrets() -> Result<()> {
+    CliService::section("Cleanup System-Managed Secrets");
+
+    let tenant_id = get_tenant_id()?;
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    let keys_to_remove = ["SYSTEMPROMPT_API_URL"];
+    let mut removed = Vec::new();
+    let mut errors = Vec::new();
+
+    for key in keys_to_remove {
+        let spinner = CliService::spinner(&format!("Removing {key}..."));
+        match client.unset_secret(&tenant_id, key).await {
+            Ok(()) => {
+                spinner.finish_and_clear();
+                removed.push(key);
+            },
+            Err(e) => {
+                spinner.finish_and_clear();
+                errors.push((key, e.to_string()));
+            },
+        }
+    }
+
+    if !removed.is_empty() {
+        CliService::success(&format!(
+            "Removed {} system-managed variables",
+            removed.len()
+        ));
+        for key in &removed {
+            CliService::info(&format!("  - {key}"));
+        }
+    }
+
+    if !errors.is_empty() {
+        for (key, err) in &errors {
+            CliService::warning(&format!("Could not remove {key}: {err}"));
+        }
+    }
+
+    if removed.is_empty() && errors.is_empty() {
+        CliService::info("No system-managed variables to clean up");
+    }
+
+    Ok(())
 }

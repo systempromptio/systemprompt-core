@@ -89,8 +89,8 @@ pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<
 async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool> {
     match cmd {
         TenantCommands::Create { region } => tenant_create(&region, config).await.map(|()| true),
-        TenantCommands::List => list_tenants().await.map(|()| false),
-        TenantCommands::Show { id } => show_tenant(id).await.map(|()| false),
+        TenantCommands::List => list_tenants(config).await.map(|()| false),
+        TenantCommands::Show { id } => show_tenant(id, config).await.map(|()| false),
         TenantCommands::Delete(args) => delete_tenant(args, config).await.map(|()| false),
         TenantCommands::Edit { id } => edit_tenant(id, config).await.map(|()| false),
         TenantCommands::RotateCredentials(args) => {
