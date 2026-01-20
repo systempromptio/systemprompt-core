@@ -1,6 +1,7 @@
 pub mod auth;
 pub mod db;
 mod deploy;
+mod domain;
 pub mod dockerfile;
 mod init;
 pub mod profile;
@@ -79,6 +80,9 @@ pub enum CloudCommands {
 
     #[command(subcommand, about = "Cloud database operations")]
     Db(db::CloudDbCommands),
+
+    #[command(subcommand, about = "Manage custom domain and TLS certificates")]
+    Domain(domain::DomainCommands),
 }
 
 impl HasRequirements for CloudCommands {
@@ -87,7 +91,9 @@ impl HasRequirements for CloudCommands {
             Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
                 CommandRequirements::PROFILE_AND_SECRETS
             },
-            Self::Status | Self::Restart { .. } => CommandRequirements::PROFILE_ONLY,
+            Self::Status | Self::Restart { .. } | Self::Domain { .. } => {
+                CommandRequirements::PROFILE_ONLY
+            },
             _ => CommandRequirements::NONE,
         }
     }
@@ -101,6 +107,7 @@ impl CloudCommands {
                 | Self::Status
                 | Self::Restart { .. }
                 | Self::Secrets { .. }
+                | Self::Domain { .. }
         )
     }
 
@@ -124,6 +131,7 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
         CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
         CloudCommands::Dockerfile => execute_dockerfile(),
         CloudCommands::Db(cmd) => db::execute(cmd, config).await,
+        CloudCommands::Domain(cmd) => domain::execute(cmd, config).await,
     }
 }
 
