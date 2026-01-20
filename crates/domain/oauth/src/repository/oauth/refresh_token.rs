@@ -1,30 +1,31 @@
 use super::OAuthRepository;
 use anyhow::Result;
 use chrono::Utc;
+use systemprompt_identifiers::{ClientId, RefreshTokenId, UserId};
 
 #[derive(Debug)]
 pub struct RefreshTokenParams<'a> {
-    pub token_id: &'a str,
-    pub client_id: &'a str,
-    pub user_id: &'a str,
+    pub token_id: &'a RefreshTokenId,
+    pub client_id: &'a ClientId,
+    pub user_id: &'a UserId,
     pub scope: &'a str,
     pub expires_at: i64,
 }
 
 #[derive(Debug)]
 pub struct RefreshTokenParamsBuilder<'a> {
-    token_id: &'a str,
-    client_id: &'a str,
-    user_id: &'a str,
+    token_id: &'a RefreshTokenId,
+    client_id: &'a ClientId,
+    user_id: &'a UserId,
     scope: &'a str,
     expires_at: i64,
 }
 
 impl<'a> RefreshTokenParamsBuilder<'a> {
     pub const fn new(
-        token_id: &'a str,
-        client_id: &'a str,
-        user_id: &'a str,
+        token_id: &'a RefreshTokenId,
+        client_id: &'a ClientId,
+        user_id: &'a UserId,
         scope: &'a str,
         expires_at: i64,
     ) -> Self {
@@ -50,9 +51,9 @@ impl<'a> RefreshTokenParamsBuilder<'a> {
 
 impl<'a> RefreshTokenParams<'a> {
     pub const fn builder(
-        token_id: &'a str,
-        client_id: &'a str,
-        user_id: &'a str,
+        token_id: &'a RefreshTokenId,
+        client_id: &'a ClientId,
+        user_id: &'a UserId,
         scope: &'a str,
         expires_at: i64,
     ) -> RefreshTokenParamsBuilder<'a> {
@@ -65,14 +66,17 @@ impl OAuthRepository {
         let expires_at_dt = chrono::DateTime::<Utc>::from_timestamp(params.expires_at, 0)
             .ok_or_else(|| anyhow::anyhow!("Invalid timestamp for expires_at"))?;
         let now = Utc::now();
+        let token_id = params.token_id.as_str();
+        let client_id = params.client_id.as_str();
+        let user_id = params.user_id.as_str();
 
         sqlx::query!(
             "INSERT INTO oauth_refresh_tokens (token_id, client_id, user_id, scope, expires_at, \
              created_at)
              VALUES ($1, $2, $3, $4, $5, $6)",
-            params.token_id,
-            params.client_id,
-            params.user_id,
+            token_id,
+            client_id,
+            user_id,
             params.scope,
             expires_at_dt,
             now
@@ -85,16 +89,18 @@ impl OAuthRepository {
 
     pub async fn validate_refresh_token(
         &self,
-        token_id: &str,
-        client_id: &str,
-    ) -> Result<(String, String)> {
+        token_id: &RefreshTokenId,
+        client_id: &ClientId,
+    ) -> Result<(UserId, String)> {
         let now = Utc::now();
+        let token_id_str = token_id.as_str();
+        let client_id_str = client_id.as_str();
 
         let row = sqlx::query!(
             "SELECT user_id, scope, expires_at FROM oauth_refresh_tokens
              WHERE token_id = $1 AND client_id = $2",
-            token_id,
-            client_id
+            token_id_str,
+            client_id_str
         )
         .fetch_optional(self.pool_ref())
         .await?
@@ -104,19 +110,20 @@ impl OAuthRepository {
             return Err(anyhow::anyhow!("Refresh token expired"));
         }
 
-        Ok((row.user_id, row.scope))
+        Ok((UserId::new(row.user_id), row.scope))
     }
 
     pub async fn consume_refresh_token(
         &self,
-        token_id: &str,
-        client_id: &str,
-    ) -> Result<(String, String)> {
+        token_id: &RefreshTokenId,
+        client_id: &ClientId,
+    ) -> Result<(UserId, String)> {
         let (user_id, scope) = self.validate_refresh_token(token_id, client_id).await?;
+        let token_id_str = token_id.as_str();
 
         sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id
+            token_id_str
         )
         .execute(self.pool_ref())
         .await?;
@@ -124,10 +131,11 @@ impl OAuthRepository {
         Ok((user_id, scope))
     }
 
-    pub async fn revoke_refresh_token(&self, token_id: &str) -> Result<bool> {
+    pub async fn revoke_refresh_token(&self, token_id: &RefreshTokenId) -> Result<bool> {
+        let token_id_str = token_id.as_str();
         let result = sqlx::query!(
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id
+            token_id_str
         )
         .execute(self.pool_ref())
         .await?;
@@ -148,14 +156,18 @@ impl OAuthRepository {
         Ok(result.rows_affected())
     }
 
-    pub async fn get_client_id_from_refresh_token(&self, token_id: &str) -> Result<Option<String>> {
+    pub async fn get_client_id_from_refresh_token(
+        &self,
+        token_id: &RefreshTokenId,
+    ) -> Result<Option<ClientId>> {
+        let token_id_str = token_id.as_str();
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_refresh_tokens WHERE token_id = $1",
-            token_id
+            token_id_str
         )
         .fetch_optional(self.pool_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.map(ClientId::new))
     }
 }

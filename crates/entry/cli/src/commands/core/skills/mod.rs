@@ -52,7 +52,7 @@ pub async fn execute_with_config(command: SkillsCommands, config: &CliConfig) ->
             Ok(())
         },
         SkillsCommands::Show(args) => {
-            let result = show::execute(args, config).context("Failed to show skill")?;
+            let result = show::execute(&args, config).context("Failed to show skill")?;
             render_result(&result);
             Ok(())
         },

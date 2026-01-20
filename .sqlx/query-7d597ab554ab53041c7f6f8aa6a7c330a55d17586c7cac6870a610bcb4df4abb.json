@@ -1,0 +1,35 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                started_at as \"started_at!\",\n                user_id,\n                duration_seconds\n            FROM user_sessions\n            WHERE started_at >= $1 AND started_at < $2\n            ORDER BY started_at\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "started_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "duration_seconds",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Timestamptz"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "7d597ab554ab53041c7f6f8aa6a7c330a55d17586c7cac6870a610bcb4df4abb"
+}

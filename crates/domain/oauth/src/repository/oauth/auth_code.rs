@@ -3,12 +3,13 @@ use crate::models::PkceMethod;
 use anyhow::Result;
 use base64::Engine;
 use chrono::Utc;
+use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
 #[derive(Debug)]
 pub struct AuthCodeParams<'a> {
-    pub code: &'a str,
-    pub client_id: &'a str,
-    pub user_id: &'a str,
+    pub code: &'a AuthorizationCode,
+    pub client_id: &'a ClientId,
+    pub user_id: &'a UserId,
     pub redirect_uri: &'a str,
     pub scope: &'a str,
     pub code_challenge: Option<&'a str>,
@@ -17,9 +18,9 @@ pub struct AuthCodeParams<'a> {
 
 #[derive(Debug)]
 pub struct AuthCodeParamsBuilder<'a> {
-    code: &'a str,
-    client_id: &'a str,
-    user_id: &'a str,
+    code: &'a AuthorizationCode,
+    client_id: &'a ClientId,
+    user_id: &'a UserId,
     redirect_uri: &'a str,
     scope: &'a str,
     code_challenge: Option<&'a str>,
@@ -28,9 +29,9 @@ pub struct AuthCodeParamsBuilder<'a> {
 
 impl<'a> AuthCodeParamsBuilder<'a> {
     pub const fn new(
-        code: &'a str,
-        client_id: &'a str,
-        user_id: &'a str,
+        code: &'a AuthorizationCode,
+        client_id: &'a ClientId,
+        user_id: &'a UserId,
         redirect_uri: &'a str,
         scope: &'a str,
     ) -> Self {
@@ -66,9 +67,9 @@ impl<'a> AuthCodeParamsBuilder<'a> {
 
 impl<'a> AuthCodeParams<'a> {
     pub const fn builder(
-        code: &'a str,
-        client_id: &'a str,
-        user_id: &'a str,
+        code: &'a AuthorizationCode,
+        client_id: &'a ClientId,
+        user_id: &'a UserId,
         redirect_uri: &'a str,
         scope: &'a str,
     ) -> AuthCodeParamsBuilder<'a> {
@@ -80,15 +81,18 @@ impl OAuthRepository {
     pub async fn store_authorization_code(&self, params: AuthCodeParams<'_>) -> Result<()> {
         let expires_at = Utc::now() + chrono::Duration::seconds(600);
         let now = Utc::now();
+        let code = params.code.as_str();
+        let client_id = params.client_id.as_str();
+        let user_id = params.user_id.as_str();
 
         sqlx::query!(
             "INSERT INTO oauth_auth_codes
              (code, client_id, user_id, redirect_uri, scope, expires_at, code_challenge,
              code_challenge_method, created_at)
              VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
-            params.code,
-            params.client_id,
-            params.user_id,
+            code,
+            client_id,
+            user_id,
             params.redirect_uri,
             params.scope,
             expires_at,
@@ -102,31 +106,36 @@ impl OAuthRepository {
         Ok(())
     }
 
-    pub async fn get_client_id_from_auth_code(&self, code: &str) -> Result<Option<String>> {
+    pub async fn get_client_id_from_auth_code(
+        &self,
+        code: &AuthorizationCode,
+    ) -> Result<Option<ClientId>> {
+        let code_str = code.as_str();
         let result = sqlx::query_scalar!(
             "SELECT client_id FROM oauth_auth_codes WHERE code = $1",
-            code
+            code_str
         )
         .fetch_optional(self.pool_ref())
         .await?;
 
-        Ok(result)
+        Ok(result.map(ClientId::new))
     }
 
     pub async fn validate_authorization_code(
         &self,
-        code: &str,
-        _client_id: &str,
+        code: &AuthorizationCode,
+        _client_id: &ClientId,
         redirect_uri: Option<&str>,
         code_verifier: Option<&str>,
-    ) -> Result<(String, String)> {
+    ) -> Result<(UserId, String)> {
         let now = Utc::now();
+        let code_str = code.as_str();
 
         let row = sqlx::query!(
             "SELECT user_id, scope, expires_at, redirect_uri, used_at, code_challenge,
              code_challenge_method
              FROM oauth_auth_codes WHERE code = $1",
-            code
+            code_str
         )
         .fetch_optional(self.pool_ref())
         .await?
@@ -183,11 +192,11 @@ impl OAuthRepository {
         sqlx::query!(
             "UPDATE oauth_auth_codes SET used_at = $1 WHERE code = $2",
             now,
-            code
+            code_str
         )
         .execute(self.pool_ref())
         .await?;
 
-        Ok((row.user_id, row.scope))
+        Ok((UserId::new(row.user_id), row.scope))
     }
 }

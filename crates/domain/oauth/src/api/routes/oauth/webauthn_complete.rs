@@ -9,6 +9,7 @@ use std::sync::Arc;
 use crate::repository::{AuthCodeParams, OAuthRepository};
 use crate::services::{generate_secure_token, BrowserRedirectService};
 use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_traits::UserProvider;
 
 #[derive(Debug, Deserialize)]
@@ -135,10 +136,10 @@ pub async fn handle_webauthn_complete(
 
 async fn store_authorization_code(
     repo: &OAuthRepository,
-    code: &str,
+    code_str: &str,
     query: &WebAuthnCompleteQuery,
 ) -> Result<()> {
-    let client_id = query
+    let client_id_str = query
         .client_id
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("client_id is required"))?;
@@ -160,8 +161,11 @@ async fn store_authorization_code(
         }
     };
 
-    let mut builder =
-        AuthCodeParams::builder(code, client_id, &query.user_id, redirect_uri, &scope);
+    let code = AuthorizationCode::new(code_str);
+    let client_id = ClientId::new(client_id_str);
+    let user_id = UserId::new(&query.user_id);
+
+    let mut builder = AuthCodeParams::builder(&code, &client_id, &user_id, redirect_uri, &scope);
 
     if let (Some(challenge), Some(method)) = (
         query.code_challenge.as_deref(),

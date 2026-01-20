@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE funnels\n            SET is_active = FALSE, updated_at = $2\n            WHERE id = $1\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "7d7ad7a4f6a7fef9c14cdd4ad277a2c1e5880697fca403d4ff6ee812ddd5bf57"
+}

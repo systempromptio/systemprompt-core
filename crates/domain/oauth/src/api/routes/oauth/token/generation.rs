@@ -9,14 +9,14 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_core_users::{UserProviderImpl, UserService};
-use systemprompt_identifiers::{SessionId, SessionSource};
+use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_runtime::AppContext;
 
 pub struct TokenGenerationParams<'a> {
-    pub client_id: &'a str,
-    pub user_id: &'a str,
+    pub client_id: &'a ClientId,
+    pub user_id: &'a UserId,
     pub scope: Option<&'a str>,
     pub headers: &'a HeaderMap,
 }
@@ -44,14 +44,13 @@ pub async fn generate_tokens_by_user_id(
             .await?;
     let scope_string = systemprompt_models::auth::permissions_to_string(&final_permissions);
 
-    let user_id_typed = systemprompt_identifiers::UserId::new(params.user_id.to_string());
     let user_provider = Arc::new(UserProviderImpl::new(UserService::new(ctx.db_pool())?));
     let session_service = crate::services::SessionCreationService::new(
         Arc::clone(ctx.analytics_service()),
         user_provider,
     );
     let session_id = session_service
-        .create_authenticated_session(&user_id_typed, params.headers, SessionSource::Oauth)
+        .create_authenticated_session(params.user_id, params.headers, SessionSource::Oauth)
         .await?;
 
     let access_token_jti = generate_access_token_jti();
@@ -68,10 +67,11 @@ pub async fn generate_tokens_by_user_id(
     let access_token = generate_jwt(&user, config, access_token_jti, &session_id, &signing)?;
 
     let refresh_token_value = generate_secure_token("rt");
+    let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
     let refresh_expires_at = chrono::Utc::now().timestamp() + refresh_token_expires_in;
 
     let refresh_params = RefreshTokenParams::builder(
-        &refresh_token_value,
+        &refresh_token_id,
         params.client_id,
         params.user_id,
         &scope_string,
@@ -80,7 +80,9 @@ pub async fn generate_tokens_by_user_id(
     .build();
     repo.store_refresh_token(refresh_params).await?;
 
-    let _ = repo.update_client_last_used(params.client_id).await;
+    let _ = repo
+        .update_client_last_used(params.client_id.as_str())
+        .await;
 
     Ok(TokenResponse {
         access_token,
@@ -93,14 +95,14 @@ pub async fn generate_tokens_by_user_id(
 
 pub async fn load_authenticated_user(
     repo: &OAuthRepository,
-    user_id: &str,
+    user_id: &UserId,
 ) -> Result<AuthenticatedUser> {
-    repo.get_authenticated_user(user_id).await
+    repo.get_authenticated_user(user_id.as_str()).await
 }
 
 pub async fn generate_client_tokens(
     _repo: &OAuthRepository,
-    client_id: &str,
+    client_id: &ClientId,
     scope: Option<&str>,
 ) -> Result<TokenResponse> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
@@ -110,8 +112,9 @@ pub async fn generate_client_tokens(
 
     let permissions = parse_permissions(scope_str)?;
 
+    let client_id_str = client_id.as_str();
     let mut hasher = Sha256::new();
-    hasher.update(format!("client.{client_id}").as_bytes());
+    hasher.update(format!("client.{client_id_str}").as_bytes());
     let hash = hasher.finalize();
 
     let mut uuid_bytes = [0u8; 16];
@@ -120,8 +123,8 @@ pub async fn generate_client_tokens(
 
     let client_user = AuthenticatedUser::new_with_roles(
         client_uuid,
-        format!("client:{client_id}"),
-        format!("{client_id}@client.local"),
+        format!("client:{client_id_str}"),
+        format!("{client_id_str}@client.local"),
         vec![Permission::Admin],
         vec!["admin".to_string()],
     );
@@ -164,10 +167,10 @@ pub async fn resolve_user_permissions(
     repo: &OAuthRepository,
     requested_permissions: &[Permission],
     user_permissions: &[Permission],
-    client_id: &str,
+    client_id: &ClientId,
 ) -> Result<Vec<Permission>> {
     let client = repo
-        .find_client_by_id(client_id)
+        .find_client_by_id(client_id.as_str())
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 

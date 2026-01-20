@@ -1,0 +1,53 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            SELECT\n                session_id as \"session_id!\",\n                COALESCE(user_type, 'unknown') as \"user_type\",\n                started_at as \"started_at!\",\n                duration_seconds,\n                request_count,\n                last_activity_at as \"last_activity_at!\"\n            FROM user_sessions\n            WHERE ended_at IS NULL\n              AND last_activity_at >= $1\n            ORDER BY last_activity_at DESC\n            LIMIT $2\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id!",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 1,
+        "name": "user_type",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "started_at!",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 3,
+        "name": "duration_seconds",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 4,
+        "name": "request_count",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 5,
+        "name": "last_activity_at!",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamptz",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      null,
+      false,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "b5798f9d9260708b37a312756b85305e828a4bb2f31d1219eea664e1d6805b74"
+}

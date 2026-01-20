@@ -372,8 +372,8 @@ async fn create_session_for_tenant(
 
     let profile_name = ProfileName::try_new(profile_ctx.name)
         .map_err(|e| anyhow::anyhow!("Invalid profile name: {}", e))?;
-    let email = Email::try_new(&admin_user.email)
-        .map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
+    let email =
+        Email::try_new(&admin_user.email).map_err(|e| anyhow::anyhow!("Invalid email: {}", e))?;
 
     Ok(
         CliSession::builder(profile_name, session_token, session_id, context_id)

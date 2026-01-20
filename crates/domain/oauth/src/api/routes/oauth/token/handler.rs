@@ -13,6 +13,7 @@ use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::Form;
 use std::sync::Arc;
+use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tracing::instrument;
@@ -70,12 +71,13 @@ async fn handle_authorization_code_grant(
     ctx: &AppContext,
 ) -> axum::response::Response {
     let result = async {
-        let code = extract_required_field(request.code.as_deref(), "code")?;
+        let code_str = extract_required_field(request.code.as_deref(), "code")?;
+        let code = AuthorizationCode::new(code_str);
 
         let client_id = if let Some(id) = request.client_id.as_deref() {
-            id.to_string()
+            ClientId::new(id)
         } else {
-            repo.get_client_id_from_auth_code(code)
+            repo.get_client_id_from_auth_code(&code)
                 .await
                 .map_err(|e| TokenError::ServerError {
                     message: format!("Failed to lookup authorization code: {e}"),
@@ -91,7 +93,7 @@ async fn handle_authorization_code_grant(
 
         let (user_id, authorized_scope) = validate_authorization_code(
             &repo,
-            code,
+            &code,
             &client_id,
             request.redirect_uri.as_deref(),
             request.code_verifier.as_deref(),
@@ -149,16 +151,29 @@ async fn handle_refresh_token_grant(
     ctx: &AppContext,
 ) -> axum::response::Response {
     let result = async {
-        let client_id = extract_required_field(request.client_id.as_deref(), "client_id")?;
-        let refresh_token =
+        let refresh_token_str =
             extract_required_field(request.refresh_token.as_deref(), "refresh_token")?;
+        let refresh_token = RefreshTokenId::new(refresh_token_str);
 
-        validate_client_credentials(&repo, client_id, request.client_secret.as_deref())
+        let client_id = if let Some(id) = request.client_id.as_deref() {
+            ClientId::new(id)
+        } else {
+            repo.get_client_id_from_refresh_token(&refresh_token)
+                .await
+                .map_err(|e| TokenError::ServerError {
+                    message: format!("Failed to lookup refresh token: {e}"),
+                })?
+                .ok_or_else(|| TokenError::InvalidRefreshToken {
+                    reason: "Invalid refresh token".to_string(),
+                })?
+        };
+
+        validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
         let (user_id, original_scope) = repo
-            .consume_refresh_token(refresh_token, client_id)
+            .consume_refresh_token(&refresh_token, &client_id)
             .await
             .map_err(|e| TokenError::InvalidRefreshToken {
                 reason: e.to_string(),
@@ -184,7 +199,7 @@ async fn handle_refresh_token_grant(
         let token_response = generate_tokens_by_user_id(
             &repo,
             TokenGenerationParams {
-                client_id,
+                client_id: &client_id,
                 user_id: &user_id,
                 scope: Some(effective_scope),
                 headers,
@@ -227,13 +242,14 @@ async fn handle_client_credentials_grant(
     request: TokenRequest,
 ) -> axum::response::Response {
     let result = async {
-        let client_id = extract_required_field(request.client_id.as_deref(), "client_id")?;
+        let client_id_str = extract_required_field(request.client_id.as_deref(), "client_id")?;
+        let client_id = ClientId::new(client_id_str);
 
-        validate_client_credentials(&repo, client_id, request.client_secret.as_deref())
+        validate_client_credentials(&repo, &client_id, request.client_secret.as_deref())
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let token_response = generate_client_tokens(&repo, client_id, request.scope.as_deref())
+        let token_response = generate_client_tokens(&repo, &client_id, request.scope.as_deref())
             .await
             .map_err(|e| TokenError::ServerError {
                 message: e.to_string(),
