@@ -14,7 +14,7 @@ pub mod factories;
 pub mod http;
 
 pub use assertions::{IntegrityAssertion, SessionAssertion, TaskAssertion};
-pub use cleanup::TestCleanup;
+pub use cleanup::{TestCleanup, TEST_SOURCE_PREFIX};
 pub use context::{
     create_a2a_message, get_session_from_row, wait_for_async_processing as context_wait,
     Environment, SessionData, TestContext,

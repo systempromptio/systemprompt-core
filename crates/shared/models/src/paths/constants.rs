@@ -55,6 +55,10 @@ pub mod cloud_container {
     pub const WEB: &str = "/app/web";
     /// Profiles directory in container.
     pub const PROFILES: &str = "/app/services/profiles";
+    /// Web templates directory in container.
+    pub const TEMPLATES: &str = "/app/services/web/templates";
+    /// Web static assets directory in container.
+    pub const ASSETS: &str = "/app/services/web/assets";
 }
 
 /// Storage subdirectory structure.

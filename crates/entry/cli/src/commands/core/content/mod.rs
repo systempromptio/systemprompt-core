@@ -93,7 +93,10 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
             let result = ingest::execute(args, config)
                 .await
                 .context("Failed to ingest content")?;
-            render_result(&result);
+            match result {
+                ingest::IngestResult::Single(r) => render_result(&r),
+                ingest::IngestResult::All(r) => render_result(&r),
+            }
         },
         ContentCommands::Delete(args) => {
             let result = delete::execute(args, config)

@@ -147,6 +147,18 @@ impl StoredTenant {
             .as_ref()
             .or(self.internal_database_url.as_ref())
     }
+
+    /// Returns true if this is a cloud tenant (can be synced to cloud)
+    #[must_use]
+    pub const fn is_cloud(&self) -> bool {
+        matches!(self.tenant_type, TenantType::Cloud)
+    }
+
+    /// Returns true if this is a local-only tenant (cannot be synced to cloud)
+    #[must_use]
+    pub const fn is_local(&self) -> bool {
+        matches!(self.tenant_type, TenantType::Local)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

@@ -24,10 +24,11 @@ pub enum ProfileResolutionError {
 }
 
 pub fn resolve_profile_path(
+    cli_override: Option<&str>,
     from_session: Option<PathBuf>,
 ) -> Result<PathBuf, ProfileResolutionError> {
-    if let Some(path) = from_session {
-        if path.exists() {
+    if let Some(profile_name) = cli_override {
+        if let Some(path) = resolve_profile_by_name(profile_name)? {
             return Ok(path);
         }
     }
@@ -36,12 +37,26 @@ pub fn resolve_profile_path(
         return Ok(PathBuf::from(path_str));
     }
 
+    if let Some(path) = from_session {
+        if path.exists() {
+            return Ok(path);
+        }
+    }
+
     let mut profiles = discover_profiles()?;
     match profiles.len() {
         0 => Err(ProfileResolutionError::NoProfilesFound),
         1 => Ok(profiles.swap_remove(0).path),
         _ => prompt_profile_selection_for_cli(&profiles),
     }
+}
+
+fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolutionError> {
+    let profiles = discover_profiles()?;
+    Ok(profiles
+        .into_iter()
+        .find(|p| p.name == name)
+        .map(|p| p.path))
 }
 
 fn prompt_profile_selection_for_cli(

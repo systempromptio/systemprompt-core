@@ -13,6 +13,16 @@ use systemprompt_core_database::DbPool;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 #[derive(Debug)]
+enum IngestFileResult {
+    Created,
+    Updated,
+    Unchanged,
+    Skipped,
+    WouldCreate(String),
+    WouldUpdate(String),
+}
+
+#[derive(Debug)]
 pub struct IngestionService {
     content_repo: ContentRepository,
 }
@@ -32,10 +42,11 @@ impl IngestionService {
     ) -> Result<IngestionReport, ContentError> {
         let mut report = IngestionReport::new();
 
-        let (markdown_files, validation_errors) =
+        let (markdown_files, validation_errors, warnings) =
             Self::scan_markdown_files(path, source.allowed_content_types, options.recursive);
         report.files_found = markdown_files.len() + validation_errors.len();
         report.errors.extend(validation_errors);
+        report.warnings.extend(warnings);
 
         for file_path in markdown_files {
             match self
@@ -47,8 +58,16 @@ impl IngestionService {
                 )
                 .await
             {
-                Ok(()) => {
+                Ok(result) => {
                     report.files_processed += 1;
+                    match result {
+                        IngestFileResult::WouldCreate(slug) => report.would_create.push(slug),
+                        IngestFileResult::WouldUpdate(slug) => report.would_update.push(slug),
+                        IngestFileResult::Unchanged => report.unchanged_count += 1,
+                        IngestFileResult::Created
+                        | IngestFileResult::Updated
+                        | IngestFileResult::Skipped => {},
+                    }
                 },
                 Err(e) => {
                     report
@@ -67,7 +86,7 @@ impl IngestionService {
         source: &IngestionSource<'_>,
         override_existing: bool,
         dry_run: bool,
-    ) -> Result<(), ContentError> {
+    ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = std::fs::read_to_string(path)?;
         let (metadata, content_text) =
             Self::parse_frontmatter(&markdown_text, source.allowed_content_types)?;
@@ -90,19 +109,19 @@ impl IngestionService {
             resolved_category_id,
         )?;
 
-        // In dry_run mode, skip database operations but validate everything
-        if dry_run {
-            return Ok(());
-        }
-
         let existing_content = self
             .content_repo
             .get_by_source_and_slug(&new_content.source_id, &new_content.slug)
             .await?;
 
+        let slug = new_content.slug.clone();
+        let new_hash = Self::compute_version_hash(&new_content);
+
         match existing_content {
             None => {
-                let version_hash = Self::compute_version_hash(&new_content);
+                if dry_run {
+                    return Ok(IngestFileResult::WouldCreate(slug));
+                }
                 let params = CreateContentParams::new(
                     new_content.slug.clone(),
                     new_content.title.clone(),
@@ -116,29 +135,40 @@ impl IngestionService {
                 .with_kind(new_content.kind.clone())
                 .with_image(new_content.image.clone())
                 .with_category_id(new_content.category_id.clone())
-                .with_version_hash(version_hash)
+                .with_version_hash(new_hash)
                 .with_links(new_content.links.clone());
 
                 self.content_repo.create(&params).await?;
+                Ok(IngestFileResult::Created)
             },
             Some(existing) => {
-                if override_existing {
-                    let version_hash = Self::compute_version_hash(&new_content);
-                    let update_params = UpdateContentParams::new(
-                        existing.id.clone(),
-                        new_content.title.clone(),
-                        new_content.description.clone(),
-                        new_content.body.clone(),
-                    )
-                    .with_keywords(new_content.keywords.clone())
-                    .with_image(new_content.image.clone())
-                    .with_version_hash(version_hash);
-                    self.content_repo.update(&update_params).await?;
+                let content_unchanged = existing.version_hash == new_hash;
+
+                if content_unchanged {
+                    return Ok(IngestFileResult::Unchanged);
                 }
+
+                if !override_existing {
+                    return Ok(IngestFileResult::Skipped);
+                }
+
+                if dry_run {
+                    return Ok(IngestFileResult::WouldUpdate(slug));
+                }
+
+                let update_params = UpdateContentParams::new(
+                    existing.id.clone(),
+                    new_content.title.clone(),
+                    new_content.description.clone(),
+                    new_content.body.clone(),
+                )
+                .with_keywords(new_content.keywords.clone())
+                .with_image(new_content.image.clone())
+                .with_version_hash(new_hash);
+                self.content_repo.update(&update_params).await?;
+                Ok(IngestFileResult::Updated)
             },
         }
-
-        Ok(())
     }
 
     fn parse_frontmatter(
@@ -165,11 +195,12 @@ impl IngestionService {
         dir: &Path,
         allowed_content_types: &[&str],
         recursive: bool,
-    ) -> (Vec<std::path::PathBuf>, Vec<String>) {
+    ) -> (Vec<std::path::PathBuf>, Vec<String>, Vec<String>) {
         use walkdir::WalkDir;
 
         let mut files = Vec::new();
         let mut errors = Vec::new();
+        let mut warnings = Vec::new();
 
         let walker = if recursive {
             WalkDir::new(dir).min_depth(1)
@@ -177,7 +208,14 @@ impl IngestionService {
             WalkDir::new(dir).min_depth(1).max_depth(1)
         };
 
+        let mut has_subdirectories = false;
+
         for entry in walker.into_iter().filter_map(Result::ok) {
+            if entry.file_type().is_dir() && !recursive {
+                has_subdirectories = true;
+                continue;
+            }
+
             if !entry.file_type().is_file() {
                 continue;
             }
@@ -196,7 +234,15 @@ impl IngestionService {
             }
         }
 
-        (files, errors)
+        if files.is_empty() && has_subdirectories {
+            warnings.push(
+                "No markdown files found in root directory, but subdirectories exist. Consider \
+                 using --recursive to scan nested directories."
+                    .to_string(),
+            );
+        }
+
+        (files, errors, warnings)
     }
 
     fn validate_markdown_file(

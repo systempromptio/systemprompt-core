@@ -42,8 +42,8 @@ paths:
 
 security:
   jwt_issuer: test-issuer
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
     - mcp
@@ -98,8 +98,8 @@ paths:
 
 security:
   jwt_issuer: minimal-issuer
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -159,8 +159,8 @@ paths:
 
 security:
   jwt_issuer: test
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -274,8 +274,8 @@ paths:
 
 security:
   jwt_issuer: dev
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -430,8 +430,8 @@ paths:
 
 security:
   jwt_issuer: save-test
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -511,8 +511,8 @@ paths:
 
 security:
   jwt_issuer: auto-dir
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -588,8 +588,8 @@ paths:
 
 security:
   jwt_issuer: valid
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -654,8 +654,8 @@ paths:
 
 security:
   jwt_issuer: test
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 
@@ -728,8 +728,8 @@ paths:
 
 security:
   jwt_issuer: env-test
-  jwt_access_token_expiration: 3600
-  jwt_refresh_token_expiration: 86400
+  jwt_access_token_expiration: 2592000
+  jwt_refresh_token_expiration: 15552000
   jwt_audiences:
     - api
 

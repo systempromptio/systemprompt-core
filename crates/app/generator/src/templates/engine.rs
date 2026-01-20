@@ -24,6 +24,10 @@ pub async fn load_web_config() -> Result<serde_yaml::Value> {
 }
 
 pub fn get_templates_path(config: &serde_yaml::Value) -> Result<String> {
+    if let Ok(path) = std::env::var("SYSTEMPROMPT_TEMPLATES_PATH") {
+        return Ok(path);
+    }
+
     config
         .get("paths")
         .and_then(|p| p.get("templates"))
@@ -33,6 +37,10 @@ pub fn get_templates_path(config: &serde_yaml::Value) -> Result<String> {
 }
 
 pub fn get_assets_path(config: &serde_yaml::Value) -> Result<String> {
+    if let Ok(path) = std::env::var("SYSTEMPROMPT_ASSETS_PATH") {
+        return Ok(path);
+    }
+
     config
         .get("paths")
         .and_then(|p| p.get("assets"))

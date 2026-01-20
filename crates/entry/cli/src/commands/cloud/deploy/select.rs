@@ -8,6 +8,7 @@ use systemprompt_core_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 
+use crate::cli_settings::CliConfig;
 use crate::shared::profile::{discover_profiles, DiscoveredProfile};
 
 #[derive(Debug)]
@@ -69,9 +70,16 @@ pub fn select_profile_interactive(profiles: &[DeployableProfile]) -> Result<usiz
         .context("Failed to select profile")
 }
 
-pub fn resolve_profile(profile_name: Option<&str>) -> Result<(Profile, PathBuf)> {
+pub fn resolve_profile(
+    profile_name: Option<&str>,
+    config: &CliConfig,
+) -> Result<(Profile, PathBuf)> {
     if let Some(name) = profile_name {
         return resolve_profile_by_name(name);
+    }
+
+    if !config.is_interactive() {
+        bail!("--profile is required in non-interactive mode for deploy");
     }
 
     resolve_profile_interactive()

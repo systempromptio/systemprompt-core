@@ -19,12 +19,16 @@ use crate::shared::resolve_profile_path;
 
 /// Performs the bootstrap sequence based on command requirements.
 #[allow(dead_code)]
-pub async fn initialize(reqs: &CommandRequirements, skip_validation: bool) -> Result<()> {
+pub async fn initialize(
+    reqs: &CommandRequirements,
+    skip_validation: bool,
+    cli_profile_override: Option<&str>,
+) -> Result<()> {
     if !reqs.profile {
         return Ok(());
     }
 
-    let profile_path = resolve_profile()?;
+    let profile_path = resolve_profile(cli_profile_override)?;
     init_profile(&profile_path)?;
     init_credentials().await?;
 
@@ -43,13 +47,12 @@ pub async fn initialize(reqs: &CommandRequirements, skip_validation: bool) -> Re
     Ok(())
 }
 
-/// Resolves the profile path from session or environment.
-pub fn resolve_profile() -> Result<PathBuf> {
+pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
     let project_ctx = ProjectContext::discover();
     let session_path = project_ctx.local_session();
     let session_profile_path = CliSession::try_load_profile_path(&session_path);
 
-    resolve_profile_path(session_profile_path).context(
+    resolve_profile_path(cli_profile_override, session_profile_path).context(
         "Profile resolution failed. Set SYSTEMPROMPT_PROFILE environment variable or create a \
          profile with 'systemprompt cloud profile create'",
     )

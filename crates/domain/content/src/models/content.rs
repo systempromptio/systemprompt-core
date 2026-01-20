@@ -109,6 +109,14 @@ pub struct IngestionReport {
     pub files_found: usize,
     pub files_processed: usize,
     pub errors: Vec<String>,
+    #[serde(default)]
+    pub warnings: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_create: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub would_update: Vec<String>,
+    #[serde(default)]
+    pub unchanged_count: usize,
 }
 
 impl IngestionReport {
@@ -117,6 +125,10 @@ impl IngestionReport {
             files_found: 0,
             files_processed: 0,
             errors: Vec::new(),
+            warnings: Vec::new(),
+            would_create: Vec::new(),
+            would_update: Vec::new(),
+            unchanged_count: 0,
         }
     }
 

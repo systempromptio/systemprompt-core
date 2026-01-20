@@ -10,7 +10,7 @@ use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::TenantDeleteArgs;
 
-pub async fn list_tenants() -> Result<()> {
+pub async fn list_tenants(config: &CliConfig) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -22,6 +22,23 @@ pub async fn list_tenants() -> Result<()> {
         CliService::section("Tenants");
         CliService::info("No tenants configured.");
         CliService::info("Run 'systemprompt cloud tenant create' to create one.");
+        return Ok(());
+    }
+
+    if !config.is_interactive() {
+        CliService::section("Tenants");
+        for tenant in &store.tenants {
+            let type_str = match tenant.tenant_type {
+                TenantType::Local => "local",
+                TenantType::Cloud => "cloud",
+            };
+            let db_status = if tenant.has_database_url() {
+                "✓ db"
+            } else {
+                "✗ db"
+            };
+            CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
+        }
         return Ok(());
     }
 
@@ -89,7 +106,7 @@ fn display_tenant_details(tenant: &StoredTenant) {
     );
 }
 
-pub async fn show_tenant(id: Option<String>) -> Result<()> {
+pub async fn show_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
@@ -97,15 +114,17 @@ pub async fn show_tenant(id: Option<String>) -> Result<()> {
         TenantStore::default()
     });
 
-    let tenant = if let Some(ref id) = id {
-        store
+    let tenant = match id {
+        Some(ref id) => store
             .find_tenant(id)
-            .ok_or_else(|| anyhow!("Tenant not found: {}", id))?
-    } else {
-        if store.tenants.is_empty() {
-            bail!("No tenants configured.");
-        }
-        select_tenant(&store.tenants)?
+            .ok_or_else(|| anyhow!("Tenant not found: {}", id))?,
+        None if config.is_interactive() => {
+            if store.tenants.is_empty() {
+                bail!("No tenants configured.");
+            }
+            select_tenant(&store.tenants)?
+        },
+        None => bail!("--id is required in non-interactive mode for tenant show"),
     };
 
     CliService::section(&format!("Tenant: {}", tenant.name));

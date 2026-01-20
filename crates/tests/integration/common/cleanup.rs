@@ -1,11 +1,15 @@
 use anyhow::Result;
 use systemprompt_core_database::{Database, DatabaseProvider};
 
+pub const TEST_SOURCE_PREFIX: &str = "test_";
+
 pub struct TestCleanup {
     db: std::sync::Arc<Database>,
     fingerprints: Vec<String>,
     task_ids: Vec<String>,
     session_ids: Vec<String>,
+    content_slugs: Vec<(String, String)>,
+    source_ids: Vec<String>,
 }
 
 impl TestCleanup {
@@ -15,6 +19,8 @@ impl TestCleanup {
             fingerprints: Vec::new(),
             task_ids: Vec::new(),
             session_ids: Vec::new(),
+            content_slugs: Vec::new(),
+            source_ids: Vec::new(),
         }
     }
 
@@ -34,6 +40,14 @@ impl TestCleanup {
         self.session_ids.push(session_id);
     }
 
+    pub fn track_content(&mut self, source_id: String, slug: String) {
+        self.content_slugs.push((source_id, slug));
+    }
+
+    pub fn track_source(&mut self, source_id: String) {
+        self.source_ids.push(source_id);
+    }
+
     pub async fn cleanup_all(&self) -> Result<()> {
         for fingerprint in &self.fingerprints {
             self.cleanup_by_fingerprint(fingerprint).await.ok();
@@ -47,6 +61,47 @@ impl TestCleanup {
             self.cleanup_session(session_id).await.ok();
         }
 
+        for (source_id, slug) in &self.content_slugs {
+            self.cleanup_content(source_id, slug).await.ok();
+        }
+
+        for source_id in &self.source_ids {
+            self.cleanup_source_content(source_id).await.ok();
+        }
+
+        self.cleanup_test_sources().await.ok();
+
+        Ok(())
+    }
+
+    async fn cleanup_content(&self, source_id: &str, slug: &str) -> Result<()> {
+        self.db
+            .execute(
+                &"DELETE FROM markdown_content WHERE source_id = $1 AND slug = $2",
+                &[&source_id, &slug],
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn cleanup_source_content(&self, source_id: &str) -> Result<()> {
+        self.db
+            .execute(
+                &"DELETE FROM markdown_content WHERE source_id = $1",
+                &[&source_id],
+            )
+            .await?;
+        Ok(())
+    }
+
+    async fn cleanup_test_sources(&self) -> Result<()> {
+        let pattern = format!("{}%", TEST_SOURCE_PREFIX);
+        self.db
+            .execute(
+                &"DELETE FROM markdown_content WHERE source_id LIKE $1",
+                &[&pattern],
+            )
+            .await?;
         Ok(())
     }
 
