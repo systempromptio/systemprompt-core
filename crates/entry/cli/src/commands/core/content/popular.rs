@@ -31,7 +31,7 @@ fn parse_duration(s: &str) -> Result<i64> {
 
 #[derive(Debug, Args)]
 pub struct PopularArgs {
-    #[arg(long, help = "Filter by source ID (required)")]
+    #[arg(help = "Source ID")]
     pub source: String,
 
     #[arg(long, default_value = "30d", help = "Time period (e.g., 7d, 30d, 1w)")]

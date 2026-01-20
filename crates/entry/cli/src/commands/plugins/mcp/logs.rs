@@ -43,6 +43,7 @@ pub struct LogsArgs {
     #[arg(
         long,
         short = 'n',
+        visible_alias = "tail",
         default_value = "50",
         help = "Number of lines to show"
     )]

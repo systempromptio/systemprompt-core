@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_cloud::{CloudApiClient, ProfilePath};
+use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
 use systemprompt_core_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
@@ -240,4 +240,31 @@ fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
         "database_url" if has_internal_db_url => None,
         _ => Some(key.to_uppercase()),
     }
+}
+
+/// Syncs cloud credentials to the deployment environment.
+///
+/// This sets the environment variables that allow the CLI to authenticate
+/// with the cloud API when running inside a deployed container.
+pub async fn sync_cloud_credentials(
+    api_client: &CloudApiClient,
+    tenant_id: &str,
+    creds: &CloudCredentials,
+) -> Result<Vec<String>> {
+    let mut secrets = HashMap::new();
+
+    secrets.insert(
+        "SYSTEMPROMPT_API_TOKEN".to_string(),
+        creds.api_token.clone(),
+    );
+    secrets.insert("SYSTEMPROMPT_API_URL".to_string(), creds.api_url.clone());
+
+    if let Some(email) = &creds.user_email {
+        secrets.insert("SYSTEMPROMPT_USER_EMAIL".to_string(), email.clone());
+    }
+
+    // Mark as remote CLI environment to skip local credential validation
+    secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
+
+    api_client.set_secrets(tenant_id, secrets).await
 }
