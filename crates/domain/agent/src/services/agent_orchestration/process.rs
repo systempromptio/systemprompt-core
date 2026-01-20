@@ -71,6 +71,8 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
 
     let mut command = Command::new(&binary_path);
     command
+        .arg("infra")
+        .arg("admin")
         .arg("agents")
         .arg("run")
         .arg("--agent-name")
