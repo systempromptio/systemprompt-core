@@ -93,7 +93,6 @@ pub struct UpdateContentParams {
     pub keywords: String,
     pub image: Option<String>,
     pub version_hash: String,
-    /// None = keep current, Some(None) = clear, Some(Some(x)) = set to x
     #[allow(clippy::option_option)]
     pub category_id: Option<Option<CategoryId>>,
     pub public: Option<bool>,

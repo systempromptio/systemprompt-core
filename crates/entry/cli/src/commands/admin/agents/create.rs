@@ -60,8 +60,15 @@ pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<Age
         let content = fs::read_to_string(file_path)
             .with_context(|| format!("Failed to read system prompt file: {}", file_path))?;
         Some(content)
+    } else if let Some(prompt) = args.agent.system_prompt.clone() {
+        Some(prompt)
     } else {
-        args.agent.system_prompt.clone()
+        let default_prompt = if description.is_empty() {
+            format!("You are {}.", display_name)
+        } else {
+            format!("You are {}. {}", display_name, description)
+        };
+        Some(default_prompt)
     };
 
     CliService::info(&format!(

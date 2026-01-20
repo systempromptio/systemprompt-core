@@ -1,7 +1,10 @@
 use crate::cli_settings::CliConfig;
-use anyhow::Result;
+use anyhow::{Context, Result};
 use std::sync::Arc;
+use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_core_agent::services::registry::AgentRegistry;
 use systemprompt_core_logging::CliService;
+use systemprompt_core_mcp::services::McpManager;
 use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
@@ -93,5 +96,53 @@ async fn stop_mcp_servers(service_mgmt: &ServiceManagementService, force: bool) 
     }
 
     CliService::success(&format!("Stopped {} MCP servers", stopped));
+    Ok(())
+}
+
+async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
+    let registry = AgentRegistry::new().await?;
+    let agent = registry.get_agent(agent_identifier).await?;
+    Ok(agent.name)
+}
+
+pub async fn execute_individual_agent(
+    ctx: &Arc<AppContext>,
+    agent_id: &str,
+    force: bool,
+    _config: &CliConfig,
+) -> Result<()> {
+    CliService::section(&format!("Stopping Agent: {}", agent_id));
+
+    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+        .await
+        .context("Failed to initialize agent orchestrator")?;
+
+    let name = resolve_agent_name(agent_id).await?;
+
+    if force {
+        orchestrator.delete_agent(&name).await?;
+    } else {
+        orchestrator.disable_agent(&name).await?;
+    }
+
+    CliService::success(&format!("Agent {} stopped successfully", agent_id));
+
+    Ok(())
+}
+
+pub async fn execute_individual_mcp(
+    ctx: &Arc<AppContext>,
+    server_name: &str,
+    _force: bool,
+    _config: &CliConfig,
+) -> Result<()> {
+    CliService::section(&format!("Stopping MCP Server: {}", server_name));
+
+    let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+
+    manager.stop_services(Some(server_name.to_string())).await?;
+
+    CliService::success(&format!("MCP server {} stopped successfully", server_name));
+
     Ok(())
 }

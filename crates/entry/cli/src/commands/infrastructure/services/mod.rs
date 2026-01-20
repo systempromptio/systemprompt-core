@@ -11,14 +11,38 @@ use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_runtime::AppContext;
 
+#[derive(Debug, Clone, Subcommand)]
+pub enum StartTarget {
+    Agent { agent_id: String },
+    Mcp { server_name: String },
+}
+
+#[derive(Debug, Clone, Subcommand)]
+pub enum StopTarget {
+    Agent {
+        agent_id: String,
+        #[arg(long, help = "Force stop (SIGKILL)")]
+        force: bool,
+    },
+    Mcp {
+        server_name: String,
+        #[arg(long, help = "Force stop (SIGKILL)")]
+        force: bool,
+    },
+}
+
 #[derive(Debug, Subcommand)]
 pub enum ServicesCommands {
     #[command(
         about = "Start API, agents, and MCP servers",
         after_help = "EXAMPLES:\n  systemprompt infra services start\n  systemprompt infra \
-                      services start --api\n  systemprompt infra services start --agents --mcp"
+                      services start --api\n  systemprompt infra services start --agents --mcp\n  \
+                      systemprompt infra services start agent <name>"
     )]
     Start {
+        #[command(subcommand)]
+        target: Option<StartTarget>,
+
         #[arg(long, help = "Start all services")]
         all: bool,
 
@@ -41,8 +65,16 @@ pub enum ServicesCommands {
         skip_migrate: bool,
     },
 
-    #[command(about = "Stop running services gracefully")]
+    #[command(
+        about = "Stop running services gracefully",
+        after_help = "EXAMPLES:\n  systemprompt infra services stop\n  systemprompt infra \
+                      services stop --api\n  systemprompt infra services stop agent <name> \
+                      [--force]"
+    )]
     Stop {
+        #[command(subcommand)]
+        target: Option<StopTarget>,
+
         #[arg(long, help = "Stop all services")]
         all: bool,
 
@@ -121,6 +153,7 @@ pub enum RestartTarget {
 pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()> {
     match command {
         ServicesCommands::Start {
+            target,
             all,
             api,
             agents,
@@ -129,31 +162,64 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             skip_web,
             skip_migrate,
         } => {
+            if let Some(individual) = target {
+                let ctx = Arc::new(
+                    AppContext::new()
+                        .await
+                        .context("Failed to initialize application context")?,
+                );
+                return match individual {
+                    StartTarget::Agent { agent_id } => {
+                        start::execute_individual_agent(&ctx, &agent_id, config).await
+                    },
+                    StartTarget::Mcp { server_name } => {
+                        start::execute_individual_mcp(&ctx, &server_name, config).await
+                    },
+                };
+            }
+
             let flags = start::ServiceFlags {
                 all,
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
-            let target = start::ServiceTarget::from_flags(flags);
+            let service_target = start::ServiceTarget::from_flags(flags);
             let options = start::StartupOptions {
                 skip_web,
                 skip_migrate,
             };
-            start::execute(target, options, config).await
+            start::execute(service_target, options, config).await
         },
 
         ServicesCommands::Stop {
+            target,
             all,
             api,
             agents,
             mcp,
             force,
         } => {
+            if let Some(individual) = target {
+                let ctx = Arc::new(
+                    AppContext::new()
+                        .await
+                        .context("Failed to initialize application context")?,
+                );
+                return match individual {
+                    StopTarget::Agent { agent_id, force } => {
+                        stop::execute_individual_agent(&ctx, &agent_id, force, config).await
+                    },
+                    StopTarget::Mcp { server_name, force } => {
+                        stop::execute_individual_mcp(&ctx, &server_name, force, config).await
+                    },
+                };
+            }
+
             let flags = start::ServiceFlags {
                 all,
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
-            let target = start::ServiceTarget::from_flags(flags);
-            stop::execute(target, force, config).await
+            let service_target = start::ServiceTarget::from_flags(flags);
+            stop::execute(service_target, force, config).await
         },
 
         ServicesCommands::Restart {

@@ -1,9 +1,15 @@
 use crate::cli_settings::CliConfig;
 use crate::presentation::StartupRenderer;
-use anyhow::Result;
+use anyhow::{Context, Result};
+use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_cloud::CredentialsBootstrap;
+use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_core_agent::services::registry::AgentRegistry;
+use systemprompt_core_logging::CliService;
+use systemprompt_core_mcp::services::McpManager;
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_runtime::AppContext;
 use systemprompt_traits::{startup_channel, Phase, StartupEvent, StartupEventExt};
 
 pub struct ServiceTarget {
@@ -140,4 +146,50 @@ async fn run_startup(
             .map(|p| p.server.port)
             .unwrap_or(8080)
     ))
+}
+
+async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
+    let registry = AgentRegistry::new().await?;
+    let agent = registry.get_agent(agent_identifier).await?;
+    Ok(agent.name)
+}
+
+pub async fn execute_individual_agent(
+    ctx: &Arc<AppContext>,
+    agent_id: &str,
+    _config: &CliConfig,
+) -> Result<()> {
+    CliService::section(&format!("Starting Agent: {}", agent_id));
+
+    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+        .await
+        .context("Failed to initialize agent orchestrator")?;
+
+    let name = resolve_agent_name(agent_id).await?;
+    let service_id = orchestrator.start_agent(&name, None).await?;
+
+    CliService::success(&format!(
+        "Agent {} started successfully (service ID: {})",
+        agent_id, service_id
+    ));
+
+    Ok(())
+}
+
+pub async fn execute_individual_mcp(
+    ctx: &Arc<AppContext>,
+    server_name: &str,
+    _config: &CliConfig,
+) -> Result<()> {
+    CliService::section(&format!("Starting MCP Server: {}", server_name));
+
+    let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+
+    manager
+        .start_services(Some(server_name.to_string()))
+        .await?;
+
+    CliService::success(&format!("MCP server {} started successfully", server_name));
+
+    Ok(())
 }

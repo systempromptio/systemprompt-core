@@ -5,6 +5,7 @@ use super::types::{ValidationIssue, ValidationOutput};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::SecretsBootstrap;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
@@ -16,7 +17,21 @@ pub fn execute(
     args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
-    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
+    let mut services_config =
+        ConfigLoader::load().context("Failed to load services configuration")?;
+
+    // Expand secrets in provider API keys before validation
+    if let Ok(secrets) = SecretsBootstrap::get() {
+        for provider_config in services_config.ai.providers.values_mut() {
+            if provider_config.api_key.starts_with("${") && provider_config.api_key.ends_with('}') {
+                let var_name =
+                    provider_config.api_key[2..provider_config.api_key.len() - 1].to_string();
+                if let Some(v) = secrets.get(&var_name) {
+                    provider_config.api_key.clone_from(v);
+                }
+            }
+        }
+    }
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
