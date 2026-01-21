@@ -13,6 +13,7 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
 use systemprompt_logging::set_startup_mode;
+use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::requirements::{CommandRequirements, HasRequirements};
@@ -218,20 +219,46 @@ pub async fn run() -> Result<()> {
         bootstrap::init_profile(&profile_path)?;
         bootstrap::init_credentials().await?;
 
+        let profile = ProfileBootstrap::get()?;
+        let is_cloud = profile.target.is_cloud();
+
         if should_check_remote_routing(cli.command.as_ref()) {
-            if let Ok(routing::ExecutionTarget::Remote {
-                hostname,
-                token,
-                context_id,
-            }) = routing::determine_execution_target()
-            {
-                let args = reconstruct_args(&cli);
-                let exit_code =
-                    routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300)
-                        .await?;
-                #[allow(clippy::exit)]
-                std::process::exit(exit_code);
+            match routing::determine_execution_target() {
+                Ok(routing::ExecutionTarget::Remote {
+                    hostname,
+                    token,
+                    context_id,
+                }) => {
+                    let args = reconstruct_args(&cli);
+                    let exit_code =
+                        routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300)
+                            .await?;
+                    #[allow(clippy::exit)]
+                    std::process::exit(exit_code);
+                },
+                Ok(routing::ExecutionTarget::Local) if is_cloud => {
+                    bail!(
+                        "Cloud profile '{}' requires remote execution but no tenant is configured.\n\
+                         Ensure cloud.tenant_id is set and run 'systemprompt infra system login'.",
+                        profile.name
+                    );
+                },
+                Err(e) if is_cloud => {
+                    bail!(
+                        "Cloud profile '{}' requires remote execution but routing failed: {}\n\
+                         Run 'systemprompt infra system login' to authenticate.",
+                        profile.name,
+                        e
+                    );
+                },
+                _ => {},
             }
+        } else if is_cloud {
+            bail!(
+                "Cloud profile '{}' selected but this command doesn't support remote execution.\n\
+                 Use a local profile with --profile <name>.",
+                profile.name
+            );
         }
 
         if reqs.secrets {
