@@ -49,7 +49,7 @@ async fn fetch_task_row(
         sqlx::Error::RowNotFound => {
             RepositoryError::NotFound(format!("Task {} not found", task_id))
         },
-        _ => RepositoryError::Database(e.to_string()),
+        _ => RepositoryError::Database(e),
     })
 }
 
@@ -117,7 +117,7 @@ async fn load_task_messages(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     if message_rows.is_empty() {
         return Ok(None);
@@ -162,7 +162,7 @@ async fn load_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     converters::build_parts_from_rows(&part_rows)
 }
@@ -193,7 +193,7 @@ async fn load_execution_steps(
     let steps = step_repo
         .list_by_task(task_id)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
     if steps.is_empty() {
         Ok(None)

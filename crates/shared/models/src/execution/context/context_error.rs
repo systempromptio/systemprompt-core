@@ -1,20 +1,10 @@
-//! Context extraction error types and A2A protocol context handling.
-
 use thiserror::Error;
 
-/// Marker context ID for task-based methods where context is resolved from task
-/// storage. Per A2A spec Section 7.3, tasks/get only requires task_id - the
-/// context is stored with the task.
 pub const TASK_BASED_CONTEXT_MARKER: &str = "__task_based__";
 
-/// Result of context extraction from A2A payload.
-/// Per A2A spec, message methods include contextId directly,
-/// while task methods only have task ID (context resolved from storage).
 #[derive(Debug, Clone)]
 pub enum ContextIdSource {
-    /// contextId found directly in payload (message/send, message/stream)
     Direct(String),
-    /// Task-based method - context should be resolved from task storage
     FromTask { task_id: String },
 }
 

@@ -1,5 +1,3 @@
-//! Database value types.
-
 use chrono::{DateTime, NaiveDateTime, Utc};
 use std::collections::HashMap;
 

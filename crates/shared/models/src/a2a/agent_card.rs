@@ -270,8 +270,7 @@ impl AgentCard {
         self.capabilities
             .extensions
             .as_ref()
-            .map(|exts| exts.iter().any(|ext| ext.uri == "systemprompt:mcp-tools"))
-            .unwrap_or(false)
+            .is_some_and(|exts| exts.iter().any(|ext| ext.uri == "systemprompt:mcp-tools"))
     }
 
     pub fn ensure_mcp_extension(&mut self) {

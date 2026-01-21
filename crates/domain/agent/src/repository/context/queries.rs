@@ -32,7 +32,7 @@ impl ContextRepository {
                 "Context {} not found for user {}",
                 context_id, user_id
             )),
-            _ => RepositoryError::Database(e.to_string()),
+            _ => RepositoryError::Database(e),
         })?;
 
         Ok(UserContext {
@@ -62,7 +62,7 @@ impl ContextRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         Ok(rows
             .into_iter()
@@ -102,7 +102,7 @@ impl ContextRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         Ok(rows
             .into_iter()
@@ -136,7 +136,7 @@ impl ContextRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         if !task_ids.is_empty() {
             let constructor = TaskConstructor::new(self.db_pool.clone());
@@ -165,7 +165,7 @@ impl ContextRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         for row in context_updates {
             events.push(ContextStateEvent::ContextUpdated {

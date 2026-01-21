@@ -80,6 +80,7 @@ pub enum AuthAction {
 }
 
 impl AuthAction {
+    #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
             Self::Read => "read",

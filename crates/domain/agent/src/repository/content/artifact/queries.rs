@@ -39,7 +39,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -81,7 +81,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -128,7 +128,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -169,7 +169,7 @@ impl ArtifactRepository {
         )
         .fetch_optional(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         match row {
             Some(row) => {
@@ -211,7 +211,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {

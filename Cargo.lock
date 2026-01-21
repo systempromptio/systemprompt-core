@@ -4602,11 +4602,12 @@ dependencies = [
 name = "systemprompt-identifiers"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
+ "chrono",
  "schemars",
  "serde",
  "serde_json",
  "sqlx",
- "systemprompt-traits",
  "uuid",
 ]
 
@@ -4777,6 +4778,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "systemprompt-identifiers",
  "thiserror 2.0.17",
 ]
 
@@ -4890,13 +4892,9 @@ name = "systemprompt-template-provider"
 version = "0.0.1"
 dependencies = [
  "async-trait",
- "serde",
- "serde_json",
- "serde_yaml",
  "systemprompt-provider-contracts",
  "thiserror 2.0.17",
  "tokio",
- "tracing",
 ]
 
 [[package]]
@@ -4931,6 +4929,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "systemprompt-database",
+ "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "thiserror 2.0.17",
  "tokio",

@@ -17,7 +17,7 @@ pub async fn persist_message_sqlx(
     upload_ctx: Option<&FileUploadContext<'_>>,
 ) -> Result<(), RepositoryError> {
     let metadata_json = serde_json::to_value(&message.metadata)
-        .map_err(|e| RepositoryError::Serialization(e.to_string()))?;
+        .map_err(|e| RepositoryError::Serialization(e))?;
 
     sqlx::query!(
         "DELETE FROM message_parts WHERE message_id = $1",
@@ -25,7 +25,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     sqlx::query!(
         "DELETE FROM task_messages WHERE message_id = $1",
@@ -33,7 +33,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let client_message_id = message
         .metadata
@@ -64,7 +64,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     for (idx, part) in message.parts.iter().enumerate() {
         persist_part_sqlx(tx, part, &message.id, task_id, idx as i32, upload_ctx).await?;

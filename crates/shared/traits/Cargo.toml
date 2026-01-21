@@ -15,6 +15,7 @@ workspace = true
 
 [dependencies]
 systemprompt-provider-contracts = { path = "../provider-contracts" }
+systemprompt-identifiers = { path = "../identifiers" }
 
 async-trait = { workspace = true }
 anyhow = { workspace = true }

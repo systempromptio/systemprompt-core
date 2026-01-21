@@ -31,7 +31,7 @@ pub async fn get_artifact_parts(
     )
     .fetch_all(pool)
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let mut parts = Vec::new();
 
@@ -101,7 +101,7 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
         },
         Part::File(file_part) => {
             let file_uri: Option<&str> = None;
@@ -118,11 +118,11 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
         },
         Part::Data(data_part) => {
             let data_json = serde_json::to_value(&data_part.data)
-                .map_err(|e| RepositoryError::Serialization(e.to_string()))?;
+                .map_err(|e| RepositoryError::Serialization(e))?;
             sqlx::query!(
                 r#"INSERT INTO artifact_parts (artifact_id, context_id, part_kind, sequence_number, data_content)
                 VALUES ($1, $2, 'data', $3, $4)"#,
@@ -133,7 +133,7 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
         },
     }
 

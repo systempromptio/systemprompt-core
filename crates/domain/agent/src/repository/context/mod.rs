@@ -23,7 +23,7 @@ impl ContextRepository {
         self.db_pool
             .as_ref()
             .get_postgres_pool()
-            .ok_or_else(|| RepositoryError::Database("PostgreSQL pool not available".to_string()))
+            .ok_or_else(|| RepositoryError::InvalidData("PostgreSQL pool not available".to_string()))
     }
 }
 

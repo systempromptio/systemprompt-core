@@ -27,7 +27,7 @@ pub fn definition_to_mcp_tool(def: &ToolDefinition) -> McpTool {
         description: def.description.clone(),
         input_schema: def.input_schema.clone(),
         output_schema: def.output_schema.clone(),
-        service_id: def.service_id.clone().into(),
+        service_id: McpServerId::new(def.service_id.clone()),
         terminal_on_success: def.terminal_on_success,
         model_config: def
             .model_config

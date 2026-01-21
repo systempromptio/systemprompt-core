@@ -168,7 +168,7 @@ impl TemplateRegistry {
                 return loader.load(&definition.source).await.map_err(|e| {
                     TemplateError::LoadError {
                         name: definition.name.clone(),
-                        source: e,
+                        source: e.into(),
                     }
                 });
             }

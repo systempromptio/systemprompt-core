@@ -33,7 +33,7 @@ pub async fn get_messages_by_task(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let mut messages = Vec::new();
 
@@ -90,7 +90,7 @@ pub async fn get_messages_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let mut messages = Vec::new();
 
@@ -124,7 +124,7 @@ pub async fn get_next_sequence_number(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
 }
@@ -139,7 +139,7 @@ pub async fn get_next_sequence_number_sqlx(
     )
     .fetch_optional(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
 }

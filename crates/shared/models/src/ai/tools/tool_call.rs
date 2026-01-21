@@ -64,7 +64,7 @@ impl ToolExecution {
         let input = row
             .get("input")
             .and_then(|v| v.as_str())
-            .map(|s| {
+            .and_then(|s| {
                 serde_json::from_str(s)
                     .map_err(|e| {
                         tracing::warn!(error = %e, raw = %s, "Failed to parse tool input JSON");
@@ -72,7 +72,6 @@ impl ToolExecution {
                     })
                     .ok()
             })
-            .flatten()
             .unwrap_or(JsonValue::Null);
 
         let output = row.get("output").and_then(|v| v.as_str()).and_then(|s| {

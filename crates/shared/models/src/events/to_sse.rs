@@ -4,7 +4,6 @@ use serde::Serialize;
 use super::{A2AEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 use crate::agui::AgUiEvent;
 
-/// Trait for types that can be serialized to Server-Sent Events.
 pub trait ToSse {
     fn to_sse(&self) -> Result<Event, serde_json::Error>;
 }

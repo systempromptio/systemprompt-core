@@ -3,7 +3,6 @@ pub mod auth;
 pub mod content;
 pub mod context;
 pub mod context_provider;
-pub mod db_value;
 pub mod domain_config;
 pub mod events;
 pub mod extension_error;
@@ -29,7 +28,9 @@ pub use context::{
     InjectContextHeaders, Module, ModuleRegistry,
 };
 
-pub use db_value::{parse_database_datetime, DbValue, FromDbValue, JsonRow, ToDbValue};
+pub use systemprompt_identifiers::{
+    parse_database_datetime, DbValue, FromDbValue, JsonRow, ToDbValue,
+};
 
 pub use repository::{CrudRepository, Repository, RepositoryError};
 

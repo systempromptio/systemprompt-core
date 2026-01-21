@@ -5,6 +5,7 @@ use std::time::Duration;
 use super::{ModuleInfo, Phase, ServiceInfo};
 
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum StartupEvent {
     PhaseStarted {
         phase: Phase,

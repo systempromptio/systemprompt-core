@@ -19,7 +19,7 @@ impl TaskRepository {
         let mut tx = pool
             .begin()
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
 
         let status = task_state_to_db_string(task.status.state.clone());
         let metadata_json = task
@@ -54,7 +54,7 @@ impl TaskRepository {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?
+            .map_err(|e| RepositoryError::Database(e))?
         } else {
             sqlx::query!(
                 r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, metadata = $3, updated_at = CURRENT_TIMESTAMP WHERE task_id = $4"#,
@@ -65,7 +65,7 @@ impl TaskRepository {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?
+            .map_err(|e| RepositoryError::Database(e))?
         };
 
         if result.rows_affected() == 0 {
@@ -113,7 +113,7 @@ impl TaskRepository {
 
         tx.commit()
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
 
         for _ in 0..2 {
             if let Err(e) = self
@@ -146,12 +146,12 @@ impl TaskRepository {
         )
         .execute(&*pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         sqlx::query!("DELETE FROM task_messages WHERE task_id = $1", task_id_str)
             .execute(&*pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
 
         sqlx::query!(
             "DELETE FROM task_execution_steps WHERE task_id = $1",
@@ -159,12 +159,12 @@ impl TaskRepository {
         )
         .execute(&*pool)
         .await
-        .map_err(|e| RepositoryError::Database(e.to_string()))?;
+        .map_err(|e| RepositoryError::Database(e))?;
 
         sqlx::query!("DELETE FROM agent_tasks WHERE task_id = $1", task_id_str)
             .execute(&*pool)
             .await
-            .map_err(|e| RepositoryError::Database(e.to_string()))?;
+            .map_err(|e| RepositoryError::Database(e))?;
 
         Ok(())
     }

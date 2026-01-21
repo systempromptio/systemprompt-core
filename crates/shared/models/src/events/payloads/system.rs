@@ -26,7 +26,6 @@ pub struct ContextDeletedPayload {
     pub context_id: ContextId,
 }
 
-/// A context summary for snapshot events (frontend-facing)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ContextSummary {

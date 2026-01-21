@@ -22,6 +22,7 @@ pub struct ValidationError {
 }
 
 impl ValidationError {
+    #[must_use]
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             field: field.into(),
@@ -31,11 +32,13 @@ impl ValidationError {
         }
     }
 
+    #[must_use]
     pub fn with_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.path = Some(path.into());
         self
     }
 
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
         self
@@ -69,6 +72,7 @@ pub struct ValidationWarning {
 }
 
 impl ValidationWarning {
+    #[must_use]
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             field: field.into(),
@@ -77,6 +81,7 @@ impl ValidationWarning {
         }
     }
 
+    #[must_use]
     pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
         self.suggestion = Some(suggestion.into());
         self
@@ -97,6 +102,7 @@ pub struct ValidationReport {
 }
 
 impl ValidationReport {
+    #[must_use]
     pub fn new(domain: impl Into<String>) -> Self {
         Self {
             domain: domain.into(),
@@ -146,10 +152,12 @@ pub struct StartupValidationReport {
 }
 
 impl StartupValidationReport {
+    #[must_use]
     pub fn new() -> Self {
         Self::default()
     }
 
+    #[must_use]
     pub fn with_profile_path(mut self, path: impl Into<PathBuf>) -> Self {
         self.profile_path = Some(path.into());
         self
