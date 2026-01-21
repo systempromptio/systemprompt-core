@@ -1,3 +1,6 @@
+mod creation;
+mod lookup;
+
 use anyhow::Result;
 use axum::http::{HeaderMap, Uri};
 use std::collections::HashMap;
@@ -7,15 +10,11 @@ use uuid::Uuid;
 
 use systemprompt_analytics::{
     AnalyticsService, CreateAnalyticsSessionInput, FingerprintRepository, SessionAnalytics,
-    MAX_SESSIONS_PER_FINGERPRINT,
 };
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_traits::{UserEvent, UserEventPublisher, UserProvider};
 
-use crate::services::generation::{generate_anonymous_jwt, JwtSigningParams};
-
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
-const SESSION_LOOKUP_TIMEOUT_MS: u64 = 500;
 
 struct SessionCreationParams<'a> {
     analytics: SessionAnalytics,
@@ -211,154 +210,5 @@ impl SessionCreationService {
                 None,
             )
             .await;
-    }
-
-    async fn try_reuse_session_at_limit(
-        &self,
-        fingerprint: &str,
-        client_id: &ClientId,
-        jwt_secret: &str,
-    ) -> Option<AnonymousSessionInfo> {
-        let fp_repo = self.fingerprint_repo.as_ref()?;
-
-        let active_count = fp_repo.count_active_sessions(fingerprint).await.ok()?;
-        if active_count < MAX_SESSIONS_PER_FINGERPRINT {
-            return None;
-        }
-
-        let session_id_str = fp_repo
-            .find_reusable_session(fingerprint)
-            .await
-            .ok()
-            .flatten()?;
-
-        let existing_session = self
-            .analytics_service
-            .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS)
-            .await
-            .ok()
-            .flatten()?;
-
-        let user_id_str = existing_session.user_id.as_ref()?;
-        let user_id = UserId::new(user_id_str.clone());
-        let session_id = SessionId::new(session_id_str);
-
-        let config = systemprompt_models::Config::get().ok()?;
-        let signing = JwtSigningParams {
-            secret: jwt_secret,
-            issuer: &config.jwt_issuer,
-        };
-        let token =
-            generate_anonymous_jwt(user_id_str, session_id.as_str(), client_id, &signing).ok()?;
-
-        tracing::debug!(
-            fingerprint = %fingerprint,
-            session_id = %session_id,
-            active_sessions = active_count,
-            "Reusing session due to fingerprint session limit"
-        );
-
-        Some(AnonymousSessionInfo {
-            session_id,
-            user_id,
-            is_new: false,
-            jwt_token: token,
-        })
-    }
-
-    async fn try_find_existing_session(
-        &self,
-        fingerprint: &str,
-        client_id: &ClientId,
-        jwt_secret: &str,
-    ) -> Option<AnonymousSessionInfo> {
-        let lookup_result = tokio::time::timeout(
-            tokio::time::Duration::from_millis(SESSION_LOOKUP_TIMEOUT_MS),
-            self.analytics_service
-                .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS),
-        )
-        .await;
-
-        let existing_session = lookup_result.ok()?.ok()??;
-        let user_id_str = existing_session.user_id.as_ref()?;
-
-        let user_id = UserId::new(user_id_str.clone());
-        let session_id = SessionId::new(existing_session.session_id.clone());
-
-        let config = systemprompt_models::Config::get().ok()?;
-        let signing = JwtSigningParams {
-            secret: jwt_secret,
-            issuer: &config.jwt_issuer,
-        };
-        let token = generate_anonymous_jwt(
-            user_id_str,
-            &existing_session.session_id,
-            client_id,
-            &signing,
-        )
-        .ok()?;
-
-        Some(AnonymousSessionInfo {
-            session_id,
-            user_id,
-            is_new: false,
-            jwt_token: token,
-        })
-    }
-
-    async fn create_new_session(
-        &self,
-        params: SessionCreationParams<'_>,
-    ) -> Result<AnonymousSessionInfo> {
-        let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-
-        let anonymous_user = self
-            .user_provider
-            .create_anonymous(&params.fingerprint)
-            .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
-        let user_id = UserId::new(anonymous_user.id);
-
-        let jwt_expiration_seconds =
-            systemprompt_models::Config::get()?.jwt_access_token_expiration;
-        let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
-
-        self.analytics_service
-            .create_analytics_session(CreateAnalyticsSessionInput {
-                session_id: &session_id,
-                user_id: Some(&user_id),
-                analytics: &params.analytics,
-                session_source: params.session_source,
-                is_bot: params.is_bot,
-                expires_at,
-            })
-            .await?;
-
-        let config = systemprompt_models::Config::get()?;
-        let signing = JwtSigningParams {
-            secret: params.jwt_secret,
-            issuer: &config.jwt_issuer,
-        };
-        let token = generate_anonymous_jwt(
-            user_id.as_str(),
-            session_id.as_str(),
-            params.client_id,
-            &signing,
-        )?;
-
-        self.publish_event(UserEvent::UserCreated {
-            user_id: user_id.to_string(),
-        });
-        self.publish_event(UserEvent::SessionCreated {
-            user_id: user_id.to_string(),
-            session_id: session_id.to_string(),
-        });
-
-        Ok(AnonymousSessionInfo {
-            session_id,
-            user_id,
-            is_new: true,
-            jwt_token: token,
-        })
     }
 }

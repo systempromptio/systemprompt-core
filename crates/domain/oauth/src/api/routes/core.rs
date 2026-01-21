@@ -49,7 +49,6 @@ pub fn public_router() -> Router<systemprompt_runtime::AppContext> {
             "/webauthn/auth/finish",
             post(webauthn::authenticate::finish_auth),
         )
-        .route("/webauthn/dev-auth", post(webauthn::authenticate::dev_auth))
 }
 
 pub fn authenticated_router() -> Router<systemprompt_runtime::AppContext> {

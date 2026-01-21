@@ -239,6 +239,9 @@ pub fn generate_references_html(item: &Value) -> Result<String> {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ContentError::missing_field("link.url"))?;
         let domain = url::Url::parse(url)
+            .inspect_err(|e| {
+                tracing::warn!(error = %e, url = %url, "Failed to parse URL");
+            })
             .ok()
             .and_then(|u| u.host_str().map(ToString::to_string))
             .ok_or_else(|| ContentError::invalid_content(format!("Invalid URL: {}", url)))?;

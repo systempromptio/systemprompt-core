@@ -27,15 +27,14 @@ pub fn normalize_image_url(image: Option<&str>) -> Option<String> {
     Some(img.to_string())
 }
 
-fn convert_external_url_to_local(_url: &str) -> Option<String> {
+const fn convert_external_url_to_local(_url: &str) -> Option<String> {
     None
 }
 
 fn convert_root_images_to_content_path(path: &str) -> Option<String> {
     let files_config = FilesConfig::from_profile()
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::warn!(error = %e, "Failed to get files config for path conversion");
-            e
         })
         .ok()?;
     let url_prefix = files_config.url_prefix();

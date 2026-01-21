@@ -26,8 +26,8 @@ src/
 │   ├── banned_ip/
 │   │   ├── mod.rs                      # BannedIpRepository struct
 │   │   ├── types.rs                    # BannedIp, BanDuration, BanIpParams
-│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban
-│   │   └── listing.rs                  # list_active_bans, list_bans_by_source
+│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban, cleanup_expired
+│   │   └── listing.rs                  # list_active_bans, list_bans_by_source, count_active_bans
 │   └── user/
 │       ├── mod.rs                      # Module exports
 │       ├── find.rs                     # find_by_id, find_by_email, find_by_name, find_by_role
@@ -115,8 +115,7 @@ let stats = user_service.get_stats().await?;
 | Crate | Purpose |
 |-------|---------|
 | `systemprompt-database` | DbPool for database access |
-| `systemprompt-logging` | Logging infrastructure |
-| `systemprompt-traits` | UserProvider, RoleProvider traits |
+| `systemprompt-traits` | UserProvider, RoleProvider, Job traits |
 | `systemprompt-identifiers` | UserId, SessionId typed identifiers |
 | `systemprompt-models` | UserRole, UserStatus enums |
 | `systemprompt-provider-contracts` | Job registration macro |

@@ -2,9 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 
 use super::AgentAnalyticsRepository;
-use crate::models::cli::{
-    AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow,
-};
+use crate::models::cli::{AgentErrorRow, AgentHourlyRow, AgentStatusBreakdownRow, AgentSummaryRow};
 
 impl AgentAnalyticsRepository {
     pub async fn agent_exists(

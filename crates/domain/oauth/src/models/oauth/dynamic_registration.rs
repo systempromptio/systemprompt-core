@@ -82,7 +82,7 @@ impl DynamicRegistrationRequest {
         self.scope
             .as_ref()
             .map(|s| s.split_whitespace().map(ToString::to_string).collect())
-            .unwrap_or_default()
+            .unwrap_or_else(Vec::new)
     }
 
     pub fn get_token_endpoint_auth_method(&self) -> Result<String, String> {

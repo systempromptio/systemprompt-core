@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** PARTIAL - Significant improvements made
+**Verdict:** PASS - All violations fixed
 
 ---
 
@@ -16,23 +16,11 @@
 | Formatting | ✅ |
 | Inline Comments | ✅ |
 | Anti-patterns | ✅ |
-| File Length (<300) | ❌ (5 files remaining) |
+| File Length (<300) | ✅ |
 
 ---
 
-## Remaining Violations
-
-| File | Lines | Over By |
-|------|-------|---------|
-| `src/repository/session/mutations.rs` | 303 | 3 |
-| `src/services/behavioral_detector.rs` | 345 | 45 |
-| `src/repository/fingerprint.rs` | 366 | 66 |
-| `src/repository/agents.rs` | 396 | 96 |
-| `src/repository/core_stats.rs` | 404 | 104 |
-
----
-
-## Fixed Violations
+## Completed Fixes
 
 ### Inline Comments Removed
 - `src/models/cli.rs` - 9 section header comment blocks removed
@@ -65,13 +53,40 @@
 
 **repository/tools.rs (432 lines) → repository/tools/ (3 files)**
 - `mod.rs` (19 lines)
-- `list_queries.rs` (180 lines)
-- `detail_queries.rs` (229 lines)
+- `list_queries.rs` (195 lines)
+- `detail_queries.rs` (233 lines)
 
 **services/extractor.rs (430 lines) → split + helper modules**
 - `extractor.rs` (246 lines)
 - `bot_keywords.rs` (119 lines)
 - `user_agent.rs` (69 lines)
+
+**repository/core_stats.rs (404 lines) → repository/core_stats/ (5 files)**
+- `mod.rs` (20 lines)
+- `overview.rs` (91 lines)
+- `activity.rs` (91 lines)
+- `leaderboards.rs` (67 lines)
+- `breakdowns.rs` (105 lines)
+
+**repository/agents.rs (396 lines) → repository/agents/ (4 files)**
+- `mod.rs` (19 lines)
+- `list_queries.rs` (156 lines)
+- `stats_queries.rs` (109 lines)
+- `detail_queries.rs` (103 lines)
+
+**repository/fingerprint.rs (366 lines) → repository/fingerprint/ (3 files)**
+- `mod.rs` (25 lines)
+- `queries.rs` (158 lines)
+- `mutations.rs` (195 lines)
+
+**services/behavioral_detector.rs (345 lines) → services/behavioral_detector/ (3 files)**
+- `mod.rs` (56 lines)
+- `types.rs` (54 lines)
+- `checks.rs` (236 lines)
+
+**repository/session/mutations.rs (303 lines) → split**
+- `mutations.rs` (224 lines)
+- `behavioral.rs` (76 lines)
 
 ---
 
@@ -81,16 +96,6 @@
 cargo clippy -p systemprompt-analytics -- -D warnings  # PASS
 cargo fmt -p systemprompt-analytics -- --check          # PASS
 ```
-
----
-
-## Actions Required (Remaining)
-
-1. Split `src/repository/core_stats.rs` (404 lines) into submodules
-2. Split `src/repository/agents.rs` (396 lines) into submodules
-3. Split `src/repository/fingerprint.rs` (366 lines) into submodules
-4. Split `src/services/behavioral_detector.rs` (345 lines) into submodules
-5. Trim `src/repository/session/mutations.rs` by 3 lines
 
 ---
 
@@ -135,15 +140,27 @@ crates/domain/analytics/
     │   └── funnel.rs (85 lines)
     ├── repository/
     │   ├── mod.rs (39 lines)
-    │   ├── agents.rs (396 lines) ❌
+    │   ├── agents/
+    │   │   ├── mod.rs (19 lines)
+    │   │   ├── list_queries.rs (156 lines)
+    │   │   ├── stats_queries.rs (109 lines)
+    │   │   └── detail_queries.rs (103 lines)
     │   ├── cli_sessions.rs (143 lines)
     │   ├── content_analytics.rs (99 lines)
     │   ├── conversations.rs (152 lines)
-    │   ├── core_stats.rs (404 lines) ❌
+    │   ├── core_stats/
+    │   │   ├── mod.rs (20 lines)
+    │   │   ├── overview.rs (91 lines)
+    │   │   ├── activity.rs (91 lines)
+    │   │   ├── leaderboards.rs (67 lines)
+    │   │   └── breakdowns.rs (105 lines)
     │   ├── costs.rs (174 lines)
     │   ├── engagement.rs (205 lines)
     │   ├── events.rs (177 lines)
-    │   ├── fingerprint.rs (366 lines) ❌
+    │   ├── fingerprint/
+    │   │   ├── mod.rs (25 lines)
+    │   │   ├── queries.rs (158 lines)
+    │   │   └── mutations.rs (195 lines)
     │   ├── funnel/
     │   │   ├── mod.rs (21 lines)
     │   │   ├── finders.rs (112 lines)
@@ -155,18 +172,22 @@ crates/domain/analytics/
     │   ├── requests.rs (194 lines)
     │   ├── tools/
     │   │   ├── mod.rs (19 lines)
-    │   │   ├── detail_queries.rs (229 lines)
-    │   │   └── list_queries.rs (180 lines)
+    │   │   ├── detail_queries.rs (233 lines)
+    │   │   └── list_queries.rs (195 lines)
     │   ├── traffic.rs (158 lines)
     │   └── session/
-    │       ├── mod.rs (174 lines)
-    │       ├── mutations.rs (303 lines) ❌
+    │       ├── mod.rs (175 lines)
+    │       ├── behavioral.rs (76 lines)
+    │       ├── mutations.rs (224 lines)
     │       ├── queries.rs (239 lines)
     │       └── types.rs (56 lines)
     └── services/
         ├── mod.rs (21 lines)
         ├── anomaly_detection.rs (202 lines)
-        ├── behavioral_detector.rs (345 lines) ❌
+        ├── behavioral_detector/
+        │   ├── mod.rs (56 lines)
+        │   ├── types.rs (54 lines)
+        │   └── checks.rs (236 lines)
         ├── bot_keywords.rs (119 lines)
         ├── detection.rs (32 lines)
         ├── extractor.rs (246 lines)

@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** NON-COMPLIANT (10 files exceed 300 line limit)
+**Verdict:** NON-COMPLIANT (11 files exceed 300 line limit)
 
 ---
 
@@ -18,34 +18,21 @@
 
 ---
 
-## Fixed Violations
+## Violations
 
-| Issue | Status |
-|-------|--------|
-| cargo fmt failures (4 files) | FIXED |
-| Missing module.yaml | FIXED |
-| Inline comments (//) - 20+ | FIXED |
-| Doc comments (///) - 15+ | FIXED |
-| `unwrap_or_default()` - 25 instances | FIXED |
-| artifact.rs (555 lines) | FIXED - Split into 4 modules |
-| task/mod.rs (428 lines) | FIXED - Split into 5 modules |
-
----
-
-## Remaining Violations
-
-| File | Lines | Limit |
-|------|-------|-------|
-| `src/services/a2a_server/processing/message/stream_processor.rs` | 440 | 300 |
-| `src/services/a2a_server/processing/strategies/planned.rs` | 419 | 300 |
-| `src/services/registry.rs` | 408 | 300 |
-| `src/models/a2a/protocol.rs` | 399 | 300 |
-| `src/services/agent_orchestration/lifecycle.rs` | 382 | 300 |
-| `src/services/a2a_server/processing/task_builder.rs` | 380 | 300 |
-| `src/services/external_integrations/webhook/service.rs` | 375 | 300 |
-| `src/services/a2a_server/handlers/request/mod.rs` | 336 | 300 |
-| `src/repository/context/mod.rs` | 328 | 300 |
-| `src/repository/task/constructor/batch.rs` | 315 | 300 |
+| File:Line | Violation | Category |
+|-----------|-----------|----------|
+| `services/a2a_server/processing/message/stream_processor.rs` | 440 lines (limit: 300) | File Length |
+| `services/a2a_server/processing/strategies/planned.rs` | 419 lines (limit: 300) | File Length |
+| `services/registry.rs` | 408 lines (limit: 300) | File Length |
+| `models/a2a/protocol.rs` | 399 lines (limit: 300) | File Length |
+| `services/agent_orchestration/lifecycle.rs` | 382 lines (limit: 300) | File Length |
+| `services/a2a_server/processing/task_builder.rs` | 380 lines (limit: 300) | File Length |
+| `services/external_integrations/webhook/service.rs` | 375 lines (limit: 300) | File Length |
+| `services/a2a_server/handlers/request/mod.rs` | 336 lines (limit: 300) | File Length |
+| `repository/context/mod.rs` | 328 lines (limit: 300) | File Length |
+| `repository/task/constructor/batch.rs` | 319 lines (limit: 300) | File Length |
+| `api/routes/contexts/notifications/mod.rs` | 301 lines (limit: 300) | File Length |
 
 ---
 
@@ -58,8 +45,8 @@
 | No `panic!()` | PASS |
 | No `todo!()` | PASS |
 | No TODO/FIXME comments | PASS |
-| No inline comments (//) | PASS |
-| No doc comments (///) | PASS |
+| No inline comments (`//`) | PASS |
+| No doc comments (`///`) | PASS |
 | No `unwrap_or_default()` | PASS |
 | No entry layer imports | PASS |
 | Uses SQLX macros | PASS |
@@ -67,61 +54,61 @@
 | Uses thiserror | PASS |
 | Repository pattern | PASS |
 | Service layering | PASS |
-| module.yaml exists | PASS |
-| cargo fmt | PASS |
+| README.md exists | PASS |
 
 ---
 
-## Summary
+## Commands Run
 
-| Metric | Before | After |
-|--------|--------|-------|
-| cargo fmt failures | 4 | 0 |
-| Missing module.yaml | 1 | 0 |
-| Inline comments | 20+ | 0 |
-| Doc comments | 15+ | 0 |
-| `unwrap_or_default()` | 25 | 0 |
-| Files >300 lines | 13 | 10 |
-| Total violations | 65+ | 10 |
-
-**Compliance Progress:** 85% complete (10 file-length violations remaining)
+```
+cargo fmt -p systemprompt-agent -- --check    # FAIL (fixed)
+cargo fmt -p systemprompt-agent               # PASS
+cargo clippy -p systemprompt-agent -- -D warnings  # BLOCKED (dependency errors in systemprompt-runtime)
+```
 
 ---
 
-## Files Split Successfully
+## File Statistics
 
-### artifact.rs (555 lines -> 4 modules)
-
-| Module | Lines | Purpose |
-|--------|-------|---------|
-| `artifact/mod.rs` | 39 | Repository struct, trait impl, re-exports |
-| `artifact/mutations.rs` | 102 | create_artifact, delete_artifact |
-| `artifact/queries.rs` | 293 | get_* query methods, converters |
-| `artifact/parts.rs` | 141 | get_artifact_parts, persist_artifact_part |
-
-### task/mod.rs (428 lines -> 5 modules)
-
-| Module | Lines | Purpose |
-|--------|-------|---------|
-| `task/mod.rs` | 198 | Repository struct, simple wrapper methods |
-| `task/mutations.rs` | 164 | create_task, update_task_state |
-| `task/queries.rs` | 179 | get_task, list_tasks_by_context |
-| `task/task_updates.rs` | 171 | update_task_and_save_messages, delete_task |
-| `task/task_messages.rs` | 73 | Message-related methods |
+| Metric | Value |
+|--------|-------|
+| Total .rs files | 151 |
+| Files over 300 lines | 11 |
+| Files under 300 lines | 140 |
 
 ---
 
 ## Actions Required
 
-To achieve full compliance, split these 10 files to under 300 lines:
+To achieve full compliance:
 
-1. **stream_processor.rs** (440 lines) - Extract stream state, message building
-2. **planned.rs** (419 lines) - Extract tool execution, response handling
-3. **registry.rs** (408 lines) - Extract skill loading, card generation
-4. **protocol.rs** (399 lines) - Split by type category
-5. **lifecycle.rs** (382 lines) - Extract state machine
-6. **task_builder.rs** (380 lines) - Extract builder stages
-7. **webhook/service.rs** (375 lines) - Extract delivery logic
-8. **request/mod.rs** (336 lines) - Split by handler type
-9. **context/mod.rs** (328 lines) - Extract queries
-10. **batch.rs** (315 lines) - Extract converters
+1. **Split large files** (11 files exceed 300-line limit):
+
+| File | Lines | Suggested Split |
+|------|-------|-----------------|
+| `stream_processor.rs` | 440 | Extract stream state management, message building |
+| `planned.rs` | 419 | Extract tool execution, response handling |
+| `registry.rs` | 408 | Extract skill loading, card generation |
+| `protocol.rs` | 399 | Split by type category (Task, Message, Artifact) |
+| `lifecycle.rs` | 382 | Extract state machine transitions |
+| `task_builder.rs` | 380 | Extract builder stages |
+| `webhook/service.rs` | 375 | Extract delivery logic, retry handling |
+| `request/mod.rs` | 336 | Split by handler type |
+| `context/mod.rs` | 328 | Extract queries to separate module |
+| `batch.rs` | 319 | Extract converters |
+| `notifications/mod.rs` | 301 | Extract notification handlers |
+
+2. **Fix dependency issues** to enable clippy:
+   - `systemprompt-runtime` has `println!` violations blocking compilation
+
+---
+
+## Summary
+
+| Metric | Status |
+|--------|--------|
+| Total violations | 11 |
+| File length violations | 11 |
+| Compliance | ~93% (140/151 files compliant) |
+
+**Compliance Progress:** 92% of source files meet the 300-line limit. The crate follows all forbidden construct rules, uses proper error handling patterns, and has comprehensive documentation.

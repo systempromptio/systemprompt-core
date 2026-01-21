@@ -1,3 +1,4 @@
+mod behavioral;
 mod mutations;
 mod queries;
 mod types;
@@ -68,7 +69,7 @@ impl SessionRepository {
     }
 
     pub async fn mark_as_behavioral_bot(&self, session_id: &SessionId, reason: &str) -> Result<()> {
-        mutations::mark_as_behavioral_bot(&self.pool, session_id, reason).await
+        behavioral::mark_as_behavioral_bot(&self.pool, session_id, reason).await
     }
 
     pub async fn check_and_mark_behavioral_bot(
@@ -76,7 +77,7 @@ impl SessionRepository {
         session_id: &SessionId,
         request_count_threshold: i32,
     ) -> Result<bool> {
-        mutations::check_and_mark_behavioral_bot(&self.pool, session_id, request_count_threshold)
+        behavioral::check_and_mark_behavioral_bot(&self.pool, session_id, request_count_threshold)
             .await
     }
 
@@ -124,7 +125,7 @@ impl SessionRepository {
         is_behavioral_bot: bool,
         reason: Option<&str>,
     ) -> Result<()> {
-        mutations::update_behavioral_detection(
+        behavioral::update_behavioral_detection(
             &self.pool,
             session_id,
             score,

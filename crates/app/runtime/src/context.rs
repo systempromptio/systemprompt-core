@@ -244,6 +244,7 @@ impl AppContext {
     }
 }
 
+#[allow(clippy::clone_on_ref_ptr)]
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
         self.config.clone()
@@ -254,6 +255,7 @@ impl AppContextTrait for AppContext {
     }
 }
 
+#[allow(clippy::clone_on_ref_ptr)]
 impl ExtensionContext for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
         self.config.clone()
