@@ -16,11 +16,10 @@ pub struct SystemPaths {
 
 impl SystemPaths {
     const LOGS_DIR: &'static str = "logs";
-    const DEFAULTS_DIR: &'static str = "core/defaults";
 
     pub fn from_profile(paths: &PathsConfig) -> Result<Self, PathError> {
         let root = Self::canonicalize(&paths.system, "system")?;
-        let defaults = root.join(Self::DEFAULTS_DIR);
+        let defaults = Self::resolve_defaults_dir(&root);
 
         Ok(Self {
             root,
@@ -39,6 +38,10 @@ impl SystemPaths {
             field,
             source,
         })
+    }
+
+    fn resolve_defaults_dir(root: &Path) -> PathBuf {
+        root.join("defaults")
     }
 
     pub fn root(&self) -> &Path {

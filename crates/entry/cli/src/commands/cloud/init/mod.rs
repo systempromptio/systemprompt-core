@@ -40,7 +40,7 @@ backup
 docs
 instructions
 *.md
-core/web/node_modules
+web/node_modules
 .vscode
 .idea
 logs

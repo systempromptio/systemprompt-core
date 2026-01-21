@@ -14,6 +14,14 @@ impl ConfigWriter {
         Self { project_root }
     }
 
+    fn resolve_web_dir(&self) -> PathBuf {
+        let core_web = self.project_root.join("core/web");
+        if core_web.exists() {
+            return core_web;
+        }
+        self.project_root.join("web")
+    }
+
     pub fn write_env_file(config: &EnvironmentConfig, output_path: &Path) -> Result<()> {
         let mut lines: Vec<String> = config
             .variables
@@ -43,10 +51,8 @@ impl ConfigWriter {
     }
 
     pub fn write_web_env_file(&self, config: &EnvironmentConfig) -> Result<()> {
-        let web_env_path = self
-            .project_root
-            .join("core/web")
-            .join(format!(".env.{}", config.environment.as_str()));
+        let web_dir = self.resolve_web_dir();
+        let web_env_path = web_dir.join(format!(".env.{}", config.environment.as_str()));
 
         let vite_vars: Vec<String> = config
             .variables
@@ -67,7 +73,6 @@ impl ConfigWriter {
         ));
 
         if config.environment == DeployEnvironment::Local {
-            let web_dir = self.project_root.join("core/web");
             let env_link = web_dir.join(".env");
             let target = ".env.local";
 
@@ -87,7 +92,7 @@ impl ConfigWriter {
         }
 
         if config.environment == DeployEnvironment::DockerDev {
-            let vite_docker_path = self.project_root.join("core/web/.env.docker");
+            let vite_docker_path = web_dir.join(".env.docker");
             fs::write(&vite_docker_path, vite_vars.join("\n"))?;
             CliService::success(&format!(
                 "Web configuration also written to: {}",
