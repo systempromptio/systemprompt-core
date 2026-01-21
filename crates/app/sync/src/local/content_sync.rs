@@ -26,7 +26,7 @@ pub struct ContentLocalSync {
 }
 
 impl ContentLocalSync {
-    pub fn new(db: DbPool) -> Self {
+    pub const fn new(db: DbPool) -> Self {
         Self { db }
     }
 
@@ -36,7 +36,7 @@ impl ContentLocalSync {
         disk_path: &Path,
         allowed_types: &[String],
     ) -> Result<ContentDiffResult> {
-        let calculator = ContentDiffCalculator::new(self.db.clone())?;
+        let calculator = ContentDiffCalculator::new(&self.db)?;
         calculator
             .calculate_diff(source_id, disk_path, allowed_types)
             .await

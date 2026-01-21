@@ -36,7 +36,7 @@ async fn load_task_completed(
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_repo = TaskRepository::new(db.clone());
     let artifact_repo = ArtifactRepository::new(db.clone());
-    let step_repo = ExecutionStepRepository::new(db.clone())?;
+    let step_repo = ExecutionStepRepository::new(db)?;
 
     use crate::models::a2a::TaskState;
     let task_id = TaskId::new(&request.entity_id);

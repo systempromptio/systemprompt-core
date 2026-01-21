@@ -12,15 +12,6 @@ pub struct ToolCall {
     pub arguments: JsonValue,
 }
 
-/// MCP protocol result - this is the ONLY tool result type in the system.
-/// All tool execution flows through MCP and returns this type.
-///
-/// This type contains:
-/// - `content: Vec<Content>` - Text, images, resources returned by the tool
-/// - `structured_content: Option<JsonValue>` - Rich UI data (presentation
-///   cards, tables, etc.)
-/// - `is_error: Option<bool>` - Whether the execution failed
-/// - `meta: Option<JsonValue>` - Additional metadata
 pub use rmcp::model::CallToolResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,13 +64,24 @@ impl ToolExecution {
         let input = row
             .get("input")
             .and_then(|v| v.as_str())
-            .and_then(|s| serde_json::from_str(s).ok())
+            .map(|s| {
+                serde_json::from_str(s).map_err(|e| {
+                    tracing::warn!(error = %e, raw = %s, "Failed to parse tool input JSON");
+                    e
+                }).ok()
+            })
+            .flatten()
             .unwrap_or(JsonValue::Null);
 
         let output = row
             .get("output")
             .and_then(|v| v.as_str())
-            .and_then(|s| serde_json::from_str(s).ok());
+            .and_then(|s| {
+                serde_json::from_str(s).map_err(|e| {
+                    tracing::warn!(error = %e, raw = %s, "Failed to parse tool output JSON");
+                    e
+                }).ok()
+            });
 
         let status = row
             .get("status")

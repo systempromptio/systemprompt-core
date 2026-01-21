@@ -7,6 +7,7 @@ use std::path::Path;
 pub struct StoredFileId(pub String);
 
 impl StoredFileId {
+    #[must_use]
     pub fn new(id: impl Into<String>) -> Self {
         Self(id.into())
     }
@@ -67,8 +68,7 @@ pub trait FileStorage: Send + Sync {
     async fn exists(&self, id: &StoredFileId) -> Result<bool>;
 
     /// Get the public URL for a file (if applicable)
-    fn public_url(&self, id: &StoredFileId) -> Option<String> {
-        let _ = id;
+    fn public_url(&self, _id: &StoredFileId) -> Option<String> {
         None
     }
 }

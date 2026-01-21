@@ -21,7 +21,7 @@ impl std::fmt::Debug for PushNotificationConfigRepository {
 }
 
 impl PushNotificationConfigRepository {
-    pub fn new(db: DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
         Ok(Self { pool })
     }

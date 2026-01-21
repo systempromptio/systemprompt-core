@@ -71,7 +71,7 @@ impl SkillService {
         if let Some(task_id) = ctx.task_id() {
             tracing::info!(task_id = %task_id.as_str(), "Tracking skill usage for task");
 
-            let execution_step_repo = match ExecutionStepRepository::new(self.db_pool.clone()) {
+            let execution_step_repo = match ExecutionStepRepository::new(&self.db_pool) {
                 Ok(repo) => Arc::new(repo),
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to create ExecutionStepRepository");

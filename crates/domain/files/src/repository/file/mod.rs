@@ -88,7 +88,7 @@ pub struct FileRepository {
 
 impl FileRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
-        let pool = db.as_ref().get_postgres_pool_arc()?;
+        let pool = db.pool_arc()?;
         Ok(Self { pool })
     }
 

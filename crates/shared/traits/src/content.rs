@@ -29,7 +29,7 @@ pub struct ContentItem {
     pub category_id: Option<String>,
 }
 
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub struct ContentFilter {
     pub source_id: Option<String>,
     pub category_id: Option<String>,

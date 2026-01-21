@@ -12,7 +12,7 @@ pub struct ExecutionStepRepository {
 }
 
 impl ExecutionStepRepository {
-    pub fn new(db: DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
         Ok(Self { pool })
     }

@@ -5,6 +5,7 @@ use chrono::{DateTime, Utc};
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum ContextProviderError {
     #[error("Context not found: {0}")]
     NotFound(String),

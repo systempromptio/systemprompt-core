@@ -48,7 +48,9 @@ impl SkillsDiffCalculator {
                 },
                 Some(db_skill) => {
                     let db_hash = compute_db_skill_hash(db_skill);
-                    if db_hash != disk_hash {
+                    if db_hash == disk_hash {
+                        result.unchanged += 1;
+                    } else {
                         result.modified.push(SkillDiffItem {
                             skill_id: skill_id.clone(),
                             file_path: disk_skill.file_path.clone(),
@@ -57,8 +59,6 @@ impl SkillsDiffCalculator {
                             db_hash: Some(db_hash),
                             name: Some(disk_skill.name.clone()),
                         });
-                    } else {
-                        result.unchanged += 1;
                     }
                 },
             }

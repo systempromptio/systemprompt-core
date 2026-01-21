@@ -1,12 +1,28 @@
 use chrono::{DateTime, Utc};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum LogEventLevel {
     Error,
     Warn,
     Info,
     Debug,
     Trace,
+}
+
+impl std::str::FromStr for LogEventLevel {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.to_lowercase().as_str() {
+            "error" => Ok(Self::Error),
+            "warn" | "warning" => Ok(Self::Warn),
+            "info" => Ok(Self::Info),
+            "debug" => Ok(Self::Debug),
+            "trace" => Ok(Self::Trace),
+            _ => Err(format!("unknown log level: {s}")),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -18,6 +34,7 @@ pub struct LogEventData {
 }
 
 impl LogEventData {
+    #[must_use]
     pub fn new(
         timestamp: DateTime<Utc>,
         level: LogEventLevel,
@@ -39,6 +56,7 @@ pub trait LogEventPublisher: Send + Sync {
 
 /// Events for user/session changes
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum UserEvent {
     UserCreated { user_id: String },
     UserUpdated { user_id: String },
@@ -53,6 +71,7 @@ pub trait UserEventPublisher: Send + Sync {
 
 /// Events for analytics updates
 #[derive(Debug, Clone)]
+#[non_exhaustive]
 pub enum AnalyticsEvent {
     /// Analytics data has been updated
     Updated,

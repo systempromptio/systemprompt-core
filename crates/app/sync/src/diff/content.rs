@@ -16,9 +16,9 @@ pub struct ContentDiffCalculator {
 }
 
 impl ContentDiffCalculator {
-    pub fn new(db: DbPool) -> Result<Self> {
+    pub fn new(db: &DbPool) -> Result<Self> {
         Ok(Self {
-            content_repo: ContentRepository::new(&db)?,
+            content_repo: ContentRepository::new(db)?,
         })
     }
 
@@ -35,7 +35,7 @@ impl ContentDiffCalculator {
             .map(|c| (c.slug.clone(), c))
             .collect();
 
-        let disk_items = Self::scan_disk_content(disk_path, allowed_types)?;
+        let disk_items = Self::scan_disk_content(disk_path, allowed_types);
 
         let mut result = ContentDiffResult {
             source_id: source_id.to_string(),
@@ -59,7 +59,9 @@ impl ContentDiffCalculator {
                     });
                 },
                 Some(db_item) => {
-                    if db_item.version_hash != disk_hash {
+                    if db_item.version_hash == disk_hash {
+                        result.unchanged += 1;
+                    } else {
                         result.modified.push(ContentDiffItem {
                             slug: slug.clone(),
                             source_id: source_id.to_string(),
@@ -70,8 +72,6 @@ impl ContentDiffCalculator {
                             db_updated_at: Some(db_item.updated_at),
                             title: Some(disk_item.title.clone()),
                         });
-                    } else {
-                        result.unchanged += 1;
                     }
                 },
             }
@@ -98,11 +98,11 @@ impl ContentDiffCalculator {
     fn scan_disk_content(
         path: &Path,
         allowed_types: &[String],
-    ) -> Result<HashMap<String, DiskContent>> {
+    ) -> HashMap<String, DiskContent> {
         let mut items = HashMap::new();
 
         if !path.exists() {
-            return Ok(items);
+            return items;
         }
 
         for entry in WalkDir::new(path)
@@ -129,7 +129,7 @@ impl ContentDiffCalculator {
             }
         }
 
-        Ok(items)
+        items
     }
 }
 

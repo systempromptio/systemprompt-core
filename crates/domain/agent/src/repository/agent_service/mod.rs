@@ -57,7 +57,7 @@ impl AgentServiceRepository {
     ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
         let pid_i32 = pid as i32;
         let port_i32 = i32::from(port);
 
@@ -73,7 +73,7 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to register agent")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(name.to_string())
     }
@@ -86,7 +86,7 @@ impl AgentServiceRepository {
     ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
         let pid_i32 = pid as i32;
         let port_i32 = i32::from(port);
 
@@ -102,13 +102,13 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to register agent as starting")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(name.to_string())
     }
 
     pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!(
             "UPDATE services SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE name = \
@@ -118,7 +118,7 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to mark agent as running")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(())
     }
@@ -127,7 +127,7 @@ impl AgentServiceRepository {
         &self,
         agent_name: &str,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         let row = sqlx::query!(
             "SELECT name, pid, port, status FROM services WHERE name = $1",
@@ -136,7 +136,7 @@ impl AgentServiceRepository {
         .fetch_optional(pool.as_ref())
         .await
         .context("Failed to get agent status")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(row.map(|r| AgentServiceRow {
             name: r.name,
@@ -147,7 +147,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn mark_crashed(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!(
             "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -157,13 +157,13 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to mark agent as crashed")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(())
     }
 
     pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!(
             "UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -173,13 +173,13 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to mark agent as stopped")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(())
     }
 
     pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!(
             "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -189,19 +189,19 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to mark agent with error")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(())
     }
 
     pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         let rows = sqlx::query!("SELECT name FROM services WHERE status = 'running'")
             .fetch_all(pool.as_ref())
             .await
             .context("Failed to list running agents")
-            .map_err(RepositoryError::GenericError)?;
+            .map_err(RepositoryError::Other)?;
 
         Ok(rows
             .into_iter()
@@ -212,7 +212,7 @@ impl AgentServiceRepository {
     pub async fn list_running_agent_pids(
         &self,
     ) -> Result<Vec<AgentServerIdPidRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         let rows = sqlx::query!(
             "SELECT name, pid FROM services WHERE status = 'running' AND pid IS NOT NULL"
@@ -220,7 +220,7 @@ impl AgentServiceRepository {
         .fetch_all(pool.as_ref())
         .await
         .context("Failed to list running agent PIDs")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(rows
             .into_iter()
@@ -229,13 +229,13 @@ impl AgentServiceRepository {
     }
 
     pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!("DELETE FROM services WHERE name = $1", agent_name)
             .execute(pool.as_ref())
             .await
             .context("Failed to remove agent service")
-            .map_err(RepositoryError::GenericError)?;
+            .map_err(RepositoryError::Other)?;
 
         Ok(())
     }
@@ -245,7 +245,7 @@ impl AgentServiceRepository {
         agent_name: &str,
         health_status: &str,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::GenericError)?;
+        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
 
         sqlx::query!(
             "UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2",
@@ -255,7 +255,7 @@ impl AgentServiceRepository {
         .execute(pool.as_ref())
         .await
         .context("Failed to update agent health status")
-        .map_err(RepositoryError::GenericError)?;
+        .map_err(RepositoryError::Other)?;
 
         Ok(())
     }

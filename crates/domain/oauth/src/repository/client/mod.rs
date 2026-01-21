@@ -15,8 +15,8 @@ pub struct ClientRepository {
 }
 
 impl ClientRepository {
-    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
-        let pool = db_pool.as_ref().pool_arc()?;
+    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+        let pool = db.pool_arc()?;
         Ok(Self { pool })
     }
 }

@@ -22,7 +22,7 @@ impl SkillsLocalSync {
     }
 
     pub async fn calculate_diff(&self) -> Result<SkillsDiffResult> {
-        let calculator = SkillsDiffCalculator::new(self.db.clone());
+        let calculator = SkillsDiffCalculator::new(Arc::clone(&self.db));
         calculator.calculate_diff(&self.skills_path).await
     }
 
@@ -31,7 +31,7 @@ impl SkillsLocalSync {
         diff: &SkillsDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let skill_repo = SkillRepository::new(self.db.clone());
+        let skill_repo = SkillRepository::new(Arc::clone(&self.db));
         let mut result = LocalSyncResult {
             direction: "to_disk".to_string(),
             ..Default::default()
@@ -92,7 +92,7 @@ impl SkillsLocalSync {
         diff: &SkillsDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let ingestion_service = SkillIngestionService::new(self.db.clone());
+        let ingestion_service = SkillIngestionService::new(Arc::clone(&self.db));
         let mut result = LocalSyncResult {
             direction: "to_database".to_string(),
             ..Default::default()

@@ -203,7 +203,7 @@ pub async fn save_push_notification_config(
 
     tracing::info!(url = %config.url, "Push notification callback registered");
 
-    let config_repo = match PushNotificationConfigRepository::new(state.db_pool.clone()) {
+    let config_repo = match PushNotificationConfigRepository::new(&state.db_pool) {
         Ok(repo) => repo,
         Err(e) => {
             tracing::warn!(task_id = %task_id, error = %e, "Failed to create PushNotificationConfigRepository");

@@ -168,18 +168,52 @@ The `!` suffix enables compile-time verification. Zero tolerance for runtime que
 
 ### Repository Constructor
 
+Two patterns exist for constructors. Choose based on usage:
+
+#### Pattern 1: Reference Pattern (Default for Repositories)
+
 ```rust
 pub struct UserRepository {
     pool: Arc<PgPool>,
 }
 
 impl UserRepository {
-    pub fn new(db: DbPool) -> Self {
-        let pool = db.pool_arc().expect("Database must be PostgreSQL");
-        Self { pool }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc()?;
+        Ok(Self { pool })
     }
 }
 ```
+
+**Use when:**
+- Repository extracts `Arc<PgPool>` immediately in constructor
+- Component doesn't need to store/pass the full `DbPool`
+
+#### Pattern 2: Owned Pattern (For Services/Composites)
+
+```rust
+pub struct TaskService {
+    db_pool: DbPool,
+}
+
+impl TaskService {
+    pub const fn new(db_pool: DbPool) -> Self {
+        Self { db_pool }
+    }
+}
+```
+
+**Use when:**
+- Service stores `DbPool` to pass to sub-repositories/services later
+- Using `const fn` for compile-time construction
+- Component creates child components that need `DbPool`
+
+#### Naming Convention
+
+| Pattern | Parameter Name |
+|---------|---------------|
+| Reference | `db: &DbPool` |
+| Owned | `db_pool: DbPool` |
 
 ### Error Handling
 
