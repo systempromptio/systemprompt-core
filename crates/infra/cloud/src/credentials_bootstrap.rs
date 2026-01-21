@@ -136,10 +136,14 @@ impl CredentialsBootstrap {
     }
 
     pub fn expires_within(duration: chrono::Duration) -> bool {
-        Self::get()
-            .ok()
-            .flatten()
-            .is_some_and(|c| c.expires_within(duration))
+        match Self::get() {
+            Ok(Some(c)) => c.expires_within(duration),
+            Ok(None) => false,
+            Err(e) => {
+                tracing::debug!(error = %e, "Credentials not available for expiry check");
+                false
+            },
+        }
     }
 
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {

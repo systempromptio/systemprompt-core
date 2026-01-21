@@ -20,7 +20,6 @@ pub fn execute(
     let mut services_config =
         ConfigLoader::load().context("Failed to load services configuration")?;
 
-    // Expand secrets in provider API keys before validation
     if let Ok(secrets) = SecretsBootstrap::get() {
         for provider_config in services_config.ai.providers.values_mut() {
             if provider_config.api_key.starts_with("${") && provider_config.api_key.ends_with('}') {

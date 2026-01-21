@@ -1,8 +1,8 @@
 use axum::http::HeaderMap;
-use systemprompt_security::HeaderInjector;
 use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_security::HeaderInjector;
 
 #[test]
 fn test_header_session_id_constant() {

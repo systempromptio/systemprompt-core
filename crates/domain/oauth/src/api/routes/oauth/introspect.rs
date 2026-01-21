@@ -70,7 +70,7 @@ pub async fn handle_introspect(
         }
     }
 
-    match introspect_token(&repo, &request.token).await {
+    match introspect_token(&repo, &request.token) {
         Ok(response) => (StatusCode::OK, Json(response)).into_response(),
         Err(error) => {
             let error = IntrospectError {

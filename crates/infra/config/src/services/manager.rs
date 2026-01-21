@@ -134,7 +134,9 @@ impl ConfigManager {
                     }
                 }
             },
-            serde_yaml::Value::Sequence(_) => {},
+            serde_yaml::Value::Sequence(_) => {
+                tracing::warn!(key = %prefix, "YAML sequences are not supported in config flattening - skipping");
+            },
             _ => {
                 if let Some(str_val) = value.as_str() {
                     result.insert(prefix, str_val.to_string());
@@ -220,11 +222,10 @@ impl ConfigManager {
                 .as_str();
             let default_value = cap.get(2).map(|m| m.as_str());
 
-            let replacement = std::env::var(var_name).ok().unwrap_or_else(|| {
-                vars.get(var_name).map_or_else(
-                    || default_value.map_or_else(|| full_match.to_string(), ToString::to_string),
-                    Clone::clone,
-                )
+            let replacement = std::env::var(var_name).unwrap_or_else(|_| {
+                vars.get(var_name).cloned().unwrap_or_else(|| {
+                    default_value.map_or_else(|| full_match.to_string(), ToString::to_string)
+                })
             });
 
             result = result.replace(full_match, &replacement);

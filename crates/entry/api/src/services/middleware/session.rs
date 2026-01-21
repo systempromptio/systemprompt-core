@@ -4,15 +4,15 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
-use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
-use systemprompt_security::{HeaderExtractor, TokenExtractor};
-use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, SessionSource, UserId};
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 use systemprompt_runtime::AppContext;
+use systemprompt_security::{HeaderExtractor, TokenExtractor};
+use systemprompt_users::{UserProviderImpl, UserService};
 use uuid::Uuid;
 
 use super::jwt::JwtExtractor;

@@ -75,12 +75,11 @@ impl TieredRateLimiter {
         let create_limiter = |tier: RateLimitTier| -> Arc<KeyedRateLimiter> {
             let effective = config.effective_limit(base_per_second, tier);
             let burst = effective.saturating_mul(config.burst_multiplier);
-            let effective_u32 = u32::try_from(effective).unwrap_or(u32::MAX);
-            let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX);
-            let quota = Quota::per_second(
-                NonZeroU32::new(effective_u32).expect("effective_limit guarantees minimum of 1"),
-            )
-            .allow_burst(NonZeroU32::new(burst_u32.max(1)).expect("burst clamped to minimum of 1"));
+            let effective_u32 = u32::try_from(effective).unwrap_or(u32::MAX).max(1);
+            let burst_u32 = u32::try_from(burst).unwrap_or(u32::MAX).max(1);
+            let quota =
+                Quota::per_second(NonZeroU32::new(effective_u32).unwrap_or(NonZeroU32::MIN))
+                    .allow_burst(NonZeroU32::new(burst_u32).unwrap_or(NonZeroU32::MIN));
             Arc::new(RateLimiter::keyed(quota))
         };
 
@@ -169,11 +168,12 @@ pub async fn tiered_rate_limit_middleware(
         let mut response = api_error.into_response();
         response
             .headers_mut()
-            .insert("Retry-After", "1".parse().expect("valid header value"));
-        response.headers_mut().insert(
-            "X-Rate-Limit-Tier",
-            tier.as_str().parse().expect("valid header value"),
-        );
+            .insert("Retry-After", http::HeaderValue::from_static("1"));
+        if let Ok(tier_value) = http::HeaderValue::from_str(tier.as_str()) {
+            response
+                .headers_mut()
+                .insert("X-Rate-Limit-Tier", tier_value);
+        }
         response
     }
 }

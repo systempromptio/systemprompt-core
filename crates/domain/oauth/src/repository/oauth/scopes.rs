@@ -8,7 +8,7 @@ const VALID_SCOPES: &[(&str, &str, bool)] = &[
 ];
 
 impl OAuthRepository {
-    pub fn validate_scopes(&self, requested_scopes: &[String]) -> Result<Vec<String>> {
+    pub fn validate_scopes(requested_scopes: &[String]) -> Result<Vec<String>> {
         if requested_scopes.is_empty() {
             return Ok(vec![]);
         }
@@ -17,7 +17,7 @@ impl OAuthRepository {
         let mut invalid_scopes = Vec::new();
 
         for scope in requested_scopes {
-            if Self::scope_exists_static(scope) {
+            if Self::scope_exists(scope) {
                 valid_scopes.push(scope.clone());
             } else {
                 invalid_scopes.push(scope.clone());
@@ -34,18 +34,14 @@ impl OAuthRepository {
         Ok(valid_scopes)
     }
 
-    pub fn get_available_scopes(&self) -> Result<Vec<(String, Option<String>)>> {
-        Ok(VALID_SCOPES
+    pub fn get_available_scopes() -> Vec<(String, Option<String>)> {
+        VALID_SCOPES
             .iter()
             .map(|(name, desc, _)| ((*name).to_string(), Some((*desc).to_string())))
-            .collect())
+            .collect()
     }
 
-    pub fn scope_exists(&self, scope_name: &str) -> Result<bool> {
-        Ok(Self::scope_exists_static(scope_name))
-    }
-
-    fn scope_exists_static(scope_name: &str) -> bool {
+    pub fn scope_exists(scope_name: &str) -> bool {
         VALID_SCOPES.iter().any(|(name, _, _)| *name == scope_name)
     }
 
@@ -61,11 +57,11 @@ impl OAuthRepository {
         scopes.join(" ")
     }
 
-    pub fn get_default_roles(&self) -> Result<Vec<String>> {
-        Ok(VALID_SCOPES
+    pub fn get_default_roles() -> Vec<String> {
+        VALID_SCOPES
             .iter()
             .filter(|(_, _, is_default)| *is_default)
             .map(|(name, _, _)| (*name).to_string())
-            .collect())
+            .collect()
     }
 }

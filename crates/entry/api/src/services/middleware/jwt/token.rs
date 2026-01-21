@@ -1,9 +1,9 @@
 use anyhow::{anyhow, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
-use systemprompt_oauth::models::JwtClaims;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
+use systemprompt_oauth::models::JwtClaims;
 
 #[derive(Debug, Clone)]
 pub struct JwtUserContext {

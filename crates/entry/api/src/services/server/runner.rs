@@ -17,20 +17,30 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
     match reconcile_agents(&ctx, events.as_ref()).await {
         Ok(started_count) => {
             if let Some(ref tx) = events {
-                let _ = tx.send(StartupEvent::AgentReconciliationComplete {
-                    running: started_count,
-                    total: started_count,
-                });
+                if tx
+                    .send(StartupEvent::AgentReconciliationComplete {
+                        running: started_count,
+                        total: started_count,
+                    })
+                    .is_err()
+                {
+                    tracing::debug!("Startup event receiver dropped");
+                }
                 tx.phase_completed(Phase::Agents);
             }
         },
         Err(e) => {
             if let Some(ref tx) = events {
                 tx.phase_failed(Phase::Agents, e.to_string());
-                let _ = tx.send(StartupEvent::Error {
-                    message: format!("Agent reconciliation failed: {e}"),
-                    fatal: true,
-                });
+                if tx
+                    .send(StartupEvent::Error {
+                        message: format!("Agent reconciliation failed: {e}"),
+                        fatal: true,
+                    })
+                    .is_err()
+                {
+                    tracing::debug!("Startup event receiver dropped");
+                }
             }
             return Err(e);
         },

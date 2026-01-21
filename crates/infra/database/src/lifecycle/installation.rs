@@ -5,7 +5,6 @@ use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSo
 use systemprompt_models::modules::{Module, ModuleSchema};
 use tracing::{info, warn};
 
-/// Module installer that handles schema and seed installation
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleInstaller;
 
@@ -91,13 +90,11 @@ pub async fn install_schema(db: &dyn DatabaseProvider, schema_path: &Path) -> Re
     SqlExecutor::execute_statements_parsed(db, &schema_content).await
 }
 
-/// Install a seed from a file path
 pub async fn install_seed(db: &dyn DatabaseProvider, seed_path: &Path) -> Result<()> {
     let seed_content = std::fs::read_to_string(seed_path)?;
     SqlExecutor::execute_statements_parsed(db, &seed_content).await
 }
 
-/// Check if a table exists in the database
 async fn table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<bool> {
     let query = format!(
         "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{}')",
@@ -122,10 +119,6 @@ async fn table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<boo
         },
     }
 }
-
-// =============================================================================
-// EXTENSION SCHEMA INSTALLATION
-// =============================================================================
 
 pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
@@ -160,7 +153,6 @@ fn log_installation_complete() {
     info!("Extension schema installation complete");
 }
 
-/// Install schemas for a single extension.
 async fn install_extension_schema(
     ext: &dyn Extension,
     db: &dyn DatabaseProvider,

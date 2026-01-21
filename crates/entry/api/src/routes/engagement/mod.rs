@@ -1,3 +1,4 @@
+use anyhow::Result;
 use axum::routing::post;
 use axum::Router;
 use std::sync::Arc;
@@ -9,19 +10,14 @@ mod handlers;
 
 pub use handlers::{BatchResponse, EngagementBatchInput, EngagementState};
 
-pub fn router(ctx: &AppContext) -> Router {
+pub fn router(ctx: &AppContext) -> Result<Router> {
     let state = EngagementState {
-        repo: Arc::new(
-            EngagementRepository::new(ctx.db_pool())
-                .expect("Failed to create EngagementRepository"),
-        ),
-        content_repo: Arc::new(
-            ContentRepository::new(ctx.db_pool()).expect("Failed to create ContentRepository"),
-        ),
+        repo: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+        content_repo: Arc::new(ContentRepository::new(ctx.db_pool())?),
     };
 
-    Router::new()
+    Ok(Router::new()
         .route("/", post(handlers::record_engagement))
         .route("/batch", post(handlers::record_engagement_batch))
-        .with_state(state)
+        .with_state(state))
 }

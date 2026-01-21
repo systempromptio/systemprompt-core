@@ -286,7 +286,6 @@ pub async fn sync_cloud_credentials(
         secrets.insert("SYSTEMPROMPT_USER_EMAIL".to_string(), email.clone());
     }
 
-    // Mark as remote CLI environment to skip local credential validation
     secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
 
     api_client.set_secrets(tenant_id, secrets).await

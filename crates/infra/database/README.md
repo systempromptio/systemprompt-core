@@ -8,35 +8,109 @@ PostgreSQL database abstraction layer.
 database/
 ├── Cargo.toml
 ├── module.yml
+├── README.md
+├── status.md
 ├── schema/
-│   └── functions.sql          # Shared PostgreSQL functions
+│   └── functions.sql
 └── src/
-    ├── lib.rs                  # Crate root, public exports
-    ├── error.rs                # RepositoryError type
+    ├── lib.rs
+    ├── error.rs
+    ├── admin/
+    │   ├── mod.rs
+    │   ├── introspection.rs
+    │   └── query_executor.rs
+    ├── lifecycle/
+    │   ├── mod.rs
+    │   ├── installation.rs
+    │   └── validation.rs
     ├── models/
-    │   ├── mod.rs              # Module exports
-    │   ├── info.rs             # DatabaseInfo, TableInfo, ColumnInfo
-    │   ├── query.rs            # DatabaseQuery, QuerySelector, FromDatabaseRow, QueryResult
-    │   └── transaction.rs      # DatabaseTransaction trait
+    │   ├── mod.rs
+    │   ├── info.rs
+    │   ├── query.rs
+    │   └── transaction.rs
     ├── repository/
-    │   ├── mod.rs              # Module exports
-    │   ├── base.rs             # Repository trait, PgDbPool, PaginatedRepository
-    │   ├── info.rs             # DatabaseInfoRepository
-    │   └── macros.rs           # impl_repository_new!, define_repository!, impl_repository_pool!
+    │   ├── mod.rs
+    │   ├── base.rs
+    │   ├── cleanup.rs
+    │   ├── entity.rs
+    │   ├── info.rs
+    │   ├── macros.rs
+    │   └── service.rs
     └── services/
-        ├── mod.rs              # Module exports
-        ├── database.rs         # Database wrapper, DbPool, DatabaseExt
-        ├── display.rs          # DatabaseCliDisplay trait
-        ├── executor.rs         # SqlExecutor utility
-        ├── provider.rs         # DatabaseProvider, DatabaseProviderExt traits
-        ├── transaction.rs      # with_transaction, with_transaction_retry helpers
+        ├── mod.rs
+        ├── database.rs
+        ├── display.rs
+        ├── executor.rs
+        ├── provider.rs
+        ├── transaction.rs
         └── postgres/
-            ├── mod.rs          # PostgresProvider implementation
-            ├── conversion.rs   # row_to_json, bind_params, rows_to_result
-            ├── ext.rs          # DatabaseProviderExt implementation
-            ├── introspection.rs # get_database_info
-            └── transaction.rs  # PostgresTransaction implementation
+            ├── mod.rs
+            ├── conversion.rs
+            ├── ext.rs
+            ├── introspection.rs
+            └── transaction.rs
 ```
+
+## Modules
+
+### `admin/`
+Administrative database utilities for introspection and query execution.
+
+| File | Purpose |
+|------|---------|
+| `introspection.rs` | `DatabaseAdminService` for listing tables, describing columns, getting indexes |
+| `query_executor.rs` | `QueryExecutor` for safe SQL execution with read-only mode support |
+
+### `lifecycle/`
+Database setup and validation.
+
+| File | Purpose |
+|------|---------|
+| `installation.rs` | Schema and seed installation for modules and extensions |
+| `validation.rs` | Connection and schema validation functions |
+
+### `models/`
+Data structures for database operations.
+
+| File | Purpose |
+|------|---------|
+| `info.rs` | `DatabaseInfo`, `TableInfo`, `ColumnInfo`, `IndexInfo` |
+| `query.rs` | `DatabaseQuery`, `QuerySelector`, `FromDatabaseRow`, `QueryResult` |
+| `transaction.rs` | `DatabaseTransaction` trait |
+
+### `repository/`
+Repository pattern implementations.
+
+| File | Purpose |
+|------|---------|
+| `base.rs` | `Repository` trait, `PgDbPool` type alias, `PaginatedRepository` |
+| `cleanup.rs` | Cleanup utilities for expired data |
+| `entity.rs` | Generic `Entity` trait and `GenericRepository<E>` |
+| `info.rs` | `DatabaseInfoRepository` for metadata queries |
+| `macros.rs` | `impl_repository_new!`, `define_repository!`, `impl_repository_pool!` |
+| `service.rs` | `ServiceRepository` for service process management |
+
+### `services/`
+Core database services and providers.
+
+| File | Purpose |
+|------|---------|
+| `database.rs` | `Database` wrapper, `DbPool`, `DatabaseExt` |
+| `display.rs` | `DatabaseCliDisplay` trait for CLI output |
+| `executor.rs` | `SqlExecutor` for SQL statement parsing and execution |
+| `provider.rs` | `DatabaseProvider`, `DatabaseProviderExt` traits |
+| `transaction.rs` | `with_transaction`, `with_transaction_retry` helpers |
+
+### `services/postgres/`
+PostgreSQL-specific implementations.
+
+| File | Purpose |
+|------|---------|
+| `mod.rs` | `PostgresProvider` implementation |
+| `conversion.rs` | `row_to_json`, `bind_params`, `rows_to_result` |
+| `ext.rs` | `DatabaseProviderExt` implementation |
+| `introspection.rs` | `get_database_info` for schema introspection |
+| `transaction.rs` | `PostgresTransaction` implementation |
 
 ## Public API
 

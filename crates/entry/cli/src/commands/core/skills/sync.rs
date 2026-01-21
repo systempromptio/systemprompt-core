@@ -75,7 +75,6 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
         Some(SyncDirection::ToDisk) => LocalSyncDirection::ToDisk,
         Some(SyncDirection::ToDb) => LocalSyncDirection::ToDatabase,
         None => {
-            // For dry-run, default to to-db (most common use case) to allow quick previews
             if args.dry_run {
                 LocalSyncDirection::ToDatabase
             } else if !config.is_interactive() {

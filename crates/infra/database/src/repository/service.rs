@@ -1,12 +1,9 @@
-//! Service repository for managing service records in the database.
-
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
 use crate::DbPool;
 
-/// Database record for a service
 #[derive(Debug, Clone, FromRow, Serialize, Deserialize)]
 pub struct ServiceConfig {
     pub name: String,
@@ -19,7 +16,6 @@ pub struct ServiceConfig {
     pub updated_at: String,
 }
 
-/// Input for creating a new service
 #[derive(Debug)]
 pub struct CreateServiceInput<'a> {
     pub name: &'a str,
@@ -29,7 +25,6 @@ pub struct CreateServiceInput<'a> {
     pub binary_mtime: Option<i64>,
 }
 
-/// Repository for managing services in the database
 #[derive(Debug, Clone)]
 pub struct ServiceRepository {
     db_pool: DbPool,
@@ -264,7 +259,6 @@ impl ServiceRepository {
         Ok(())
     }
 
-    /// Alias for `get_all_running_services` - returns services with pid field
     pub async fn get_running_services_with_pid(&self) -> Result<Vec<ServiceConfig>> {
         self.get_all_running_services().await
     }

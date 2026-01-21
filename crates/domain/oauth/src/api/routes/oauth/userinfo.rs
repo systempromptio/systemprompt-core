@@ -36,7 +36,7 @@ pub async fn handle_userinfo(
         return (StatusCode::UNAUTHORIZED, Json(error)).into_response();
     };
 
-    get_userinfo(&token).await.map_or_else(
+    get_userinfo(&token).map_or_else(
         |_| {
             let error = UserinfoError {
                 error: "invalid_token".to_string(),

@@ -1,5 +1,3 @@
-//! CLI gateway endpoint for remote command execution.
-
 use axum::extract::Extension;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;

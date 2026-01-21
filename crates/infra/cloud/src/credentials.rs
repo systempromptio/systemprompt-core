@@ -3,8 +3,8 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::Path;
-use systemprompt_logging::CliService;
 use systemprompt_identifiers::CloudAuthToken;
+use systemprompt_logging::CliService;
 use validator::Validate;
 
 use crate::auth;

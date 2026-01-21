@@ -51,7 +51,6 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
             })?
     };
 
-    // Dry-run doesn't require confirmation since no changes are made
     if args.dry_run {
         let output = DeleteOutput {
             deleted: false,
@@ -64,7 +63,6 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
         return Ok(CommandResult::card(output).with_title("Content Delete (Dry Run)"));
     }
 
-    // Only require confirmation for actual deletions
     if !args.yes && config.is_interactive() {
         CliService::warning(&format!(
             "This will permanently delete content: {}",

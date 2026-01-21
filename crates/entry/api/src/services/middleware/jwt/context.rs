@@ -6,10 +6,10 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_database::DbPool;
-use systemprompt_security::{HeaderExtractor, TokenExtractor};
-use systemprompt_users::UserService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
+use systemprompt_security::{HeaderExtractor, TokenExtractor};
+use systemprompt_users::UserService;
 
 use super::token::{JwtExtractor, JwtUserContext};
 

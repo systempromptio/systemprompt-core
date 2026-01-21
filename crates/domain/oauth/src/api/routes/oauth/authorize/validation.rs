@@ -42,9 +42,7 @@ pub async fn validate_authorize_request(
 
     let requested_scopes = OAuthRepository::parse_scopes(&scope);
 
-    let valid_scopes = repo
-        .validate_scopes(&requested_scopes)
-        .await
+    let valid_scopes = OAuthRepository::validate_scopes(&requested_scopes)
         .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
 
     for requested_scope in &valid_scopes {

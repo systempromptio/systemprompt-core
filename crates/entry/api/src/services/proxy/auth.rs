@@ -6,9 +6,9 @@ use std::str::FromStr;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_mcp::McpServerRegistry;
-use systemprompt_oauth::services::AuthService;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
 

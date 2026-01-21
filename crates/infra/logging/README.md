@@ -1,68 +1,141 @@
-# systemprompt-core-logging
+# systemprompt-logging
 
-Core logging module for SystemPrompt.
+Core logging infrastructure for SystemPrompt.
+
+## Overview
+
+This crate provides a dual-layer logging architecture combining console output with PostgreSQL persistence. It includes async batch processing, automatic context propagation, retention policies, and rich CLI output utilities.
+
+**Key Features:**
+- Dual-layer logging (console + database)
+- Async batch processing with configurable flush intervals
+- Automatic context propagation (user_id, session_id, task_id, trace_id)
+- Cron-based log retention with per-level policies
+- AI/MCP operation tracing and querying
+- Rich CLI output with themes and progress indicators
 
 ## Structure
 
 ```
 src/
-├── lib.rs                          - Module entry, init_logging(), init_console_logging()
+├── lib.rs                              - Entry point: init_logging(), init_console_logging()
 │
 ├── layer/
-│   ├── mod.rs                      - DatabaseLayer for async log persistence
-│   └── visitor.rs                  - FieldVisitor, SpanVisitor, field_names constants
+│   ├── mod.rs                          - DatabaseLayer: async batch persistence to PostgreSQL
+│   └── visitor.rs                      - FieldVisitor, SpanVisitor for field extraction
 │
 ├── models/
-│   ├── mod.rs                      - Module exports
-│   ├── log_entry.rs                - LogEntry with builder pattern
-│   ├── log_error.rs                - LoggingError enum
-│   ├── log_filter.rs               - LogFilter for paginated queries
-│   ├── log_level.rs                - LogLevel enum
-│   └── log_row.rs                  - LogRow for SQLx mapping
+│   ├── mod.rs                          - Re-exports
+│   ├── log_entry.rs                    - LogEntry struct with builder pattern
+│   ├── log_error.rs                    - LoggingError enum (thiserror)
+│   ├── log_filter.rs                   - LogFilter for paginated queries
+│   ├── log_level.rs                    - LogLevel enum (ERROR, WARN, INFO, DEBUG, TRACE)
+│   └── log_row.rs                      - LogRow for SQLx database mapping
 │
 ├── repository/
-│   ├── mod.rs                      - LoggingRepository CRUD operations
+│   ├── mod.rs                          - LoggingRepository: CRUD with terminal/database output
 │   ├── analytics/
-│   │   └── mod.rs                  - AnalyticsRepository, AnalyticsEvent
+│   │   └── mod.rs                      - AnalyticsRepository, AnalyticsEvent
 │   └── operations/
-│       ├── mod.rs                  - Operation exports
-│       ├── queries.rs              - get_log, list_logs, list_logs_paginated
-│       └── mutations.rs            - create_log, update_log, delete_log, cleanup
+│       ├── mod.rs                      - Re-exports
+│       ├── queries.rs                  - get_log, list_logs, list_logs_paginated, count_logs
+│       └── mutations.rs                - create_log, update_log, delete_log, cleanup_old_logs
 │
-└── services/
-    ├── mod.rs                      - Service exports
-    ├── database_log.rs             - DatabaseLogService implementing LogService trait
-    │
-    ├── output/
-    │   └── mod.rs                  - Startup mode control, log publisher
-    │
-    ├── spans/
-    │   └── mod.rs                  - RequestSpan, SystemSpan, RequestSpanBuilder
-    │
-    ├── cli/
-    │   ├── mod.rs                  - CliService facade
-    │   ├── display.rs              - Display traits, render_table, truncate_to_width
-    │   ├── module.rs               - ModuleDisplay, ModuleInstall, ModuleUpdate
-    │   ├── prompts.rs              - Prompts, PromptBuilder, QuickPrompts
-    │   ├── summary.rs              - ValidationSummary, OperationResult, ProgressSummary
-    │   └── theme.rs                - Icons, Colors, Theme, MessageLevel, ItemStatus
-    │
-    └── retention/
-        ├── mod.rs                  - Module exports
-        ├── policies.rs             - RetentionPolicy, RetentionConfig
-        └── scheduler.rs            - RetentionScheduler for cron-based cleanup
+├── services/
+│   ├── mod.rs                          - Re-exports
+│   ├── database_log.rs                 - DatabaseLogService: implements LogService trait
+│   ├── format.rs                       - FilterSystemFields: filters "system" from console output
+│   ├── maintenance.rs                  - LoggingMaintenanceService: cleanup operations
+│   │
+│   ├── cli/
+│   │   ├── mod.rs                      - CliService: logging facade (success, warning, error, etc.)
+│   │   ├── display.rs                  - Display traits, render_table, truncate_to_width
+│   │   ├── module.rs                   - ModuleDisplay, ModuleInstall, ModuleUpdate
+│   │   ├── prompts.rs                  - Prompts, PromptBuilder, QuickPrompts
+│   │   ├── summary.rs                  - ValidationSummary, OperationResult, ProgressSummary
+│   │   └── theme.rs                    - Icons, Colors, Theme, MessageLevel, ItemStatus
+│   │
+│   ├── output/
+│   │   └── mod.rs                      - Startup mode: is_startup_mode(), set_startup_mode()
+│   │                                     Log publisher: publish_log(), set_log_publisher()
+│   │
+│   ├── retention/
+│   │   ├── mod.rs                      - Re-exports
+│   │   ├── policies.rs                 - RetentionPolicy, RetentionConfig (per-level retention)
+│   │   └── scheduler.rs                - RetentionScheduler: cron-based cleanup (daily 2AM)
+│   │
+│   └── spans/
+│       └── mod.rs                      - RequestSpan, SystemSpan, RequestSpanBuilder
+│
+├── trace/
+│   ├── mod.rs                          - Re-exports
+│   ├── models.rs                       - TraceEvent, TaskInfo, ExecutionStep, AiRequestInfo,
+│   │                                     McpToolExecution, ConversationMessage, ToolLogEntry
+│   ├── service.rs                      - TraceQueryService: generic trace querying
+│   ├── queries.rs                      - SQL queries for trace events and summaries
+│   ├── ai_trace_service.rs             - AiTraceService: AI/MCP operation tracing
+│   └── ai_trace_queries.rs             - SQL queries for AI requests, tasks, MCP executions
+│
+schema/
+├── log.sql                             - logs table, indexes, analytical views
+└── analytics.sql                       - analytics_events table with GIN indexes
 ```
 
 ## Public API
 
-- `init_logging(db_pool)` - Initialize logging with database persistence
+### Initialization
+- `init_logging(db_pool)` - Initialize with database persistence
 - `init_console_logging()` - Initialize console-only logging
-- `DatabaseLayer` - Tracing layer for async log persistence
-- `LogEntry`, `LogLevel`, `LogFilter`, `LoggingError` - Core types
-- `LoggingRepository` - Database operations for logs
-- `DatabaseLogService` - Trait-based service implementing `LogService` from systemprompt-traits
-- `AnalyticsRepository`, `AnalyticsEvent` - Analytics tracking
-- `RequestSpan`, `SystemSpan`, `RequestSpanBuilder` - Tracing context wrappers
-- `CliService` - CLI output facade
+
+### Core Types
+- `LogEntry` - Log entry with metadata and context IDs
+- `LogLevel` - Enum: ERROR, WARN, INFO, DEBUG, TRACE
+- `LogFilter` - Pagination and filtering for queries
+- `LoggingError` - Error type for logging operations
+- `DatabaseLayer` - Tracing layer for async database persistence
+
+### Repositories
+- `LoggingRepository` - CRUD operations for logs
+- `AnalyticsRepository` - Analytics event tracking
+- `AnalyticsEvent` - Structured analytics event
+
+### Services
+- `DatabaseLogService` - Implements `LogService` trait from systemprompt-traits
+- `LoggingMaintenanceService` - Log cleanup and maintenance
+- `CliService` - Rich CLI output facade
+- `FilterSystemFields` - Console field filter
+
+### Spans
+- `RequestSpan` - For user-initiated operations
+- `SystemSpan` - For internal/background operations
+- `RequestSpanBuilder` - Fluent builder for request spans
+
+### Retention
+- `RetentionConfig` - Per-level retention configuration
+- `RetentionPolicy` - Individual retention policy
+- `RetentionScheduler` - Cron-based cleanup scheduler
+
+### Trace Services
+- `TraceQueryService` - Generic trace querying
+- `AiTraceService` - AI/MCP operation tracing
+- `TraceEvent`, `TaskInfo`, `ExecutionStep`, `AiRequestInfo`
+- `McpToolExecution`, `ConversationMessage`, `ToolLogEntry`
+
+### Output Control
 - `is_startup_mode()`, `set_startup_mode()` - Startup mode control
-- `RetentionConfig`, `RetentionPolicy`, `RetentionScheduler` - Log lifecycle management
+- `publish_log()`, `set_log_publisher()` - Log event publishing
+
+## Dependencies
+
+### Internal
+- `systemprompt-database` - Database pool management
+- `systemprompt-traits` - Shared trait definitions (LogService)
+- `systemprompt-identifiers` - Typed identifiers (UserId, SessionId, etc.)
+
+### External
+- `tracing`, `tracing-subscriber` - Structured logging framework
+- `tokio` - Async runtime
+- `sqlx` - Type-safe SQL
+- `chrono` - Timestamp handling
+- `tokio-cron-scheduler` - Retention job scheduling
+- `colored`, `console`, `indicatif`, `dialoguer` - CLI utilities

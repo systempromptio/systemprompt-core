@@ -50,10 +50,15 @@ impl AuthValidationService {
         Self::extract_token(headers).map_or_else(
             || Self::create_anonymous_context(headers),
             |token| {
-                self.validate_token(token).map_or_else(
-                    |_| Self::create_anonymous_context(headers),
-                    |claims| Self::create_context_from_claims(&claims, token, headers),
-                )
+                self.validate_token(token)
+                    .map_err(|e| {
+                        tracing::debug!(error = %e, "Token validation failed, falling back to anonymous");
+                        e
+                    })
+                    .map_or_else(
+                        |_| Self::create_anonymous_context(headers),
+                        |claims| Self::create_context_from_claims(&claims, token, headers),
+                    )
             },
         )
     }
@@ -61,7 +66,14 @@ impl AuthValidationService {
     fn extract_token(headers: &HeaderMap) -> Option<&str> {
         headers
             .get("authorization")
-            .and_then(|h| h.to_str().ok())
+            .and_then(|h| {
+                h.to_str()
+                    .map_err(|e| {
+                        tracing::debug!(error = %e, "Authorization header contains non-ASCII characters");
+                        e
+                    })
+                    .ok()
+            })
             .and_then(|s| s.strip_prefix("Bearer "))
     }
 

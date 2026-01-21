@@ -1,5 +1,3 @@
-//! Admin API routes.
-
 mod cli;
 
 use axum::Router;

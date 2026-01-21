@@ -3,8 +3,8 @@ use axum::http::HeaderMap;
 use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
-use systemprompt_security::TokenExtractor;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_security::TokenExtractor;
 
 #[derive(Debug, Clone)]
 pub struct ApiAuthMiddlewareConfig {
@@ -77,8 +77,8 @@ pub async fn auth_middleware(
 }
 
 fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::AuthenticatedUser> {
-    use systemprompt_oauth::validate_jwt_token;
     use systemprompt_models::SecretsBootstrap;
+    use systemprompt_oauth::validate_jwt_token;
     use uuid::Uuid;
 
     let token = TokenExtractor::browser_only().extract(headers).ok()?;
