@@ -1,10 +1,11 @@
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use systemprompt_identifiers::UserId;
 
 #[derive(Debug, Clone)]
 pub struct WebAuthnCredential {
     pub id: String,
-    pub user_id: String,
+    pub user_id: UserId,
     pub credential_id: Vec<u8>,
     pub public_key: Vec<u8>,
     pub counter: u32,

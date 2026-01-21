@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::AiRequestId;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct RequestStatsRow {
@@ -33,7 +34,7 @@ pub struct RequestTrendRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RequestListRow {
-    pub id: String,
+    pub id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,

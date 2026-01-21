@@ -45,10 +45,8 @@ inventory = { workspace = true }
 # Internal dependencies
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-database = { path = "../../infra/database" }
-systemprompt-runtime = { path = "../../app/runtime" }
 systemprompt-loader = { path = "../../infra/loader" }
 systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-oauth = { path = "../oauth" }
 systemprompt-files = { path = "../files" }
 systemprompt-analytics = { path = "../analytics" }
 systemprompt-traits = { path = "../../shared/traits" }

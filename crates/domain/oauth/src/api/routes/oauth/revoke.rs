@@ -133,7 +133,9 @@ async fn revoke_token(
         },
         _ => {
             let token_id = RefreshTokenId::new(token);
-            let _ = repo.revoke_refresh_token(&token_id).await;
+            if let Err(e) = repo.revoke_refresh_token(&token_id).await {
+                tracing::debug!(error = %e, "Token revocation failed - may be access token");
+            }
         },
     }
 

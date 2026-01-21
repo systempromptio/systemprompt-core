@@ -25,11 +25,16 @@ pub async fn load_agent_runtime(
                 "Failed to load agent registry - check if config files exist"
             );
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
-            let _ = tx.send(create_jsonrpc_error_event(
-                -32603,
-                "Failed to load agent registry - check system logs for details",
-                request_id,
-            ));
+            if tx
+                .send(create_jsonrpc_error_event(
+                    -32603,
+                    "Failed to load agent registry - check system logs for details",
+                    request_id,
+                ))
+                .is_err()
+            {
+                tracing::trace!("Failed to send error event, channel closed");
+            }
             return Err(());
         },
     };
@@ -40,11 +45,16 @@ pub async fn load_agent_runtime(
             let error_msg = format!("Failed to load agent '{}': {}", agent_name, e);
             tracing::error!(agent_name = %agent_name, error = %e, "Failed to load agent");
             mark_task_failed_with_error(task_id, task_repo, &error_msg).await;
-            let _ = tx.send(create_jsonrpc_error_event(
-                -32603,
-                "Agent not found",
-                request_id,
-            ));
+            if tx
+                .send(create_jsonrpc_error_event(
+                    -32603,
+                    "Agent not found",
+                    request_id,
+                ))
+                .is_err()
+            {
+                tracing::trace!("Failed to send error event, channel closed");
+            }
             Err(())
         },
     }

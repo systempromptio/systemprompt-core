@@ -2,6 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::path::Path;
+use systemprompt_cloud::constants::storage;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult};
 use walkdir::WalkDir;
@@ -205,6 +206,10 @@ async fn insert_file_record(
 fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
     let now = Utc::now();
     let metadata = serde_json::to_value(FileMetadata::default())
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to serialize default FileMetadata");
+            e
+        })
         .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
 
     File {
@@ -219,7 +224,7 @@ fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &
                 e
             })
             .ok(),
-        ai_content: path.to_string_lossy().contains("/generated/"),
+        ai_content: path.to_string_lossy().contains(storage::GENERATED),
         metadata,
         user_id: None,
         session_id: None,

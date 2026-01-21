@@ -175,7 +175,7 @@ async fn validate_server_connection(server_name: &str, api_server_url: &str) {
                 Ok(result) => {
                     warn!(
                         server = server_name,
-                        error = result.error_message.unwrap_or_default(),
+                        error = result.error_message.as_deref().unwrap_or("[no error]"),
                         "MCP server connection validation failed"
                     );
                 },

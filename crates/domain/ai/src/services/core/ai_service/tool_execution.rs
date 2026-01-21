@@ -180,7 +180,7 @@ impl AiService {
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
         let model = request.model();
-        let tools = request.tools.clone().unwrap_or_default();
+        let tools = request.tools.clone().unwrap_or_else(Vec::new);
 
         let base = GenerationParams::new(&request.messages, model, request.max_output_tokens());
         let base = request

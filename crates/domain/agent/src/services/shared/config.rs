@@ -1,6 +1,7 @@
 use crate::services::shared::error::{AgentServiceError, Result};
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
+use systemprompt_identifiers::AgentId;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ServiceConfiguration {
@@ -51,7 +52,7 @@ impl Default for ServiceConfiguration {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RuntimeConfiguration {
-    pub agent_id: String,
+    pub agent_id: AgentId,
     pub name: String,
     pub port: u16,
     pub host: String,
@@ -62,7 +63,7 @@ pub struct RuntimeConfiguration {
 
 #[derive(Debug, Clone)]
 pub struct RuntimeConfigurationBuilder {
-    agent_id: String,
+    agent_id: AgentId,
     name: String,
     port: u16,
     host: String,
@@ -72,7 +73,7 @@ pub struct RuntimeConfigurationBuilder {
 }
 
 impl RuntimeConfigurationBuilder {
-    pub fn new(agent_id: String, name: String) -> Self {
+    pub fn new(agent_id: AgentId, name: String) -> Self {
         Self {
             agent_id,
             name,
@@ -142,7 +143,7 @@ pub trait ConfigValidation {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentServiceConfig {
-    pub agent_id: String,
+    pub agent_id: AgentId,
     pub name: String,
     pub description: String,
     pub version: String,
@@ -153,7 +154,7 @@ pub struct AgentServiceConfig {
 
 impl ConfigValidation for AgentServiceConfig {
     fn validate(&self) -> Result<()> {
-        if self.agent_id.is_empty() {
+        if self.agent_id.as_str().is_empty() {
             return Err(AgentServiceError::Validation(
                 "agent_id".to_string(),
                 "cannot be empty".to_string(),
@@ -178,7 +179,7 @@ impl ConfigValidation for AgentServiceConfig {
 impl Default for AgentServiceConfig {
     fn default() -> Self {
         Self {
-            agent_id: uuid::Uuid::new_v4().to_string(),
+            agent_id: AgentId::generate(),
             name: "Default Agent".to_string(),
             description: "Default agent instance".to_string(),
             version: "0.1.0".to_string(),

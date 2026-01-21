@@ -20,6 +20,7 @@ pub use funnel::{
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::{ContextId, SessionId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct UserMetricsWithTrends {
@@ -39,7 +40,7 @@ pub struct UserMetricsWithTrends {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct RecentConversation {
-    pub context_id: String,
+    pub context_id: ContextId,
     pub agent_name: String,
     pub user_name: String,
     pub status: String,
@@ -60,8 +61,8 @@ pub struct ContentStat {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct AnalyticsSession {
-    pub session_id: String,
-    pub user_id: Option<String>,
+    pub session_id: SessionId,
+    pub user_id: Option<UserId>,
     pub fingerprint_hash: Option<String>,
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
@@ -93,8 +94,8 @@ pub struct AnalyticsEvent {
     pub event_type: String,
     pub event_category: String,
     pub severity: String,
-    pub user_id: String,
-    pub session_id: Option<String>,
+    pub user_id: UserId,
+    pub session_id: Option<SessionId>,
     pub message: Option<String>,
     pub metadata: Option<String>,
     pub timestamp: DateTime<Utc>,
@@ -141,7 +142,7 @@ pub struct ActivityTrend {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TopUser {
-    pub user_id: String,
+    pub user_id: UserId,
     pub user_name: String,
     pub session_count: i64,
     pub task_count: i64,

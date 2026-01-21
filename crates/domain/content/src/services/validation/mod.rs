@@ -1,6 +1,5 @@
 use crate::error::ContentError;
-use crate::models::{ContentMetadata, PaperMetadata};
-use std::collections::HashSet;
+use crate::models::ContentMetadata;
 
 pub fn validate_content_metadata(
     metadata: &ContentMetadata,
@@ -54,93 +53,6 @@ pub fn validate_content_metadata(
         )));
     }
 
-    Ok(())
-}
-
-pub fn validate_paper_metadata(metadata: &PaperMetadata) -> Result<(), ContentError> {
-    if metadata.sections.is_empty() {
-        return Err(ContentError::Validation(
-            "Paper must have at least one section".to_string(),
-        ));
-    }
-
-    for section in &metadata.sections {
-        if section.id.is_empty() {
-            return Err(ContentError::Validation(
-                "Section id cannot be empty".to_string(),
-            ));
-        }
-        if section.title.is_empty() {
-            return Err(ContentError::Validation(format!(
-                "Section '{}' must have a title",
-                section.id
-            )));
-        }
-    }
-
-    let has_file_refs = metadata.sections.iter().any(|s| s.file.is_some());
-
-    if has_file_refs {
-        let chapters_path = metadata.chapters_path.as_ref().ok_or_else(|| {
-            ContentError::Validation(
-                "chapters_path is required when sections reference files".to_string(),
-            )
-        })?;
-
-        if chapters_path.is_empty() {
-            return Err(ContentError::Validation(
-                "chapters_path cannot be empty".to_string(),
-            ));
-        }
-
-        let chapters_dir = std::path::Path::new(chapters_path);
-        if !chapters_dir.exists() {
-            return Err(ContentError::Validation(format!(
-                "chapters_path '{}' does not exist",
-                chapters_path
-            )));
-        }
-        if !chapters_dir.is_dir() {
-            return Err(ContentError::Validation(format!(
-                "chapters_path '{}' is not a directory",
-                chapters_path
-            )));
-        }
-
-        for section in &metadata.sections {
-            if let Some(file) = &section.file {
-                let file_path = chapters_dir.join(file);
-                if !file_path.exists() {
-                    return Err(ContentError::Validation(format!(
-                        "Section '{}' references file '{}' which does not exist at '{}'",
-                        section.id,
-                        file,
-                        file_path.display()
-                    )));
-                }
-                if !file_path.is_file() {
-                    return Err(ContentError::Validation(format!(
-                        "Section '{}' references '{}' which is not a file",
-                        section.id, file
-                    )));
-                }
-            }
-        }
-    }
-
-    Ok(())
-}
-
-pub fn validate_paper_section_ids_unique(metadata: &PaperMetadata) -> Result<(), ContentError> {
-    let mut seen_ids = HashSet::new();
-    for section in &metadata.sections {
-        if !seen_ids.insert(&section.id) {
-            return Err(ContentError::Validation(format!(
-                "Duplicate section id: '{}'",
-                section.id
-            )));
-        }
-    }
     Ok(())
 }
 

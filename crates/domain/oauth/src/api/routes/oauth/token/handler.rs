@@ -37,7 +37,10 @@ pub async fn handle_token(
 
     tracing::info!(grant_type = %request.grant_type, "Token request received");
 
-    let response = match request.grant_type.parse::<GrantType>().ok() {
+    let response = match request.grant_type.parse::<GrantType>().map_err(|e| {
+        tracing::debug!(grant_type = %request.grant_type, error = %e, "Failed to parse grant type");
+        e
+    }).ok() {
         Some(GrantType::AuthorizationCode) => {
             handle_authorization_code_grant(repo, request, &headers, &ctx).await
         },

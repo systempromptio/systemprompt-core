@@ -183,7 +183,7 @@ pub async fn get_popular_content_ids(
     days: i32,
     limit: i64,
 ) -> Result<Vec<ContentId>, sqlx::Error> {
-    let rows = sqlx::query_scalar!(
+    let rows: Vec<String> = sqlx::query_scalar!(
         r#"
         SELECT mc.id as "id!"
         FROM markdown_content mc

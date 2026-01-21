@@ -172,7 +172,12 @@ impl AgentOrchestrator {
         let total = agents.len();
 
         if let Some(tx) = events {
-            let _ = tx.send(StartupEvent::AgentReconciliationComplete { running, total });
+            if tx
+                .send(StartupEvent::AgentReconciliationComplete { running, total })
+                .is_err()
+            {
+                tracing::trace!("No receivers for agent reconciliation event");
+            }
             tx.phase_completed(Phase::Agents);
         }
 

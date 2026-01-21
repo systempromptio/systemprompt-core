@@ -46,7 +46,7 @@ pub async fn generate_parent_index(params: &GenerateParentIndexParams<'_>) -> Re
 
     let list_content_type = format!("{}-list", source_name);
     let template_name = template_registry
-        .get_template_for_content_type(&list_content_type)
+        .find_template_for_content_type(&list_content_type)
         .ok_or_else(|| {
             anyhow::anyhow!(
                 "No template registered for content type: {}",

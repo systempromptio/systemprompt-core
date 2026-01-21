@@ -178,10 +178,11 @@ Tables: `ai_requests`, `ai_request_messages`, `ai_request_tool_calls`
 
 ```rust
 use systemprompt_ai::{AiService, AiRequest, AiMessage, NoopToolProvider};
+use systemprompt_database::DbPool;
 use std::sync::Arc;
 
 let tool_provider = Arc::new(NoopToolProvider::new());
-let ai_service = AiService::new(&app_context, &ai_config, tool_provider)?;
+let ai_service = AiService::new(db_pool, &ai_config, tool_provider)?;
 
 let request = AiRequest::builder(
     vec![AiMessage::user("Hello!")],

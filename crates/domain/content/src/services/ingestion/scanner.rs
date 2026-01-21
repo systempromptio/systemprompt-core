@@ -1,10 +1,8 @@
 use crate::error::ContentError;
-use crate::models::{ContentKind, ContentMetadata};
+use crate::models::ContentMetadata;
 use crate::services::validation::validate_content_metadata;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
-
-use super::parser;
 
 pub struct ScanResult {
     pub files: Vec<PathBuf>,
@@ -70,12 +68,7 @@ pub fn scan_markdown_files(
 
 fn validate_markdown_file(path: &Path, allowed_content_types: &[&str]) -> Result<(), ContentError> {
     let markdown_text = std::fs::read_to_string(path)?;
-    let (metadata, _) = parse_frontmatter(&markdown_text, allowed_content_types)?;
-
-    if metadata.kind == ContentKind::Paper.as_str() {
-        parser::validate_paper_frontmatter(&markdown_text)?;
-    }
-
+    let _ = parse_frontmatter(&markdown_text, allowed_content_types)?;
     Ok(())
 }
 

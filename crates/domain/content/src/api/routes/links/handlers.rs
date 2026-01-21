@@ -125,7 +125,7 @@ pub async fn generate_link_handler(
             let full_url = link.get_full_url();
 
             Json(GenerateLinkResponse {
-                link_id: link.id.to_string(),
+                link_id: link.id,
                 short_code: link.short_code,
                 redirect_url,
                 full_url,

@@ -22,7 +22,7 @@ pub fn build_response(
         .content
         .clone()
         .filter(|s| !s.is_empty())
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     let (tokens_used, input_tokens, output_tokens, cache_hit, cache_read_tokens) = openai_response
         .usage

@@ -42,6 +42,7 @@ pub struct SyncConfig {
     pub services_path: String,
     pub hostname: Option<String>,
     pub sync_token: Option<String>,
+    pub local_database_url: Option<String>,
 }
 
 #[derive(Debug)]
@@ -55,6 +56,7 @@ pub struct SyncConfigBuilder {
     services_path: String,
     hostname: Option<String>,
     sync_token: Option<String>,
+    local_database_url: Option<String>,
 }
 
 impl SyncConfigBuilder {
@@ -74,6 +76,7 @@ impl SyncConfigBuilder {
             services_path: services_path.into(),
             hostname: None,
             sync_token: None,
+            local_database_url: None,
         }
     }
 
@@ -102,6 +105,11 @@ impl SyncConfigBuilder {
         self
     }
 
+    pub fn with_local_database_url(mut self, url: impl Into<String>) -> Self {
+        self.local_database_url = Some(url.into());
+        self
+    }
+
     pub fn build(self) -> SyncConfig {
         SyncConfig {
             direction: self.direction,
@@ -113,6 +121,7 @@ impl SyncConfigBuilder {
             services_path: self.services_path,
             hostname: self.hostname,
             sync_token: self.sync_token,
+            local_database_url: self.local_database_url,
         }
     }
 }
@@ -186,9 +195,11 @@ impl SyncService {
     }
 
     pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
-        let local_db_url = std::env::var("DATABASE_URL").map_err(|_| {
-            SyncError::MissingConfig("DATABASE_URL environment variable not set".to_string())
-        })?;
+        let local_db_url = self
+            .config
+            .local_database_url
+            .as_ref()
+            .ok_or_else(|| SyncError::MissingConfig("local_database_url not configured".to_string()))?;
 
         let cloud_db_url = self
             .api_client

@@ -140,12 +140,15 @@ impl MessageProcessor {
                         error.clone(),
                         Some("EXECUTION_ERROR".to_string()),
                     );
-                    let _ = broadcast_agui_event(
+                    if let Err(e) = broadcast_agui_event(
                         context.user_id().as_str(),
                         error_event,
                         context.auth_token().as_str(),
                     )
-                    .await;
+                    .await
+                    {
+                        tracing::debug!(error = %e, "Failed to broadcast error event");
+                    }
                     return Err(anyhow!(error));
                 },
                 _ => {},
@@ -227,27 +230,37 @@ impl MessageProcessor {
         let message_id = agent_message.id.clone();
 
         let start_event = AgUiEventBuilder::run_started(context_id.clone(), task_id.clone(), None);
-        let _ = broadcast_agui_event(user_id, start_event, auth_token).await;
+        if let Err(e) = broadcast_agui_event(user_id, start_event, auth_token).await {
+            tracing::debug!(error = %e, "Failed to broadcast run_started event");
+        }
 
         let msg_start = AgUiEventBuilder::text_message_start(
             message_id.to_string(),
             AgUiMessageRole::Assistant,
         );
-        let _ = broadcast_agui_event(user_id, msg_start, auth_token).await;
+        if let Err(e) = broadcast_agui_event(user_id, msg_start, auth_token).await {
+            tracing::debug!(error = %e, "Failed to broadcast text_message_start event");
+        }
 
         let msg_content =
             AgUiEventBuilder::text_message_content(message_id.to_string(), &response_text);
-        let _ = broadcast_agui_event(user_id, msg_content, auth_token).await;
+        if let Err(e) = broadcast_agui_event(user_id, msg_content, auth_token).await {
+            tracing::debug!(error = %e, "Failed to broadcast text_message_content event");
+        }
 
         let msg_end = AgUiEventBuilder::text_message_end(message_id.to_string());
-        let _ = broadcast_agui_event(user_id, msg_end, auth_token).await;
+        if let Err(e) = broadcast_agui_event(user_id, msg_end, auth_token).await {
+            tracing::debug!(error = %e, "Failed to broadcast text_message_end event");
+        }
 
         let result = serde_json::json!({
             "text": response_text,
             "artifacts": task.artifacts,
         });
         let finish_event = AgUiEventBuilder::run_finished(context_id, task_id, Some(result));
-        let _ = broadcast_agui_event(user_id, finish_event, auth_token).await;
+        if let Err(e) = broadcast_agui_event(user_id, finish_event, auth_token).await {
+            tracing::debug!(error = %e, "Failed to broadcast run_finished event");
+        }
 
         Ok(task)
     }

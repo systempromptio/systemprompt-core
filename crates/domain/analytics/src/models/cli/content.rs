@@ -1,10 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::ContentId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TopContentRow {
-    pub content_id: String,
+    pub content_id: ContentId,
     pub total_views: i64,
     pub unique_visitors: i64,
     pub avg_time_on_page_seconds: Option<f64>,

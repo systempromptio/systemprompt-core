@@ -154,3 +154,54 @@ impl ToDbValue for &AuthorizationCode {
         DbValue::String(self.0.clone())
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
+#[sqlx(transparent)]
+#[serde(transparent)]
+pub struct ChallengeId(String);
+
+impl ChallengeId {
+    pub fn new(id: impl Into<String>) -> Self {
+        Self(id.into())
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl fmt::Display for ChallengeId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+impl From<String> for ChallengeId {
+    fn from(s: String) -> Self {
+        Self(s)
+    }
+}
+
+impl From<&str> for ChallengeId {
+    fn from(s: &str) -> Self {
+        Self(s.to_string())
+    }
+}
+
+impl AsRef<str> for ChallengeId {
+    fn as_ref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl ToDbValue for ChallengeId {
+    fn to_db_value(&self) -> DbValue {
+        DbValue::String(self.0.clone())
+    }
+}
+
+impl ToDbValue for &ChallengeId {
+    fn to_db_value(&self) -> DbValue {
+        DbValue::String(self.0.clone())
+    }
+}

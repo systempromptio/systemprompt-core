@@ -1,8 +1,3 @@
-#![allow(clippy::struct_excessive_bools)]
-#![allow(clippy::significant_drop_tightening)]
-#![allow(clippy::ptr_arg)]
-#![allow(clippy::use_self)]
-
 pub mod error;
 pub mod models;
 pub mod repository;

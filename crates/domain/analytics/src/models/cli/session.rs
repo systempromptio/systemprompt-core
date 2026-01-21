@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::{SessionId, UserId};
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct SessionStatsRow {
@@ -18,7 +19,7 @@ pub struct ActiveSessionCountRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct LiveSessionRow {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub user_type: Option<String>,
     pub started_at: DateTime<Utc>,
     pub duration_seconds: Option<i32>,
@@ -29,6 +30,6 @@ pub struct LiveSessionRow {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct SessionTrendRow {
     pub started_at: DateTime<Utc>,
-    pub user_id: Option<String>,
+    pub user_id: Option<UserId>,
     pub duration_seconds: Option<i32>,
 }

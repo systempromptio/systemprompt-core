@@ -14,10 +14,18 @@ pub fn mcp_tool_to_definition(tool: &McpTool) -> ToolDefinition {
         output_schema: tool.output_schema.clone(),
         service_id: tool.service_id.to_string(),
         terminal_on_success: tool.terminal_on_success,
-        model_config: tool
-            .model_config
-            .as_ref()
-            .and_then(|c| serde_json::to_value(c).ok()),
+        model_config: tool.model_config.as_ref().and_then(|c| {
+            serde_json::to_value(c)
+                .map_err(|e| {
+                    tracing::warn!(
+                        error = %e,
+                        tool_name = %tool.name,
+                        "Failed to serialize model_config to JSON"
+                    );
+                    e
+                })
+                .ok()
+        }),
     }
 }
 
@@ -29,10 +37,18 @@ pub fn definition_to_mcp_tool(def: &ToolDefinition) -> McpTool {
         output_schema: def.output_schema.clone(),
         service_id: McpServerId::new(def.service_id.clone()),
         terminal_on_success: def.terminal_on_success,
-        model_config: def
-            .model_config
-            .as_ref()
-            .and_then(|c| serde_json::from_value(c.clone()).ok()),
+        model_config: def.model_config.as_ref().and_then(|c| {
+            serde_json::from_value(c.clone())
+                .map_err(|e| {
+                    tracing::warn!(
+                        error = %e,
+                        tool_name = %def.name,
+                        "Failed to deserialize model_config from JSON"
+                    );
+                    e
+                })
+                .ok()
+        }),
     }
 }
 
@@ -76,10 +92,14 @@ pub fn rmcp_result_to_trait_result(result: &CallToolResult) -> TraitToolCallResu
         content,
         structured_content: result.structured_content.clone(),
         is_error: result.is_error,
-        meta: result
-            .meta
-            .as_ref()
-            .and_then(|m| serde_json::to_value(m).ok()),
+        meta: result.meta.as_ref().and_then(|m| {
+            serde_json::to_value(m)
+                .map_err(|e| {
+                    tracing::warn!(error = %e, "Failed to serialize tool result meta to JSON");
+                    e
+                })
+                .ok()
+        }),
     }
 }
 
@@ -127,10 +147,14 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
         content,
         structured_content: result.structured_content.clone(),
         is_error: result.is_error,
-        meta: result
-            .meta
-            .as_ref()
-            .and_then(|m| serde_json::from_value(m.clone()).ok()),
+        meta: result.meta.as_ref().and_then(|m| {
+            serde_json::from_value(m.clone())
+                .map_err(|e| {
+                    tracing::warn!(error = %e, "Failed to deserialize tool result meta from JSON");
+                    e
+                })
+                .ok()
+        }),
     }
 }
 

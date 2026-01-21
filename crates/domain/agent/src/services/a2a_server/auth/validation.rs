@@ -135,7 +135,14 @@ fn verify_a2a_permissions(
     let db_permissions: Vec<Permission> = user
         .roles
         .iter()
-        .filter_map(|role| Permission::from_str(role).ok())
+        .filter_map(|role| {
+            Permission::from_str(role)
+                .map_err(|e| {
+                    tracing::debug!(role = %role, error = %e, "Unknown permission role, skipping");
+                    e
+                })
+                .ok()
+        })
         .collect();
 
     if db_permissions.is_empty() {
@@ -154,7 +161,15 @@ fn verify_a2a_permissions(
 pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     headers
         .get("authorization")
-        .and_then(|value| value.to_str().ok())
+        .and_then(|value| {
+            value
+                .to_str()
+                .map_err(|e| {
+                    tracing::debug!(error = %e, "Authorization header contains non-ASCII characters");
+                    e
+                })
+                .ok()
+        })
         .and_then(|auth_header| {
             if auth_header.starts_with("Bearer ") {
                 Some(auth_header[7..].to_string())

@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::ContentRouting;
 use walkdir::WalkDir;
 
@@ -15,7 +16,7 @@ use super::validated::{ContentConfigValidated, ContentSourceConfigValidated};
 pub struct ContentReady {
     config: ContentConfigValidated,
     content_by_slug: HashMap<String, ParsedContent>,
-    content_by_source: HashMap<String, Vec<ParsedContent>>,
+    content_by_source: HashMap<SourceId, Vec<ParsedContent>>,
     stats: LoadStats,
 }
 
@@ -30,8 +31,8 @@ pub struct ParsedContent {
     pub keywords: String,
     pub kind: String,
     pub image: Option<String>,
-    pub category_id: String,
-    pub source_id: String,
+    pub category_id: CategoryId,
+    pub source_id: SourceId,
     pub version_hash: String,
     pub file_path: PathBuf,
 }
@@ -56,7 +57,7 @@ impl ContentReady {
     pub fn from_validated(config: ContentConfigValidated) -> Self {
         let start_time = std::time::Instant::now();
         let mut content_by_slug = HashMap::new();
-        let mut content_by_source: HashMap<String, Vec<ParsedContent>> = HashMap::new();
+        let mut content_by_source: HashMap<SourceId, Vec<ParsedContent>> = HashMap::new();
         let mut stats = LoadStats::default();
 
         for (source_name, source_config) in config.content_sources() {
@@ -123,7 +124,7 @@ impl ContentReady {
         self.content_by_slug.get(slug)
     }
 
-    pub fn get_by_source(&self, source_id: &str) -> Option<&Vec<ParsedContent>> {
+    pub fn get_by_source(&self, source_id: &SourceId) -> Option<&Vec<ParsedContent>> {
         self.content_by_source.get(source_id)
     }
 
@@ -182,7 +183,8 @@ fn parse_content_file(
 
     let category_id = metadata
         .category
-        .clone()
+        .as_ref()
+        .map(|c| CategoryId::new(c.clone()))
         .unwrap_or_else(|| source_config.category_id.clone());
 
     let version_hash = compute_version_hash(&metadata.title, &body, &metadata.description);

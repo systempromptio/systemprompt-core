@@ -3,6 +3,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::LinkId;
 
 #[derive(Debug, Deserialize)]
 pub struct GenerateLinkRequest {
@@ -24,7 +25,7 @@ pub struct GenerateLinkRequest {
 
 #[derive(Debug, Serialize)]
 pub struct GenerateLinkResponse {
-    pub link_id: String,
+    pub link_id: LinkId,
     pub short_code: String,
     pub redirect_url: String,
     pub full_url: String,

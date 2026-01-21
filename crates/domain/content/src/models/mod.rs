@@ -2,7 +2,6 @@ pub mod builders;
 pub mod content;
 pub mod content_error;
 pub mod link;
-pub mod paper;
 pub mod search;
 
 pub use builders::{
@@ -17,5 +16,4 @@ pub use link::{
     CampaignLink, CampaignPerformance, ContentJourneyNode, DestinationType, LinkClick,
     LinkPerformance, LinkType, UtmParams,
 };
-pub use paper::{PaperMetadata, PaperSection};
 pub use search::{SearchFilters, SearchRequest, SearchResponse, SearchResult};

@@ -164,7 +164,10 @@ impl OAuthRepository {
                 .as_ref()
                 .ok_or_else(|| anyhow::anyhow!("code_challenge_method required for PKCE"))?;
 
-            let computed_challenge = match method.parse::<PkceMethod>().ok() {
+            let computed_challenge = match method.parse::<PkceMethod>().map_err(|e| {
+                tracing::debug!(method = %method, error = %e, "Failed to parse PKCE method");
+                e
+            }).ok() {
                 Some(PkceMethod::S256) => {
                     use sha2::{Digest, Sha256};
                     let mut hasher = Sha256::new();

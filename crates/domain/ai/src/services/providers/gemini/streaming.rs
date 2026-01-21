@@ -79,7 +79,13 @@ fn parse_stream_chunk(bytes: &bytes::Bytes) -> String {
 }
 
 fn try_parse_array_format(cleaned: &str) -> Option<String> {
-    let responses: Vec<GeminiResponse> = serde_json::from_str(&format!("[{cleaned}]")).ok()?;
+    let json_array = format!("[{cleaned}]");
+    let responses: Vec<GeminiResponse> = serde_json::from_str(&json_array)
+        .map_err(|e| {
+            tracing::debug!(error = %e, chunk = %cleaned, "Failed to parse Gemini stream as JSON array");
+            e
+        })
+        .ok()?;
     extract_text_from_responses(&responses)
 }
 

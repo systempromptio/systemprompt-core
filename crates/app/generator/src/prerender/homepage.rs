@@ -13,7 +13,7 @@ pub async fn prerender_homepage(ctx: &PrerenderContext) -> Result<()> {
     }
 
     let branding = extract_homepage_branding(&ctx.web_config, &ctx.config);
-    let footer_html = generate_footer_html(&ctx.web_config).unwrap_or_default();
+    let footer_html = generate_footer_html(&ctx.web_config)?;
 
     let mut homepage_data = serde_json::json!({
         "site": &ctx.web_config,

@@ -1,9 +1,10 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::SessionId;
 
 #[derive(Debug, Clone)]
 pub struct BehavioralAnalysisInput {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub fingerprint_hash: Option<String>,
     pub user_agent: Option<String>,
     pub request_count: i64,

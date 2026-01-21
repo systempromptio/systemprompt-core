@@ -41,7 +41,7 @@ pub use funnel::{FunnelId, FunnelProgressId};
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId};
-pub use oauth::{AccessTokenId, AuthorizationCode, RefreshTokenId};
+pub use oauth::{AccessTokenId, AuthorizationCode, ChallengeId, RefreshTokenId};
 pub use path::ValidatedFilePath;
 pub use profile::ProfileName;
 pub use roles::RoleId;

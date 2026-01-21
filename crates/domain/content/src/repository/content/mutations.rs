@@ -1,8 +1,8 @@
-use crate::models::{Content, CreateContentParams, UpdateContentParams};
+use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentParams};
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_identifiers::{ContentId, SourceId};
 
 use super::queries;
 
@@ -68,7 +68,7 @@ pub async fn update(
         k.clone()
     } else {
         let current = queries::get_by_id(pool, &params.id).await?;
-        current.map_or_else(|| "article".to_string(), |c| c.kind)
+        current.map_or_else(|| ContentKind::Article.as_str().to_string(), |c| c.kind)
     };
 
     let public_value: bool = if let Some(p) = params.public {

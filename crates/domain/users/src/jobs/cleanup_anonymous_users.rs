@@ -7,6 +7,8 @@ use tracing::info;
 
 use crate::UserService;
 
+const ANONYMOUS_USER_RETENTION_DAYS: i32 = 30;
+
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupAnonymousUsersJob;
 
@@ -35,7 +37,9 @@ impl Job for CleanupAnonymousUsersJob {
         info!("Job started");
 
         let user_service = UserService::new(&db_pool)?;
-        let deleted_users = user_service.cleanup_old_anonymous(30).await?;
+        let deleted_users = user_service
+            .cleanup_old_anonymous(ANONYMOUS_USER_RETENTION_DAYS)
+            .await?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

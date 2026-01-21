@@ -1,8 +1,10 @@
 use anyhow::{anyhow, Result};
 use serde_json::json;
+use std::sync::Arc;
 
 use crate::models::a2a::{Artifact, Message, Part, TextPart};
 use crate::repository::content::{ArtifactRepository, SkillRepository};
+use crate::repository::execution::ExecutionStepRepository;
 use crate::services::MessageService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
@@ -10,10 +12,10 @@ use systemprompt_models::execution::CallSource;
 use systemprompt_models::RequestContext;
 
 pub struct ArtifactPublishingService {
-    db_pool: DbPool,
     artifact_repo: ArtifactRepository,
     skill_repo: SkillRepository,
     message_service: MessageService,
+    execution_repo: Option<Arc<ExecutionStepRepository>>,
 }
 
 impl std::fmt::Debug for ArtifactPublishingService {
@@ -25,27 +27,25 @@ impl std::fmt::Debug for ArtifactPublishingService {
 
 impl ArtifactPublishingService {
     pub fn new(db_pool: DbPool) -> Self {
+        let execution_repo = ExecutionStepRepository::new(&db_pool)
+            .map(Arc::new)
+            .ok();
+
         Self {
-            db_pool: db_pool.clone(),
             artifact_repo: ArtifactRepository::new(db_pool.clone()),
             skill_repo: SkillRepository::new(db_pool.clone()),
             message_service: MessageService::new(db_pool),
+            execution_repo,
         }
     }
 
     async fn execution_id_exists(&self, mcp_execution_id: &str) -> bool {
-        let Some(pool) = self.db_pool.as_ref().get_postgres_pool() else {
-            tracing::warn!("PostgreSQL pool not available for FK validation");
+        let Some(repo) = &self.execution_repo else {
+            tracing::warn!("ExecutionStepRepository not available for FK validation");
             return false;
         };
 
-        match sqlx::query_scalar!(
-            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
-            mcp_execution_id
-        )
-        .fetch_one(pool.as_ref())
-        .await
-        {
+        match repo.mcp_execution_id_exists(mcp_execution_id).await {
             Ok(exists) => exists,
             Err(e) => {
                 tracing::warn!(

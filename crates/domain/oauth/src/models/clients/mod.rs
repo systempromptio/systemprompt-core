@@ -4,6 +4,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug)]
 pub struct ClientRelations {
@@ -16,7 +17,7 @@ pub struct ClientRelations {
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct OAuthClientRow {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret_hash: Option<String>,
     pub client_name: String,
     pub name: Option<String>,
@@ -31,7 +32,7 @@ pub struct OAuthClientRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OAuthClient {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret_hash: Option<String>,
     pub client_name: String,
     pub name: Option<String>,
@@ -72,7 +73,7 @@ impl OAuthClient {
     }
 
     pub fn validate(&self) -> Result<()> {
-        if self.client_id.is_empty() {
+        if self.client_id.as_str().is_empty() {
             return Err(anyhow::anyhow!("client_id cannot be empty"));
         }
         if self.client_name.is_empty() {

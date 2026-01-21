@@ -37,9 +37,9 @@ fn test_has_template_returns_false_for_unregistered() {
 }
 
 #[test]
-fn test_get_template_returns_none_for_unregistered() {
+fn test_find_template_returns_none_for_unregistered() {
     let registry = TemplateRegistry::new();
-    assert!(registry.get_template("nonexistent").is_none());
+    assert!(registry.find_template("nonexistent").is_none());
 }
 
 #[test]
@@ -88,15 +88,15 @@ fn test_page_providers_for_returns_empty_without_providers() {
 }
 
 #[test]
-fn test_get_template_provider_returns_none_for_unregistered() {
+fn test_find_template_provider_returns_none_for_unregistered() {
     let registry = TemplateRegistry::new();
-    assert!(registry.get_template_provider("test").is_none());
+    assert!(registry.find_template_provider("test").is_none());
 }
 
 #[test]
-fn test_get_template_for_content_type_returns_none_without_templates() {
+fn test_find_template_for_content_type_returns_none_without_templates() {
     let registry = TemplateRegistry::new();
-    assert!(registry.get_template_for_content_type("article").is_none());
+    assert!(registry.find_template_for_content_type("article").is_none());
 }
 
 #[test]

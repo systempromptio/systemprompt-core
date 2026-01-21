@@ -202,13 +202,16 @@ impl SessionCreationService {
             return;
         };
 
-        let _ = fp_repo
+        if let Err(e) = fp_repo
             .upsert_fingerprint(
                 fingerprint,
                 analytics.ip_address.as_deref(),
                 analytics.user_agent.as_deref(),
                 None,
             )
-            .await;
+            .await
+        {
+            tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to upsert fingerprint");
+        }
     }
 }

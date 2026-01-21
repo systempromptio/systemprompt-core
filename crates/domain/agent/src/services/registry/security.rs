@@ -11,7 +11,12 @@ pub fn convert_json_security_to_struct(
     Option<Vec<HashMap<String, Vec<String>>>>,
 ) {
     let schemes = security_schemes.and_then(|schemes_json| {
-        serde_json::from_value::<HashMap<String, SecurityScheme>>(schemes_json.clone()).ok()
+        serde_json::from_value::<HashMap<String, SecurityScheme>>(schemes_json.clone())
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to parse security schemes JSON");
+                e
+            })
+            .ok()
     });
 
     let security_reqs = security.and_then(|sec_vec| {
@@ -19,7 +24,11 @@ pub fn convert_json_security_to_struct(
             .iter()
             .map(|v| serde_json::from_value::<HashMap<String, Vec<String>>>(v.clone()))
             .collect();
-        reqs.ok()
+        reqs.map_err(|e| {
+            tracing::warn!(error = %e, "Failed to parse security requirements JSON");
+            e
+        })
+        .ok()
     });
 
     (schemes, security_reqs)

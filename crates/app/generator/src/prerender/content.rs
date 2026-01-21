@@ -194,7 +194,7 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
 
     let template_name = ctx
         .template_registry
-        .get_template_for_content_type(content_type)
+        .find_template_for_content_type(content_type)
         .ok_or_else(|| {
             anyhow::anyhow!("No template registered for content type: {}", content_type)
         })?;

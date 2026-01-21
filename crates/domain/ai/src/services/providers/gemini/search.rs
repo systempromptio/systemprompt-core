@@ -138,7 +138,7 @@ fn extract_grounded_response(
                 _ => None,
             })
         })
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     let mut sources = Vec::new();
     let mut confidence_scores = Vec::new();

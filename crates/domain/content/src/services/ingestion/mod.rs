@@ -1,10 +1,9 @@
-pub mod parser;
 mod scanner;
 
 use crate::error::ContentError;
 use crate::models::{
-    Content, ContentKind, ContentLinkMetadata, ContentMetadata, CreateContentParams,
-    IngestionOptions, IngestionReport, IngestionSource, UpdateContentParams,
+    Content, ContentLinkMetadata, ContentMetadata, CreateContentParams, IngestionOptions,
+    IngestionReport, IngestionSource, UpdateContentParams,
 };
 use crate::repository::ContentRepository;
 use sha2::{Digest, Sha256};
@@ -96,15 +95,9 @@ impl IngestionService {
             .clone()
             .unwrap_or_else(|| source.category_id.to_string());
 
-        let final_content_text = if metadata.kind == ContentKind::Paper.as_str() {
-            parser::load_paper_chapters(&markdown_text)?
-        } else {
-            content_text
-        };
-
         let new_content = Self::create_content_from_metadata(
             &metadata,
-            &final_content_text,
+            &content_text,
             source.source_id.to_string(),
             resolved_category_id,
         )?;
