@@ -21,29 +21,12 @@ pub fn validate_build_ready() -> Result<BuildValidationResult> {
         ProjectRoot::discover().context("Must be in a SystemPrompt project directory")?;
     let root = project_root.as_path();
 
-    let binary_paths = [
-        root.join("core/target/release/systemprompt"),
-        root.join("target/release/systemprompt"),
-    ];
-    if !binary_paths.iter().any(|p| p.exists()) {
+    let binary_path = root.join("target/release/systemprompt");
+    if !binary_path.exists() {
         bail!(
-            "Release binary not found.\n\nCloud tenant creation requires a built binary.\nRun: \
-             just build --release\nOr:  cargo build --release --bin systemprompt"
+            "Release binary not found: {}\n\nRun: cargo build --release --bin systemprompt",
+            binary_path.display()
         );
-    }
-
-    let web_dist_paths = [root.join("core/web/dist"), root.join("web/dist")];
-    let web_dist = web_dist_paths.iter().find(|p| p.exists());
-    match web_dist {
-        None => bail!(
-            "Web dist not found.\n\nCloud tenant creation requires built web assets.\nRun: just \
-             build --release\nOr:  cd core/web && npm run build"
-        ),
-        Some(dist_path) if !dist_path.join("index.html").exists() => bail!(
-            "Web dist missing index.html: {}\n\nRun: just build --release",
-            dist_path.display()
-        ),
-        Some(_) => {},
     }
 
     let extension_result = ExtensionLoader::validate(root);
@@ -69,17 +52,10 @@ pub fn validate_build_ready() -> Result<BuildValidationResult> {
 }
 
 pub fn find_services_config(root: &Path) -> Result<std::path::PathBuf> {
-    let paths = [
-        root.join("services/config/config.yaml"),
-        root.join("core/services/config/config.yaml"),
-    ];
-
-    for path in &paths {
-        if path.exists() {
-            return Ok(path.clone());
-        }
+    let path = root.join("services/config/config.yaml");
+    if path.exists() {
+        return Ok(path);
     }
-
     bail!("Services config not found.\n\nExpected at: services/config/config.yaml");
 }
 
