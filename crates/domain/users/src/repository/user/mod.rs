@@ -1,6 +1,9 @@
 mod find;
 mod list;
+mod merge;
 pub mod operations;
 mod session;
+mod stats;
 
-pub use operations::{MergeResult, UpdateUserParams};
+pub use merge::MergeResult;
+pub use operations::UpdateUserParams;

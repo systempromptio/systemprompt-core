@@ -1,5 +1,6 @@
 use crate::repository::OAuthRepository;
 use crate::services::validate_jwt_token;
+use crate::services::validation::validate_client_credentials;
 use anyhow::Result;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -79,32 +80,6 @@ pub async fn handle_introspect(
             (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
         },
     }
-}
-
-async fn validate_client_credentials(
-    repo: &OAuthRepository,
-    client_id: &str,
-    client_secret: Option<&str>,
-) -> Result<()> {
-    let client = repo
-        .find_client_by_id(client_id)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
-
-    if let Some(secret) = client_secret {
-        use crate::services::verify_client_secret;
-        let hash = client
-            .client_secret_hash
-            .as_deref()
-            .ok_or_else(|| anyhow::anyhow!("Client has no secret hash configured"))?;
-        if !verify_client_secret(secret, hash)? {
-            return Err(anyhow::anyhow!("Invalid client secret"));
-        }
-    } else {
-        return Err(anyhow::anyhow!("Client secret required"));
-    }
-
-    Ok(())
 }
 
 async fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<IntrospectResponse> {

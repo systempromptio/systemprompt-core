@@ -199,7 +199,7 @@ impl FunnelRepository {
                     .step_timestamps
                     .as_array()
                     .cloned()
-                    .unwrap_or_default();
+                    .unwrap_or_else(Vec::new);
                 timestamps.push(step_timestamp);
 
                 sqlx::query!(

@@ -1,5 +1,5 @@
 use crate::repository::OAuthRepository;
-use crate::services::validation::get_audit_user;
+use crate::services::validation::{get_audit_user, validate_client_credentials};
 use anyhow::Result;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
@@ -116,37 +116,34 @@ pub async fn handle_revoke(
     }
 }
 
-async fn validate_client_credentials(
+async fn revoke_token(
     repo: &OAuthRepository,
-    client_id: &str,
-    client_secret: Option<&str>,
+    token: &str,
+    token_type_hint: Option<&str>,
 ) -> Result<()> {
-    let client = repo
-        .find_client_by_id(client_id)
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
+    use systemprompt_identifiers::RefreshTokenId;
 
-    if let Some(secret) = client_secret {
-        use crate::services::verify_client_secret;
-        let hash = client
-            .client_secret_hash
-            .as_deref()
-            .ok_or_else(|| anyhow::anyhow!("Client has no secret hash configured"))?;
-        if !verify_client_secret(secret, hash)? {
-            return Err(anyhow::anyhow!("Invalid client secret"));
-        }
-    } else {
-        return Err(anyhow::anyhow!("Client secret required"));
+    // Try to revoke based on token type hint, or try both if not specified
+    match token_type_hint {
+        Some("refresh_token") => {
+            let token_id = RefreshTokenId::new(token);
+            repo.revoke_refresh_token(&token_id).await?;
+        },
+        Some("access_token") => {
+            // Access tokens are JWTs and cannot be directly revoked without a blacklist.
+            // For now, we accept the request per RFC 7009 (revocation endpoint should
+            // not reveal whether the token was valid). In production, consider implementing
+            // a token blacklist backed by Redis or similar.
+            tracing::debug!("Access token revocation requested - JWT tokens are stateless");
+        },
+        _ => {
+            // Try refresh token first (most common case for revocation)
+            let token_id = RefreshTokenId::new(token);
+            let _ = repo.revoke_refresh_token(&token_id).await;
+            // Per RFC 7009, we don't reveal if the token was actually found/revoked
+        },
     }
 
-    Ok(())
-}
-
-async fn revoke_token(
-    _repo: &OAuthRepository,
-    _token: &str,
-    _token_type_hint: Option<&str>,
-) -> Result<()> {
     Ok(())
 }
 

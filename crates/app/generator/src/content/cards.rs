@@ -27,42 +27,32 @@ pub fn normalize_image_url(image: Option<&str>) -> Option<String> {
     Some(img.to_string())
 }
 
-fn convert_external_url_to_local(url: &str) -> Option<String> {
-    let external_domain =
-        std::env::var("CONTENT_EXTERNAL_DOMAIN").unwrap_or_else(|_| String::new());
-
-    if external_domain.is_empty() || !url.contains(&external_domain) {
-        return None;
-    }
-
-    // Extract filename and use generated images as fallback
-    url.rsplit('/').next().and_then(|filename| {
-        FilesConfig::from_profile()
-            .ok()
-            .map(|c| c.generated_image_url(filename))
-    })
+fn convert_external_url_to_local(_url: &str) -> Option<String> {
+    None
 }
 
 fn convert_root_images_to_content_path(path: &str) -> Option<String> {
-    let files_config = FilesConfig::from_profile().ok()?;
+    let files_config = FilesConfig::from_profile()
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to get files config for path conversion");
+            e
+        })
+        .ok()?;
     let url_prefix = files_config.url_prefix();
 
-    // Handle paths like /images/{source}/ where source is blog, docs, etc.
-    if let Some(rest) = path.strip_prefix("/images/") {
-        // Check for generated images first
-        if let Some(relative) = rest.strip_prefix("generated_images/") {
-            return Some(format!("{url_prefix}/images/generated/{relative}"));
-        }
-        // For other paths, extract the source and filename
-        if let Some(slash_pos) = rest.find('/') {
-            let source = &rest[..slash_pos];
-            let relative = &rest[slash_pos + 1..];
-            return Some(format!("{url_prefix}/images/{source}/{relative}"));
-        }
-        // If just /images/filename, default to generated
-        return Some(format!("{url_prefix}/images/{rest}"));
+    let rest = path.strip_prefix("/images/")?;
+
+    if let Some(relative) = rest.strip_prefix("generated_images/") {
+        return Some(format!("{url_prefix}/images/generated/{relative}"));
     }
-    None
+
+    if let Some(slash_pos) = rest.find('/') {
+        let source = &rest[..slash_pos];
+        let relative = &rest[slash_pos + 1..];
+        return Some(format!("{url_prefix}/images/{source}/{relative}"));
+    }
+
+    Some(format!("{url_prefix}/images/{rest}"))
 }
 
 pub fn get_absolute_image_url(image: Option<&str>, base_url: &str) -> Option<String> {

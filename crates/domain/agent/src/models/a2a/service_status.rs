@@ -1,9 +1,5 @@
-//! Service status extension parameters
-//! These are agent-specific types for service orchestration
-
 use serde::{Deserialize, Serialize};
 
-/// Parameters for the service status extension in agent cards
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct ServiceStatusParams {

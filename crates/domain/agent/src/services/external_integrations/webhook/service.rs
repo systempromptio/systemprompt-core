@@ -132,7 +132,7 @@ impl WebhookService {
         payload: Value,
         config: Option<WebhookConfig>,
     ) -> IntegrationResult<WebhookDeliveryResult> {
-        let config = config.unwrap_or_default();
+        let config = config.unwrap_or_else(WebhookConfig::default);
 
         let mut request_builder = self
             .http_client

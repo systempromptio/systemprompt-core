@@ -29,8 +29,13 @@ impl File {
         FileId::new(self.id.to_string())
     }
 
+    /// Deserializes the metadata JSON into a `FileMetadata` struct.
+    ///
+    /// Note: This clones the metadata Value because `serde_json::from_value`
+    /// takes ownership. For frequently accessed metadata, consider caching
+    /// the deserialized result.
     pub fn metadata(&self) -> Result<FileMetadata> {
         serde_json::from_value(self.metadata.clone())
-            .map_err(|e| anyhow!("Failed to deserialize metadata: {e}"))
+            .map_err(|e| anyhow!("Failed to deserialize file metadata (id: {}): {e}", self.id))
     }
 }

@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
+use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use systemprompt_oauth::services::{
     generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams,
 };
 use systemprompt_oauth::validate_jwt_token;
 use systemprompt_users::UserService;
-use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use uuid;
 
 use super::types::{AgentAuthenticatedUser, AgentOAuthState};

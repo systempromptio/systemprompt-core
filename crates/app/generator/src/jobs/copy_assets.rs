@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use systemprompt_files::FilesConfig;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
+use systemprompt_files::FilesConfig;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 #[derive(Debug, Clone, Copy)]

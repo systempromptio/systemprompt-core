@@ -80,9 +80,16 @@ pub async fn generate_tokens_by_user_id(
     .build();
     repo.store_refresh_token(refresh_params).await?;
 
-    let _ = repo
+    if let Err(e) = repo
         .update_client_last_used(params.client_id.as_str())
-        .await;
+        .await
+    {
+        tracing::warn!(
+            client_id = %params.client_id,
+            error = %e,
+            "Failed to update client last_used timestamp"
+        );
+    }
 
     Ok(TokenResponse {
         access_token,
@@ -101,7 +108,7 @@ pub async fn load_authenticated_user(
 }
 
 pub async fn generate_client_tokens(
-    _repo: &OAuthRepository,
+    repo: &OAuthRepository,
     client_id: &ClientId,
     scope: Option<&str>,
 ) -> Result<TokenResponse> {
@@ -110,7 +117,31 @@ pub async fn generate_client_tokens(
     let scope_str =
         scope.ok_or_else(|| anyhow::anyhow!("Scope is required for client credentials grant"))?;
 
-    let permissions = parse_permissions(scope_str)?;
+    let requested_permissions = parse_permissions(scope_str)?;
+
+    // Fetch client to validate requested scopes against allowed scopes
+    let client = repo
+        .find_client_by_id(client_id.as_str())
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
+
+    let client_allowed: Vec<Permission> = client
+        .scopes
+        .iter()
+        .filter_map(|s| Permission::from_str(s).ok())
+        .collect();
+
+    // Only grant permissions that are both requested AND allowed for this client
+    let permissions: Vec<Permission> = requested_permissions
+        .into_iter()
+        .filter(|p| client_allowed.contains(p))
+        .collect();
+
+    if permissions.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No valid permissions: requested scopes not allowed for this client"
+        ));
+    }
 
     let client_id_str = client_id.as_str();
     let mut hasher = Sha256::new();
@@ -121,12 +152,14 @@ pub async fn generate_client_tokens(
     uuid_bytes.copy_from_slice(&hash[..16]);
     let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
 
+    // Use the validated permissions, not hardcoded admin
+    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
     let client_user = AuthenticatedUser::new_with_roles(
         client_uuid,
         format!("client:{client_id_str}"),
         format!("{client_id_str}@client.local"),
-        vec![Permission::Admin],
-        vec!["admin".to_string()],
+        permissions.clone(),
+        role_strings,
     );
 
     let config = JwtConfig {

@@ -1,42 +1,145 @@
 # systemprompt-runtime
 
-Application runtime context and module registry. Provides centralized access to database, configuration, and extension services.
+Application runtime context and module registry for SystemPrompt. Provides centralized access to database connections, configuration, extension services, and startup validation.
 
-## Structure
+## Overview
+
+This crate is the application-layer orchestrator that:
+
+- Initializes and manages the `AppContext` - the central runtime state container
+- Provides compile-time module registration via `inventory` macros
+- Validates system configuration and extensions at startup
+- Coordinates domain services without implementing business logic
+
+## File Structure
 
 ```
 src/
-├── lib.rs                    # Public exports and macros
-├── context.rs                # AppContext and builder
-├── installation.rs           # Module installation
-├── registry.rs               # Extension registry
-├── span.rs                   # Tracing span helpers
-├── startup_validation.rs     # Startup checks
-├── validation.rs             # System validation
-└── wellknown.rs              # Well-known endpoint metadata
+├── lib.rs                    # Public exports and registration macros
+├── context.rs                # AppContext builder and runtime state
+├── database_context.rs       # Standalone database context for CLI tools
+├── installation.rs           # Module schema and seed installation
+├── registry.rs               # Module API registry and routing
+├── span.rs                   # Request tracing span construction
+├── startup_validation.rs     # Multi-domain configuration validation
+├── validation.rs             # Runtime system checks
+└── wellknown.rs              # Well-known endpoint metadata registry
 ```
 
-## Key Components
+## Modules
 
-| Component | Description |
-|-----------|-------------|
-| AppContext | Centralized runtime state |
-| AppContextBuilder | Builder for custom configuration |
-| ExtensionRegistry | Extension discovery and management |
-| Validation | System prerequisite checks |
+### `context.rs`
+
+**Purpose:** Central runtime state container providing access to all shared resources.
+
+| Export | Description |
+|--------|-------------|
+| `AppContext` | Holds database pool, config, registries, analytics, and GeoIP reader |
+| `AppContextBuilder` | Fluent builder for customized context initialization |
+
+Key behaviors:
+- Loads configuration via `ProfileBootstrap` and `Config::get()`
+- Initializes database connection from config
+- Discovers and validates extensions via `ExtensionRegistry`
+- Optionally loads GeoIP database and content configuration
+- Initializes tracing with database persistence
+
+### `database_context.rs`
+
+**Purpose:** Lightweight database-only context for CLI tools that don't need full runtime.
+
+| Export | Description |
+|--------|-------------|
+| `DatabaseContext` | Minimal context with just a database pool |
+
+### `installation.rs`
+
+**Purpose:** Module installation orchestration for schema and seed data.
+
+| Export | Description |
+|--------|-------------|
+| `install_module` | Installs a module using a new AppContext |
+| `install_module_with_db` | Installs a module with an existing database connection |
+
+Delegates to `systemprompt-database` for actual SQL execution.
+
+### `registry.rs`
+
+**Purpose:** Compile-time module registration and runtime routing.
+
+| Export | Description |
+|--------|-------------|
+| `ModuleApiRegistry` | Collects all registered module routes at startup |
+| `ModuleApiRegistration` | Static registration struct submitted via `inventory` |
+| `ModuleRuntime` | Trait for modules to expose their routes |
+| `WellKnownRoute` | Registration for `.well-known` endpoints |
+
+### `span.rs`
+
+**Purpose:** Constructs tracing spans from request context.
+
+| Export | Description |
+|--------|-------------|
+| `create_request_span` | Builds a `RequestSpan` with user, session, trace, and context IDs |
+
+### `startup_validation.rs`
+
+**Purpose:** Multi-domain configuration validation at application startup.
+
+| Export | Description |
+|--------|-------------|
+| `StartupValidator` | Orchestrates validation across all domain config validators |
+| `display_validation_report` | Renders validation errors to console |
+| `display_validation_warnings` | Renders validation warnings to console |
+
+Validates: files, rate limits, web config, content config, agents, MCP servers, AI providers, and extensions.
+
+### `validation.rs`
+
+**Purpose:** Runtime system prerequisite checks.
+
+| Export | Description |
+|--------|-------------|
+| `validate_system` | Validates database connection and path |
+
+### `wellknown.rs`
+
+**Purpose:** Metadata registry for `.well-known` endpoints.
+
+| Export | Description |
+|--------|-------------|
+| `WellKnownMetadata` | Static metadata (path, name, description) for discovery |
+| `get_wellknown_metadata` | Retrieves metadata for a given path |
 
 ## Macros
 
 | Macro | Purpose |
 |-------|---------|
-| `register_module_api!` | Register module routes with runtime |
-| `register_wellknown!` | Register .well-known endpoints |
+| `register_module_api!` | Register module routes with the runtime registry |
+| `register_wellknown_route!` | Register `.well-known` endpoints with optional metadata |
+
+### Usage
+
+```rust
+use systemprompt_runtime::{register_module_api, ServiceCategory, ModuleType};
+
+register_module_api!(
+    "my-module",
+    ServiceCategory::Core,
+    my_module::routes,
+    true,  // auth_required
+    ModuleType::Regular
+);
+```
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| `systemprompt-core-database` | Database pool |
-| `systemprompt-core-config` | Configuration loading |
-| `systemprompt-models` | Module definitions |
-| `inventory` | Compile-time registration |
+| `systemprompt-database` | Database pool and migrations |
+| `systemprompt-config` | Configuration loading |
+| `systemprompt-models` | Module and config definitions |
+| `systemprompt-logging` | Tracing and CLI output |
+| `systemprompt-extension` | Extension discovery and validation |
+| `systemprompt-analytics` | Analytics service and GeoIP |
+| `inventory` | Compile-time static registration |

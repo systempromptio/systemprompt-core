@@ -134,7 +134,6 @@ pub async fn update_task_state(
     Ok(())
 }
 
-/// Update task state to failed with an error message for debugging
 pub async fn update_task_failed_with_error(
     pool: &Arc<PgPool>,
     task_id: &systemprompt_identifiers::TaskId,

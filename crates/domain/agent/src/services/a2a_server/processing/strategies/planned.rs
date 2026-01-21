@@ -351,9 +351,6 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                     }
                 }
 
-                // Capture tool errors BEFORE attempting AI synthesis
-                // This ensures we don't lose tool errors if AI fails with
-                // MALFORMED_FUNCTION_CALL
                 let tool_error_message: Option<String> = if has_failures {
                     Some(
                         state
@@ -382,8 +379,6 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                 {
                     Ok(response) => response,
                     Err(ai_error) => {
-                        // If AI synthesis fails AND we had tool errors, return the tool errors
-                        // instead of the AI error (e.g., MALFORMED_FUNCTION_CALL)
                         if let Some(tool_err) = tool_error_message {
                             tracing::warn!(
                                 ai_error = %ai_error,
@@ -392,7 +387,6 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
                             );
                             return Err(anyhow::anyhow!("Tool execution failed: {}", tool_err));
                         }
-                        // No tool errors, propagate AI error as-is
                         return Err(ai_error);
                     },
                 };

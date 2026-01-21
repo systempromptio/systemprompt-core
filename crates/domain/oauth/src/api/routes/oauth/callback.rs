@@ -90,7 +90,7 @@ pub async fn handle_callback(
         .unwrap_or("/");
 
     let cookie = format!(
-        "access_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=3600",
+        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
         token_response.access_token
     );
 
@@ -108,20 +108,15 @@ async fn find_browser_client(
     repo: &OAuthRepository,
     redirect_uri: &str,
 ) -> anyhow::Result<BrowserClient> {
-    let clients = repo.list_clients().await?;
+    // Use indexed query instead of loading all clients
+    let client = repo
+        .find_client_by_redirect_uri_with_scope(redirect_uri, &["admin", "user"])
+        .await?
+        .ok_or_else(|| anyhow::anyhow!("No suitable browser client found"))?;
 
-    for client in clients {
-        if client.redirect_uris.contains(&redirect_uri.to_string())
-            && (client.scopes.contains(&"admin".to_string())
-                || client.scopes.contains(&"user".to_string()))
-        {
-            return Ok(BrowserClient {
-                client_id: client.client_id,
-            });
-        }
-    }
-
-    Err(anyhow::anyhow!("No suitable browser client found"))
+    Ok(BrowserClient {
+        client_id: client.client_id,
+    })
 }
 
 struct CodeExchangeParams<'a> {

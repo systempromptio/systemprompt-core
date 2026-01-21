@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-#[derive(Error, Debug)]
+#[derive(Debug, Error)]
 pub enum SyncError {
     #[error("API error {status}: {message}")]
     ApiError { status: u16, message: String },
@@ -22,6 +22,9 @@ pub enum SyncError {
 
     #[error("Git SHA unavailable")]
     GitShaUnavailable,
+
+    #[error("Missing configuration: {0}")]
+    MissingConfig(String),
 
     #[error("IO error: {0}")]
     Io(#[from] std::io::Error),

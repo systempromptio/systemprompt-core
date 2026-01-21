@@ -50,7 +50,6 @@ pub async fn load_agent_runtime(
     }
 }
 
-/// Mark a task as failed with an error message for debugging
 pub async fn mark_task_failed_with_error(
     task_id: &TaskId,
     task_repo: &TaskRepository,

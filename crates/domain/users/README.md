@@ -1,57 +1,116 @@
-# systemprompt-core-users
+# systemprompt-users
 
-User identity and management module.
+User identity and management domain module for SystemPrompt.
+
+## Overview
+
+This crate provides user management functionality including:
+
+- User CRUD operations with typed identifiers
+- Session management (list, end, cleanup)
+- Role-based access control (admin, user, anonymous)
+- IP banning with expiration and metadata tracking
+- Anonymous user lifecycle management
+- Bulk operations for user administration
 
 ## Directory Structure
 
 ```
 src/
-├── lib.rs           # Public exports
-├── error.rs         # UserError enum, Result type alias
+├── lib.rs                              # Public exports
+├── error.rs                            # UserError enum, Result type alias
 ├── models/
-│   └── mod.rs       # User, UserSession, UserActivity, UserWithSessions, UserStatus, UserRole
+│   └── mod.rs                          # User, UserSession, UserActivity, UserStats, UserExport
 ├── repository/
-│   ├── mod.rs       # UserRepository struct
+│   ├── mod.rs                          # UserRepository struct, MAX_PAGE_SIZE constant
+│   ├── banned_ip.rs                    # BannedIpRepository, BanDuration, BanIpParams
 │   └── user/
-│       ├── mod.rs       # Module exports
-│       ├── find.rs      # find_by_id, find_by_email, find_by_name, find_by_role
-│       ├── list.rs      # list, list_all, search, count, get_with_sessions, get_activity
-│       ├── operations.rs # create, update_*, delete, cleanup_old_anonymous
-│       └── session.rs    # list_sessions, list_active_sessions, list_recent_sessions
+│       ├── mod.rs                      # Module exports
+│       ├── find.rs                     # find_by_id, find_by_email, find_by_name, find_by_role
+│       ├── list.rs                     # list, search, count, get_stats, bulk operations
+│       ├── operations.rs               # create, update_*, delete, merge_users
+│       └── session.rs                  # list_sessions, end_session, end_all_sessions
 ├── services/
-│   ├── mod.rs           # Service exports
-│   ├── user_provider.rs # UserProviderImpl wrapper
+│   ├── mod.rs                          # Service exports
+│   ├── admin_service.rs                # UserAdminService, PromoteResult, DemoteResult
+│   ├── user_provider.rs                # UserProviderImpl wrapper for trait-based access
 │   └── user/
-│       ├── mod.rs       # UserService
-│       └── provider.rs  # UserProvider, RoleProvider trait implementations
+│       ├── mod.rs                      # UserService - primary service
+│       └── provider.rs                 # UserProvider, RoleProvider trait implementations
 └── jobs/
-    ├── mod.rs                      # Job exports
-    └── cleanup_anonymous_users.rs  # CleanupAnonymousUsersJob
-
-schema/
-├── users.sql                  # Users table
-├── user_sessions.sql          # User sessions table
-├── banned_ips.sql             # IP banning
-├── session_analytics_views.sql
-├── referrer_analytics_views.sql
-└── bot_analytics_views.sql
+    ├── mod.rs                          # Job exports
+    └── cleanup_anonymous_users.rs      # CleanupAnonymousUsersJob (30-day cleanup)
 ```
 
 ## Public Exports
 
-- `UserService` - Primary service (implements UserProvider, RoleProvider)
-- `UserProviderImpl` - Wrapper for trait-based access
-- `UserRepository` - Database access layer
-- `User`, `UserSession`, `UserActivity`, `UserWithSessions` - Domain models
-- `UserStatus`, `UserRole` - Type-safe enums
-- `UserError`, `Result` - Error handling
+### Models
+
+- `User` - Core user entity with id, name, email, roles, status
+- `UserSession` - Session with timestamps and device info
+- `UserActivity` - User activity summary (last active, counts)
+- `UserWithSessions` - User with active session count
+- `UserStats` - Aggregate statistics (totals, breakdowns)
+- `UserCountBreakdown` - Counts by status and role
+- `UserExport` - Export-friendly user representation
+
+### Enums
+
+- `UserStatus` - Active, Suspended, Deleted (re-exported from systemprompt-models)
+- `UserRole` - Admin, User, Anonymous (re-exported from systemprompt-models)
+
+### Services
+
+- `UserService` - Primary service implementing `UserProvider` and `RoleProvider`
+- `UserAdminService` - Admin operations (promote, demote)
+- `UserProviderImpl` - Wrapper for trait-based dependency injection
+
+### Repositories
+
+- `UserRepository` - User database operations
+- `BannedIpRepository` - IP ban management
+
+### Types
+
 - `UpdateUserParams` - Multi-field update struct
-- `UserProvider`, `RoleProvider` - Re-exported traits
+- `MergeResult` - Result of merging two users
+- `BanDuration` - Hours, Days, or Permanent
+- `BanIpParams` - Basic ban parameters
+- `BanIpWithMetadataParams` - Ban with offense tracking
+- `BannedIp` - Active ban record
+
+### Traits (re-exported)
+
+- `UserProvider` - User lookup and creation
+- `RoleProvider` - Role management
+
+### Error Handling
+
+- `UserError` - Domain-specific errors (NotFound, EmailAlreadyExists, etc.)
+- `Result<T>` - Type alias for `std::result::Result<T, UserError>`
+
+## Usage
+
+```rust
+use systemprompt_database::DbPool;
+use systemprompt_users::{UserService, UserRole, UserStatus};
+
+let user_service = UserService::new(&db_pool)?;
+
+let user = user_service.find_by_email("user@example.com").await?;
+
+let admins = user_service.find_by_role(UserRole::Admin).await?;
+
+let stats = user_service.get_stats().await?;
+```
 
 ## Dependencies
 
-- `systemprompt-core-database` - DbPool
-- `systemprompt-core-logging` - Logging
-- `systemprompt-traits` - UserProvider, RoleProvider traits
-- `systemprompt-identifiers` - UserId, SessionId
-- `systemprompt-models` - Shared models
+| Crate | Purpose |
+|-------|---------|
+| `systemprompt-database` | DbPool for database access |
+| `systemprompt-logging` | Logging infrastructure |
+| `systemprompt-traits` | UserProvider, RoleProvider traits |
+| `systemprompt-identifiers` | UserId, SessionId typed identifiers |
+| `systemprompt-models` | UserRole, UserStatus enums |
+| `systemprompt-provider-contracts` | Job registration macro |

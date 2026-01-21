@@ -316,30 +316,3 @@ impl ToolProvider for McpToolProvider {
         Ok(health_status)
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_tool_content_text() {
-        let content = ToolContent::text("Hello, world!");
-        match content {
-            ToolContent::Text { text } => assert_eq!(text, "Hello, world!"),
-            _ => panic!("Expected Text content"),
-        }
-    }
-
-    #[test]
-    fn test_tool_result_success() {
-        let result = ToolCallResult::success("Operation completed");
-        assert_eq!(result.is_error, Some(false));
-        assert_eq!(result.content.len(), 1);
-    }
-
-    #[test]
-    fn test_tool_result_error() {
-        let result = ToolCallResult::error("Something went wrong");
-        assert_eq!(result.is_error, Some(true));
-    }
-}

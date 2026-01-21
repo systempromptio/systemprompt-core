@@ -1,5 +1,6 @@
 use super::{TokenError, TokenResult};
 use crate::repository::OAuthRepository;
+use crate::services::validation::validate_client_credentials as validate_client_credentials_shared;
 use anyhow::Result;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
@@ -18,31 +19,8 @@ pub async fn validate_client_credentials(
     client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<()> {
-    let client = repo
-        .find_client_by_id(client_id.as_str())
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
-
-    let auth_method = client.token_endpoint_auth_method.as_str();
-
-    match auth_method {
-        "none" => Ok(()),
-        _ => {
-            if let Some(secret) = client_secret {
-                use crate::services::verify_client_secret;
-                let hash = client
-                    .client_secret_hash
-                    .as_deref()
-                    .ok_or_else(|| anyhow::anyhow!("Client has no secret hash configured"))?;
-                if !verify_client_secret(secret, hash)? {
-                    return Err(anyhow::anyhow!("Invalid client secret"));
-                }
-                Ok(())
-            } else {
-                Err(anyhow::anyhow!("Client secret required"))
-            }
-        },
-    }
+    // Delegate to the shared validation function with timing-attack protection
+    validate_client_credentials_shared(repo, client_id.as_str(), client_secret).await
 }
 
 pub async fn validate_authorization_code(

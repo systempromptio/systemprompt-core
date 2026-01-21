@@ -5,8 +5,8 @@ use systemprompt_analytics::{
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, SUSTAINED_VELOCITY_MINUTES,
 };
 use systemprompt_database::DbPool;
-use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use tracing::{info, warn};
 
 const SESSION_ABUSE_THRESHOLD: i32 = 10;
@@ -53,7 +53,13 @@ impl Job for BehavioralAnalysisJob {
 
         let fingerprints = fingerprint_repo.get_fingerprints_for_analysis().await?;
         let stats = process_fingerprints(&fingerprints, &fingerprint_repo, &banned_ip_repo).await;
-        let expired_cleaned = banned_ip_repo.cleanup_expired().await.unwrap_or(0);
+        let expired_cleaned = match banned_ip_repo.cleanup_expired().await {
+            Ok(count) => count,
+            Err(e) => {
+                warn!(error = %e, "Failed to cleanup expired bans");
+                0
+            },
+        };
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 

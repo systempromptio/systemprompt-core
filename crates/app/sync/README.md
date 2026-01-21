@@ -1,46 +1,91 @@
 # systemprompt-sync
 
-Synchronization module for content and skills between local disk and database.
+Synchronization services for SystemPrompt - file, database, and crate deployment synchronization between local and cloud environments.
 
-## Structure
+## Overview
+
+This crate provides bidirectional sync capabilities for:
+
+- **File Sync** - Upload/download service configuration files (agents, skills, content, config)
+- **Database Sync** - Export/import users, skills, and contexts between local and cloud databases
+- **Local Sync** - Synchronize content and skills between disk and local database
+- **Crate Deploy** - Build and deploy Docker images to Fly.io
+
+## File Structure
 
 ```
 src/
-├── lib.rs                    # Public exports
-├── api_client.rs             # API client
-├── crate_deploy.rs           # Crate deployment
-├── database.rs               # Database sync
-├── error.rs                  # Error types
-├── files.rs                  # File operations
+├── lib.rs                    # Crate root, public exports, SyncService orchestrator
+├── error.rs                  # SyncError enum and SyncResult type alias
+├── api_client.rs             # HTTP client for cloud API communication
+├── files.rs                  # FileSyncService - tarball creation/extraction
+├── database.rs               # DatabaseSyncService - cross-database sync
+├── crate_deploy.rs           # CrateDeployService - Docker build and deploy
 ├── diff/
-│   ├── mod.rs                # Diff calculation exports
-│   ├── content.rs            # Content diff calculator
-│   └── skills.rs             # Skills diff calculator
+│   ├── mod.rs                # Diff module exports, hash computation functions
+│   ├── content.rs            # ContentDiffCalculator - compare disk vs DB content
+│   └── skills.rs             # SkillsDiffCalculator - compare disk vs DB skills
 ├── export/
-│   ├── mod.rs                # Export utilities
-│   ├── content.rs            # Content export to disk
-│   └── skills.rs             # Skills export to disk
+│   ├── mod.rs                # Export utilities, YAML escape function
+│   ├── content.rs            # Content markdown generation and file export
+│   └── skills.rs             # Skill markdown/config generation and file export
 ├── local/
-│   ├── mod.rs                # Local sync exports
-│   ├── content_sync.rs       # Content sync service
-│   └── skills_sync.rs        # Skills sync service
+│   ├── mod.rs                # Local sync module exports
+│   ├── content_sync.rs       # ContentLocalSync - bidirectional content sync
+│   └── skills_sync.rs        # SkillsLocalSync - bidirectional skills sync
 └── models/
     ├── mod.rs                # Model exports
-    └── local_sync.rs         # Sync models and types
+    └── local_sync.rs         # Sync direction, diff items, and result types
 ```
 
-## Sync Operations
+## Module Details
+
+| Module | Purpose |
+|--------|---------|
+| `SyncService` | Top-level orchestrator for file and database sync operations |
+| `SyncApiClient` | HTTP client with direct sync and cloud API endpoints |
+| `FileSyncService` | Creates/extracts gzipped tarballs for file sync |
+| `DatabaseSyncService` | Exports and imports users, skills, contexts via SQL |
+| `CrateDeployService` | Builds release, Docker image, and deploys to Fly.io |
+| `ContentDiffCalculator` | Computes hash-based diffs between disk and database content |
+| `SkillsDiffCalculator` | Computes hash-based diffs between disk and database skills |
+| `ContentLocalSync` | Syncs content to/from disk using ingestion services |
+| `SkillsLocalSync` | Syncs skills to/from disk using ingestion services |
+
+## Sync Directions
 
 | Direction | Description |
 |-----------|-------------|
-| ToDisk | Export from database to local files |
-| ToDatabase | Import from local files to database |
+| `Push` | Local to cloud (upload files, push database) |
+| `Pull` | Cloud to local (download files, pull database) |
+| `ToDisk` | Database to local files |
+| `ToDatabase` | Local files to database |
+
+## Usage
+
+```rust
+use systemprompt_sync::{SyncConfig, SyncService, SyncDirection};
+
+let config = SyncConfig::builder(
+    "tenant-id",
+    "https://api.systemprompt.io",
+    "api-token",
+    "./services",
+)
+.with_direction(SyncDirection::Push)
+.with_dry_run(false)
+.build();
+
+let service = SyncService::new(config);
+let results = service.sync_all().await?;
+```
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| `systemprompt-core-database` | Database access |
-| `systemprompt-core-content` | Content repository |
-| `systemprompt-core-agent` | Skill repository |
-| `systemprompt-identifiers` | Typed identifiers |
+| `systemprompt-database` | Database pool and provider traits |
+| `systemprompt-content` | Content repository and ingestion |
+| `systemprompt-agent` | Skill repository and ingestion |
+| `systemprompt-identifiers` | Typed identifiers (SkillId, SourceId, etc.) |
+| `systemprompt-logging` | Tracing integration |

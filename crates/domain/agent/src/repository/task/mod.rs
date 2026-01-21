@@ -172,7 +172,6 @@ impl TaskRepository {
             .await
     }
 
-    /// Update task to failed state with an error message for debugging
     pub async fn update_task_failed_with_error(
         &self,
         task_id: &systemprompt_identifiers::TaskId,

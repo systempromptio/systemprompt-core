@@ -2,7 +2,6 @@ pub mod jsonrpc;
 pub mod protocol;
 mod service_status;
 
-// Re-export A2A types from shared models
 pub use systemprompt_models::a2a::{
     AgentAuthentication, AgentCapabilities, AgentCard, AgentCardBuilder, AgentCardSignature,
     AgentExtension, AgentInterface, AgentProvider, AgentSkill, ApiKeyLocation, Artifact,

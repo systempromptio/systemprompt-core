@@ -238,16 +238,14 @@ impl SessionAnalytics {
     }
 
     fn parse_query_params(uri: &Uri) -> HashMap<String, String> {
-        uri.query()
-            .map(|q| {
-                q.split('&')
-                    .filter_map(|param| {
-                        let mut parts = param.splitn(2, '=');
-                        Some((parts.next()?.to_string(), parts.next()?.to_string()))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
+        uri.query().map_or_else(HashMap::new, |q| {
+            q.split('&')
+                .filter_map(|param| {
+                    let mut parts = param.splitn(2, '=');
+                    Some((parts.next()?.to_string(), parts.next()?.to_string()))
+                })
+                .collect()
+        })
     }
 
     fn lookup_geoip(

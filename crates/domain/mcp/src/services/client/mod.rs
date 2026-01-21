@@ -162,8 +162,6 @@ impl McpClient {
         let url = server_config.endpoint(&Config::get()?.api_server_url);
         let url = validation::rewrite_url_for_internal_use(&url);
 
-        // Tool execution logging is handled by the MCP server - no client-side tracking
-        // needed
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         execute_tool_call(transport, &name, arguments)
             .await

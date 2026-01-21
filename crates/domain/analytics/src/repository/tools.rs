@@ -84,34 +84,31 @@ impl ToolAnalyticsRepository {
                 .fetch_all(&*self.pool)
                 .await
                 .map_err(Into::into),
-                _ => {
-                    // Default: execution_count
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
-                        SELECT
-                            tool_name as "tool_name!",
-                            server_name as "server_name!",
-                            COUNT(*)::bigint as "execution_count!",
-                            COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                            COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                            MAX(created_at) as "last_used!"
-                        FROM mcp_tool_executions
-                        WHERE created_at >= $1 AND created_at < $2
-                          AND server_name ILIKE $3
-                        GROUP BY tool_name, server_name
-                        ORDER BY COUNT(*) DESC
-                        LIMIT $4
-                        "#,
-                        start,
-                        end,
-                        pattern,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                },
+                _ => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
+                    SELECT
+                        tool_name as "tool_name!",
+                        server_name as "server_name!",
+                        COUNT(*)::bigint as "execution_count!",
+                        COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                        COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                        MAX(created_at) as "last_used!"
+                    FROM mcp_tool_executions
+                    WHERE created_at >= $1 AND created_at < $2
+                      AND server_name ILIKE $3
+                    GROUP BY tool_name, server_name
+                    ORDER BY COUNT(*) DESC
+                    LIMIT $4
+                    "#,
+                    start,
+                    end,
+                    pattern,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
             }
         } else {
             match sort_order {
@@ -163,32 +160,29 @@ impl ToolAnalyticsRepository {
                 .fetch_all(&*self.pool)
                 .await
                 .map_err(Into::into),
-                _ => {
-                    // Default: execution_count
-                    sqlx::query_as!(
-                        ToolListRow,
-                        r#"
-                        SELECT
-                            tool_name as "tool_name!",
-                            server_name as "server_name!",
-                            COUNT(*)::bigint as "execution_count!",
-                            COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
-                            COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
-                            MAX(created_at) as "last_used!"
-                        FROM mcp_tool_executions
-                        WHERE created_at >= $1 AND created_at < $2
-                        GROUP BY tool_name, server_name
-                        ORDER BY COUNT(*) DESC
-                        LIMIT $3
-                        "#,
-                        start,
-                        end,
-                        limit
-                    )
-                    .fetch_all(&*self.pool)
-                    .await
-                    .map_err(Into::into)
-                },
+                _ => sqlx::query_as!(
+                    ToolListRow,
+                    r#"
+                    SELECT
+                        tool_name as "tool_name!",
+                        server_name as "server_name!",
+                        COUNT(*)::bigint as "execution_count!",
+                        COUNT(*) FILTER (WHERE status = 'success')::bigint as "success_count!",
+                        COALESCE(AVG(execution_time_ms)::float8, 0) as "avg_time!",
+                        MAX(created_at) as "last_used!"
+                    FROM mcp_tool_executions
+                    WHERE created_at >= $1 AND created_at < $2
+                    GROUP BY tool_name, server_name
+                    ORDER BY COUNT(*) DESC
+                    LIMIT $3
+                    "#,
+                    start,
+                    end,
+                    limit
+                )
+                .fetch_all(&*self.pool)
+                .await
+                .map_err(Into::into),
             }
         }
     }

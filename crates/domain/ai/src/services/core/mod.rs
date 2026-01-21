@@ -1,4 +1,5 @@
 pub mod ai_service;
+mod image_persistence;
 pub mod image_service;
 mod request_logging;
 pub mod request_storage;

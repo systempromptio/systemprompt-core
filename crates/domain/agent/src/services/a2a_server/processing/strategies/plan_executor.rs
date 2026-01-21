@@ -131,8 +131,8 @@ pub async fn execute_tools_with_templates(
         if has_templates {
             tracing::info!(
                 tool_name = %call.tool_name,
-                original = %serde_json::to_string(&call.arguments).unwrap_or_default(),
-                resolved = %serde_json::to_string(&resolved_arguments).unwrap_or_default(),
+                original = %serde_json::to_string(&call.arguments).unwrap_or_else(|_| String::new()),
+                resolved = %serde_json::to_string(&resolved_arguments).unwrap_or_else(|_| String::new()),
                 "Resolved templates for tool"
             );
         }

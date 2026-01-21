@@ -97,7 +97,7 @@ impl SkillIngestionService {
                     .filter_map(|item| item.as_str().map(|s| s.to_string()))
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_else(Vec::new);
 
         let skill = Skill {
             skill_id: SkillId::new(skill_id),

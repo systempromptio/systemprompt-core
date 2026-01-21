@@ -172,8 +172,10 @@ impl FileValidator {
         Ok(category)
     }
 
+    /// Categorizes a MIME type into a file category.
+    /// Only explicitly whitelisted MIME types are accepted for security.
     fn categorize_mime_type(mime_type: &str) -> Result<FileCategory, FileValidationError> {
-        if Self::IMAGE_TYPES.contains(&mime_type) || mime_type.starts_with("image/") {
+        if Self::IMAGE_TYPES.contains(&mime_type) {
             return Ok(FileCategory::Image);
         }
 
@@ -181,11 +183,11 @@ impl FileValidator {
             return Ok(FileCategory::Document);
         }
 
-        if Self::AUDIO_TYPES.contains(&mime_type) || mime_type.starts_with("audio/") {
+        if Self::AUDIO_TYPES.contains(&mime_type) {
             return Ok(FileCategory::Audio);
         }
 
-        if Self::VIDEO_TYPES.contains(&mime_type) || mime_type.starts_with("video/") {
+        if Self::VIDEO_TYPES.contains(&mime_type) {
             return Ok(FileCategory::Video);
         }
 
@@ -203,10 +205,28 @@ impl FileValidator {
         }
     }
 
+    /// Extracts a safe file extension from the filename or falls back to MIME type.
+    ///
+    /// # Security
+    /// - Only alphanumeric characters are allowed in extensions
+    /// - Path traversal sequences (..) are rejected
+    /// - Null bytes and control characters are rejected
+    /// - Maximum extension length is 10 characters
     pub fn get_extension(mime_type: &str, filename: Option<&str>) -> String {
         if let Some(name) = filename {
+            // Use rsplit('.').next() to get the part after the last dot
+            // e.g., "file.tar.gz" -> "gz", "image.png" -> "png"
             if let Some(ext) = name.rsplit('.').next() {
-                if !ext.is_empty() && ext.len() <= 10 && !ext.contains('/') {
+                // Validate extension is safe:
+                // - Not empty
+                // - Reasonable length (max 10 chars)
+                // - Only alphanumeric (prevents path traversal, null bytes, etc.)
+                // - Not the same as the full filename (no dot in original)
+                if !ext.is_empty()
+                    && ext.len() <= 10
+                    && ext != name
+                    && ext.chars().all(|c| c.is_ascii_alphanumeric())
+                {
                     return ext.to_lowercase();
                 }
             }
