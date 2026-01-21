@@ -16,33 +16,32 @@ pub async fn validate_client_credentials(
 
     let auth_method = client.token_endpoint_auth_method.as_str();
 
-    match auth_method {
-        "none" => Ok(()),
-        _ => {
-            let (hash_to_verify, secret_to_verify) =
-                match (&client.client_secret_hash, client_secret) {
-                    (Some(hash), Some(secret)) => (hash.as_str(), secret),
-                    (Some(_hash), None) => {
-                        perform_timing_safe_dummy_verification();
-                        return Err(anyhow::anyhow!("Client secret required"));
-                    },
-                    (None, Some(_secret)) => {
-                        perform_timing_safe_dummy_verification();
-                        return Err(anyhow::anyhow!("Client has no secret hash configured"));
-                    },
-                    (None, None) => {
-                        perform_timing_safe_dummy_verification();
-                        return Err(anyhow::anyhow!("Client secret required"));
-                    },
-                };
-
-            if !verify_client_secret(secret_to_verify, hash_to_verify)? {
-                return Err(anyhow::anyhow!("Invalid client secret"));
-            }
-
-            Ok(())
-        },
+    if auth_method == "none" {
+        return Ok(());
     }
+
+    let (hash_to_verify, secret_to_verify) =
+        match (&client.client_secret_hash, client_secret) {
+            (Some(hash), Some(secret)) => (hash.as_str(), secret),
+            (Some(_hash), None) => {
+                perform_timing_safe_dummy_verification();
+                return Err(anyhow::anyhow!("Client secret required"));
+            },
+            (None, Some(_secret)) => {
+                perform_timing_safe_dummy_verification();
+                return Err(anyhow::anyhow!("Client has no secret hash configured"));
+            },
+            (None, None) => {
+                perform_timing_safe_dummy_verification();
+                return Err(anyhow::anyhow!("Client secret required"));
+            },
+        };
+
+    if !verify_client_secret(secret_to_verify, hash_to_verify)? {
+        return Err(anyhow::anyhow!("Invalid client secret"));
+    }
+
+    Ok(())
 }
 
 fn perform_timing_safe_dummy_verification() {

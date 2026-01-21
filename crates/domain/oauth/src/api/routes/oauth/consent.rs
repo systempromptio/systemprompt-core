@@ -236,7 +236,7 @@ fn get_javascript_section(client_id: &str, scope: &str, state: &str) -> String {
     )
 }
 
-async fn process_consent_decision(decision: ConsentRequest) -> Result<serde_json::Value> {
+fn process_consent_decision(decision: ConsentRequest) -> Result<serde_json::Value> {
     Ok(serde_json::json!({
         "status": "processed",
         "decision": decision.decision,

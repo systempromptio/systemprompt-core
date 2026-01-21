@@ -50,7 +50,7 @@ cargo fmt -p systemprompt-users -- --check          # PASS
 | `repository/banned_ip/queries.rs` | 162 |
 | `models/mod.rs` | 159 |
 | `repository/user/find.rs` | 145 |
-| `services/user/provider.rs` | 132 |
+| `services/user/provider.rs` | 131 |
 | `repository/user/stats.rs` | 118 |
 | `repository/banned_ip/types.rs` | 116 |
 | `repository/banned_ip/listing.rs` | 108 |
@@ -112,6 +112,19 @@ Note: `.unwrap_or(0)` on aggregate query results (COUNT) is acceptable as these 
 
 ---
 
+## Idiomatic Rust
+
+| Pattern | Status |
+|---------|--------|
+| Enum constants over string literals | ✅ |
+| `let...else` for early returns | ✅ |
+| `FromStr` for string parsing | ✅ |
+| Iterator chains over loops | ✅ |
+| `?` operator for error propagation | ✅ |
+| No unnecessary `.clone()` | ✅ |
+
+---
+
 ## Dependencies
 
 | Dependency | Purpose | Used |
@@ -152,3 +165,7 @@ Internal dependencies:
    - `serde_yaml`, `serde_json`, `rand`, `tokio`
    - `systemprompt-logging`
 9. Removed unused `[features]` section
+
+### Idiomatic Rust Review
+10. Fixed `admin_service.rs` - Replaced hardcoded `"admin"` and `"user"` string literals with `UserRole::Admin.as_str()` and `UserRole::User.as_str()` for type-safe role references
+11. Fixed `provider.rs` - Replaced manual match on role strings with `UserRole::from_str()` using idiomatic `let...else` pattern

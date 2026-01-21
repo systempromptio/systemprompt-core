@@ -25,8 +25,8 @@ pub async fn handle_authorize_get(
         Ok(r) => r,
         Err(e) => {
             return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
             ).into_response();
         },
     };
@@ -161,8 +161,8 @@ pub async fn handle_authorize_post(
         Ok(r) => r,
         Err(e) => {
             return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
             ).into_response();
         },
     };

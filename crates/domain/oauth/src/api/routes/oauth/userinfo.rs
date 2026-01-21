@@ -58,7 +58,7 @@ fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     auth_str.strip_prefix("Bearer ").map(ToString::to_string)
 }
 
-async fn get_userinfo(token: &str) -> Result<UserinfoResponse> {
+fn get_userinfo(token: &str) -> Result<UserinfoResponse> {
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
     let claims = validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences)?;

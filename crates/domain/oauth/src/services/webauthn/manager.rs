@@ -37,12 +37,12 @@ impl WebAuthnManager {
         *write_guard = Some(Arc::clone(&service));
         drop(write_guard);
 
-        Self::start_cleanup_task(Arc::clone(&service)).await;
+        Self::start_cleanup_task(Arc::clone(&service));
 
         Ok(service)
     }
 
-    async fn start_cleanup_task(service: Arc<WebAuthnService>) {
+    fn start_cleanup_task(service: Arc<WebAuthnService>) {
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(Duration::from_secs(300));
             loop {

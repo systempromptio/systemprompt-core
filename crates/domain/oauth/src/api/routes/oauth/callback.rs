@@ -29,7 +29,7 @@ pub async fn handle_callback(
         Ok(r) => r,
         Err(e) => {
             return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::INTERNAL_SERVER_ERROR,
                 axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
             ).into_response();
         },
@@ -162,7 +162,7 @@ async fn exchange_code_for_token(
         ..Default::default()
     };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
-    let global_config = systemprompt_models::Config::get()?;
+    let global_config = Config::get()?;
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,

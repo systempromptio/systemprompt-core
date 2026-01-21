@@ -10,7 +10,7 @@ use uuid::Uuid;
 pub struct AuthorizationService;
 
 impl AuthorizationService {
-    pub async fn authorize_service_access(
+    pub fn authorize_service_access(
         headers: &HeaderMap,
         service_name: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -37,7 +37,7 @@ impl AuthorizationService {
         Self::create_authenticated_user_from_claims(claims)
     }
 
-    pub async fn authorize_required_audience(
+    pub fn authorize_required_audience(
         headers: &HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
@@ -67,7 +67,7 @@ impl AuthorizationService {
         Self::create_authenticated_user_from_claims(claims)
     }
 
-    pub async fn authorize_any_audience(
+    pub fn authorize_any_audience(
         headers: &HeaderMap,
         allowed_audiences: &[&str],
     ) -> Result<AuthenticatedUser, StatusCode> {

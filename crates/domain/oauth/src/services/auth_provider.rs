@@ -128,23 +128,26 @@ impl AuthorizationProvider for JwtAuthorizationProvider {
 #[derive(Clone)]
 pub struct TraitBasedAuthService {
     auth_provider: Arc<dyn AuthProvider>,
-    authz_provider: Arc<dyn AuthorizationProvider>,
+    authorization_provider: Arc<dyn AuthorizationProvider>,
 }
 
 impl std::fmt::Debug for TraitBasedAuthService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("TraitBasedAuthService").finish()
+        f.debug_struct("TraitBasedAuthService")
+            .field("auth_provider", &"AuthProvider")
+            .field("authorization_provider", &"AuthorizationProvider")
+            .finish()
     }
 }
 
 impl TraitBasedAuthService {
     pub fn new(
         auth_provider: Arc<dyn AuthProvider>,
-        authz_provider: Arc<dyn AuthorizationProvider>,
+        authorization_provider: Arc<dyn AuthorizationProvider>,
     ) -> Self {
         Self {
             auth_provider,
-            authz_provider,
+            authorization_provider,
         }
     }
 
@@ -169,7 +172,7 @@ impl TraitBasedAuthService {
     }
 
     pub fn authorization_provider(&self) -> &Arc<dyn AuthorizationProvider> {
-        &self.authz_provider
+        &self.authorization_provider
     }
 
     pub async fn validate_token(&self, token: &str) -> AuthResult<TokenClaims> {
@@ -177,6 +180,6 @@ impl TraitBasedAuthService {
     }
 
     pub async fn has_audience(&self, token: &str, audience: &str) -> AuthResult<bool> {
-        self.authz_provider.has_audience(token, audience).await
+        self.authorization_provider.has_audience(token, audience).await
     }
 }

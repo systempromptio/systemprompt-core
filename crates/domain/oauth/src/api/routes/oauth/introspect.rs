@@ -52,8 +52,8 @@ pub async fn handle_introspect(
         Ok(r) => r,
         Err(e) => {
             return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
             ).into_response();
         },
     };
@@ -82,7 +82,7 @@ pub async fn handle_introspect(
     }
 }
 
-async fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<IntrospectResponse> {
+fn introspect_token(_repo: &OAuthRepository, token: &str) -> Result<IntrospectResponse> {
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let config = systemprompt_models::Config::get()?;
     match validate_jwt_token(token, jwt_secret, &config.jwt_issuer, &config.jwt_audiences) {
