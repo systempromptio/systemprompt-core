@@ -166,14 +166,6 @@ impl FileUploadService {
         cfg.enabled && cfg.persistence_mode != FilePersistenceMode::Disabled
     }
 
-    /// Uploads a file from base64-encoded bytes.
-    ///
-    /// # Process
-    /// 1. Validates base64 size before decoding to prevent memory exhaustion
-    /// 2. Decodes and validates file content
-    /// 3. Writes file to disk
-    /// 4. Inserts database record
-    /// 5. Cleans up file on disk if database insertion fails
     pub async fn upload_file(
         &self,
         request: FileUploadRequest,
@@ -184,8 +176,6 @@ impl FileUploadService {
             return Err(FileUploadError::PersistenceDisabled);
         }
 
-        // Pre-check: Validate base64 size before decoding to prevent memory exhaustion.
-        // Base64 encoding has ~33% overhead, so max_encoded = max_decoded * 1.34 (rounded up)
         let max_encoded_size = (upload_config.max_file_size_bytes as f64 * 1.34) as usize + 100;
         if request.bytes_base64.len() > max_encoded_size {
             return Err(FileUploadError::Base64TooLarge {
@@ -248,9 +238,7 @@ impl FileUploadService {
             insert_request = insert_request.with_trace_id(trace_id);
         }
 
-        // Insert into database; clean up file on failure to prevent orphaned files
         if let Err(e) = self.file_service.insert(insert_request).await {
-            // Best-effort cleanup - don't fail if cleanup fails
             let _ = fs::remove_file(&storage_path).await;
             return Err(FileUploadError::Database(e.to_string()));
         }
@@ -263,11 +251,6 @@ impl FileUploadService {
         })
     }
 
-    /// Determines the storage path for a file.
-    ///
-    /// # Security
-    /// Validates that the constructed path remains within the base upload directory
-    /// to prevent path traversal attacks.
     fn determine_storage_path(
         &self,
         category: &FileCategory,

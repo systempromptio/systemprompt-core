@@ -10,10 +10,13 @@ pub async fn store_request_async(
     repo: &AiRequestRepository,
     record: &AiRequestRecord,
 ) -> Option<AiRequestId> {
-    repo.insert(record).await.map_err(|e| {
-        error!(error = %e, "Failed to store AI request record");
-        e
-    }).ok()
+    repo.insert(record)
+        .await
+        .map_err(|e| {
+            error!(error = %e, "Failed to store AI request record");
+            e
+        })
+        .ok()
 }
 
 pub async fn store_messages_async(
@@ -99,10 +102,14 @@ async fn ensure_session_exists(
     session_id: &SessionId,
     user_id: &UserId,
 ) {
-    let exists = session_repo.exists(session_id).await.map_err(|e| {
-        error!(error = %e, session_id = %session_id, "Failed to check session existence");
-        e
-    }).unwrap_or(false);
+    let exists = session_repo
+        .exists(session_id)
+        .await
+        .map_err(|e| {
+            error!(error = %e, session_id = %session_id, "Failed to check session existence");
+            e
+        })
+        .unwrap_or(false);
 
     if exists {
         return;

@@ -111,8 +111,6 @@ async fn process_image_files(
         images_dir,
     };
 
-    // Security: Don't follow symlinks to prevent escaping storage directory
-    // and avoid potential infinite loops from circular symlinks
     for entry in WalkDir::new(images_dir)
         .follow_links(false)
         .into_iter()
@@ -158,16 +156,16 @@ async fn process_single_file(
 }
 
 fn resolve_public_url(ctx: &FileProcessingContext<'_>, path: &Path) -> String {
-    path.strip_prefix(ctx.images_dir).map_or_else(
-        |_| {
+    match path.strip_prefix(ctx.images_dir) {
+        Ok(relative) => ctx.files_config.public_url(&relative.to_string_lossy()),
+        Err(_) => {
             let file_name = path
                 .file_name()
-                .map(|n| n.to_string_lossy())
-                .unwrap_or_default();
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| String::from("unknown"));
             ctx.files_config.public_url(&file_name)
-        },
-        |p| ctx.files_config.public_url(&p.to_string_lossy()),
-    )
+        }
+    }
 }
 
 async fn check_file_exists(
@@ -206,8 +204,8 @@ async fn insert_file_record(
 
 fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
     let now = Utc::now();
-    let metadata =
-        serde_json::to_value(FileMetadata::default()).unwrap_or_else(|_| serde_json::json!({}));
+    let metadata = serde_json::to_value(FileMetadata::default())
+        .expect("FileMetadata::default serialization is infallible");
 
     File {
         id: uuid::Uuid::new_v4(),

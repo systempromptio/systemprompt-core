@@ -11,7 +11,7 @@ pub fn load_content_config(
     mut provider: ValidationConfigProvider,
     verbose: bool,
 ) -> ValidationConfigProvider {
-    if let Some(content_config_path) = config.get("content_config_path") {
+    if let Some(content_config_path) = ConfigProvider::get(config, "content_config_path") {
         let spinner = if verbose {
             Some(create_spinner("Loading content config"))
         } else {
@@ -45,7 +45,7 @@ pub fn load_web_config(
     mut provider: ValidationConfigProvider,
     verbose: bool,
 ) -> ValidationConfigProvider {
-    if let Some(web_config_path) = config.get("web_config_path") {
+    if let Some(web_config_path) = ConfigProvider::get(config, "web_config_path") {
         let spinner = if verbose {
             Some(create_spinner("Loading web config"))
         } else {
@@ -79,7 +79,7 @@ pub fn load_web_metadata(
     mut provider: ValidationConfigProvider,
     verbose: bool,
 ) -> ValidationConfigProvider {
-    if let Some(web_metadata_path) = config.get("web_metadata_path") {
+    if let Some(web_metadata_path) = ConfigProvider::get(config, "web_metadata_path") {
         let spinner = if verbose {
             Some(create_spinner("Loading web metadata"))
         } else {

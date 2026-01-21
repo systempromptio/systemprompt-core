@@ -90,23 +90,22 @@ pub fn build_image_request(
 }
 
 pub fn extract_image_from_response(response: &GeminiResponse) -> Result<(String, String)> {
-    let candidate =
-        response
-            .candidates
-            .first()
-            .ok_or_else(|| AiError::EmptyProviderResponse {
-                provider: "gemini-image".to_string(),
-            })?;
+    let candidate = response
+        .candidates
+        .first()
+        .ok_or_else(|| AiError::EmptyProviderResponse {
+            provider: "gemini-image".to_string(),
+        })?;
 
     let content = candidate
         .content
         .as_ref()
         .ok_or_else(|| AiError::ProviderError {
             provider: "gemini-image".to_string(),
-            message: "Image generation returned empty response - this may indicate the prompt \
-                      was rejected by content safety filters, API quota exceeded, or a \
-                      transient service error. Please inform the user that image generation \
-                      failed and the content was created without an image."
+            message: "Image generation returned empty response - this may indicate the prompt was \
+                      rejected by content safety filters, API quota exceeded, or a transient \
+                      service error. Please inform the user that image generation failed and the \
+                      content was created without an image."
                 .to_string(),
         })?;
 

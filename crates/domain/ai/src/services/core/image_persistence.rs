@@ -108,10 +108,7 @@ async fn persist_file_record(
     })
 }
 
-pub async fn get_generated_image(
-    file_repo: &FileRepository,
-    uuid: &str,
-) -> Result<Option<File>> {
+pub async fn get_generated_image(file_repo: &FileRepository, uuid: &str) -> Result<Option<File>> {
     file_repo
         .find_by_id(&FileId::new(uuid))
         .await

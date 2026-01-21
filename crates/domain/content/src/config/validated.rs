@@ -228,7 +228,10 @@ fn validate_single_source(
         enabled: source.enabled,
         description: source.description.clone(),
         allowed_content_types: source.allowed_content_types.clone(),
-        indexing: source.indexing.unwrap_or_default(),
+        indexing: source.indexing.unwrap_or(IndexingConfig {
+            recursive: false,
+            override_existing: false,
+        }),
         sitemap: source.sitemap.clone(),
         branding: source.branding.clone(),
     })

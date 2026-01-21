@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use std::path::Path;
-use systemprompt_database::{DatabaseProvider, DbPool};
+use systemprompt_content::ContentRepository;
+use systemprompt_database::DbPool;
+use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
@@ -42,8 +44,7 @@ async fn load_sitemap_context(db_pool: DbPool) -> Result<SitemapContext> {
         .web()
         .dist()
         .to_path_buf();
-    let base_url = std::env::var("SITEMAP_BASE_URL")
-        .unwrap_or_else(|_| global_config.api_external_url.clone());
+    let base_url = global_config.api_external_url.clone();
 
     tracing::debug!(base_url = %base_url, "Using base URL");
 
@@ -191,55 +192,35 @@ struct FetchParams<'a> {
 }
 
 async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<SitemapUrl>> {
-    let query = r"
-        SELECT slug, updated_at, published_at
-        FROM markdown_content
-        WHERE source_id = $1
-        ORDER BY published_at DESC
-    ";
+    let repo = ContentRepository::new(params.db_pool)
+        .map_err(|e| anyhow!("{}", e))
+        .context("Failed to create content repository")?;
 
-    let rows = params
-        .db_pool
-        .fetch_all(&query, &[&params.source_id])
-        .await?;
+    let source_id = SourceId::new(params.source_id);
+    let contents = repo
+        .list_by_source(&source_id)
+        .await
+        .context("Failed to fetch content for sitemap")?;
 
-    rows.iter()
-        .map(|row| build_sitemap_url_from_row(row, &params))
+    contents
+        .iter()
+        .map(|content| build_sitemap_url_from_content(content, params))
         .collect()
 }
 
-fn build_sitemap_url_from_row(
-    row: &std::collections::HashMap<String, serde_json::Value>,
+fn build_sitemap_url_from_content(
+    content: &systemprompt_content::models::Content,
     params: &FetchParams<'_>,
 ) -> Result<SitemapUrl> {
-    let slug = row
-        .get("slug")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing slug in database row"))?;
-
-    let lastmod = row
-        .get("published_at")
-        .and_then(|v| v.as_str())
-        .or_else(|| row.get("updated_at").and_then(|v| v.as_str()))
-        .ok_or_else(|| anyhow!("Missing published_at/updated_at for slug: {}", slug))?;
-
-    let relative_url = params.url_pattern.replace(SLUG_PLACEHOLDER, slug);
+    let relative_url = params.url_pattern.replace(SLUG_PLACEHOLDER, &content.slug);
     let absolute_url = format!("{}{}", params.base_url, relative_url);
+
+    let lastmod = content.published_at.format("%Y-%m-%d").to_string();
 
     Ok(SitemapUrl {
         loc: absolute_url,
-        lastmod: normalize_date(lastmod),
+        lastmod,
         changefreq: params.changefreq.to_string(),
         priority: params.priority,
     })
-}
-
-fn normalize_date(date_str: &str) -> String {
-    if date_str.len() == 10 && date_str.chars().nth(4) == Some('-') {
-        return date_str.to_string();
-    }
-    if date_str.len() >= 10 {
-        return date_str[..10].to_string();
-    }
-    date_str.to_string()
 }
