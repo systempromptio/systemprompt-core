@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::UserId;
 
 use crate::models::cli::{LiveSessionRow, SessionStatsRow, SessionTrendRow};
 
@@ -101,7 +102,7 @@ impl CliSessionAnalyticsRepository {
             r#"
             SELECT
                 started_at as "started_at!",
-                user_id,
+                user_id as "user_id: UserId",
                 duration_seconds
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2

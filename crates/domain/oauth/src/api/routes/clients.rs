@@ -1,8 +1,9 @@
 use super::client;
+use crate::OAuthState;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
 
-pub fn router() -> Router<systemprompt_runtime::AppContext> {
+pub fn router() -> Router<OAuthState> {
     Router::new()
         .route("/", get(client::list::list_clients))
         .route("/", post(client::create::create_client))

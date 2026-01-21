@@ -17,5 +17,6 @@ pub use models::{
 pub use repository::{FileRepository, FileStats, InsertFileRequest};
 pub use services::{
     AiService, ContentService, FileCategory, FileService, FileUploadError, FileUploadRequest,
-    FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator, UploadedFile,
+    FileUploadRequestBuilder, FileUploadService, FileValidationError, FileValidator,
+    FilesAiPersistenceProvider, UploadedFile,
 };

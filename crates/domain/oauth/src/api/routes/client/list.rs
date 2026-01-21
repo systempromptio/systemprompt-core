@@ -9,9 +9,9 @@ use tracing::instrument;
 use validator::Validate;
 
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{ApiError, CollectionResponse, PaginationInfo, RequestContext};
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct ListClientsQuery {
@@ -22,13 +22,13 @@ pub struct ListClientsQuery {
     pub status: Option<String>,
 }
 
-#[instrument(skip(ctx, req_ctx, query))]
+#[instrument(skip(state, req_ctx, query))]
 pub async fn list_clients(
     Extension(req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Query(query): Query<ListClientsQuery>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

@@ -67,7 +67,7 @@ impl BrowserRedirectService {
                     || client.scopes.contains(&"user".to_string()))
             {
                 return Ok(WebClient {
-                    client_id: client.client_id,
+                    client_id: client.client_id.to_string(),
                     scopes: client.scopes,
                 });
             }
@@ -118,7 +118,7 @@ impl BrowserRedirectService {
             .map_err(|e| anyhow!("Invalid token endpoint auth method: {e}"))?;
 
         let params = CreateClientParams {
-            client_id: client_id.clone(),
+            client_id: client_id.clone().into(),
             client_secret_hash,
             client_name,
             redirect_uris,

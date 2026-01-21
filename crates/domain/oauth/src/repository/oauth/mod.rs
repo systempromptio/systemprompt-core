@@ -165,7 +165,7 @@ impl OAuthRepository {
 
         let client_repo = ClientRepository::new(&self.db_pool)?;
         let params = UpdateClientParams {
-            client_id: client_id.to_string(),
+            client_id: client_id.into(),
             client_name: updated_name,
             redirect_uris: updated_redirect_uris.to_vec(),
             grant_types: Some(client.grant_types.clone()),

@@ -1,7 +1,7 @@
 use crate::models::AiRequestRecord;
 use crate::repository::{AiRequestRepository, InsertToolCallParams};
-use systemprompt_analytics::{CreateSessionParams, SessionRepository};
 use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
+use systemprompt_traits::{AiSessionProvider, CreateAiSessionParams};
 use tracing::error;
 
 use super::record_builder::{MessageData, ToolCallData};
@@ -66,7 +66,7 @@ pub async fn store_tool_calls_async(
 }
 
 pub async fn update_session_usage_async(
-    session_repo: &SessionRepository,
+    session_provider: &dyn AiSessionProvider,
     user_id: &UserId,
     session_id: Option<&SessionId>,
     tokens: Option<i32>,
@@ -80,10 +80,10 @@ pub async fn update_session_usage_async(
         return;
     };
 
-    ensure_session_exists(session_repo, session_id, user_id).await;
+    ensure_session_exists(session_provider, session_id, user_id).await;
 
     let tokens = tokens.unwrap_or(0);
-    if let Err(e) = session_repo
+    if let Err(e) = session_provider
         .increment_ai_usage(session_id, tokens, cost_cents)
         .await
     {
@@ -98,12 +98,12 @@ pub async fn update_session_usage_async(
 }
 
 async fn ensure_session_exists(
-    session_repo: &SessionRepository,
+    session_provider: &dyn AiSessionProvider,
     session_id: &SessionId,
     user_id: &UserId,
 ) {
-    let exists = session_repo
-        .exists(session_id)
+    let exists = session_provider
+        .session_exists(session_id)
         .await
         .map_err(|e| {
             error!(error = %e, session_id = %session_id, "Failed to check session existence");
@@ -124,32 +124,14 @@ async fn ensure_session_exists(
         .unwrap_or(3600);
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration);
 
-    let params = CreateSessionParams {
+    let params = CreateAiSessionParams {
         session_id,
         user_id: Some(user_id),
         session_source: SessionSource::Api,
-        fingerprint_hash: None,
-        ip_address: None,
-        user_agent: None,
-        device_type: None,
-        browser: None,
-        os: None,
-        country: None,
-        region: None,
-        city: None,
-        preferred_locale: None,
-        referrer_source: None,
-        referrer_url: None,
-        landing_page: None,
-        entry_url: None,
-        utm_source: None,
-        utm_medium: None,
-        utm_campaign: None,
-        is_bot: false,
         expires_at,
     };
 
-    if let Err(e) = session_repo.create_session(&params).await {
+    if let Err(e) = session_provider.create_session(params).await {
         error!(
             error = %e,
             session_id = %session_id,

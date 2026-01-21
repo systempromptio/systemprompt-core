@@ -1,11 +1,11 @@
 use crate::services::validate_jwt_token;
+use crate::OAuthState;
 use anyhow::Result;
 use axum::extract::State;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Serialize)]
 
@@ -25,7 +25,7 @@ pub struct UserinfoError {
 }
 
 pub async fn handle_userinfo(
-    State(_ctx): State<AppContext>,
+    State(_state): State<OAuthState>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
     let Some(token) = extract_bearer_token(&headers) else {

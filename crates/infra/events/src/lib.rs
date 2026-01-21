@@ -1,4 +1,5 @@
 pub mod services;
+mod sse;
 
 use async_trait::async_trait;
 use axum::response::sse::Event;
@@ -7,7 +8,7 @@ use tokio::sync::mpsc::UnboundedSender;
 
 pub type EventSender = UnboundedSender<Result<Event, std::convert::Infallible>>;
 
-pub use systemprompt_models::events::ToSse;
+pub use sse::ToSse;
 
 #[async_trait]
 pub trait Broadcaster: Send + Sync {

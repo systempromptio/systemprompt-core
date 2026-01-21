@@ -37,41 +37,41 @@ pub trait StartupEventExt {
 
 impl StartupEventExt for StartupEventSender {
     fn phase_started(&self, phase: Phase) {
-        let _ = self.send(StartupEvent::PhaseStarted { phase });
+        let _ = self.unbounded_send(StartupEvent::PhaseStarted { phase });
     }
 
     fn phase_completed(&self, phase: Phase) {
-        let _ = self.send(StartupEvent::PhaseCompleted { phase });
+        let _ = self.unbounded_send(StartupEvent::PhaseCompleted { phase });
     }
 
     fn phase_failed(&self, phase: Phase, error: impl Into<String>) {
-        let _ = self.send(StartupEvent::PhaseFailed {
+        let _ = self.unbounded_send(StartupEvent::PhaseFailed {
             phase,
             error: error.into(),
         });
     }
 
     fn port_available(&self, port: u16) {
-        let _ = self.send(StartupEvent::PortAvailable { port });
+        let _ = self.unbounded_send(StartupEvent::PortAvailable { port });
     }
 
     fn port_conflict(&self, port: u16, pid: u32) {
-        let _ = self.send(StartupEvent::PortConflict { port, pid });
+        let _ = self.unbounded_send(StartupEvent::PortConflict { port, pid });
     }
 
     fn modules_loaded(&self, count: usize, modules: Vec<ModuleInfo>) {
-        let _ = self.send(StartupEvent::ModulesLoaded { count, modules });
+        let _ = self.unbounded_send(StartupEvent::ModulesLoaded { count, modules });
     }
 
     fn mcp_starting(&self, name: impl Into<String>, port: u16) {
-        let _ = self.send(StartupEvent::McpServerStarting {
+        let _ = self.unbounded_send(StartupEvent::McpServerStarting {
             name: name.into(),
             port,
         });
     }
 
     fn mcp_health_check(&self, name: impl Into<String>, attempt: u8, max: u8) {
-        let _ = self.send(StartupEvent::McpServerHealthCheck {
+        let _ = self.unbounded_send(StartupEvent::McpServerHealthCheck {
             name: name.into(),
             attempt,
             max_attempts: max,
@@ -79,7 +79,7 @@ impl StartupEventExt for StartupEventSender {
     }
 
     fn mcp_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration, tools: usize) {
-        let _ = self.send(StartupEvent::McpServerReady {
+        let _ = self.unbounded_send(StartupEvent::McpServerReady {
             name: name.into(),
             port,
             startup_time,
@@ -88,21 +88,21 @@ impl StartupEventExt for StartupEventSender {
     }
 
     fn mcp_failed(&self, name: impl Into<String>, error: impl Into<String>) {
-        let _ = self.send(StartupEvent::McpServerFailed {
+        let _ = self.unbounded_send(StartupEvent::McpServerFailed {
             name: name.into(),
             error: error.into(),
         });
     }
 
     fn agent_starting(&self, name: impl Into<String>, port: u16) {
-        let _ = self.send(StartupEvent::AgentStarting {
+        let _ = self.unbounded_send(StartupEvent::AgentStarting {
             name: name.into(),
             port,
         });
     }
 
     fn agent_ready(&self, name: impl Into<String>, port: u16, startup_time: Duration) {
-        let _ = self.send(StartupEvent::AgentReady {
+        let _ = self.unbounded_send(StartupEvent::AgentReady {
             name: name.into(),
             port,
             startup_time,
@@ -110,28 +110,28 @@ impl StartupEventExt for StartupEventSender {
     }
 
     fn agent_failed(&self, name: impl Into<String>, error: impl Into<String>) {
-        let _ = self.send(StartupEvent::AgentFailed {
+        let _ = self.unbounded_send(StartupEvent::AgentFailed {
             name: name.into(),
             error: error.into(),
         });
     }
 
     fn server_listening(&self, address: impl Into<String>, pid: u32) {
-        let _ = self.send(StartupEvent::ServerListening {
+        let _ = self.unbounded_send(StartupEvent::ServerListening {
             address: address.into(),
             pid,
         });
     }
 
     fn warning(&self, message: impl Into<String>) {
-        let _ = self.send(StartupEvent::Warning {
+        let _ = self.unbounded_send(StartupEvent::Warning {
             message: message.into(),
             context: None,
         });
     }
 
     fn info(&self, message: impl Into<String>) {
-        let _ = self.send(StartupEvent::Info {
+        let _ = self.unbounded_send(StartupEvent::Info {
             message: message.into(),
         });
     }
@@ -142,7 +142,7 @@ impl StartupEventExt for StartupEventSender {
         api_url: impl Into<String>,
         services: Vec<ServiceInfo>,
     ) {
-        let _ = self.send(StartupEvent::StartupComplete {
+        let _ = self.unbounded_send(StartupEvent::StartupComplete {
             duration,
             api_url: api_url.into(),
             services,

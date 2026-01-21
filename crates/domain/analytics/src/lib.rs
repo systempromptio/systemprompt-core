@@ -29,11 +29,11 @@ pub use repository::{
     SUSTAINED_VELOCITY_MINUTES,
 };
 pub use services::{
-    detection, AnalyticsService, AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent,
-    AnomalyLevel, AnomalyThresholdConfig, BehavioralAnalysisInput, BehavioralAnalysisResult,
-    BehavioralBotDetector, BehavioralSignal, CreateAnalyticsSessionInput, EscalationCriteria,
-    SessionAnalytics, SessionCleanupService, SignalType, ThrottleLevel, ThrottleService,
-    BEHAVIORAL_BOT_THRESHOLD,
+    detection, AnalyticsAiSessionProvider, AnalyticsService, AnomalyCheckResult,
+    AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
+    BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal,
+    CreateAnalyticsSessionInput, EscalationCriteria, SessionAnalytics, SessionCleanupService,
+    SignalType, ThrottleLevel, ThrottleService, BEHAVIORAL_BOT_THRESHOLD,
 };
 
 pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;

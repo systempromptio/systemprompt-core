@@ -1,14 +1,15 @@
 use super::{clients, health, oauth, webauthn};
+use crate::OAuthState;
 use axum::routing::{get, post};
 use axum::Router;
 
-pub fn router() -> Router<systemprompt_runtime::AppContext> {
+pub fn router() -> Router<OAuthState> {
     Router::new()
         .merge(public_router())
         .merge(authenticated_router())
 }
 
-pub fn public_router() -> Router<systemprompt_runtime::AppContext> {
+pub fn public_router() -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
         .route("/session", post(oauth::anonymous::generate_anonymous_token))
@@ -51,7 +52,7 @@ pub fn public_router() -> Router<systemprompt_runtime::AppContext> {
         )
 }
 
-pub fn authenticated_router() -> Router<systemprompt_runtime::AppContext> {
+pub fn authenticated_router() -> Router<OAuthState> {
     Router::new()
         .nest("/clients", clients::router())
         .route("/introspect", post(oauth::introspect::handle_introspect))

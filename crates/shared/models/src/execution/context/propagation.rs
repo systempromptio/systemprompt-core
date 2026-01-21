@@ -1,6 +1,6 @@
 use super::{CallSource, RequestContext};
 use anyhow::anyhow;
-use axum::http::{HeaderMap, HeaderValue};
+use http::{HeaderMap, HeaderValue};
 use std::str::FromStr;
 use systemprompt_identifiers::{
     headers, AgentName, AiToolCallId, ClientId, ContextId, SessionId, TaskId, TraceId, UserId,

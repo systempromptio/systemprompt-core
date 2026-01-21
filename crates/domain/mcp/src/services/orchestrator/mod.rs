@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_runtime::AppContext;
+use systemprompt_database::DbPool;
 use systemprompt_traits::StartupEventSender;
 
 mod daemon;
@@ -33,26 +33,24 @@ pub struct McpOrchestrator {
     lifecycle: LifecycleManager,
     database: DatabaseManager,
     monitoring: MonitoringManager,
-    app_context: Arc<AppContext>,
+    db_pool: DbPool,
 }
 
 impl McpOrchestrator {
-    pub fn new(app_context: Arc<AppContext>) -> Result<Self> {
+    pub fn new(db_pool: DbPool) -> Result<Self> {
         let mut event_bus = EventBus::new(100);
 
         RegistryManager::validate()?;
-        let database = DatabaseManager::new(Arc::clone(app_context.db_pool()));
+        let database = DatabaseManager::new(Arc::clone(&db_pool));
         let network = NetworkManager::new();
-        let process = ProcessManager::new(Arc::clone(&app_context));
-        let monitoring = MonitoringManager::new(Arc::clone(&app_context));
+        let process = ProcessManager::new();
+        let monitoring = MonitoringManager::new();
         let lifecycle =
             LifecycleManager::new(process, network, database.clone(), monitoring.clone());
 
         event_bus.register_handler(Arc::new(LifecycleHandler::new(lifecycle.clone())));
 
-        event_bus.register_handler(Arc::new(MonitoringHandler::new(Arc::clone(
-            app_context.db_pool(),
-        ))));
+        event_bus.register_handler(Arc::new(MonitoringHandler::new(Arc::clone(&db_pool))));
 
         event_bus.register_handler(Arc::new(DatabaseSyncHandler::new(database.clone())));
 
@@ -64,7 +62,7 @@ impl McpOrchestrator {
             lifecycle,
             database,
             monitoring,
-            app_context,
+            db_pool,
         })
     }
 
@@ -242,7 +240,7 @@ impl McpOrchestrator {
             database: &self.database,
             lifecycle: &self.lifecycle,
             event_bus: &self.event_bus,
-            app_context: &self.app_context,
+            db_pool: &self.db_pool,
             events,
         })
         .await

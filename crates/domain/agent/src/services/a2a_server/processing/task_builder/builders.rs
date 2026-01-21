@@ -233,7 +233,12 @@ fn build_artifacts(
             let is_error = result.is_error?;
 
             let structured_content = result.structured_content.as_ref()?;
-            let parsed = parse_tool_response(structured_content).ok()?;
+            let parsed = parse_tool_response(structured_content)
+                .map_err(|e| {
+                    tracing::debug!(tool_name = %tool_name, error = %e, "Failed to parse tool response, skipping artifact");
+                    e
+                })
+                .ok()?;
 
             let mut data_map = serde_json::Map::new();
             data_map.insert("call_id".to_string(), json!(call_id));

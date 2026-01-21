@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashSet;
 use std::sync::Arc;
-use systemprompt_runtime::AppContext;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 use tracing::Instrument;
 
@@ -22,7 +22,7 @@ pub struct ReconcileParams<'a> {
     pub database: &'a DatabaseManager,
     pub lifecycle: &'a LifecycleManager,
     pub event_bus: &'a Arc<EventBus>,
-    pub app_context: &'a Arc<AppContext>,
+    pub db_pool: &'a DbPool,
     pub events: Option<&'a StartupEventSender>,
 }
 
@@ -31,7 +31,7 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
         database,
         lifecycle,
         event_bus,
-        app_context,
+        db_pool,
         events,
     } = params;
 
@@ -47,7 +47,7 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
             notify_cleanup(events, deleted, "no longer enabled in configuration");
         }
 
-        validate_schemas(&enabled_servers, app_context).await?;
+        validate_schemas(&enabled_servers, db_pool).await?;
         database.sync_state(&enabled_servers).await?;
         cleanup_orphaned_and_stale(database, &enabled_servers, events).await?;
 

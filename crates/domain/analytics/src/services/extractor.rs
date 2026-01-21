@@ -7,7 +7,7 @@ use super::detection;
 use super::user_agent::parse_user_agent;
 use crate::GeoIpReader;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,

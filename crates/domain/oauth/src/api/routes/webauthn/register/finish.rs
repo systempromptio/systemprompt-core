@@ -1,12 +1,12 @@
 use crate::repository::OAuthRepository;
 use crate::services::webauthn::{FinishRegistrationParams, WebAuthnManager};
+use crate::OAuthState;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_users::{UserProviderImpl, UserService};
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
@@ -65,9 +65,9 @@ pub struct FinishRegisterResponse {
     pub success: bool,
 }
 
-#[instrument(skip(ctx, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
+#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id, username = %request.username))]
 pub async fn finish_register(
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
     Json(request): Json<FinishRegisterRequest>,
 ) -> impl IntoResponse {
     if let Err(validation_error) = request.validate() {
@@ -81,7 +81,7 @@ pub async fn finish_register(
             .into_response();
     }
 
-    let oauth_repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -90,21 +90,7 @@ pub async fn finish_register(
             ).into_response();
         },
     };
-    let user_service = match UserService::new(ctx.db_pool()) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to create user service");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(RegisterError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to create user service: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
-    let user_provider = Arc::new(UserProviderImpl::new(user_service));
+    let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
         match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {
@@ -135,19 +121,18 @@ pub async fn finish_register(
     match webauthn_service.finish_registration(builder.build()).await {
         Ok(user_id) => {
             if let Some(session_id_str) = &request.session_id {
-                use systemprompt_analytics::SessionRepository;
                 use systemprompt_identifiers::{SessionId, UserId};
 
                 let session_id = SessionId::new(session_id_str.clone());
-                let session_repo = SessionRepository::new(Arc::clone(ctx.db_pool()));
+                let analytics_provider = state.analytics_provider();
 
-                match session_repo.find_by_id(&session_id).await {
+                match analytics_provider.find_session_by_id(&session_id).await {
                     Ok(Some(session)) => {
                         if let Some(old_user_id_str) = session.user_id {
                             let old_user_id = UserId::new(old_user_id_str);
                             let new_user_id = UserId::new(user_id.clone());
 
-                            match session_repo
+                            match analytics_provider
                                 .migrate_user_sessions(&old_user_id, &new_user_id)
                                 .await
                             {

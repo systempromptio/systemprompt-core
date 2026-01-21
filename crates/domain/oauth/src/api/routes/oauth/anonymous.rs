@@ -9,10 +9,9 @@ use crate::services::cimd::ClientValidator;
 use crate::services::{
     generate_admin_jwt, CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService,
 };
+use crate::OAuthState;
 use systemprompt_identifiers::{ClientId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{UserProviderImpl, UserService};
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
@@ -50,13 +49,13 @@ fn default_client_id() -> String {
 }
 
 pub async fn generate_anonymous_token(
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
 ) -> impl IntoResponse {
     let expires_in = crate::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = ClientId::new(req.client_id.clone());
-    let validator = match ClientValidator::new(Arc::clone(ctx.db_pool())) {
+    let validator = match ClientValidator::new(Arc::clone(state.db_pool())) {
         Ok(v) => v,
         Err(e) => {
             return (
@@ -89,22 +88,16 @@ pub async fn generate_anonymous_token(
 
     let client_type = validation.client_type();
 
-    let user_service = match UserService::new(ctx.db_pool()) {
-        Ok(s) => s,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(AnonymousError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to create user service: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
-    let user_provider = Arc::new(UserProviderImpl::new(user_service));
-    let session_service =
-        SessionCreationService::new(Arc::clone(ctx.analytics_service()), user_provider);
+    let mut session_service = SessionCreationService::new(
+        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.user_provider()),
+    );
+    if let Some(fp_provider) = state.fingerprint_provider() {
+        session_service = session_service.with_fingerprint_provider(Arc::clone(fp_provider));
+    }
+    if let Some(event_publisher) = state.event_publisher() {
+        session_service = session_service.with_event_publisher(Arc::clone(event_publisher));
+    }
 
     if let Some(ref user_id_str) = req.user_id {
         if req.client_id == "sp_tui" {

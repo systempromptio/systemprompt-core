@@ -13,7 +13,7 @@ pub use context_types::{
 use crate::ai::ToolModelConfig;
 use crate::auth::{AuthenticatedUser, RateLimitTier, UserType};
 use anyhow::anyhow;
-use axum::http::{HeaderMap, HeaderValue};
+use http::{HeaderMap, HeaderValue};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 use std::time::{Duration, Instant};

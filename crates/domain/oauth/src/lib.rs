@@ -6,6 +6,7 @@ pub mod models;
 pub mod queries;
 pub mod repository;
 pub mod services;
+pub mod state;
 
 pub use models::*;
 pub use repository::OAuthRepository;
@@ -16,4 +17,5 @@ pub use services::{
     TemplateEngine, TokenValidator, TraitBasedAuthService,
 };
 
+pub use state::OAuthState;
 pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};

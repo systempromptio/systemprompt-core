@@ -149,7 +149,7 @@ impl crate::repository::OAuthRepository {
                     .map_err(|_| anyhow::anyhow!("Invalid counter value: {}", row.counter))?;
                 Ok(WebAuthnCredential {
                     id: row.id,
-                    user_id: row.user_id,
+                    user_id: row.user_id.into(),
                     credential_id: row.credential_id,
                     public_key: row.public_key,
                     counter,

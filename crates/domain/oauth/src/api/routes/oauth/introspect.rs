@@ -1,6 +1,7 @@
 use crate::repository::OAuthRepository;
 use crate::services::validate_jwt_token;
 use crate::services::validation::validate_client_credentials;
+use crate::OAuthState;
 use anyhow::Result;
 use axum::extract::State;
 use axum::http::StatusCode;
@@ -8,7 +9,6 @@ use axum::response::IntoResponse;
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Deserialize)]
 
@@ -45,10 +45,10 @@ pub struct IntrospectError {
 }
 
 pub async fn handle_introspect(
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Form(request): Form<IntrospectRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

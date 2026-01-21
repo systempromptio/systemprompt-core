@@ -1,10 +1,8 @@
-use axum::extract::State;
 use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::Router;
 use serde::{Deserialize, Serialize};
 use systemprompt_models::{ApiError, CollectionResponse};
-use systemprompt_runtime::AppContext;
 
 use crate::services::registry::manager::RegistryService;
 
@@ -22,7 +20,7 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-pub async fn handle_mcp_registry(State(_app_context): State<AppContext>) -> impl IntoResponse {
+pub async fn handle_mcp_registry() -> impl IntoResponse {
     let server_configs = match RegistryService::get_enabled_servers_as_config() {
         Ok(configs) => configs,
         Err(e) => {
@@ -60,8 +58,6 @@ pub async fn handle_mcp_registry(State(_app_context): State<AppContext>) -> impl
     CollectionResponse::new(servers).into_response()
 }
 
-pub fn router(app_context: &AppContext) -> Router {
-    Router::new()
-        .route("/", get(handle_mcp_registry))
-        .with_state(app_context.clone())
+pub fn router() -> Router {
+    Router::new().route("/", get(handle_mcp_registry))
 }

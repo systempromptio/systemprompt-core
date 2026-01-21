@@ -13,25 +13,28 @@ description = "Minimal shared traits and contracts for SystemPrompt"
 [lints]
 workspace = true
 
+[features]
+default = []
+axum = ["dep:axum"]
+
 [dependencies]
 systemprompt-provider-contracts = { path = "../provider-contracts" }
 systemprompt-identifiers = { path = "../identifiers" }
 
 async-trait = { workspace = true }
 anyhow = { workspace = true }
-axum = { workspace = true }
 inventory = { workspace = true }
 
 thiserror = { workspace = true }
-sqlx = { workspace = true }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 
 serde = { workspace = true }
 futures = { workspace = true }
+http = { workspace = true }
+uuid = { workspace = true }
 
-tokio = { workspace = true, features = ["sync"] }
+axum = { workspace = true, optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
-systemprompt-database = { path = "../../infra/database" }

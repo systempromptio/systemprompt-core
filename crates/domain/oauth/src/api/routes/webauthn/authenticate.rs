@@ -1,12 +1,12 @@
 use crate::repository::OAuthRepository;
 use crate::services::webauthn::WebAuthnManager;
+use crate::OAuthState;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_users::{UserProviderImpl, UserService};
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
@@ -30,12 +30,12 @@ pub struct AuthError {
 }
 
 #[allow(unused_qualifications)]
-#[instrument(skip(ctx, params), fields(email = %params.email))]
+#[instrument(skip(state, params), fields(email = %params.email))]
 pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -44,21 +44,7 @@ pub async fn start_auth(
             ).into_response();
         },
     };
-    let user_service = match UserService::new(ctx.db_pool()) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to create user service");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(AuthError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to create user service: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
-    let user_provider = Arc::new(UserProviderImpl::new(user_service));
+    let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
         match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {
@@ -154,12 +140,12 @@ pub struct FinishAuthResponse {
     pub success: bool,
 }
 
-#[instrument(skip(ctx, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
 pub async fn finish_auth(
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
     Json(request): Json<FinishAuthRequest>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -168,21 +154,7 @@ pub async fn finish_auth(
             ).into_response();
         },
     };
-    let user_service = match UserService::new(ctx.db_pool()) {
-        Ok(s) => s,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to create user service");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(AuthError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to create user service: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
-    let user_provider = Arc::new(UserProviderImpl::new(user_service));
+    let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
         match WebAuthnManager::get_or_create_service(oauth_repo, user_provider).await {

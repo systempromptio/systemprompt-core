@@ -195,7 +195,12 @@ async fn try_upload_file(
 
     match ctx.upload_service.upload_file(request).await {
         Ok(uploaded) => {
-            let file_uuid = uuid::Uuid::parse_str(uploaded.file_id.as_str()).ok()?;
+            let file_uuid = uuid::Uuid::parse_str(uploaded.file_id.as_str())
+                .map_err(|e| {
+                    tracing::warn!(file_id = %uploaded.file_id, error = %e, "Invalid UUID from file service");
+                    e
+                })
+                .ok()?;
             Some((file_uuid, uploaded.public_url))
         },
         Err(e) => {

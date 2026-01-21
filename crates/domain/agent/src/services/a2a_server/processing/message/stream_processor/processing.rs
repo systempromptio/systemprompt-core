@@ -117,8 +117,11 @@ impl StreamProcessor {
                         tracing::error!(error = %fail_err, "Failed to mark steps as failed");
                     }
 
-                    tx.send(StreamEvent::Error(format!("Execution failed: {e}")))
-                        .ok();
+                    if let Err(send_err) =
+                        tx.send(StreamEvent::Error(format!("Execution failed: {e}")))
+                    {
+                        tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
+                    }
                     return;
                 },
             };
@@ -148,8 +151,11 @@ impl StreamProcessor {
                 Ok(artifacts) => artifacts,
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to build artifacts from tool results");
-                    tx.send(StreamEvent::Error(format!("Artifact building failed: {e}")))
-                        .ok();
+                    if let Err(send_err) =
+                        tx.send(StreamEvent::Error(format!("Artifact building failed: {e}")))
+                    {
+                        tracing::trace!(error = %send_err, "Failed to send error event, channel closed");
+                    }
                     return;
                 },
             };

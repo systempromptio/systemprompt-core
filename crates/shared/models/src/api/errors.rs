@@ -28,8 +28,8 @@ pub enum InternalApiError {
     #[error("Service temporarily unavailable: {service}")]
     ServiceUnavailable { service: String },
 
-    #[error("Database operation failed")]
-    DatabaseError(#[from] sqlx::Error),
+    #[error("Database operation failed: {message}")]
+    DatabaseError { message: String },
 
     #[error("JSON serialization failed")]
     JsonError(#[from] serde_json::Error),
@@ -99,6 +99,12 @@ impl InternalApiError {
         }
     }
 
+    pub fn database_error(message: impl Into<String>) -> Self {
+        Self::DatabaseError {
+            message: message.into(),
+        }
+    }
+
     pub fn authentication_error(message: impl Into<String>) -> Self {
         Self::AuthenticationError {
             message: message.into(),
@@ -115,7 +121,7 @@ impl InternalApiError {
             Self::ConflictError { .. } => ErrorCode::ConflictError,
             Self::RateLimited { .. } => ErrorCode::RateLimited,
             Self::ServiceUnavailable { .. } => ErrorCode::ServiceUnavailable,
-            Self::DatabaseError(_)
+            Self::DatabaseError { .. }
             | Self::JsonError(_)
             | Self::AuthenticationError { .. }
             | Self::InternalError { .. } => ErrorCode::InternalError,
@@ -137,7 +143,7 @@ impl From<InternalApiError> for ApiError {
             InternalApiError::Forbidden { resource, reason } => {
                 Some(format!("Access to {resource} denied: {reason}"))
             },
-            InternalApiError::DatabaseError(e) => Some(format!("Database error: {e}")),
+            InternalApiError::DatabaseError { message } => Some(format!("Database error: {message}")),
             InternalApiError::JsonError(e) => Some(format!("JSON processing error: {e}")),
             InternalApiError::AuthenticationError { message } => {
                 Some(format!("Authentication error: {message}"))

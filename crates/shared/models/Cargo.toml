@@ -29,18 +29,11 @@ async-trait = { workspace = true }
 # Logging
 tracing = { workspace = true }
 
-# Database
-sqlx = { workspace = true }
-
-# Configuration
-dotenvy = { workspace = true }
-
 # Module loading
 serde_yaml = { workspace = true }
-walkdir = { workspace = true }
 
-# Web types (minimal - only for Request type in analytics)
-axum = { workspace = true }
+# HTTP types for context propagation
+http = { workspace = true }
 
 # Validation
 validator = { workspace = true }
@@ -51,9 +44,6 @@ schemars = { workspace = true }
 # Regex
 regex = { workspace = true }
 once_cell = { workspace = true }
-
-# Async runtime (for config loading)
-tokio = { workspace = true }
 
 # Async streaming
 futures = { workspace = true }

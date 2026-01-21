@@ -30,7 +30,7 @@ web = [
 # Core traits for interface definitions (no circular dependencies)
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 systemprompt-runtime = { path = "../../app/runtime" }
 inventory = { workspace = true }
 

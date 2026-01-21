@@ -30,6 +30,7 @@ systemprompt-config = { path = "../../infra/config" }
 systemprompt-loader = { path = "../../infra/loader" }
 systemprompt-analytics = { path = "../../domain/analytics" }
 systemprompt-files = { path = "../../domain/files" }
+systemprompt-users = { path = "../../domain/users" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

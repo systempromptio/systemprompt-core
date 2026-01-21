@@ -1,6 +1,6 @@
 //! `ExtensionError` trait for consistent error handling across extensions.
 
-use axum::http::StatusCode;
+use http::StatusCode;
 
 /// API error response structure.
 #[derive(Debug, Clone)]
@@ -65,7 +65,7 @@ impl McpErrorData {
 ///
 /// ```rust,ignore
 /// use systemprompt_traits::{ExtensionError, ApiError, McpErrorData};
-/// use axum::http::StatusCode;
+/// use http::StatusCode;
 ///
 /// #[derive(Debug, thiserror::Error)]
 /// pub enum MyError {

@@ -12,11 +12,10 @@ use crate::services::tools::ToolDiscovery;
 
 use super::super::request_storage::{RequestStorage, StoreParams};
 
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_models::services::AiConfig;
 use systemprompt_models::SecretsBootstrap;
-use systemprompt_traits::ToolProvider;
+use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 
 pub struct AiService {
     pub(super) providers: HashMap<String, Arc<dyn AiProvider>>,
@@ -44,6 +43,7 @@ impl AiService {
         db_pool: DbPool,
         ai_config: &AiConfig,
         tool_provider: Arc<dyn ToolProvider>,
+        session_provider: Option<DynAiSessionProvider>,
     ) -> Result<Self> {
         let mut config = ai_config.clone();
         let missing_env_vars = Self::expand_secrets(&mut config)?;
@@ -65,10 +65,10 @@ impl AiService {
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));
 
-        let storage = RequestStorage::new(
-            AiRequestRepository::new(&db_pool)?,
-            SessionRepository::new(db_pool.clone()),
-        );
+        let mut storage = RequestStorage::new(AiRequestRepository::new(&db_pool)?);
+        if let Some(provider) = session_provider {
+            storage = storage.with_session_provider(provider);
+        }
 
         Ok(Self {
             providers,

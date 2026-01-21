@@ -6,6 +6,33 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
 
+fn parse_step(
+    step_id: String,
+    task_id: String,
+    status: String,
+    content: serde_json::Value,
+    started_at: DateTime<Utc>,
+    completed_at: Option<DateTime<Utc>>,
+    duration_ms: Option<i32>,
+    error_message: Option<String>,
+) -> Result<ExecutionStep> {
+    let status = status
+        .parse::<StepStatus>()
+        .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
+    let content: StepContent =
+        serde_json::from_value(content).map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
+    Ok(ExecutionStep {
+        step_id: step_id.into(),
+        task_id: task_id.into(),
+        status,
+        started_at,
+        completed_at,
+        duration_ms,
+        error_message,
+        content,
+    })
+}
+
 #[derive(Debug, Clone)]
 pub struct ExecutionStepRepository {
     pool: Arc<PgPool>,
@@ -25,7 +52,6 @@ impl ExecutionStepRepository {
         let title = step.content.title();
         let content_json =
             serde_json::to_value(&step.content).context("Failed to serialize step content")?;
-
         sqlx::query!(
             r#"INSERT INTO task_execution_steps (
                 step_id, task_id, step_type, title, status, content, started_at, completed_at, duration_ms, error_message
@@ -44,13 +70,11 @@ impl ExecutionStepRepository {
         .execute(&*self.pool)
         .await
         .context("Failed to create execution step")?;
-
         Ok(())
     }
 
     pub async fn get(&self, step_id: &StepId) -> Result<Option<ExecutionStep>> {
         let step_id_str = step_id.as_str();
-
         let row = sqlx::query!(
             r#"SELECT step_id, task_id, status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
@@ -60,37 +84,27 @@ impl ExecutionStepRepository {
         .fetch_optional(&*self.pool)
         .await
         .context(format!("Failed to get execution step: {step_id}"))?;
-
         row.map(|r| {
-            let status = r
-                .status
-                .parse::<StepStatus>()
-                .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
-
-            let content: StepContent = serde_json::from_value(r.content)
-                .map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
-
-            Ok(ExecutionStep {
-                step_id: r.step_id.into(),
-                task_id: r.task_id.into(),
-                status,
-                started_at: r.started_at,
-                completed_at: r.completed_at,
-                duration_ms: r.duration_ms,
-                error_message: r.error_message,
-                content,
-            })
+            parse_step(
+                r.step_id,
+                r.task_id,
+                r.status,
+                r.content,
+                r.started_at,
+                r.completed_at,
+                r.duration_ms,
+                r.error_message,
+            )
         })
         .transpose()
     }
 
     pub async fn list_by_task(&self, task_id: &TaskId) -> Result<Vec<ExecutionStep>> {
-        let task_id_str = task_id.as_str();
         let rows = sqlx::query!(
             r#"SELECT step_id, task_id, status, content,
                     started_at as "started_at!", completed_at, duration_ms, error_message
                 FROM task_execution_steps WHERE task_id = $1 ORDER BY started_at ASC"#,
-            task_id_str
+            task_id.as_str()
         )
         .fetch_all(&*self.pool)
         .await
@@ -98,29 +112,20 @@ impl ExecutionStepRepository {
             "Failed to list execution steps for task: {}",
             task_id
         ))?;
-
         rows.into_iter()
             .map(|r| {
-                let status = r
-                    .status
-                    .parse::<StepStatus>()
-                    .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
-
-                let content: StepContent = serde_json::from_value(r.content)
-                    .map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
-
-                Ok(ExecutionStep {
-                    step_id: r.step_id.into(),
-                    task_id: r.task_id.into(),
-                    status,
-                    started_at: r.started_at,
-                    completed_at: r.completed_at,
-                    duration_ms: r.duration_ms,
-                    error_message: r.error_message,
-                    content,
-                })
+                parse_step(
+                    r.step_id,
+                    r.task_id,
+                    r.status,
+                    r.content,
+                    r.started_at,
+                    r.completed_at,
+                    r.duration_ms,
+                    r.error_message,
+                )
             })
-            .collect::<Result<Vec<_>>>()
+            .collect()
     }
 
     pub async fn complete_step(
@@ -269,24 +274,16 @@ impl ExecutionStepRepository {
         .await
         .context(format!("Failed to complete planning step: {step_id}"))?;
 
-        let status = row
-            .status
-            .parse::<StepStatus>()
-            .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
-
-        let content: StepContent = serde_json::from_value(row.content)
-            .map_err(|e| anyhow::anyhow!("Invalid content: {}", e))?;
-
-        Ok(ExecutionStep {
-            step_id: row.step_id.into(),
-            task_id: row.task_id.into(),
-            status,
-            started_at: row.started_at,
-            completed_at: row.completed_at,
-            duration_ms: row.duration_ms,
-            error_message: row.error_message,
-            content,
-        })
+        parse_step(
+            row.step_id,
+            row.task_id,
+            row.status,
+            row.content,
+            row.started_at,
+            row.completed_at,
+            row.duration_ms,
+            row.error_message,
+        )
     }
 
     pub async fn mcp_execution_id_exists(&self, mcp_execution_id: &str) -> Result<bool> {

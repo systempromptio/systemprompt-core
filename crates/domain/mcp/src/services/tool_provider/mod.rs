@@ -2,13 +2,11 @@ mod context;
 mod conversions;
 
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use async_trait::async_trait;
 use tracing::{info, warn};
 
 use systemprompt_database::DbPool;
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider, ToolProviderError,
     ToolProviderResult,
@@ -26,8 +24,7 @@ pub struct McpToolProvider {
 }
 
 impl McpToolProvider {
-    pub fn new(app_context: &Arc<AppContext>) -> Self {
-        let db_pool = Arc::clone(app_context.db_pool());
+    pub fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 

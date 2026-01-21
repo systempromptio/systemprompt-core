@@ -1,9 +1,8 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
 use systemprompt_identifiers::{ContextId, UserId};
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserContext {
     pub context_id: ContextId,
     pub user_id: UserId,
@@ -12,7 +11,7 @@ pub struct UserContext {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserContextWithStats {
     pub context_id: ContextId,
     pub user_id: UserId,

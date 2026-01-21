@@ -3,7 +3,6 @@ pub mod cloud;
 pub mod contexts;
 pub mod errors;
 pub mod ext;
-pub mod http;
 pub mod modules;
 pub mod pagination;
 pub mod responses;

@@ -2,7 +2,7 @@ use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentPara
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 use super::queries;
 

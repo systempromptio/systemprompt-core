@@ -25,7 +25,7 @@ impl JwtAuthProvider {
         }
     }
 
-    pub fn from_context(_context: &systemprompt_runtime::AppContext) -> anyhow::Result<Self> {
+    pub fn from_config() -> anyhow::Result<Self> {
         let config = systemprompt_models::Config::get()?;
         Ok(Self {
             secret: systemprompt_models::SecretsBootstrap::jwt_secret()?.to_string(),
@@ -88,14 +88,6 @@ impl JwtAuthorizationProvider {
         }
     }
 
-    pub fn from_context(_context: &systemprompt_runtime::AppContext) -> anyhow::Result<Self> {
-        let config = systemprompt_models::Config::get()?;
-        Ok(Self {
-            secret: systemprompt_models::SecretsBootstrap::jwt_secret()?.to_string(),
-            issuer: config.jwt_issuer.clone(),
-            audiences: config.jwt_audiences.clone(),
-        })
-    }
 }
 
 #[async_trait]

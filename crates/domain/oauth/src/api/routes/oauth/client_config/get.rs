@@ -3,17 +3,17 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
 use std::sync::Arc;
 use systemprompt_models::Config;
-use systemprompt_runtime::AppContext;
 
 use crate::models::oauth::dynamic_registration::DynamicRegistrationResponse;
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 
 pub async fn get_client_configuration(
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -87,7 +87,7 @@ pub async fn get_client_configuration(
             };
 
             let response = DynamicRegistrationResponse {
-                client_id: client.client_id,
+                client_id: client.client_id.to_string(),
                 client_secret: "***REDACTED***".to_string(),
                 client_name: client.client_name,
                 redirect_uris: client.redirect_uris,

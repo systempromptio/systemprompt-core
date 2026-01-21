@@ -1,14 +1,18 @@
 use crate::registry::ModuleApiRegistry;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_analytics::{AnalyticsService, GeoIpReader};
+use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_logging::CliService;
 use systemprompt_models::{
     AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap, RouteClassifier,
 };
-use systemprompt_traits::{AppContext as AppContextTrait, ConfigProvider, DatabaseHandle};
+use systemprompt_traits::{
+    AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
+    FingerprintProvider, UserProvider,
+};
+use systemprompt_users::UserService;
 
 #[derive(Clone)]
 pub struct AppContext {
@@ -20,6 +24,8 @@ pub struct AppContext {
     content_config: Option<Arc<ContentConfigRaw>>,
     route_classifier: Arc<RouteClassifier>,
     analytics_service: Arc<AnalyticsService>,
+    fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    user_service: Option<Arc<UserService>>,
 }
 
 impl std::fmt::Debug for AppContext {
@@ -33,6 +39,8 @@ impl std::fmt::Debug for AppContext {
             .field("content_config", &self.content_config.is_some())
             .field("route_classifier", &"RouteClassifier")
             .field("analytics_service", &"AnalyticsService")
+            .field("fingerprint_repo", &self.fingerprint_repo.is_some())
+            .field("user_service", &self.user_service.is_some())
             .finish()
     }
 }
@@ -87,6 +95,14 @@ impl AppContext {
             content_routing,
         ));
 
+        let fingerprint_repo = FingerprintRepository::new(&database)
+            .ok()
+            .map(Arc::new);
+
+        let user_service = UserService::new(&database)
+            .ok()
+            .map(Arc::new);
+
         systemprompt_logging::init_logging(Arc::clone(&database));
 
         Ok(Self {
@@ -98,6 +114,8 @@ impl AppContext {
             content_config,
             route_classifier,
             analytics_service,
+            fingerprint_repo,
+            user_service,
         })
     }
 
@@ -252,6 +270,18 @@ impl AppContextTrait for AppContext {
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
         self.database.clone()
+    }
+
+    fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
+        Some(self.analytics_service.clone())
+    }
+
+    fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
+        self.fingerprint_repo.clone().map(|r| r as Arc<dyn FingerprintProvider>)
+    }
+
+    fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
+        self.user_service.clone().map(|s| s as Arc<dyn UserProvider>)
     }
 }
 

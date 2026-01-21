@@ -20,8 +20,20 @@ pub fn build_execution_steps(
     let result: Vec<ExecutionStep> = steps
         .iter()
         .filter_map(|row| {
-            let status = row.status.parse::<StepStatus>().ok()?;
-            let content: StepContent = serde_json::from_value(row.content.clone()).ok()?;
+            let status = row
+                .status
+                .parse::<StepStatus>()
+                .map_err(|e| {
+                    tracing::debug!(step_id = %row.step_id, error = %e, "Invalid step status, skipping");
+                    e
+                })
+                .ok()?;
+            let content: StepContent = serde_json::from_value(row.content.clone())
+                .map_err(|e| {
+                    tracing::debug!(step_id = %row.step_id, error = %e, "Invalid step content, skipping");
+                    e
+                })
+                .ok()?;
 
             Some(ExecutionStep {
                 step_id: StepId::from(row.step_id.clone()),

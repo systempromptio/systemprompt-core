@@ -23,7 +23,6 @@ pub mod repository;
 pub mod routing;
 pub mod secrets;
 pub mod services;
-pub mod tasks;
 pub mod validators;
 
 pub use a2a::{
@@ -88,7 +87,7 @@ pub use content_config::{
 pub use errors::{CoreError, RepositoryError, ServiceError};
 pub use events::{
     A2AEvent, A2AEventBuilder, A2AEventType, AnalyticsEvent, AnalyticsEventBuilder, ContextEvent,
-    ContextSummary, SystemEvent, SystemEventBuilder, SystemEventType, ToSse,
+    ContextSummary, SystemEvent, SystemEventBuilder, SystemEventType,
 };
 pub use execution::{
     ExecutionStep, PlannedTool, RequestContext, StepContent, StepId, StepStatus, StepType,
@@ -128,7 +127,6 @@ pub use services::{
     SkillsConfig, ToolModelConfig, ToolModelSettings, WebConfig,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
-pub use tasks::{TaskMessage, TaskRecord};
 
 pub use systemprompt_traits::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,

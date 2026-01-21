@@ -1,9 +1,9 @@
 use super::{AnonymousSessionInfo, SessionCreationService, MAX_SESSION_AGE_SECONDS};
 use crate::services::generation::{generate_anonymous_jwt, JwtSigningParams};
-use systemprompt_analytics::MAX_SESSIONS_PER_FINGERPRINT;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 
 const SESSION_LOOKUP_TIMEOUT_MS: u64 = 500;
+const MAX_SESSIONS_PER_FINGERPRINT: i64 = 5;
 
 impl SessionCreationService {
     pub(super) async fn try_reuse_session_at_limit(
@@ -12,9 +12,9 @@ impl SessionCreationService {
         client_id: &ClientId,
         jwt_secret: &str,
     ) -> Option<AnonymousSessionInfo> {
-        let fp_repo = self.fingerprint_repo.as_ref()?;
+        let fp_provider = self.fingerprint_provider.as_ref()?;
 
-        let active_count = fp_repo
+        let active_count = fp_provider
             .count_active_sessions(fingerprint)
             .await
             .map_err(|e| {
@@ -26,7 +26,7 @@ impl SessionCreationService {
             return None;
         }
 
-        let session_id_str = fp_repo
+        let session_id_str = fp_provider
             .find_reusable_session(fingerprint)
             .await
             .map_err(|e| {
@@ -37,7 +37,7 @@ impl SessionCreationService {
             .flatten()?;
 
         let existing_session = self
-            .analytics_service
+            .analytics_provider
             .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS)
             .await
             .map_err(|e| {
@@ -91,7 +91,7 @@ impl SessionCreationService {
     ) -> Option<AnonymousSessionInfo> {
         let lookup_result = tokio::time::timeout(
             tokio::time::Duration::from_millis(SESSION_LOOKUP_TIMEOUT_MS),
-            self.analytics_service
+            self.analytics_provider
                 .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS),
         )
         .await;
@@ -105,8 +105,7 @@ impl SessionCreationService {
                 tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to find existing session");
                 e
             })
-            .ok()?
-            .flatten()?;
+            .ok()??;
         let user_id_str = existing_session.user_id.as_ref()?;
 
         let user_id = UserId::new(user_id_str.clone());

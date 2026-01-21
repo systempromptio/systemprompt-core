@@ -8,12 +8,12 @@ pub use events::StartupEvent;
 pub use ext::{OptionalStartupEventExt, StartupEventExt};
 pub use types::{ModuleInfo, Phase, ServiceInfo, ServiceState, ServiceType};
 
-use tokio::sync::mpsc;
+use futures::channel::mpsc;
 
 pub type StartupEventSender = mpsc::UnboundedSender<StartupEvent>;
 
 pub type StartupEventReceiver = mpsc::UnboundedReceiver<StartupEvent>;
 
 pub fn startup_channel() -> (StartupEventSender, StartupEventReceiver) {
-    mpsc::unbounded_channel()
+    mpsc::unbounded()
 }

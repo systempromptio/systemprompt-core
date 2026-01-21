@@ -1,109 +1,19 @@
+mod types;
+mod validator;
+
+pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
+pub use validator::FilesConfigValidator;
+
 use anyhow::{anyhow, Context, Result};
-use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::AppPaths;
-use systemprompt_traits::validation_report::{
-    ValidationError, ValidationReport, ValidationWarning,
-};
-use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
+
+use types::FilesConfigWrapper;
 
 static FILES_CONFIG: OnceLock<FilesConfig> = OnceLock::new();
-
-const DEFAULT_URL_PREFIX: &str = "/files";
-const DEFAULT_MAX_FILE_SIZE_BYTES: u64 = 50 * 1024 * 1024;
-const MAX_RECOMMENDED_FILE_SIZE: u64 = 2 * 1024 * 1024 * 1024;
-const MIN_VIDEO_FILE_SIZE: u64 = 100 * 1024 * 1024;
-
-#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum FilePersistenceMode {
-    #[default]
-    ContextScoped,
-    UserLibrary,
-    Disabled,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::struct_excessive_bools)]
-pub struct AllowedFileTypes {
-    pub images: bool,
-    pub documents: bool,
-    pub audio: bool,
-    pub video: bool,
-}
-
-impl Default for AllowedFileTypes {
-    fn default() -> Self {
-        Self {
-            images: true,
-            documents: true,
-            audio: true,
-            video: false,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-pub struct FileUploadConfig {
-    #[serde(default = "default_enabled")]
-    pub enabled: bool,
-    #[serde(default = "default_max_file_size")]
-    pub max_file_size_bytes: u64,
-    #[serde(default)]
-    pub persistence_mode: FilePersistenceMode,
-    #[serde(default)]
-    pub allowed_types: AllowedFileTypes,
-}
-
-const fn default_enabled() -> bool {
-    true
-}
-
-const fn default_max_file_size() -> u64 {
-    DEFAULT_MAX_FILE_SIZE_BYTES
-}
-
-impl Default for FileUploadConfig {
-    fn default() -> Self {
-        Self {
-            enabled: true,
-            max_file_size_bytes: DEFAULT_MAX_FILE_SIZE_BYTES,
-            persistence_mode: FilePersistenceMode::default(),
-            allowed_types: AllowedFileTypes::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct FilesConfigYaml {
-    #[serde(default = "default_url_prefix")]
-    pub url_prefix: String,
-    #[serde(default)]
-    pub upload: FileUploadConfig,
-}
-
-fn default_url_prefix() -> String {
-    DEFAULT_URL_PREFIX.to_string()
-}
-
-impl Default for FilesConfigYaml {
-    fn default() -> Self {
-        Self {
-            url_prefix: default_url_prefix(),
-            upload: FileUploadConfig::default(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct FilesConfigWrapper {
-    #[serde(default)]
-    files: FilesConfigYaml,
-}
 
 #[derive(Debug, Clone)]
 pub struct FilesConfig {
@@ -153,7 +63,7 @@ impl FilesConfig {
         })
     }
 
-    fn load_yaml_config() -> Result<FilesConfigYaml> {
+    pub(crate) fn load_yaml_config() -> Result<FilesConfigYaml> {
         let paths = AppPaths::get().map_err(|e| anyhow!("{}", e))?;
         let config_path = paths.system().services().join("config/files.yaml");
 
@@ -297,73 +207,5 @@ impl FilesConfig {
     pub fn upload_url(&self, filename: &str) -> String {
         let name = filename.trim_start_matches('/');
         format!("{}/files/uploads/{}", self.url_prefix, name)
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct FilesConfigValidator {
-    config: Option<FilesConfigYaml>,
-}
-
-impl FilesConfigValidator {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
-impl DomainConfig for FilesConfigValidator {
-    fn domain_id(&self) -> &'static str {
-        "files"
-    }
-
-    fn priority(&self) -> u32 {
-        10
-    }
-
-    fn load(&mut self, _config: &dyn ConfigProvider) -> Result<(), DomainConfigError> {
-        let yaml_config = FilesConfig::load_yaml_config()
-            .map_err(|e| DomainConfigError::LoadError(e.to_string()))?;
-        self.config = Some(yaml_config);
-        Ok(())
-    }
-
-    fn validate(&self) -> Result<ValidationReport, DomainConfigError> {
-        let mut report = ValidationReport::new("files");
-
-        let config = self
-            .config
-            .as_ref()
-            .ok_or_else(|| DomainConfigError::ValidationError("Not loaded".into()))?;
-
-        if !config.url_prefix.starts_with('/') {
-            report.add_error(ValidationError::new(
-                "files.urlPrefix",
-                "URL prefix must start with '/'",
-            ));
-        }
-
-        if config.upload.max_file_size_bytes > MAX_RECOMMENDED_FILE_SIZE {
-            report.add_warning(
-                ValidationWarning::new(
-                    "files.upload.maxFileSizeBytes",
-                    "Max file size > 2GB may cause memory issues",
-                )
-                .with_suggestion("Consider using a smaller max file size for better performance"),
-            );
-        }
-
-        if config.upload.allowed_types.video
-            && config.upload.max_file_size_bytes < MIN_VIDEO_FILE_SIZE
-        {
-            report.add_warning(
-                ValidationWarning::new(
-                    "files.upload.allowedTypes.video",
-                    "Video uploads enabled but max file size < 100MB",
-                )
-                .with_suggestion("Increase maxFileSizeBytes to at least 100MB for video uploads"),
-            );
-        }
-
-        Ok(report)
     }
 }

@@ -6,22 +6,22 @@ use super::validation::{validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
 use crate::repository::OAuthRepository;
 use crate::services::validation::CsrfToken;
+use crate::OAuthState;
 use axum::extract::{Extension, Form, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect};
 use axum::Json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 use tracing::instrument;
 
-#[instrument(skip(ctx, _req_ctx, params), fields(client_id = %params.client_id))]
+#[instrument(skip(state, _req_ctx, params), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
     Extension(_req_ctx): Extension<RequestContext>,
     Query(params): Query<AuthorizeQuery>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -151,13 +151,13 @@ pub async fn handle_authorize_get(
     }
 }
 
-#[instrument(skip(ctx, _req_ctx, form), fields(client_id = %form.client_id))]
+#[instrument(skip(state, _req_ctx, form), fields(client_id = %form.client_id))]
 pub async fn handle_authorize_post(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Form(form): Form<AuthorizeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

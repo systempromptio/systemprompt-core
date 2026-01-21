@@ -46,15 +46,15 @@ sse-stream = { workspace = true }
 # CLI
 clap = { workspace = true }
 
+# JWT validation
+jsonwebtoken = { workspace = true }
+
 # SystemPrompt integration
 systemprompt-models = { path = "../../shared/models" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
-systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-oauth = { path = "../oauth" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-config = { path = "../../infra/config" }
 systemprompt-database = { path = "../../infra/database" }
-systemprompt-scheduler = { path = "../../app/scheduler" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-loader = { path = "../../infra/loader" }
 

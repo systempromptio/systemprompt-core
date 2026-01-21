@@ -1,13 +1,16 @@
+mod ai_provider;
 mod anomaly_detection;
 mod behavioral_detector;
 mod bot_keywords;
 pub mod detection;
 mod extractor;
+mod providers;
 mod service;
 mod session_cleanup;
 mod throttle;
 mod user_agent;
 
+pub use ai_provider::AnalyticsAiSessionProvider;
 pub use anomaly_detection::{
     AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
 };

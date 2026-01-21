@@ -1,8 +1,8 @@
 use axum::response::sse::Event;
 use serde::Serialize;
-
-use super::{A2AEvent, AnalyticsEvent, ContextEvent, SystemEvent};
-use crate::agui::AgUiEvent;
+use systemprompt_models::{
+    A2AEvent, AgUiEvent, AnalyticsEvent, CliOutputEvent, ContextEvent, SystemEvent,
+};
 
 pub trait ToSse {
     fn to_sse(&self) -> Result<Event, serde_json::Error>;
@@ -40,5 +40,14 @@ impl ToSse for ContextEvent {
 impl ToSse for AnalyticsEvent {
     fn to_sse(&self) -> Result<Event, serde_json::Error> {
         serialize_to_sse(self)
+    }
+}
+
+impl CliOutputEvent {
+    pub fn to_sse_event(&self) -> Event {
+        Event::default()
+            .event("cli")
+            .json_data(self)
+            .unwrap_or_else(|_| Event::default().event("cli").data("{}"))
     }
 }

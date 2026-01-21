@@ -195,6 +195,7 @@ impl ExtensionRegistry {
         Ok(())
     }
 
+    #[cfg(feature = "axum")]
     pub fn validate_api_paths(&self, ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {
         for ext in self.extensions.values() {
             if let Some(router_config) = ext.router(ctx) {
@@ -217,6 +218,11 @@ impl ExtensionRegistry {
                 }
             }
         }
+        Ok(())
+    }
+
+    #[cfg(not(feature = "axum"))]
+    pub fn validate_api_paths(&self, _ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {
         Ok(())
     }
 

@@ -5,19 +5,19 @@ use bcrypt::{hash, DEFAULT_COST};
 use chrono::Utc;
 use std::sync::Arc;
 use systemprompt_models::Config;
-use systemprompt_runtime::AppContext;
 use uuid::Uuid;
 
 use crate::models::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
 use crate::repository::{CreateClientParams, OAuthRepository};
+use crate::OAuthState;
 
 pub async fn register_client(
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -143,7 +143,7 @@ pub async fn register_client(
     };
 
     let params = CreateClientParams {
-        client_id: client_id.clone(),
+        client_id: systemprompt_identifiers::ClientId::new(client_id.clone()),
         client_secret_hash,
         client_name: client_name.clone(),
         redirect_uris: redirect_uris.clone(),

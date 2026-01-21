@@ -6,17 +6,17 @@ use tracing::instrument;
 
 use crate::models::clients::api::{OAuthClientResponse, UpdateOAuthClientRequest};
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 use systemprompt_models::{ApiError, RequestContext, SingleResponse};
-use systemprompt_runtime::AppContext;
 
-#[instrument(skip(ctx, req_ctx, request), fields(client_id = %client_id))]
+#[instrument(skip(state, req_ctx, request), fields(client_id = %client_id))]
 pub async fn update_client(
     Extension(req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Path(client_id): Path<String>,
     Json(request): Json<UpdateOAuthClientRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

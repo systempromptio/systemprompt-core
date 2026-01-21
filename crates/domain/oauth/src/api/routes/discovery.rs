@@ -1,10 +1,9 @@
-use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
 use systemprompt_models::oauth::OAuthServerConfig;
-use systemprompt_runtime::AppContext;
+use systemprompt_models::Config;
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {
@@ -26,8 +25,18 @@ pub struct WellKnownResponse {
     pub claims_supported: Vec<String>,
 }
 
-pub async fn handle_well_known(State(app_context): State<AppContext>) -> impl IntoResponse {
-    let config = OAuthServerConfig::from_api_server_url(&app_context.config().api_external_url);
+pub async fn handle_well_known() -> impl IntoResponse {
+    let global_config = match Config::get() {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("Failed to get config: {e}")})),
+            )
+                .into_response();
+        },
+    };
+    let config = OAuthServerConfig::from_api_server_url(&global_config.api_external_url);
 
     let response = WellKnownResponse {
         issuer: config.issuer.clone(),
@@ -75,10 +84,18 @@ pub struct OAuthProtectedResourceResponse {
     pub resource_documentation: Option<String>,
 }
 
-pub async fn handle_oauth_protected_resource(
-    State(app_context): State<AppContext>,
-) -> impl IntoResponse {
-    let config = OAuthServerConfig::from_api_server_url(&app_context.config().api_external_url);
+pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
+    let global_config = match Config::get() {
+        Ok(c) => c,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": format!("Failed to get config: {e}")})),
+            )
+                .into_response();
+        },
+    };
+    let config = OAuthServerConfig::from_api_server_url(&global_config.api_external_url);
 
     let response = OAuthProtectedResourceResponse {
         resource: config.issuer.clone(),
