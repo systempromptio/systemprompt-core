@@ -79,6 +79,7 @@ impl AnomalyDetectionService {
         thresholds
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     pub async fn check_anomaly(&self, metric_name: &str, value: f64) -> AnomalyCheckResult {
         let thresholds = self.thresholds.read().await;
 
@@ -114,6 +115,7 @@ impl AnomalyDetectionService {
         }
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     pub async fn record_event(&self, metric_name: &str, value: f64) {
         let mut events = self.recent_events.write().await;
         let metric_events = events.entry(metric_name.to_string()).or_default();
@@ -127,6 +129,7 @@ impl AnomalyDetectionService {
         metric_events.retain(|e| e.timestamp > cutoff);
     }
 
+    #[allow(clippy::significant_drop_tightening)]
     pub async fn check_trend_anomaly(
         &self,
         metric_name: &str,

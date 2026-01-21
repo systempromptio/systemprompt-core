@@ -184,8 +184,7 @@ fn parse_content_file(
     let category_id = metadata
         .category
         .as_ref()
-        .map(|c| CategoryId::new(c.clone()))
-        .unwrap_or_else(|| source_config.category_id.clone());
+        .map_or_else(|| source_config.category_id.clone(), |c| CategoryId::new(c.clone()));
 
     let version_hash = compute_version_hash(&metadata.title, &body, &metadata.description);
 

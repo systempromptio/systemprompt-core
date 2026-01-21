@@ -213,7 +213,7 @@ impl SyncService {
         let service = DatabaseSyncService::new(
             self.config.direction,
             self.config.dry_run,
-            &local_db_url,
+            local_db_url,
             &cloud_db_url,
         );
 

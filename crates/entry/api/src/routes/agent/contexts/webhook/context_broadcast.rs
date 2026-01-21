@@ -4,7 +4,6 @@ use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
-use systemprompt_identifiers::ContextId;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::{create_request_span, AppContext};
 
@@ -44,7 +43,7 @@ pub async fn broadcast_context_event(
             .into_response();
     }
 
-    let context_id = ContextId::from(request.context_id.clone());
+    let context_id = request.context_id.clone();
     let context_repo = ContextRepository::new(db.clone());
     if let Err(e) = context_repo
         .validate_context_ownership(&context_id, authenticated_user_id)

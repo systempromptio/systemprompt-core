@@ -15,7 +15,7 @@ use crate::repository::{FingerprintRepository, SessionRepository};
 #[async_trait]
 impl AnalyticsProvider for AnalyticsService {
     fn extract_analytics(&self, headers: &HeaderMap, uri: Option<&Uri>) -> TraitSessionAnalytics {
-        let local = AnalyticsService::extract_analytics(self, headers, uri);
+        let local = Self::extract_analytics(self, headers, uri);
         TraitSessionAnalytics {
             ip_address: local.ip_address.clone(),
             user_agent: local.user_agent.clone(),
@@ -24,7 +24,7 @@ impl AnalyticsProvider for AnalyticsService {
             screen_width: None,
             screen_height: None,
             timezone: None,
-            page_url: local.entry_url.clone(),
+            page_url: local.entry_url,
         }
     }
 
@@ -57,7 +57,7 @@ impl AnalyticsProvider for AnalyticsService {
         fingerprint: &str,
         max_age_seconds: i64,
     ) -> AnalyticsResult<Option<AnalyticsSession>> {
-        let result = AnalyticsService::find_recent_session_by_fingerprint(
+        let result = Self::find_recent_session_by_fingerprint(
             self,
             fingerprint,
             max_age_seconds,
@@ -135,13 +135,13 @@ impl FingerprintProvider for FingerprintRepository {
 #[async_trait]
 impl SessionAnalyticsProvider for SessionRepository {
     async fn increment_task_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
-        SessionRepository::increment_task_count(self, session_id)
+        Self::increment_task_count(self, session_id)
             .await
             .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
     }
 
     async fn increment_message_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
-        SessionRepository::increment_message_count(self, session_id)
+        Self::increment_message_count(self, session_id)
             .await
             .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
     }

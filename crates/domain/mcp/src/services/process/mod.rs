@@ -11,10 +11,11 @@ use anyhow::Result;
 pub struct ProcessManager;
 
 impl ProcessManager {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 
+    #[allow(clippy::unused_self)]
     pub fn spawn_server(&self, config: &McpServerConfig) -> Result<u32> {
         spawner::spawn_server(config)
     }

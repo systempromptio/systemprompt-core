@@ -9,7 +9,7 @@ use super::upload::{FileUploadRequest, FileUploadService};
 #[async_trait]
 impl FileUploadProvider for FileUploadService {
     fn is_enabled(&self) -> bool {
-        FileUploadService::is_enabled(self)
+        Self::is_enabled(self)
     }
 
     async fn upload_file(&self, input: FileUploadInput) -> FileUploadResult<UploadedFileInfo> {
@@ -34,7 +34,7 @@ impl FileUploadProvider for FileUploadService {
 
         let request = builder.build();
 
-        let uploaded = FileUploadService::upload_file(self, request)
+        let uploaded = Self::upload_file(self, request)
             .await
             .map_err(|e| FileUploadProviderError::StorageError(e.to_string()))?;
 

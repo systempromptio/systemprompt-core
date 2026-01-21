@@ -1,5 +1,5 @@
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{TaskId, UserId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
 
@@ -160,7 +160,7 @@ async fn load_context_updated(
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let context_repo = ContextRepository::new(db.clone());
-    let context_id = ContextId::from(request.context_id.clone());
+    let context_id = request.context_id.clone();
     let user_id = UserId::new(request.user_id.clone());
 
     let context = context_repo

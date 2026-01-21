@@ -14,7 +14,7 @@ impl std::fmt::Debug for McpState {
 }
 
 impl McpState {
-    pub fn new(db_pool: DbPool) -> Self {
+    pub const fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 

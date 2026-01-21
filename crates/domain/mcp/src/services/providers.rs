@@ -12,7 +12,7 @@ impl McpServiceProvider for McpServerRegistry {
     }
 
     fn find_server(&self, name: &str) -> McpServiceResult<Option<McpServerMetadata>> {
-        McpServerRegistry::find_server(name)
+        Self::find_server(name)
             .map(|opt| {
                 opt.map(|server| McpServerMetadata {
                     name: server.name.clone(),
@@ -23,7 +23,7 @@ impl McpServiceProvider for McpServerRegistry {
     }
 
     fn validate_registry(&self) -> McpServiceResult<()> {
-        McpServerRegistry::validate()
+        Self::validate()
             .map_err(|_| McpServiceProviderError::RegistryUnavailable)
     }
 }

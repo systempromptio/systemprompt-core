@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub struct MonitoringManager;
 
 impl MonitoringManager {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self
     }
 

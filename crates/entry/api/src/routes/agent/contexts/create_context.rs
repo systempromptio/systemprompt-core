@@ -43,7 +43,7 @@ pub async fn create_context(
             match context_repo.get_context(&context_id, user_id).await {
                 Ok(context) => {
                     let event = SystemEventBuilder::context_created(
-                        systemprompt_identifiers::ContextId::from(context.context_id.clone()),
+                        context.context_id.clone(),
                         context.name.clone(),
                     );
                     EventRouter::route_system(user_id, event).await;

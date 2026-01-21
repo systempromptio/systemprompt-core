@@ -100,7 +100,7 @@ impl GenerateTokenParams {
     }
 
     #[must_use]
-    pub fn with_expires_in_hours(mut self, hours: u32) -> Self {
+    pub const fn with_expires_in_hours(mut self, hours: u32) -> Self {
         self.expires_in_hours = Some(hours);
         self
     }
