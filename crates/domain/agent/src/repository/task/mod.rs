@@ -16,38 +16,55 @@ pub use queries::{
 use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
-use systemprompt_files::{FileUploadService, FilesConfig};
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
+use systemprompt_traits::{
+    DynFileUploadProvider, DynSessionAnalyticsProvider, Repository as RepositoryTrait,
+    RepositoryError,
+};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct TaskRepository {
     db_pool: DbPool,
-    pub(crate) analytics_session_repo: SessionRepository,
-    pub(crate) upload_service: Option<FileUploadService>,
+    pub(crate) session_analytics_provider: Option<DynSessionAnalyticsProvider>,
+    pub(crate) file_upload_provider: Option<DynFileUploadProvider>,
+}
+
+impl std::fmt::Debug for TaskRepository {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TaskRepository")
+            .field("db_pool", &"<DbPool>")
+            .field(
+                "session_analytics_provider",
+                &self.session_analytics_provider.is_some(),
+            )
+            .field("file_upload_provider", &self.file_upload_provider.is_some())
+            .finish()
+    }
 }
 
 impl TaskRepository {
     #[must_use]
     pub fn new(db_pool: DbPool) -> Self {
-        let analytics_session_repo = SessionRepository::new(db_pool.clone());
-        let upload_service = Self::init_upload_service(&db_pool);
         Self {
             db_pool,
-            analytics_session_repo,
-            upload_service,
+            session_analytics_provider: None,
+            file_upload_provider: None,
         }
     }
 
-    fn init_upload_service(db_pool: &DbPool) -> Option<FileUploadService> {
-        let files_config = FilesConfig::get_optional()?.clone();
-        FileUploadService::new(db_pool, files_config)
-            .map_err(|e| {
-                tracing::warn!(error = %e, "Failed to initialize FileUploadService");
-                e
-            })
-            .ok()
+    #[must_use]
+    pub fn with_session_analytics_provider(
+        mut self,
+        provider: DynSessionAnalyticsProvider,
+    ) -> Self {
+        self.session_analytics_provider = Some(provider);
+        self
+    }
+
+    #[must_use]
+    pub fn with_file_upload_provider(mut self, provider: DynFileUploadProvider) -> Self {
+        self.file_upload_provider = Some(provider);
+        self
     }
 
     pub(crate) fn get_pg_pool(&self) -> Result<Arc<PgPool>, RepositoryError> {
@@ -67,12 +84,10 @@ impl TaskRepository {
         let pool = self.get_pg_pool()?;
         let result = create_task(&pool, task, user_id, session_id, trace_id, agent_name).await?;
 
-        if let Err(e) = self
-            .analytics_session_repo
-            .increment_task_count(session_id)
-            .await
-        {
-            tracing::warn!(error = %e, "Failed to increment analytics task count");
+        if let Some(ref provider) = self.session_analytics_provider {
+            if let Err(e) = provider.increment_task_count(session_id).await {
+                tracing::warn!(error = %e, "Failed to increment analytics task count");
+            }
         }
 
         Ok(result)

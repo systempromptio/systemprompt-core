@@ -1,4 +1,3 @@
-pub mod mcp;
 pub mod webhook;
 
 pub use crate::models::external_integrations::{
@@ -6,5 +5,4 @@ pub use crate::models::external_integrations::{
     WebhookRequest, WebhookResponse,
 };
 
-pub use mcp::{McpClient, McpServiceState, McpTool, McpToolLoader, ServiceStateManager};
 pub use webhook::{RetryPolicy, WebhookConfig, WebhookDeliveryResult, WebhookService};

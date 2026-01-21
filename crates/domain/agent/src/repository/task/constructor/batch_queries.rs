@@ -2,6 +2,10 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
 };
 use std::sync::Arc;
+use systemprompt_identifiers::{
+    AgentName, ArtifactId, ContextId, ExecutionStepId, McpExecutionId, MessageId, SessionId,
+    SkillId, TaskId, TraceId, UserId,
+};
 use systemprompt_traits::RepositoryError;
 
 pub async fn fetch_task_rows(
@@ -11,14 +15,14 @@ pub async fn fetch_task_rows(
     sqlx::query_as!(
         TaskRow,
         r#"SELECT
-            task_id as "task_id!",
-            context_id as "context_id!",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id!: ContextId",
             status as "status!",
             status_timestamp,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
+            agent_name as "agent_name?: AgentName",
             started_at,
             completed_at,
             execution_time_ms,
@@ -31,7 +35,7 @@ pub async fn fetch_task_rows(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }
 
 pub async fn fetch_messages(
@@ -42,14 +46,14 @@ pub async fn fetch_messages(
         TaskMessage,
         r#"SELECT
             id as "id!",
-            task_id as "task_id!",
-            message_id as "message_id!",
+            task_id as "task_id!: TaskId",
+            message_id as "message_id!: MessageId",
             client_message_id,
             role as "role!",
-            context_id,
-            user_id,
-            session_id,
-            trace_id,
+            context_id as "context_id?: ContextId",
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
             sequence_number as "sequence_number!",
             created_at as "created_at!",
             updated_at as "updated_at!",
@@ -60,7 +64,7 @@ pub async fn fetch_messages(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }
 
 pub async fn fetch_message_parts(
@@ -71,8 +75,8 @@ pub async fn fetch_message_parts(
         MessagePart,
         r#"SELECT
             id as "id!",
-            message_id as "message_id!",
-            task_id as "task_id!",
+            message_id as "message_id!: MessageId",
+            task_id as "task_id!: TaskId",
             part_kind as "part_kind!",
             sequence_number as "sequence_number!",
             text_content,
@@ -87,7 +91,7 @@ pub async fn fetch_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }
 
 pub async fn fetch_artifacts(
@@ -97,17 +101,17 @@ pub async fn fetch_artifacts(
     sqlx::query_as!(
         ArtifactRow,
         r#"SELECT
-            artifact_id as "artifact_id!",
-            task_id as "task_id!",
-            context_id,
+            artifact_id as "artifact_id!: ArtifactId",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id?: ContextId",
             name,
             description,
             artifact_type as "artifact_type!",
             source,
             tool_name,
-            mcp_execution_id,
+            mcp_execution_id as "mcp_execution_id?: McpExecutionId",
             fingerprint,
-            skill_id,
+            skill_id as "skill_id?: SkillId",
             skill_name,
             metadata,
             created_at as "created_at!"
@@ -116,7 +120,7 @@ pub async fn fetch_artifacts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }
 
 pub async fn fetch_artifact_parts(
@@ -131,8 +135,8 @@ pub async fn fetch_artifact_parts(
         ArtifactPartRow,
         r#"SELECT
             id as "id!",
-            artifact_id as "artifact_id!",
-            context_id as "context_id!",
+            artifact_id as "artifact_id!: ArtifactId",
+            context_id as "context_id!: ContextId",
             part_kind as "part_kind!",
             sequence_number as "sequence_number!",
             text_content,
@@ -147,7 +151,7 @@ pub async fn fetch_artifact_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }
 
 pub async fn fetch_execution_steps(
@@ -161,8 +165,8 @@ pub async fn fetch_execution_steps(
     sqlx::query_as!(
         ExecutionStepBatchRow,
         r#"SELECT
-            step_id as "step_id!",
-            task_id as "task_id!",
+            step_id as "step_id!: ExecutionStepId",
+            task_id as "task_id!: TaskId",
             status as "status!",
             content as "content!",
             started_at as "started_at!",
@@ -174,5 +178,5 @@ pub async fn fetch_execution_steps(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))
+    .map_err(|e| RepositoryError::database(e))
 }

@@ -16,6 +16,10 @@ impl AgentId {
         Self(id.into())
     }
 
+    pub fn generate() -> Self {
+        Self(uuid::Uuid::new_v4().to_string())
+    }
+
     pub fn as_str(&self) -> &str {
         &self.0
     }
@@ -54,6 +58,36 @@ impl ToDbValue for AgentId {
 impl ToDbValue for &AgentId {
     fn to_db_value(&self) -> DbValue {
         DbValue::String(self.0.clone())
+    }
+}
+
+impl From<AgentId> for String {
+    fn from(id: AgentId) -> Self {
+        id.0
+    }
+}
+
+impl From<&AgentId> for String {
+    fn from(id: &AgentId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for AgentId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<str> for AgentId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl std::borrow::Borrow<str> for AgentId {
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }
 
@@ -147,5 +181,35 @@ impl ToDbValue for AgentName {
 impl ToDbValue for &AgentName {
     fn to_db_value(&self) -> DbValue {
         DbValue::String(self.0.clone())
+    }
+}
+
+impl From<AgentName> for String {
+    fn from(id: AgentName) -> Self {
+        id.0
+    }
+}
+
+impl From<&AgentName> for String {
+    fn from(id: &AgentName) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for AgentName {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<str> for AgentName {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl std::borrow::Borrow<str> for AgentName {
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }

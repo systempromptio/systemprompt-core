@@ -4,7 +4,7 @@ use crate::models::a2a::{Artifact, ArtifactMetadata};
 use crate::models::ArtifactRow;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ArtifactId, ContextId, McpExecutionId, SkillId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 impl ArtifactRepository {
@@ -18,17 +18,17 @@ impl ArtifactRepository {
         let rows = sqlx::query_as!(
             ArtifactRow,
             r#"SELECT
-                artifact_id as "artifact_id!",
-                task_id as "task_id!",
-                context_id,
+                artifact_id as "artifact_id!: ArtifactId",
+                task_id as "task_id!: TaskId",
+                context_id as "context_id?: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
                 source,
                 tool_name,
-                mcp_execution_id,
+                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
                 fingerprint,
-                skill_id,
+                skill_id as "skill_id?: SkillId",
                 skill_name,
                 metadata,
                 created_at as "created_at!"
@@ -39,7 +39,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -60,17 +60,17 @@ impl ArtifactRepository {
         let rows = sqlx::query_as!(
             ArtifactRow,
             r#"SELECT
-                artifact_id as "artifact_id!",
-                task_id as "task_id!",
-                context_id,
+                artifact_id as "artifact_id!: ArtifactId",
+                task_id as "task_id!: TaskId",
+                context_id as "context_id?: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
                 source,
                 tool_name,
-                mcp_execution_id,
+                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
                 fingerprint,
-                skill_id,
+                skill_id as "skill_id?: SkillId",
                 skill_name,
                 metadata,
                 created_at as "created_at!"
@@ -81,7 +81,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -104,17 +104,17 @@ impl ArtifactRepository {
         let rows = sqlx::query_as!(
             ArtifactRow,
             r#"SELECT
-                a.artifact_id as "artifact_id!",
-                a.task_id as "task_id!",
-                a.context_id,
+                a.artifact_id as "artifact_id!: ArtifactId",
+                a.task_id as "task_id!: TaskId",
+                a.context_id as "context_id?: ContextId",
                 a.name,
                 a.description,
                 a.artifact_type as "artifact_type!",
                 a.source,
                 a.tool_name,
-                a.mcp_execution_id,
+                a.mcp_execution_id as "mcp_execution_id?: McpExecutionId",
                 a.fingerprint,
-                a.skill_id,
+                a.skill_id as "skill_id?: SkillId",
                 a.skill_name,
                 a.metadata,
                 a.created_at as "created_at!"
@@ -128,7 +128,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -149,17 +149,17 @@ impl ArtifactRepository {
         let row = sqlx::query_as!(
             ArtifactRow,
             r#"SELECT
-                artifact_id as "artifact_id!",
-                task_id as "task_id!",
-                context_id,
+                artifact_id as "artifact_id!: ArtifactId",
+                task_id as "task_id!: TaskId",
+                context_id as "context_id?: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
                 source,
                 tool_name,
-                mcp_execution_id,
+                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
                 fingerprint,
-                skill_id,
+                skill_id as "skill_id?: SkillId",
                 skill_name,
                 metadata,
                 created_at as "created_at!"
@@ -169,7 +169,7 @@ impl ArtifactRepository {
         )
         .fetch_optional(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         match row {
             Some(row) => {
@@ -190,17 +190,17 @@ impl ArtifactRepository {
         let rows = sqlx::query_as!(
             ArtifactRow,
             r#"SELECT
-                artifact_id as "artifact_id!",
-                task_id as "task_id!",
-                context_id,
+                artifact_id as "artifact_id!: ArtifactId",
+                task_id as "task_id!: TaskId",
+                context_id as "context_id?: ContextId",
                 name,
                 description,
                 artifact_type as "artifact_type!",
                 source,
                 tool_name,
-                mcp_execution_id,
+                mcp_execution_id as "mcp_execution_id?: McpExecutionId",
                 fingerprint,
-                skill_id,
+                skill_id as "skill_id?: SkillId",
                 skill_name,
                 metadata,
                 created_at as "created_at!"
@@ -211,7 +211,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -227,32 +227,35 @@ async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
-    let context_id_str = row.context_id.clone().unwrap_or_else(String::new);
-    let parts = get_artifact_parts(pool, &row.artifact_id, &context_id_str).await?;
+    let context_id = row
+        .context_id
+        .clone()
+        .unwrap_or_else(|| ContextId::new(""));
+    let parts = get_artifact_parts(pool, row.artifact_id.as_str(), context_id.as_str()).await?;
 
     let (rendering_hints, mcp_schema, is_internal, execution_index) =
         extract_metadata_fields(&row.metadata);
 
     Ok(Artifact {
-        id: row.artifact_id.into(),
+        id: row.artifact_id,
         name: row.name,
         description: row.description,
         parts,
         extensions: vec![],
         metadata: ArtifactMetadata {
             artifact_type: row.artifact_type,
-            context_id: ContextId::new(row.context_id.unwrap_or_else(String::new)),
+            context_id,
             created_at: row.created_at.to_rfc3339(),
-            task_id: TaskId::new(row.task_id),
+            task_id: row.task_id,
             rendering_hints,
             source: row.source,
-            mcp_execution_id: row.mcp_execution_id,
+            mcp_execution_id: row.mcp_execution_id.map(|id| id.as_str().to_string()),
             mcp_schema,
             is_internal,
             fingerprint: row.fingerprint,
             tool_name: row.tool_name,
             execution_index,
-            skill_id: row.skill_id,
+            skill_id: row.skill_id.map(|id| id.as_str().to_string()),
             skill_name: row.skill_name,
         },
     })

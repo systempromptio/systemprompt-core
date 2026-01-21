@@ -139,4 +139,10 @@ impl SessionAnalyticsProvider for SessionRepository {
             .await
             .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
     }
+
+    async fn increment_message_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
+        SessionRepository::increment_message_count(self, session_id)
+            .await
+            .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
+    }
 }

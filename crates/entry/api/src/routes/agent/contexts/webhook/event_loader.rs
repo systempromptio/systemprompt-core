@@ -5,10 +5,10 @@ use systemprompt_runtime::AppContext;
 
 use super::types::{AgUiWebhookData, WebhookRequest};
 use super::validation::validate_json_serializable;
-use crate::repository::content::ArtifactRepository;
-use crate::repository::context::ContextRepository;
-use crate::repository::execution::ExecutionStepRepository;
-use crate::repository::task::TaskRepository;
+use systemprompt_agent::repository::content::ArtifactRepository;
+use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_agent::repository::execution::ExecutionStepRepository;
+use systemprompt_agent::repository::task::TaskRepository;
 
 pub async fn load_event_data(
     app_context: &AppContext,
@@ -38,7 +38,7 @@ async fn load_task_completed(
     let artifact_repo = ArtifactRepository::new(db.clone());
     let step_repo = ExecutionStepRepository::new(db)?;
 
-    use crate::models::a2a::TaskState;
+    use systemprompt_agent::models::a2a::TaskState;
     let task_id = TaskId::new(&request.entity_id);
     let timestamp = chrono::Utc::now();
     task_repo
@@ -211,7 +211,7 @@ async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, 
 
     #[derive(serde::Deserialize)]
     struct TaskCreatedData {
-        task: crate::models::a2a::Task,
+        task: systemprompt_agent::models::a2a::Task,
     }
 
     let payload: TaskCreatedData = serde_json::from_value(task_data.clone()).map_err(|e| {

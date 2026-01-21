@@ -16,7 +16,7 @@ pub async fn reconcile_agents(
         Err(e) => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::Error {
+                    .unbounded_send(StartupEvent::Error {
                         message: format!("Failed to initialize agent orchestrator: {e}"),
                         fatal: true,
                     })
@@ -36,7 +36,7 @@ pub async fn reconcile_agents(
         Err(e) => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::Error {
+                    .unbounded_send(StartupEvent::Error {
                         message: format!("Failed to load agent registry: {e}"),
                         fatal: true,
                     })
@@ -56,7 +56,7 @@ pub async fn reconcile_agents(
         Err(e) => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::Error {
+                    .unbounded_send(StartupEvent::Error {
                         message: format!("Failed to list enabled agents: {e}"),
                         fatal: true,
                     })
@@ -138,7 +138,7 @@ async fn handle_failed_agents(
 ) -> Result<usize> {
     if let Some(tx) = events {
         if tx
-            .send(StartupEvent::Warning {
+            .unbounded_send(StartupEvent::Warning {
                 message: format!(
                     "{} agent(s) failed to start on first attempt",
                     failed_agents.len()
@@ -159,7 +159,7 @@ async fn handle_failed_agents(
             Err(e) => {
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::AgentFailed {
+                        .unbounded_send(StartupEvent::AgentFailed {
                             name: agent_name.clone(),
                             error: format!("Agent config not found: {e}"),
                         })
@@ -228,7 +228,7 @@ async fn enforce_clean_agent_state(
                 };
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::AgentCleanup {
+                        .unbounded_send(StartupEvent::AgentCleanup {
                             name: agent_id.to_string(),
                             reason,
                         })
@@ -245,7 +245,7 @@ async fn enforce_clean_agent_state(
             AgentStatus::Failed { .. } => {
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::AgentCleanup {
+                        .unbounded_send(StartupEvent::AgentCleanup {
                             name: agent_id.to_string(),
                             reason: "Previously failed, restarting".to_string(),
                         })
@@ -264,7 +264,7 @@ async fn enforce_clean_agent_state(
     if let Err(e) = port_manager.cleanup_port_if_needed(desired_port).await {
         if let Some(tx) = events {
             if tx
-                .send(StartupEvent::Error {
+                .unbounded_send(StartupEvent::Error {
                     message: format!(
                         "Failed to cleanup port {desired_port} for agent {agent_id}: {e}"
                     ),

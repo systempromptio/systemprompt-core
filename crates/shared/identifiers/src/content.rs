@@ -59,6 +59,30 @@ impl ToDbValue for &SkillId {
     }
 }
 
+impl From<SkillId> for String {
+    fn from(id: SkillId) -> Self {
+        id.0
+    }
+}
+
+impl From<&SkillId> for String {
+    fn from(id: &SkillId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for SkillId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for SkillId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 #[cfg_attr(feature = "sqlx", sqlx(transparent))]
@@ -111,6 +135,30 @@ impl ToDbValue for &SourceId {
     }
 }
 
+impl From<SourceId> for String {
+    fn from(id: SourceId) -> Self {
+        id.0
+    }
+}
+
+impl From<&SourceId> for String {
+    fn from(id: &SourceId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for SourceId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for SourceId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 #[cfg_attr(feature = "sqlx", sqlx(transparent))]
@@ -160,6 +208,30 @@ impl ToDbValue for CategoryId {
 impl ToDbValue for &CategoryId {
     fn to_db_value(&self) -> DbValue {
         DbValue::String(self.0.clone())
+    }
+}
+
+impl From<CategoryId> for String {
+    fn from(id: CategoryId) -> Self {
+        id.0
+    }
+}
+
+impl From<&CategoryId> for String {
+    fn from(id: &CategoryId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for CategoryId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for CategoryId {
+    fn borrow(&self) -> &str {
+        &self.0
     }
 }
 

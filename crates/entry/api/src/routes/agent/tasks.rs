@@ -6,8 +6,8 @@ use serde::Deserialize;
 use systemprompt_identifiers::{ContextId, TaskId, UserId};
 use systemprompt_models::api::ApiError;
 
-use crate::models::a2a::TaskState;
-use crate::repository::task::TaskRepository;
+use systemprompt_agent::models::a2a::TaskState;
+use systemprompt_agent::repository::task::TaskRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 

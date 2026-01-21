@@ -10,7 +10,8 @@ use crate::models::a2a::Message;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
 use super::event_loop::{handle_stream_creation_error, process_events, ProcessEventsParams};
-use super::initialization::{setup_stream, StreamInput};
+use super::initialization::setup_stream;
+use super::types::StreamInput;
 use super::webhook_client::WebhookContext;
 
 pub async fn create_sse_stream(

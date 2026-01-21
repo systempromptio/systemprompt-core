@@ -3,6 +3,7 @@ pub mod cimd;
 pub mod generation;
 pub mod http;
 pub mod jwt;
+pub mod providers;
 pub mod session;
 pub mod templating;
 pub mod validation;

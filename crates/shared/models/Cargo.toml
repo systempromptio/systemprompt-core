@@ -48,6 +48,9 @@ once_cell = { workspace = true }
 # Async streaming
 futures = { workspace = true }
 
+# Web framework (optional, for IntoResponse implementations)
+axum = { workspace = true, optional = true }
+
 # Shared traits, identifiers, and extension framework
 systemprompt-traits = { path = "../traits" }
 systemprompt-identifiers = { path = "../identifiers" }
@@ -55,6 +58,10 @@ systemprompt-extension = { path = "../extension" }
 
 # MCP protocol
 rmcp = { workspace = true }
+
+[features]
+default = []
+axum = ["dep:axum"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

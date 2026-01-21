@@ -117,6 +117,30 @@ impl ToDbValue for &MessageId {
     }
 }
 
+impl From<MessageId> for String {
+    fn from(id: MessageId) -> Self {
+        id.0
+    }
+}
+
+impl From<&MessageId> for String {
+    fn from(id: &MessageId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for MessageId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for MessageId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
 #[cfg_attr(feature = "sqlx", sqlx(transparent))]

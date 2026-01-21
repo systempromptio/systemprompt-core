@@ -52,6 +52,48 @@ macro_rules! define_id {
                 $crate::DbValue::String(self.0.clone())
             }
         }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(id: &$name) -> Self {
+                id.0.clone()
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool {
+                self == other.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
+            }
+        }
     };
 
     ($name:ident, non_empty) => {
@@ -137,6 +179,48 @@ macro_rules! define_id {
                 $crate::DbValue::String(self.0.clone())
             }
         }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(id: &$name) -> Self {
+                id.0.clone()
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool {
+                self == other.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
+            }
+        }
     };
 
     ($name:ident, validated, $validator:expr) => {
@@ -219,6 +303,48 @@ macro_rules! define_id {
         impl $crate::ToDbValue for &$name {
             fn to_db_value(&self) -> $crate::DbValue {
                 $crate::DbValue::String(self.0.clone())
+            }
+        }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(id: &$name) -> Self {
+                id.0.clone()
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool {
+                self == other.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
             }
         }
     };
@@ -309,6 +435,48 @@ macro_rules! define_id {
                 $crate::DbValue::String(self.0.clone())
             }
         }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(id: &$name) -> Self {
+                id.0.clone()
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool {
+                self == other.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
+            }
+        }
     };
 
     ($name:ident, generate, schema) => {
@@ -371,6 +539,48 @@ macro_rules! define_id {
         impl $crate::ToDbValue for &$name {
             fn to_db_value(&self) -> $crate::DbValue {
                 $crate::DbValue::String(self.0.clone())
+            }
+        }
+
+        impl From<$name> for String {
+            fn from(id: $name) -> Self {
+                id.0
+            }
+        }
+
+        impl From<&$name> for String {
+            fn from(id: &$name) -> Self {
+                id.0.clone()
+            }
+        }
+
+        impl PartialEq<&str> for $name {
+            fn eq(&self, other: &&str) -> bool {
+                self.0 == *other
+            }
+        }
+
+        impl PartialEq<str> for $name {
+            fn eq(&self, other: &str) -> bool {
+                self.0 == other
+            }
+        }
+
+        impl PartialEq<$name> for &str {
+            fn eq(&self, other: &$name) -> bool {
+                *self == other.0
+            }
+        }
+
+        impl PartialEq<$name> for str {
+            fn eq(&self, other: &$name) -> bool {
+                self == other.0
+            }
+        }
+
+        impl std::borrow::Borrow<str> for $name {
+            fn borrow(&self) -> &str {
+                &self.0
             }
         }
     };

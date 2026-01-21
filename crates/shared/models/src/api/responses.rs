@@ -3,6 +3,13 @@ use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "axum")]
+use axum::http::StatusCode;
+#[cfg(feature = "axum")]
+use axum::response::IntoResponse;
+#[cfg(feature = "axum")]
+use axum::Json;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseLinks {
     pub self_link: String,
@@ -257,5 +264,45 @@ impl<T: Serialize + 'static> DiscoveryResponse<T> {
     pub fn with_meta(mut self, meta: ResponseMeta) -> Self {
         self.meta = meta;
         self
+    }
+}
+
+#[cfg(feature = "axum")]
+impl<T: Serialize + 'static> IntoResponse for SingleResponse<T> {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl<T: Serialize + 'static> IntoResponse for CollectionResponse<T> {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl IntoResponse for SuccessResponse {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::OK, Json(self)).into_response()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl<T: Serialize + 'static> IntoResponse for CreatedResponse<T> {
+    fn into_response(self) -> axum::response::Response {
+        (
+            StatusCode::CREATED,
+            [("Location", self.location.clone())],
+            Json(self),
+        )
+            .into_response()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl IntoResponse for AcceptedResponse {
+    fn into_response(self) -> axum::response::Response {
+        (StatusCode::ACCEPTED, Json(self)).into_response()
     }
 }

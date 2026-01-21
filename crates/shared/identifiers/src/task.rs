@@ -59,3 +59,33 @@ impl ToDbValue for &TaskId {
         DbValue::String(self.0.clone())
     }
 }
+
+impl From<TaskId> for String {
+    fn from(id: TaskId) -> Self {
+        id.0
+    }
+}
+
+impl From<&TaskId> for String {
+    fn from(id: &TaskId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for TaskId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<str> for TaskId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl std::borrow::Borrow<str> for TaskId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}

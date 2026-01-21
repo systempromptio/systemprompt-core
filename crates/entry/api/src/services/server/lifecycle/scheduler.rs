@@ -13,7 +13,7 @@ pub async fn initialize_scheduler(
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     if let Some(tx) = events {
-        if tx.send(StartupEvent::SchedulerInitializing).is_err() {
+        if tx.unbounded_send(StartupEvent::SchedulerInitializing).is_err() {
             tracing::debug!("Startup event receiver dropped");
         }
     }
@@ -62,7 +62,7 @@ pub async fn initialize_scheduler(
 
     if let Some(tx) = events {
         let job_count = inventory::iter::<&'static dyn Job>.into_iter().count();
-        if tx.send(StartupEvent::SchedulerReady { job_count }).is_err() {
+        if tx.unbounded_send(StartupEvent::SchedulerReady { job_count }).is_err() {
             tracing::debug!("Startup event receiver dropped");
         }
     }
@@ -80,7 +80,7 @@ async fn run_bootstrap_job(
 
     if let Some(tx) = events {
         if tx
-            .send(StartupEvent::BootstrapJobStarted {
+            .unbounded_send(StartupEvent::BootstrapJobStarted {
                 name: job_name.to_string(),
             })
             .is_err()
@@ -97,7 +97,7 @@ async fn run_bootstrap_job(
         Ok(result) if result.success => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::BootstrapJobCompleted {
+                    .unbounded_send(StartupEvent::BootstrapJobCompleted {
                         name: job_name.to_string(),
                         success: true,
                         message: None,
@@ -121,7 +121,7 @@ async fn run_bootstrap_job(
                 .unwrap_or_else(|| "Unknown error".to_string());
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::BootstrapJobCompleted {
+                    .unbounded_send(StartupEvent::BootstrapJobCompleted {
                         name: job_name.to_string(),
                         success: false,
                         message: Some(msg),
@@ -141,7 +141,7 @@ async fn run_bootstrap_job(
         Err(e) => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::BootstrapJobCompleted {
+                    .unbounded_send(StartupEvent::BootstrapJobCompleted {
                         name: job_name.to_string(),
                         success: false,
                         message: Some(e.to_string()),

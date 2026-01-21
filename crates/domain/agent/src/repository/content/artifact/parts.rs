@@ -1,6 +1,7 @@
 use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
 use crate::models::ArtifactPartRow;
 use sqlx::PgPool;
+use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_traits::RepositoryError;
 
 pub async fn get_artifact_parts(
@@ -12,8 +13,8 @@ pub async fn get_artifact_parts(
         ArtifactPartRow,
         r#"SELECT
             id as "id!",
-            artifact_id as "artifact_id!",
-            context_id as "context_id!",
+            artifact_id as "artifact_id!: ArtifactId",
+            context_id as "context_id!: ContextId",
             part_kind as "part_kind!",
             sequence_number as "sequence_number!",
             text_content,
@@ -31,7 +32,7 @@ pub async fn get_artifact_parts(
     )
     .fetch_all(pool)
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let mut parts = Vec::new();
 
@@ -101,7 +102,7 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
         Part::File(file_part) => {
             let file_uri: Option<&str> = None;
@@ -118,7 +119,7 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
         Part::Data(data_part) => {
             let data_json = serde_json::to_value(&data_part.data)
@@ -133,7 +134,7 @@ pub async fn persist_artifact_part(
             )
             .execute(pool)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
     }
 

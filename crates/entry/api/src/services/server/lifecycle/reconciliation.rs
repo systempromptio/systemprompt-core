@@ -18,7 +18,7 @@ pub async fn reconcile_system_services(
             if count > 0 {
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::McpServiceCleanup {
+                        .unbounded_send(StartupEvent::McpServiceCleanup {
                             name: format!("{count} services"),
                             reason: "Stale entries removed".to_string(),
                         })
@@ -86,7 +86,7 @@ async fn handle_reconcile_success(
 
     if let Some(tx) = events {
         if tx
-            .send(StartupEvent::McpReconciliationComplete {
+            .unbounded_send(StartupEvent::McpReconciliationComplete {
                 running: running_count,
                 required: required_count,
             })
@@ -116,7 +116,7 @@ async fn handle_missing_servers(
 
     if let Some(tx) = events {
         if tx
-            .send(StartupEvent::Error {
+            .unbounded_send(StartupEvent::Error {
                 message: format!(
                     "Server status mismatch: {} servers failed to start: {}",
                     missing.len(),
@@ -155,7 +155,7 @@ async fn verify_database_registration(
             Ok(Some(service)) if service.status == "running" => {
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::McpServerReady {
+                        .unbounded_send(StartupEvent::McpServerReady {
                             name: server.name.clone(),
                             port: service.port as u16,
                             startup_time: std::time::Duration::ZERO,
@@ -182,7 +182,7 @@ async fn verify_database_registration(
     if !verification_failed.is_empty() {
         if let Some(tx) = events {
             if tx
-                .send(StartupEvent::Error {
+                .unbounded_send(StartupEvent::Error {
                     message: format!(
                         "Database verification failed for {} service(s): {}",
                         verification_failed.len(),
@@ -229,7 +229,7 @@ async fn cleanup_stale_service_entries(
             deleted_count += 1;
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::McpServiceCleanup {
+                    .unbounded_send(StartupEvent::McpServiceCleanup {
                         name: service.name.clone(),
                         reason: format!(
                             "Stale entry (status: {}, pid: {:?})",
@@ -259,7 +259,7 @@ async fn cleanup_stale_service_entries(
                 deleted_count += 1;
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::AgentCleanup {
+                        .unbounded_send(StartupEvent::AgentCleanup {
                             name: service_name.clone(),
                             reason: format!(
                                 "Stale entry (status: {}, pid: {:?})",

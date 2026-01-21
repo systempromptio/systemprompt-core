@@ -80,3 +80,33 @@ impl ToDbValue for &ContextId {
         DbValue::String(self.0.clone())
     }
 }
+
+impl From<ContextId> for String {
+    fn from(id: ContextId) -> Self {
+        id.0
+    }
+}
+
+impl From<&ContextId> for String {
+    fn from(id: &ContextId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for ContextId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<str> for ContextId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl std::borrow::Borrow<str> for ContextId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}

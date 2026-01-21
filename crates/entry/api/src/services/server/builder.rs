@@ -46,7 +46,7 @@ impl ApiServer {
     pub async fn serve(self, addr: &str) -> Result<()> {
         if let Some(ref tx) = self.events {
             if tx
-                .send(StartupEvent::ServerBinding {
+                .unbounded_send(StartupEvent::ServerBinding {
                     address: addr.to_string(),
                 })
                 .is_err()

@@ -3,7 +3,6 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 use systemprompt_models::{AppPaths, CliPaths, Config, ProfileBootstrap, SecretsBootstrap};
-use systemprompt_scheduler::ProcessCleanup;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -136,12 +135,12 @@ fn verify_process_started(pid: u32) -> bool {
     match waitpid(Pid::from_raw(pid as i32), Some(WaitPidFlag::WNOHANG)) {
         Ok(WaitStatus::StillAlive) => true,
         Ok(_) => false,
-        Err(_) => ProcessCleanup::process_exists(pid),
+        Err(_) => process_exists(pid),
     }
 }
 
 pub fn process_exists(pid: u32) -> bool {
-    ProcessCleanup::process_exists(pid)
+    Path::new(&format!("/proc/{}", pid)).exists()
 }
 
 pub fn terminate_process(pid: u32) -> Result<()> {

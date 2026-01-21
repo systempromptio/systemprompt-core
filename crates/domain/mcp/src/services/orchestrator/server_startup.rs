@@ -67,7 +67,7 @@ fn notify_reconciliation_complete(
     use systemprompt_traits::StartupEvent;
 
     if let Some(tx) = events {
-        let _ = tx.send(StartupEvent::McpReconciliationComplete { running, required });
+        let _ = tx.unbounded_send(StartupEvent::McpReconciliationComplete { running, required });
     }
 }
 

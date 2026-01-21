@@ -137,14 +137,14 @@ pub async fn process_events(params: ProcessEventsParams) {
     while let Some(event) = chunk_rx.recv().await {
         match event {
             StreamEvent::Text(text) => {
-                text_state.handle_text(text, &message_id).await;
+                text_state.handle_text(text, message_id.as_str()).await;
             },
             StreamEvent::ToolCallStarted(tool_call) => {
                 let tool_call_id = tool_call.ai_tool_call_id.as_str();
                 let start_event = AgUiEventBuilder::tool_call_start(
                     tool_call_id,
                     &tool_call.name,
-                    Some(message_id.clone()),
+                    Some(message_id.to_string()),
                 );
                 if let Err(e) = webhook_context.broadcast_agui(start_event).await {
                     tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_START");
@@ -184,7 +184,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 full_text,
                 artifacts,
             } => {
-                text_state.finalize(&message_id).await;
+                text_state.finalize(message_id.as_str()).await;
 
                 let complete_params = HandleCompleteParams {
                     tx: &tx,
@@ -193,7 +193,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                     artifacts,
                     task_id: &task_id,
                     context_id: &context_id,
-                    id: &message_id,
+                    id: message_id.as_str(),
                     original_message: &original_message,
                     agent_name: &agent_name,
                     context: &context,
@@ -218,7 +218,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 break;
             },
             StreamEvent::Error(error) => {
-                text_state.finalize(&message_id).await;
+                text_state.finalize(message_id.as_str()).await;
                 handle_error(
                     &tx,
                     &webhook_context,

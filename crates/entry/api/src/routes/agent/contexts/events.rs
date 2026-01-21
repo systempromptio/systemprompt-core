@@ -8,7 +8,7 @@ use systemprompt_identifiers::ContextId;
 use systemprompt_models::{ContextEvent, RequestContext};
 use systemprompt_runtime::AppContext;
 
-use crate::repository::context::ContextRepository;
+use systemprompt_agent::repository::context::ContextRepository;
 
 pub async fn forward_event(
     Extension(request_context): Extension<RequestContext>,

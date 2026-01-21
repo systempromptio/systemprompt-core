@@ -4,6 +4,7 @@ pub mod core;
 pub mod discovery;
 pub mod health;
 pub mod oauth;
+mod responses;
 pub mod webauthn;
 
 pub use core::{authenticated_router, public_router, router};

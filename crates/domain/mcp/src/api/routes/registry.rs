@@ -1,8 +1,8 @@
-use axum::response::IntoResponse;
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Json, Response};
 use axum::routing::get;
 use axum::Router;
 use serde::{Deserialize, Serialize};
-use systemprompt_models::{ApiError, CollectionResponse};
 
 use crate::services::registry::manager::RegistryService;
 
@@ -20,14 +20,40 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
+fn error_response(status: StatusCode, message: String) -> Response {
+    (
+        status,
+        Json(serde_json::json!({
+            "error": "internal_error",
+            "message": message
+        })),
+    )
+        .into_response()
+}
+
+fn collection_response<T: Serialize>(items: Vec<T>) -> Response {
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({
+            "data": items,
+            "meta": {
+                "total": items.len()
+            }
+        })),
+    )
+        .into_response()
+}
+
 pub async fn handle_mcp_registry() -> impl IntoResponse {
     let server_configs = match RegistryService::get_enabled_servers_as_config() {
         Ok(configs) => configs,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load MCP server configs");
-            return ApiError::internal_error(format!("Failed to retrieve MCP registry: {e}"))
-                .into_response();
-        },
+            return error_response(
+                StatusCode::INTERNAL_SERVER_ERROR,
+                format!("Failed to retrieve MCP registry: {e}"),
+            );
+        }
     };
 
     let servers: Vec<McpRegistryServer> = server_configs
@@ -55,7 +81,7 @@ pub async fn handle_mcp_registry() -> impl IntoResponse {
         })
         .collect();
 
-    CollectionResponse::new(servers).into_response()
+    collection_response(servers)
 }
 
 pub fn router() -> Router {

@@ -2,6 +2,13 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[cfg(feature = "axum")]
+use axum::http::StatusCode;
+#[cfg(feature = "axum")]
+use axum::response::IntoResponse;
+#[cfg(feature = "axum")]
+use axum::Json;
+
 #[derive(Debug, thiserror::Error)]
 pub enum InternalApiError {
     #[error("Resource not found: {resource_type} with ID '{id}'")]
@@ -278,4 +285,56 @@ pub struct ErrorResponse {
     pub error: ApiError,
 
     pub api_version: String,
+}
+
+#[cfg(feature = "axum")]
+impl ErrorCode {
+    pub const fn status_code(&self) -> StatusCode {
+        match self {
+            Self::NotFound => StatusCode::NOT_FOUND,
+            Self::BadRequest => StatusCode::BAD_REQUEST,
+            Self::Unauthorized => StatusCode::UNAUTHORIZED,
+            Self::Forbidden => StatusCode::FORBIDDEN,
+            Self::ValidationError => StatusCode::UNPROCESSABLE_ENTITY,
+            Self::ConflictError => StatusCode::CONFLICT,
+            Self::RateLimited => StatusCode::TOO_MANY_REQUESTS,
+            Self::ServiceUnavailable => StatusCode::SERVICE_UNAVAILABLE,
+            Self::InternalError => StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
+impl IntoResponse for ApiError {
+    fn into_response(self) -> axum::response::Response {
+        let status = self.code.status_code();
+
+        if status.is_server_error() {
+            tracing::error!(
+                error_code = ?self.code,
+                message = %self.message,
+                path = ?self.path,
+                trace_id = ?self.trace_id,
+                "API server error response"
+            );
+        } else if status.is_client_error() {
+            tracing::warn!(
+                error_code = ?self.code,
+                message = %self.message,
+                path = ?self.path,
+                trace_id = ?self.trace_id,
+                "API client error response"
+            );
+        }
+
+        (status, Json(self)).into_response()
+    }
+}
+
+#[cfg(feature = "axum")]
+impl IntoResponse for InternalApiError {
+    fn into_response(self) -> axum::response::Response {
+        let error: ApiError = self.into();
+        error.into_response()
+    }
 }

@@ -7,6 +7,7 @@ pub mod monitoring;
 pub mod network;
 pub mod orchestrator;
 pub mod process;
+mod providers;
 pub mod registry;
 pub mod schema;
 pub mod tool_provider;

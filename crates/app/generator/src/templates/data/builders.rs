@@ -4,7 +4,16 @@ use systemprompt_cloud::constants::storage;
 use systemprompt_content::models::ContentError;
 
 use super::types::BuildTemplateJsonParams;
-use crate::templates::paper::calculate_read_time;
+
+fn calculate_read_time(html_content: &str) -> u32 {
+    let text_count = html_content
+        .replace(['<', '>'], " ")
+        .split_whitespace()
+        .count();
+
+    let minutes = (text_count as f32 / 200.0).ceil() as u32;
+    minutes.max(1)
+}
 
 pub fn build_template_json(params: BuildTemplateJsonParams<'_>) -> Result<Value> {
     let BuildTemplateJsonParams {

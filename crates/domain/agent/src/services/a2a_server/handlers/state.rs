@@ -1,17 +1,17 @@
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::{AgentConfig, AiProvider};
-use systemprompt_runtime::AppContext;
 use tokio::sync::RwLock;
 
 use crate::services::a2a_server::auth::AgentOAuthState;
+use crate::state::AgentState;
 
 #[derive(Clone)]
 pub struct AgentHandlerState {
     pub db_pool: DbPool,
     pub config: Arc<RwLock<AgentConfig>>,
     pub oauth_state: Arc<AgentOAuthState>,
-    pub app_context: Arc<AppContext>,
+    pub agent_state: Arc<AgentState>,
     pub ai_service: Arc<dyn AiProvider>,
 }
 
@@ -21,7 +21,7 @@ impl std::fmt::Debug for AgentHandlerState {
             .field("db_pool", &"<DbPool>")
             .field("config", &"<Arc<RwLock<AgentConfig>>>")
             .field("oauth_state", &"<Arc<AgentOAuthState>>")
-            .field("app_context", &"<Arc<AppContext>>")
+            .field("agent_state", &"<Arc<AgentState>>")
             .field("ai_service", &"<Arc<dyn AiProvider>>")
             .finish()
     }

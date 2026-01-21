@@ -16,6 +16,7 @@ pub use services::{
     CreateAnonymousSessionInput, JwtAuthProvider, JwtAuthorizationProvider, SessionCreationService,
     TemplateEngine, TokenValidator, TraitBasedAuthService,
 };
+pub use services::providers::JwtValidationProviderImpl;
 
 pub use state::OAuthState;
 pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};

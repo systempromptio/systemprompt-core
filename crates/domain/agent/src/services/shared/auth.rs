@@ -1,6 +1,7 @@
 use crate::services::shared::error::{AgentServiceError, Result};
 use jsonwebtoken::{decode, DecodingKey, Validation};
-pub use systemprompt_oauth::models::JwtClaims;
+pub use systemprompt_models::auth::JwtClaims;
+use systemprompt_traits::AgentJwtClaims;
 
 pub struct JwtValidator {
     decoding_key: DecodingKey,
@@ -43,6 +44,17 @@ pub struct AgentSessionUser {
     pub username: String,
     pub user_type: String,
     pub roles: Vec<String>,
+}
+
+impl AgentSessionUser {
+    pub fn from_jwt_claims(claims: AgentJwtClaims) -> Self {
+        Self {
+            id: claims.subject,
+            username: claims.username,
+            user_type: claims.user_type,
+            roles: claims.permissions,
+        }
+    }
 }
 
 impl From<JwtClaims> for AgentSessionUser {

@@ -55,15 +55,15 @@ impl SkillRepository {
         let row = sqlx::query_as!(
             SkillRow,
             r#"SELECT
-                skill_id as "skill_id!",
+                skill_id as "skill_id!: SkillId",
                 file_path as "file_path!",
                 name as "name!",
                 description as "description!",
                 instructions as "instructions!",
                 enabled as "enabled!",
                 tags,
-                category_id,
-                source_id as "source_id!",
+                category_id as "category_id?: CategoryId",
+                source_id as "source_id!: SourceId",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM agent_skills WHERE skill_id = $1"#,
@@ -82,15 +82,15 @@ impl SkillRepository {
         let row = sqlx::query_as!(
             SkillRow,
             r#"SELECT
-                skill_id as "skill_id!",
+                skill_id as "skill_id!: SkillId",
                 file_path as "file_path!",
                 name as "name!",
                 description as "description!",
                 instructions as "instructions!",
                 enabled as "enabled!",
                 tags,
-                category_id,
-                source_id as "source_id!",
+                category_id as "category_id?: CategoryId",
+                source_id as "source_id!: SourceId",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM agent_skills WHERE file_path = $1"#,
@@ -109,15 +109,15 @@ impl SkillRepository {
         let rows = sqlx::query_as!(
             SkillRow,
             r#"SELECT
-                skill_id as "skill_id!",
+                skill_id as "skill_id!: SkillId",
                 file_path as "file_path!",
                 name as "name!",
                 description as "description!",
                 instructions as "instructions!",
                 enabled as "enabled!",
                 tags,
-                category_id,
-                source_id as "source_id!",
+                category_id as "category_id?: CategoryId",
+                source_id as "source_id!: SourceId",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM agent_skills WHERE enabled = true ORDER BY name ASC"#
@@ -137,15 +137,15 @@ impl SkillRepository {
         let rows = sqlx::query_as!(
             SkillRow,
             r#"SELECT
-                skill_id as "skill_id!",
+                skill_id as "skill_id!: SkillId",
                 file_path as "file_path!",
                 name as "name!",
                 description as "description!",
                 instructions as "instructions!",
                 enabled as "enabled!",
                 tags,
-                category_id,
-                source_id as "source_id!",
+                category_id as "category_id?: CategoryId",
+                source_id as "source_id!: SourceId",
                 created_at as "created_at!",
                 updated_at as "updated_at!"
             FROM agent_skills ORDER BY name ASC"#
@@ -184,15 +184,15 @@ impl SkillRepository {
 
 fn skill_from_row(row: SkillRow) -> Result<Skill> {
     Ok(Skill {
-        skill_id: SkillId::new(&row.skill_id),
+        skill_id: row.skill_id,
         file_path: row.file_path,
         name: row.name,
         description: row.description,
         instructions: row.instructions,
         enabled: row.enabled,
         tags: row.tags.unwrap_or_else(Vec::new),
-        category_id: row.category_id.map(|c| CategoryId::new(&c)),
-        source_id: SourceId::new(&row.source_id),
+        category_id: row.category_id,
+        source_id: row.source_id,
         created_at: row.created_at,
         updated_at: row.updated_at,
     })

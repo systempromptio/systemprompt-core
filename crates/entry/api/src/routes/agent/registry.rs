@@ -7,8 +7,8 @@ use systemprompt_database::ServiceRepository;
 use systemprompt_models::{ApiError, CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
-use crate::models::a2a::{AgentExtension, McpServerMetadata};
-use crate::services::registry::AgentRegistry;
+use systemprompt_agent::models::a2a::{AgentExtension, McpServerMetadata};
+use systemprompt_agent::services::registry::AgentRegistry;
 
 pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
@@ -118,7 +118,7 @@ fn create_mcp_extensions_from_config(
         })
         .collect();
 
-    let mcp_protocol_version = systemprompt_mcp::mcp_protocol_version();
+    let mcp_protocol_version = "2024-11-05".to_string();
 
     vec![AgentExtension {
         uri: "systemprompt:mcp-tools".to_string(),
