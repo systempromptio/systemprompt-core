@@ -191,7 +191,7 @@ impl AnomalyDetectionService {
 
     pub async fn get_recent_events(&self, metric_name: &str) -> Vec<AnomalyEvent> {
         let events = self.recent_events.read().await;
-        events.get(metric_name).cloned().unwrap_or_default()
+        events.get(metric_name).cloned().unwrap_or_else(Vec::new)
     }
 }
 

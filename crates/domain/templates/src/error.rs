@@ -1,5 +1,11 @@
+//! Error types for template operations.
+//!
+//! This module defines [`TemplateError`], the primary error type for template-related
+//! failures including loading, compiling, and rendering templates.
+
 use thiserror::Error;
 
+/// Errors that can occur during template operations.
 #[derive(Debug, Error)]
 pub enum TemplateError {
     #[error("Template not found: {0}")]

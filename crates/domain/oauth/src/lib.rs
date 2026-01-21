@@ -1,19 +1,5 @@
-#![allow(unused_qualifications)]
-#![allow(clippy::similar_names)]
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::option_if_let_else)]
-#![allow(clippy::if_not_else)]
-#![allow(clippy::map_unwrap_or)]
-#![allow(clippy::redundant_else)]
-#![allow(clippy::module_name_repetitions)]
-#![allow(clippy::missing_fields_in_debug)]
-#![allow(clippy::manual_let_else)]
-#![allow(clippy::ref_option)]
-#![allow(clippy::significant_drop_tightening)]
-#![allow(clippy::unused_async)]
-#![allow(clippy::single_match_else)]
-#![allow(clippy::items_after_statements)]
-#![allow(clippy::struct_excessive_bools)]
+// Minimal clippy allows - only for unavoidable patterns in this crate
+#![allow(clippy::module_name_repetitions)] // OAuth module names naturally repeat "oauth"
 
 pub mod api;
 pub mod models;

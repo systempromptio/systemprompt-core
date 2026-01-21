@@ -12,7 +12,7 @@ SystemPrompt provides a foundational platform for building AI agent orchestratio
 
 - **Agent Orchestration**: Multi-agent lifecycle management via A2A protocol
 - **MCP Protocol**: Model Context Protocol server and client implementations
-- **Database Abstraction**: Unified interface supporting SQLite and PostgreSQL
+- **Database Abstraction**: Unified interface supporting PostgreSQL
 - **HTTP API Framework**: REST API with OAuth2 authentication
 - **Extension System**: Extensible architecture with compile-time registration
 - **Configuration**: Profile-based configuration with startup validation

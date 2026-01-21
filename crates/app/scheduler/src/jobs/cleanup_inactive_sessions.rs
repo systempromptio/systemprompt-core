@@ -19,7 +19,7 @@ impl Job for CleanupInactiveSessionsJob {
     }
 
     fn schedule(&self) -> &'static str {
-        "0 */10 * * * *" // Every 10 minutes
+        "0 */10 * * * *"
     }
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {

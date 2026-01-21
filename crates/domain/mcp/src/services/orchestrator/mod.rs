@@ -9,6 +9,8 @@ pub mod events;
 pub mod handlers;
 mod process_cleanup;
 mod reconciliation;
+mod schema_sync;
+mod server_startup;
 mod service_validation;
 
 pub use reconciliation::ReconcileParams;

@@ -17,16 +17,11 @@ use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{monitor, AgentStatus, OrchestrationResult};
 
-/// Information about an agent for display purposes
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
-    /// Agent identifier
     pub id: String,
-    /// Agent display name
     pub name: String,
-    /// Current status of the agent
     pub status: AgentStatus,
-    /// Port the agent runs on
     pub port: u16,
 }
 
@@ -162,16 +157,13 @@ impl AgentOrchestrator {
         Ok(())
     }
 
-    /// Reconcile agents during startup, optionally emitting events
     pub async fn reconcile(&self, events: Option<&StartupEventSender>) -> OrchestrationResult<()> {
         if let Some(tx) = events {
             tx.phase_started(Phase::Agents);
         }
 
-        // Perform startup reconciliation
         self.startup_reconciliation(events).await?;
 
-        // Get final counts for reconciliation summary
         let agents = self.db_service.list_all_agents().await?;
         let running = agents
             .iter()

@@ -1,6 +1,3 @@
-#![allow(unused_variables)]
-#![allow(clippy::let_and_return)]
-
 mod context;
 mod database_context;
 mod installation;

@@ -246,7 +246,6 @@ pub async fn handle_error(
     tracing::error!(task_id = %task_id, error = %error, "Stream error");
 
     let failed_timestamp = chrono::Utc::now();
-    // Use the new method that stores the error message for debugging
     let _ = task_repo
         .update_task_failed_with_error(task_id, &error, &failed_timestamp)
         .await;

@@ -20,7 +20,7 @@ impl Job for CleanupEmptyContextsJob {
     }
 
     fn schedule(&self) -> &'static str {
-        "0 0 */2 * * *" // Every 2 hours
+        "0 0 */2 * * *"
     }
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {

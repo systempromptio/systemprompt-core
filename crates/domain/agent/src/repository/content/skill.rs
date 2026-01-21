@@ -190,7 +190,7 @@ fn skill_from_row(row: SkillRow) -> Result<Skill> {
         description: row.description,
         instructions: row.instructions,
         enabled: row.enabled,
-        tags: row.tags.unwrap_or_default(),
+        tags: row.tags.unwrap_or_else(Vec::new),
         category_id: row.category_id.map(|c| CategoryId::new(&c)),
         source_id: SourceId::new(&row.source_id),
         created_at: row.created_at,

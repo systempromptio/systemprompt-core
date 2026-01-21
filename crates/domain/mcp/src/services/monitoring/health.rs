@@ -162,8 +162,7 @@ pub async fn monitor_health_continuously(
     report_interval: Duration,
     _db_pool: DbPool,
 ) -> Result<()> {
-    let span: tracing::Span =
-        systemprompt_logging::SystemSpan::new("mcp_health_monitor").into();
+    let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_health_monitor").into();
     async move {
         let mut ticker = interval(report_interval);
         let mut state = HealthMonitorState::new();

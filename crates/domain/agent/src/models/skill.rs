@@ -64,7 +64,7 @@ impl Skill {
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
             })
-            .unwrap_or_default();
+            .unwrap_or_else(Vec::new);
 
         let category_id = row
             .get("category_id")

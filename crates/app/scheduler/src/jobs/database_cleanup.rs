@@ -18,7 +18,7 @@ impl Job for DatabaseCleanupJob {
     }
 
     fn schedule(&self) -> &'static str {
-        "0 0 3 * * *" // Daily at 3 AM
+        "0 0 3 * * *"
     }
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {

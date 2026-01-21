@@ -11,7 +11,7 @@ pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, Reposit
         .map(|v| v.to_string())
         .unwrap_or_else(|| "{}".to_string());
 
-    let agent_name = row.agent_name.clone().unwrap_or_default();
+    let agent_name = row.agent_name.clone().unwrap_or_else(String::new);
 
     let mut metadata = serde_json::from_str::<TaskMetadata>(&metadata_json)
         .unwrap_or_else(|_| TaskMetadata::new_agent_message(agent_name.clone()));
@@ -46,7 +46,7 @@ pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {
 pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
     match part_row.part_kind.as_str() {
         "text" => {
-            let text = part_row.text_content.clone().unwrap_or_default();
+            let text = part_row.text_content.clone().unwrap_or_else(String::new);
             Some(Part::Text(TextPart { text }))
         },
         "data" => {
@@ -58,7 +58,7 @@ pub fn build_part_from_row(part_row: &MessagePart) -> Option<Part> {
             file: FileWithBytes {
                 name: part_row.file_name.clone(),
                 mime_type: part_row.file_mime_type.clone(),
-                bytes: part_row.file_bytes.clone().unwrap_or_default(),
+                bytes: part_row.file_bytes.clone().unwrap_or_else(String::new),
             },
         })),
         _ => None,
@@ -70,7 +70,7 @@ pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, Rep
     for part_row in part_rows {
         let part = match part_row.part_kind.as_str() {
             "text" => {
-                let text = part_row.text_content.clone().unwrap_or_default();
+                let text = part_row.text_content.clone().unwrap_or_else(String::new);
                 Part::Text(TextPart { text })
             },
             "data" => {
@@ -93,7 +93,7 @@ pub fn build_parts_from_rows(part_rows: &[MessagePart]) -> Result<Vec<Part>, Rep
                 file: FileWithBytes {
                     name: part_row.file_name.clone(),
                     mime_type: part_row.file_mime_type.clone(),
-                    bytes: part_row.file_bytes.clone().unwrap_or_default(),
+                    bytes: part_row.file_bytes.clone().unwrap_or_else(String::new),
                 },
             }),
             _ => continue,

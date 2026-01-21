@@ -174,6 +174,6 @@ pub async fn get_task_context_info(
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,
-        user_id: r.user_id.unwrap_or_default(),
+        user_id: r.user_id.unwrap_or_else(String::new),
     }))
 }

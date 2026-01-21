@@ -1,7 +1,7 @@
 use systemprompt_identifiers::UserId;
 
-use crate::error::Result;
-use crate::models::{User, UserActivity, UserRole, UserStats, UserStatus, UserWithSessions};
+use crate::error::{Result, UserError};
+use crate::models::{User, UserActivity, UserRole, UserStatus, UserWithSessions};
 use crate::repository::{UserRepository, MAX_PAGE_SIZE};
 
 impl UserRepository {
@@ -133,108 +133,6 @@ impl UserRepository {
         Ok(result)
     }
 
-    pub async fn count_by_status(&self) -> Result<Vec<(String, i64)>> {
-        #[derive(sqlx::FromRow)]
-        struct StatusCount {
-            status: String,
-            cnt: i64,
-        }
-
-        let deleted_status = UserStatus::Deleted.as_str();
-        let rows: Vec<StatusCount> = sqlx::query_as(
-            r"
-            SELECT status, COUNT(*)::bigint as cnt
-            FROM users
-            WHERE status != $1
-            GROUP BY status
-            ORDER BY cnt DESC
-            ",
-        )
-        .bind(deleted_status)
-        .fetch_all(&*self.pool)
-        .await?;
-
-        Ok(rows.into_iter().map(|r| (r.status, r.cnt)).collect())
-    }
-
-    pub async fn count_by_role(&self) -> Result<Vec<(String, i64)>> {
-        #[derive(sqlx::FromRow)]
-        struct RoleCount {
-            role: String,
-            cnt: i64,
-        }
-
-        let deleted_status = UserStatus::Deleted.as_str();
-        let rows: Vec<RoleCount> = sqlx::query_as(
-            r"
-            SELECT role, COUNT(*)::bigint as cnt
-            FROM users, UNNEST(roles) as role
-            WHERE status != $1
-            GROUP BY role
-            ORDER BY cnt DESC
-            ",
-        )
-        .bind(deleted_status)
-        .fetch_all(&*self.pool)
-        .await?;
-
-        Ok(rows.into_iter().map(|r| (r.role, r.cnt)).collect())
-    }
-
-    pub async fn get_stats(&self) -> Result<UserStats> {
-        #[derive(sqlx::FromRow)]
-        struct StatsRow {
-            total: i64,
-            created_24h: i64,
-            created_7d: i64,
-            created_30d: i64,
-            active: i64,
-            suspended: i64,
-            admins: i64,
-            anonymous: i64,
-            bots: i64,
-            oldest_user: Option<chrono::DateTime<chrono::Utc>>,
-            newest_user: Option<chrono::DateTime<chrono::Utc>>,
-        }
-
-        let deleted_status = UserStatus::Deleted.as_str();
-        let row: StatsRow = sqlx::query_as(
-            r"
-            SELECT
-                COUNT(*)::bigint as total,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '24 hours')::bigint as created_24h,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '7 days')::bigint as created_7d,
-                COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::bigint as created_30d,
-                COUNT(*) FILTER (WHERE status = 'active')::bigint as active,
-                COUNT(*) FILTER (WHERE status = 'suspended')::bigint as suspended,
-                COUNT(*) FILTER (WHERE 'admin' = ANY(roles))::bigint as admins,
-                COUNT(*) FILTER (WHERE 'anonymous' = ANY(roles))::bigint as anonymous,
-                COUNT(*) FILTER (WHERE is_bot = true)::bigint as bots,
-                MIN(created_at) as oldest_user,
-                MAX(created_at) as newest_user
-            FROM users
-            WHERE status != $1
-            ",
-        )
-        .bind(deleted_status)
-        .fetch_one(&*self.pool)
-        .await?;
-
-        Ok(UserStats {
-            total: row.total,
-            created_24h: row.created_24h,
-            created_7d: row.created_7d,
-            created_30d: row.created_30d,
-            active: row.active,
-            suspended: row.suspended,
-            admins: row.admins,
-            anonymous: row.anonymous,
-            bots: row.bots,
-            oldest_user: row.oldest_user,
-            newest_user: row.newest_user,
-        })
-    }
-
     pub async fn bulk_update_status(&self, user_ids: &[UserId], new_status: &str) -> Result<u64> {
         let ids: Vec<String> = user_ids.iter().map(ToString::to_string).collect();
         let result = sqlx::query!(
@@ -319,7 +217,7 @@ impl UserRepository {
         .fetch_optional(&*self.pool)
         .await?;
 
-        Ok(result.unwrap_or(false))
+        result.ok_or(UserError::NotFound(id.clone()))
     }
 
     pub async fn list_non_anonymous_with_sessions(

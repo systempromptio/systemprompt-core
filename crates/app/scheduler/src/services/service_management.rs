@@ -1,5 +1,6 @@
 use anyhow::Result;
 use systemprompt_database::{DbPool, ServiceConfig, ServiceRepository};
+use tracing::warn;
 
 use super::orchestration::ProcessCleanup;
 
@@ -41,7 +42,9 @@ impl ServiceManagementService {
         }
 
         ProcessCleanup::kill_port(service.port as u16);
-        self.mark_service_stopped(&service.name).await.ok();
+        if let Err(e) = self.mark_service_stopped(&service.name).await {
+            warn!(service = %service.name, error = %e, "Failed to mark service stopped");
+        }
         Ok(())
     }
 
@@ -50,13 +53,17 @@ impl ServiceManagementService {
             let pid = pid as u32;
 
             if !ProcessCleanup::process_exists(pid) {
-                self.mark_service_stopped(&service.name).await.ok();
+                if let Err(e) = self.mark_service_stopped(&service.name).await {
+                    warn!(service = %service.name, error = %e, "Failed to mark orphaned service stopped");
+                }
                 return Ok(true);
             }
 
             ProcessCleanup::terminate_gracefully(pid, 100).await;
             ProcessCleanup::kill_port(service.port as u16);
-            self.mark_service_stopped(&service.name).await.ok();
+            if let Err(e) = self.mark_service_stopped(&service.name).await {
+                warn!(service = %service.name, error = %e, "Failed to mark terminated service stopped");
+            }
             return Ok(true);
         }
         Ok(false)

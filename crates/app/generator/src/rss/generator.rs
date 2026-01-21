@@ -31,12 +31,9 @@ fn load_rss_context(db_pool: DbPool) -> Result<RssContext> {
         .dist()
         .to_path_buf();
 
-    let base_url = std::env::var("SITEMAP_BASE_URL")
-        .unwrap_or_else(|_| global_config.api_external_url.clone());
-
     Ok(RssContext {
         db_pool,
-        base_url,
+        base_url: global_config.api_external_url.clone(),
         web_dir,
         site_title: "Tying Shoelaces".to_string(),
         site_description: "Technical insights and engineering perspectives".to_string(),

@@ -1,10 +1,10 @@
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_oauth::services::validation::jwt::validate_jwt_token;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::auth::AuthenticatedUser;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::services::validation::jwt::validate_jwt_token;
 
 use super::{extract_bearer_token, extract_request_context};
 

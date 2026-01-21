@@ -4,7 +4,6 @@ use crate::services::agent_orchestration::{
 };
 
 impl AgentOrchestrator {
-    /// Get detailed status of all agents for display by presentation layer
     pub async fn get_detailed_status(&self) -> OrchestrationResult<Vec<AgentInfo>> {
         self.get_comprehensive_agent_info().await
     }

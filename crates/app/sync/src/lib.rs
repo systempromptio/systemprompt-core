@@ -1,23 +1,3 @@
-#![allow(
-    clippy::unused_async,
-    clippy::cognitive_complexity,
-    clippy::too_many_lines,
-    clippy::missing_const_for_fn,
-    clippy::clone_on_ref_ptr,
-    clippy::items_after_statements,
-    clippy::map_unwrap_or,
-    clippy::manual_let_else,
-    clippy::option_if_let_else,
-    clippy::needless_pass_by_value,
-    clippy::too_many_arguments,
-    clippy::doc_markdown,
-    clippy::redundant_closure_for_method_calls,
-    clippy::unnecessary_wraps,
-    clippy::if_not_else,
-    clippy::unused_self,
-    clippy::single_match_else
-)]
-
 pub mod api_client;
 pub mod crate_deploy;
 pub mod database;
@@ -45,13 +25,13 @@ pub use models::{
     LocalSyncResult, SkillDiffItem, SkillsDiffResult,
 };
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SyncDirection {
     Push,
     Pull,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct SyncConfig {
     pub direction: SyncDirection,
     pub dry_run: bool,
@@ -148,7 +128,7 @@ impl SyncConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct SyncOperationResult {
     pub operation: String,
     pub success: bool,
@@ -207,7 +187,7 @@ impl SyncService {
 
     pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
         let local_db_url = std::env::var("DATABASE_URL").map_err(|_| {
-            SyncError::Database(sqlx::Error::Configuration("DATABASE_URL not set".into()))
+            SyncError::MissingConfig("DATABASE_URL environment variable not set".to_string())
         })?;
 
         let cloud_db_url = self

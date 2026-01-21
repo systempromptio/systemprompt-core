@@ -176,7 +176,7 @@ fn build_messages(
             parts,
             id: msg_row.message_id.clone().into(),
             task_id: Some(msg_row.task_id.clone().into()),
-            context_id: msg_row.context_id.clone().unwrap_or_default().into(),
+            context_id: msg_row.context_id.clone().unwrap_or_else(String::new).into(),
             kind: "message".to_string(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None
@@ -231,7 +231,7 @@ fn build_artifact(
 
     let metadata = ArtifactMetadata {
         artifact_type: row.artifact_type.clone(),
-        context_id: ContextId::new(row.context_id.clone().unwrap_or_default()),
+        context_id: ContextId::new(row.context_id.clone().unwrap_or_else(String::new)),
         created_at: row.created_at.to_rfc3339(),
         task_id: TaskId::new(row.task_id.clone()),
         rendering_hints: metadata_value.get("rendering_hints").cloned(),
@@ -280,7 +280,7 @@ fn build_artifact_parts(parts: Option<&Vec<&ArtifactPartRow>>) -> Vec<Part> {
     for row in parts {
         let part = match row.part_kind.as_str() {
             "text" => {
-                let text = row.text_content.clone().unwrap_or_default();
+                let text = row.text_content.clone().unwrap_or_else(String::new);
                 Part::Text(TextPart { text })
             },
             "file" => {
@@ -288,7 +288,7 @@ fn build_artifact_parts(parts: Option<&Vec<&ArtifactPartRow>>) -> Vec<Part> {
                     .file_bytes
                     .clone()
                     .or_else(|| row.file_uri.clone())
-                    .unwrap_or_default();
+                    .unwrap_or_else(String::new);
                 Part::File(FilePart {
                     file: FileWithBytes {
                         name: row.file_name.clone(),

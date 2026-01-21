@@ -171,18 +171,27 @@ impl ServiceStateManager {
             let service_type = row
                 .get("service_type")
                 .and_then(|v| v.as_str())
-                .unwrap_or("mcp")
+                .unwrap_or_else(|| {
+                    tracing::warn!(service_name = %name, "Service record missing service_type field");
+                    "mcp"
+                })
                 .to_string();
             let status = row
                 .get("status")
                 .and_then(|v| v.as_str())
-                .unwrap_or("stopped")
+                .unwrap_or_else(|| {
+                    tracing::warn!(service_name = %name, "Service record missing status field");
+                    "stopped"
+                })
                 .to_string();
             let pid = row.get("pid").and_then(serde_json::Value::as_i64);
             let port = row
                 .get("port")
                 .and_then(serde_json::Value::as_i64)
-                .unwrap_or(0) as i32;
+                .unwrap_or_else(|| {
+                    tracing::warn!(service_name = %name, "Service record missing port field");
+                    0
+                }) as i32;
 
             records.push(DbServiceRecord {
                 name,

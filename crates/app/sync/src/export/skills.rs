@@ -4,13 +4,15 @@ use std::fs;
 use std::path::Path;
 use systemprompt_agent::models::Skill;
 
+const DEFAULT_SKILL_CATEGORY: &str = "skills";
+
 pub fn generate_skill_markdown(skill: &Skill) -> String {
     let tags_str = skill.tags.join(", ");
     let category = skill
         .category_id
         .as_ref()
         .map(|c| c.as_str())
-        .unwrap_or("skills");
+        .unwrap_or(DEFAULT_SKILL_CATEGORY);
 
     format!(
         r#"---

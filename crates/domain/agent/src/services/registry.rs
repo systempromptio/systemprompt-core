@@ -130,8 +130,8 @@ fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentSkill
     Ok(AgentSkill {
         id: skill_id.to_string(),
         name: frontmatter.title.unwrap_or_else(|| skill_id.to_string()),
-        description: frontmatter.description.unwrap_or_default(),
-        tags: frontmatter.keywords.unwrap_or_default(),
+        description: frontmatter.description.unwrap_or_else(String::new),
+        tags: frontmatter.keywords.unwrap_or_else(Vec::new),
         examples: frontmatter.examples,
         input_modes: frontmatter.input_modes,
         output_modes: frontmatter.output_modes,

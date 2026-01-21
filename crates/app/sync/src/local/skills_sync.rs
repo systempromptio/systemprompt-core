@@ -111,21 +111,13 @@ impl SkillsLocalSync {
 
         info!("Ingested {} skills", report.files_processed);
 
-        if delete_orphans {
-            let skill_repo = SkillRepository::new(self.db.clone());
-            for item in &diff.removed {
-                let skill_id = SkillId::new(&item.skill_id);
-                if skill_repo.get_by_skill_id(&skill_id).await?.is_some() {
-                    result.items_deleted += 1;
-                    info!(
-                        "Would delete from DB: {} (delete not implemented)",
-                        item.skill_id
-                    );
-                }
-            }
-        } else {
-            result.items_skipped += diff.removed.len();
+        if delete_orphans && !diff.removed.is_empty() {
+            tracing::warn!(
+                count = diff.removed.len(),
+                "Skill deletion from database not supported, skipping orphan removal"
+            );
         }
+        result.items_skipped += diff.removed.len();
 
         Ok(result)
     }

@@ -44,7 +44,6 @@ impl ArtifactRepository {
         let pool = self.get_pg_pool()?;
         let now = Utc::now();
 
-        // Build metadata JSON for extra fields not in structured columns
         let metadata_json = serde_json::json!({
             "rendering_hints": artifact.metadata.rendering_hints,
             "mcp_schema": artifact.metadata.mcp_schema,
@@ -52,7 +51,6 @@ impl ArtifactRepository {
             "execution_index": artifact.metadata.execution_index,
         });
 
-        // Insert artifact into task_artifacts
         sqlx::query!(
             r#"
             INSERT INTO task_artifacts (
@@ -93,7 +91,6 @@ impl ArtifactRepository {
         .await
         .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
-        // Delete existing parts and insert new ones
         sqlx::query!(
             "DELETE FROM artifact_parts WHERE artifact_id = $1 AND context_id = $2",
             artifact.id.as_str(),
@@ -103,7 +100,6 @@ impl ArtifactRepository {
         .await
         .map_err(|e| RepositoryError::Database(e.to_string()))?;
 
-        // Insert parts
         for (idx, part) in artifact.parts.iter().enumerate() {
             persist_artifact_part(
                 pool.as_ref(),
@@ -336,7 +332,6 @@ impl ArtifactRepository {
         let pool = self.get_pg_pool()?;
         let artifact_id_str = artifact_id.as_str();
 
-        // Parts are deleted via CASCADE
         sqlx::query!(
             "DELETE FROM task_artifacts WHERE artifact_id = $1",
             artifact_id_str
@@ -349,15 +344,13 @@ impl ArtifactRepository {
     }
 }
 
-/// Convert an ArtifactRow to an Artifact domain model
 async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
-    let context_id_str = row.context_id.clone().unwrap_or_default();
+    let context_id_str = row.context_id.clone().unwrap_or_else(String::new);
     let parts = get_artifact_parts(pool, &row.artifact_id, &context_id_str).await?;
 
-    // Extract extra metadata from JSON
     let (rendering_hints, mcp_schema, is_internal, execution_index) =
         extract_metadata_fields(&row.metadata);
 
@@ -369,7 +362,7 @@ async fn row_to_artifact(
         extensions: vec![],
         metadata: ArtifactMetadata {
             artifact_type: row.artifact_type,
-            context_id: ContextId::new(row.context_id.unwrap_or_default()),
+            context_id: ContextId::new(row.context_id.unwrap_or_else(String::new)),
             created_at: row.created_at.to_rfc3339(),
             task_id: TaskId::new(row.task_id),
             rendering_hints,
@@ -386,7 +379,6 @@ async fn row_to_artifact(
     })
 }
 
-/// Extract extra metadata fields from the JSON metadata column
 fn extract_metadata_fields(
     metadata: &Option<serde_json::Value>,
 ) -> (
@@ -425,7 +417,6 @@ fn extract_metadata_fields(
     (rendering_hints, mcp_schema, is_internal, execution_index)
 }
 
-/// Get artifact parts from the artifact_parts table
 pub async fn get_artifact_parts(
     pool: &PgPool,
     artifact_id: &str,
@@ -505,7 +496,6 @@ pub async fn get_artifact_parts(
     Ok(parts)
 }
 
-/// Persist an artifact part to the artifact_parts table
 pub async fn persist_artifact_part(
     pool: &PgPool,
     part: &Part,

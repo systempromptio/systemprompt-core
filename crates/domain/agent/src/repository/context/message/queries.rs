@@ -49,7 +49,7 @@ pub async fn get_messages_by_task(
             role: row.role,
             id: row.message_id.into(),
             task_id: Some(TaskId::new(row.task_id)),
-            context_id: ContextId::new(row.context_id.unwrap_or_default()),
+            context_id: ContextId::new(row.context_id.unwrap_or_else(String::new)),
             kind: "message".to_string(),
             parts,
             metadata: row.metadata,

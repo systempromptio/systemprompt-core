@@ -2,6 +2,7 @@ use crate::models::AiRequestRecord;
 use crate::repository::{AiRequestRepository, InsertToolCallParams};
 use systemprompt_analytics::{CreateSessionParams, SessionRepository};
 use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
+use tracing::error;
 
 use super::record_builder::{MessageData, ToolCallData};
 
@@ -9,7 +10,10 @@ pub async fn store_request_async(
     repo: &AiRequestRepository,
     record: &AiRequestRecord,
 ) -> Option<AiRequestId> {
-    repo.insert(record).await.ok()
+    repo.insert(record).await.map_err(|e| {
+        error!(error = %e, "Failed to store AI request record");
+        e
+    }).ok()
 }
 
 pub async fn store_messages_async(
@@ -18,9 +22,17 @@ pub async fn store_messages_async(
     messages: Vec<MessageData>,
 ) {
     for message in messages {
-        let _ = repo
+        if let Err(e) = repo
             .insert_message(db_id, &message.role, &message.content, message.sequence)
-            .await;
+            .await
+        {
+            error!(
+                error = %e,
+                request_id = %db_id,
+                sequence = message.sequence,
+                "Failed to store AI request message"
+            );
+        }
     }
 }
 
@@ -30,7 +42,7 @@ pub async fn store_tool_calls_async(
     tool_calls: Vec<ToolCallData>,
 ) {
     for tool_call in tool_calls {
-        let _ = repo
+        if let Err(e) = repo
             .insert_tool_call(InsertToolCallParams {
                 request_id: db_id,
                 ai_tool_call_id: &tool_call.ai_tool_call_id,
@@ -38,7 +50,15 @@ pub async fn store_tool_calls_async(
                 tool_input: &tool_call.tool_input,
                 sequence_number: tool_call.sequence,
             })
-            .await;
+            .await
+        {
+            error!(
+                error = %e,
+                request_id = %db_id,
+                tool_name = %tool_call.tool_name,
+                "Failed to store AI tool call"
+            );
+        }
     }
 }
 
@@ -60,9 +80,18 @@ pub async fn update_session_usage_async(
     ensure_session_exists(session_repo, session_id, user_id).await;
 
     let tokens = tokens.unwrap_or(0);
-    let _ = session_repo
+    if let Err(e) = session_repo
         .increment_ai_usage(session_id, tokens, cost_cents)
-        .await;
+        .await
+    {
+        error!(
+            error = %e,
+            session_id = %session_id,
+            tokens = tokens,
+            cost_cents = cost_cents,
+            "Failed to update session AI usage"
+        );
+    }
 }
 
 async fn ensure_session_exists(
@@ -70,7 +99,10 @@ async fn ensure_session_exists(
     session_id: &SessionId,
     user_id: &UserId,
 ) {
-    let exists = session_repo.exists(session_id).await.unwrap_or(false);
+    let exists = session_repo.exists(session_id).await.map_err(|e| {
+        error!(error = %e, session_id = %session_id, "Failed to check session existence");
+        e
+    }).unwrap_or(false);
 
     if exists {
         return;
@@ -78,6 +110,10 @@ async fn ensure_session_exists(
 
     let jwt_expiration = systemprompt_models::Config::get()
         .map(|c| c.jwt_access_token_expiration)
+        .map_err(|e| {
+            error!(error = %e, "Failed to get config for JWT expiration, using default 3600s");
+            e
+        })
         .unwrap_or(3600);
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration);
 
@@ -106,5 +142,12 @@ async fn ensure_session_exists(
         expires_at,
     };
 
-    let _ = session_repo.create_session(&params).await;
+    if let Err(e) = session_repo.create_session(&params).await {
+        error!(
+            error = %e,
+            session_id = %session_id,
+            user_id = %user_id,
+            "Failed to create session for AI usage tracking"
+        );
+    }
 }

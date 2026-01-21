@@ -1,9 +1,9 @@
 use crate::services::shared::{AgentSessionUser, Result};
 use std::sync::Arc;
 use systemprompt_database::Database;
-use systemprompt_security::{AuthMode, AuthValidationService};
 use systemprompt_models::auth::JwtAudience;
 pub use systemprompt_models::AgentOAuthConfig;
+use systemprompt_security::{AuthMode, AuthValidationService};
 
 pub type AgentAuthenticatedUser = AgentSessionUser;
 

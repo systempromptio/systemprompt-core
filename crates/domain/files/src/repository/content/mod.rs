@@ -147,14 +147,22 @@ impl FileRepository {
         ))
     }
 
+    /// Sets a file as the featured image for content.
+    ///
+    /// This demotes any existing featured file to attachment and promotes the specified file.
+    /// Uses a transaction to ensure atomicity - if any step fails, all changes are rolled back
+    /// (sqlx transactions auto-rollback on drop if not explicitly committed).
     pub async fn set_featured(&self, file_id: &FileId, content_id: &ContentId) -> Result<()> {
         let file_id_uuid =
             uuid::Uuid::parse_str(file_id.as_str()).context("Invalid UUID for file id")?;
         let content_id_str = content_id.as_str();
         let featured_role = FileRole::Featured.as_str();
         let attachment_role = FileRole::Attachment.as_str();
+
+        // Start transaction - auto-rolls back on drop if not committed
         let mut tx = self.pool.begin().await?;
 
+        // Demote any existing featured file to attachment
         sqlx::query!(
             r#"
             UPDATE content_files
@@ -168,7 +176,8 @@ impl FileRepository {
         .execute(&mut *tx)
         .await?;
 
-        sqlx::query!(
+        // Promote the specified file to featured
+        let result = sqlx::query!(
             r#"
             UPDATE content_files
             SET role = $1
@@ -180,6 +189,15 @@ impl FileRepository {
         )
         .execute(&mut *tx)
         .await?;
+
+        // Validate that the file was actually linked to this content
+        if result.rows_affected() == 0 {
+            return Err(anyhow::anyhow!(
+                "File {} is not linked to content {}",
+                file_id,
+                content_id
+            ));
+        }
 
         tx.commit().await?;
         Ok(())

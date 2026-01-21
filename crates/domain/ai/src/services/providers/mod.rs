@@ -1,6 +1,7 @@
 pub mod anthropic;
 pub mod gemini;
 pub mod gemini_images;
+mod gemini_images_helpers;
 pub mod image_provider_factory;
 pub mod image_provider_trait;
 pub mod openai;

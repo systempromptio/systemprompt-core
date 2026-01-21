@@ -1,20 +1,20 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LocalSyncDirection {
     ToDisk,
     ToDatabase,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum DiffStatus {
     Added,
     Removed,
     Modified,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ContentDiffItem {
     pub slug: String,
     pub source_id: String,
@@ -26,7 +26,7 @@ pub struct ContentDiffItem {
     pub title: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct SkillDiffItem {
     pub skill_id: String,
     pub file_path: String,
@@ -36,7 +36,7 @@ pub struct SkillDiffItem {
     pub name: Option<String>,
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct ContentDiffResult {
     pub source_id: String,
     pub added: Vec<ContentDiffItem>,
@@ -51,7 +51,7 @@ impl ContentDiffResult {
     }
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct SkillsDiffResult {
     pub added: Vec<SkillDiffItem>,
     pub removed: Vec<SkillDiffItem>,
@@ -65,7 +65,7 @@ impl SkillsDiffResult {
     }
 }
 
-#[derive(Debug, Default, Serialize)]
+#[derive(Clone, Debug, Default, Serialize)]
 pub struct LocalSyncResult {
     pub items_synced: usize,
     pub items_skipped: usize,

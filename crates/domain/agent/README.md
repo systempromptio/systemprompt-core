@@ -1,107 +1,338 @@
-# Agent Module
+# systemprompt-agent
 
-A2A protocol server/client, agent orchestration, and agent business logic.
+A2A protocol server/client, agent orchestration, and agent business logic for SystemPrompt.
+
+## Overview
+
+This crate implements the Agent-to-Agent (A2A) protocol, providing:
+
+- **A2A Server**: JSON-RPC 2.0 based protocol for agent communication
+- **Agent Orchestration**: Lifecycle management for spawning and monitoring agents
+- **Context Management**: Conversation contexts with task and artifact tracking
+- **Skill System**: Dynamic skill loading and injection for agents
+- **MCP Integration**: Tool execution via Model Context Protocol
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        API Layer                             │
+│  (routes for contexts, tasks, artifacts, registry, webhook)  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Services Layer                          │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐   │
+│  │ A2A Server  │  │ Orchestrator │  │ External Integr.  │   │
+│  │  - auth     │  │  - lifecycle │  │  - MCP tools      │   │
+│  │  - handlers │  │  - monitor   │  │  - webhooks       │   │
+│  │  - stream   │  │  - port mgmt │  │                   │   │
+│  │  - process  │  │  - reconcile │  │                   │   │
+│  └─────────────┘  └──────────────┘  └───────────────────┘   │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐   │
+│  │   Context   │  │   Registry   │  │     Skills        │   │
+│  │   Service   │  │   Service    │  │   - ingestion     │   │
+│  │             │  │              │  │   - injection     │   │
+│  └─────────────┘  └──────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Repository Layer                          │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐   │
+│  │    Task     │  │   Context    │  │     Content       │   │
+│  │  - queries  │  │  - messages  │  │   - artifacts     │   │
+│  │  - mutations│  │  - parts     │  │   - skills        │   │
+│  │  - construct│  │  - persist   │  │   - push notif    │   │
+│  └─────────────┘  └──────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────┐
+│                      Models Layer                            │
+│  ┌─────────────┐  ┌──────────────┐  ┌───────────────────┐   │
+│  │    A2A      │  │   Context    │  │      Web          │   │
+│  │  - protocol │  │   - events   │  │   - validation    │   │
+│  │  - jsonrpc  │  │   - requests │  │   - queries       │   │
+│  │  - status   │  │              │  │   - card input    │   │
+│  └─────────────┘  └──────────────┘  └───────────────────┘   │
+└─────────────────────────────────────────────────────────────┘
+```
 
 ## Directory Structure
 
 ```
 src/
-├── lib.rs                    # Module exports
-├── error.rs                  # AgentError, ContextError, TaskError, etc.
-├── api/                      # HTTP API layer
+├── lib.rs                          # Crate root, public exports
+├── error.rs                        # Domain error types (thiserror)
+│
+├── api/                            # HTTP API layer (Axum routes)
+│   ├── mod.rs                      # Router constructors
 │   └── routes/
-│       ├── artifacts.rs      # Artifact CRUD endpoints
-│       ├── registry.rs       # Agent registry endpoints
-│       ├── tasks.rs          # Task management endpoints
-│       └── contexts/         # Context management
-│           ├── create_context.rs
-│           ├── get_context.rs
-│           ├── list_contexts.rs
-│           ├── update_context.rs
-│           ├── delete_context.rs
-│           ├── events.rs     # SSE streaming
-│           ├── notifications/ # Push notifications
-│           └── webhook/      # Internal webhooks
+│       ├── mod.rs
+│       ├── artifacts.rs            # GET /artifacts, /artifacts/:id
+│       ├── registry.rs             # GET /registry (agent cards)
+│       ├── tasks.rs                # GET/DELETE /tasks, /tasks/:id
+│       └── contexts/
+│           ├── mod.rs              # Context router
+│           ├── create_context.rs   # POST /contexts
+│           ├── get_context.rs      # GET /contexts/:id
+│           ├── list_contexts.rs    # GET /contexts
+│           ├── update_context.rs   # PUT /contexts/:id
+│           ├── delete_context.rs   # DELETE /contexts/:id
+│           ├── events.rs           # POST /contexts/:id/events
+│           ├── notifications/
+│           │   └── mod.rs          # Push notification handlers
+│           └── webhook/
+│               ├── mod.rs
+│               ├── broadcast_handlers.rs
+│               ├── context_broadcast.rs
+│               ├── event_loader.rs
+│               ├── types.rs
+│               └── validation.rs
 │
-├── models/                   # Data structures
-│   ├── agent_info.rs         # AgentInfo
-│   ├── context.rs            # Context types
-│   ├── database_rows.rs      # DB row mappings
-│   ├── runtime.rs            # AgentRuntimeInfo
-│   ├── skill.rs              # Skill types
-│   ├── web/                  # Web API types (validation, query params)
-│   └── a2a/                  # A2A Protocol types
-│       ├── jsonrpc.rs        # JSON-RPC 2.0
-│       ├── protocol.rs       # Task, Message, Artifact
-│       └── service_status.rs # Service status extension
+├── models/                         # Data structures
+│   ├── mod.rs                      # Re-exports
+│   ├── agent_info.rs               # AgentInfo
+│   ├── context.rs                  # UserContext, ContextStateEvent
+│   ├── database_rows.rs            # DB row mappings
+│   ├── external_integrations.rs    # Integration types
+│   ├── runtime.rs                  # AgentRuntimeInfo
+│   ├── skill.rs                    # Skill, SkillMetadata
+│   ├── a2a/
+│   │   ├── mod.rs                  # A2A type re-exports
+│   │   ├── jsonrpc.rs              # JSON-RPC 2.0 types
+│   │   ├── protocol.rs             # Task, Message, Artifact, Part
+│   │   └── service_status.rs       # Service status extension
+│   └── web/
+│       ├── mod.rs
+│       ├── card_input.rs           # Agent card input validation
+│       ├── create_agent.rs         # CreateAgentRequest
+│       ├── discovery.rs            # Agent discovery types
+│       ├── query.rs                # Query parameters
+│       ├── update_agent.rs         # UpdateAgentRequest
+│       └── validation.rs           # URL validation
 │
-├── repository/               # Database access
-│   ├── agent_service/        # Agent service repo
-│   ├── content/              # Artifact, skill, push notification repos
-│   ├── context/              # Context repo with message queries
-│   ├── execution/            # Execution step tracking repo
-│   └── task/                 # Task repo (queries, mutations, constructor)
+├── repository/                     # Database access (SQLX)
+│   ├── mod.rs                      # Repository trait, A2ARepositories
+│   ├── agent_service/
+│   │   └── mod.rs                  # AgentServiceRepository
+│   ├── content/
+│   │   ├── mod.rs
+│   │   ├── artifact.rs             # ArtifactRepository
+│   │   ├── push_notification.rs    # PushNotificationConfigRepository
+│   │   └── skill.rs                # SkillRepository
+│   ├── context/
+│   │   ├── mod.rs                  # ContextRepository
+│   │   └── message/
+│   │       ├── mod.rs
+│   │       ├── parts.rs            # Message part handling
+│   │       ├── persistence.rs      # Message persistence
+│   │       └── queries.rs          # Message queries
+│   ├── execution/
+│   │   └── mod.rs                  # ExecutionStepRepository
+│   └── task/
+│       ├── mod.rs                  # TaskRepository
+│       ├── mutations.rs            # Task create/update
+│       ├── queries.rs              # Task queries
+│       └── constructor/
+│           ├── mod.rs              # TaskConstructor
+│           ├── batch.rs            # Batch task construction
+│           ├── batch_queries.rs    # Batch query helpers
+│           ├── converters.rs       # Row to model converters
+│           └── single.rs           # Single task construction
 │
-└── services/                 # Business logic
-    ├── context_provider.rs   # Implements ContextProvider trait
-    ├── registry_provider.rs  # Implements AgentRegistryProvider trait
-    ├── message.rs            # Message persistence
-    ├── execution_tracking.rs # Step tracking
-    ├── registry.rs           # Agent registry
+└── services/                       # Business logic
+    ├── mod.rs                      # Service re-exports
+    ├── artifact_publishing.rs      # Artifact publishing service
+    ├── context.rs                  # ContextService (history loading)
+    ├── context_provider.rs         # ContextProvider trait impl
+    ├── execution_tracking.rs       # ExecutionTrackingService
+    ├── message.rs                  # MessageService
+    ├── registry.rs                 # AgentRegistry (config loading)
+    ├── registry_provider.rs        # AgentRegistryProvider trait impl
     │
-    ├── a2a_server/           # A2A Server
-    │   ├── server.rs
-    │   ├── auth/             # JWT validation, middleware
-    │   ├── errors/           # JSON-RPC error handling
-    │   ├── handlers/         # Request handlers (card, push config, streaming)
-    │   ├── processing/       # Message handling, AI execution, strategies
-    │   │   ├── artifact/     # Artifact building from tool results
-    │   │   ├── message/      # Stream processing
-    │   │   └── strategies/   # Execution strategies (standard, planned)
-    │   └── streaming/        # SSE event streaming
+    ├── a2a_server/                 # A2A Protocol Server
+    │   ├── mod.rs
+    │   ├── server.rs               # Main server setup
+    │   ├── standalone.rs           # Standalone agent runner
+    │   ├── auth/
+    │   │   ├── mod.rs
+    │   │   ├── middleware.rs       # Auth middleware
+    │   │   ├── types.rs            # Auth types
+    │   │   └── validation.rs       # JWT validation
+    │   ├── errors/
+    │   │   ├── mod.rs
+    │   │   └── jsonrpc.rs          # JSON-RPC error codes
+    │   ├── handlers/
+    │   │   ├── mod.rs              # AgentHandlerState
+    │   │   ├── card.rs             # Agent card handler
+    │   │   ├── push_notification_config.rs
+    │   │   ├── state.rs            # Handler state management
+    │   │   └── request/
+    │   │       ├── mod.rs          # Request routing
+    │   │       ├── non_streaming.rs
+    │   │       ├── streaming.rs
+    │   │       └── validation.rs
+    │   ├── processing/
+    │   │   ├── mod.rs
+    │   │   ├── ai_executor.rs      # AI request execution
+    │   │   ├── conversation_service.rs
+    │   │   ├── message_validation.rs
+    │   │   ├── persistence_service.rs
+    │   │   ├── task_builder.rs     # Task construction
+    │   │   ├── artifact/
+    │   │   │   └── mod.rs          # Artifact building
+    │   │   ├── message/
+    │   │   │   ├── mod.rs
+    │   │   │   ├── message_handler.rs
+    │   │   │   ├── persistence.rs
+    │   │   │   └── stream_processor.rs
+    │   │   └── strategies/
+    │   │       ├── mod.rs          # Strategy pattern
+    │   │       ├── planned.rs      # Planned execution
+    │   │       ├── plan_executor.rs
+    │   │       ├── selector.rs     # Strategy selection
+    │   │       ├── standard.rs     # Standard execution
+    │   │       └── tool_executor.rs
+    │   └── streaming/
+    │       ├── mod.rs
+    │       ├── agent_loader.rs     # Agent loading for streaming
+    │       ├── broadcast.rs        # Event broadcasting
+    │       ├── event_loop.rs       # SSE event loop
+    │       ├── initialization.rs   # Stream initialization
+    │       ├── messages.rs         # Message formatting
+    │       ├── types.rs            # Streaming types
+    │       ├── webhook_client.rs   # Webhook client
+    │       └── handlers/
+    │           ├── mod.rs
+    │           ├── completion.rs   # Completion handlers
+    │           └── text.rs         # Text handlers
     │
-    ├── agent_orchestration/  # Lifecycle management
-    │   ├── orchestrator/     # Start/stop/restart agents
-    │   ├── database.rs       # State persistence
-    │   ├── lifecycle.rs      # Lifecycle state machine
-    │   ├── monitor.rs        # Health checking
-    │   ├── port_manager.rs   # Port allocation
-    │   └── reconciler.rs     # State consistency
+    ├── agent_orchestration/        # Agent Lifecycle Management
+    │   ├── mod.rs                  # Exports, OrchestrationError
+    │   ├── database.rs             # State persistence
+    │   ├── event_bus.rs            # AgentEventBus
+    │   ├── events.rs               # AgentEvent types
+    │   ├── lifecycle.rs            # State machine
+    │   ├── monitor.rs              # Health monitoring
+    │   ├── port_manager.rs         # Port allocation
+    │   ├── process.rs              # Process spawning
+    │   ├── reconciler.rs           # State reconciliation
+    │   └── orchestrator/
+    │       ├── mod.rs              # AgentOrchestrator
+    │       ├── cleanup.rs          # Cleanup operations
+    │       ├── daemon.rs           # Daemon management
+    │       └── status.rs           # Status queries
     │
-    ├── external_integrations/
-    │   ├── mcp/              # MCP type re-exports
-    │   └── webhook/          # Event broadcasting
+    ├── external_integrations/      # External Service Integrations
+    │   ├── mod.rs                  # Integration exports
+    │   ├── mcp/
+    │   │   └── mod.rs              # MCP type re-exports
+    │   └── webhook/
+    │       ├── mod.rs
+    │       └── service.rs          # WebhookService
     │
-    ├── mcp/                  # MCP result processing
-    │   ├── task_helper.rs
-    │   └── artifact_transformer/ # Transform tool results to artifacts
+    ├── mcp/                        # MCP Tool Integration
+    │   ├── mod.rs
+    │   ├── task_helper.rs          # Task helper functions
+    │   ├── tool_result_handler.rs  # Tool result processing
+    │   └── artifact_transformer/
+    │       ├── mod.rs              # Artifact transformation
+    │       ├── metadata_builder.rs
+    │       ├── parts_builder.rs
+    │       └── type_inference.rs
     │
-    ├── shared/               # Shared utilities (auth, config, resilience)
+    ├── shared/                     # Shared Utilities
+    │   ├── mod.rs
+    │   ├── auth.rs                 # Auth utilities
+    │   ├── config.rs               # Agent config types
+    │   ├── error.rs                # Shared error types
+    │   ├── resilience.rs           # Retry logic
+    │   └── slug.rs                 # Slug generation
     │
-    └── skills/               # Skill management (loading, injection, ingestion)
+    └── skills/                     # Skill Management
+        ├── mod.rs
+        ├── ingestion.rs            # SkillIngestionService
+        ├── skill.rs                # SkillService
+        └── skill_injector.rs       # Skill injection
 ```
 
-## Key Files
+## Key Components
 
-| File | Purpose |
-|------|---------|
-| `lib.rs` | Public exports: A2A types, errors, services |
-| `error.rs` | Error types using thiserror |
-| `api/routes/` | Axum route handlers |
-| `services/a2a_server/server.rs` | A2A protocol server |
-| `services/agent_orchestration/orchestrator/` | Agent lifecycle management |
-| `repository/task/` | Task CRUD with queries/mutations separation |
+### A2A Protocol Server
+
+Implements the Agent-to-Agent protocol specification:
+
+| Component | Purpose |
+|-----------|---------|
+| `server.rs` | Axum server setup with routes |
+| `handlers/` | Request handlers for card, push notifications, message send |
+| `processing/` | Message processing, AI execution, artifact building |
+| `streaming/` | SSE streaming for real-time updates |
+| `auth/` | JWT validation and middleware |
+
+### Agent Orchestration
+
+Manages agent process lifecycle:
+
+| Component | Purpose |
+|-----------|---------|
+| `orchestrator/` | Start, stop, restart agents |
+| `lifecycle.rs` | State machine (Starting → Running → Stopping) |
+| `monitor.rs` | Health check via agent cards |
+| `port_manager.rs` | Dynamic port allocation |
+| `reconciler.rs` | Sync DB state with running processes |
+
+### Context Management
+
+Conversation context with full history:
+
+| Component | Purpose |
+|-----------|---------|
+| `ContextRepository` | CRUD for user contexts |
+| `ContextService` | Load conversation history for AI |
+| `message/` | Message persistence with parts |
+
+## Public Exports
+
+```rust
+pub use models::a2a::{
+    A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities,
+    AgentCard, AgentInterface, AgentProvider, AgentSkill, Artifact,
+    DataPart, Message, MessageSendParams, Part, SecurityScheme, Task,
+    TaskIdParams, TaskQueryParams, TaskState, TaskStatus, TextPart,
+    TransportProtocol,
+};
+
+pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, TaskError};
+
+pub use services::{
+    AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator,
+    AgentServer, AgentStatus, ContextService, SkillIngestionService,
+    SkillService,
+};
+```
 
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| systemprompt-core-database | Database pool |
-| systemprompt-core-oauth | OAuth validation |
-| systemprompt-core-users | User services |
-| systemprompt-core-logging | Logging infrastructure |
-| systemprompt-core-mcp | MCP protocol (boundary violation - should use traits) |
-| systemprompt-core-system | Core system types |
-| systemprompt-models | Shared domain types |
-| systemprompt-traits | Trait definitions |
-| systemprompt-identifiers | Typed identifiers |
+| `systemprompt-models` | Shared domain types |
+| `systemprompt-traits` | Trait definitions (ContextProvider, AgentRegistryProvider) |
+| `systemprompt-identifiers` | Typed identifiers (TaskId, ContextId, etc.) |
+| `systemprompt-runtime` | AppContext, runtime services |
+| `systemprompt-database` | Database pool and utilities |
+| `systemprompt-mcp` | MCP protocol integration |
+| `systemprompt-ai` | AI service for agent execution |
+| `systemprompt-events` | Event routing |
+| `systemprompt-oauth` | OAuth and JWT handling |
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| `default` | Includes `web` feature |
+| `web` | HTTP API routes (Axum, Tower) |
+| `cli` | CLI-specific functionality |

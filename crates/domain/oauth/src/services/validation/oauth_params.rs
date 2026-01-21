@@ -10,11 +10,25 @@ pub struct PkceChallenge {
 pub struct CsrfToken(String);
 
 impl CsrfToken {
+    /// Minimum length for CSRF state tokens to ensure adequate entropy.
+    /// 16 characters provides ~96 bits of entropy with base64-like charset.
+    const MIN_STATE_LENGTH: usize = 16;
+
     pub fn new(state: impl Into<String>) -> Result<Self, AuthError> {
         let state = state.into();
 
         if state.is_empty() {
             return Err(AuthError::MissingState);
+        }
+
+        // Enforce minimum length for security
+        if state.len() < Self::MIN_STATE_LENGTH {
+            return Err(AuthError::InvalidRequest {
+                reason: format!(
+                    "State must be at least {} characters for security",
+                    Self::MIN_STATE_LENGTH
+                ),
+            });
         }
 
         if !state

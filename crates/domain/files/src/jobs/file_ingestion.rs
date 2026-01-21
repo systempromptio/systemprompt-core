@@ -111,8 +111,10 @@ async fn process_image_files(
         images_dir,
     };
 
+    // Security: Don't follow symlinks to prevent escaping storage directory
+    // and avoid potential infinite loops from circular symlinks
     for entry in WalkDir::new(images_dir)
-        .follow_links(true)
+        .follow_links(false)
         .into_iter()
         .filter_map(std::result::Result::ok)
     {

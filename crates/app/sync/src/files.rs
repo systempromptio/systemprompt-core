@@ -11,21 +11,21 @@ use crate::api_client::SyncApiClient;
 use crate::error::SyncResult;
 use crate::{SyncConfig, SyncDirection, SyncOperationResult};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileBundle {
     pub manifest: FileManifest,
     #[serde(skip)]
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileManifest {
     pub files: Vec<FileEntry>,
     pub timestamp: chrono::DateTime<chrono::Utc>,
     pub checksum: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileEntry {
     pub path: String,
     pub checksum: String,

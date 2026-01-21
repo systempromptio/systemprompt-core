@@ -116,6 +116,25 @@ impl OAuthRepository {
         client_repo.get_by_client_id(client_id).await
     }
 
+    pub async fn find_client_by_redirect_uri(
+        &self,
+        redirect_uri: &str,
+    ) -> Result<Option<OAuthClient>> {
+        let client_repo = ClientRepository::new(&self.db_pool)?;
+        client_repo.find_by_redirect_uri(redirect_uri).await
+    }
+
+    pub async fn find_client_by_redirect_uri_with_scope(
+        &self,
+        redirect_uri: &str,
+        required_scopes: &[&str],
+    ) -> Result<Option<OAuthClient>> {
+        let client_repo = ClientRepository::new(&self.db_pool)?;
+        client_repo
+            .find_by_redirect_uri_with_scope(redirect_uri, required_scopes)
+            .await
+    }
+
 
     pub async fn update_client(
         &self,

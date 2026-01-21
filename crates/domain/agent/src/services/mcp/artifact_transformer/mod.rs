@@ -52,7 +52,7 @@ pub fn parse_tool_response(
         let actual_keys = structured_content
             .as_object()
             .map(|o| o.keys().cloned().collect())
-            .unwrap_or_default();
+            .unwrap_or_else(Vec::new);
         ArtifactError::InvalidSchema {
             expected: "ToolResponse {artifact_id, mcp_execution_id, artifact, _metadata}",
             actual_keys,
@@ -84,7 +84,7 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
 
     let args_str = tool_arguments
         .and_then(|args| serde_json::to_string(args).ok())
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     let mut hasher = DefaultHasher::new();
     args_str.hash(&mut hasher);

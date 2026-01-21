@@ -93,4 +93,46 @@ impl ClientRepository {
                 .await?;
         Ok(result.unwrap_or(0))
     }
+
+    pub async fn find_by_redirect_uri(&self, redirect_uri: &str) -> Result<Option<OAuthClient>> {
+        // Use indexed join on oauth_client_redirect_uris table
+        let row = sqlx::query_as!(
+            OAuthClientRow,
+            r#"SELECT c.client_id, c.client_secret_hash, c.client_name, c.name,
+                      c.token_endpoint_auth_method, c.client_uri, c.logo_uri,
+                      c.is_active, c.created_at, c.updated_at, c.last_used_at
+             FROM oauth_clients c
+             INNER JOIN oauth_client_redirect_uris r ON c.client_id = r.client_id
+             WHERE r.redirect_uri = $1 AND c.is_active = true
+             LIMIT 1"#,
+            redirect_uri
+        )
+        .fetch_optional(&*self.pool)
+        .await?;
+
+        match row {
+            Some(row) => {
+                let client = self.load_client_with_relations(row).await?;
+                Ok(Some(client))
+            },
+            None => Ok(None),
+        }
+    }
+
+    pub async fn find_by_redirect_uri_with_scope(
+        &self,
+        redirect_uri: &str,
+        required_scopes: &[&str],
+    ) -> Result<Option<OAuthClient>> {
+        // Find client by redirect_uri first
+        let client = self.find_by_redirect_uri(redirect_uri).await?;
+
+        // Then filter by required scopes
+        match client {
+            Some(c) if required_scopes.iter().any(|s| c.scopes.contains(&s.to_string())) => {
+                Ok(Some(c))
+            },
+            _ => Ok(None),
+        }
+    }
 }

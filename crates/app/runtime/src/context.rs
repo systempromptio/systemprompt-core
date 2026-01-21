@@ -3,8 +3,8 @@ use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, GeoIpReader};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_logging::CliService;
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
+use systemprompt_logging::CliService;
 use systemprompt_models::{
     AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap, RouteClassifier,
 };
@@ -87,8 +87,6 @@ impl AppContext {
             content_routing,
         ));
 
-        // Initialize logging with database persistence.
-        // The guard in init_logging prevents double initialization.
         systemprompt_logging::init_logging(Arc::clone(&database));
 
         Ok(Self {
@@ -248,25 +246,21 @@ impl AppContext {
 
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let config = Arc::clone(&self.config);
-        config
+        Arc::clone(&self.config) as Arc<dyn ConfigProvider>
     }
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        let db = Arc::clone(&self.database);
-        db
+        Arc::clone(&self.database) as Arc<dyn DatabaseHandle>
     }
 }
 
 impl ExtensionContext for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let config = Arc::clone(&self.config);
-        config
+        Arc::clone(&self.config) as Arc<dyn ConfigProvider>
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
-        let db = Arc::clone(&self.database);
-        db
+        Arc::clone(&self.database) as Arc<dyn DatabaseHandle>
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {

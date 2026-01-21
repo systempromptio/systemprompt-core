@@ -1,8 +1,10 @@
 mod analytics;
 mod jobs;
+mod security;
 
 pub use analytics::AnalyticsRepository;
 pub use jobs::JobRepository;
+pub use security::{IpSessionRecord, SecurityRepository};
 
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;

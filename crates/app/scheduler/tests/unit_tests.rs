@@ -9,11 +9,11 @@
 //! - Model validation and state transitions
 
 use chrono::{TimeZone, Utc};
+use systemprompt_identifiers::ScheduledJobId;
 use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
     SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
 };
-use systemprompt_identifiers::ScheduledJobId;
 
 // ============================================================================
 // JobStatus Tests

@@ -56,8 +56,10 @@ async fn generate_section_cards(
         let rel_date = extract_published_date(rel_item)?;
         let short_date = format_short_date(rel_date);
 
-        // TODO: source_name should be passed in for proper URL generation
-        let source_name = "blog"; // Temporary - should be extracted from item
+        let source_name = rel_item
+            .get("source_id")
+            .and_then(|v| v.as_str())
+            .unwrap_or("blog");
         let target_url = format!("/{source_name}/{slug}");
         let source_page = format!("/{source_name}/{source_slug}");
         let link_position = format!("{}-{}", section_prefix, index + 1);
@@ -168,7 +170,6 @@ pub async fn generate_cta_links(item: &Value, db_pool: DbPool) -> Result<(String
 
     let link_gen =
         LinkGenerationService::new(&db_pool).context("Failed to create link generation service")?;
-    // TODO: source_name should be extracted from item for proper URL generation
     let source_name = item
         .get("source_id")
         .and_then(|v| v.as_str())

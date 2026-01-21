@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use std::fs;
 use std::path::Path;
 use std::process::Command;
-use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_models::{AppPaths, CliPaths, Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_scheduler::ProcessCleanup;
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 

@@ -222,7 +222,7 @@ fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
         parts,
         id: msg_row.message_id.into(),
         task_id: Some(msg_row.task_id.into()),
-        context_id: msg_row.context_id.unwrap_or_default().into(),
+        context_id: msg_row.context_id.unwrap_or_else(String::new).into(),
         kind: "message".to_string(),
         metadata: if final_metadata == serde_json::json!({}) {
             None
