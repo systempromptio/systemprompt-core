@@ -54,7 +54,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CORE_CONTEXTS,
-        systemprompt_agent::api::contexts_router()
+        crate::routes::agent::contexts_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.contexts_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -62,14 +62,14 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::WEBHOOK,
-        systemprompt_agent::api::webhook_router()
+        crate::routes::agent::webhook_router()
             .with_state(ctx.clone())
             .with_auth_middleware(user_middleware.clone()),
     );
 
     router = router.nest(
         ApiPaths::CORE_TASKS,
-        systemprompt_agent::api::tasks_router()
+        crate::routes::agent::tasks_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.tasks_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -77,7 +77,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CORE_ARTIFACTS,
-        systemprompt_agent::api::artifacts_router()
+        crate::routes::agent::artifacts_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.artifacts_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -85,7 +85,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::AGENTS_REGISTRY,
-        systemprompt_agent::api::registry_router(ctx)
+        crate::routes::agent::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.agent_registry_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -173,7 +173,7 @@ pub fn configure_routes(
         Err(e) => {
             if let Some(tx) = events {
                 if tx
-                    .send(StartupEvent::Warning {
+                    .unbounded_send(StartupEvent::Warning {
                         message: format!("Failed to load paths: {e}"),
                         context: Some("Static content matching will be disabled".to_string()),
                     })
@@ -192,7 +192,7 @@ pub fn configure_routes(
             Err(e) => {
                 if let Some(tx) = events {
                     if tx
-                        .send(StartupEvent::Warning {
+                        .unbounded_send(StartupEvent::Warning {
                             message: format!("Failed to load content config: {e}"),
                             context: Some("Static content matching will be disabled".to_string()),
                         })
@@ -207,7 +207,7 @@ pub fn configure_routes(
     } else {
         if let Some(tx) = events {
             if tx
-                .send(StartupEvent::Warning {
+                .unbounded_send(StartupEvent::Warning {
                     message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
                     context: None,
                 })
@@ -309,7 +309,7 @@ fn mount_extension_routes(
 
         if let Some(tx) = events {
             if tx
-                .send(StartupEvent::ExtensionRouteMounted {
+                .unbounded_send(StartupEvent::ExtensionRouteMounted {
                     name: ext_name.to_string(),
                     path: base_path.to_string(),
                     auth_required: requires_auth,

@@ -107,7 +107,7 @@ pub async fn handle_agent_request(
         };
 
         if let Err((status, error_response)) =
-            validate_oauth_for_request(&headers, &request_id, &required_scopes).await
+            validate_oauth_for_request(&headers, &request_id, &required_scopes, None).await
         {
             return (status, Json(error_response)).into_response();
         }

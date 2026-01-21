@@ -57,7 +57,7 @@ impl AgentOrchestrator {
     }
 
     pub(super) fn start_health_monitoring(&mut self) {
-        let pool = self.ctx.db_pool().clone();
+        let pool = self.agent_state.db_pool().clone();
 
         let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
             let monitor = match AgentMonitor::new(pool).await {

@@ -1,18 +1,29 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_files::{FileUploadRequest, FileUploadService};
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
-use systemprompt_traits::RepositoryError;
+use systemprompt_traits::{DynFileUploadProvider, FileUploadInput, RepositoryError};
 
 use crate::models::a2a::Part;
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct FileUploadContext<'a> {
-    pub upload_service: &'a FileUploadService,
+    pub upload_provider: &'a DynFileUploadProvider,
     pub context_id: &'a ContextId,
     pub user_id: Option<&'a UserId>,
     pub session_id: Option<&'a SessionId>,
     pub trace_id: Option<&'a TraceId>,
+}
+
+impl std::fmt::Debug for FileUploadContext<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FileUploadContext")
+            .field("upload_provider", &"<DynFileUploadProvider>")
+            .field("context_id", &self.context_id)
+            .field("user_id", &self.user_id)
+            .field("session_id", &self.session_id)
+            .field("trace_id", &self.trace_id)
+            .finish()
+    }
 }
 
 pub async fn get_message_parts(
@@ -23,8 +34,8 @@ pub async fn get_message_parts(
         crate::models::MessagePart,
         r#"SELECT
             id as "id!",
-            message_id as "message_id!",
-            task_id as "task_id!",
+            message_id as "message_id!: MessageId",
+            task_id as "task_id!: TaskId",
             part_kind as "part_kind!",
             sequence_number as "sequence_number!",
             text_content,
@@ -39,7 +50,7 @@ pub async fn get_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let mut parts = Vec::new();
 
@@ -110,7 +121,7 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
         Part::File(file_part) => {
             let upload_result = try_upload_file(file_part, upload_ctx).await;
@@ -134,7 +145,7 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
         Part::Data(data_part) => {
             let data_json = serde_json::to_value(&data_part.data)
@@ -149,7 +160,7 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::Database(e))?;
+            .map_err(|e| RepositoryError::database(e))?;
         },
     }
 
@@ -162,7 +173,7 @@ async fn try_upload_file(
 ) -> Option<(uuid::Uuid, String)> {
     let ctx = upload_ctx?;
 
-    if !ctx.upload_service.is_enabled() {
+    if !ctx.upload_provider.is_enabled() {
         return None;
     }
 
@@ -172,28 +183,25 @@ async fn try_upload_file(
         .as_deref()
         .unwrap_or("application/octet-stream");
 
-    let mut builder =
-        FileUploadRequest::builder(mime_type, &file_part.file.bytes, ctx.context_id.clone());
+    let mut input = FileUploadInput::new(mime_type, &file_part.file.bytes, ctx.context_id.clone());
 
     if let Some(name) = &file_part.file.name {
-        builder = builder.with_name(name);
+        input = input.with_name(name);
     }
 
     if let Some(user_id) = ctx.user_id {
-        builder = builder.with_user_id(user_id.clone());
+        input = input.with_user_id(user_id.clone());
     }
 
     if let Some(session_id) = ctx.session_id {
-        builder = builder.with_session_id(session_id.clone());
+        input = input.with_session_id(session_id.clone());
     }
 
     if let Some(trace_id) = ctx.trace_id {
-        builder = builder.with_trace_id(trace_id.clone());
+        input = input.with_trace_id(trace_id.clone());
     }
 
-    let request = builder.build();
-
-    match ctx.upload_service.upload_file(request).await {
+    match ctx.upload_provider.upload_file(input).await {
         Ok(uploaded) => {
             let file_uuid = uuid::Uuid::parse_str(uploaded.file_id.as_str())
                 .map_err(|e| {

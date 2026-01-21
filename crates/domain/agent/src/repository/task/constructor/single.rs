@@ -1,7 +1,9 @@
 use crate::models::a2a::{Artifact, Message, Part, Task, TaskStatus};
 use crate::models::{MessagePart, TaskMessage, TaskRow};
 use crate::repository::execution::ExecutionStepRepository;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{
+    AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId,
+};
 use systemprompt_models::ExecutionStep;
 use systemprompt_traits::RepositoryError;
 
@@ -25,14 +27,14 @@ async fn fetch_task_row(
     sqlx::query_as!(
         TaskRow,
         r#"SELECT
-            task_id as "task_id!",
-            context_id as "context_id!",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id!: ContextId",
             status as "status!",
             status_timestamp,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
+            agent_name as "agent_name?: AgentName",
             started_at,
             completed_at,
             execution_time_ms,
@@ -49,7 +51,7 @@ async fn fetch_task_row(
         sqlx::Error::RowNotFound => {
             RepositoryError::NotFound(format!("Task {} not found", task_id))
         },
-        _ => RepositoryError::Database(e),
+        _ => RepositoryError::database(e),
     })
 }
 
@@ -99,14 +101,14 @@ async fn load_task_messages(
         TaskMessage,
         r#"SELECT
             id as "id!",
-            task_id as "task_id!",
-            message_id as "message_id!",
+            task_id as "task_id!: TaskId",
+            message_id as "message_id!: MessageId",
             client_message_id,
             role as "role!",
-            context_id,
-            user_id,
-            session_id,
-            trace_id,
+            context_id as "context_id?: ContextId",
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
             sequence_number as "sequence_number!",
             created_at as "created_at!",
             updated_at as "updated_at!",
@@ -117,7 +119,7 @@ async fn load_task_messages(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     if message_rows.is_empty() {
         return Ok(None);
@@ -125,7 +127,7 @@ async fn load_task_messages(
 
     let mut messages = Vec::new();
     for msg_row in message_rows {
-        let parts = load_message_parts(constructor, &msg_row.message_id, task_id).await?;
+        let parts = load_message_parts(constructor, msg_row.message_id.as_str(), task_id).await?;
         let message = build_message_from_row(msg_row, parts);
         messages.push(message);
     }
@@ -162,7 +164,7 @@ async fn load_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     converters::build_parts_from_rows(&part_rows)
 }
@@ -220,9 +222,9 @@ fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
     Message {
         role: msg_row.role,
         parts,
-        id: msg_row.message_id.into(),
-        task_id: Some(msg_row.task_id.into()),
-        context_id: msg_row.context_id.unwrap_or_else(String::new).into(),
+        id: msg_row.message_id,
+        task_id: Some(msg_row.task_id),
+        context_id: msg_row.context_id.unwrap_or_else(ContextId::empty),
         kind: "message".to_string(),
         metadata: if final_metadata == serde_json::json!({}) {
             None

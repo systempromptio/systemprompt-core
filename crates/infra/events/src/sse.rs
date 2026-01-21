@@ -1,8 +1,7 @@
 use axum::response::sse::Event;
 use serde::Serialize;
-use systemprompt_models::{
-    A2AEvent, AgUiEvent, AnalyticsEvent, CliOutputEvent, ContextEvent, SystemEvent,
-};
+use systemprompt_models::api::CliOutputEvent;
+use systemprompt_models::{A2AEvent, AgUiEvent, AnalyticsEvent, ContextEvent, SystemEvent};
 
 pub trait ToSse {
     fn to_sse(&self) -> Result<Event, serde_json::Error>;
@@ -43,11 +42,9 @@ impl ToSse for AnalyticsEvent {
     }
 }
 
-impl CliOutputEvent {
-    pub fn to_sse_event(&self) -> Event {
-        Event::default()
-            .event("cli")
-            .json_data(self)
-            .unwrap_or_else(|_| Event::default().event("cli").data("{}"))
+impl ToSse for CliOutputEvent {
+    fn to_sse(&self) -> Result<Event, serde_json::Error> {
+        let json = serde_json::to_string(self)?;
+        Ok(Event::default().event("cli").data(json))
     }
 }

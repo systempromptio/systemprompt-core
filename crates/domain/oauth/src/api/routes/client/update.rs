@@ -1,13 +1,26 @@
 use std::sync::Arc;
 
 use axum::extract::{Extension, Path, State};
-use axum::response::{IntoResponse, Json};
+use axum::http::StatusCode;
+use axum::response::{IntoResponse, Json, Response};
 use tracing::instrument;
 
+use super::super::responses::{bad_request, internal_error, not_found, single_response};
 use crate::models::clients::api::{OAuthClientResponse, UpdateOAuthClientRequest};
 use crate::repository::OAuthRepository;
 use crate::OAuthState;
-use systemprompt_models::{ApiError, RequestContext, SingleResponse};
+use systemprompt_models::RequestContext;
+
+fn init_error(e: impl std::fmt::Display) -> Response {
+    (
+        StatusCode::INTERNAL_SERVER_ERROR,
+        Json(serde_json::json!({
+            "error": "server_error",
+            "error_description": format!("Repository initialization failed: {e}")
+        })),
+    )
+        .into_response()
+}
 
 #[instrument(skip(state, req_ctx, request), fields(client_id = %client_id))]
 pub async fn update_client(
@@ -18,12 +31,7 @@ pub async fn update_client(
 ) -> impl IntoResponse {
     let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
+        Err(e) => return init_error(e),
     };
 
     match repository.find_client_by_id(&client_id).await {
@@ -48,8 +56,8 @@ pub async fn update_client(
                         "OAuth client updated"
                     );
                     let response: OAuthClientResponse = client.into();
-                    SingleResponse::new(response).into_response()
-                },
+                    single_response(response)
+                }
                 Err(e) => {
                     tracing::error!(
                         error = %e,
@@ -57,10 +65,10 @@ pub async fn update_client(
                         updated_by = %req_ctx.auth.user_id,
                         "OAuth client update failed"
                     );
-                    ApiError::bad_request(format!("Failed to update client: {e}")).into_response()
-                },
+                    bad_request(format!("Failed to update client: {e}"))
+                }
             }
-        },
+        }
         Ok(None) => {
             tracing::info!(
                 client_id = %client_id,
@@ -68,8 +76,8 @@ pub async fn update_client(
                 updated_by = %req_ctx.auth.user_id,
                 "OAuth client update failed"
             );
-            ApiError::not_found(format!("Client with ID '{client_id}' not found")).into_response()
-        },
+            not_found(format!("Client with ID '{client_id}' not found"))
+        }
         Err(e) => {
             tracing::error!(
                 error = %e,
@@ -77,7 +85,7 @@ pub async fn update_client(
                 updated_by = %req_ctx.auth.user_id,
                 "OAuth client update failed"
             );
-            ApiError::internal_error(format!("Failed to get client: {e}")).into_response()
-        },
+            internal_error(format!("Failed to get client: {e}"))
+        }
     }
 }

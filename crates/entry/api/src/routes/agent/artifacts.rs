@@ -5,7 +5,7 @@ use axum::{Extension, Json};
 use serde::Deserialize;
 use systemprompt_models::api::ApiError;
 
-use crate::repository::content::ArtifactRepository;
+use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;

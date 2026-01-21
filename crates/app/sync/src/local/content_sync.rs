@@ -7,7 +7,7 @@ use systemprompt_content::models::{IngestionOptions, IngestionSource};
 use systemprompt_content::repository::ContentRepository;
 use systemprompt_content::services::IngestionService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContentId, SourceId};
+use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 use tracing::info;
 
 #[derive(Debug)]
@@ -141,7 +141,9 @@ impl ContentLocalSync {
                 .map(String::as_str)
                 .collect();
 
-            let source = IngestionSource::new(&entry.source_id, &entry.category_id, &allowed_types);
+            let source_id = SourceId::new(&entry.source_id);
+            let category_id = CategoryId::new(&entry.category_id);
+            let source = IngestionSource::new(&source_id, &category_id, &allowed_types);
             let report = ingestion_service
                 .ingest_directory(
                     source_path,

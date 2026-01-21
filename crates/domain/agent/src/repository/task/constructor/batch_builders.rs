@@ -3,7 +3,7 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage,
 };
 use std::collections::HashMap;
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ArtifactId, ContextId, MessageId, TaskId};
 use systemprompt_models::a2a::ArtifactMetadata;
 use systemprompt_models::{ExecutionStep, StepContent, StepId, StepStatus};
 
@@ -36,7 +36,7 @@ pub fn build_execution_steps(
                 .ok()?;
 
             Some(ExecutionStep {
-                step_id: StepId::from(row.step_id.clone()),
+                step_id: StepId(row.step_id.to_string()),
                 task_id: row.task_id.clone().into(),
                 status,
                 started_at: row.started_at,
@@ -57,7 +57,7 @@ pub fn build_execution_steps(
 
 pub fn build_messages(
     messages: Option<&Vec<&TaskMessage>>,
-    parts_by_message: &HashMap<String, Vec<&MessagePart>>,
+    parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
 ) -> Option<Vec<Message>> {
     let messages = messages?;
     if messages.is_empty() {
@@ -71,7 +71,7 @@ pub fn build_messages(
         let reference_task_ids = msg_row
             .reference_task_ids
             .as_ref()
-            .map(|ids| ids.iter().map(|id| id.clone().into()).collect());
+            .map(|ids| ids.iter().map(|id| TaskId::new(id.clone())).collect());
 
         let mut final_metadata = msg_row
             .metadata
@@ -89,13 +89,12 @@ pub fn build_messages(
         result.push(Message {
             role: msg_row.role.clone(),
             parts,
-            id: msg_row.message_id.clone().into(),
-            task_id: Some(msg_row.task_id.clone().into()),
+            id: msg_row.message_id.clone(),
+            task_id: Some(msg_row.task_id.clone()),
             context_id: msg_row
                 .context_id
                 .clone()
-                .unwrap_or_else(String::new)
-                .into(),
+                .unwrap_or_else(ContextId::empty),
             kind: "message".to_string(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None
@@ -123,7 +122,7 @@ fn build_message_parts(parts: Option<&Vec<&MessagePart>>) -> Vec<Part> {
 
 pub fn build_artifacts(
     artifacts: Option<&Vec<&ArtifactRow>>,
-    artifact_parts_by_id: &HashMap<String, Vec<&ArtifactPartRow>>,
+    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
 ) -> Option<Vec<Artifact>> {
     let artifacts = artifacts?;
     if artifacts.is_empty() {
@@ -141,7 +140,7 @@ pub fn build_artifacts(
 
 fn build_artifact(
     row: &ArtifactRow,
-    artifact_parts_by_id: &HashMap<String, Vec<&ArtifactPartRow>>,
+    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
 ) -> Artifact {
     let metadata_value = row
         .metadata
@@ -150,12 +149,12 @@ fn build_artifact(
 
     let metadata = ArtifactMetadata {
         artifact_type: row.artifact_type.clone(),
-        context_id: ContextId::new(row.context_id.clone().unwrap_or_else(String::new)),
+        context_id: row.context_id.clone().unwrap_or_else(ContextId::empty),
         created_at: row.created_at.to_rfc3339(),
-        task_id: TaskId::new(row.task_id.clone()),
+        task_id: row.task_id.clone(),
         rendering_hints: metadata_value.get("rendering_hints").cloned(),
         source: row.source.clone(),
-        mcp_execution_id: row.mcp_execution_id.clone(),
+        mcp_execution_id: row.mcp_execution_id.clone().map(|id| id.to_string()),
         mcp_schema: metadata_value.get("mcp_schema").cloned(),
         is_internal: metadata_value.get("is_internal").and_then(|v| v.as_bool()),
         fingerprint: row.fingerprint.clone(),
@@ -164,7 +163,7 @@ fn build_artifact(
             .get("execution_index")
             .and_then(|v| v.as_u64())
             .map(|v| v as usize),
-        skill_id: row.skill_id.clone(),
+        skill_id: row.skill_id.clone().map(|id| id.to_string()),
         skill_name: row.skill_name.clone(),
     };
 
@@ -181,7 +180,7 @@ fn build_artifact(
     let parts = build_artifact_parts(artifact_parts_by_id.get(&row.artifact_id));
 
     Artifact {
-        id: row.artifact_id.clone().into(),
+        id: row.artifact_id.clone(),
         name: row.name.clone(),
         description: row.description.clone(),
         parts,

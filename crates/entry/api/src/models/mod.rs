@@ -1,5 +1,3 @@
-mod responses;
-
 #[derive(Debug, Clone)]
 pub struct ServerConfig {
     pub host: String,

@@ -23,6 +23,10 @@ async-trait = { workspace = true }
 # Web framework
 axum = { workspace = true }
 
+# Serialization
+serde = { workspace = true }
+serde_json = { workspace = true }
+
 # Utilities
 once_cell = { workspace = true }
 
@@ -31,4 +35,3 @@ systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 [dev-dependencies]
-serde_json = { workspace = true }

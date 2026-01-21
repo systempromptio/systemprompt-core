@@ -29,14 +29,10 @@ impl FilesAiPersistenceProvider {
 impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     async fn insert_file(&self, params: InsertAiFileParams) -> AiProviderResult<()> {
         let file_id = FileId::new(params.id.to_string());
-        let mut request = InsertFileRequest::new(
-            file_id,
-            params.path,
-            params.public_url,
-            params.mime_type,
-        )
-        .with_ai_content(true)
-        .with_metadata(params.metadata);
+        let mut request =
+            InsertFileRequest::new(file_id, params.path, params.public_url, params.mime_type)
+                .with_ai_content(true)
+                .with_metadata(params.metadata);
 
         if let Some(size) = params.size_bytes {
             request = request.with_size(size);
@@ -131,8 +127,8 @@ impl AiFilePersistenceProvider for FilesAiPersistenceProvider {
     }
 
     fn storage_config(&self) -> AiProviderResult<ImageStorageConfig> {
-        let config = FilesConfig::get()
-            .map_err(|e| AiProviderError::ConfigurationError(e.to_string()))?;
+        let config =
+            FilesConfig::get().map_err(|e| AiProviderError::ConfigurationError(e.to_string()))?;
 
         Ok(ImageStorageConfig {
             base_path: config.generated_images(),

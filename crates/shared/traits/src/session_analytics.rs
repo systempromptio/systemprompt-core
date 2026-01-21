@@ -23,6 +23,7 @@ impl From<anyhow::Error> for SessionAnalyticsProviderError {
 #[async_trait]
 pub trait SessionAnalyticsProvider: Send + Sync {
     async fn increment_task_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()>;
+    async fn increment_message_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()>;
 }
 
 pub type DynSessionAnalyticsProvider = Arc<dyn SessionAnalyticsProvider>;

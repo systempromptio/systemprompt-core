@@ -4,7 +4,7 @@ mod types;
 
 pub use types::TemplateDataParams;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use serde_json::Value;
 use systemprompt_content::models::ContentError;
 use systemprompt_database::DbPool;
@@ -25,7 +25,6 @@ use super::html::{
 };
 use super::items::{find_latest_items, find_popular_items};
 use super::navigation::{generate_footer_html, generate_social_action_bar_html};
-use super::paper::{generate_toc_html, parse_paper_metadata, render_paper_sections_html};
 use crate::content::{get_absolute_image_url, normalize_image_url};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
@@ -49,7 +48,7 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
     let (article_type, article_section, article_language) = extract_article_config(config)?;
 
     let date_data = prepare_date_data(item)?;
-    let image_data = prepare_image_data(item, content_html, org_url)?;
+    let image_data = prepare_image_data(item, org_url)?;
     let content_data =
         prepare_content_data(item, all_items, popular_ids, content_html, &db_pool).await?;
 
@@ -106,7 +105,7 @@ fn prepare_date_data(item: &Value) -> Result<DateData> {
     })
 }
 
-fn prepare_image_data(item: &Value, content_html: &str, org_url: &str) -> Result<ImageData> {
+fn prepare_image_data(item: &Value, org_url: &str) -> Result<ImageData> {
     let raw_image = item
         .get("image")
         .or_else(|| item.get("cover_image"))
@@ -117,13 +116,16 @@ fn prepare_image_data(item: &Value, content_html: &str, org_url: &str) -> Result
     let absolute_url = get_absolute_image_url(raw_image, org_url)
         .ok_or_else(|| ContentError::missing_field("image"))?;
 
-    let (hero, hero_alt, _, _) = prepare_paper_data(item, content_html, &absolute_url, org_url)?;
+    let title = item
+        .get("title")
+        .and_then(|v| v.as_str())
+        .unwrap_or_default();
 
     Ok(ImageData {
         featured,
-        absolute_url,
-        hero,
-        hero_alt,
+        absolute_url: absolute_url.clone(),
+        hero: absolute_url,
+        hero_alt: title.to_string(),
     })
 }
 
@@ -149,18 +151,14 @@ async fn prepare_content_data(
     let references_html = generate_references_html(item)?;
     let social_html = generate_social_content_html(item, std::sync::Arc::clone(db_pool)).await?;
 
-    let raw_image = item.get("image").and_then(|v| v.as_str());
-    let (_, _, toc_html, sections_html) =
-        prepare_paper_data(item, content_html, raw_image.unwrap_or(""), "")?;
-
     Ok(ContentData {
         related_html,
         references_html,
         social_html,
         header_cta_url,
         banner_cta_url,
-        toc_html,
-        sections_html,
+        toc_html: String::new(),
+        sections_html: content_html.to_string(),
     })
 }
 
@@ -169,61 +167,4 @@ fn prepare_navigation_html(web_config: &serde_yaml::Value) -> Result<(String, St
     let social_bar = generate_social_action_bar_html(web_config, false)?;
     let social_bar_hero = generate_social_action_bar_html(web_config, true)?;
     Ok((footer, social_bar, social_bar_hero))
-}
-
-fn prepare_paper_data(
-    item: &Value,
-    content_html: &str,
-    absolute_image_url: &str,
-    org_url: &str,
-) -> Result<(String, String, String, String)> {
-    let content_type = item.get("content_type").and_then(|v| v.as_str());
-
-    if content_type != Some("paper") {
-        return Ok((
-            absolute_image_url.to_string(),
-            String::new(),
-            String::new(),
-            content_html.to_string(),
-        ));
-    }
-
-    let markdown_content = item
-        .get("content")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("content"))?;
-
-    let paper_meta =
-        parse_paper_metadata(markdown_content).context("Failed to parse paper metadata")?;
-
-    let hero_img = paper_meta.hero_image.as_ref().map_or_else(
-        || absolute_image_url.to_string(),
-        |i| {
-            if i.starts_with("http") || i.starts_with('/') {
-                i.clone()
-            } else {
-                format!("/{i}")
-            }
-        },
-    );
-
-    let title = item
-        .get("title")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("title"))?;
-
-    let hero_alt_text = paper_meta
-        .hero_alt
-        .clone()
-        .unwrap_or_else(|| title.to_string());
-
-    let toc = if paper_meta.toc {
-        generate_toc_html(&paper_meta)
-    } else {
-        String::new()
-    };
-
-    let sections = render_paper_sections_html(markdown_content, &paper_meta, org_url);
-
-    Ok((hero_img, hero_alt_text, toc, sections))
 }

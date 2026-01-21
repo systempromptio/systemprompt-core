@@ -17,6 +17,7 @@ pub use webhook::{broadcast_a2a_event, broadcast_agui_event, broadcast_context_e
 
 use axum::routing::{get, post, MethodRouter};
 use axum::Router;
+use systemprompt_runtime::AppContext;
 
 const INVALID_CONTEXT_IDS: &[&str] = &["undefined", "null", "", "__CONTEXT_LOADING__"];
 
@@ -24,11 +25,11 @@ pub fn is_valid_context_id(context_id: &str) -> bool {
     !INVALID_CONTEXT_IDS.contains(&context_id)
 }
 
-pub fn router() -> Router<systemprompt_runtime::AppContext> {
-    let context_root_methods: MethodRouter<systemprompt_runtime::AppContext> =
+pub fn router() -> Router<AppContext> {
+    let context_root_methods: MethodRouter<AppContext> =
         get(list_contexts).post(create_context);
 
-    let context_id_methods: MethodRouter<systemprompt_runtime::AppContext> =
+    let context_id_methods: MethodRouter<AppContext> =
         get(get_context).put(update_context).delete(delete_context);
 
     Router::new()
@@ -49,7 +50,7 @@ pub fn router() -> Router<systemprompt_runtime::AppContext> {
         .route("/{context_id}/events", post(events::forward_event))
 }
 
-pub fn webhook_router() -> Router<systemprompt_runtime::AppContext> {
+pub fn webhook_router() -> Router<AppContext> {
     Router::new()
         .route("/broadcast", post(broadcast_context_event))
         .route("/agui", post(broadcast_agui_event))

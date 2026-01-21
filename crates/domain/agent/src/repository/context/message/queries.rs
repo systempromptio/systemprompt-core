@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
@@ -15,14 +15,14 @@ pub async fn get_messages_by_task(
         crate::models::TaskMessage,
         r#"SELECT
             id as "id!",
-            task_id as "task_id!",
-            message_id as "message_id!",
+            task_id as "task_id!: TaskId",
+            message_id as "message_id!: MessageId",
             client_message_id,
             role as "role!",
-            context_id,
-            user_id,
-            session_id,
-            trace_id,
+            context_id as "context_id?: ContextId",
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
             sequence_number as "sequence_number!",
             created_at as "created_at!",
             updated_at as "updated_at!",
@@ -33,13 +33,12 @@ pub async fn get_messages_by_task(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let mut messages = Vec::new();
 
     for row in message_rows {
-        let message_id_typed = MessageId::new(&row.message_id);
-        let parts = get_message_parts(pool, &message_id_typed).await?;
+        let parts = get_message_parts(pool, &row.message_id).await?;
 
         let reference_task_ids = row
             .reference_task_ids
@@ -47,9 +46,9 @@ pub async fn get_messages_by_task(
 
         messages.push(Message {
             role: row.role,
-            id: row.message_id.into(),
-            task_id: Some(TaskId::new(row.task_id)),
-            context_id: ContextId::new(row.context_id.unwrap_or_else(String::new)),
+            id: row.message_id,
+            task_id: Some(row.task_id),
+            context_id: row.context_id.unwrap_or_else(ContextId::empty),
             kind: "message".to_string(),
             parts,
             metadata: row.metadata,
@@ -69,14 +68,14 @@ pub async fn get_messages_by_context(
         crate::models::TaskMessage,
         r#"SELECT
             m.id as "id!",
-            m.task_id as "task_id!",
-            m.message_id as "message_id!",
+            m.task_id as "task_id!: TaskId",
+            m.message_id as "message_id!: MessageId",
             m.client_message_id,
             m.role as "role!",
-            m.context_id,
-            m.user_id,
-            m.session_id,
-            m.trace_id,
+            m.context_id as "context_id?: ContextId",
+            m.user_id as "user_id?: UserId",
+            m.session_id as "session_id?: SessionId",
+            m.trace_id as "trace_id?: TraceId",
             m.sequence_number as "sequence_number!",
             m.created_at as "created_at!",
             m.updated_at as "updated_at!",
@@ -90,19 +89,18 @@ pub async fn get_messages_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let mut messages = Vec::new();
 
     for row in message_rows {
-        let message_id_typed = MessageId::new(&row.message_id);
-        let parts = get_message_parts(pool, &message_id_typed).await?;
+        let parts = get_message_parts(pool, &row.message_id).await?;
 
         messages.push(Message {
             role: row.role,
-            id: row.message_id.into(),
-            task_id: Some(TaskId::new(row.task_id)),
-            context_id: ContextId::new(row.context_id.unwrap_or_else(|| context_id.to_string())),
+            id: row.message_id,
+            task_id: Some(row.task_id),
+            context_id: row.context_id.unwrap_or_else(|| context_id.clone()),
             kind: "message".to_string(),
             parts,
             metadata: row.metadata,
@@ -124,7 +122,7 @@ pub async fn get_next_sequence_number(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
 }
@@ -139,7 +137,7 @@ pub async fn get_next_sequence_number_sqlx(
     )
     .fetch_optional(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
 }

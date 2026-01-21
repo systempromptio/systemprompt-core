@@ -1,37 +1,20 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use systemprompt_ai::AiService;
-use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::McpToolProvider;
-use systemprompt_runtime::AppContext;
-use systemprompt_traits::ToolProvider;
+use systemprompt_models::AiProvider;
 
 use super::Server;
+use crate::state::AgentState;
 
-pub async fn run_standalone(agent_name: &str, port: u16) -> Result<()> {
-    let app_context = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to create app context")?,
-    );
-
-    let services_config = ConfigLoader::load().context("Failed to load services config")?;
-
-    let tool_provider: Arc<dyn ToolProvider> = Arc::new(McpToolProvider::new(&app_context));
-
-    let ai_service: Arc<dyn systemprompt_models::AiProvider> = Arc::new(
-        AiService::new(
-            app_context.db_pool().clone(),
-            &services_config.ai,
-            tool_provider,
-        )
-        .context("Failed to create AI service")?,
-    );
-
+pub async fn run_standalone(
+    agent_state: Arc<AgentState>,
+    ai_service: Arc<dyn AiProvider>,
+    agent_name: &str,
+    port: u16,
+) -> Result<()> {
     let server = Server::new(
-        app_context.db_pool().clone(),
-        app_context,
+        agent_state.db_pool().clone(),
+        agent_state,
         ai_service,
         Some(agent_name.to_string()),
         port,

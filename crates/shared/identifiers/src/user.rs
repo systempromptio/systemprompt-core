@@ -72,3 +72,39 @@ impl ToDbValue for &UserId {
         DbValue::String(self.0.clone())
     }
 }
+
+impl From<UserId> for String {
+    fn from(id: UserId) -> Self {
+        id.0
+    }
+}
+
+impl From<&UserId> for String {
+    fn from(id: &UserId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for UserId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl PartialEq<str> for UserId {
+    fn eq(&self, other: &str) -> bool {
+        self.0 == other
+    }
+}
+
+impl PartialEq<UserId> for &str {
+    fn eq(&self, other: &UserId) -> bool {
+        *self == other.0
+    }
+}
+
+impl PartialEq<UserId> for str {
+    fn eq(&self, other: &UserId) -> bool {
+        self == other.0
+    }
+}

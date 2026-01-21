@@ -3,7 +3,7 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
 };
 use std::collections::HashMap;
-use systemprompt_identifiers::TaskId;
+use systemprompt_identifiers::{ArtifactId, ExecutionStepId, MessageId, TaskId};
 use systemprompt_traits::RepositoryError;
 
 use super::batch_builders::{build_artifacts, build_execution_steps, build_messages};
@@ -29,16 +29,21 @@ pub async fn construct_tasks_batch(
 
     let artifact_ids: Vec<String> = all_artifact_rows
         .iter()
-        .map(|a| a.artifact_id.clone())
+        .map(|a| a.artifact_id.to_string())
         .collect();
     let all_artifact_parts =
         super::batch_queries::fetch_artifact_parts(&pool, &artifact_ids).await?;
 
-    let parts_by_message = group_by_key(&all_parts, |p| p.message_id.clone());
-    let messages_by_task = group_by_key(&all_messages, |m| m.task_id.clone());
-    let artifacts_by_task = group_by_key(&all_artifact_rows, |a| a.task_id.clone());
-    let artifact_parts_by_id = group_by_key(&all_artifact_parts, |p| p.artifact_id.clone());
-    let steps_by_task = group_by_key(&all_execution_steps, |s| s.task_id.clone());
+    let parts_by_message: HashMap<MessageId, Vec<&MessagePart>> =
+        group_by_key(&all_parts, |p| p.message_id.clone());
+    let messages_by_task: HashMap<TaskId, Vec<&TaskMessage>> =
+        group_by_key(&all_messages, |m| m.task_id.clone());
+    let artifacts_by_task: HashMap<TaskId, Vec<&ArtifactRow>> =
+        group_by_key(&all_artifact_rows, |a| a.task_id.clone());
+    let artifact_parts_by_id: HashMap<ArtifactId, Vec<&ArtifactPartRow>> =
+        group_by_key(&all_artifact_parts, |p| p.artifact_id.clone());
+    let steps_by_task: HashMap<TaskId, Vec<&ExecutionStepBatchRow>> =
+        group_by_key(&all_execution_steps, |s| s.task_id.clone());
 
     build_tasks(
         &task_rows,
@@ -64,11 +69,11 @@ where
 
 fn build_tasks(
     task_rows: &[TaskRow],
-    messages_by_task: &HashMap<String, Vec<&TaskMessage>>,
-    parts_by_message: &HashMap<String, Vec<&MessagePart>>,
-    artifacts_by_task: &HashMap<String, Vec<&ArtifactRow>>,
-    artifact_parts_by_id: &HashMap<String, Vec<&ArtifactPartRow>>,
-    steps_by_task: &HashMap<String, Vec<&ExecutionStepBatchRow>>,
+    messages_by_task: &HashMap<TaskId, Vec<&TaskMessage>>,
+    parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
+    artifacts_by_task: &HashMap<TaskId, Vec<&ArtifactRow>>,
+    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
+    steps_by_task: &HashMap<TaskId, Vec<&ExecutionStepBatchRow>>,
 ) -> Result<Vec<Task>, RepositoryError> {
     let mut tasks = Vec::new();
 

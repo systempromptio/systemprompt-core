@@ -13,7 +13,9 @@ pub async fn find_by_id(pool: &DbPool, session_id: &SessionId) -> Result<Option<
     sqlx::query_as!(
         AnalyticsSession,
         r#"
-        SELECT session_id, user_id, fingerprint_hash, ip_address, user_agent, device_type,
+        SELECT session_id as "session_id: SessionId",
+               user_id as "user_id?: UserId",
+               fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
                utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,
@@ -38,7 +40,9 @@ pub async fn find_by_fingerprint(
     sqlx::query_as!(
         AnalyticsSession,
         r#"
-        SELECT session_id, user_id, fingerprint_hash, ip_address, user_agent, device_type,
+        SELECT session_id as "session_id: SessionId",
+               user_id as "user_id?: UserId",
+               fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
                utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,
@@ -62,7 +66,9 @@ pub async fn list_active_by_user(pool: &DbPool, user_id: &UserId) -> Result<Vec<
     sqlx::query_as!(
         AnalyticsSession,
         r#"
-        SELECT session_id, user_id, fingerprint_hash, ip_address, user_agent, device_type,
+        SELECT session_id as "session_id: SessionId",
+               user_id as "user_id?: UserId",
+               fingerprint_hash, ip_address, user_agent, device_type,
                browser, os, country, city, referrer_url, utm_source, utm_medium,
                utm_campaign, is_bot, is_scanner, is_behavioral_bot, behavioral_bot_reason,
                started_at, last_activity_at, ended_at, request_count, task_count,

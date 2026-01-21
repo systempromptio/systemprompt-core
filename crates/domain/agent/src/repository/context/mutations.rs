@@ -28,7 +28,7 @@ impl ContextRepository {
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         Ok(context_id)
     }
@@ -47,7 +47,7 @@ impl ContextRepository {
         )
         .fetch_optional(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         match result {
             Some(_) => Ok(()),
@@ -77,7 +77,7 @@ impl ContextRepository {
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         if result.rows_affected() == 0 {
             return Err(RepositoryError::NotFound(format!(
@@ -103,7 +103,7 @@ impl ContextRepository {
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
 
         if result.rows_affected() == 0 {
             return Err(RepositoryError::NotFound(format!(

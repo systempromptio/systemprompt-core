@@ -7,10 +7,9 @@ use std::convert::Infallible;
 use std::sync::{Arc, LazyLock};
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_events::{
-    standard_keep_alive, Broadcaster, ConnectionGuard, GenericBroadcaster, A2A_BROADCASTER,
+    standard_keep_alive, Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse, A2A_BROADCASTER,
     AGUI_BROADCASTER,
 };
-use systemprompt_models::events::ToSse;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tokio::sync::mpsc;

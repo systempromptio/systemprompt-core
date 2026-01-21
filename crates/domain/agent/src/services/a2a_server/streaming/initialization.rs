@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
@@ -30,20 +30,31 @@ pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberO
     Event::default().data(error_event.to_string())
 }
 
-pub async fn detect_mcp_server_and_update_context(agent_name: &str, context: &mut RequestContext) {
-    use systemprompt_mcp::services::registry::McpServerRegistry;
-
-    let is_mcp_server = match McpServerRegistry::validate() {
-        Ok(()) => McpServerRegistry::find_server(agent_name)
-            .map_err(|e| {
-                tracing::trace!(agent_name = %agent_name, error = %e, "MCP server lookup failed");
-                e
-            })
-            .ok()
-            .flatten()
-            .is_some(),
-        Err(_) => false,
-    };
+pub async fn detect_mcp_server_and_update_context(
+    agent_name: &str,
+    context: &mut RequestContext,
+    state: &Arc<AgentHandlerState>,
+) {
+    let is_mcp_server = state
+        .agent_state
+        .mcp_service_provider()
+        .map(|provider| {
+            provider
+                .validate_registry()
+                .ok()
+                .and_then(|()| {
+                    provider
+                        .find_server(agent_name)
+                        .map_err(|e| {
+                            tracing::trace!(agent_name = %agent_name, error = %e, "MCP server lookup failed");
+                            e
+                        })
+                        .ok()
+                        .flatten()
+                })
+                .is_some()
+        })
+        .unwrap_or(false);
 
     if is_mcp_server && context.agent_name().as_str() != agent_name {
         tracing::info!(
@@ -214,11 +225,11 @@ pub async fn setup_stream(
         callback_config,
     } = input;
 
-    detect_mcp_server_and_update_context(&agent_name, &mut context).await;
+    detect_mcp_server_and_update_context(&agent_name, &mut context, &state).await;
 
     let task_id = resolve_task_id(&message);
     let context_id = message.context_id.clone();
-    let message_id = Uuid::new_v4().to_string();
+    let message_id = MessageId::new(Uuid::new_v4().to_string());
 
     tracing::info!(
         task_id = %task_id,

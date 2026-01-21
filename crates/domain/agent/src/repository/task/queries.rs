@@ -2,7 +2,7 @@ use crate::models::TaskRow;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
 use super::constructor::TaskConstructor;
@@ -17,14 +17,14 @@ pub async fn get_task(
     let row = sqlx::query_as!(
         TaskRow,
         r#"SELECT
-            task_id as "task_id!",
-            context_id as "context_id!",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id!: ContextId",
             status as "status!",
             status_timestamp,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
+            agent_name as "agent_name?: AgentName",
             started_at,
             completed_at,
             execution_time_ms,
@@ -37,7 +37,7 @@ pub async fn get_task(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let Some(_row) = row else {
         return Ok(None);
@@ -58,14 +58,14 @@ pub async fn list_tasks_by_context(
     let rows = sqlx::query_as!(
         TaskRow,
         r#"SELECT
-            task_id as "task_id!",
-            context_id as "context_id!",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id!: ContextId",
             status as "status!",
             status_timestamp,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
+            agent_name as "agent_name?: AgentName",
             started_at,
             completed_at,
             execution_time_ms,
@@ -78,14 +78,13 @@ pub async fn list_tasks_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let constructor = TaskConstructor::new(db_pool.clone());
     let mut tasks = Vec::new();
 
     for row in rows {
-        let task_id = TaskId::new(&row.task_id);
-        tasks.push(constructor.construct_task_from_task_id(&task_id).await?);
+        tasks.push(constructor.construct_task_from_task_id(&row.task_id).await?);
     }
 
     Ok(tasks)
@@ -105,14 +104,14 @@ pub async fn get_tasks_by_user_id(
     let rows = sqlx::query_as!(
         TaskRow,
         r#"SELECT
-            task_id as "task_id!",
-            context_id as "context_id!",
+            task_id as "task_id!: TaskId",
+            context_id as "context_id!: ContextId",
             status as "status!",
             status_timestamp,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            user_id as "user_id?: UserId",
+            session_id as "session_id?: SessionId",
+            trace_id as "trace_id?: TraceId",
+            agent_name as "agent_name?: AgentName",
             started_at,
             completed_at,
             execution_time_ms,
@@ -127,14 +126,13 @@ pub async fn get_tasks_by_user_id(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     let constructor = TaskConstructor::new(db_pool.clone());
     let mut tasks = Vec::new();
 
     for row in &rows {
-        let task_id = TaskId::new(&row.task_id);
-        tasks.push(constructor.construct_task_from_task_id(&task_id).await?);
+        tasks.push(constructor.construct_task_from_task_id(&row.task_id).await?);
     }
 
     Ok(tasks)
@@ -170,7 +168,7 @@ pub async fn get_task_context_info(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,

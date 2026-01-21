@@ -228,3 +228,27 @@ impl ToDbValue for &ArtifactId {
         DbValue::String(self.0.clone())
     }
 }
+
+impl From<ArtifactId> for String {
+    fn from(id: ArtifactId) -> Self {
+        id.0
+    }
+}
+
+impl From<&ArtifactId> for String {
+    fn from(id: &ArtifactId) -> Self {
+        id.0.clone()
+    }
+}
+
+impl PartialEq<&str> for ArtifactId {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::borrow::Borrow<str> for ArtifactId {
+    fn borrow(&self) -> &str {
+        &self.0
+    }
+}

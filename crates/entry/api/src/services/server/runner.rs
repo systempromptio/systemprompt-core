@@ -18,7 +18,7 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
         Ok(started_count) => {
             if let Some(ref tx) = events {
                 if tx
-                    .send(StartupEvent::AgentReconciliationComplete {
+                    .unbounded_send(StartupEvent::AgentReconciliationComplete {
                         running: started_count,
                         total: started_count,
                     })
@@ -33,7 +33,7 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
             if let Some(ref tx) = events {
                 tx.phase_failed(Phase::Agents, e.to_string());
                 if tx
-                    .send(StartupEvent::Error {
+                    .unbounded_send(StartupEvent::Error {
                         message: format!("Agent reconciliation failed: {e}"),
                         fatal: true,
                     })

@@ -28,26 +28,18 @@ web = [
 
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)
-systemprompt-models = { path = "../../shared/models" }
+systemprompt-models = { path = "../../shared/models", features = ["axum"] }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
-systemprompt-runtime = { path = "../../app/runtime" }
 inventory = { workspace = true }
 
 # Core module dependencies
 systemprompt-loader = { path = "../../infra/loader" }
 systemprompt-events = { path = "../../infra/events" }
-systemprompt-oauth = { path = "../oauth" }
-systemprompt-users = { path = "../users" }
 systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-config = { path = "../../infra/config" }
 systemprompt-database = { path = "../../infra/database" }
-systemprompt-analytics = { path = "../analytics" }
 systemprompt-security = { path = "../../infra/security" }
-systemprompt-scheduler = { path = "../../app/scheduler" }
-systemprompt-mcp = { path = "../mcp" }
-systemprompt-ai = { path = "../ai" }
-systemprompt-files = { path = "../files" }
 rmcp = { workspace = true }
 
 # Async runtime

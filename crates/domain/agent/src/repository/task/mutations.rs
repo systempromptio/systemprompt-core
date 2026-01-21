@@ -60,7 +60,7 @@ pub async fn create_task(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(task.id.to_string())
 }
@@ -79,7 +79,7 @@ pub async fn track_agent_in_context(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(())
 }
@@ -106,7 +106,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
     } else if state == TaskState::Working {
         sqlx::query!(
             r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, updated_at = CURRENT_TIMESTAMP,
@@ -118,7 +118,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
     } else {
         sqlx::query!(
             r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, updated_at = CURRENT_TIMESTAMP WHERE task_id = $3"#,
@@ -128,7 +128,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(|e| RepositoryError::database(e))?;
     }
 
     Ok(())
@@ -158,7 +158,7 @@ pub async fn update_task_failed_with_error(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e))?;
+    .map_err(|e| RepositoryError::database(e))?;
 
     Ok(())
 }

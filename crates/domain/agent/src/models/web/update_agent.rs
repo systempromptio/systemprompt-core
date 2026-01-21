@@ -1,6 +1,5 @@
 use crate::models::a2a::AgentCard;
 use serde::{Deserialize, Serialize};
-use systemprompt_runtime::AppContext;
 
 use super::card_input::AgentCardInput;
 use super::validation::{extract_port_from_url, is_valid_version, list_available_mcp_servers};
@@ -72,10 +71,9 @@ impl<'de> Deserialize<'de> for UpdateAgentRequest {
 }
 
 impl UpdateAgentRequest {
-    pub fn from_raw(raw: UpdateAgentRequestRaw, ctx: &AppContext) -> Self {
+    pub fn from_raw(raw: UpdateAgentRequestRaw, api_server_url: &str) -> Self {
         let url = raw.card.url.unwrap_or_else(|| {
-            let host = &ctx.config().api_server_url;
-            format!("{}/api/v1/agents/{}", host, raw.card.name)
+            format!("{}/api/v1/agents/{}", api_server_url, raw.card.name)
         });
 
         let card = AgentCard {

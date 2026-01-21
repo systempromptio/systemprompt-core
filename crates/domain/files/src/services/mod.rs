@@ -2,6 +2,7 @@ mod ai;
 mod ai_provider;
 mod content;
 mod file;
+mod providers;
 pub mod upload;
 
 pub use ai::AiService;

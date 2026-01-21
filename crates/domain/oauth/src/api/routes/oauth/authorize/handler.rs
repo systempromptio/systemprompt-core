@@ -74,7 +74,7 @@ pub async fn handle_authorize_get(
         },
     };
 
-    if params.response_type.is_empty() || params.client_id.is_empty() {
+    if params.response_type.is_empty() || params.client_id.as_str().is_empty() {
         let e = "Missing required parameters";
         if let Some(redirect_uri) = &params.redirect_uri {
             let error_url = format!(

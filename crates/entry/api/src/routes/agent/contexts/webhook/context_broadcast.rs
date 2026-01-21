@@ -10,7 +10,7 @@ use systemprompt_runtime::{create_request_span, AppContext};
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;
-use crate::repository::context::ContextRepository;
+use systemprompt_agent::repository::context::ContextRepository;
 
 pub async fn broadcast_context_event(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,

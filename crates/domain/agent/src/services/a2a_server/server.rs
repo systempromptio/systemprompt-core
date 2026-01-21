@@ -4,19 +4,19 @@ use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{AgentConfig, AiProvider};
-use systemprompt_runtime::AppContext;
 use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
 use super::auth::{agent_oauth_middleware_wrapper, AgentOAuthConfig, AgentOAuthState};
 use super::handlers::{handle_agent_card, handle_agent_request, AgentHandlerState};
+use crate::state::AgentState;
 
 pub struct Server {
     db_pool: DbPool,
     config: Arc<RwLock<AgentConfig>>,
     oauth_state: Arc<AgentOAuthState>,
-    app_context: Arc<AppContext>,
+    agent_state: Arc<AgentState>,
     ai_service: Arc<dyn AiProvider>,
     port: u16,
 }
@@ -27,7 +27,7 @@ impl std::fmt::Debug for Server {
             .field("pool", &"SqlitePool")
             .field("config", &"Arc<RwLock<AgentConfig>>")
             .field("oauth_state", &"Arc<AgentOAuthState>")
-            .field("app_context", &"Arc<AppContext>")
+            .field("agent_state", &"Arc<AgentState>")
             .field("ai_service", &"<Arc<dyn AiProvider>>")
             .field("port", &self.port)
             .finish()
@@ -37,7 +37,7 @@ impl std::fmt::Debug for Server {
 impl Server {
     pub async fn new(
         db_pool: DbPool,
-        app_context: Arc<AppContext>,
+        agent_state: Arc<AgentState>,
         ai_service: Arc<dyn AiProvider>,
         agent_name: Option<String>,
         port: u16,
@@ -56,22 +56,25 @@ impl Server {
         let oauth_config = AgentOAuthConfig::default();
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?.to_string();
         let global_config = systemprompt_models::Config::get()?;
-        let oauth_state = Arc::new(
-            AgentOAuthState::new(
-                db_pool.clone(),
-                oauth_config,
-                jwt_secret,
-                global_config.jwt_issuer.clone(),
-                global_config.jwt_audiences.clone(),
-            )
-            .await?,
-        );
+        let mut oauth_state = AgentOAuthState::new(
+            db_pool.clone(),
+            oauth_config,
+            jwt_secret,
+            global_config.jwt_issuer.clone(),
+            global_config.jwt_audiences.clone(),
+        )
+        .await?;
+
+        oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
+        if let Some(user_provider) = agent_state.user_provider().cloned() {
+            oauth_state = oauth_state.with_user_provider(user_provider);
+        }
 
         Ok(Self {
             db_pool,
             config: Arc::new(RwLock::new(config)),
-            oauth_state,
-            app_context,
+            oauth_state: Arc::new(oauth_state),
+            agent_state,
             ai_service,
             port,
         })
@@ -99,7 +102,7 @@ impl Server {
             db_pool: self.db_pool.clone(),
             config: Arc::clone(&self.config),
             oauth_state: Arc::clone(&self.oauth_state),
-            app_context: Arc::clone(&self.app_context),
+            agent_state: Arc::clone(&self.agent_state),
             ai_service: Arc::clone(&self.ai_service),
         });
 

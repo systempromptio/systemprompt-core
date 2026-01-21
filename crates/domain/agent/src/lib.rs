@@ -48,11 +48,13 @@
     clippy::unnecessary_sort_by
 )]
 
-pub mod api;
 pub mod error;
 pub mod models;
 pub mod repository;
 pub mod services;
+pub mod state;
+
+pub use state::AgentState;
 
 pub use models::a2a::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, AgentCapabilities, AgentCard, AgentInterface,

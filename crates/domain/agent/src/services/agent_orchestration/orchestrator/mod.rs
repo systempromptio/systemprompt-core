@@ -4,7 +4,7 @@ mod status;
 
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_runtime::AppContext;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
@@ -16,6 +16,7 @@ use crate::services::agent_orchestration::lifecycle::AgentLifecycle;
 use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
 use crate::services::agent_orchestration::{monitor, AgentStatus, OrchestrationResult};
+use crate::state::AgentState;
 
 #[derive(Debug, Clone)]
 pub struct AgentInfo {
@@ -25,25 +26,38 @@ pub struct AgentInfo {
     pub port: u16,
 }
 
-#[derive(Debug)]
 pub struct AgentOrchestrator {
     pub(super) db_service: AgentDatabaseService,
     pub(super) lifecycle: AgentLifecycle,
     pub(super) reconciler: AgentReconciler,
     monitor: AgentMonitor,
     pub(super) monitoring_handle: Option<JoinHandle<Result<()>>>,
-    pub(super) ctx: Arc<AppContext>,
+    pub(super) agent_state: Arc<AgentState>,
     event_bus: Arc<AgentEventBus>,
+}
+
+impl std::fmt::Debug for AgentOrchestrator {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("AgentOrchestrator")
+            .field("db_service", &self.db_service)
+            .field("lifecycle", &self.lifecycle)
+            .field("reconciler", &self.reconciler)
+            .field("monitor", &self.monitor)
+            .field("monitoring_handle", &self.monitoring_handle.is_some())
+            .field("agent_state", &"<AgentState>")
+            .field("event_bus", &self.event_bus)
+            .finish()
+    }
 }
 
 impl AgentOrchestrator {
     pub async fn new(
-        ctx: Arc<AppContext>,
+        agent_state: Arc<AgentState>,
         events: Option<&StartupEventSender>,
     ) -> OrchestrationResult<Self> {
         tracing::debug!("Initializing Agent Orchestrator");
 
-        let db_pool = ctx.db_pool();
+        let db_pool = agent_state.db_pool();
 
         use crate::repository::agent_service::AgentServiceRepository;
         let agent_repo = AgentServiceRepository::new(db_pool.clone());
@@ -63,7 +77,7 @@ impl AgentOrchestrator {
             reconciler,
             monitor,
             monitoring_handle: None,
-            ctx,
+            agent_state,
             event_bus,
         };
 
@@ -173,7 +187,7 @@ impl AgentOrchestrator {
 
         if let Some(tx) = events {
             if tx
-                .send(StartupEvent::AgentReconciliationComplete { running, total })
+                .unbounded_send(StartupEvent::AgentReconciliationComplete { running, total })
                 .is_err()
             {
                 tracing::trace!("No receivers for agent reconciliation event");
