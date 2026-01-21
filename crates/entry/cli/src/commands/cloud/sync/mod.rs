@@ -154,6 +154,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         services_path,
         hostname,
         sync_token,
+        local_database_url: None,
     };
 
     print_header(&direction, args.dry_run);

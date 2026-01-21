@@ -179,6 +179,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
         services_path: source.profile.paths.services.clone(),
         hostname,
         sync_token,
+        local_database_url: None,
     };
 
     let dir_label = match direction {
