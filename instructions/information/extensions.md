@@ -255,7 +255,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt::extension::prelude::*;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 pub struct FeaturedPostsProvider;
 

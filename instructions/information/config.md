@@ -57,11 +57,11 @@ AppContext::new()              // 6. Initialize database, extensions, services
 
 **Key files:**
 - `crates/shared/models/src/profile_bootstrap.rs` - Profile initialization
-- `systemprompt/src/secrets_bootstrap.rs` - Secrets initialization
-- `crates/infra/cloud/src/credentials_bootstrap.rs` - Cloud credentials
+- `crates/shared/models/src/secrets.rs` - Secrets initialization (SecretsBootstrap)
+- `crates/infra/cloud/src/credentials.rs` - Cloud credentials (CredentialsBootstrap)
 - `crates/infra/cloud/src/tenants.rs` - Tenant cache
-- `crates/shared/models/src/config.rs` - Config struct and validation
-- `crates/entry/cli/src/main.rs` - Entry point showing bootstrap sequence
+- `crates/shared/models/src/config/mod.rs` - Config struct and validation
+- `crates/entry/cli/src/bootstrap.rs` - CLI bootstrap sequence
 
 ---
 
