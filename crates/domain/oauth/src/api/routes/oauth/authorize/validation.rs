@@ -75,14 +75,17 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
     }
 
     if let Some(code_challenge) = &params.code_challenge {
-        if code_challenge.len() < 43 {
-            return Err(
-                "code_challenge too short. Must be at least 43 characters for security."
-                    .to_string(),
-            );
+        if code_challenge.len() < crate::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
+            return Err(format!(
+                "code_challenge too short. Must be at least {} characters for security.",
+                crate::constants::pkce::CODE_CHALLENGE_MIN_LENGTH
+            ));
         }
-        if code_challenge.len() > 128 {
-            return Err("code_challenge too long. Must be at most 128 characters.".to_string());
+        if code_challenge.len() > crate::constants::pkce::CODE_CHALLENGE_MAX_LENGTH {
+            return Err(format!(
+                "code_challenge too long. Must be at most {} characters.",
+                crate::constants::pkce::CODE_CHALLENGE_MAX_LENGTH
+            ));
         }
 
         let is_valid_base64url = code_challenge
@@ -196,7 +199,7 @@ fn has_repeating_pattern(challenge: &str) -> bool {
 }
 
 fn has_sequential_run(challenge: &str) -> bool {
-    const MIN_SEQUENTIAL_RUN: usize = 6;
+    use crate::constants::validation::MIN_SEQUENTIAL_RUN;
 
     let chars: Vec<char> = challenge.chars().collect();
     if chars.len() < MIN_SEQUENTIAL_RUN {
@@ -231,8 +234,7 @@ fn has_sequential_run(challenge: &str) -> bool {
 }
 
 fn has_low_diversity(challenge: &str) -> bool {
-    const DIVERSITY_THRESHOLD: f64 = 0.5;
-    const MIN_UNIQUE_CHARS: usize = 20;
+    use crate::constants::validation::{DIVERSITY_THRESHOLD, MIN_UNIQUE_CHARS};
 
     let unique_chars: std::collections::HashSet<char> = challenge.chars().collect();
     let entropy_ratio = unique_chars.len() as f64 / challenge.len() as f64;

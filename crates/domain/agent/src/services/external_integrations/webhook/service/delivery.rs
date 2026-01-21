@@ -124,12 +124,3 @@ impl WebhookService {
         })
     }
 }
-
-pub async fn send_webhook(
-    service: &WebhookService,
-    url: &str,
-    payload: Value,
-    config: Option<WebhookConfig>,
-) -> IntegrationResult<WebhookDeliveryResult> {
-    service.send_webhook(url, payload, config).await
-}

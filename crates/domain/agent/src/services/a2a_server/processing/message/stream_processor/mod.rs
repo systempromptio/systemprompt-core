@@ -6,15 +6,12 @@ use base64::Engine;
 use std::sync::Arc;
 
 use crate::models::a2a::{FilePart, Message, Part};
-use crate::models::AgentRuntimeInfo;
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::{ContextService, SkillService};
 use systemprompt_models::{
     is_supported_audio, is_supported_image, is_supported_text, is_supported_video, AiContentPart,
     AiProvider,
 };
-
-pub use helpers::{build_artifacts_from_results, synthesize_final_response};
 
 #[allow(missing_debug_implementations)]
 pub struct StreamProcessor {

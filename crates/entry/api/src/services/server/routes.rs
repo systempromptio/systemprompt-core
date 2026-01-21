@@ -108,10 +108,6 @@ pub fn configure_routes(
     router = router.nest(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
-            .map_err(|e| LoaderError::InitializationFailed {
-                extension: "mcp_proxy".to_string(),
-                message: e.to_string(),
-            })?
             .with_rate_limit(rate_config, rate_config.mcp_per_second)
             .with_auth_middleware(mcp_middleware.clone()),
     );

@@ -7,16 +7,20 @@ use systemprompt_files::{File, FileMetadata, FileRepository, ImageGenerationInfo
 use systemprompt_identifiers::{FileId, McpExecutionId, SessionId, TraceId, UserId};
 use uuid::Uuid;
 
+pub struct FileLocation<'a> {
+    pub path: &'a str,
+    pub public_url: &'a str,
+}
+
 pub async fn persist_image_generation(
     ai_request_repo: &AiRequestRepository,
     file_repo: &FileRepository,
     request: &ImageGenerationRequest,
     response: &ImageGenerationResponse,
-    file_path: &str,
-    public_url: &str,
+    location: FileLocation<'_>,
 ) -> Result<()> {
     persist_ai_request(ai_request_repo, request, response).await?;
-    persist_file_record(file_repo, request, response, file_path, public_url).await
+    persist_file_record(file_repo, request, response, location.path, location.public_url).await
 }
 
 async fn persist_ai_request(

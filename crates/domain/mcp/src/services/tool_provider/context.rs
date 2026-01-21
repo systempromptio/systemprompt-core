@@ -61,7 +61,7 @@ pub fn create_request_context(ctx: &ToolContext) -> Result<RequestContext, ToolP
 
 pub fn load_agent_servers(agent_name: &str) -> Result<Vec<String>> {
     let config = DeploymentService::load_config()?;
-    let agent_name_type = systemprompt_identifiers::AgentName::new(agent_name);
+    let agent_name_type = AgentName::new(agent_name);
 
     let agent = config
         .agents

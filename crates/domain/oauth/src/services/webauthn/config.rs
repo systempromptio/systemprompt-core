@@ -30,7 +30,7 @@ impl WebAuthnConfig {
             rp_id,
             rp_origin: parsed_url,
             rp_name: format!("{} OAuth", config.sitename),
-            challenge_expiry: Duration::from_secs(300),
+            challenge_expiry: Duration::from_secs(crate::constants::webauthn::CHALLENGE_EXPIRY_SECONDS),
             allow_any_port: true,
             allow_subdomains: true,
         })

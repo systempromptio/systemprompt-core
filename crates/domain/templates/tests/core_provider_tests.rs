@@ -56,13 +56,13 @@ async fn test_discover_with_manifest() {
         .await
         .expect("failed to write template");
 
-    let manifest = r#"
+    let manifest = r"
 templates:
   custom:
     content_types:
       - page
       - article
-"#;
+";
     let manifest_path = temp_dir.path().join("templates.yaml");
     fs::write(&manifest_path, manifest)
         .await

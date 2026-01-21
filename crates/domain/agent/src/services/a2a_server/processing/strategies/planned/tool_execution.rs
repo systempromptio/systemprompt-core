@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde_json::Value;
 use systemprompt_identifiers::TaskId;
-use systemprompt_models::ai::{GenerateResponseParams, PlannedCall, TemplateValidator};
+use systemprompt_models::ai::{
+    ExecutionState, GenerateResponseParams, PlanValidationError, PlannedToolCall, TemplateValidator,
+};
 use systemprompt_models::{AiMessage, ExecutionStep, McpTool, PlannedTool, TrackedStep};
 
 use super::super::plan_executor::{
@@ -15,7 +17,7 @@ use crate::services::ExecutionTrackingService;
 
 pub async fn handle_tool_calls(
     reasoning: String,
-    calls: Vec<PlannedCall>,
+    calls: Vec<PlannedToolCall>,
     context: &ExecutionContext,
     tracking: &ExecutionTrackingService,
     planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
@@ -164,7 +166,7 @@ pub async fn handle_tool_calls(
 }
 
 async fn handle_validation_failure(
-    validation_errors: Vec<systemprompt_models::ai::TemplateValidationError>,
+    validation_errors: Vec<PlanValidationError>,
     context: &ExecutionContext,
     messages: Vec<AiMessage>,
 ) -> Result<ExecutionResult> {
@@ -213,7 +215,7 @@ async fn handle_validation_failure(
     })
 }
 
-fn build_tool_summary(calls: &[PlannedCall]) -> (String, Value) {
+fn build_tool_summary(calls: &[PlannedToolCall]) -> (String, Value) {
     if calls.len() == 1 {
         (calls[0].tool_name.clone(), calls[0].arguments.clone())
     } else {
@@ -236,7 +238,7 @@ fn build_tool_summary(calls: &[PlannedCall]) -> (String, Value) {
 async fn record_execution_status(
     tracking: &ExecutionTrackingService,
     tracked: &TrackedStep,
-    state: &super::super::plan_executor::ExecutionState,
+    state: &ExecutionState,
     has_failures: bool,
 ) {
     if has_failures {

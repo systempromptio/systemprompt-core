@@ -3,7 +3,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 use systemprompt_models::ProfileBootstrap;
 
-use super::helpers::{collect_endpoint_changes, collect_tier_changes, load_profile_for_edit, save_profile};
+use super::helpers::{
+    collect_endpoint_changes, collect_tier_changes, load_profile_for_edit, save_profile,
+};
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::cli_settings::OutputFormat;
 use crate::shared::{render_result, CommandResult};

@@ -74,17 +74,23 @@ pub async fn handle_get_execution(
     }
 }
 
-pub fn router(ctx: &AppContext) -> anyhow::Result<Router> {
+pub fn router(ctx: &AppContext) -> Router {
     let engine = ProxyEngine::new();
 
-    let repo = ToolUsageRepository::new(ctx.db_pool())?;
+    let repo = match ToolUsageRepository::new(ctx.db_pool()) {
+        Ok(r) => Arc::new(r),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to initialize MCP tool usage repository");
+            return Router::new();
+        },
+    };
 
     let state = McpState {
         ctx: ctx.clone(),
-        repo: Arc::new(repo),
+        repo,
     };
 
-    Ok(Router::new()
+    Router::new()
         .route("/executions/{id}", get(handle_get_execution))
         .route(
             "/{service_name}/{*path}",
@@ -105,7 +111,7 @@ pub fn router(ctx: &AppContext) -> anyhow::Result<Router> {
                 }
             }),
         )
-        .with_state(state))
+        .with_state(state)
 }
 
 systemprompt_runtime::register_module_api!(

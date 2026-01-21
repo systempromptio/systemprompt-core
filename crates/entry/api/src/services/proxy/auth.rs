@@ -34,7 +34,7 @@ impl AuthValidator {
             tracing::info!(service = %service_name, trace_id = %trace_id, "auth validation starting");
         }
 
-        let result = AuthService::authorize_service_access(headers, service_name).await;
+        let result = AuthService::authorize_service_access(headers, service_name);
 
         match &result {
             Ok(user) => {

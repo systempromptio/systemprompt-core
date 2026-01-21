@@ -90,8 +90,9 @@ pub async fn handle_callback(
         .unwrap_or("/");
 
     let cookie = format!(
-        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=3600",
-        token_response.access_token
+        "access_token={}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age={}",
+        token_response.access_token,
+        crate::constants::token::COOKIE_MAX_AGE_SECONDS
     );
 
     let mut response = Redirect::to(redirect_destination).into_response();
@@ -171,7 +172,9 @@ async fn exchange_code_for_token(
 
     let refresh_token_value = generate_secure_token("rt");
     let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
-    let refresh_expires_at = chrono::Utc::now().timestamp() + (86400 * 30);
+    let refresh_expires_at = chrono::Utc::now().timestamp()
+        + (crate::constants::token::SECONDS_PER_DAY
+            * crate::constants::token::REFRESH_TOKEN_EXPIRY_DAYS);
 
     let refresh_params = RefreshTokenParams::builder(
         &refresh_token_id,

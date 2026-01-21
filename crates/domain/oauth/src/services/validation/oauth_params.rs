@@ -1,10 +1,4 @@
-use systemprompt_models::{AuthError, GrantType, PkceMethod, ResponseType};
-
-#[derive(Debug)]
-pub struct PkceChallenge {
-    pub challenge: String,
-    pub method: PkceMethod,
-}
+use systemprompt_models::{AuthError, GrantType, ResponseType};
 
 #[derive(Debug)]
 pub struct CsrfToken(String);
@@ -83,24 +77,6 @@ pub fn scope_param(value: Option<&str>) -> Result<Vec<String>, AuthError> {
     }
 
     Ok(scopes)
-}
-
-pub fn validate_pkce(
-    code_challenge: Option<&str>,
-    code_challenge_method: Option<&str>,
-) -> Result<PkceChallenge, AuthError> {
-    let challenge = code_challenge
-        .filter(|c| !c.is_empty())
-        .ok_or(AuthError::MissingCodeChallenge)?
-        .to_string();
-
-    let method_str = code_challenge_method.ok_or_else(|| AuthError::InvalidRequest {
-        reason: "code_challenge_method required".to_string(),
-    })?;
-
-    let method = method_str.parse::<PkceMethod>()?;
-
-    Ok(PkceChallenge { challenge, method })
 }
 
 pub fn get_audit_user(user_id: Option<&str>) -> Result<String, AuthError> {

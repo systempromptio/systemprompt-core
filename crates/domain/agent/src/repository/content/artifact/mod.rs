@@ -2,9 +2,7 @@ mod mutations;
 mod parts;
 mod queries;
 
-pub use mutations::*;
 pub use parts::{get_artifact_parts, persist_artifact_part};
-pub use queries::*;
 
 use sqlx::PgPool;
 use std::sync::Arc;

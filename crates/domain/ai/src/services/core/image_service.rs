@@ -147,8 +147,10 @@ impl ImageService {
             &self.file_repo,
             &request,
             &response,
-            &file_path.to_string_lossy(),
-            &public_url,
+            image_persistence::FileLocation {
+                path: &file_path.to_string_lossy(),
+                public_url: &public_url,
+            },
         )
         .await?;
 

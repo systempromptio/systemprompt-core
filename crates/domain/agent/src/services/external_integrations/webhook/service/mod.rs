@@ -1,10 +1,7 @@
 mod delivery;
 mod types;
 
-pub use delivery::send_webhook;
-pub use types::{
-    RetryPolicy, WebhookConfig, WebhookDeliveryResult, WebhookStats, WebhookTestResult,
-};
+pub use types::{RetryPolicy, WebhookConfig, WebhookDeliveryResult, WebhookTestResult};
 
 use hmac::{Hmac, Mac};
 use reqwest::Client;
