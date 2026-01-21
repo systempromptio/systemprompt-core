@@ -53,7 +53,6 @@ macro_rules! define_id {
         }
     };
 
-    // Non-empty validation variant
     ($name:ident, non_empty) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, sqlx::Type)]
         #[sqlx(transparent)]
@@ -61,10 +60,6 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
-            /// Create a new validated instance.
-            ///
-            /// # Errors
-            /// Returns `IdValidationError::Empty` if the value is empty.
             pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
                 let value = value.into();
                 if value.is_empty() {
@@ -73,10 +68,7 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            /// Create a new instance, panicking if validation fails.
-            ///
-            /// # Panics
-            /// Panics if the value is empty.
+            #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " cannot be empty"))
             }
@@ -145,7 +137,6 @@ macro_rules! define_id {
         }
     };
 
-    // Custom validator function variant
     ($name:ident, validated, $validator:expr) => {
         #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, sqlx::Type)]
         #[sqlx(transparent)]
@@ -153,10 +144,6 @@ macro_rules! define_id {
         pub struct $name(String);
 
         impl $name {
-            /// Create a new validated instance.
-            ///
-            /// # Errors
-            /// Returns an error if validation fails.
             pub fn try_new(value: impl Into<String>) -> Result<Self, $crate::error::IdValidationError> {
                 let value = value.into();
                 let validator: fn(&str) -> Result<(), $crate::error::IdValidationError> = $validator;
@@ -164,10 +151,7 @@ macro_rules! define_id {
                 Ok(Self(value))
             }
 
-            /// Create a new instance, panicking if validation fails.
-            ///
-            /// # Panics
-            /// Panics if validation fails.
+            #[allow(clippy::expect_used)]
             pub fn new(value: impl Into<String>) -> Self {
                 Self::try_new(value).expect(concat!(stringify!($name), " validation failed"))
             }

@@ -31,7 +31,6 @@ impl Email {
                 "local part (before @) cannot be empty",
             ));
         }
-        // Local part validation
         if local.starts_with('.') || local.ends_with('.') {
             return Err(IdValidationError::invalid(
                 "Email",
@@ -44,7 +43,6 @@ impl Email {
                 "local part cannot contain consecutive dots",
             ));
         }
-        // Check for dangerous characters that could enable header injection
         if local.contains('\n') || local.contains('\r') {
             return Err(IdValidationError::invalid(
                 "Email",
@@ -69,14 +67,12 @@ impl Email {
                 "domain cannot start or end with '.'",
             ));
         }
-        // Domain validation
         if domain.contains("..") {
             return Err(IdValidationError::invalid(
                 "Email",
                 "domain cannot contain consecutive dots",
             ));
         }
-        // Check TLD has at least 2 characters
         if let Some(tld) = domain.rsplit('.').next() {
             if tld.len() < 2 {
                 return Err(IdValidationError::invalid(

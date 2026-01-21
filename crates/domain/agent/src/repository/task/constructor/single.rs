@@ -193,7 +193,7 @@ async fn load_execution_steps(
     let steps = step_repo
         .list_by_task(task_id)
         .await
-        .map_err(|e| RepositoryError::Database(e))?;
+        .map_err(RepositoryError::Other)?;
 
     if steps.is_empty() {
         Ok(None)

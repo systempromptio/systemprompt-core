@@ -72,10 +72,10 @@ pub fn resolve_path(base: &Path, path: &str) -> String {
         path.to_string()
     } else {
         let resolved = base.join(p);
-        resolved
-            .canonicalize()
-            .map(|canonical| canonical.to_string_lossy().to_string())
-            .unwrap_or_else(|_| resolved.to_string_lossy().to_string())
+        resolved.canonicalize().map_or_else(
+            |_| resolved.to_string_lossy().to_string(),
+            |canonical| canonical.to_string_lossy().to_string(),
+        )
     }
 }
 

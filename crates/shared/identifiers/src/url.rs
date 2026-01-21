@@ -54,19 +54,15 @@ impl ValidatedUrl {
             .rfind('@')
             .map_or(authority, |i| &authority[i + 1..]);
 
-        // Handle IPv6 addresses (enclosed in brackets) and regular hosts
         let host = if host_part.starts_with('[') {
-            // IPv6 address - must have closing bracket
             let bracket_end = host_part.find(']').ok_or_else(|| {
                 IdValidationError::invalid("ValidatedUrl", "IPv6 address missing closing bracket")
             })?;
             &host_part[..=bracket_end]
         } else {
-            // Regular host - split on ':' to separate from port
             host_part.split(':').next().unwrap_or(host_part)
         };
 
-        // Validate IPv6 format if present
         if host.starts_with('[') && host.ends_with(']') {
             let ipv6_content = &host[1..host.len() - 1];
             if ipv6_content.is_empty() {
@@ -77,7 +73,6 @@ impl ValidatedUrl {
             }
         }
 
-        // Check for empty port (e.g., "http://example.com:/path")
         if host_part.contains("]:") || (!host_part.starts_with('[') && host_part.contains(':')) {
             let port_part = if host_part.starts_with('[') {
                 host_part.rsplit("]:").next()
