@@ -222,7 +222,9 @@ pub async fn run() -> Result<()> {
         let profile = ProfileBootstrap::get()?;
         let is_cloud = profile.target.is_cloud();
 
-        if should_check_remote_routing(cli.command.as_ref()) {
+        let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+
+        if !is_fly_environment && should_check_remote_routing(cli.command.as_ref()) {
             match routing::determine_execution_target() {
                 Ok(routing::ExecutionTarget::Remote {
                     hostname,
@@ -253,7 +255,7 @@ pub async fn run() -> Result<()> {
                 },
                 _ => {},
             }
-        } else if is_cloud {
+        } else if is_cloud && !is_fly_environment {
             bail!(
                 "Cloud profile '{}' selected but this command doesn't support remote execution.\n\
                  Use a local profile with --profile <name>.",
