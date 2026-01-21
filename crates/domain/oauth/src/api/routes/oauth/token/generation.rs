@@ -119,7 +119,6 @@ pub async fn generate_client_tokens(
 
     let requested_permissions = parse_permissions(scope_str)?;
 
-    // Fetch client to validate requested scopes against allowed scopes
     let client = repo
         .find_client_by_id(client_id.as_str())
         .await?
@@ -131,7 +130,6 @@ pub async fn generate_client_tokens(
         .filter_map(|s| Permission::from_str(s).ok())
         .collect();
 
-    // Only grant permissions that are both requested AND allowed for this client
     let permissions: Vec<Permission> = requested_permissions
         .into_iter()
         .filter(|p| client_allowed.contains(p))
@@ -152,7 +150,6 @@ pub async fn generate_client_tokens(
     uuid_bytes.copy_from_slice(&hash[..16]);
     let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
 
-    // Use the validated permissions, not hardcoded admin
     let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
     let client_user = AuthenticatedUser::new_with_roles(
         client_uuid,

@@ -19,7 +19,6 @@ pub async fn validate_client_credentials(
     client_id: &ClientId,
     client_secret: Option<&str>,
 ) -> Result<()> {
-    // Delegate to the shared validation function with timing-attack protection
     validate_client_credentials_shared(repo, client_id.as_str(), client_secret).await
 }
 

@@ -7,23 +7,15 @@ use std::str::FromStr;
 pub use systemprompt_models::auth::JwtClaims;
 pub use systemprompt_models::oauth::OAuthServerConfig as OAuthConfig;
 
-/// Error type for OAuth-related parsing failures.
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum OAuthParseError {
-    /// Unknown grant type.
     InvalidGrantType(String),
-    /// Unknown PKCE method.
     InvalidPkceMethod(String),
-    /// Unknown response type.
     InvalidResponseType(String),
-    /// Unknown response mode.
     InvalidResponseMode(String),
-    /// Unknown display mode.
     InvalidDisplayMode(String),
-    /// Unknown prompt type.
     InvalidPrompt(String),
-    /// Unknown token auth method.
     InvalidTokenAuthMethod(String),
 }
 

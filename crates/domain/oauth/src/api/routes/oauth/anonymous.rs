@@ -39,10 +39,8 @@ pub struct AnonymousTokenRequest {
     pub redirect_uri: Option<String>,
     #[serde(default)]
     pub metadata: Option<serde_json::Value>,
-    /// Optional user_id for authenticated TUI sessions
     #[serde(default)]
     pub user_id: Option<String>,
-    /// Optional email for TUI sessions (used in JWT claims)
     #[serde(default)]
     pub email: Option<String>,
 }
@@ -108,7 +106,6 @@ pub async fn generate_anonymous_token(
     let session_service =
         SessionCreationService::new(Arc::clone(ctx.analytics_service()), user_provider);
 
-    // Check if this is a TUI session (has user_id and client_id is sp_tui)
     if let Some(ref user_id_str) = req.user_id {
         if req.client_id == "sp_tui" {
             let user_id = UserId::new(user_id_str.clone());
@@ -119,7 +116,6 @@ pub async fn generate_anonymous_token(
                 .await
             {
                 Ok(session_id) => {
-                    // Generate admin JWT for TUI
                     let jwt_secret = match systemprompt_models::SecretsBootstrap::jwt_secret() {
                         Ok(s) => s,
                         Err(e) => {

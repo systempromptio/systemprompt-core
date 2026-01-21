@@ -157,93 +157,92 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
     Ok(())
 }
 
-/// Validates that a PKCE code_challenge has sufficient entropy for security.
-///
-/// Per RFC 7636, the code_verifier (and thus the challenge) should have at least
-/// 256 bits of entropy. This function uses heuristics to detect obviously weak
-/// challenges that would fail to provide adequate security.
-///
-/// Checks performed:
-/// - All same character (e.g., "aaaa...")
-/// - Simple repeating patterns (e.g., "abcabcabc...")
-/// - Long sequential runs (e.g., "abcdefgh...")
-/// - Low character diversity (unique chars / total length)
 fn is_low_entropy_challenge(challenge: &str) -> bool {
-    // Check 1: All same character
     let Some(first_char) = challenge.chars().next() else {
         return true;
     };
+
     if challenge.chars().all(|c| c == first_char) {
         return true;
     }
 
-    // Check 2: Simple repeating patterns (2-4 char patterns repeated)
+    if has_repeating_pattern(challenge) {
+        return true;
+    }
+
+    if has_sequential_run(challenge) {
+        return true;
+    }
+
+    if has_low_diversity(challenge) {
+        return true;
+    }
+
+    false
+}
+
+fn has_repeating_pattern(challenge: &str) -> bool {
     for pattern_length in 2..=4 {
         if challenge.len() >= pattern_length * 3 {
             let pattern = &challenge[..pattern_length];
             let repetitions = challenge.len() / pattern_length;
             if repetitions >= 3 {
                 let repeated = pattern.repeat(repetitions);
-                // Check if the challenge starts with this repeated pattern
                 if challenge.starts_with(&repeated) {
                     return true;
                 }
             }
         }
     }
+    false
+}
 
-    // Check 3: Sequential character runs (detect "abcdef...", "123456...", etc.)
-    // Reject if 6 or more sequential characters are found (stricter than before)
+fn has_sequential_run(challenge: &str) -> bool {
+    const MIN_SEQUENTIAL_RUN: usize = 6;
+
     let chars: Vec<char> = challenge.chars().collect();
-    if chars.len() >= 6 {
-        let mut sequential_count = 1;
-        let mut reverse_sequential_count = 1;
+    if chars.len() < MIN_SEQUENTIAL_RUN {
+        return false;
+    }
 
-        for i in 1..chars.len() {
-            // Check ascending sequence (a, b, c, d, ...)
-            if let (Some(prev), Some(curr)) = (chars[i - 1].to_digit(36), chars[i].to_digit(36)) {
-                if curr == prev.wrapping_add(1) {
-                    sequential_count += 1;
-                    if sequential_count >= 6 {
-                        return true;
-                    }
-                } else {
-                    sequential_count = 1;
-                }
+    let mut ascending_count = 1;
+    let mut descending_count = 1;
 
-                // Also check descending sequence (z, y, x, w, ...)
-                if prev == curr.wrapping_add(1) {
-                    reverse_sequential_count += 1;
-                    if reverse_sequential_count >= 6 {
-                        return true;
-                    }
-                } else {
-                    reverse_sequential_count = 1;
+    for i in 1..chars.len() {
+        if let (Some(prev), Some(curr)) = (chars[i - 1].to_digit(36), chars[i].to_digit(36)) {
+            if curr == prev.wrapping_add(1) {
+                ascending_count += 1;
+                if ascending_count >= MIN_SEQUENTIAL_RUN {
+                    return true;
                 }
+            } else {
+                ascending_count = 1;
+            }
+
+            if prev == curr.wrapping_add(1) {
+                descending_count += 1;
+                if descending_count >= MIN_SEQUENTIAL_RUN {
+                    return true;
+                }
+            } else {
+                descending_count = 1;
             }
         }
     }
+    false
+}
 
-    // Check 4: Character diversity (entropy approximation)
-    // For a 43+ character challenge, we expect good distribution.
-    // A stricter threshold of 0.5 means at least half the characters should be unique.
-    // For base64url (64 possible chars), a random 43-char string would have ~0.93 ratio.
+fn has_low_diversity(challenge: &str) -> bool {
+    const DIVERSITY_THRESHOLD: f64 = 0.5;
+    const MIN_UNIQUE_CHARS: usize = 20;
+
     let unique_chars: std::collections::HashSet<char> = challenge.chars().collect();
     let entropy_ratio = unique_chars.len() as f64 / challenge.len() as f64;
 
-    // Use 0.5 as threshold - requires at least 50% unique characters
-    // This catches challenges like "aAbBaAbBaAbB..." while allowing legitimate random strings
-    if entropy_ratio < 0.5 {
+    if entropy_ratio < DIVERSITY_THRESHOLD {
         return true;
     }
 
-    // Check 5: Minimum unique character count
-    // For a 43-char challenge, we should have at least 20 unique characters
-    // (roughly half, accounting for some repetition in random strings)
     let min_unique_for_length = challenge.len() / 2;
-    if unique_chars.len() < min_unique_for_length.min(20) {
-        return true;
-    }
-
-    false
+    unique_chars.len() < min_unique_for_length.min(MIN_UNIQUE_CHARS)
 }

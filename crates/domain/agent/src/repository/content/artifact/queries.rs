@@ -270,17 +270,21 @@ fn extract_metadata_fields(
         return (None, None, None, None);
     };
 
-    let rendering_hints = metadata.get("rendering_hints").and_then(|v| {
-        if v.is_null() {
-            None
-        } else {
-            Some(v.clone())
-        }
-    });
+    let rendering_hints =
+        metadata.get("rendering_hints").and_then(
+            |v| {
+                if v.is_null() {
+                    None
+                } else {
+                    Some(v.clone())
+                }
+            },
+        );
 
-    let mcp_schema = metadata
-        .get("mcp_schema")
-        .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
+    let mcp_schema =
+        metadata
+            .get("mcp_schema")
+            .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
 
     let is_internal = metadata.get("is_internal").and_then(|v| v.as_bool());
 
