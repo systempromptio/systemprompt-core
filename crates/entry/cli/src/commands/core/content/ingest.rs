@@ -150,7 +150,10 @@ async fn execute_all_sources(args: &IngestArgs) -> Result<IngestResult> {
 
         let allowed_types = source_config.allowed_content_types.clone();
         let category_id = source_config.category_id.as_str().to_string();
-        let indexing = source_config.indexing.clone().unwrap_or_else(IndexingConfig::default);
+        let indexing = source_config
+            .indexing
+            .clone()
+            .unwrap_or_else(IndexingConfig::default);
 
         let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
         let source = IngestionSource::new(&name, &category_id, &allowed_types_refs);

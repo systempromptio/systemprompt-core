@@ -392,7 +392,7 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
     Router::new()
         .route(ApiPaths::DISCOVERY, get(handle_root_discovery))
         .route(ApiPaths::HEALTH, get(handle_health))
-        .route("/health", get(handle_health)) // Root-level alias for convenience
+        .route("/health", get(handle_health))
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))

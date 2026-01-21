@@ -2,6 +2,7 @@ use crate::models::ai::{AiMessage, SamplingParams};
 use crate::models::providers::gemini::GeminiFunctionCallingMode;
 use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 
+#[derive(Debug)]
 pub struct ToolRequestParams<'a> {
     pub messages: &'a [AiMessage],
     pub tools: &'a [McpTool],
@@ -10,6 +11,7 @@ pub struct ToolRequestParams<'a> {
     pub model: &'a str,
 }
 
+#[derive(Debug)]
 pub struct ToolRequestParamsBuilder<'a> {
     messages: &'a [AiMessage],
     tools: &'a [McpTool],
@@ -61,6 +63,7 @@ impl<'a> ToolRequestParams<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct ToolResultParams<'a> {
     pub conversation_history: &'a [AiMessage],
     pub tool_calls: &'a [ToolCall],
@@ -70,6 +73,7 @@ pub struct ToolResultParams<'a> {
     pub model: &'a str,
 }
 
+#[derive(Debug)]
 pub struct ToolResultParamsBuilder<'a> {
     conversation_history: &'a [AiMessage],
     tool_calls: &'a [ToolCall],

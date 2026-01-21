@@ -16,6 +16,7 @@ use systemprompt_cloud::{CliSession, ProjectContext};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_logging::CliService;
+use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserService};
@@ -119,6 +120,10 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
             session_id: &session_id,
             email: &admin_user.email,
             duration,
+            user_type: UserType::Admin,
+            permissions: vec![Permission::Admin],
+            roles: vec!["admin".to_string()],
+            rate_limit_tier: RateLimitTier::Admin,
         })
         .context("Failed to generate session token")?;
 

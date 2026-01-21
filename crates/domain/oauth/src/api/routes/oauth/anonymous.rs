@@ -54,7 +54,7 @@ pub async fn generate_anonymous_token(
     headers: HeaderMap,
     Json(req): Json<AnonymousTokenRequest>,
 ) -> impl IntoResponse {
-    let expires_in = 24 * 3600;
+    let expires_in = crate::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = ClientId::new(req.client_id.clone());
     let validator = match ClientValidator::new(Arc::clone(ctx.db_pool())) {
         Ok(v) => v,

@@ -1,6 +1,4 @@
 use chrono::{DateTime, Utc};
-use sqlx::PgPool;
-use std::sync::Arc;
 
 use super::ContextRepository;
 use crate::models::context::{ContextStateEvent, UserContext, UserContextWithStats};

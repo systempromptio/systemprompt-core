@@ -44,6 +44,6 @@ systemprompt_runtime::register_module_api!(
     "agents",
     ServiceCategory::Agent,
     router,
-    false, // Agents handle their own authentication based on individual security settings
+    false,
     systemprompt_runtime::ModuleType::Proxy
 );

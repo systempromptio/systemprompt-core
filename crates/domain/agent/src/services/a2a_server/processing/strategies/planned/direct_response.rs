@@ -7,8 +7,8 @@ use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::ExecutionTrackingService;
 
 pub async fn handle_direct_response(
-    content: String,
-    context: &ExecutionContext,
+    response_text: String,
+    exec_ctx: &ExecutionContext,
     tracking: &ExecutionTrackingService,
     planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
     task_id: TaskId,
@@ -22,7 +22,7 @@ pub async fn handle_direct_response(
             )
             .await
         {
-            if context
+            if exec_ctx
                 .tx
                 .send(StreamEvent::ExecutionStepUpdate { step })
                 .is_err()
@@ -35,7 +35,7 @@ pub async fn handle_direct_response(
     tracing::info!("Direct response (no tools needed)");
 
     if let Ok(step) = tracking.track_completion(task_id).await {
-        if context
+        if exec_ctx
             .tx
             .send(StreamEvent::ExecutionStepUpdate { step })
             .is_err()
@@ -44,12 +44,16 @@ pub async fn handle_direct_response(
         }
     }
 
-    if context.tx.send(StreamEvent::Text(content.clone())).is_err() {
+    if exec_ctx
+        .tx
+        .send(StreamEvent::Text(response_text.clone()))
+        .is_err()
+    {
         tracing::debug!("Stream receiver dropped");
     }
 
     Ok(ExecutionResult {
-        accumulated_text: content,
+        accumulated_text: response_text,
         tool_calls: vec![],
         tool_results: vec![],
         tools: vec![],

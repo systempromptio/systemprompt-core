@@ -69,26 +69,10 @@ pub async fn update_client_configuration(
         },
     };
     let redirect_uris = match request.get_redirect_uris() {
-        Ok(uris) => {
-            let mut merged_uris = uris;
-            let callback_base = "http://localhost:6274/oauth/callback";
-            let callback_debug = "http://localhost:6274/oauth/callback/debug";
-
-            if merged_uris
-                .iter()
-                .any(|uri| uri == callback_base || uri == callback_debug)
-            {
-                if !merged_uris.contains(&callback_base.to_string()) {
-                    merged_uris.push(callback_base.to_string());
-                }
-                if !merged_uris.contains(&callback_debug.to_string()) {
-                    merged_uris.push(callback_debug.to_string());
-                }
-            }
-
-            merged_uris.sort();
-            merged_uris.dedup();
-            merged_uris
+        Ok(mut uris) => {
+            uris.sort();
+            uris.dedup();
+            uris
         },
         Err(e) => {
             return (

@@ -44,7 +44,9 @@ impl WebAuthnManager {
 
     fn start_cleanup_task(service: Arc<WebAuthnService>) {
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(300));
+            let mut interval = tokio::time::interval(Duration::from_secs(
+                crate::constants::webauthn::CLEANUP_INTERVAL_SECONDS,
+            ));
             loop {
                 interval.tick().await;
                 if let Err(e) = service.cleanup_expired_states().await {

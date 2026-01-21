@@ -1,6 +1,7 @@
 #![allow(clippy::module_name_repetitions)]
 
 pub mod api;
+pub mod constants;
 pub mod models;
 pub mod queries;
 pub mod repository;
