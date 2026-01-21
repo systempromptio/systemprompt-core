@@ -23,12 +23,18 @@ src/
 │   └── mod.rs                          # User, UserSession, UserActivity, UserStats, UserExport
 ├── repository/
 │   ├── mod.rs                          # UserRepository struct, MAX_PAGE_SIZE constant
-│   ├── banned_ip.rs                    # BannedIpRepository, BanDuration, BanIpParams
+│   ├── banned_ip/
+│   │   ├── mod.rs                      # BannedIpRepository struct
+│   │   ├── types.rs                    # BannedIp, BanDuration, BanIpParams
+│   │   ├── queries.rs                  # ban_ip, unban_ip, is_banned, get_ban
+│   │   └── listing.rs                  # list_active_bans, list_bans_by_source
 │   └── user/
 │       ├── mod.rs                      # Module exports
 │       ├── find.rs                     # find_by_id, find_by_email, find_by_name, find_by_role
-│       ├── list.rs                     # list, search, count, get_stats, bulk operations
-│       ├── operations.rs               # create, update_*, delete, merge_users
+│       ├── list.rs                     # list, search, count, bulk operations
+│       ├── stats.rs                    # count_by_status, count_by_role, get_stats
+│       ├── operations.rs               # create, update_*, delete, cleanup_old_anonymous
+│       ├── merge.rs                    # merge_users, MergeResult
 │       └── session.rs                  # list_sessions, end_session, end_all_sessions
 ├── services/
 │   ├── mod.rs                          # Service exports

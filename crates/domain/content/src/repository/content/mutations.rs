@@ -116,7 +116,10 @@ pub async fn delete(pool: &Arc<PgPool>, id: &ContentId) -> Result<(), sqlx::Erro
     Ok(())
 }
 
-pub async fn delete_by_source(pool: &Arc<PgPool>, source_id: &SourceId) -> Result<u64, sqlx::Error> {
+pub async fn delete_by_source(
+    pool: &Arc<PgPool>,
+    source_id: &SourceId,
+) -> Result<u64, sqlx::Error> {
     let result = sqlx::query!(
         "DELETE FROM markdown_content WHERE source_id = $1",
         source_id.as_str()

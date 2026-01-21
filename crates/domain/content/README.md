@@ -16,71 +16,66 @@ This crate handles all content-related functionality:
 
 ```
 src/
-├── analytics/
-│   ├── mod.rs                  # Module exports
-│   ├── repository.rs           # LinkAnalyticsRepository
-│   └── service.rs              # LinkAnalyticsService
 ├── api/
-│   ├── mod.rs                  # Router exports
+│   ├── mod.rs                      # Router exports
 │   └── routes/
-│       ├── mod.rs              # Route composition
-│       ├── blog.rs             # Content handlers (list, get by slug)
-│       ├── query.rs            # Search handler
+│       ├── mod.rs                  # Route composition
+│       ├── blog.rs                 # Content handlers (list, get by slug)
+│       ├── query.rs                # Search handler
 │       └── links/
-│           ├── mod.rs          # Link route exports
-│           ├── handlers.rs     # Link CRUD + redirect handlers
-│           └── types.rs        # Request/response types
+│           ├── mod.rs              # Link route exports
+│           ├── handlers.rs         # Link CRUD + redirect handlers
+│           └── types.rs            # Request/response types
 ├── config/
-│   ├── mod.rs                  # Config exports
-│   ├── validated.rs            # ContentConfigValidated (validation logic)
-│   └── ready.rs                # ContentReady (loaded content cache)
+│   ├── mod.rs                      # Config exports
+│   ├── validated.rs                # ContentConfigValidated (validation logic)
+│   └── ready.rs                    # ContentReady (loaded content cache)
 ├── jobs/
-│   ├── mod.rs                  # Job exports
-│   └── content_ingestion.rs    # ContentIngestionJob (implements Job trait)
+│   ├── mod.rs                      # Job exports
+│   └── content_ingestion.rs        # ContentIngestionJob (implements Job trait)
 ├── models/
-│   ├── mod.rs                  # Model exports
+│   ├── mod.rs                      # Model exports
 │   ├── builders/
-│   │   ├── mod.rs              # Builder exports
-│   │   ├── content.rs          # CreateContentParams, UpdateContentParams
-│   │   └── link.rs             # CreateLinkParams, RecordClickParams, TrackClickParams
-│   ├── content.rs              # Content, ContentMetadata, IngestionReport
-│   ├── content_error.rs        # ContentError (validation errors)
-│   ├── link.rs                 # CampaignLink, LinkClick, LinkPerformance
-│   ├── paper.rs                # PaperMetadata, PaperSection
-│   └── search.rs               # SearchRequest, SearchResponse, SearchResult
+│   │   ├── mod.rs                  # Builder exports
+│   │   ├── content.rs              # CreateContentParams, UpdateContentParams
+│   │   └── link.rs                 # CreateLinkParams, RecordClickParams, TrackClickParams
+│   ├── content.rs                  # Content, ContentMetadata, IngestionReport
+│   ├── content_error.rs            # ContentError (validation errors)
+│   ├── link.rs                     # CampaignLink, LinkClick, LinkPerformance
+│   ├── paper.rs                    # PaperMetadata, PaperSection
+│   └── search.rs                   # SearchRequest, SearchResponse, SearchResult
 ├── repository/
-│   ├── mod.rs                  # Repository exports
+│   ├── mod.rs                      # Repository exports
 │   ├── content/
-│   │   └── mod.rs              # ContentRepository
+│   │   ├── mod.rs                  # ContentRepository
+│   │   ├── queries.rs              # Read operations (get, list)
+│   │   └── mutations.rs            # Write operations (create, update, delete)
 │   ├── link/
-│   │   ├── mod.rs              # LinkRepository
-│   │   └── analytics.rs        # LinkAnalyticsRepository
+│   │   ├── mod.rs                  # LinkRepository
+│   │   └── analytics.rs            # LinkAnalyticsRepository
 │   └── search/
-│       └── mod.rs              # SearchRepository
+│       └── mod.rs                  # SearchRepository
 ├── services/
-│   ├── mod.rs                  # Service exports
-│   ├── content.rs              # ContentService
-│   ├── content_provider.rs     # DefaultContentProvider (implements ContentProvider)
+│   ├── mod.rs                      # Service exports
+│   ├── content.rs                  # ContentService
+│   ├── content_provider.rs         # DefaultContentProvider (implements ContentProvider)
 │   ├── ingestion/
-│   │   ├── mod.rs              # IngestionService
-│   │   └── parser.rs           # Paper chapter loading, frontmatter validation
+│   │   ├── mod.rs                  # IngestionService
+│   │   ├── parser.rs               # Paper chapter loading, frontmatter validation
+│   │   └── scanner.rs              # Directory scanning, file validation
 │   ├── link/
-│   │   ├── mod.rs              # Link service exports
-│   │   ├── analytics.rs        # LinkAnalyticsService
-│   │   └── generation.rs       # LinkGenerationService
+│   │   ├── mod.rs                  # Link service exports
+│   │   ├── analytics.rs            # LinkAnalyticsService
+│   │   └── generation.rs           # LinkGenerationService
 │   ├── search/
-│   │   └── mod.rs              # SearchService
+│   │   └── mod.rs                  # SearchService
 │   └── validation/
-│       └── mod.rs              # Content and paper metadata validation
-├── error.rs                    # ContentError enum (database, validation, parse errors)
-└── lib.rs                      # Crate root with public exports
+│       └── mod.rs                  # Content and paper metadata validation
+├── error.rs                        # ContentError enum (thiserror)
+└── lib.rs                          # Crate root with public exports
 ```
 
 ## Modules
-
-### analytics/
-
-Link click tracking and campaign performance analytics. Tracks unique clicks per session, conversion events, and content journey mapping.
 
 ### api/routes/
 
@@ -100,7 +95,7 @@ Domain types for content, links, and search. Builder pattern used for complex pa
 
 ### repository/
 
-Database access layer using SQLX macros for compile-time SQL verification. Repositories handle data persistence with no business logic.
+Database access layer using SQLX macros for compile-time SQL verification. Repositories handle data persistence with no business logic. Split into `queries.rs` (reads) and `mutations.rs` (writes) for clarity.
 
 ### services/
 
@@ -135,20 +130,17 @@ use systemprompt_content::{
     SearchResult, UpdateContentParams,
 
     // Repositories
-    ContentRepository, SearchRepository,
+    ContentRepository, LinkAnalyticsRepository, SearchRepository,
 
     // Services
-    DefaultContentProvider, IngestionService, SearchService,
-
-    // Analytics
-    LinkAnalyticsRepository, LinkAnalyticsService,
+    DefaultContentProvider, IngestionService, LinkAnalyticsService, SearchService,
 
     // Jobs
     ContentIngestionJob,
 
     // Config
-    ContentConfigValidated, ContentReady, LoadStats, ParsedContent,
-    ValidationResult,
+    ContentConfigValidated, ContentReady, ContentSourceConfigValidated,
+    LoadStats, ParsedContent, ValidationResult,
 
     // API
     router, get_content_handler, list_content_by_source_handler, query_handler,

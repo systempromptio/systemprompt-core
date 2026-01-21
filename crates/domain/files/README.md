@@ -1,55 +1,71 @@
-# systemprompt-core-files
+# systemprompt-files
 
-File management module for SystemPrompt.
+File management domain module for SystemPrompt.
 
-## Directories
+## Overview
 
-| Directory | Purpose |
-|-----------|---------|
-| `schema/` | SQL table definitions |
-| `src/jobs/` | Background job implementations |
-| `src/models/` | Data structures and enums |
-| `src/repository/` | Database access layer |
-| `src/services/` | Business logic layer |
+This crate provides file storage, metadata management, and content-file linking capabilities. It handles file uploads with validation, AI-generated image tracking, and content associations.
 
-## Key Files
+## File Structure
 
-| File | Description |
-|------|-------------|
-| `src/lib.rs` | Public API exports |
-| `src/jobs/file_ingestion.rs` | Scans storage for image files |
-| `src/models/file.rs` | File entity with typed identifiers |
-| `src/models/content_file.rs` | Junction record, FileRole enum |
-| `src/models/metadata.rs` | FileMetadata, type-specific variants |
-| `src/repository/file/mod.rs` | Core CRUD operations |
-| `src/repository/content/mod.rs` | Content-file linking |
-| `src/repository/ai/mod.rs` | AI image queries |
-| `src/services/storage.rs` | LocalFileStorage (FileStorage trait) |
-| `src/services/file/mod.rs` | FileService wrapper |
-| `src/services/content/mod.rs` | ContentService wrapper |
-| `src/services/ai/mod.rs` | AiService wrapper |
-| `schema/files.sql` | Files table schema |
-| `schema/content_files.sql` | Junction table schema |
+```
+src/
+├── lib.rs                    Public API exports
+├── config.rs                 FilesConfig, FileUploadConfig, persistence modes
+│
+├── jobs/
+│   └── file_ingestion.rs     Background job scanning storage for images
+│
+├── models/
+│   ├── file.rs               File entity with typed identifiers
+│   ├── content_file.rs       Junction table model, FileRole enum
+│   ├── metadata.rs           FileMetadata with type-specific variants
+│   └── image_metadata.rs     ImageMetadata, ImageGenerationInfo
+│
+├── repository/
+│   ├── file/mod.rs           Core CRUD: insert, find, list, delete, stats
+│   ├── content/mod.rs        Content linking: link, unlink, featured
+│   └── ai/mod.rs             AI image queries: list, count by user
+│
+└── services/
+    ├── file/mod.rs           FileService wrapper over repository
+    ├── content/mod.rs        ContentService for file-content relations
+    ├── ai/mod.rs             AiService for AI-generated images
+    └── upload/
+        ├── mod.rs            FileUploadService with storage logic
+        └── validator.rs      MIME type validation, extension extraction
+```
+
+## Modules
+
+| Module | Purpose |
+|--------|---------|
+| `config` | Configuration loading from YAML, validation, path resolution |
+| `jobs` | Background file ingestion job with inventory registration |
+| `models` | Data structures: File, ContentFile, FileRole, metadata types |
+| `repository` | Database access layer with SQLX queries |
+| `services` | Business logic wrappers providing clean API |
 
 ## Public Types
 
 | Type | Description |
 |------|-------------|
-| `File` | File entity with path, URL, metadata |
-| `ContentFile` | Links file to content with role |
+| `File` | File entity with path, URL, metadata, identifiers |
+| `ContentFile` | Links file to content with role and display order |
 | `FileRole` | Featured, Attachment, Inline, OgImage, Thumbnail |
-| `FileMetadata` | Container for checksums and type metadata |
+| `FileMetadata` | Container for checksums and type-specific metadata |
 | `ImageMetadata` | Dimensions, alt text, generation info |
-| `InsertFileRequest` | Builder for file insertion |
+| `FileUploadRequest` | Builder for file upload operations |
+| `FilesConfig` | Runtime configuration for storage paths and URLs |
 
 ## Services
 
 | Service | Methods |
 |---------|---------|
-| `FileService` | insert, find_by_id, find_by_path, list_by_user, list_all, delete, update_metadata |
+| `FileService` | insert, find_by_id, find_by_path, list_by_user, list_all, delete, update_metadata, get_stats |
 | `ContentService` | link_to_content, unlink_from_content, list_files_by_content, find_featured_image, set_featured |
-| `AiService` | list_ai_images, list_ai_images_by_user, count_ai_images_by_user |
-| `LocalFileStorage` | store, retrieve, delete, metadata, exists (implements FileStorage trait) |
+| `AiService` | list_ai_images, list_ai_images_by_user, count_ai_images_by_user, count_ai_images |
+| `FileUploadService` | upload_file with validation, storage, and database insertion |
 
 ## Jobs
 
@@ -57,12 +73,30 @@ File management module for SystemPrompt.
 |-----|----------|-------------|
 | `FileIngestionJob` | Every 30 min | Scans storage directory for images, creates DB entries |
 
+## Configuration
+
+Configured via `files.yaml`:
+
+```yaml
+files:
+  urlPrefix: "/files"
+  upload:
+    enabled: true
+    maxFileSizeBytes: 52428800
+    persistenceMode: context_scoped
+    allowedTypes:
+      images: true
+      documents: true
+      audio: true
+      video: false
+```
+
 ## Dependencies
 
 | Crate | Purpose |
 |-------|---------|
-| systemprompt-core-database | DbPool |
-| systemprompt-core-logging | Logging infrastructure |
-| systemprompt-models | PathConfig |
-| systemprompt-identifiers | FileId, UserId, ContentId, SessionId, TraceId |
-| systemprompt-traits | Job, FileStorage traits |
+| systemprompt-database | DbPool for database connections |
+| systemprompt-identifiers | FileId, UserId, ContentId, SessionId, TraceId, ContextId |
+| systemprompt-traits | Job trait for background jobs |
+| systemprompt-models | AppPaths, ProfileBootstrap |
+| systemprompt-cloud | Storage path constants |

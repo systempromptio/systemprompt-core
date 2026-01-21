@@ -21,7 +21,13 @@ src/
 ├── installation.rs           # Module schema and seed installation
 ├── registry.rs               # Module API registry and routing
 ├── span.rs                   # Request tracing span construction
-├── startup_validation.rs     # Multi-domain configuration validation
+├── startup_validation/       # Multi-domain configuration validation
+│   ├── mod.rs                # StartupValidator orchestration
+│   ├── config_loaders.rs     # Config file loading utilities
+│   ├── display.rs            # Validation report rendering
+│   ├── extension_validator.rs # Extension validation logic
+│   ├── files_validator.rs    # FilesConfig domain validator
+│   └── mcp_validator.rs      # MCP manifest validation
 ├── validation.rs             # Runtime system checks
 └── wellknown.rs              # Well-known endpoint metadata registry
 ```
@@ -82,7 +88,7 @@ Delegates to `systemprompt-database` for actual SQL execution.
 |--------|-------------|
 | `create_request_span` | Builds a `RequestSpan` with user, session, trace, and context IDs |
 
-### `startup_validation.rs`
+### `startup_validation/`
 
 **Purpose:** Multi-domain configuration validation at application startup.
 
@@ -91,6 +97,13 @@ Delegates to `systemprompt-database` for actual SQL execution.
 | `StartupValidator` | Orchestrates validation across all domain config validators |
 | `display_validation_report` | Renders validation errors to console |
 | `display_validation_warnings` | Renders validation warnings to console |
+
+Submodules:
+- `config_loaders.rs` - YAML config loading with spinner feedback
+- `display.rs` - Console rendering for validation reports
+- `extension_validator.rs` - Extension config and asset validation
+- `files_validator.rs` - `FilesConfigValidator` domain implementation
+- `mcp_validator.rs` - MCP server manifest validation
 
 Validates: files, rate limits, web config, content config, agents, MCP servers, AI providers, and extensions.
 
@@ -127,7 +140,7 @@ register_module_api!(
     "my-module",
     ServiceCategory::Core,
     my_module::routes,
-    true,  // auth_required
+    true,
     ModuleType::Regular
 );
 ```

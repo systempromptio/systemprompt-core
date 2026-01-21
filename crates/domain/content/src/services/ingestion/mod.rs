@@ -50,7 +50,12 @@ impl IngestionService {
 
         for file_path in scan_result.files {
             match self
-                .ingest_file(&file_path, source, options.override_existing, options.dry_run)
+                .ingest_file(
+                    &file_path,
+                    source,
+                    options.override_existing,
+                    options.dry_run,
+                )
                 .await
             {
                 Ok(result) => {
@@ -113,83 +118,55 @@ impl IngestionService {
         let new_hash = Self::compute_version_hash(&new_content);
 
         match existing_content {
-            None => self.handle_new_content(dry_run, slug, new_content, new_hash).await,
-            Some(existing) => {
-                self.handle_existing_content(
-                    existing,
-                    new_content,
-                    new_hash,
-                    override_existing,
-                    dry_run,
-                    slug,
+            None => {
+                if dry_run {
+                    return Ok(IngestFileResult::WouldCreate(slug));
+                }
+                let params = CreateContentParams::new(
+                    new_content.slug.clone(),
+                    new_content.title.clone(),
+                    new_content.description.clone(),
+                    new_content.body.clone(),
+                    new_content.source_id.clone(),
                 )
-                .await
+                .with_author(new_content.author.clone())
+                .with_published_at(new_content.published_at)
+                .with_keywords(new_content.keywords.clone())
+                .with_kind(new_content.kind.clone())
+                .with_image(new_content.image.clone())
+                .with_category_id(new_content.category_id.clone())
+                .with_version_hash(new_hash)
+                .with_links(new_content.links.clone());
+
+                self.content_repo.create(&params).await?;
+                Ok(IngestFileResult::Created)
+            },
+            Some(existing) => {
+                if existing.version_hash == new_hash {
+                    return Ok(IngestFileResult::Unchanged);
+                }
+
+                if !override_existing {
+                    return Ok(IngestFileResult::Skipped);
+                }
+
+                if dry_run {
+                    return Ok(IngestFileResult::WouldUpdate(slug));
+                }
+
+                let update_params = UpdateContentParams::new(
+                    existing.id.clone(),
+                    new_content.title.clone(),
+                    new_content.description.clone(),
+                    new_content.body.clone(),
+                )
+                .with_keywords(new_content.keywords.clone())
+                .with_image(new_content.image.clone())
+                .with_version_hash(new_hash);
+                self.content_repo.update(&update_params).await?;
+                Ok(IngestFileResult::Updated)
             },
         }
-    }
-
-    async fn handle_new_content(
-        &self,
-        dry_run: bool,
-        slug: String,
-        new_content: Content,
-        new_hash: String,
-    ) -> Result<IngestFileResult, ContentError> {
-        if dry_run {
-            return Ok(IngestFileResult::WouldCreate(slug));
-        }
-        let params = CreateContentParams::new(
-            new_content.slug.clone(),
-            new_content.title.clone(),
-            new_content.description.clone(),
-            new_content.body.clone(),
-            new_content.source_id.clone(),
-        )
-        .with_author(new_content.author.clone())
-        .with_published_at(new_content.published_at)
-        .with_keywords(new_content.keywords.clone())
-        .with_kind(new_content.kind.clone())
-        .with_image(new_content.image.clone())
-        .with_category_id(new_content.category_id.clone())
-        .with_version_hash(new_hash)
-        .with_links(new_content.links.clone());
-
-        self.content_repo.create(&params).await?;
-        Ok(IngestFileResult::Created)
-    }
-
-    async fn handle_existing_content(
-        &self,
-        existing: Content,
-        new_content: Content,
-        new_hash: String,
-        override_existing: bool,
-        dry_run: bool,
-        slug: String,
-    ) -> Result<IngestFileResult, ContentError> {
-        if existing.version_hash == new_hash {
-            return Ok(IngestFileResult::Unchanged);
-        }
-
-        if !override_existing {
-            return Ok(IngestFileResult::Skipped);
-        }
-
-        if dry_run {
-            return Ok(IngestFileResult::WouldUpdate(slug));
-        }
-
-        let update_params = UpdateContentParams::new(
-            existing.id.clone(),
-            new_content.title.clone(),
-            new_content.description.clone(),
-            new_content.body.clone(),
-        )
-        .with_keywords(new_content.keywords.clone())
-        .with_image(new_content.image.clone())
-        .with_version_hash(new_hash);
-        self.content_repo.update(&update_params).await?;
-        Ok(IngestFileResult::Updated)
     }
 
     fn create_content_from_metadata(

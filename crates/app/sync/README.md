@@ -16,11 +16,13 @@ This crate provides bidirectional sync capabilities for:
 ```
 src/
 ├── lib.rs                    # Crate root, public exports, SyncService orchestrator
-├── error.rs                  # SyncError enum and SyncResult type alias
+├── error.rs                  # SyncError enum with MissingConfig variant
 ├── api_client.rs             # HTTP client for cloud API communication
 ├── files.rs                  # FileSyncService - tarball creation/extraction
-├── database.rs               # DatabaseSyncService - cross-database sync
 ├── crate_deploy.rs           # CrateDeployService - Docker build and deploy
+├── database/
+│   ├── mod.rs                # DatabaseSyncService, export models, import logic
+│   └── upsert.rs             # Database upsert functions for users, skills, contexts
 ├── diff/
 │   ├── mod.rs                # Diff module exports, hash computation functions
 │   ├── content.rs            # ContentDiffCalculator - compare disk vs DB content
@@ -79,6 +81,17 @@ let config = SyncConfig::builder(
 let service = SyncService::new(config);
 let results = service.sync_all().await?;
 ```
+
+## Error Handling
+
+The crate uses `SyncError` for all error conditions:
+
+- `MissingConfig` - Required configuration (e.g., `DATABASE_URL`) not set
+- `ApiError` - HTTP API failures with status code and message
+- `Database` - SQL/connection errors
+- `Io` - File system errors
+- `Unauthorized` - Authentication required
+- `CommandFailed` - Shell command execution failures
 
 ## Dependencies
 
