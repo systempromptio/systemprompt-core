@@ -1,5 +1,6 @@
 use axum::Router;
 use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth::OAuthState;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::{
@@ -12,8 +13,14 @@ use axum::routing::get;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::AppPaths;
-use systemprompt_traits::{StartupEvent, StartupEventSender};
+use systemprompt_traits::{AppContextProvider, StartupEvent, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
+
+fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
+    let analytics = ctx.analytics_provider()?;
+    let users = ctx.user_provider()?;
+    Some(OAuthState::new(ctx.db_pool().clone(), analytics, users))
+}
 
 pub fn configure_routes(
     ctx: &AppContext,
@@ -38,19 +45,21 @@ pub fn configure_routes(
     let full_middleware = ContextMiddleware::full(jwt_extractor.clone());
     let mcp_middleware = ContextMiddleware::mcp(jwt_extractor.clone());
 
-    router = router.nest(
-        ApiPaths::OAUTH_BASE,
-        systemprompt_oauth::api::public_router(ctx)
-            .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
-            .with_auth_middleware(public_middleware.clone()),
-    );
+    if let Some(oauth_state) = create_oauth_state(ctx) {
+        router = router.nest(
+            ApiPaths::OAUTH_BASE,
+            systemprompt_oauth::api::public_router(oauth_state.clone())
+                .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
+                .with_auth_middleware(public_middleware.clone()),
+        );
 
-    router = router.nest(
-        ApiPaths::OAUTH_BASE,
-        systemprompt_oauth::api::authenticated_router(ctx)
-            .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
-            .with_auth_middleware(user_middleware.clone()),
-    );
+        router = router.nest(
+            ApiPaths::OAUTH_BASE,
+            systemprompt_oauth::api::authenticated_router(oauth_state)
+                .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
+                .with_auth_middleware(user_middleware.clone()),
+        );
+    }
 
     router = router.nest(
         ApiPaths::CORE_CONTEXTS,
