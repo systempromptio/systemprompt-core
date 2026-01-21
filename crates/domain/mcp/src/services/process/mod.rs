@@ -15,8 +15,7 @@ impl ProcessManager {
         Self
     }
 
-    #[allow(clippy::unused_self)]
-    pub fn spawn_server(&self, config: &McpServerConfig) -> Result<u32> {
+    pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
         spawner::spawn_server(config)
     }
 

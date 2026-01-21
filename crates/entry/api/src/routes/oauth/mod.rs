@@ -3,8 +3,7 @@ pub mod clients;
 pub mod core;
 pub mod discovery;
 pub mod health;
-#[allow(clippy::module_inception)]
-pub mod oauth;
+pub mod endpoints;
 mod responses;
 pub mod webauthn;
 pub mod wellknown;

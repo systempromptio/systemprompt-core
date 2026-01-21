@@ -1,5 +1,3 @@
-#![allow(clippy::clone_on_ref_ptr)]
-
 mod bootstrap;
 pub mod cli_settings;
 mod commands;

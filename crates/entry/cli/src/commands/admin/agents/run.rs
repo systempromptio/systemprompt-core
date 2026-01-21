@@ -35,7 +35,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
     );
 
     let agent_state = Arc::new(AgentState::new(
-        db_pool.clone(),
+        Arc::clone(&db_pool),
         Arc::new(config.clone()),
         jwt_provider,
     ));

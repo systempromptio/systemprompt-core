@@ -35,9 +35,9 @@ pub async fn serve_homepage() -> impl IntoResponse {
     }
 
     (
-        StatusCode::TEMPORARY_REDIRECT,
-        [(header::LOCATION, "/agent/")],
-        "",
+        StatusCode::NOT_FOUND,
+        [(header::CONTENT_TYPE, "text/html; charset=utf-8")],
+        "Homepage not found - index.html missing from web distribution",
     )
         .into_response()
 }

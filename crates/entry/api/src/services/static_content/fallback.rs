@@ -37,7 +37,6 @@ fn is_api_path(path: &str) -> bool {
         || path.starts_with(ApiPaths::WELLKNOWN_BASE)
         || path.starts_with("/server/")
         || path.starts_with("/mcp/")
-        || path.starts_with("/agent/")
         || path.starts_with("/health")
         || path.starts_with(ApiPaths::OPENAPI_BASE)
         || path.starts_with(ApiPaths::DOCS_BASE)

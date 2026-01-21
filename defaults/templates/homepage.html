@@ -181,7 +181,7 @@
                 <a href="/" class="logo">{{#if site.branding.name}}{{site.branding.name}}{{else}}SystemPrompt{{/if}}</a>
                 <div class="nav-links">
                     <a href="{{#if nav.blog_url}}{{nav.blog_url}}{{else}}/blog{{/if}}">Blog</a>
-                    <a href="{{#if nav.agent_url}}{{nav.agent_url}}{{else}}/agent{{/if}}" class="cta-button">Launch App</a>
+                    <a href="{{#if nav.app_url}}{{nav.app_url}}{{else}}/app{{/if}}" class="cta-button">Launch App</a>
                 </div>
             </nav>
         </div>
@@ -192,7 +192,7 @@
             <div class="container">
                 <h1>{{#if homepage.hero.title}}{{homepage.hero.title}}{{else}}Build AI Agents That Work{{/if}}</h1>
                 <p>{{#if homepage.hero.subtitle}}{{homepage.hero.subtitle}}{{else}}Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.{{/if}}</p>
-                <a href="{{#if nav.agent_url}}{{nav.agent_url}}{{else}}/agent{{/if}}" class="primary-cta">{{#if homepage.hero.cta}}{{homepage.hero.cta}}{{else}}Get Started{{/if}}</a>
+                <a href="{{#if nav.app_url}}{{nav.app_url}}{{else}}/app{{/if}}" class="primary-cta">{{#if homepage.hero.cta}}{{homepage.hero.cta}}{{else}}Get Started{{/if}}</a>
             </div>
         </section>
 
