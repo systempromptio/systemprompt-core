@@ -3,13 +3,27 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::AgentState;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
 
 const DEFAULT_API_PORT: u16 = 8080;
+
+fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
+    let jwt_provider = Arc::new(
+        JwtValidationProviderImpl::from_config()
+            .context("Failed to create JWT provider")?,
+    );
+    Ok(Arc::new(AgentState::new(
+        ctx.db_pool().clone(),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    )))
+}
 
 fn get_api_port() -> u16 {
     ProfileBootstrap::get()
@@ -55,7 +69,8 @@ pub async fn execute_agent(
 ) -> Result<()> {
     CliService::section(&format!("Restarting Agent: {}", agent_id));
 
-    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+    let agent_state = create_agent_state(ctx)?;
+    let orchestrator = AgentOrchestrator::new(agent_state, None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -83,7 +98,7 @@ pub async fn execute_mcp(
     };
     CliService::section(&format!("{} MCP Server: {}", action, server_name));
 
-    let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
 
     if build {
         manager
@@ -106,7 +121,8 @@ pub async fn execute_mcp(
 pub async fn execute_all_agents(ctx: &Arc<AppContext>, _config: &CliConfig) -> Result<()> {
     CliService::section("Restarting All Agents");
 
-    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+    let agent_state = create_agent_state(ctx)?;
+    let orchestrator = AgentOrchestrator::new(agent_state, None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -155,7 +171,7 @@ pub async fn execute_all_mcp(ctx: &Arc<AppContext>, _config: &CliConfig) -> Resu
     CliService::section("Restarting All MCP Servers");
 
     let mcp_manager =
-        McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+        McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
 
     systemprompt_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
@@ -224,7 +240,8 @@ async fn restart_failed_agents(
     restarted_count: &mut i32,
     failed_count: &mut i32,
 ) -> Result<()> {
-    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+    let agent_state = create_agent_state(ctx)?;
+    let orchestrator = AgentOrchestrator::new(agent_state, None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -266,7 +283,7 @@ async fn restart_failed_mcp(
     failed_count: &mut i32,
 ) -> Result<()> {
     let mcp_manager =
-        McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+        McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
 
     systemprompt_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;

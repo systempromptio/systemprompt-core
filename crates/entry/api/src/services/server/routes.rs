@@ -13,7 +13,7 @@ use axum::routing::get;
 use std::sync::Arc;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::AppPaths;
-use systemprompt_traits::{AppContextProvider, StartupEvent, StartupEventSender};
+use systemprompt_traits::{AppContext as AppContextTrait, StartupEvent, StartupEventSender};
 use systemprompt_users::BannedIpRepository;
 
 fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
@@ -48,14 +48,16 @@ pub fn configure_routes(
     if let Some(oauth_state) = create_oauth_state(ctx) {
         router = router.nest(
             ApiPaths::OAUTH_BASE,
-            systemprompt_oauth::api::public_router(oauth_state.clone())
+            crate::routes::oauth::public_router()
+                .with_state(oauth_state.clone())
                 .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
                 .with_auth_middleware(public_middleware.clone()),
         );
 
         router = router.nest(
             ApiPaths::OAUTH_BASE,
-            systemprompt_oauth::api::authenticated_router(oauth_state)
+            crate::routes::oauth::authenticated_router()
+                .with_state(oauth_state)
                 .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
                 .with_auth_middleware(user_middleware.clone()),
         );
@@ -108,7 +110,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::MCP_REGISTRY,
-        systemprompt_mcp::api::registry_router()
+        crate::routes::mcp::registry_router()
             .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -129,13 +131,13 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CONTENT_BASE,
-        systemprompt_content::api::router(ctx.db_pool())
+        crate::routes::content::router(ctx.db_pool())
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
 
     router = router.merge(
-        systemprompt_content::api::redirect_router(ctx.db_pool())
+        crate::routes::content::redirect_router(ctx.db_pool())
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -264,7 +266,7 @@ fn discovery_router(ctx: &AppContext) -> Router {
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {
-    systemprompt_oauth::api::wellknown::wellknown_routes()
+    crate::routes::oauth::wellknown_routes()
         .merge(crate::routes::wellknown_router(ctx))
 }
 

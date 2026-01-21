@@ -1,3 +1,4 @@
+use futures_util::StreamExt;
 use systemprompt_traits::{
     Phase, ServiceInfo, ServiceState, ServiceType, StartupEvent, StartupEventReceiver,
 };
@@ -25,7 +26,7 @@ impl StartupRenderer {
     pub async fn run(mut self) {
         StartupBanner::render(Some("Starting services..."));
 
-        while let Some(event) = self.receiver.recv().await {
+        while let Some(event) = self.receiver.next().await {
             if self.handle_event(event) {
                 break;
             }

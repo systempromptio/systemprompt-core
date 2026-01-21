@@ -3,9 +3,11 @@ use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_agent::AgentState;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 
@@ -113,7 +115,16 @@ pub async fn execute_individual_agent(
 ) -> Result<()> {
     CliService::section(&format!("Stopping Agent: {}", agent_id));
 
-    let orchestrator = AgentOrchestrator::new(Arc::clone(ctx), None)
+    let jwt_provider = Arc::new(
+        JwtValidationProviderImpl::from_config()
+            .context("Failed to create JWT provider")?,
+    );
+    let agent_state = Arc::new(AgentState::new(
+        ctx.db_pool().clone(),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    ));
+    let orchestrator = AgentOrchestrator::new(agent_state, None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 
@@ -138,7 +149,7 @@ pub async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Stopping MCP Server: {}", server_name));
 
-    let manager = McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
 
     manager.stop_services(Some(server_name.to_string())).await?;
 

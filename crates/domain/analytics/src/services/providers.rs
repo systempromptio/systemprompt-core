@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use axum::http::{HeaderMap, Uri};
+use http::{HeaderMap, Uri};
 use chrono::Utc;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{

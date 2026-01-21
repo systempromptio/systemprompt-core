@@ -56,7 +56,7 @@ async fn execute_internal(
     let conversations: Vec<ConversationListRow> = rows
         .into_iter()
         .map(|row| ConversationListRow {
-            context_id: row.context_id,
+            context_id: row.context_id.to_string(),
             name: row.name,
             task_count: row.task_count,
             message_count: row.message_count,

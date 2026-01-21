@@ -1,11 +1,16 @@
-use std::io::ErrorKind;
-use std::path::{Component, Path, PathBuf};
+use std::path::Path;
 
 use async_trait::async_trait;
 use systemprompt_provider_contracts::TemplateSource;
-use tokio::fs;
 
 use super::error::{Result, TemplateLoaderError};
+
+#[cfg(feature = "tokio")]
+use std::io::ErrorKind;
+#[cfg(feature = "tokio")]
+use std::path::{Component, PathBuf};
+#[cfg(feature = "tokio")]
+use tokio::fs;
 
 #[async_trait]
 pub trait TemplateLoader: Send + Sync {
@@ -18,11 +23,13 @@ pub trait TemplateLoader: Send + Sync {
     }
 }
 
+#[cfg(feature = "tokio")]
 #[derive(Debug, Default)]
 pub struct FileSystemLoader {
     base_paths: Vec<PathBuf>,
 }
 
+#[cfg(feature = "tokio")]
 impl FileSystemLoader {
     #[must_use]
     pub const fn new(base_paths: Vec<PathBuf>) -> Self {
@@ -96,6 +103,7 @@ impl FileSystemLoader {
     }
 }
 
+#[cfg(feature = "tokio")]
 #[async_trait]
 impl TemplateLoader for FileSystemLoader {
     async fn load(&self, source: &TemplateSource) -> Result<String> {

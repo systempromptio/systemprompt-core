@@ -87,7 +87,7 @@ async fn execute_internal(
     let requests: Vec<RequestListRowOutput> = rows
         .into_iter()
         .map(|row| RequestListRowOutput {
-            id: row.id.clone(),
+            id: row.id.to_string(),
             provider: row.provider,
             model: row.model,
             input_tokens: row.input_tokens.unwrap_or(0),

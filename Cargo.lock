@@ -4211,6 +4211,7 @@ dependencies = [
  "async-trait",
  "axum 0.8.8",
  "chrono",
+ "http 1.4.0",
  "maxminddb",
  "serde",
  "serde_json",
@@ -4234,6 +4235,7 @@ dependencies = [
  "async-stream",
  "async-trait",
  "axum 0.8.8",
+ "bcrypt",
  "chrono",
  "clap",
  "dotenvy",
@@ -4281,6 +4283,8 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
+ "validator",
+ "webauthn-rs",
 ]
 
 [[package]]
@@ -4422,7 +4426,6 @@ version = "0.0.1"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum 0.8.8",
  "chrono",
  "comrak",
  "dotenvy",
@@ -4449,7 +4452,6 @@ dependencies = [
  "tempfile",
  "thiserror 2.0.17",
  "tokio",
- "tower",
  "tracing",
  "url",
  "urlencoding",

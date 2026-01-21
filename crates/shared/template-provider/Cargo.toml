@@ -13,12 +13,16 @@ description = "Template provider traits and abstractions for SystemPrompt"
 [lints]
 workspace = true
 
+[features]
+default = []
+tokio = ["dep:tokio"]
+
 [dependencies]
 systemprompt-provider-contracts = { path = "../provider-contracts" }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["fs", "sync"] }
+tokio = { workspace = true, features = ["fs", "sync"], optional = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

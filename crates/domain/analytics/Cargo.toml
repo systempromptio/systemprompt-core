@@ -13,6 +13,10 @@ description = "Analytics module for SystemPrompt - session tracking, metrics, an
 [lints]
 workspace = true
 
+[features]
+default = []
+axum = ["dep:axum"]
+
 [dependencies]
 # Core runtime
 tokio = { workspace = true }
@@ -24,8 +28,11 @@ async-trait = { workspace = true }
 # Database
 sqlx = { workspace = true }
 
-# Web framework
-axum = { workspace = true }
+# HTTP types (framework-agnostic)
+http = { workspace = true }
+
+# Web framework (optional, for Request extraction)
+axum = { workspace = true, optional = true }
 
 # Serialization
 serde = { workspace = true }

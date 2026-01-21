@@ -6,6 +6,7 @@ use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::AgentState;
 use systemprompt_ai::{AiService, NoopToolProvider};
 use systemprompt_database::Database;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_models::Config;
 use systemprompt_oauth::JwtValidationProviderImpl;
 
@@ -20,6 +21,7 @@ pub struct RunArgs {
 
 pub async fn execute(args: RunArgs) -> Result<()> {
     let config = Config::get().context("Failed to get configuration")?;
+    let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
     let db_pool = Arc::new(
         Database::from_config(&config.database_type, &config.database_url)
@@ -40,7 +42,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
 
     let tool_provider = Arc::new(NoopToolProvider::new());
     let ai_service = Arc::new(
-        AiService::new(db_pool, &config.ai, tool_provider, None)
+        AiService::new(db_pool, &services_config.ai, tool_provider, None)
             .context("Failed to create AI service")?,
     );
 

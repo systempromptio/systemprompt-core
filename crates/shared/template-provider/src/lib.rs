@@ -2,10 +2,13 @@ pub mod traits;
 
 pub use traits::{
     ComponentContext, ComponentRenderer, EmbeddedLoader, ExtendedData, ExtenderContext,
-    FileSystemLoader, PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender,
+    PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender,
     TemplateDefinition, TemplateLoader, TemplateLoaderError, TemplateLoaderResult,
     TemplateProvider, TemplateSource,
 };
+
+#[cfg(feature = "tokio")]
+pub use traits::FileSystemLoader;
 
 pub type DynTemplateProvider = std::sync::Arc<dyn TemplateProvider>;
 

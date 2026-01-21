@@ -1,6 +1,8 @@
 use anyhow::Result;
 use futures_util::future::join_all;
 use std::sync::Arc;
+use systemprompt_agent::AgentState;
+use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
 
@@ -11,7 +13,14 @@ pub async fn reconcile_agents(
     use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
     use systemprompt_agent::services::registry::AgentRegistry;
 
-    let orchestrator = match AgentOrchestrator::new(Arc::new(ctx.clone()), events).await {
+    let jwt_provider = Arc::new(JwtValidationProviderImpl::from_config()?);
+    let agent_state = Arc::new(AgentState::new(
+        ctx.db_pool().clone(),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    ));
+
+    let orchestrator = match AgentOrchestrator::new(agent_state, events).await {
         Ok(orch) => orch,
         Err(e) => {
             if let Some(tx) = events {

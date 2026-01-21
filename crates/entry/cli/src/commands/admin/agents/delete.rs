@@ -9,9 +9,11 @@ use super::types::AgentDeleteOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::AgentState;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 use systemprompt_scheduler::ProcessCleanup;
 
@@ -82,8 +84,23 @@ pub async fn execute(
 
     let orchestrator = match AppContext::new().await {
         Ok(ctx) => {
-            let ctx = Arc::new(ctx);
-            AgentOrchestrator::new(ctx, None).await.ok()
+            let jwt_provider = match JwtValidationProviderImpl::from_config() {
+                Ok(p) => Arc::new(p),
+                Err(e) => {
+                    tracing::debug!(error = %e, "Failed to create JWT provider");
+                    return Ok(CommandResult::text(AgentDeleteOutput {
+                        deleted: vec![],
+                        message: format!("Failed to initialize: {e}"),
+                    })
+                    .with_title("Delete Failed"));
+                },
+            };
+            let agent_state = Arc::new(AgentState::new(
+                ctx.db_pool().clone(),
+                Arc::new(ctx.config().clone()),
+                jwt_provider,
+            ));
+            AgentOrchestrator::new(agent_state, None).await.ok()
         },
         Err(e) => {
             tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");

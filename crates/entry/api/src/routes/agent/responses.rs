@@ -8,14 +8,14 @@ pub fn api_error_response(error: ApiError) -> Response {
     (status, Json(error)).into_response()
 }
 
-pub fn single_response<T: Serialize>(data: T) -> Response {
+pub fn single_response<T: Serialize + 'static>(data: T) -> Response {
     (StatusCode::OK, Json(SingleResponse::new(data))).into_response()
 }
 
-pub fn single_response_created<T: Serialize>(data: T) -> Response {
+pub fn single_response_created<T: Serialize + 'static>(data: T) -> Response {
     (StatusCode::CREATED, Json(SingleResponse::new(data))).into_response()
 }
 
-pub fn collection_response<T: Serialize>(items: Vec<T>) -> Response {
+pub fn collection_response<T: Serialize + 'static>(items: Vec<T>) -> Response {
     (StatusCode::OK, Json(CollectionResponse::new(items))).into_response()
 }

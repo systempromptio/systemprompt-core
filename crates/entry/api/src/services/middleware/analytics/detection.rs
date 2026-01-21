@@ -67,8 +67,9 @@ pub fn spawn_behavioral_detection_task(
                 (now, now)
             });
 
+        let session_id_for_update = session_id.clone();
         let input = BehavioralAnalysisInput {
-            session_id: session_id.to_string(),
+            session_id,
             fingerprint_hash,
             user_agent,
             request_count,
@@ -85,7 +86,7 @@ pub fn spawn_behavioral_detection_task(
         if result.score > 0 {
             if let Err(e) = session_repo
                 .update_behavioral_detection(
-                    &session_id,
+                    &session_id_for_update,
                     result.score,
                     result.is_suspicious,
                     result.reason.as_deref(),
@@ -96,7 +97,7 @@ pub fn spawn_behavioral_detection_task(
             }
 
             if result.is_suspicious {
-                escalate_throttle_if_needed(&session_repo, &session_id, result.score).await;
+                escalate_throttle_if_needed(&session_repo, &session_id_for_update, result.score).await;
             }
         }
     });
