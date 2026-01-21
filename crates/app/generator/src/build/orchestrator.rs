@@ -3,22 +3,13 @@ use std::path::PathBuf;
 use std::time::Instant;
 use thiserror::Error;
 
-use super::steps::{build_vite, compile_typescript, generate_theme, organize_css};
+use super::steps::organize_css;
 use super::validation::validate_build;
 
 pub type Result<T> = std::result::Result<T, BuildError>;
 
 #[derive(Error, Debug)]
 pub enum BuildError {
-    #[error("Theme generation failed: {0}")]
-    ThemeGenerationFailed(String),
-
-    #[error("TypeScript compilation failed: {0}")]
-    TypeScriptFailed(String),
-
-    #[error("Vite build failed: {0}")]
-    ViteFailed(String),
-
     #[error("CSS organization failed: {0}")]
     CssOrganizationFailed(String),
 
@@ -66,6 +57,7 @@ impl BuildMode {
 #[derive(Debug)]
 pub struct BuildOrchestrator {
     web_dir: PathBuf,
+    #[allow(dead_code)]
     mode: BuildMode,
 }
 
@@ -84,18 +76,6 @@ impl BuildOrchestrator {
     }
 
     async fn execute_build_steps(&self, pb: &ProgressBar) -> Result<()> {
-        pb.set_message("Theme Generation");
-        generate_theme(&self.web_dir).await?;
-        pb.inc(1);
-
-        pb.set_message("TypeScript Compilation");
-        compile_typescript(&self.web_dir).await?;
-        pb.inc(1);
-
-        pb.set_message("Vite Build");
-        build_vite(&self.web_dir, &self.mode).await?;
-        pb.inc(1);
-
         pb.set_message("CSS Organization");
         organize_css(&self.web_dir).await?;
         pb.inc(1);
@@ -107,11 +87,6 @@ impl BuildOrchestrator {
         Ok(())
     }
 
-    pub async fn build_theme_only(&self) -> Result<()> {
-        tracing::info!("Generating theme");
-        generate_theme(&self.web_dir).await
-    }
-
     pub async fn validate_only(&self) -> Result<()> {
         tracing::info!("Validating build");
         validate_build(&self.web_dir).await
@@ -119,7 +94,7 @@ impl BuildOrchestrator {
 }
 
 fn create_progress_bar() -> ProgressBar {
-    let pb = ProgressBar::new(5);
+    let pb = ProgressBar::new(2);
     pb.set_style(
         ProgressStyle::default_bar()
             .template("{msg} [{bar:40.cyan/blue}] {pos}/{len}")

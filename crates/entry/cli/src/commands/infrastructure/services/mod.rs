@@ -58,9 +58,6 @@ pub enum ServicesCommands {
         #[arg(long, help = "Run in foreground (default)")]
         foreground: bool,
 
-        #[arg(long, help = "Skip web asset build")]
-        skip_web: bool,
-
         #[arg(long, help = "Skip database migrations")]
         skip_migrate: bool,
     },
@@ -159,7 +156,6 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             agents,
             mcp,
             foreground: _,
-            skip_web,
             skip_migrate,
         } => {
             if let Some(individual) = target {
@@ -183,10 +179,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
             let service_target = start::ServiceTarget::from_flags(flags);
-            let options = start::StartupOptions {
-                skip_web,
-                skip_migrate,
-            };
+            let options = start::StartupOptions { skip_migrate };
             start::execute(service_target, options, config).await
         },
 

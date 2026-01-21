@@ -54,7 +54,6 @@ impl ServiceTarget {
 }
 
 pub struct StartupOptions {
-    pub skip_web: bool,
     pub skip_migrate: bool,
 }
 
@@ -112,10 +111,6 @@ async fn run_startup(
         Err(e) => {
             anyhow::bail!("{}", e);
         },
-    }
-
-    if !options.skip_web {
-        crate::shared::web::build_web_assets()?;
     }
 
     events.phase_completed(Phase::PreFlight);

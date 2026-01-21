@@ -5,7 +5,6 @@ pub mod paths;
 pub mod process;
 pub mod profile;
 pub mod project;
-pub mod web;
 
 pub use command_result::{
     render_result, ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput,

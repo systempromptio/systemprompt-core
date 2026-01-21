@@ -38,7 +38,6 @@ impl CrateDeployService {
 
         if !skip_build {
             Self::build_release(&project_root)?;
-            Self::build_web(&project_root)?;
         }
 
         Self::build_docker(&project_root, &image)?;
@@ -99,14 +98,6 @@ impl CrateDeployService {
                 "--bin",
                 "systemprompt",
             ],
-            project_root,
-        )
-    }
-
-    fn build_web(project_root: &PathBuf) -> SyncResult<()> {
-        Self::run_command(
-            "npm",
-            &["run", "build", "--prefix", "core/web"],
             project_root,
         )
     }
