@@ -133,7 +133,7 @@ impl ExtensionRouterConfig {
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
     pub router: axum::Router,
@@ -141,7 +141,7 @@ pub struct ExtensionRouter {
     pub requires_auth: bool,
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl ExtensionRouter {
     #[must_use]
     pub const fn new(router: axum::Router, base_path: &'static str) -> Self {
@@ -181,7 +181,7 @@ pub trait Extension: Send + Sync + 'static {
         100
     }
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         let _ = ctx;
         None
@@ -264,12 +264,12 @@ pub trait Extension: Send + Sync + 'static {
         !self.schemas().is_empty()
     }
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     fn has_router(&self, ctx: &dyn ExtensionContext) -> bool {
         self.router(ctx).is_some()
     }
 
-    #[cfg(not(feature = "axum"))]
+    #[cfg(not(feature = "web"))]
     fn has_router(&self, _ctx: &dyn ExtensionContext) -> bool {
         false
     }
@@ -351,7 +351,7 @@ pub mod prelude {
         SchemaSource,
     };
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub use crate::ExtensionRouter;
 
     pub use crate::any::AnyExtension;
@@ -360,7 +360,7 @@ pub mod prelude {
         CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
     };
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub use crate::capabilities::HasHttpClient;
     pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
     pub use crate::typed::{
@@ -368,7 +368,7 @@ pub mod prelude {
         SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
     };
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub use crate::typed::ApiExtensionTypedDyn;
     pub use crate::typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
     pub use crate::types::{
@@ -383,20 +383,20 @@ pub mod prelude {
 }
 
 pub use any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 pub use any::ApiExtensionWrapper;
 pub use builder::ExtensionBuilder;
 pub use capabilities::{
     CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
 };
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 pub use capabilities::HasHttpClient;
 pub use hlist::{Contains, NotSame, Subset, TypeList};
 pub use typed::{
     ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
     SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 pub use typed::ApiExtensionTypedDyn;
 pub use typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
 pub use types::{

@@ -1,7 +1,7 @@
-//! Tests for HTTP service (BrowserRedirectService)
+//! Tests for HTTP service (is_browser_request)
 
-use axum::http::HeaderMap;
-use systemprompt_oauth::BrowserRedirectService;
+use http::HeaderMap;
+use systemprompt_oauth::is_browser_request;
 
 // ============================================================================
 // is_browser_request Tests
@@ -12,7 +12,7 @@ fn test_is_browser_request_html_accept() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "text/html,application/xhtml+xml".parse().unwrap());
 
-    assert!(BrowserRedirectService::is_browser_request(&headers));
+    assert!(is_browser_request(&headers));
 }
 
 #[test]
@@ -20,7 +20,7 @@ fn test_is_browser_request_html_only() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "text/html".parse().unwrap());
 
-    assert!(BrowserRedirectService::is_browser_request(&headers));
+    assert!(is_browser_request(&headers));
 }
 
 #[test]
@@ -28,7 +28,7 @@ fn test_is_browser_request_json_accept() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "application/json".parse().unwrap());
 
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -38,14 +38,14 @@ fn test_is_browser_request_json_first() {
 
     // The implementation checks if accept contains text/html AND doesn't start with application/json
     // This contains text/html but starts with application/json, so it returns false
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
 fn test_is_browser_request_missing_header() {
     let headers = HeaderMap::new();
 
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -53,7 +53,7 @@ fn test_is_browser_request_wildcard() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "*/*".parse().unwrap());
 
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -66,7 +66,7 @@ fn test_is_browser_request_typical_browser() {
             .unwrap(),
     );
 
-    assert!(BrowserRedirectService::is_browser_request(&headers));
+    assert!(is_browser_request(&headers));
 }
 
 #[test]
@@ -78,7 +78,7 @@ fn test_is_browser_request_api_client() {
     );
 
     // Starts with application/json
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -86,7 +86,7 @@ fn test_is_browser_request_plain_text() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "text/plain".parse().unwrap());
 
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_is_browser_request_xml() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "application/xml".parse().unwrap());
 
-    assert!(!BrowserRedirectService::is_browser_request(&headers));
+    assert!(!is_browser_request(&headers));
 }
 
 #[test]
@@ -102,7 +102,7 @@ fn test_is_browser_request_html_with_charset() {
     let mut headers = HeaderMap::new();
     headers.insert("accept", "text/html; charset=utf-8".parse().unwrap());
 
-    assert!(BrowserRedirectService::is_browser_request(&headers));
+    assert!(is_browser_request(&headers));
 }
 
 #[test]
@@ -114,7 +114,7 @@ fn test_is_browser_request_case_sensitivity() {
     // This tests how the implementation handles case
     // The check uses contains("text/html") so uppercase may not match
     // This test documents the actual behavior
-    let result = BrowserRedirectService::is_browser_request(&headers);
+    let result = is_browser_request(&headers);
     // Accept whatever the implementation does - this documents behavior
     let _ = result;
 }

@@ -7,6 +7,7 @@ use systemprompt_traits::{
 
 use crate::repository::{CreateSessionParams, SessionRepository};
 
+#[derive(Debug)]
 pub struct AnalyticsAiSessionProvider {
     session_repo: SessionRepository,
 }

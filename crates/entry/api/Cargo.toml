@@ -58,7 +58,7 @@ tracing = { workspace = true }
 dotenvy = { workspace = true }
 
 # SystemPrompt crates
-systemprompt-models = { path = "../../shared/models", features = ["axum"] }
+systemprompt-models = { path = "../../shared/models", features = ["web"] }
 systemprompt-loader = { path = "../../infra/loader" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }

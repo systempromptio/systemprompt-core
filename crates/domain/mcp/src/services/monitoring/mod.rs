@@ -6,7 +6,7 @@ use crate::McpServerConfig;
 use anyhow::Result;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct MonitoringManager;
 
 impl MonitoringManager {

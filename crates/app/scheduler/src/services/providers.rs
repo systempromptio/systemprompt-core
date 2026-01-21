@@ -26,6 +26,6 @@ impl ProcessCleanupProvider for ProcessCleanup {
     async fn wait_for_port_free(&self, port: u16, max_retries: u8, delay_ms: u64) -> ProcessResult<()> {
         ProcessCleanup::wait_for_port_free(port, max_retries, delay_ms)
             .await
-            .map_err(|e| ProcessProviderError::PortTimeout(port))
+            .map_err(|_e| ProcessProviderError::PortTimeout(port))
     }
 }

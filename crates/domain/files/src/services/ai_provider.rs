@@ -9,6 +9,7 @@ use systemprompt_traits::{
 use crate::config::FilesConfig;
 use crate::repository::{FileRepository, InsertFileRequest};
 
+#[derive(Debug)]
 pub struct FilesAiPersistenceProvider {
     repository: FileRepository,
 }

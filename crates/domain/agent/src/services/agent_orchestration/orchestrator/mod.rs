@@ -4,7 +4,6 @@ mod status;
 
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_database::DbPool;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;

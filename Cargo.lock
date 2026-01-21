@@ -4724,6 +4724,7 @@ dependencies = [
  "bcrypt",
  "chrono",
  "dotenvy",
+ "http 1.4.0",
  "inventory",
  "jsonwebtoken",
  "once_cell",

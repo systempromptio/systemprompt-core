@@ -35,7 +35,7 @@ pub use context::{
     ModuleRegistry,
 };
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 pub use context::ApiModule;
 
 pub use systemprompt_identifiers::{

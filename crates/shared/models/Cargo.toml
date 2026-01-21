@@ -61,7 +61,7 @@ rmcp = { workspace = true }
 
 [features]
 default = []
-axum = ["dep:axum"]
+web = ["dep:axum"]
 
 [dev-dependencies]
 tempfile = { workspace = true }

@@ -7,7 +7,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
-use systemprompt_oauth::services::{generate_secure_token, BrowserRedirectService};
+use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
 use systemprompt_oauth::OAuthState;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 
@@ -180,7 +180,7 @@ fn create_successful_response(
 ) -> axum::response::Response {
     let state = params.state.as_deref().filter(|s| !s.is_empty());
 
-    if BrowserRedirectService::is_browser_request(headers) {
+    if is_browser_request(headers) {
         let mut target = format!("{redirect_uri}?code={authorization_code}");
 
         if let Some(client_id_val) = params.client_id.as_deref() {

@@ -3,7 +3,7 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
 };
 use std::collections::HashMap;
-use systemprompt_identifiers::{ArtifactId, ExecutionStepId, MessageId, TaskId};
+use systemprompt_identifiers::{ArtifactId, MessageId, TaskId};
 use systemprompt_traits::RepositoryError;
 
 use super::batch_builders::{build_artifacts, build_execution_steps, build_messages};

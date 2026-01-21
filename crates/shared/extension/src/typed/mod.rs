@@ -5,7 +5,7 @@ mod provider;
 mod schema;
 
 pub use api::ApiExtensionTyped;
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 pub use api::ApiExtensionTypedDyn;
 pub use config::ConfigExtensionTyped;
 pub use job::JobExtensionTyped;

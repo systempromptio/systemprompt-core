@@ -1,7 +1,7 @@
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::extract::Request;
 
 use super::bot_keywords::{matches_bot_ip_range, matches_bot_pattern};
@@ -142,7 +142,7 @@ impl SessionAnalytics {
         analytics
     }
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub fn from_request(
         request: &Request,
         geoip_reader: Option<&GeoIpReader>,

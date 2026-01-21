@@ -1,8 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_identifiers::SessionId;
-use systemprompt_models::auth::{JwtAudience, Permission};
+use systemprompt_models::auth::Permission;
 use systemprompt_traits::{AgentJwtClaims, AuthUser, GenerateTokenParams};
 
 use super::types::{AgentAuthenticatedUser, AgentOAuthState};

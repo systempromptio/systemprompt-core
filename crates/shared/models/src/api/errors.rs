@@ -2,11 +2,11 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::http::StatusCode;
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::response::IntoResponse;
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::Json;
 
 #[derive(Debug, thiserror::Error)]
@@ -287,7 +287,7 @@ pub struct ErrorResponse {
     pub api_version: String,
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl ErrorCode {
     pub const fn status_code(&self) -> StatusCode {
         match self {
@@ -304,7 +304,7 @@ impl ErrorCode {
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl IntoResponse for ApiError {
     fn into_response(self) -> axum::response::Response {
         let status = self.code.status_code();
@@ -331,7 +331,7 @@ impl IntoResponse for ApiError {
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl IntoResponse for InternalApiError {
     fn into_response(self) -> axum::response::Response {
         let error: ApiError = self.into();

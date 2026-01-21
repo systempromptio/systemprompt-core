@@ -11,9 +11,9 @@ categories.workspace = true
 description = "Extension framework for SystemPrompt - register custom modules, providers, and APIs"
 
 [features]
-default = ["axum"]
+default = ["web"]
 plugin-discovery = []
-axum = ["dep:axum", "dep:reqwest", "systemprompt-traits/axum"]
+web = ["dep:axum", "dep:reqwest", "systemprompt-traits/web"]
 
 [lints]
 workspace = true

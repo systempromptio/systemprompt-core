@@ -35,19 +35,6 @@ pub fn single_response<T: Serialize>(data: T) -> Response {
         .into_response()
 }
 
-pub fn collection_response<T: Serialize>(items: Vec<T>) -> Response {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "data": items,
-            "meta": {
-                "total": items.len()
-            }
-        })),
-    )
-        .into_response()
-}
-
 pub fn created_response(body: serde_json::Value, location: String) -> Response {
     (
         StatusCode::CREATED,

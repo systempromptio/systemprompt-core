@@ -1,5 +1,4 @@
 use async_trait::async_trait;
-use systemprompt_identifiers::FileId;
 use systemprompt_traits::{
     FileUploadInput, FileUploadProvider, FileUploadProviderError, FileUploadResult,
     UploadedFileInfo,
