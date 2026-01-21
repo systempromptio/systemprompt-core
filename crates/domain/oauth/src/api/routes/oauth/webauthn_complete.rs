@@ -156,7 +156,7 @@ async fn store_authorization_code(
                 default_roles.join(" ")
             }
         },
-        |scope_str| scope_str.clone(),
+        Clone::clone,
     );
 
     let code = AuthorizationCode::new(code_str);

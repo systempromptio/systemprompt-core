@@ -179,7 +179,8 @@ async fn validate_single_service(
                     message: format!("Failed to connect to '{}'", service_name),
                 };
             },
-            Err(_) => {
+            Err(e) => {
+                tracing::debug!(server = %service_name, error = %e, "MCP validation timed out");
                 return McpValidateOutput {
                     server: service_name.to_string(),
                     valid: false,

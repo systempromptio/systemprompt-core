@@ -94,7 +94,10 @@ fn create_cli_stream(
             }
         };
 
-        let pid = child.id().unwrap_or(0);
+        let pid = child.id().unwrap_or_else(|| {
+            tracing::debug!("Child process has no PID (already exited?)");
+            0
+        });
         yield Ok(CliOutputEvent::Started { pid }.to_sse_event());
 
         let stdout = child.stdout.take();
@@ -168,7 +171,10 @@ fn create_cli_stream(
 
         match child.wait().await {
             Ok(status) => {
-                let code = status.code().unwrap_or(-1);
+                let code = status.code().unwrap_or_else(|| {
+                    tracing::debug!("Process terminated by signal");
+                    -1
+                });
                 tracing::info!(exit_code = code, "CLI command completed");
                 yield Ok(CliOutputEvent::ExitCode { code }.to_sse_event());
             }

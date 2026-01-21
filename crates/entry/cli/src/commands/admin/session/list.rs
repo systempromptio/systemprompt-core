@@ -40,34 +40,38 @@ struct ProfileInfo {
 }
 
 fn discover_profiles(dir: &std::path::Path) -> Vec<ProfileInfo> {
-    std::fs::read_dir(dir)
-        .map(|entries| {
-            entries
-                .filter_map(Result::ok)
-                .filter(|e| e.path().is_dir())
-                .filter_map(|e| {
-                    let entry_path = e.path();
-                    let config_path = ProfilePath::Config.resolve(&entry_path);
+    let entries = match std::fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(e) => {
+            tracing::debug!(path = %dir.display(), error = %e, "Failed to read profiles directory");
+            return Vec::new();
+        },
+    };
 
-                    if !config_path.exists() {
-                        return None;
-                    }
+    entries
+        .filter_map(Result::ok)
+        .filter(|e| e.path().is_dir())
+        .filter_map(|e| {
+            let entry_path = e.path();
+            let config_path = ProfilePath::Config.resolve(&entry_path);
 
-                    let name = e.file_name().to_str()?.to_string();
-                    let profile = load_profile_info(&config_path);
+            if !config_path.exists() {
+                return None;
+            }
 
-                    Some(ProfileInfo {
-                        name,
-                        display_name: profile.as_ref().map(|p| p.display_name.clone()),
-                        tenant_id: profile
-                            .as_ref()
-                            .and_then(|p| p.cloud.as_ref())
-                            .and_then(|c| c.tenant_id.clone()),
-                    })
-                })
-                .collect()
+            let name = e.file_name().to_str()?.to_string();
+            let profile = load_profile_info(&config_path);
+
+            Some(ProfileInfo {
+                name,
+                display_name: profile.as_ref().map(|p| p.display_name.clone()),
+                tenant_id: profile
+                    .as_ref()
+                    .and_then(|p| p.cloud.as_ref())
+                    .and_then(|c| c.tenant_id.clone()),
+            })
         })
-        .unwrap_or_default()
+        .collect()
 }
 
 fn load_profile_info(config_path: &std::path::Path) -> Option<Profile> {

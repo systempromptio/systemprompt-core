@@ -66,5 +66,8 @@ pub async fn wait_for_ready(timeout_secs: u64) -> bool {
         false
     })
     .await
+    .map_err(|_| {
+        tracing::debug!(timeout_secs = timeout_secs, "Readiness wait timed out");
+    })
     .unwrap_or(false)
 }

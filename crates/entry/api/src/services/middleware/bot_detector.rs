@@ -25,7 +25,14 @@ pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
     let user_agent = req
         .headers()
         .get("user-agent")
-        .and_then(|h| h.to_str().ok())
+        .and_then(|h| {
+            h.to_str()
+                .map_err(|e| {
+                    tracing::trace!(error = %e, "Invalid UTF-8 in user-agent header");
+                    e
+                })
+                .ok()
+        })
         .unwrap_or("")
         .to_string();
 

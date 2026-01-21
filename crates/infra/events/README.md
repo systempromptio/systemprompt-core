@@ -14,7 +14,7 @@ crates/infra/events/
 ├── README.md
 ├── status.md
 └── src/
-    ├── lib.rs                      # 51 lines  - Trait definitions, type aliases, re-exports
+    ├── lib.rs                      # 27 lines  - Trait definitions, type aliases, re-exports
     └── services/
         ├── mod.rs                  # 10 lines  - Module re-exports
         ├── broadcaster.rs          # 191 lines - GenericBroadcaster implementation
@@ -26,7 +26,6 @@ crates/infra/events/
 ### `lib.rs`
 Entry point defining core abstractions:
 - `Broadcaster` trait - Type-safe async broadcasting with connection management
-- `EventBus` trait - High-level abstraction for multi-channel event dispatch
 - `EventSender` type alias - Channel sender for SSE events (`UnboundedSender<Result<Event, Infallible>>`)
 
 ### `services/broadcaster.rs`
@@ -47,7 +46,6 @@ Event routing and global state:
 | Trait | Methods | Purpose |
 |-------|---------|---------|
 | `Broadcaster` | `register`, `unregister`, `broadcast`, `connection_count`, `total_connections` | Type-safe event broadcasting |
-| `EventBus` | `broadcast_agui`, `broadcast_a2a`, `broadcast_system`, `broadcast_context` | Multi-channel dispatch |
 
 ### Types
 | Type | Description |

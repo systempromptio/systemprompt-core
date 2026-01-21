@@ -27,7 +27,8 @@ pub async fn execute() -> Result<()> {
                 CliService::key_value("Cloud config", "Not configured");
             }
         },
-        Err(_) => {
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to get profile bootstrap");
             CliService::key_value("Profile", "Not initialized");
         },
     }
@@ -93,7 +94,8 @@ pub async fn execute() -> Result<()> {
         Ok(None) => {
             CliService::key_value("Authenticated", "No (cloud disabled or not configured)");
         },
-        Err(_) => {
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to get credentials bootstrap");
             CliService::key_value("Authenticated", "No (not initialized)");
             CliService::info("Run 'systemprompt cloud login' to authenticate");
         },

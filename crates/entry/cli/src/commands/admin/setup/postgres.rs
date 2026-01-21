@@ -222,7 +222,10 @@ pub fn detect_postgresql(host: &str, port: u16) -> bool {
     let addr = format!("{}:{}", host, port);
     let socket_addrs = match addr.to_socket_addrs() {
         Ok(addrs) => addrs.collect::<Vec<_>>(),
-        Err(_) => return false,
+        Err(e) => {
+            tracing::debug!(host = %host, port = %port, error = %e, "Failed to resolve socket address");
+            return false;
+        },
     };
 
     for socket_addr in socket_addrs {

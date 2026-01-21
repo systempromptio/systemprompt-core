@@ -14,13 +14,13 @@ cloud/
     ├── context.rs                  # CloudContext, ResolvedTenant
     ├── credentials.rs              # CloudCredentials management
     ├── credentials_bootstrap.rs    # CredentialsBootstrap global initialization
-    ├── cli_session.rs              # CliSession, SessionStore, SessionKey
     ├── error.rs                    # CloudError, CloudResult
     ├── tenants.rs                  # TenantStore, StoredTenant, TenantType
     │
     ├── api_client/
     │   ├── mod.rs                  # API client exports
-    │   ├── client.rs               # CloudApiClient HTTP methods
+    │   ├── client.rs               # CloudApiClient core HTTP methods
+    │   ├── tenant_api.rs           # Tenant-specific API methods
     │   ├── streams.rs              # SSE streaming for provisioning/checkout events
     │   └── types.rs                # Re-exports from systemprompt-models
     │
@@ -32,6 +32,11 @@ cloud/
     │   ├── mod.rs                  # Checkout exports
     │   ├── client.rs               # Checkout callback flow handling
     │   └── provisioning.rs         # Wait for provisioning (SSE + polling)
+    │
+    ├── cli_session/
+    │   ├── mod.rs                  # Session exports, SessionKey enum
+    │   ├── session.rs              # CliSession, CliSessionBuilder
+    │   └── store.rs                # SessionStore (multi-session management)
     │
     ├── oauth/
     │   ├── mod.rs                  # OAuth exports

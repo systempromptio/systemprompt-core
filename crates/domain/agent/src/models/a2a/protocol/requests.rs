@@ -112,12 +112,10 @@ impl A2aJsonRpcRequest {
                 Ok(A2aRequestParams::SendStreamingMessage(params))
             },
             "tasks/resubscribe" => {
-                let params: TaskResubscriptionRequest =
-                    serde_json::from_value(self.params.clone()).map_err(|e| {
-                        A2aParseError::InvalidParams {
-                            method: self.method.clone(),
-                            error: e.to_string(),
-                        }
+                let params: TaskResubscriptionRequest = serde_json::from_value(self.params.clone())
+                    .map_err(|e| A2aParseError::InvalidParams {
+                        method: self.method.clone(),
+                        error: e.to_string(),
                     })?;
                 Ok(A2aRequestParams::TaskResubscription(params))
             },

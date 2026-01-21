@@ -114,7 +114,8 @@ pub async fn sync_admin_to_database(
                 error: e.to_string(),
             };
         },
-        Err(_) => {
+        Err(e) => {
+            tracing::debug!(profile = %profile_name, error = %e, "Database connection timed out");
             return SyncResult::ConnectionFailed {
                 profile: profile_name.to_string(),
                 error: "Connection timed out".to_string(),

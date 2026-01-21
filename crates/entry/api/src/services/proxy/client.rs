@@ -15,7 +15,10 @@ impl ClientPool {
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(120))
                 .build()
-                .unwrap_or_else(|_| reqwest::Client::new()),
+                .unwrap_or_else(|e| {
+                    tracing::warn!(error = %e, "Failed to build HTTP client with timeout, using default");
+                    reqwest::Client::new()
+                }),
         }
     }
 

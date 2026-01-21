@@ -128,6 +128,11 @@ pub trait RepositoryExt<E: Entity>: Sized {
         column: &str,
         value: T,
     ) -> Result<Option<E>, sqlx::Error> {
+        if !column.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err(sqlx::Error::Protocol(format!(
+                "Invalid column name: {column}"
+            )));
+        }
         let query = format!(
             "SELECT {} FROM {} WHERE {} = $1",
             E::COLUMNS,
@@ -145,6 +150,11 @@ pub trait RepositoryExt<E: Entity>: Sized {
         column: &str,
         value: T,
     ) -> Result<Vec<E>, sqlx::Error> {
+        if !column.chars().all(|c| c.is_alphanumeric() || c == '_') {
+            return Err(sqlx::Error::Protocol(format!(
+                "Invalid column name: {column}"
+            )));
+        }
         let query = format!(
             "SELECT {} FROM {} WHERE {} = $1 ORDER BY created_at DESC",
             E::COLUMNS,

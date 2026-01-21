@@ -20,30 +20,6 @@ pub trait Broadcaster: Send + Sync {
     async fn total_connections(&self) -> usize;
 }
 
-#[async_trait]
-pub trait EventBus: Send + Sync {
-    async fn broadcast_agui(
-        &self,
-        user_id: &UserId,
-        event: systemprompt_models::AgUiEvent,
-    ) -> (usize, usize);
-    async fn broadcast_a2a(
-        &self,
-        user_id: &UserId,
-        event: systemprompt_models::A2AEvent,
-    ) -> (usize, usize);
-    async fn broadcast_system(
-        &self,
-        user_id: &UserId,
-        event: systemprompt_models::SystemEvent,
-    ) -> usize;
-    async fn broadcast_context(
-        &self,
-        user_id: &UserId,
-        event: systemprompt_models::ContextEvent,
-    ) -> usize;
-}
-
 pub use services::{
     standard_keep_alive, A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, ConnectionGuard,
     ContextBroadcaster, EventRouter, GenericBroadcaster, A2A_BROADCASTER, AGUI_BROADCASTER,

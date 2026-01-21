@@ -53,6 +53,10 @@ pub fn spawn_behavioral_detection_task(
         let session_data = session_repo
             .get_session_for_behavioral_analysis(&session_id)
             .await
+            .map_err(|e| {
+                tracing::debug!(error = %e, "Failed to get session for behavioral analysis");
+                e
+            })
             .ok()
             .flatten();
 
@@ -106,6 +110,10 @@ async fn escalate_throttle_if_needed(
     let current_level = session_repo
         .get_throttle_level(session_id)
         .await
+        .map_err(|e| {
+            tracing::debug!(error = %e, "Failed to get throttle level");
+            e
+        })
         .unwrap_or(0);
 
     let level = ThrottleLevel::from(current_level);
