@@ -1,4 +1,3 @@
-use axum::response::sse::Event;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
@@ -90,10 +89,6 @@ impl A2AEvent {
         }
     }
 
-    pub fn to_sse(&self) -> Result<Event, serde_json::Error> {
-        let json = serde_json::to_string(self)?;
-        Ok(Event::default().data(json))
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
