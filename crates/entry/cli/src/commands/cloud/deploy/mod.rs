@@ -54,8 +54,8 @@ impl DeployConfig {
             ));
         }
 
-        self.validate_web_dist()?;
         self.validate_extension_assets()?;
+        self.validate_storage_directory()?;
         self.validate_templates_directory()?;
 
         if !self.dockerfile.exists() {
@@ -66,27 +66,6 @@ impl DeployConfig {
         }
 
         Ok(())
-    }
-
-    fn validate_web_dist(&self) -> Result<()> {
-        let web_dist_paths = [
-            self.project_root.join("core/web/dist"),
-            self.project_root.join("web/dist"),
-        ];
-
-        let web_dist = web_dist_paths.iter().find(|p| p.exists());
-
-        match web_dist {
-            None => bail!(
-                "Web dist not found.\n\nDeployment requires built web assets.\nRun: just build \
-                 --release\nOr:  cd web && npm run build"
-            ),
-            Some(dist_path) if !dist_path.join("index.html").exists() => bail!(
-                "Web dist missing index.html: {}\n\nRun: just build --release",
-                dist_path.display()
-            ),
-            Some(_) => Ok(()),
-        }
     }
 
     fn validate_extension_assets(&self) -> Result<()> {
@@ -132,6 +111,29 @@ impl DeployConfig {
                 "Extension assets outside Docker build context:\n  {}\n\nMove assets inside the \
                  project directory.",
                 outside_context.join("\n  ")
+            );
+        }
+
+        Ok(())
+    }
+
+    fn validate_storage_directory(&self) -> Result<()> {
+        let storage_dir = self.project_root.join("storage");
+
+        if !storage_dir.exists() {
+            bail!(
+                "Storage directory not found: {}\n\nExpected: storage/\n\nCreate this directory \
+                 for files, images, and other assets.",
+                storage_dir.display()
+            );
+        }
+
+        let files_dir = storage_dir.join("files");
+        if !files_dir.exists() {
+            bail!(
+                "Storage files directory not found: {}\n\nExpected: storage/files/\n\nThis \
+                 directory is required for serving static assets.",
+                files_dir.display()
             );
         }
 
