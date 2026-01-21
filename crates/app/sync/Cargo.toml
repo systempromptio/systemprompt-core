@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Sync services for SystemPrompt - file, database, and crate deployment synchronization"
 
 [dependencies]
@@ -35,10 +39,10 @@ sha2 = { workspace = true }
 walkdir = { workspace = true }
 
 # Domain crates for local sync
-systemprompt-core-agent = { path = "../../domain/agent" }
-systemprompt-core-content = { path = "../../domain/content" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-agent = { path = "../../domain/agent" }
+systemprompt-content = { path = "../../domain/content" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 [dev-dependencies]

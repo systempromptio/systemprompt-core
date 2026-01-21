@@ -1,6 +1,6 @@
 //! Tests for AI request record types.
 
-use systemprompt_core_ai::models::{
+use systemprompt_ai::models::{
     AiRequestRecord, AiRequestRecordBuilder, AiRequestRecordError, CacheInfo, RequestStatus,
     TokenInfo,
 };

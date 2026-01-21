@@ -1,6 +1,6 @@
 //! Tests for Anthropic model types.
 
-use systemprompt_core_ai::models::providers::anthropic::{
+use systemprompt_ai::models::providers::anthropic::{
     AnthropicContent, AnthropicContentBlock, AnthropicMessage, AnthropicModels, AnthropicRequest,
     AnthropicResponse, AnthropicTool, AnthropicToolChoice, AnthropicUsage,
 };

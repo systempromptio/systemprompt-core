@@ -8,7 +8,7 @@
 //! - UserSessionRow to UserSession conversion
 
 use chrono::Utc;
-use systemprompt_core_users::{User, UserRole, UserStatus};
+use systemprompt_users::{User, UserRole, UserStatus};
 use systemprompt_identifiers::UserId;
 
 // ============================================================================
@@ -396,7 +396,7 @@ mod user_tests {
 
 mod user_activity_tests {
     use super::*;
-    use systemprompt_core_users::UserActivity;
+    use systemprompt_users::UserActivity;
 
     #[test]
     fn user_activity_creation() {
@@ -485,7 +485,7 @@ mod user_activity_tests {
 
 mod user_with_sessions_tests {
     use super::*;
-    use systemprompt_core_users::UserWithSessions;
+    use systemprompt_users::UserWithSessions;
 
     #[test]
     fn user_with_sessions_creation() {
@@ -588,7 +588,7 @@ mod user_with_sessions_tests {
 
 mod user_session_tests {
     use super::*;
-    use systemprompt_core_users::UserSession;
+    use systemprompt_users::UserSession;
     use systemprompt_identifiers::SessionId;
 
     #[test]

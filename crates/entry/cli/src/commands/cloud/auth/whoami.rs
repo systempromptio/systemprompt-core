@@ -3,7 +3,7 @@ use chrono::Duration;
 use systemprompt_cloud::{
     get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, ProfilePath, ProjectContext,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 pub async fn execute() -> Result<()> {
     CliService::section("SystemPrompt Cloud Identity");

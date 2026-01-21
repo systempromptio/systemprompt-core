@@ -1,6 +1,6 @@
 //! Tests for NoopToolProvider.
 
-use systemprompt_core_ai::services::tools::NoopToolProvider;
+use systemprompt_ai::services::tools::NoopToolProvider;
 use systemprompt_traits::{ToolCallRequest, ToolContext, ToolProvider};
 use serde_json::json;
 

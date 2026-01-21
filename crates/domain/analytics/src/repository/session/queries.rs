@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;

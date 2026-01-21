@@ -1,4 +1,4 @@
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_sync::{ContentDiffEntry, LocalSyncResult};
 
 pub fn display_diff_summary(diffs: &[ContentDiffEntry]) {

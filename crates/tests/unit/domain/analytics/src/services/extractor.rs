@@ -2,7 +2,7 @@
 
 use axum::http::{HeaderMap, HeaderValue, Uri};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use systemprompt_core_analytics::SessionAnalytics;
+use systemprompt_analytics::SessionAnalytics;
 use systemprompt_models::ContentRouting;
 
 mod session_analytics_tests {

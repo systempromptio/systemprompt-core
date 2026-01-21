@@ -7,7 +7,7 @@
 
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_core_config::{generate_schema, validate_yaml_str, ConfigValidationError};
+use systemprompt_config::{generate_schema, validate_yaml_str, ConfigValidationError};
 
 // ============================================================================
 // Test Structs

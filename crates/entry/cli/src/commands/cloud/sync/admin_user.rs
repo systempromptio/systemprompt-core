@@ -4,9 +4,9 @@ use std::sync::Arc;
 use systemprompt_cloud::{
     get_cloud_paths, CloudCredentials, CloudPath, ProfilePath, ProjectContext,
 };
-use systemprompt_core_database::Database;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_users::{PromoteResult, UserAdminService, UserService};
+use systemprompt_database::Database;
+use systemprompt_logging::CliService;
+use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 #[derive(Debug, Clone)]
 pub struct CloudUser {

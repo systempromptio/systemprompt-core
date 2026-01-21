@@ -7,7 +7,7 @@
 //! - Error handling for missing/invalid cookies
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_core_security::{CookieExtractionError, CookieExtractor};
+use systemprompt_security::{CookieExtractionError, CookieExtractor};
 
 // ============================================================================
 // CookieExtractor Constructor Tests

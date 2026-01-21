@@ -5,7 +5,7 @@
 //! - AgentDiscovery types
 //! - AgentCounts structure
 
-use systemprompt_core_agent::models::web::{
+use systemprompt_agent::models::web::{
     AgentCounts, AgentDiscoveryEntry, AgentDiscoveryResponse, ListAgentsQuery,
 };
 

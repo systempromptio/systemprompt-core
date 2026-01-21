@@ -1,7 +1,7 @@
 //! Tests for OAuthClient and related types
 
 use chrono::Utc;
-use systemprompt_core_oauth::{
+use systemprompt_oauth::{
     ClientRelations, CreateOAuthClientRequest, OAuthClient, OAuthClientResponse, OAuthClientRow,
     UpdateOAuthClientRequest,
 };

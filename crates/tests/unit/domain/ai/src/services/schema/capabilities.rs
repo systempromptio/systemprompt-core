@@ -1,6 +1,6 @@
 //! Tests for ProviderCapabilities.
 
-use systemprompt_core_ai::services::schema::ProviderCapabilities;
+use systemprompt_ai::services::schema::ProviderCapabilities;
 use serde_json::json;
 
 mod anthropic_capabilities_tests {

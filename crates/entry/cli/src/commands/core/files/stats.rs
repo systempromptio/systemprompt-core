@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_database::DbPool;
-use systemprompt_core_files::{FileService, FileStats};
+use systemprompt_database::DbPool;
+use systemprompt_files::{FileService, FileStats};
 use systemprompt_runtime::AppContext;
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};

@@ -1,5 +1,5 @@
 use chrono::Duration;
-use systemprompt_core_security::{AdminTokenParams, JwtService};
+use systemprompt_security::{AdminTokenParams, JwtService};
 use systemprompt_identifiers::{SessionId, UserId};
 
 #[test]

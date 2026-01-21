@@ -4,8 +4,8 @@ use axum::response::IntoResponse;
 use std::sync::Arc;
 
 use super::config::StaticContentMatcher;
-use systemprompt_core_content::ContentRepository;
-use systemprompt_core_files::FilesConfig;
+use systemprompt_content::ContentRepository;
+use systemprompt_files::FilesConfig;
 use systemprompt_models::{AppPaths, RouteClassifier, RouteType};
 use systemprompt_runtime::AppContext;
 

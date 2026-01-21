@@ -1,7 +1,7 @@
 //! Tests for OAuth types: GrantType, PkceMethod, ResponseType, ResponseMode, DisplayMode, Prompt, TokenAuthMethod
 
 use std::str::FromStr;
-use systemprompt_core_oauth::{
+use systemprompt_oauth::{
     DisplayMode, GrantType, PkceMethod, Prompt, ResponseMode, ResponseType, TokenAuthMethod,
 };
 

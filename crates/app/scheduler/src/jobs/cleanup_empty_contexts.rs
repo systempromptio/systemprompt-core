@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult};
 use tracing::info;
 

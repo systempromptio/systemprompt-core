@@ -1,7 +1,7 @@
 //! Unit tests for MCPService model
 
 use chrono::Utc;
-use systemprompt_core_mcp::models::MCPService;
+use systemprompt_mcp::models::MCPService;
 use uuid::Uuid;
 
 fn create_test_service(status: &str, health: &str) -> MCPService {

@@ -5,15 +5,15 @@ use std::sync::Arc;
 
 use crate::McpServerConfig;
 use anyhow::Result;
-use systemprompt_core_database::ServiceRepository;
+use systemprompt_database::ServiceRepository;
 
 #[derive(Debug, Clone)]
 pub struct DatabaseManager {
-    db_pool: systemprompt_core_database::DbPool,
+    db_pool: systemprompt_database::DbPool,
 }
 
 impl DatabaseManager {
-    pub const fn new(db_pool: systemprompt_core_database::DbPool) -> Self {
+    pub const fn new(db_pool: systemprompt_database::DbPool) -> Self {
         Self { db_pool }
     }
 
@@ -75,7 +75,7 @@ impl DatabaseManager {
         state::register_existing_process(&self.db_pool, config, pid).await
     }
 
-    pub const fn db_pool(&self) -> &systemprompt_core_database::DbPool {
+    pub const fn db_pool(&self) -> &systemprompt_database::DbPool {
         &self.db_pool
     }
 }

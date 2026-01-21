@@ -1,5 +1,5 @@
 use anyhow::{bail, Context, Result};
-use systemprompt_core_agent::repository::context::ContextRepository;
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_identifiers::{ContextId, UserId};
 
 pub async fn resolve_context(

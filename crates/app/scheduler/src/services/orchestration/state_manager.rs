@@ -7,7 +7,7 @@ use tokio::time::timeout;
 use super::process_cleanup::ProcessCleanup;
 use super::state_types::{DesiredStatus, RuntimeStatus, ServiceType};
 use super::verified_state::VerifiedServiceState;
-use systemprompt_core_database::{DatabaseProvider, DatabaseQuery, DbPool};
+use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 
 const FETCH_DB_SERVICES: DatabaseQuery = DatabaseQuery::new(
     "SELECT name, module_name as service_type, status, pid, port FROM services WHERE status IN \
@@ -151,7 +151,7 @@ impl ServiceStateManager {
     }
 
     async fn fetch_db_services(&self) -> Result<Vec<DbServiceRecord>> {
-        let empty_params: &[&dyn systemprompt_core_database::ToDbValue] = &[];
+        let empty_params: &[&dyn systemprompt_database::ToDbValue] = &[];
         let rows = self
             .db_pool
             .as_ref()

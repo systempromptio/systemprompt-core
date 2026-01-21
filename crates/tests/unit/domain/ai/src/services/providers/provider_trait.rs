@@ -1,11 +1,11 @@
 //! Tests for provider trait types.
 
-use systemprompt_core_ai::services::providers::{
+use systemprompt_ai::services::providers::{
     GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
     StructuredGenerationParams, ToolGenerationParams, ToolResultsParams,
 };
-use systemprompt_core_ai::models::ai::{AiMessage, MessageRole, ResponseFormat, SamplingParams};
-use systemprompt_core_ai::models::tools::{CallToolResult, McpTool, ToolCall};
+use systemprompt_ai::models::ai::{AiMessage, MessageRole, ResponseFormat, SamplingParams};
+use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use serde_json::json;
 

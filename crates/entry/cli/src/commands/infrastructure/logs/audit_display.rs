@@ -1,4 +1,4 @@
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::audit::{AuditOutput, AuditToolCall};
 use super::types::MessageRow;

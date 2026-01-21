@@ -3,7 +3,7 @@ use anyhow::Result;
 use chrono::Utc;
 use jsonwebtoken::{encode, EncodingKey, Header};
 use serde::{Deserialize, Serialize};
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct TestClaims {

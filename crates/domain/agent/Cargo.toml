@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-agent"
+name = "systemprompt-agent"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core Agent protocol module for SystemPrompt"
 
 [lints]
@@ -32,18 +36,18 @@ inventory = { workspace = true }
 
 # Core module dependencies
 systemprompt-loader = { path = "../../infra/loader" }
-systemprompt-core-events = { path = "../../infra/events" }
-systemprompt-core-oauth = { path = "../oauth" }
-systemprompt-core-users = { path = "../users" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-config = { path = "../../infra/config" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-analytics = { path = "../analytics" }
-systemprompt-core-security = { path = "../../infra/security" }
-systemprompt-core-scheduler = { path = "../../app/scheduler" }
-systemprompt-core-mcp = { path = "../mcp" }
-systemprompt-core-ai = { path = "../ai" }
-systemprompt-core-files = { path = "../files" }
+systemprompt-events = { path = "../../infra/events" }
+systemprompt-oauth = { path = "../oauth" }
+systemprompt-users = { path = "../users" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-config = { path = "../../infra/config" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-analytics = { path = "../analytics" }
+systemprompt-security = { path = "../../infra/security" }
+systemprompt-scheduler = { path = "../../app/scheduler" }
+systemprompt-mcp = { path = "../mcp" }
+systemprompt-ai = { path = "../ai" }
+systemprompt-files = { path = "../files" }
 rmcp = { workspace = true }
 
 # Async runtime

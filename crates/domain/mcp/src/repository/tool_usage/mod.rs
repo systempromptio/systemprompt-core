@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AiToolCallId, ContextId, McpExecutionId, UserId};
 use uuid::Uuid;
 

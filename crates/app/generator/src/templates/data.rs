@@ -1,9 +1,9 @@
 use anyhow::{Context, Result};
 use serde_json::{json, Value};
 use systemprompt_cloud::constants::storage;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
 

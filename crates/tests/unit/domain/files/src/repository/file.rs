@@ -3,7 +3,7 @@
 //! Note: FileRepository methods require a database connection and are covered
 //! in integration tests. These unit tests focus on InsertFileRequest builder.
 
-use systemprompt_core_files::InsertFileRequest;
+use systemprompt_files::InsertFileRequest;
 use systemprompt_identifiers::{FileId, SessionId, TraceId, UserId};
 
 // ============================================================================

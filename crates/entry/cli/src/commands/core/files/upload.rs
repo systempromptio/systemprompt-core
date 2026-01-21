@@ -5,7 +5,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use clap::Args;
 use sha2::{Digest, Sha256};
-use systemprompt_core_files::{FileUploadRequest, FileUploadService, FilesConfig};
+use systemprompt_files::{FileUploadRequest, FileUploadService, FilesConfig};
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_runtime::AppContext;
 use tokio::fs;

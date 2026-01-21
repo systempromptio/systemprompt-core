@@ -7,7 +7,7 @@
 //! - EnvironmentConfig creation
 
 use std::collections::HashMap;
-use systemprompt_core_config::{DeployEnvironment, DeploymentConfig, EnvironmentConfig};
+use systemprompt_config::{DeployEnvironment, DeploymentConfig, EnvironmentConfig};
 
 // ============================================================================
 // DeployEnvironment as_str Tests

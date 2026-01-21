@@ -5,7 +5,7 @@ use crate::services::ExecutionTrackingService;
 use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, TaskId};
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::AgUiEventBuilder;

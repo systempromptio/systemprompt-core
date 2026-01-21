@@ -9,8 +9,8 @@
 //! - Anonymous user cleanup
 
 use anyhow::Result;
-use systemprompt_core_database::Database;
-use systemprompt_core_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
+use systemprompt_database::Database;
+use systemprompt_users::{UpdateUserParams, UserRepository, UserRole, UserStatus};
 use systemprompt_identifiers::UserId;
 
 async fn get_db() -> Option<Database> {

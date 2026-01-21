@@ -2,11 +2,11 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use axum::http::HeaderMap;
-use systemprompt_core_oauth::{
+use systemprompt_oauth::{
     validate_jwt_token, CreateAnonymousSessionInput, SessionCreationService,
 };
-use systemprompt_core_security::TokenExtractor;
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_security::TokenExtractor;
+use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
 use systemprompt_runtime::AppContext;
 

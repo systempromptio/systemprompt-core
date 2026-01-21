@@ -9,7 +9,7 @@
 //! - Model validation and state transitions
 
 use chrono::{TimeZone, Utc};
-use systemprompt_core_scheduler::{
+use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ReconciliationResult, RuntimeStatus, ScheduledJob,
     SchedulerError, ServiceAction, ServiceConfig, ServiceType, VerifiedServiceState,
 };
@@ -1133,7 +1133,7 @@ fn test_reconciliation_result_aggregation() {
 
 #[test]
 fn test_behavioral_analysis_job_properties() {
-    use systemprompt_core_scheduler::BehavioralAnalysisJob;
+    use systemprompt_scheduler::BehavioralAnalysisJob;
     use systemprompt_traits::Job;
 
     let job = BehavioralAnalysisJob;
@@ -1147,7 +1147,7 @@ fn test_behavioral_analysis_job_properties() {
 
 #[test]
 fn test_database_cleanup_job_properties() {
-    use systemprompt_core_scheduler::DatabaseCleanupJob;
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
     let job = DatabaseCleanupJob;
@@ -1161,7 +1161,7 @@ fn test_database_cleanup_job_properties() {
 
 #[test]
 fn test_cleanup_empty_contexts_job_properties() {
-    use systemprompt_core_scheduler::CleanupEmptyContextsJob;
+    use systemprompt_scheduler::CleanupEmptyContextsJob;
     use systemprompt_traits::Job;
 
     let job = CleanupEmptyContextsJob;
@@ -1175,7 +1175,7 @@ fn test_cleanup_empty_contexts_job_properties() {
 
 #[test]
 fn test_cleanup_inactive_sessions_job_properties() {
-    use systemprompt_core_scheduler::CleanupInactiveSessionsJob;
+    use systemprompt_scheduler::CleanupInactiveSessionsJob;
     use systemprompt_traits::Job;
 
     let job = CleanupInactiveSessionsJob;
@@ -1193,7 +1193,7 @@ fn test_cleanup_inactive_sessions_job_properties() {
 
 #[test]
 fn test_job_schedules_are_valid_cron_format() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1222,7 +1222,7 @@ fn test_job_schedules_are_valid_cron_format() {
 
 #[test]
 fn test_all_jobs_have_unique_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1253,7 +1253,7 @@ fn test_all_jobs_have_unique_names() {
 
 #[test]
 fn test_process_info_creation() {
-    use systemprompt_core_scheduler::ProcessInfo;
+    use systemprompt_scheduler::ProcessInfo;
 
     let info = ProcessInfo {
         pid: 1234,
@@ -1268,7 +1268,7 @@ fn test_process_info_creation() {
 
 #[test]
 fn test_process_info_clone() {
-    use systemprompt_core_scheduler::ProcessInfo;
+    use systemprompt_scheduler::ProcessInfo;
 
     let info = ProcessInfo {
         pid: 5678,
@@ -1284,7 +1284,7 @@ fn test_process_info_clone() {
 
 #[test]
 fn test_process_info_debug() {
-    use systemprompt_core_scheduler::ProcessInfo;
+    use systemprompt_scheduler::ProcessInfo;
 
     let info = ProcessInfo {
         pid: 9999,
@@ -1301,7 +1301,7 @@ fn test_process_info_debug() {
 
 #[test]
 fn test_process_info_with_empty_name() {
-    use systemprompt_core_scheduler::ProcessInfo;
+    use systemprompt_scheduler::ProcessInfo;
 
     let info = ProcessInfo {
         pid: 100,
@@ -1314,7 +1314,7 @@ fn test_process_info_with_empty_name() {
 
 #[test]
 fn test_process_info_with_long_name() {
-    use systemprompt_core_scheduler::ProcessInfo;
+    use systemprompt_scheduler::ProcessInfo;
 
     let long_name = "a".repeat(1000);
     let info = ProcessInfo {
@@ -1332,7 +1332,7 @@ fn test_process_info_with_long_name() {
 
 #[test]
 fn test_check_port_protected_postgres() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // PostgreSQL port should return None (protected)
     let result = ProcessCleanup::check_port(5432);
@@ -1341,7 +1341,7 @@ fn test_check_port_protected_postgres() {
 
 #[test]
 fn test_check_port_protected_pgbouncer() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // PgBouncer port should return None (protected)
     let result = ProcessCleanup::check_port(6432);
@@ -1350,7 +1350,7 @@ fn test_check_port_protected_pgbouncer() {
 
 #[test]
 fn test_kill_port_protected_postgres() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Killing PostgreSQL port should return empty vec (protected)
     let result = ProcessCleanup::kill_port(5432);
@@ -1362,7 +1362,7 @@ fn test_kill_port_protected_postgres() {
 
 #[test]
 fn test_kill_port_protected_pgbouncer() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Killing PgBouncer port should return empty vec (protected)
     let result = ProcessCleanup::kill_port(6432);
@@ -1378,7 +1378,7 @@ fn test_kill_port_protected_pgbouncer() {
 
 #[test]
 fn test_kill_by_pattern_protected_postgres() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Should not kill postgres processes
     let result = ProcessCleanup::kill_by_pattern("postgres");
@@ -1387,7 +1387,7 @@ fn test_kill_by_pattern_protected_postgres() {
 
 #[test]
 fn test_kill_by_pattern_protected_pgbouncer() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Should not kill pgbouncer processes
     let result = ProcessCleanup::kill_by_pattern("pgbouncer");
@@ -1396,7 +1396,7 @@ fn test_kill_by_pattern_protected_pgbouncer() {
 
 #[test]
 fn test_kill_by_pattern_protected_psql() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Should not kill psql processes
     let result = ProcessCleanup::kill_by_pattern("psql");
@@ -1405,7 +1405,7 @@ fn test_kill_by_pattern_protected_psql() {
 
 #[test]
 fn test_kill_by_pattern_protected_contains() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Patterns containing protected names should also be blocked
     let result = ProcessCleanup::kill_by_pattern("my-postgres-wrapper");
@@ -1418,7 +1418,7 @@ fn test_kill_by_pattern_protected_contains() {
 
 #[test]
 fn test_process_exists_invalid_pid() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // PID 0 should not exist as a user process
     let exists = ProcessCleanup::process_exists(0);
@@ -1427,7 +1427,7 @@ fn test_process_exists_invalid_pid() {
 
 #[test]
 fn test_process_exists_very_high_pid() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // Very high PIDs are unlikely to exist
     let exists = ProcessCleanup::process_exists(u32::MAX);
@@ -1436,7 +1436,7 @@ fn test_process_exists_very_high_pid() {
 
 #[test]
 fn test_process_exists_pid_1() {
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_scheduler::ProcessCleanup;
 
     // PID 1 (init/systemd) should exist on Linux
     let exists = ProcessCleanup::process_exists(1);
@@ -1659,7 +1659,7 @@ fn test_reconciliation_result_debug() {
 
 #[test]
 fn test_all_jobs_have_non_empty_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1684,7 +1684,7 @@ fn test_all_jobs_have_non_empty_names() {
 
 #[test]
 fn test_all_jobs_have_snake_case_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1714,7 +1714,7 @@ fn test_all_jobs_have_snake_case_names() {
 
 #[test]
 fn test_behavioral_analysis_job_copy() {
-    use systemprompt_core_scheduler::BehavioralAnalysisJob;
+    use systemprompt_scheduler::BehavioralAnalysisJob;
     use systemprompt_traits::Job;
 
     let job1 = BehavioralAnalysisJob;
@@ -1724,7 +1724,7 @@ fn test_behavioral_analysis_job_copy() {
 
 #[test]
 fn test_database_cleanup_job_copy() {
-    use systemprompt_core_scheduler::DatabaseCleanupJob;
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
     let job1 = DatabaseCleanupJob;
@@ -1734,7 +1734,7 @@ fn test_database_cleanup_job_copy() {
 
 #[test]
 fn test_cleanup_empty_contexts_job_copy() {
-    use systemprompt_core_scheduler::CleanupEmptyContextsJob;
+    use systemprompt_scheduler::CleanupEmptyContextsJob;
     use systemprompt_traits::Job;
 
     let job1 = CleanupEmptyContextsJob;
@@ -1744,7 +1744,7 @@ fn test_cleanup_empty_contexts_job_copy() {
 
 #[test]
 fn test_cleanup_inactive_sessions_job_copy() {
-    use systemprompt_core_scheduler::CleanupInactiveSessionsJob;
+    use systemprompt_scheduler::CleanupInactiveSessionsJob;
     use systemprompt_traits::Job;
 
     let job1 = CleanupInactiveSessionsJob;

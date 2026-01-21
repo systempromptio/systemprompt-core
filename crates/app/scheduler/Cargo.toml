@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-scheduler"
+name = "systemprompt-scheduler"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core scheduler module for SystemPrompt OS - background jobs and cron tasks"
 
 [lints]
@@ -32,10 +36,10 @@ urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
 systemprompt-runtime = { path = "../runtime" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-analytics = { path = "../../domain/analytics" }
-systemprompt-core-users = { path = "../../domain/users" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-analytics = { path = "../../domain/analytics" }
+systemprompt-users = { path = "../../domain/users" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }

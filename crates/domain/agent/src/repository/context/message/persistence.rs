@@ -74,7 +74,7 @@ pub async fn persist_message_sqlx(
 }
 
 pub async fn persist_message_with_tx(
-    tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+    tx: &mut dyn systemprompt_database::DatabaseTransaction,
     message: &Message,
     task_id: &TaskId,
     context_id: &ContextId,

@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Application runtime context and module registry for SystemPrompt"
 
 [lints]
@@ -20,12 +24,12 @@ systemprompt-models = { path = "../../shared/models" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-extension = { path = "../../shared/extension" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-config = { path = "../../infra/config" }
 systemprompt-loader = { path = "../../infra/loader" }
-systemprompt-core-analytics = { path = "../../domain/analytics" }
-systemprompt-core-files = { path = "../../domain/files" }
+systemprompt-analytics = { path = "../../domain/analytics" }
+systemprompt-files = { path = "../../domain/files" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

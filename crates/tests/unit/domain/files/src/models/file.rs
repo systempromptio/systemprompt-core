@@ -1,7 +1,7 @@
 //! Unit tests for File model
 
 use chrono::Utc;
-use systemprompt_core_files::{File, FileMetadata, ImageMetadata};
+use systemprompt_files::{File, FileMetadata, ImageMetadata};
 use systemprompt_identifiers::{SessionId, TraceId, UserId};
 
 // ============================================================================
@@ -116,7 +116,7 @@ fn test_file_metadata_with_image() {
 
 #[test]
 fn test_file_metadata_with_checksums() {
-    use systemprompt_core_files::FileChecksums;
+    use systemprompt_files::FileChecksums;
 
     let checksums = FileChecksums::new()
         .with_md5("d41d8cd98f00b204e9800998ecf8427e")

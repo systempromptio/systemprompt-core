@@ -5,7 +5,7 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Duration;
-use systemprompt_core_database::{Database, DatabaseProvider};
+use systemprompt_database::{Database, DatabaseProvider};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

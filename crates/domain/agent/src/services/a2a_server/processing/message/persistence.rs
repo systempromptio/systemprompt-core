@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};

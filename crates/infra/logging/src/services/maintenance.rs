@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::models::{LogEntry, LoggingError};
 use crate::repository::LoggingRepository;

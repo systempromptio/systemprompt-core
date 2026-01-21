@@ -6,7 +6,7 @@
 //! - ValidationReport
 //! - OrchestrationError variants
 
-use systemprompt_core_agent::services::agent_orchestration::{
+use systemprompt_agent::services::agent_orchestration::{
     AgentRuntimeConfig, AgentStatus, OrchestrationError, ValidationReport,
 };
 

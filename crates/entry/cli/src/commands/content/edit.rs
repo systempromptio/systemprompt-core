@@ -7,9 +7,9 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use std::fs;
 use std::path::Path;
-use systemprompt_core_content::ContentRepository;
-use systemprompt_core_database::DbPool;
-use systemprompt_core_logging::CliService;
+use systemprompt_content::ContentRepository;
+use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 use systemprompt_runtime::AppContext;
 
@@ -208,7 +208,7 @@ pub async fn execute_with_pool(
     CliService::info(&format!("Updating content '{}'...", content.slug));
 
     // Build update params
-    let params = systemprompt_core_content::UpdateContentParams::new(
+    let params = systemprompt_content::UpdateContentParams::new(
         content.id.clone(),
         title,
         description,

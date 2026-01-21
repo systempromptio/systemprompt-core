@@ -5,7 +5,7 @@ use axum::Json;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use systemprompt_core_events::EventRouter;
+use systemprompt_events::EventRouter;
 use systemprompt_identifiers::UserId;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
 use systemprompt_runtime::AppContext;
@@ -146,7 +146,7 @@ pub async fn handle_context_notification(
 }
 
 async fn persist_notification(
-    db: systemprompt_core_database::DbPool,
+    db: systemprompt_database::DbPool,
     context_id: &str,
     agent_id: &str,
     notification: &A2aNotification,
@@ -197,7 +197,7 @@ async fn process_notification(
 
             let timestamp = status
                 .get("timestamp")
-                .and_then(systemprompt_core_database::parse_database_datetime)
+                .and_then(systemprompt_database::parse_database_datetime)
                 .unwrap_or_else(Utc::now);
 
             if state == "completed" {
@@ -286,7 +286,7 @@ async fn broadcast_notification(
 }
 
 async fn mark_notification_broadcasted(
-    db: systemprompt_core_database::DbPool,
+    db: systemprompt_database::DbPool,
     notification_id: i32,
 ) -> Result<(), anyhow::Error> {
     let pool = db.pool_arc()?;

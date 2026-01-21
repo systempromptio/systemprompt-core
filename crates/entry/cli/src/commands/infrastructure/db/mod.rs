@@ -8,7 +8,7 @@ mod types;
 use anyhow::{bail, Context, Result};
 use clap::Subcommand;
 use std::sync::Arc;
-use systemprompt_core_database::{DatabaseAdminService, QueryExecutor};
+use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;

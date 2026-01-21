@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-config crate"
+description = "Unit tests for systemprompt-config crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-config = { workspace = true }
+systemprompt-config = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

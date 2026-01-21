@@ -2,8 +2,8 @@
 
 use rmcp::model::{Annotated, RawContent, RawImageContent, RawResource, RawTextContent};
 use serde_json::json;
-use systemprompt_core_ai::models::tools::{CallToolResult, McpTool, ToolCall};
-use systemprompt_core_ai::services::tools::{
+use systemprompt_ai::models::tools::{CallToolResult, McpTool, ToolCall};
+use systemprompt_ai::services::tools::{
     definition_to_mcp_tool, mcp_tool_to_definition, rmcp_result_to_trait_result,
     tool_call_to_request, trait_result_to_rmcp_result,
 };

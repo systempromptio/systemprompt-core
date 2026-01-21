@@ -1,8 +1,8 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_logging::CliService;
+use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 

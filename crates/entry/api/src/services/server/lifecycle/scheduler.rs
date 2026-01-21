@@ -1,9 +1,9 @@
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_scheduler::models::JobStatus;
-use systemprompt_core_scheduler::repository::SchedulerRepository;
-use systemprompt_core_scheduler::services::SchedulerService;
-use systemprompt_core_scheduler::SchedulerConfig;
+use systemprompt_scheduler::models::JobStatus;
+use systemprompt_scheduler::repository::SchedulerRepository;
+use systemprompt_scheduler::services::SchedulerService;
+use systemprompt_scheduler::SchedulerConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job, JobContext, StartupEvent, StartupEventSender};

@@ -4,9 +4,9 @@ use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
-use systemprompt_core_agent::models::Skill;
-use systemprompt_core_agent::repository::content::SkillRepository;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_agent::models::Skill;
+use systemprompt_agent::repository::content::SkillRepository;
+use systemprompt_database::DatabaseProvider;
 use tracing::warn;
 
 #[derive(Debug)]

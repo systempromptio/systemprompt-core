@@ -5,7 +5,7 @@ use systemprompt_cloud::{
     get_cloud_paths, run_oauth_flow, CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates,
     TenantStore,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};

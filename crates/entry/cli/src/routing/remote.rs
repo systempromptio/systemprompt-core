@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use futures_util::StreamExt;
 use reqwest_eventsource::{Event, EventSource};
 use std::io::{self, Write};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::api::{CliExecuteRequest, CliOutputEvent};
 
 pub async fn execute_remote(

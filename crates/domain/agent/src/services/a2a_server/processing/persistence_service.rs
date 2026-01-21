@@ -1,5 +1,5 @@
 use anyhow::{anyhow, Result};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 

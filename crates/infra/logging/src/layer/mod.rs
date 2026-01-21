@@ -12,7 +12,7 @@ use tracing_subscriber::registry::LookupSpan;
 use tracing_subscriber::Layer;
 
 use crate::models::{LogEntry, LogLevel};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 use visitor::{extract_span_context, FieldVisitor, SpanContext, SpanFields, SpanVisitor};
 

@@ -8,8 +8,8 @@
 //! - Cleanup of expired bans
 
 use anyhow::Result;
-use systemprompt_core_database::Database;
-use systemprompt_core_users::{
+use systemprompt_database::Database;
+use systemprompt_users::{
     BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIpRepository,
 };
 

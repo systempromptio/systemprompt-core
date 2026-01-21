@@ -6,7 +6,7 @@
 //! - Whitespace normalization
 //! - Unique slug generation with collision handling
 
-use systemprompt_core_agent::services::shared::slug::{generate_slug, generate_unique_slug};
+use systemprompt_agent::services::shared::slug::{generate_slug, generate_unique_slug};
 
 // ============================================================================
 // Basic Slug Generation Tests

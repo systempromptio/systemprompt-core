@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_traits::{Job, JobContext, JobResult};
 

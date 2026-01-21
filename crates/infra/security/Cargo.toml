@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-security"
+name = "systemprompt-security"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Security module for SystemPrompt - authentication, authorization, JWT, and token extraction"
 
 [lints]

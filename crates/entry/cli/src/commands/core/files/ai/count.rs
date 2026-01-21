@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_files::AiService;
+use systemprompt_files::AiService;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 

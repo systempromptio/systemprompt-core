@@ -1,6 +1,6 @@
 //! Unit tests for ExecutionStatus enum
 
-use systemprompt_core_mcp::models::ExecutionStatus;
+use systemprompt_mcp::models::ExecutionStatus;
 
 // ============================================================================
 // ExecutionStatus as_str Tests

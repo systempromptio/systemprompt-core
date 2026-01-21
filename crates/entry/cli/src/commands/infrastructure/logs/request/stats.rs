@@ -265,7 +265,7 @@ async fn execute_with_pool_inner(
 }
 
 fn render_text_output(output: &RequestStatsOutput) {
-    use systemprompt_core_logging::CliService;
+    use systemprompt_logging::CliService;
 
     CliService::section("AI Request Statistics");
 

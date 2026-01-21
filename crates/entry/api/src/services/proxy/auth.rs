@@ -3,10 +3,10 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::Response;
 use serde_json::json;
 use std::str::FromStr;
-use systemprompt_core_agent::services::AgentRegistryProviderService;
-use systemprompt_core_database::ServiceConfig;
-use systemprompt_core_mcp::McpServerRegistry;
-use systemprompt_core_oauth::services::AuthService;
+use systemprompt_agent::services::AgentRegistryProviderService;
+use systemprompt_database::ServiceConfig;
+use systemprompt_mcp::McpServerRegistry;
+use systemprompt_oauth::services::AuthService;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
@@ -130,7 +130,7 @@ impl AccessValidator {
         } else if service.module_name == "mcp" {
             match McpServerRegistry::validate() {
                 Ok(()) => {
-                    let registry = systemprompt_core_mcp::services::registry::RegistryManager;
+                    let registry = systemprompt_mcp::services::registry::RegistryManager;
                     match McpRegistryProvider::get_server(&registry, service_name).await {
                         Ok(server_info) => (server_info.oauth.required, server_info.oauth.scopes),
                         Err(e) => {

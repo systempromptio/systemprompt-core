@@ -1,7 +1,7 @@
 use anyhow::{bail, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 #[derive(Debug)]
 pub struct ApiKeys {

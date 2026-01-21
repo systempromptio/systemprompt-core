@@ -1,4 +1,4 @@
-use systemprompt_core_files::FilesConfig;
+use systemprompt_files::FilesConfig;
 
 #[derive(Debug)]
 pub struct CardData<'a> {

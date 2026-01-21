@@ -1,7 +1,7 @@
 use crate::common::*;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 use uuid::Uuid;
 
 #[tokio::test]

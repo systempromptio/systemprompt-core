@@ -3,8 +3,8 @@ use crate::commands::core::content::types::{GenerateLinkOutput, UtmParamsOutput}
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::{Args, ValueEnum};
-use systemprompt_core_content::models::{LinkType as DomainLinkType, UtmParams};
-use systemprompt_core_content::services::link::generation::{
+use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
+use systemprompt_content::services::link::generation::{
     GenerateLinkParams, LinkGenerationService,
 };
 use systemprompt_identifiers::{CampaignId, ContentId};

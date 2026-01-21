@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::services::AiProviderConfig;
 
 use super::{AiProvider, AnthropicProvider, GeminiProvider, OpenAiProvider};

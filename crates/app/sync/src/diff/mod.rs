@@ -6,7 +6,7 @@ pub use skills::SkillsDiffCalculator;
 
 use crate::models::DiskSkill;
 use sha2::{Digest, Sha256};
-use systemprompt_core_agent::models::Skill;
+use systemprompt_agent::models::Skill;
 
 pub fn compute_content_hash(body: &str, title: &str) -> String {
     let mut hasher = Sha256::new();

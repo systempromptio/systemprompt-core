@@ -1,7 +1,7 @@
 //! Unit tests for ContentFile and FileRole models
 
 use chrono::Utc;
-use systemprompt_core_files::{ContentFile, FileRole};
+use systemprompt_files::{ContentFile, FileRole};
 use systemprompt_identifiers::ContentId;
 
 // ============================================================================

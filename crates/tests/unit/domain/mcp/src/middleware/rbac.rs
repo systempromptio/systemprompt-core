@@ -1,6 +1,6 @@
 //! Unit tests for RBAC middleware types
 
-use systemprompt_core_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
+use systemprompt_mcp::middleware::{AuthResult, AuthenticatedRequestContext};
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId};
 use systemprompt_models::RequestContext;
 

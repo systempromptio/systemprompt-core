@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::{DbPool, ServiceRepository};
+use systemprompt_database::{DbPool, ServiceRepository};
 
 use super::models::McpServiceState;
 

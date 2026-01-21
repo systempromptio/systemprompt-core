@@ -5,7 +5,7 @@
 //! - Publishing and subscribing to events
 //! - Default configuration
 
-use systemprompt_core_agent::{AgentEvent, AgentEventBus};
+use systemprompt_agent::{AgentEvent, AgentEventBus};
 
 // ============================================================================
 // AgentEventBus Creation Tests

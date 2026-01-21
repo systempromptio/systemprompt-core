@@ -4,7 +4,7 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use systemprompt_cloud::{get_cloud_paths, CloudPath, ProfilePath, ProjectContext, TenantStore};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;
 

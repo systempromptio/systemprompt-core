@@ -1,6 +1,6 @@
 //! Unit tests for FileIngestionJob
 
-use systemprompt_core_files::FileIngestionJob;
+use systemprompt_files::FileIngestionJob;
 use systemprompt_traits::Job;
 
 // ============================================================================

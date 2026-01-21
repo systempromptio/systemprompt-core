@@ -2,8 +2,8 @@ use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_core_analytics::CliSessionAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::CliSessionAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ActiveSessionRow, LiveSessionsOutput};

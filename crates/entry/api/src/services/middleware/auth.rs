@@ -3,7 +3,7 @@ use axum::http::HeaderMap;
 use axum::middleware;
 use axum::middleware::Next;
 use axum::response::Response;
-use systemprompt_core_security::TokenExtractor;
+use systemprompt_security::TokenExtractor;
 use systemprompt_models::modules::ApiPaths;
 
 #[derive(Debug, Clone)]
@@ -77,7 +77,7 @@ pub async fn auth_middleware(
 }
 
 fn extract_optional_user(headers: &HeaderMap) -> Option<systemprompt_models::AuthenticatedUser> {
-    use systemprompt_core_oauth::validate_jwt_token;
+    use systemprompt_oauth::validate_jwt_token;
     use systemprompt_models::SecretsBootstrap;
     use uuid::Uuid;
 

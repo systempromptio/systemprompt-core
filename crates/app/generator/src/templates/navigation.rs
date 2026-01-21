@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 
 fn get_social_icon(platform_type: &str) -> &'static str {
     match platform_type {

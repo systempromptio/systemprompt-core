@@ -1,6 +1,6 @@
 //! Tests for repository type structures.
 
-use systemprompt_core_analytics::SessionMigrationResult;
+use systemprompt_analytics::SessionMigrationResult;
 
 mod session_migration_result_tests {
     use super::*;
@@ -75,7 +75,7 @@ mod session_migration_result_tests {
 }
 
 mod repository_constants_tests {
-    use systemprompt_core_analytics::{
+    use systemprompt_analytics::{
         ABUSE_THRESHOLD_FOR_BAN, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM,
         MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
     };

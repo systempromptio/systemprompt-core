@@ -1,6 +1,6 @@
 //! Tests for ToolNameMapper.
 
-use systemprompt_core_ai::services::schema::{ToolNameMapper, TransformedTool};
+use systemprompt_ai::services::schema::{ToolNameMapper, TransformedTool};
 use serde_json::json;
 
 fn create_transformed_tool(

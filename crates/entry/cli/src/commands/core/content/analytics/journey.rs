@@ -3,8 +3,8 @@ use crate::commands::core::content::types::{JourneyNode, JourneyOutput};
 use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_content::LinkAnalyticsService;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::LinkAnalyticsService;
+use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Clone, Copy, Args)]

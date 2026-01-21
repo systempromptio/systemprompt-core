@@ -3,7 +3,7 @@ use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::path::{Path, PathBuf};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::postgres::PostgresConfig;
 use super::types::{DatabaseSetupInfo, SecretsConfiguredInfo, SetupOutput};

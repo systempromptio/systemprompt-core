@@ -5,7 +5,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use systemprompt_core_analytics::{
+use systemprompt_analytics::{
     AnalyticsService, CreateAnalyticsSessionInput, FingerprintRepository, SessionAnalytics,
     MAX_SESSIONS_PER_FINGERPRINT,
 };

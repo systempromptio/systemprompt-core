@@ -3,7 +3,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Extension, Router};
 use std::sync::Arc;
-use systemprompt_core_database::ServiceRepository;
+use systemprompt_database::ServiceRepository;
 use systemprompt_models::{ApiError, CollectionResponse, RequestContext};
 use systemprompt_runtime::AppContext;
 
@@ -118,7 +118,7 @@ fn create_mcp_extensions_from_config(
         })
         .collect();
 
-    let mcp_protocol_version = systemprompt_core_mcp::mcp_protocol_version();
+    let mcp_protocol_version = systemprompt_mcp::mcp_protocol_version();
 
     vec![AgentExtension {
         uri: "systemprompt:mcp-tools".to_string(),

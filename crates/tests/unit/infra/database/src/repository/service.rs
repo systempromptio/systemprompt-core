@@ -1,6 +1,6 @@
 //! Unit tests for ServiceConfig and CreateServiceInput
 
-use systemprompt_core_database::{CreateServiceInput, ServiceConfig};
+use systemprompt_database::{CreateServiceInput, ServiceConfig};
 
 // ============================================================================
 // ServiceConfig Tests

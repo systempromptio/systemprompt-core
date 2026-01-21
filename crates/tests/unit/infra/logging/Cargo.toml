@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-logging crate"
+description = "Unit tests for systemprompt-logging crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-logging = { workspace = true }
+systemprompt-logging = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]

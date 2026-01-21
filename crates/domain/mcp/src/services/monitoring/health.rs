@@ -4,7 +4,7 @@ use crate::McpServerConfig;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::time::Duration;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use tokio::time::{interval, timeout};
 use tracing::Instrument;
 
@@ -163,7 +163,7 @@ pub async fn monitor_health_continuously(
     _db_pool: DbPool,
 ) -> Result<()> {
     let span: tracing::Span =
-        systemprompt_core_logging::SystemSpan::new("mcp_health_monitor").into();
+        systemprompt_logging::SystemSpan::new("mcp_health_monitor").into();
     async move {
         let mut ticker = interval(report_interval);
         let mut state = HealthMonitorState::new();

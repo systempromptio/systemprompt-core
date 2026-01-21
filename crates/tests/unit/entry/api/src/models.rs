@@ -5,7 +5,7 @@
 //! - ServerConfig construction and field access
 //! - ServerConfig Clone and Debug traits
 
-use systemprompt_core_api::ServerConfig;
+use systemprompt_api::ServerConfig;
 
 // ============================================================================
 // ServerConfig Default Tests

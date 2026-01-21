@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-api HTTP API server and gateway"
+description = "Unit tests for systemprompt-api HTTP API server and gateway"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-api = { workspace = true }
+systemprompt-api = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 axum = { workspace = true }

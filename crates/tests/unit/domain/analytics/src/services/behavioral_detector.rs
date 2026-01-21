@@ -1,7 +1,7 @@
 //! Tests for behavioral bot detector service.
 
 use chrono::{Duration, Utc};
-use systemprompt_core_analytics::{
+use systemprompt_analytics::{
     BehavioralAnalysisInput, BehavioralBotDetector, BehavioralSignal, SignalType,
     BEHAVIORAL_BOT_THRESHOLD,
 };

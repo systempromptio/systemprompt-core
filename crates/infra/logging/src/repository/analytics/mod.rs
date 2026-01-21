@@ -1,7 +1,7 @@
 use anyhow::Context;
 use chrono::Utc;
 use serde_json::Value;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 

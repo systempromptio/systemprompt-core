@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 use systemprompt_models::mcp::deployment::SchemaDefinition;
 
 use super::loader::SchemaLoader;

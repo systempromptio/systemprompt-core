@@ -1,6 +1,6 @@
 //! Tests for OpenAI model types.
 
-use systemprompt_core_ai::models::providers::openai::{
+use systemprompt_ai::models::providers::openai::{
     OpenAiChoice, OpenAiFunction, OpenAiFunctionCall, OpenAiJsonSchema, OpenAiMessage,
     OpenAiMessageContent, OpenAiModels, OpenAiRequest, OpenAiResponse, OpenAiResponseFormat,
     OpenAiResponseMessage, OpenAiTool, OpenAiToolCall, OpenAiUsage,
@@ -357,7 +357,7 @@ mod openai_usage_tests {
 
     #[test]
     fn usage_with_cached_tokens() {
-        use systemprompt_core_ai::models::providers::openai::OpenAiPromptTokensDetails;
+        use systemprompt_ai::models::providers::openai::OpenAiPromptTokensDetails;
 
         let usage = OpenAiUsage {
             prompt_tokens: 100,

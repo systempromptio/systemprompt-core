@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_core_files::ContentService;
+use systemprompt_files::ContentService;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 

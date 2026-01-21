@@ -1,6 +1,6 @@
 //! Tests for analytics error types.
 
-use systemprompt_core_analytics::AnalyticsError;
+use systemprompt_analytics::AnalyticsError;
 
 mod analytics_error_tests {
     use super::*;

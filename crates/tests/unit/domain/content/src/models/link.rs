@@ -6,7 +6,7 @@
 //! - UtmParams (to_query_string, to_json)
 //! - CampaignLink (get_full_url)
 
-use systemprompt_core_content::models::{
+use systemprompt_content::models::{
     DestinationType, LinkType, UtmParams,
 };
 
@@ -229,7 +229,7 @@ fn test_utm_params_clone() {
 
 #[test]
 fn test_link_performance_serialization() {
-    use systemprompt_core_content::models::LinkPerformance;
+    use systemprompt_content::models::LinkPerformance;
     use systemprompt_identifiers::LinkId;
 
     let performance = LinkPerformance {
@@ -252,7 +252,7 @@ fn test_link_performance_serialization() {
 
 #[test]
 fn test_campaign_performance_serialization() {
-    use systemprompt_core_content::models::CampaignPerformance;
+    use systemprompt_content::models::CampaignPerformance;
     use systemprompt_identifiers::CampaignId;
 
     let performance = CampaignPerformance {
@@ -274,7 +274,7 @@ fn test_campaign_performance_serialization() {
 
 #[test]
 fn test_content_journey_node_creation() {
-    use systemprompt_core_content::models::ContentJourneyNode;
+    use systemprompt_content::models::ContentJourneyNode;
     use systemprompt_identifiers::ContentId;
 
     let node = ContentJourneyNode {
@@ -290,7 +290,7 @@ fn test_content_journey_node_creation() {
 
 #[test]
 fn test_content_journey_node_serialization() {
-    use systemprompt_core_content::models::ContentJourneyNode;
+    use systemprompt_content::models::ContentJourneyNode;
     use systemprompt_identifiers::ContentId;
 
     let node = ContentJourneyNode {

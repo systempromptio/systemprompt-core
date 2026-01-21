@@ -1,10 +1,10 @@
 //! Tests for OpenAI response builder.
 
 use std::time::Instant;
-use systemprompt_core_ai::models::providers::openai::{
+use systemprompt_ai::models::providers::openai::{
     OpenAiChoice, OpenAiPromptTokensDetails, OpenAiResponse, OpenAiResponseMessage, OpenAiUsage,
 };
-use systemprompt_core_ai::services::providers::openai::response_builder::build_response;
+use systemprompt_ai::services::providers::openai::response_builder::build_response;
 use uuid::Uuid;
 
 fn create_test_response(

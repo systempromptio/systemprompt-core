@@ -3,7 +3,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde_json::json;
-use systemprompt_core_events::EventRouter;
+use systemprompt_events::EventRouter;
 use systemprompt_identifiers::UserId;
 use systemprompt_runtime::AppContext;
 

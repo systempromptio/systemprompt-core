@@ -3,7 +3,7 @@ use crate::commands::core::content::types::LinkDetailOutput;
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_content::services::LinkGenerationService;
+use systemprompt_content::services::LinkGenerationService;
 use systemprompt_runtime::AppContext;
 
 const DEFAULT_BASE_URL: &str = "https://systemprompt.io";

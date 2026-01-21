@@ -1,9 +1,9 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
-use systemprompt_core_database::DbPool;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_users::{UserRole, UserService, UserStatus};
+use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
+use systemprompt_users::{UserRole, UserService, UserStatus};
 use systemprompt_runtime::AppContext;
 use tabled::{Table, Tabled};
 

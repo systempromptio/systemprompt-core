@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 use systemprompt_template_provider::{ComponentContext, ExtenderContext};
 use tokio::fs;

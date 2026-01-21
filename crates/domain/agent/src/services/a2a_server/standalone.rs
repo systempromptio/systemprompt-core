@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use std::sync::Arc;
 
-use systemprompt_core_ai::AiService;
-use systemprompt_core_mcp::services::McpToolProvider;
+use systemprompt_ai::AiService;
+use systemprompt_mcp::services::McpToolProvider;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::ToolProvider;

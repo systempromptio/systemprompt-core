@@ -1,5 +1,5 @@
 use axum::http::HeaderMap;
-use systemprompt_core_security::HeaderInjector;
+use systemprompt_security::HeaderInjector;
 use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;

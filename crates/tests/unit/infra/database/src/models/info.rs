@@ -1,6 +1,6 @@
 //! Unit tests for DatabaseInfo, TableInfo, and ColumnInfo models
 
-use systemprompt_core_database::{ColumnInfo, DatabaseInfo, TableInfo};
+use systemprompt_database::{ColumnInfo, DatabaseInfo, TableInfo};
 
 // ============================================================================
 // ColumnInfo Tests

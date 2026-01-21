@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use std::path::Path;
-use systemprompt_core_database::{DatabaseProvider, DbPool};
+use systemprompt_database::{DatabaseProvider, DbPool};
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 

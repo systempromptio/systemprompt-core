@@ -1,6 +1,6 @@
 //! Tests for CIMD (Client ID Metadata Document) types
 
-use systemprompt_core_oauth::models::cimd::{CimdMetadata, ClientValidation};
+use systemprompt_oauth::models::cimd::{CimdMetadata, ClientValidation};
 use systemprompt_identifiers::{ClientId, ClientType};
 
 // ============================================================================

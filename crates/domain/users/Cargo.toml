@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-users"
+name = "systemprompt-users"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core user management module for SystemPrompt"
 
 [lints]
@@ -28,8 +32,8 @@ urlencoding = { workspace = true }
 
 # Core libs
 systemprompt-models = { path = "../../shared/models" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }

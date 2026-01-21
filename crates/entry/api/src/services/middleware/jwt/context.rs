@@ -5,9 +5,9 @@ use axum::http::HeaderMap;
 use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
-use systemprompt_core_database::DbPool;
-use systemprompt_core_security::{HeaderExtractor, TokenExtractor};
-use systemprompt_core_users::UserService;
+use systemprompt_database::DbPool;
+use systemprompt_security::{HeaderExtractor, TokenExtractor};
+use systemprompt_users::UserService;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 

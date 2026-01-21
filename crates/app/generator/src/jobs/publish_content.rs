@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_core_content::ContentIngestionJob;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::ContentIngestionJob;
+use systemprompt_database::DbPool;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 

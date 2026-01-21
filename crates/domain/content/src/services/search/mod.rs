@@ -1,7 +1,7 @@
 use crate::error::ContentError;
 use crate::models::{SearchRequest, SearchResponse, SearchResult};
 use crate::repository::{ContentRepository, SearchRepository};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
 const DEFAULT_SEARCH_LIMIT: i64 = 10;

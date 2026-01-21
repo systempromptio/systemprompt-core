@@ -12,7 +12,7 @@ use crate::services::tools::ToolDiscovery;
 
 use super::super::request_storage::{RequestStorage, StoreParams};
 
-use systemprompt_core_analytics::SessionRepository;
+use systemprompt_analytics::SessionRepository;
 use systemprompt_models::services::AiConfig;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_runtime::AppContext;
@@ -25,7 +25,7 @@ pub struct AiService {
     pub(super) tooled_executor: TooledExecutor,
     pub(super) synthesizer: ResponseSynthesizer,
     pub(super) storage: RequestStorage,
-    _db_pool: systemprompt_core_database::DbPool,
+    _db_pool: systemprompt_database::DbPool,
     default_provider: String,
     default_model: String,
     default_max_output_tokens: u32,

@@ -6,7 +6,7 @@ use crate::repository::Repository;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 

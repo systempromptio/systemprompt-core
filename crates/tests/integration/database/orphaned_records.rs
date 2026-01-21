@@ -1,6 +1,6 @@
 use crate::common::*;
 use anyhow::Result;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 
 #[tokio::test]
 async fn test_no_orphaned_records_exist() -> Result<()> {

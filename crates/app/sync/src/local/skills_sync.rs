@@ -4,9 +4,9 @@ use crate::models::{LocalSyncResult, SkillsDiffResult};
 use anyhow::Result;
 use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_core_agent::repository::content::SkillRepository;
-use systemprompt_core_agent::services::SkillIngestionService;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_agent::repository::content::SkillRepository;
+use systemprompt_agent::services::SkillIngestionService;
+use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{SkillId, SourceId};
 use tracing::info;
 

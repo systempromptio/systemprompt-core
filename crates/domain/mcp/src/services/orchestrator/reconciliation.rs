@@ -68,7 +68,7 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
         })
         .await
     }
-    .instrument(systemprompt_core_logging::SystemSpan::new("mcp_orchestrator").into())
+    .instrument(systemprompt_logging::SystemSpan::new("mcp_orchestrator").into())
     .await
 }
 

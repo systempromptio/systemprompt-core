@@ -5,8 +5,8 @@ use std::sync::Arc;
 use super::types::{SkillStatusOutput, SkillStatusRow, SkillStatusSummary, SyncStatus};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_core_database::{Database, DatabaseProvider};
-use systemprompt_core_logging::CliService;
+use systemprompt_database::{Database, DatabaseProvider};
+use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::diff::SkillsDiffCalculator;
 

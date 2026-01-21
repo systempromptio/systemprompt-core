@@ -1,7 +1,7 @@
 use serde_json::json;
 use std::sync::Arc;
 
-use systemprompt_core_logging::{AnalyticsEvent, AnalyticsRepository};
+use systemprompt_logging::{AnalyticsEvent, AnalyticsRepository};
 use systemprompt_models::{RequestContext, RouteClassifier};
 
 #[derive(Debug)]

@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_users::{UserProviderImpl, UserService};
 use tracing::instrument;
 use webauthn_rs::prelude::*;
 
@@ -135,7 +135,7 @@ pub async fn finish_register(
     match webauthn_service.finish_registration(builder.build()).await {
         Ok(user_id) => {
             if let Some(session_id_str) = &request.session_id {
-                use systemprompt_core_analytics::SessionRepository;
+                use systemprompt_analytics::SessionRepository;
                 use systemprompt_identifiers::{SessionId, UserId};
 
                 let session_id = SessionId::new(session_id_str.clone());

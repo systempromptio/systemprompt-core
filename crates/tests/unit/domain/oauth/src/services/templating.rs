@@ -1,7 +1,7 @@
 //! Tests for TemplateEngine
 
 use std::collections::HashMap;
-use systemprompt_core_oauth::TemplateEngine;
+use systemprompt_oauth::TemplateEngine;
 
 // ============================================================================
 // TemplateEngine::render Tests

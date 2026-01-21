@@ -28,7 +28,7 @@ core = [
 ]
 
 # Database support
-database = ["dep:systemprompt-core-database", "dep:sqlx"]
+database = ["dep:systemprompt-database", "dep:sqlx"]
 
 # MCP support (uses rmcp-macros from rmcp crate)
 mcp = ["dep:rmcp"]
@@ -37,7 +37,7 @@ mcp = ["dep:rmcp"]
 api = [
     "core",
     "database",
-    "dep:systemprompt-core-api",
+    "dep:systemprompt-api",
     "dep:systemprompt-runtime",
     "dep:axum",
 ]
@@ -54,6 +54,9 @@ test-utils = ["cloud"]
 # CLI entry point for product binaries (standalone, use 'full' for everything)
 cli = ["dep:systemprompt-cli"]
 
+# Runtime builder for embedding systemprompt as a library
+runtime = ["cli", "dep:systemprompt-extension"]
+
 # Full functionality including all domain modules and CLI
 full = [
     "api",
@@ -61,22 +64,22 @@ full = [
     "sync",
     "cloud",
     "cli",
-    "dep:systemprompt-core-agent",
-    "dep:systemprompt-core-ai",
-    "dep:systemprompt-core-mcp",
-    "dep:systemprompt-core-oauth",
-    "dep:systemprompt-core-users",
-    "dep:systemprompt-core-content",
-    "dep:systemprompt-core-analytics",
-    "dep:systemprompt-core-scheduler",
-    "dep:systemprompt-core-logging",
-    "dep:systemprompt-core-config",
-    "dep:systemprompt-core-files",
+    "dep:systemprompt-agent",
+    "dep:systemprompt-ai",
+    "dep:systemprompt-mcp",
+    "dep:systemprompt-oauth",
+    "dep:systemprompt-users",
+    "dep:systemprompt-content",
+    "dep:systemprompt-analytics",
+    "dep:systemprompt-scheduler",
+    "dep:systemprompt-logging",
+    "dep:systemprompt-config",
+    "dep:systemprompt-files",
     # Infrastructure crates for extension authors
     "dep:systemprompt-loader",
-    "dep:systemprompt-core-events",
+    "dep:systemprompt-events",
     "dep:systemprompt-client",
-    "dep:systemprompt-core-security",
+    "dep:systemprompt-security",
 ]
 
 [dependencies]
@@ -88,33 +91,33 @@ systemprompt-extension = { path = "../crates/shared/extension", optional = true 
 systemprompt-template-provider = { path = "../crates/shared/template-provider", optional = true }
 
 # Infrastructure
-systemprompt-core-database = { path = "../crates/infra/database", optional = true }
-systemprompt-core-logging = { path = "../crates/infra/logging", optional = true }
-systemprompt-core-config = { path = "../crates/infra/config", optional = true }
+systemprompt-database = { path = "../crates/infra/database", optional = true }
+systemprompt-logging = { path = "../crates/infra/logging", optional = true }
+systemprompt-config = { path = "../crates/infra/config", optional = true }
 systemprompt-cloud = { path = "../crates/infra/cloud", optional = true }
 systemprompt-loader = { path = "../crates/infra/loader", optional = true }
-systemprompt-core-events = { path = "../crates/infra/events", optional = true }
+systemprompt-events = { path = "../crates/infra/events", optional = true }
 systemprompt-client = { path = "../crates/shared/client", optional = true }
-systemprompt-core-security = { path = "../crates/infra/security", optional = true }
+systemprompt-security = { path = "../crates/infra/security", optional = true }
 
 # Application
 systemprompt-sync = { path = "../crates/app/sync", optional = true }
 systemprompt-runtime = { path = "../crates/app/runtime", optional = true }
 
 # Entry points
-systemprompt-core-api = { path = "../crates/entry/api", optional = true }
+systemprompt-api = { path = "../crates/entry/api", optional = true }
 systemprompt-cli = { path = "../crates/entry/cli", optional = true }
 
 # Domain crates
-systemprompt-core-agent = { path = "../crates/domain/agent", optional = true }
-systemprompt-core-ai = { path = "../crates/domain/ai", optional = true }
-systemprompt-core-mcp = { path = "../crates/domain/mcp", optional = true }
-systemprompt-core-oauth = { path = "../crates/domain/oauth", optional = true }
-systemprompt-core-users = { path = "../crates/domain/users", optional = true }
-systemprompt-core-content = { path = "../crates/domain/content", optional = true }
-systemprompt-core-analytics = { path = "../crates/domain/analytics", optional = true }
-systemprompt-core-scheduler = { path = "../crates/app/scheduler", optional = true }
-systemprompt-core-files = { path = "../crates/domain/files", optional = true }
+systemprompt-agent = { path = "../crates/domain/agent", optional = true }
+systemprompt-ai = { path = "../crates/domain/ai", optional = true }
+systemprompt-mcp = { path = "../crates/domain/mcp", optional = true }
+systemprompt-oauth = { path = "../crates/domain/oauth", optional = true }
+systemprompt-users = { path = "../crates/domain/users", optional = true }
+systemprompt-content = { path = "../crates/domain/content", optional = true }
+systemprompt-analytics = { path = "../crates/domain/analytics", optional = true }
+systemprompt-scheduler = { path = "../crates/app/scheduler", optional = true }
+systemprompt-files = { path = "../crates/domain/files", optional = true }
 
 # External dependencies for prelude re-exports
 axum = { workspace = true, optional = true }

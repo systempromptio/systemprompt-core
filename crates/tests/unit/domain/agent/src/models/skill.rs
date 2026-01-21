@@ -5,7 +5,7 @@
 //! - Skill structure validation
 //! - Skill::from_json_row error cases
 
-use systemprompt_core_agent::models::skill::SkillMetadata;
+use systemprompt_agent::models::skill::SkillMetadata;
 
 // ============================================================================
 // SkillMetadata Tests
@@ -152,8 +152,8 @@ fn test_skill_metadata_roundtrip() {
 
 #[test]
 fn test_skill_from_json_row_missing_skill_id() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert(
@@ -168,8 +168,8 @@ fn test_skill_from_json_row_missing_skill_id() {
 
 #[test]
 fn test_skill_from_json_row_missing_file_path() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -181,8 +181,8 @@ fn test_skill_from_json_row_missing_file_path() {
 
 #[test]
 fn test_skill_from_json_row_missing_name() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -195,8 +195,8 @@ fn test_skill_from_json_row_missing_name() {
 
 #[test]
 fn test_skill_from_json_row_missing_description() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -210,8 +210,8 @@ fn test_skill_from_json_row_missing_description() {
 
 #[test]
 fn test_skill_from_json_row_missing_instructions() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -226,8 +226,8 @@ fn test_skill_from_json_row_missing_instructions() {
 
 #[test]
 fn test_skill_from_json_row_missing_enabled() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -243,8 +243,8 @@ fn test_skill_from_json_row_missing_enabled() {
 
 #[test]
 fn test_skill_from_json_row_missing_source_id() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -262,8 +262,8 @@ fn test_skill_from_json_row_missing_source_id() {
 
 #[test]
 fn test_skill_from_json_row_default_tags() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-1"));
@@ -285,8 +285,8 @@ fn test_skill_from_json_row_default_tags() {
 
 #[test]
 fn test_skill_from_json_row_complete() {
-    use systemprompt_core_agent::models::skill::Skill;
-    use systemprompt_core_database::JsonRow;
+    use systemprompt_agent::models::skill::Skill;
+    use systemprompt_database::JsonRow;
 
     let mut row = JsonRow::new();
     row.insert("skill_id".to_string(), serde_json::json!("sk-complete"));

@@ -13,7 +13,7 @@ pub async fn run_daemon(
     lifecycle: &LifecycleManager,
     database: &DatabaseManager,
 ) -> Result<()> {
-    let span: tracing::Span = systemprompt_core_logging::SystemSpan::new("mcp_orchestrator").into();
+    let span: tracing::Span = systemprompt_logging::SystemSpan::new("mcp_orchestrator").into();
     async move {
         tracing::info!("Starting MCP daemon mode");
 

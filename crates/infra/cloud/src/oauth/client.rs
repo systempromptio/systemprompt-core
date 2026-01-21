@@ -5,7 +5,7 @@ use axum::routing::get;
 use axum::Router;
 use reqwest::Client;
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use tokio::sync::{oneshot, Mutex};
 
 use crate::constants::oauth::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};

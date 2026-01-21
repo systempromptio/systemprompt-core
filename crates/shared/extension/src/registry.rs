@@ -101,6 +101,20 @@ impl ExtensionRegistry {
         Ok(())
     }
 
+    pub fn merge(&mut self, extensions: Vec<Arc<dyn Extension>>) -> Result<(), LoaderError> {
+        for ext in extensions {
+            self.register(ext)?;
+        }
+        Ok(())
+    }
+
+    pub fn discover_and_merge(injected: Vec<Arc<dyn Extension>>) -> Result<Self, LoaderError> {
+        let mut registry = Self::discover();
+        registry.merge(injected)?;
+        registry.validate()?;
+        Ok(registry)
+    }
+
     pub fn validate_dependencies(&self) -> Result<(), LoaderError> {
         for ext in self.extensions.values() {
             for dep_id in ext.dependencies() {

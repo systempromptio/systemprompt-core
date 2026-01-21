@@ -7,7 +7,7 @@
 //! - ProtocolError variants and error messages
 //! - AgentError conversions and wrapping
 
-use systemprompt_core_agent::{AgentError, ArtifactError, ContextError, ProtocolError, TaskError};
+use systemprompt_agent::{AgentError, ArtifactError, ContextError, ProtocolError, TaskError};
 
 // ============================================================================
 // TaskError Tests

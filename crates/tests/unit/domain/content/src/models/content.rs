@@ -7,7 +7,7 @@
 //! - IngestionOptions (builder pattern)
 //! - IngestionSource (constructor)
 
-use systemprompt_core_content::{ContentMetadata, IngestionOptions, IngestionReport, IngestionSource};
+use systemprompt_content::{ContentMetadata, IngestionOptions, IngestionReport, IngestionSource};
 
 // ============================================================================
 // ContentKind Tests
@@ -15,35 +15,35 @@ use systemprompt_core_content::{ContentMetadata, IngestionOptions, IngestionRepo
 
 #[test]
 fn test_content_kind_as_str_article() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Article;
     assert_eq!(kind.as_str(), "article");
 }
 
 #[test]
 fn test_content_kind_as_str_paper() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Paper;
     assert_eq!(kind.as_str(), "paper");
 }
 
 #[test]
 fn test_content_kind_as_str_guide() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Guide;
     assert_eq!(kind.as_str(), "guide");
 }
 
 #[test]
 fn test_content_kind_as_str_tutorial() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Tutorial;
     assert_eq!(kind.as_str(), "tutorial");
 }
 
 #[test]
 fn test_content_kind_display() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     assert_eq!(format!("{}", ContentKind::Article), "article");
     assert_eq!(format!("{}", ContentKind::Paper), "paper");
     assert_eq!(format!("{}", ContentKind::Guide), "guide");
@@ -52,14 +52,14 @@ fn test_content_kind_display() {
 
 #[test]
 fn test_content_kind_default() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let default_kind = ContentKind::default();
     assert_eq!(default_kind, ContentKind::Article);
 }
 
 #[test]
 fn test_content_kind_serialization() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind = ContentKind::Paper;
     let json = serde_json::to_string(&kind).unwrap();
     assert_eq!(json, "\"paper\"");
@@ -67,7 +67,7 @@ fn test_content_kind_serialization() {
 
 #[test]
 fn test_content_kind_deserialization() {
-    use systemprompt_core_content::models::ContentKind;
+    use systemprompt_content::models::ContentKind;
     let kind: ContentKind = serde_json::from_str("\"guide\"").unwrap();
     assert_eq!(kind, ContentKind::Guide);
 }
@@ -263,7 +263,7 @@ links:
 
 #[test]
 fn test_content_metadata_serialization() {
-    use systemprompt_core_content::models::ContentLinkMetadata;
+    use systemprompt_content::models::ContentLinkMetadata;
 
     let metadata = ContentMetadata {
         title: "Test".to_string(),
@@ -293,7 +293,7 @@ fn test_content_metadata_serialization() {
 
 #[test]
 fn test_content_link_metadata_creation() {
-    use systemprompt_core_content::models::ContentLinkMetadata;
+    use systemprompt_content::models::ContentLinkMetadata;
 
     let link = ContentLinkMetadata {
         title: "External Resource".to_string(),
@@ -306,7 +306,7 @@ fn test_content_link_metadata_creation() {
 
 #[test]
 fn test_content_link_metadata_clone() {
-    use systemprompt_core_content::models::ContentLinkMetadata;
+    use systemprompt_content::models::ContentLinkMetadata;
 
     let link = ContentLinkMetadata {
         title: "Link".to_string(),
@@ -324,7 +324,7 @@ fn test_content_link_metadata_clone() {
 
 #[test]
 fn test_content_links_metadata_valid() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
     use chrono::Utc;
 
@@ -362,7 +362,7 @@ fn test_content_links_metadata_valid() {
 
 #[test]
 fn test_content_links_metadata_empty() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
     use chrono::Utc;
 
@@ -392,7 +392,7 @@ fn test_content_links_metadata_empty() {
 
 #[test]
 fn test_content_links_metadata_invalid_json() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
     use chrono::Utc;
 
@@ -421,7 +421,7 @@ fn test_content_links_metadata_invalid_json() {
 
 #[test]
 fn test_content_clone() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
     use chrono::Utc;
 
@@ -456,7 +456,7 @@ fn test_content_clone() {
 
 #[test]
 fn test_content_summary_creation() {
-    use systemprompt_core_content::models::ContentSummary;
+    use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;
     use chrono::Utc;
 
@@ -474,7 +474,7 @@ fn test_content_summary_creation() {
 
 #[test]
 fn test_content_summary_clone() {
-    use systemprompt_core_content::models::ContentSummary;
+    use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;
     use chrono::Utc;
 
@@ -493,7 +493,7 @@ fn test_content_summary_clone() {
 
 #[test]
 fn test_content_summary_serialization() {
-    use systemprompt_core_content::models::ContentSummary;
+    use systemprompt_content::models::ContentSummary;
     use systemprompt_identifiers::ContentId;
     use chrono::Utc;
 
@@ -516,7 +516,7 @@ fn test_content_summary_serialization() {
 
 #[test]
 fn test_tag_creation() {
-    use systemprompt_core_content::models::Tag;
+    use systemprompt_content::models::Tag;
     use systemprompt_identifiers::TagId;
 
     let tag = Tag {
@@ -533,7 +533,7 @@ fn test_tag_creation() {
 
 #[test]
 fn test_tag_clone() {
-    use systemprompt_core_content::models::Tag;
+    use systemprompt_content::models::Tag;
     use systemprompt_identifiers::TagId;
     use chrono::Utc;
 
@@ -553,7 +553,7 @@ fn test_tag_clone() {
 
 #[test]
 fn test_tag_serialization() {
-    use systemprompt_core_content::models::Tag;
+    use systemprompt_content::models::Tag;
     use systemprompt_identifiers::TagId;
 
     let tag = Tag {

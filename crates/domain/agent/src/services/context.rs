@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use base64::Engine;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::{
     is_supported_audio, is_supported_image, is_supported_text, is_supported_video, AiContentPart,
     AiMessage, MessageRole,

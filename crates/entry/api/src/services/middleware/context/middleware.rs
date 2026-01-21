@@ -2,7 +2,7 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
-use systemprompt_core_security::HeaderExtractor;
+use systemprompt_security::HeaderExtractor;
 use tracing::Instrument;
 
 use super::extractors::ContextExtractor;

@@ -1,6 +1,6 @@
 //! Tests for image generation models.
 
-use systemprompt_core_ai::models::image_generation::{
+use systemprompt_ai::models::image_generation::{
     AspectRatio, GeneratedImageRecord, ImageGenerationRequest, ImageGenerationResponse,
     ImageResolution, NewImageGenerationResponse, ReferenceImage,
 };

@@ -3,8 +3,8 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_content::{SearchFilters, SearchRequest, SearchService};
-use systemprompt_core_database::DbPool;
+use systemprompt_content::{SearchFilters, SearchRequest, SearchService};
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 use systemprompt_runtime::AppContext;
 

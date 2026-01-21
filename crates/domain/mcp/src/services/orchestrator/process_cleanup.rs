@@ -10,7 +10,7 @@ pub async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],
     database: &DatabaseManager,
 ) -> Result<usize> {
-    let span = systemprompt_core_logging::SystemSpan::new("mcp_orchestrator");
+    let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
         let mut killed = 0;
         for server in servers {
@@ -61,7 +61,7 @@ pub async fn detect_and_handle_stale_binaries(
     servers: &[McpServerConfig],
     database: &DatabaseManager,
 ) -> Result<usize> {
-    let span = systemprompt_core_logging::SystemSpan::new("mcp_orchestrator");
+    let span = systemprompt_logging::SystemSpan::new("mcp_orchestrator");
     async move {
         let mut restarted = 0;
         for server in servers {

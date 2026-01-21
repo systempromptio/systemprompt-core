@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::content::{ContentFilter, ContentItem, ContentProvider, ContentSummary};
 
 use crate::error::ContentError;

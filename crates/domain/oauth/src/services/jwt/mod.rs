@@ -13,7 +13,7 @@ pub trait TokenValidator: Send + Sync {
 }
 
 pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Result<String, AuthError> {
-    systemprompt_core_security::TokenExtractor::standard()
+    systemprompt_security::TokenExtractor::standard()
         .extract(headers)
         .map_err(|_| AuthError::AuthenticationFailed {
             message: "Authorization header missing or invalid".to_string(),
@@ -51,7 +51,7 @@ impl AuthService {
     pub fn extract_bearer_token(
         headers: &axum::http::HeaderMap,
     ) -> Result<String, axum::http::StatusCode> {
-        systemprompt_core_security::TokenExtractor::standard()
+        systemprompt_security::TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
     }

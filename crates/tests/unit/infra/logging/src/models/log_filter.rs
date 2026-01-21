@@ -1,6 +1,6 @@
 //! Unit tests for LogFilter struct
 
-use systemprompt_core_logging::LogFilter;
+use systemprompt_logging::LogFilter;
 
 // ============================================================================
 // LogFilter Creation Tests

@@ -1,7 +1,7 @@
 //! Tests for ToolResultFormatter.
 
-use systemprompt_core_ai::services::tooled::ToolResultFormatter;
-use systemprompt_core_ai::models::tools::{CallToolResult, ToolCall};
+use systemprompt_ai::services::tooled::ToolResultFormatter;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_identifiers::AiToolCallId;
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;

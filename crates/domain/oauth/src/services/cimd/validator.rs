@@ -3,7 +3,7 @@ use crate::models::cimd::ClientValidation;
 use crate::repository::oauth::OAuthRepository;
 use anyhow::{anyhow, Result};
 use std::sync::Arc;
-use systemprompt_core_database::Database;
+use systemprompt_database::Database;
 use systemprompt_identifiers::ClientId;
 
 #[derive(Debug)]

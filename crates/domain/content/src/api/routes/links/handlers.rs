@@ -8,7 +8,7 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use axum::{Extension, Json};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId};
 use systemprompt_models::{Config, RequestContext};
 use tracing::error;

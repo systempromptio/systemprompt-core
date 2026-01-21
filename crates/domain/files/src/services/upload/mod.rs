@@ -7,7 +7,7 @@ use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 use sha2::{Digest, Sha256};
 use std::path::PathBuf;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 use thiserror::Error;
 use tokio::fs;

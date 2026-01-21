@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-content crate"
+description = "Unit tests for systemprompt-content crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-content = { workspace = true }
+systemprompt-content = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 

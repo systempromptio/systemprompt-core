@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::repository::SessionRepository;
 

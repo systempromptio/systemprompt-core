@@ -1,7 +1,7 @@
 use crate::models::a2a::jsonrpc::NumberOrString;
 use axum::http::StatusCode;
 use serde_json::{json, Value};
-use systemprompt_core_logging::LogLevel;
+use systemprompt_logging::LogLevel;
 use systemprompt_traits::RepositoryError;
 
 pub fn classify_database_error(error: &RepositoryError) -> String {

@@ -7,7 +7,7 @@ use crate::models::a2a::Task;
 use crate::repository::content::ArtifactRepository;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_traits::RepositoryError;
 

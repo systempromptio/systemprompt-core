@@ -1,6 +1,6 @@
 //! Unit tests for ServiceStatus model
 
-use systemprompt_core_mcp::services::monitoring::status::ServiceStatus;
+use systemprompt_mcp::services::monitoring::status::ServiceStatus;
 
 fn create_test_status() -> ServiceStatus {
     ServiceStatus {

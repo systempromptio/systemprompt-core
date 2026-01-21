@@ -4,7 +4,7 @@ use anyhow::Result;
 use axum::extract::Request;
 use axum::http::{HeaderMap, Uri};
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
 

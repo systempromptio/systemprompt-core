@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::prerender::content::process_all_sources;
 use crate::prerender::context::load_prerender_context;

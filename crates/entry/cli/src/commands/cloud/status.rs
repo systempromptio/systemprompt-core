@@ -1,6 +1,6 @@
 use anyhow::Result;
 use systemprompt_cloud::{CloudApiClient, CredentialsBootstrap};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 pub async fn execute() -> Result<()> {

@@ -2,7 +2,7 @@ use std::future::Future;
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_core_database::{DatabaseProvider, DatabaseQuery, DbPool};
+use systemprompt_database::{DatabaseProvider, DatabaseQuery, DbPool};
 
 use super::process_cleanup::ProcessCleanup;
 use super::state_manager::{ServiceConfig, ServiceStateManager};

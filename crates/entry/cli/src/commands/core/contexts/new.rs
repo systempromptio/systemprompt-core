@@ -5,8 +5,8 @@ use chrono::Utc;
 use clap::Args;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::CliSession;
-use systemprompt_core_agent::repository::context::ContextRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::types::ContextSwitchedOutput;

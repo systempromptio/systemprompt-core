@@ -3,7 +3,7 @@ use clap::Subcommand;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
 use systemprompt_cloud::CloudApiClient;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use super::tenant::get_credentials;

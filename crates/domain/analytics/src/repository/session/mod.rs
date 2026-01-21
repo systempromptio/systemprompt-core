@@ -4,7 +4,7 @@ mod types;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;

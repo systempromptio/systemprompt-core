@@ -7,7 +7,7 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use super::super::types::{TemplateDeleteOutput, TemplatesConfig};

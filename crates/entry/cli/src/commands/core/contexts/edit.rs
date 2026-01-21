@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Args;
-use systemprompt_core_agent::repository::context::ContextRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::resolve::resolve_context;

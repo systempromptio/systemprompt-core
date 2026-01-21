@@ -1,9 +1,9 @@
 use crate::registry::ModuleApiRegistry;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_analytics::{AnalyticsService, GeoIpReader};
-use systemprompt_core_database::{Database, DbPool};
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::{AnalyticsService, GeoIpReader};
+use systemprompt_database::{Database, DbPool};
+use systemprompt_logging::CliService;
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_models::{
     AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap, RouteClassifier,
@@ -53,14 +53,20 @@ impl AppContext {
     ) -> Result<Self> {
         let profile = ProfileBootstrap::get()?;
         AppPaths::init(&profile.paths)?;
-        systemprompt_core_files::FilesConfig::init()?;
+        systemprompt_files::FilesConfig::init()?;
         let config = Arc::new(Config::get()?.clone());
         let database =
             Arc::new(Database::from_config(&config.database_type, &config.database_url).await?);
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
 
-        let registry = extension_registry.unwrap_or_else(ExtensionRegistry::discover);
+        let injected = systemprompt_extension::runtime_config::get_injected_extensions();
+
+        let registry = match extension_registry {
+            Some(r) => r,
+            None if injected.is_empty() => ExtensionRegistry::discover(),
+            None => ExtensionRegistry::discover_and_merge(injected)?,
+        };
 
         registry.validate()?;
 
@@ -83,7 +89,7 @@ impl AppContext {
 
         // Initialize logging with database persistence.
         // The guard in init_logging prevents double initialization.
-        systemprompt_core_logging::init_logging(Arc::clone(&database));
+        systemprompt_logging::init_logging(Arc::clone(&database));
 
         Ok(Self {
             config,

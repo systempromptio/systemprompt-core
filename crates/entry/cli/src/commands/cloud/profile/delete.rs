@@ -2,7 +2,7 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
 use crate::cli_settings::CliConfig;

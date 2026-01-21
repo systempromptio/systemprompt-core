@@ -6,7 +6,7 @@
 //! - LoadStats structure
 //! - ParsedContent structure
 
-use systemprompt_core_content::{LoadStats, ParsedContent};
+use systemprompt_content::{LoadStats, ParsedContent};
 
 // ============================================================================
 // LoadStats Tests

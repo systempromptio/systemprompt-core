@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-files"
+name = "systemprompt-files"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "File management module for SystemPrompt"
 
 [lints]
@@ -11,8 +15,8 @@ workspace = true
 
 [dependencies]
 systemprompt-cloud = { path = "../../infra/cloud" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }

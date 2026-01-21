@@ -4,7 +4,7 @@ mod queries;
 
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -76,7 +76,7 @@ impl MessageRepository {
 
     pub async fn persist_message_with_tx(
         &self,
-        tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+        tx: &mut dyn systemprompt_database::DatabaseTransaction,
         message: &Message,
         task_id: &TaskId,
         context_id: &ContextId,

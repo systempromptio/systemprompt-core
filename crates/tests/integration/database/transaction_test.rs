@@ -1,4 +1,4 @@
-use systemprompt_core_database::Database;
+use systemprompt_database::Database;
 
 #[tokio::test]
 async fn transaction_commits_successfully() {

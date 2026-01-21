@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::process::Command;
 use std::time::Duration;
-use systemprompt_core_scheduler::ProcessCleanup;
+use systemprompt_scheduler::ProcessCleanup;
 
 const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
 

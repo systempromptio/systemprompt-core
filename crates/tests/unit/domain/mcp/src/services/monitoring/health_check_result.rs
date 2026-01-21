@@ -1,6 +1,6 @@
 //! Unit tests for HealthCheckResult and HealthCheckDetails
 
-use systemprompt_core_mcp::services::monitoring::health::{
+use systemprompt_mcp::services::monitoring::health::{
     HealthCheckDetails, HealthCheckResult, HealthStatus,
 };
 

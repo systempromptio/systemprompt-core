@@ -8,7 +8,7 @@ use std::path::Path;
 use super::types::SkillEditOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 #[derive(Debug, Args)]

@@ -4,8 +4,8 @@
 //! Set DATABASE_URL environment variable to run these tests.
 
 use chrono::Utc;
-use systemprompt_core_database::Database;
-use systemprompt_core_files::{File, FileMetadata, FileRepository, InsertFileRequest};
+use systemprompt_database::Database;
+use systemprompt_files::{File, FileMetadata, FileRepository, InsertFileRequest};
 use systemprompt_identifiers::{FileId, UserId};
 
 async fn get_db() -> Option<Database> {

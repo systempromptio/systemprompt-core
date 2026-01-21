@@ -1,6 +1,6 @@
 //! Unit tests for MCP health monitoring types
 
-use systemprompt_core_mcp::services::monitoring::health::HealthStatus;
+use systemprompt_mcp::services::monitoring::health::HealthStatus;
 
 // ============================================================================
 // HealthStatus as_str Tests

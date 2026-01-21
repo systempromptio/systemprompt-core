@@ -1,5 +1,5 @@
 use super::setup_test_pool;
-use systemprompt_core_oauth::repository::ClientRepository;
+use systemprompt_oauth::repository::ClientRepository;
 
 #[tokio::test]
 #[ignore]

@@ -1,6 +1,6 @@
 use crate::models::AiRequestRecord;
 use crate::repository::{AiRequestRepository, InsertToolCallParams};
-use systemprompt_core_analytics::{CreateSessionParams, SessionRepository};
+use systemprompt_analytics::{CreateSessionParams, SessionRepository};
 use systemprompt_identifiers::{AiRequestId, SessionId, SessionSource, UserId};
 
 use super::record_builder::{MessageData, ToolCallData};

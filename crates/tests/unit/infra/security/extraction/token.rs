@@ -9,7 +9,7 @@
 //! - Custom configuration options
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_core_security::{ExtractionMethod, TokenExtractionError, TokenExtractor};
+use systemprompt_security::{ExtractionMethod, TokenExtractionError, TokenExtractor};
 
 // ============================================================================
 // ExtractionMethod Display Tests

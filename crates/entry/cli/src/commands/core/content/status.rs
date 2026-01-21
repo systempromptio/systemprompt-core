@@ -4,8 +4,8 @@ use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_core_content::ContentRepository;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::ContentRepository;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 

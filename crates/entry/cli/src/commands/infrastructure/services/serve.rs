@@ -1,8 +1,8 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_scheduler::ProcessCleanup;
+use systemprompt_logging::CliService;
+use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_loader::ModuleLoader;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::{
@@ -56,7 +56,7 @@ pub async fn execute_with_events(
 
     run_migrations(&ctx, events).await?;
 
-    systemprompt_core_logging::init_logging(Arc::clone(ctx.db_pool()));
+    systemprompt_logging::init_logging(Arc::clone(ctx.db_pool()));
 
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);
@@ -88,7 +88,7 @@ pub async fn execute_with_events(
     }
 
     if foreground {
-        systemprompt_core_api::services::server::run_server(
+        systemprompt_api::services::server::run_server(
             Arc::unwrap_or_clone(ctx),
             events.cloned(),
         )

@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-mcp crate"
+description = "Unit tests for systemprompt-mcp crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-mcp = { workspace = true }
+systemprompt-mcp = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 tokio = { workspace = true }

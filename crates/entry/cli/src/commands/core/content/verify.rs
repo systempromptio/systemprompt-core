@@ -4,7 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_core_content::ContentRepository;
+use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, SourceId};
 use systemprompt_runtime::AppContext;
 

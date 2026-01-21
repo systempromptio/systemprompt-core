@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-config"
+name = "systemprompt-config"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Configuration module for SystemPrompt - environment configuration and validation"
 
 [lints]
@@ -25,5 +29,5 @@ schemars = { workspace = true }
 regex = { workspace = true }
 
 # SystemPrompt dependencies
-systemprompt-core-logging = { path = "../logging" }
+systemprompt-logging = { path = "../logging" }
 systemprompt-models = { path = "../../shared/models" }

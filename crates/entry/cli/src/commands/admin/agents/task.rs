@@ -1,10 +1,10 @@
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use reqwest::Client;
-use systemprompt_core_agent::models::a2a::jsonrpc::{
+use systemprompt_agent::models::a2a::jsonrpc::{
     JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
 };
-use systemprompt_core_agent::models::a2a::protocol::TaskQueryParams;
+use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
 use systemprompt_models::a2a::Task;
 
 use crate::session::get_or_create_session;

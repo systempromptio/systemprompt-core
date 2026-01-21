@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_files::{FilePersistenceMode, FilesConfig};
+use systemprompt_files::{FilePersistenceMode, FilesConfig};
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
 use crate::shared::CommandResult;

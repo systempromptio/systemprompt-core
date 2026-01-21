@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::RequestContext;
 use tracing::{debug, error};
@@ -181,7 +181,7 @@ impl McpToolLoader {
 }
 
 fn extract_user_permissions(context: &RequestContext) -> Result<Vec<String>> {
-    use systemprompt_core_oauth::services::validation::jwt::validate_jwt_token;
+    use systemprompt_oauth::services::validation::jwt::validate_jwt_token;
 
     let token = context.auth_token().as_str();
     if token.is_empty() {

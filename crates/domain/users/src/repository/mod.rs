@@ -9,7 +9,7 @@ pub use user::{MergeResult, UpdateUserParams};
 use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 pub(crate) const MAX_PAGE_SIZE: i64 = 100;
 

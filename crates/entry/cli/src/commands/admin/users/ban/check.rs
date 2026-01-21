@@ -1,9 +1,9 @@
 use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_database::DbPool;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_users::BannedIpRepository;
+use systemprompt_database::DbPool;
+use systemprompt_logging::CliService;
+use systemprompt_users::BannedIpRepository;
 use systemprompt_runtime::AppContext;
 
 use crate::commands::admin::users::types::{BanCheckOutput, BanSummary};

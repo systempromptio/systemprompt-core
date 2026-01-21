@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_database::{Database, DbPool};
+use systemprompt_database::{Database, DbPool};
 
 #[derive(Debug, Clone)]
 pub struct DatabaseContext {

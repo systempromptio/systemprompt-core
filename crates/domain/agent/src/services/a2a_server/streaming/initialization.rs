@@ -53,7 +53,7 @@ pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberO
 }
 
 pub async fn detect_mcp_server_and_update_context(agent_name: &str, context: &mut RequestContext) {
-    use systemprompt_core_mcp::services::registry::McpServerRegistry;
+    use systemprompt_mcp::services::registry::McpServerRegistry;
 
     let is_mcp_server = match McpServerRegistry::validate() {
         Ok(()) => McpServerRegistry::find_server(agent_name)

@@ -6,7 +6,7 @@
 //! - ContextStateEvent variants and methods
 
 use chrono::Utc;
-use systemprompt_core_agent::models::context::{ContextDetail, ContextMessage, ContextStateEvent};
+use systemprompt_agent::models::context::{ContextDetail, ContextMessage, ContextStateEvent};
 use systemprompt_identifiers::{ContextId, UserId};
 use systemprompt_models::UserContext;
 
@@ -156,7 +156,7 @@ fn test_context_state_event_tool_execution_completed_context_id() {
 #[test]
 fn test_context_state_event_task_status_changed_context_id() {
     let event = ContextStateEvent::TaskStatusChanged {
-        task: systemprompt_core_agent::Task::default(),
+        task: systemprompt_agent::Task::default(),
         context_id: "ctx-task-status".to_string(),
         timestamp: Utc::now(),
     };

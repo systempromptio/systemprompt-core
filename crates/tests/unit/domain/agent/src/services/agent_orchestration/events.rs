@@ -5,7 +5,7 @@
 //! - Event serialization and deserialization
 //! - Helper methods (agent_id, event_type)
 
-use systemprompt_core_agent::AgentEvent;
+use systemprompt_agent::AgentEvent;
 
 // ============================================================================
 // AgentEvent Variant Tests

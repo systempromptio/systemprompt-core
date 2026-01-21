@@ -2,7 +2,7 @@
 
 use anyhow::{Context, Result};
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};

@@ -1,5 +1,5 @@
 use serde_json::Value;
-use systemprompt_core_logging::{
+use systemprompt_logging::{
     AiRequestSummary, CliService, ExecutionStepSummary, McpExecutionSummary, TraceEvent,
 };
 

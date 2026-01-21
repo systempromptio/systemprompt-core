@@ -7,7 +7,7 @@ pub mod skills;
 use anyhow::{anyhow, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 

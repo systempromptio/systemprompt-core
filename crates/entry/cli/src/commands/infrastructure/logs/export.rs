@@ -4,7 +4,7 @@ use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;

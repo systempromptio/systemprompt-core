@@ -2,7 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_core_mcp::McpServerConfig;
+use systemprompt_mcp::McpServerConfig;
 use systemprompt_models::auth::{JwtAudience, Permission};
 use systemprompt_models::mcp::OAuthRequirement;
 

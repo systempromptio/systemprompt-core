@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::time::Duration;
-use systemprompt_core_database::{DbPool, ServiceRepository};
-use systemprompt_core_scheduler::ProcessCleanup;
+use systemprompt_database::{DbPool, ServiceRepository};
+use systemprompt_scheduler::ProcessCleanup;
 use tokio::task::JoinHandle;
 use tracing::{info, warn};
 

@@ -31,7 +31,7 @@ pub async fn load_event_data(
 }
 
 async fn load_task_completed(
-    db: &systemprompt_core_database::DbPool,
+    db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_repo = TaskRepository::new(db.clone());
@@ -101,7 +101,7 @@ async fn load_task_completed(
 }
 
 async fn load_artifact_created(
-    db: &systemprompt_core_database::DbPool,
+    db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let artifact_repo = ArtifactRepository::new(db.clone());
@@ -124,7 +124,7 @@ async fn load_artifact_created(
 }
 
 async fn load_message_received(
-    db: &systemprompt_core_database::DbPool,
+    db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let pool = db
@@ -156,7 +156,7 @@ async fn load_message_received(
 }
 
 async fn load_context_updated(
-    db: &systemprompt_core_database::DbPool,
+    db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
     let context_repo = ContextRepository::new(db.clone());

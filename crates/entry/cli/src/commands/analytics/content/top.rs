@@ -1,8 +1,8 @@
 use anyhow::Result;
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_core_analytics::ContentAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::ContentAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TopContentOutput, TopContentRow};

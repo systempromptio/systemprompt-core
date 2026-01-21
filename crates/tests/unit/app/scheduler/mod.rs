@@ -11,7 +11,7 @@
 //! - ProcessInfo structure and operations
 
 use chrono::{TimeZone, Utc};
-use systemprompt_core_scheduler::{
+use systemprompt_scheduler::{
     DbServiceRecord, DesiredStatus, JobStatus, ProcessCleanup, ProcessInfo, ReconciliationResult,
     RuntimeStatus, ScheduledJob, SchedulerError, ServiceAction, ServiceConfig, ServiceType,
     VerifiedServiceState,
@@ -1516,7 +1516,7 @@ fn test_reconciliation_result_debug() {
 
 #[test]
 fn test_behavioral_analysis_job_properties() {
-    use systemprompt_core_scheduler::BehavioralAnalysisJob;
+    use systemprompt_scheduler::BehavioralAnalysisJob;
     use systemprompt_traits::Job;
 
     let job = BehavioralAnalysisJob;
@@ -1530,7 +1530,7 @@ fn test_behavioral_analysis_job_properties() {
 
 #[test]
 fn test_database_cleanup_job_properties() {
-    use systemprompt_core_scheduler::DatabaseCleanupJob;
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
     let job = DatabaseCleanupJob;
@@ -1544,7 +1544,7 @@ fn test_database_cleanup_job_properties() {
 
 #[test]
 fn test_cleanup_empty_contexts_job_properties() {
-    use systemprompt_core_scheduler::CleanupEmptyContextsJob;
+    use systemprompt_scheduler::CleanupEmptyContextsJob;
     use systemprompt_traits::Job;
 
     let job = CleanupEmptyContextsJob;
@@ -1558,7 +1558,7 @@ fn test_cleanup_empty_contexts_job_properties() {
 
 #[test]
 fn test_cleanup_inactive_sessions_job_properties() {
-    use systemprompt_core_scheduler::CleanupInactiveSessionsJob;
+    use systemprompt_scheduler::CleanupInactiveSessionsJob;
     use systemprompt_traits::Job;
 
     let job = CleanupInactiveSessionsJob;
@@ -1576,7 +1576,7 @@ fn test_cleanup_inactive_sessions_job_properties() {
 
 #[test]
 fn test_job_schedules_are_valid_cron_format() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1605,7 +1605,7 @@ fn test_job_schedules_are_valid_cron_format() {
 
 #[test]
 fn test_all_jobs_have_unique_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1632,7 +1632,7 @@ fn test_all_jobs_have_unique_names() {
 
 #[test]
 fn test_all_jobs_have_non_empty_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1660,7 +1660,7 @@ fn test_all_jobs_have_non_empty_names() {
 
 #[test]
 fn test_all_jobs_have_snake_case_names() {
-    use systemprompt_core_scheduler::{
+    use systemprompt_scheduler::{
         BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob,
         DatabaseCleanupJob,
     };
@@ -1690,7 +1690,7 @@ fn test_all_jobs_have_snake_case_names() {
 
 #[test]
 fn test_behavioral_analysis_job_copy() {
-    use systemprompt_core_scheduler::BehavioralAnalysisJob;
+    use systemprompt_scheduler::BehavioralAnalysisJob;
     use systemprompt_traits::Job;
 
     let job1 = BehavioralAnalysisJob;
@@ -1700,7 +1700,7 @@ fn test_behavioral_analysis_job_copy() {
 
 #[test]
 fn test_database_cleanup_job_copy() {
-    use systemprompt_core_scheduler::DatabaseCleanupJob;
+    use systemprompt_scheduler::DatabaseCleanupJob;
     use systemprompt_traits::Job;
 
     let job1 = DatabaseCleanupJob;
@@ -1710,7 +1710,7 @@ fn test_database_cleanup_job_copy() {
 
 #[test]
 fn test_cleanup_empty_contexts_job_copy() {
-    use systemprompt_core_scheduler::CleanupEmptyContextsJob;
+    use systemprompt_scheduler::CleanupEmptyContextsJob;
     use systemprompt_traits::Job;
 
     let job1 = CleanupEmptyContextsJob;
@@ -1720,7 +1720,7 @@ fn test_cleanup_empty_contexts_job_copy() {
 
 #[test]
 fn test_cleanup_inactive_sessions_job_copy() {
-    use systemprompt_core_scheduler::CleanupInactiveSessionsJob;
+    use systemprompt_scheduler::CleanupInactiveSessionsJob;
     use systemprompt_traits::Job;
 
     let job1 = CleanupInactiveSessionsJob;

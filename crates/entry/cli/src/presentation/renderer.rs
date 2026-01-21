@@ -5,7 +5,7 @@ use systemprompt_traits::{
 use super::state::RenderState;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
-use systemprompt_core_logging::services::cli::BrandColors;
+use systemprompt_logging::services::cli::BrandColors;
 
 use super::widgets::{render_warning, CompletionMessage, ServiceTable, StartupBanner};
 
@@ -56,7 +56,7 @@ impl StartupRenderer {
                         Phase::Agents => self.state.agent_count,
                         _ => (0, 0),
                     };
-                    systemprompt_core_logging::CliService::info(&format!(
+                    systemprompt_logging::CliService::info(&format!(
                         "  {} {} ({}/{})",
                         BrandColors::running("✓"),
                         phase.name(),
@@ -70,7 +70,7 @@ impl StartupRenderer {
                 let phase_key = format!("phase_{}", phase.name());
                 if let Some(spinner) = self.state.spinners.remove(&phase_key) {
                     spinner.finish_and_clear();
-                    systemprompt_core_logging::CliService::info(&format!(
+                    systemprompt_logging::CliService::info(&format!(
                         "  {} {} failed: {}",
                         BrandColors::stopped("✗"),
                         phase.name(),
@@ -175,7 +175,7 @@ impl StartupRenderer {
             StartupEvent::SchedulerReady { job_count } => {
                 if let Some(spinner) = self.state.spinners.remove("scheduler") {
                     spinner.finish_and_clear();
-                    systemprompt_core_logging::CliService::info(&format!(
+                    systemprompt_logging::CliService::info(&format!(
                         "  {} Scheduler ({} jobs)",
                         BrandColors::running("✓"),
                         job_count

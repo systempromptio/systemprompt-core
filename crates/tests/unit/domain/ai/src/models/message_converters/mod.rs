@@ -1,9 +1,9 @@
 //! Tests for message converter implementations.
 
-use systemprompt_core_ai::models::ai::{AiMessage, MessageRole};
-use systemprompt_core_ai::models::providers::anthropic::AnthropicMessage;
-use systemprompt_core_ai::models::providers::gemini::GeminiContent;
-use systemprompt_core_ai::models::providers::openai::{OpenAiMessage, OpenAiMessageContent};
+use systemprompt_ai::models::ai::{AiMessage, MessageRole};
+use systemprompt_ai::models::providers::anthropic::AnthropicMessage;
+use systemprompt_ai::models::providers::gemini::GeminiContent;
+use systemprompt_ai::models::providers::openai::{OpenAiMessage, OpenAiMessageContent};
 
 mod openai_converter_tests {
     use super::*;
@@ -101,7 +101,7 @@ mod openai_converter_tests {
 
 mod anthropic_converter_tests {
     use super::*;
-    use systemprompt_core_ai::models::providers::anthropic::AnthropicContent;
+    use systemprompt_ai::models::providers::anthropic::AnthropicContent;
 
     #[test]
     fn user_message_converts_to_anthropic_user_role() {
@@ -175,7 +175,7 @@ mod anthropic_converter_tests {
 
 mod gemini_converter_tests {
     use super::*;
-    use systemprompt_core_ai::models::providers::gemini::GeminiPart;
+    use systemprompt_ai::models::providers::gemini::GeminiPart;
 
     #[test]
     fn user_message_converts_to_gemini_user_role() {
@@ -260,8 +260,8 @@ mod gemini_converter_tests {
 
 mod role_mapping_comparison_tests {
     use super::*;
-    use systemprompt_core_ai::models::providers::anthropic::AnthropicContent;
-    use systemprompt_core_ai::models::providers::gemini::GeminiPart;
+    use systemprompt_ai::models::providers::anthropic::AnthropicContent;
+    use systemprompt_ai::models::providers::gemini::GeminiPart;
 
     fn assert_openai_text_content(content: &OpenAiMessageContent, expected: &str) {
         match content {

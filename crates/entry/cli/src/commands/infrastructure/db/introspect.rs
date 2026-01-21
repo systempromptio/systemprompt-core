@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use systemprompt_core_database::DatabaseAdminService;
-use systemprompt_core_logging::CliService;
+use systemprompt_database::DatabaseAdminService;
+use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 

@@ -1,4 +1,4 @@
-use systemprompt_core_logging::{RequestSpan, RequestSpanBuilder};
+use systemprompt_logging::{RequestSpan, RequestSpanBuilder};
 use systemprompt_models::RequestContext;
 
 pub fn create_request_span(ctx: &RequestContext) -> RequestSpan {

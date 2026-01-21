@@ -38,7 +38,7 @@ impl EntityId for String {
 /// # Example
 ///
 /// ```rust,ignore
-/// use systemprompt_core_database::repository::{Entity, EntityId};
+/// use systemprompt_database::repository::{Entity, EntityId};
 /// use sqlx::FromRow;
 ///
 /// #[derive(Debug, Clone, FromRow)]

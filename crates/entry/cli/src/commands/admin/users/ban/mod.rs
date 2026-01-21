@@ -7,7 +7,7 @@ mod remove;
 use crate::cli_settings::CliConfig;
 use anyhow::{bail, Result};
 use clap::Subcommand;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 #[derive(Debug, Subcommand)]
 pub enum BanCommands {

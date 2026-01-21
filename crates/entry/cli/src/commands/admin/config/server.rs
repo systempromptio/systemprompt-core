@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Result};
 use clap::{Args, Subcommand};
 use std::fs;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::{Profile, ProfileBootstrap};
 
 use super::types::{CorsListOutput, CorsModifyOutput, ServerConfigOutput, ServerSetOutput};

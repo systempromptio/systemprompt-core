@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use crate::shared::profile::generate_jwt_secret;

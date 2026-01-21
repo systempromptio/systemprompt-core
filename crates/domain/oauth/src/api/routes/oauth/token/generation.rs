@@ -8,7 +8,7 @@ use axum::Json;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;

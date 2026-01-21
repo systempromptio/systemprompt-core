@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::net::TcpStream;
 use std::time::Duration;
-use systemprompt_core_database::ServiceRepository;
+use systemprompt_database::ServiceRepository;
 
 #[derive(Debug)]
 pub struct ProxyHealthCheck {
@@ -9,7 +9,7 @@ pub struct ProxyHealthCheck {
 }
 
 impl ProxyHealthCheck {
-    pub const fn new(db_pool: systemprompt_core_database::DbPool) -> Self {
+    pub const fn new(db_pool: systemprompt_database::DbPool) -> Self {
         Self {
             service_repo: ServiceRepository::new(db_pool),
         }
@@ -87,7 +87,7 @@ impl ProxyHealthCheck {
         Ok(routable)
     }
 
-    const fn parse_port_from_service(service: &systemprompt_core_database::ServiceConfig) -> u16 {
+    const fn parse_port_from_service(service: &systemprompt_database::ServiceConfig) -> u16 {
         service.port as u16
     }
 }

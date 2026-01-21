@@ -2,7 +2,7 @@ use crate::error::ContentError;
 use crate::models::{CampaignLink, CreateLinkParams, DestinationType, LinkType, UtmParams};
 use crate::repository::LinkRepository;
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId};
 
 #[derive(Debug)]

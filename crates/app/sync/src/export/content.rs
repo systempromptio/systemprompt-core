@@ -2,7 +2,7 @@ use super::escape_yaml;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use systemprompt_core_content::models::Content;
+use systemprompt_content::models::Content;
 
 pub fn generate_content_markdown(content: &Content) -> String {
     let image_str = content.image.as_deref().unwrap_or("");

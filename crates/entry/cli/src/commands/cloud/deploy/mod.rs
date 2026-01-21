@@ -7,7 +7,7 @@ use systemprompt_cloud::constants::{build, container, paths};
 use systemprompt_cloud::{
     get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::dockerfile::validate_profile_dockerfile;
 use super::secrets::sync_cloud_credentials;

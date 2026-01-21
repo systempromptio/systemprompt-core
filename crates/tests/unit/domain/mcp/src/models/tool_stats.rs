@@ -1,6 +1,6 @@
 //! Unit tests for ToolStats model
 
-use systemprompt_core_mcp::models::ToolStats;
+use systemprompt_mcp::models::ToolStats;
 
 fn create_test_stats() -> ToolStats {
     ToolStats {

@@ -273,8 +273,8 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
 
 pub fn load_service_configs(
     _ctx: &AppContext,
-) -> Result<Vec<systemprompt_core_scheduler::ServiceConfig>> {
-    use systemprompt_core_scheduler::{ServiceConfig, ServiceType};
+) -> Result<Vec<systemprompt_scheduler::ServiceConfig>> {
+    use systemprompt_scheduler::{ServiceConfig, ServiceType};
     use systemprompt_loader::ConfigLoader;
 
     let services_config = ConfigLoader::load()?;

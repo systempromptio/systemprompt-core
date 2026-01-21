@@ -1,6 +1,6 @@
 //! Unit tests for LoggingError enum
 
-use systemprompt_core_logging::models::LoggingError;
+use systemprompt_logging::models::LoggingError;
 
 // ============================================================================
 // LoggingError Constructor Tests

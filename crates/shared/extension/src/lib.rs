@@ -6,6 +6,7 @@ pub mod context;
 pub mod error;
 pub mod hlist;
 pub mod registry;
+pub mod runtime_config;
 pub mod typed;
 pub mod typed_registry;
 pub mod types;

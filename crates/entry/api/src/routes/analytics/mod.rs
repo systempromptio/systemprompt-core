@@ -4,8 +4,8 @@ mod stream;
 use axum::routing::{get, post};
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_core_analytics::AnalyticsEventsRepository;
-use systemprompt_core_content::ContentRepository;
+use systemprompt_analytics::AnalyticsEventsRepository;
+use systemprompt_content::ContentRepository;
 use systemprompt_runtime::AppContext;
 
 pub use events::AnalyticsState;

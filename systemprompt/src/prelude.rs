@@ -17,7 +17,7 @@ pub use systemprompt_traits::{Job, JobContext, JobResult};
 pub use systemprompt_traits::{LlmProvider, LlmProviderResult, ToolProvider, ToolProviderResult};
 
 #[cfg(feature = "database")]
-pub use systemprompt_core_database::{
+pub use systemprompt_database::{
     repository::{Entity, EntityId, GenericRepository, RepositoryExt},
     DatabaseProvider, DbPool,
 };
@@ -32,10 +32,10 @@ pub use rmcp;
 pub use systemprompt_loader::ConfigLoader;
 
 #[cfg(feature = "full")]
-pub use systemprompt_core_logging::init_logging;
+pub use systemprompt_logging::init_logging;
 
 #[cfg(feature = "full")]
-pub use systemprompt_core_mcp::create_router as create_mcp_router;
+pub use systemprompt_mcp::create_router as create_mcp_router;
 
 pub use std::sync::Arc;
 

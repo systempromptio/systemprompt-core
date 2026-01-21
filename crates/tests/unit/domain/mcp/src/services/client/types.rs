@@ -1,6 +1,6 @@
 //! Unit tests for MCP client types
 
-use systemprompt_core_mcp::services::client::{McpConnectionResult, McpProtocolInfo, ValidationResult};
+use systemprompt_mcp::services::client::{McpConnectionResult, McpProtocolInfo, ValidationResult};
 
 // ============================================================================
 // McpProtocolInfo Tests

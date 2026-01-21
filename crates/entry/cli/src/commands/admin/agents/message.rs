@@ -3,10 +3,10 @@ use clap::Args;
 use futures_util::StreamExt;
 use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
-use systemprompt_core_agent::models::a2a::jsonrpc::{
+use systemprompt_agent::models::a2a::jsonrpc::{
     JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
 };
-use systemprompt_core_agent::models::a2a::protocol::{
+use systemprompt_agent::models::a2a::protocol::{
     MessageSendConfiguration, MessageSendParams, TaskStatusUpdateEvent,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};

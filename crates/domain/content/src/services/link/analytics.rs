@@ -5,7 +5,7 @@ use crate::models::{
 };
 use crate::repository::{LinkAnalyticsRepository, LinkRepository};
 use chrono::Utc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkClickId, LinkId};
 
 const DEFAULT_JOURNEY_LIMIT: i64 = 50;

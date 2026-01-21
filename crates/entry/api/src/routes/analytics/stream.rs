@@ -2,7 +2,7 @@ use axum::extract::Extension;
 use axum::response::IntoResponse;
 
 use crate::routes::stream::create_sse_stream;
-use systemprompt_core_events::ANALYTICS_BROADCASTER;
+use systemprompt_events::ANALYTICS_BROADCASTER;
 use systemprompt_models::RequestContext;
 
 /// SSE endpoint for real-time analytics events.

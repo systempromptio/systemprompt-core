@@ -66,15 +66,15 @@ pub async fn run_server(ctx: AppContext, events: Option<StartupEventSender>) -> 
         tx.startup_complete(start_time.elapsed(), format!("http://{}", addr), vec![]);
     }
 
-    systemprompt_core_logging::set_startup_mode(false);
+    systemprompt_logging::set_startup_mode(false);
 
     api_server.serve(&addr).await
 }
 
 fn create_mcp_orchestrator(
     ctx: &AppContext,
-) -> Result<Arc<systemprompt_core_mcp::services::McpManager>> {
-    use systemprompt_core_mcp::services::McpManager;
+) -> Result<Arc<systemprompt_mcp::services::McpManager>> {
+    use systemprompt_mcp::services::McpManager;
     let manager = McpManager::new(Arc::new(ctx.clone()))?;
     Ok(Arc::new(manager))
 }

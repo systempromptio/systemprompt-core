@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
 mod templates;

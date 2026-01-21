@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-logging"
+name = "systemprompt-logging"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core logging module for SystemPrompt OS"
 
 [lints]
@@ -34,7 +38,7 @@ dialoguer = { workspace = true }
 indicatif = { workspace = true }
 
 # Core libs
-systemprompt-core-database = { path = "../database" }
+systemprompt-database = { path = "../database" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 

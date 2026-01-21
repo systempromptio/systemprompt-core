@@ -1,6 +1,6 @@
 //! Unit tests for LogLevel enum
 
-use systemprompt_core_logging::LogLevel;
+use systemprompt_logging::LogLevel;
 
 // ============================================================================
 // LogLevel Display Tests

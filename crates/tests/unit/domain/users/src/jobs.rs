@@ -6,7 +6,7 @@
 //! Note: The execute method requires database integration and is tested
 //! in integration tests.
 
-use systemprompt_core_users::jobs::CleanupAnonymousUsersJob;
+use systemprompt_users::jobs::CleanupAnonymousUsersJob;
 use systemprompt_traits::Job;
 
 // ============================================================================
