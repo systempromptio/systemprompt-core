@@ -35,7 +35,7 @@ impl ContentDiffCalculator {
             .map(|c| (c.slug.clone(), c))
             .collect();
 
-        let disk_items = self.scan_disk_content(disk_path, allowed_types)?;
+        let disk_items = Self::scan_disk_content(disk_path, allowed_types)?;
 
         let mut result = ContentDiffResult {
             source_id: source_id.to_string(),
@@ -96,7 +96,6 @@ impl ContentDiffCalculator {
     }
 
     fn scan_disk_content(
-        &self,
         path: &Path,
         allowed_types: &[String],
     ) -> Result<HashMap<String, DiskContent>> {

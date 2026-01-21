@@ -138,7 +138,7 @@ impl ContentLocalSync {
             let allowed_types: Vec<&str> = entry
                 .allowed_content_types
                 .iter()
-                .map(|s| s.as_str())
+                .map(String::as_str)
                 .collect();
 
             let source = IngestionSource::new(&entry.source_id, &entry.category_id, &allowed_types);

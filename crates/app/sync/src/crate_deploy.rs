@@ -26,13 +26,12 @@ impl CrateDeployService {
         let project_root = Self::get_project_root()?;
         let app_id = self.get_app_id().await?;
 
-        let tag = match custom_tag {
-            Some(t) => t,
-            None => {
-                let timestamp = chrono::Utc::now().timestamp();
-                let git_sha = Self::get_git_sha()?;
-                format!("deploy-{timestamp}-{git_sha}")
-            },
+        let tag = if let Some(t) = custom_tag {
+            t
+        } else {
+            let timestamp = chrono::Utc::now().timestamp();
+            let git_sha = Self::get_git_sha()?;
+            format!("deploy-{timestamp}-{git_sha}")
         };
 
         let image = format!("registry.fly.io/{app_id}:{tag}");

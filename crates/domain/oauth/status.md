@@ -88,6 +88,28 @@ All source files are under 300 lines. Key module sizes:
    - `callback.rs:203` - user role parsing
    - `authorization.rs:92` - JWT audience parsing
 
+### Magic Number Extraction
+1. Created `src/constants.rs` with named constants for:
+   - PKCE: `CODE_CHALLENGE_MIN_LENGTH` (43), `CODE_CHALLENGE_MAX_LENGTH` (128)
+   - Token: `COOKIE_MAX_AGE_SECONDS`, `SECONDS_PER_DAY`, `REFRESH_TOKEN_EXPIRY_DAYS`, `ANONYMOUS_TOKEN_EXPIRY_SECONDS`
+   - WebAuthn: `CHALLENGE_EXPIRY_SECONDS`, `CLEANUP_INTERVAL_SECONDS`
+   - Validation: `MIN_SEQUENTIAL_RUN`, `DIVERSITY_THRESHOLD`, `MIN_UNIQUE_CHARS`
+2. Updated all usages in:
+   - `authorize/validation.rs` - PKCE length checks, entropy validation
+   - `anonymous.rs` - token expiry
+   - `callback.rs` - cookie max-age, refresh token expiry
+   - `webauthn/config.rs` - challenge expiry
+   - `webauthn/manager.rs` - cleanup interval
+
+### Dead Code Removal
+1. Removed unused `validate_pkce()` function from `services/validation/oauth_params.rs`
+2. Removed unused `PkceChallenge` struct and `PkceMethod` import
+
+### Hardcoded URL Removal
+1. Removed hardcoded localhost callback URLs from `client_config/update.rs`
+   - Previously auto-added `http://localhost:6274/oauth/callback` URIs
+   - Clients must now explicitly register their callback URIs
+
 ---
 
 ## Notes
