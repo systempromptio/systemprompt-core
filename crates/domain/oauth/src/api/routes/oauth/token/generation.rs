@@ -59,7 +59,7 @@ pub async fn generate_tokens_by_user_id(
         ..Default::default()
     };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
-    let global_config = systemprompt_models::Config::get()?;
+    let global_config = Config::get()?;
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
@@ -164,7 +164,7 @@ pub async fn generate_client_tokens(
         ..Default::default()
     };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
-    let global_config = systemprompt_models::Config::get()?;
+    let global_config = Config::get()?;
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
     let signing = JwtSigningParams {
         secret: jwt_secret,

@@ -8,7 +8,7 @@ const VALID_SCOPES: &[(&str, &str, bool)] = &[
 ];
 
 impl OAuthRepository {
-    pub async fn validate_scopes(&self, requested_scopes: &[String]) -> Result<Vec<String>> {
+    pub fn validate_scopes(&self, requested_scopes: &[String]) -> Result<Vec<String>> {
         if requested_scopes.is_empty() {
             return Ok(vec![]);
         }
@@ -34,14 +34,14 @@ impl OAuthRepository {
         Ok(valid_scopes)
     }
 
-    pub async fn get_available_scopes(&self) -> Result<Vec<(String, Option<String>)>> {
+    pub fn get_available_scopes(&self) -> Result<Vec<(String, Option<String>)>> {
         Ok(VALID_SCOPES
             .iter()
             .map(|(name, desc, _)| ((*name).to_string(), Some((*desc).to_string())))
             .collect())
     }
 
-    pub async fn scope_exists(&self, scope_name: &str) -> Result<bool> {
+    pub fn scope_exists(&self, scope_name: &str) -> Result<bool> {
         Ok(Self::scope_exists_static(scope_name))
     }
 
@@ -61,7 +61,7 @@ impl OAuthRepository {
         scopes.join(" ")
     }
 
-    pub async fn get_default_roles(&self) -> Result<Vec<String>> {
+    pub fn get_default_roles(&self) -> Result<Vec<String>> {
         Ok(VALID_SCOPES
             .iter()
             .filter(|(_, _, is_default)| *is_default)

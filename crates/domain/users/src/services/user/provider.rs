@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use async_trait::async_trait;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::auth::{
@@ -117,11 +119,8 @@ impl RoleProvider for UserService {
     }
 
     async fn list_users_by_role(&self, role: &str) -> AuthResult<Vec<AuthUser>> {
-        let user_role = match role {
-            "admin" => UserRole::Admin,
-            "user" => UserRole::User,
-            "anonymous" => UserRole::Anonymous,
-            _ => return Ok(vec![]),
+        let Ok(user_role) = UserRole::from_str(role) else {
+            return Ok(vec![]);
         };
 
         Self::find_by_role(self, user_role)

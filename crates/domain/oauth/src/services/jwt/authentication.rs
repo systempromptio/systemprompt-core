@@ -9,7 +9,7 @@ use uuid::Uuid;
 pub struct AuthenticationService;
 
 impl AuthenticationService {
-    pub async fn authenticate(headers: &HeaderMap) -> Result<AuthenticatedUser, StatusCode> {
+    pub fn authenticate(headers: &HeaderMap) -> Result<AuthenticatedUser, StatusCode> {
         let token = TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| StatusCode::UNAUTHORIZED)?;

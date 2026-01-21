@@ -64,7 +64,7 @@ impl std::fmt::Debug for SessionCreationService {
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
             )
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

@@ -38,7 +38,7 @@ impl std::fmt::Debug for WebAuthnService {
         f.debug_struct("WebAuthnService")
             .field("config", &self.config)
             .field("oauth_repo", &self.oauth_repo)
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

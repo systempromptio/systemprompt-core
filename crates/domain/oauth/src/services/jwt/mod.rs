@@ -56,23 +56,23 @@ impl AuthService {
             .map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
     }
 
-    pub async fn authenticate(
+    pub fn authenticate(
         headers: &axum::http::HeaderMap,
     ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
-        AuthenticationService::authenticate(headers).await
+        AuthenticationService::authenticate(headers)
     }
 
-    pub async fn authorize_service_access(
+    pub fn authorize_service_access(
         headers: &axum::http::HeaderMap,
         service_name: &str,
     ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
-        AuthorizationService::authorize_service_access(headers, service_name).await
+        AuthorizationService::authorize_service_access(headers, service_name)
     }
 
-    pub async fn authorize_required_audience(
+    pub fn authorize_required_audience(
         headers: &axum::http::HeaderMap,
         required_audience: &str,
     ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
-        AuthorizationService::authorize_required_audience(headers, required_audience).await
+        AuthorizationService::authorize_required_audience(headers, required_audience)
     }
 }
