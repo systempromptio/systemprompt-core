@@ -8,4 +8,4 @@ pub use config::StaticContentMatcher;
 pub use fallback::*;
 pub use homepage::serve_homepage;
 pub use session::{ensure_session, SessionInfo};
-pub use vite::{serve_vite_app, StaticContentState};
+pub use vite::{serve_static_content, StaticContentState};

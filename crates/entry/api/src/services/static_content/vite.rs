@@ -16,7 +16,7 @@ pub struct StaticContentState {
     pub route_classifier: Arc<RouteClassifier>,
 }
 
-pub async fn serve_vite_app(
+pub async fn serve_static_content(
     State(state): State<StaticContentState>,
     uri: Uri,
     req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
@@ -33,40 +33,10 @@ pub async fn serve_vite_app(
         },
     };
 
-    if !dist_dir.exists() || !dist_dir.join("index.html").exists() {
-        return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            axum::response::Html(r"
-<!DOCTYPE html>
-<html>
-<head>
-    <title>SystemPrompt - Build Missing</title>
-    <style>
-        body { font-family: sans-serif; max-width: 600px; margin: 50px auto; padding: 20px; color: #d32f2f; }
-    </style>
-</head>
-<body>
-    <h1>Build Missing</h1>
-    <p>Web assets not found at the configured WEB_DIR location.</p>
-    <p>Build the web assets first.</p>
-</body>
-</html>
-            ")
-        ).into_response();
-    }
-
     let path = uri.path();
 
-    let (effective_dist_dir, effective_path) = match path.strip_prefix("/agent") {
-        Some(stripped) => {
-            let effective = if stripped.is_empty() { "/" } else { stripped };
-            (dist_dir.join("agent"), effective.to_string())
-        },
-        None => (dist_dir.clone(), path.to_string()),
-    };
-
     if matches!(
-        state.route_classifier.classify(&effective_path, "GET"),
+        state.route_classifier.classify(path, "GET"),
         RouteType::StaticAsset { .. }
     ) {
         let files_config = match FilesConfig::get() {
@@ -80,11 +50,11 @@ pub async fn serve_vite_app(
             },
         };
         let files_prefix = format!("{}/", files_config.url_prefix());
-        let asset_path = if let Some(relative_path) = effective_path.strip_prefix(&files_prefix) {
+        let asset_path = if let Some(relative_path) = path.strip_prefix(&files_prefix) {
             files_config.files().join(relative_path)
         } else {
-            let trimmed_path = effective_path.trim_start_matches('/');
-            effective_dist_dir.join(trimmed_path)
+            let trimmed_path = path.trim_start_matches('/');
+            dist_dir.join(trimmed_path)
         };
 
         if asset_path.exists() && asset_path.is_file() {
@@ -115,8 +85,8 @@ pub async fn serve_vite_app(
         return (StatusCode::NOT_FOUND, "Asset not found").into_response();
     }
 
-    if effective_path == "/" {
-        let index_path = effective_dist_dir.join("index.html");
+    if path == "/" {
+        let index_path = dist_dir.join("index.html");
         if index_path.exists() {
             match std::fs::read(&index_path) {
                 Ok(content) => {
@@ -136,20 +106,20 @@ pub async fn serve_vite_app(
                 },
             }
         }
-        return (StatusCode::INTERNAL_SERVER_ERROR, "index.html not found").into_response();
+        return (StatusCode::NOT_FOUND, "Homepage not found").into_response();
     }
 
-    if effective_path == "/sitemap.xml"
-        || effective_path == "/robots.txt"
-        || effective_path == "/llms.txt"
-        || effective_path == "/feed.xml"
+    if path == "/sitemap.xml"
+        || path == "/robots.txt"
+        || path == "/llms.txt"
+        || path == "/feed.xml"
     {
-        let trimmed_path = effective_path.trim_start_matches('/');
-        let file_path = effective_dist_dir.join(trimmed_path);
+        let trimmed_path = path.trim_start_matches('/');
+        let file_path = dist_dir.join(trimmed_path);
         if file_path.exists() {
             match std::fs::read(&file_path) {
                 Ok(content) => {
-                    let mime_type = if effective_path == "/feed.xml" {
+                    let mime_type = if path == "/feed.xml" {
                         "application/rss+xml; charset=utf-8"
                     } else {
                         match file_path.extension().and_then(|ext| ext.to_str()) {
@@ -169,10 +139,8 @@ pub async fn serve_vite_app(
         return (StatusCode::NOT_FOUND, "File not found").into_response();
     }
 
-    let trimmed_effective_path = effective_path.trim_start_matches('/');
-    let parent_route_path = effective_dist_dir
-        .join(trimmed_effective_path)
-        .join("index.html");
+    let trimmed_path = path.trim_start_matches('/');
+    let parent_route_path = dist_dir.join(trimmed_path).join("index.html");
     if parent_route_path.exists() {
         match std::fs::read(&parent_route_path) {
             Ok(content) => {
@@ -193,8 +161,8 @@ pub async fn serve_vite_app(
         }
     }
 
-    if let Some((slug, source_id)) = matcher.matches(&effective_path) {
-        let exact_path = effective_dist_dir.join(trimmed_effective_path);
+    if let Some((slug, source_id)) = matcher.matches(path) {
+        let exact_path = dist_dir.join(trimmed_path);
         if exact_path.exists() && exact_path.is_file() {
             return serve_html_with_analytics(
                 &exact_path,
@@ -205,9 +173,7 @@ pub async fn serve_vite_app(
             .into_response();
         }
 
-        let index_path = effective_dist_dir
-            .join(trimmed_effective_path)
-            .join("index.html");
+        let index_path = dist_dir.join(trimmed_path).join("index.html");
         if index_path.exists() {
             return serve_html_with_analytics(
                 &index_path,
@@ -253,7 +219,7 @@ pub async fn serve_vite_app(
     <p>Run the prerendering build step to generate static HTML.</p>
 </body>
 </html>"#,
-                        effective_path, slug
+                        path, slug
                     ))
                 ).into_response();
             },

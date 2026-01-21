@@ -49,7 +49,7 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 authors = ["Edward Burton"]
-license = "FSL-1.1-ALv2"
+license = "BSL-1.0"
 version = "0.0.1"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"

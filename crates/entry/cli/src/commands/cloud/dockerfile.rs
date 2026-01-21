@@ -82,9 +82,6 @@ RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{lo
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
 {mcp_section}
-# Copy web assets
-COPY core/web/dist {web}/dist
-
 # Copy storage assets (images, etc.)
 COPY storage {storage}
 {extension_assets_section}
@@ -112,7 +109,6 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             logs = container::LOGS,
             storage = container::STORAGE,
             services_path = container::SERVICES,
-            web = container::WEB,
             profiles = container::PROFILES,
             images = storage::IMAGES,
             generated = storage::GENERATED,
@@ -222,13 +218,11 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     PATH="{}:$PATH" \
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
-    SYSTEMPROMPT_ASSETS_PATH={} \
-    WEB_DIR={}"#,
+    SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
                 container::SERVICES,
                 container::TEMPLATES,
-                container::ASSETS,
-                container::WEB
+                container::ASSETS
             )
         } else {
             format!(
@@ -239,14 +233,12 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
 {}
     SYSTEMPROMPT_SERVICES_PATH={} \
     SYSTEMPROMPT_TEMPLATES_PATH={} \
-    SYSTEMPROMPT_ASSETS_PATH={} \
-    WEB_DIR={}"#,
+    SYSTEMPROMPT_ASSETS_PATH={}"#,
                 container::BIN,
                 profile_env,
                 container::SERVICES,
                 container::TEMPLATES,
-                container::ASSETS,
-                container::WEB
+                container::ASSETS
             )
         }
     }
