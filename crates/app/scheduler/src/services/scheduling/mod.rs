@@ -54,7 +54,45 @@ impl SchedulerService {
 
         info!("Scheduler started");
 
+        self.run_startup_jobs(&registered_jobs).await;
+
         Ok(())
+    }
+
+    async fn run_startup_jobs(&self, registered_jobs: &HashMap<&str, &'static dyn JobTrait>) {
+        let startup_jobs: Vec<_> = self
+            .config
+            .jobs
+            .iter()
+            .filter(|job_config| job_config.enabled)
+            .filter_map(|job_config| {
+                registered_jobs
+                    .get(job_config.name.as_str())
+                    .filter(|job| job.run_on_startup())
+                    .map(|job| (job_config.name.clone(), *job))
+            })
+            .collect();
+
+        if startup_jobs.is_empty() {
+            debug!("No startup jobs to run");
+            return;
+        }
+
+        info!(
+            count = startup_jobs.len(),
+            "Running startup jobs"
+        );
+
+        for (job_name, _job) in startup_jobs {
+            info!(job_name = %job_name, "Running startup job");
+            Self::execute_job(
+                job_name,
+                Arc::clone(&self.db_pool),
+                self.repository.clone(),
+                Arc::clone(&self.app_context),
+            )
+            .await;
+        }
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {

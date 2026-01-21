@@ -18,7 +18,7 @@ pub async fn prerender_homepage(ctx: &PrerenderContext) -> Result<()> {
     let mut homepage_data = serde_json::json!({
         "site": &ctx.web_config,
         "nav": {
-            "agent_url": "/agent",
+            "app_url": "/app",
             "blog_url": "/blog"
         },
         "ORG_NAME": branding.org_name,

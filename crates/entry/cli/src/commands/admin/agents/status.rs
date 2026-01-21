@@ -32,7 +32,7 @@ pub async fn execute(
             .context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
-        ctx.db_pool().clone(),
+        Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         jwt_provider,
     ));

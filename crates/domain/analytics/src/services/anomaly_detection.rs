@@ -79,30 +79,28 @@ impl AnomalyDetectionService {
         thresholds
     }
 
-    #[allow(clippy::significant_drop_tightening)]
     pub async fn check_anomaly(&self, metric_name: &str, value: f64) -> AnomalyCheckResult {
-        let thresholds = self.thresholds.read().await;
-
-        let level = thresholds
-            .get(metric_name)
-            .map_or(AnomalyLevel::Normal, |t| {
-                if value >= t.critical_threshold {
-                    AnomalyLevel::Critical
-                } else if value >= t.warning_threshold {
-                    AnomalyLevel::Warning
-                } else {
-                    AnomalyLevel::Normal
-                }
-            });
+        let level = {
+            let thresholds = self.thresholds.read().await;
+            thresholds
+                .get(metric_name)
+                .map_or(AnomalyLevel::Normal, |t| {
+                    if value >= t.critical_threshold {
+                        AnomalyLevel::Critical
+                    } else if value >= t.warning_threshold {
+                        AnomalyLevel::Warning
+                    } else {
+                        AnomalyLevel::Normal
+                    }
+                })
+        };
 
         let message = match level {
             AnomalyLevel::Critical => Some(format!(
-                "CRITICAL: {} = {:.2} exceeds critical threshold",
-                metric_name, value
+                "CRITICAL: {metric_name} = {value:.2} exceeds critical threshold"
             )),
             AnomalyLevel::Warning => Some(format!(
-                "WARNING: {} = {:.2} exceeds warning threshold",
-                metric_name, value
+                "WARNING: {metric_name} = {value:.2} exceeds warning threshold"
             )),
             AnomalyLevel::Normal => None,
         };
@@ -115,28 +113,28 @@ impl AnomalyDetectionService {
         }
     }
 
-    #[allow(clippy::significant_drop_tightening)]
     pub async fn record_event(&self, metric_name: &str, value: f64) {
+        let now = Utc::now();
+        let cutoff = now - Duration::hours(1);
+        let key = metric_name.to_string();
+        let event = AnomalyEvent { timestamp: now, value };
+
         let mut events = self.recent_events.write().await;
-        let metric_events = events.entry(metric_name.to_string()).or_default();
-
-        metric_events.push(AnomalyEvent {
-            timestamp: Utc::now(),
-            value,
-        });
-
-        let cutoff = Utc::now() - Duration::hours(1);
-        metric_events.retain(|e| e.timestamp > cutoff);
+        events.entry(key).or_default().push(event);
+        if let Some(metric_events) = events.get_mut(metric_name) {
+            metric_events.retain(|e| e.timestamp > cutoff);
+        }
     }
 
-    #[allow(clippy::significant_drop_tightening)]
     pub async fn check_trend_anomaly(
         &self,
         metric_name: &str,
         window_minutes: i64,
     ) -> Option<AnomalyCheckResult> {
-        let events = self.recent_events.read().await;
-        let metric_events = events.get(metric_name)?;
+        let metric_events = {
+            let events = self.recent_events.read().await;
+            events.get(metric_name).cloned()?
+        };
 
         if metric_events.len() < 2 {
             return None;
@@ -162,8 +160,7 @@ impl AnomalyDetectionService {
                 current_value: latest,
                 level: AnomalyLevel::Critical,
                 message: Some(format!(
-                    "Spike: {} jumped {:.1}x above average",
-                    metric_name, spike_ratio
+                    "Spike: {metric_name} jumped {spike_ratio:.1}x above average"
                 )),
             })
         } else if spike_ratio > 2.0 {
@@ -172,8 +169,7 @@ impl AnomalyDetectionService {
                 current_value: latest,
                 level: AnomalyLevel::Warning,
                 message: Some(format!(
-                    "Elevated: {} is {:.1}x above average",
-                    metric_name, spike_ratio
+                    "Elevated: {metric_name} is {spike_ratio:.1}x above average"
                 )),
             })
         } else {

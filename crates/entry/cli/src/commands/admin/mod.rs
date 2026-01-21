@@ -39,7 +39,7 @@ pub async fn execute(cmd: AdminCommands, config: &CliConfig) -> Result<()> {
             render_result(&result);
             Ok(())
         },
-        AdminCommands::Session(cmd) => session::execute(cmd, config),
+        AdminCommands::Session(cmd) => session::execute(cmd, config).await,
     }
 }
 

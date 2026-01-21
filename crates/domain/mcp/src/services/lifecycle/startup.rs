@@ -22,7 +22,7 @@ pub async fn start_server(
 
     manager.network().prepare_port(config.port).await?;
 
-    let pid = manager.process().spawn_server(config)?;
+    let pid = ProcessManager::spawn_server(config)?;
 
     let startup_time = wait_for_startup(config, pid, events).await?;
 

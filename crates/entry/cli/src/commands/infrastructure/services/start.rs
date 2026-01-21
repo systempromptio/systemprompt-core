@@ -170,7 +170,7 @@ pub async fn execute_individual_agent(
             .context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
-        ctx.db_pool().clone(),
+        Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         jwt_provider,
     ));
@@ -196,7 +196,7 @@ pub async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Starting MCP Server: {}", server_name));
 
-    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     manager
         .start_services(Some(server_name.to_string()))

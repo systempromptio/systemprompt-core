@@ -1,4 +1,4 @@
-use super::{clients, health, oauth, webauthn};
+use super::{clients, health, endpoints, webauthn};
 use systemprompt_oauth::OAuthState;
 use axum::routing::{get, post};
 use axum::Router;
@@ -12,27 +12,27 @@ pub fn router() -> Router<OAuthState> {
 pub fn public_router() -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
-        .route("/session", post(oauth::anonymous::generate_anonymous_token))
+        .route("/session", post(endpoints::anonymous::generate_anonymous_token))
         .route(
             "/webauthn/complete",
-            get(oauth::webauthn_complete::handle_webauthn_complete),
+            get(endpoints::webauthn_complete::handle_webauthn_complete),
         )
-        .route("/token", post(oauth::token::handle_token))
-        .route("/authorize", get(oauth::authorize::handle_authorize_get))
-        .route("/authorize", post(oauth::authorize::handle_authorize_post))
-        .route("/callback", get(oauth::callback::handle_callback))
-        .route("/register", post(oauth::register::register_client))
+        .route("/token", post(endpoints::token::handle_token))
+        .route("/authorize", get(endpoints::authorize::handle_authorize_get))
+        .route("/authorize", post(endpoints::authorize::handle_authorize_post))
+        .route("/callback", get(endpoints::callback::handle_callback))
+        .route("/register", post(endpoints::register::register_client))
         .route(
             "/register/{client_id}",
-            get(oauth::client_config::get_client_configuration),
-        )
-        .route(
-            "/register/{client_id}",
-            axum::routing::put(oauth::client_config::update_client_configuration),
+            get(endpoints::client_config::get_client_configuration),
         )
         .route(
             "/register/{client_id}",
-            axum::routing::delete(oauth::client_config::delete_client_configuration),
+            axum::routing::put(endpoints::client_config::update_client_configuration),
+        )
+        .route(
+            "/register/{client_id}",
+            axum::routing::delete(endpoints::client_config::delete_client_configuration),
         )
         .route(
             "/webauthn/register/start",
@@ -55,9 +55,9 @@ pub fn public_router() -> Router<OAuthState> {
 pub fn authenticated_router() -> Router<OAuthState> {
     Router::new()
         .nest("/clients", clients::router())
-        .route("/introspect", post(oauth::introspect::handle_introspect))
-        .route("/revoke", post(oauth::revoke::handle_revoke))
-        .route("/userinfo", get(oauth::userinfo::handle_userinfo))
-        .route("/consent", get(oauth::consent::handle_consent_get))
-        .route("/consent", post(oauth::consent::handle_consent_post))
+        .route("/introspect", post(endpoints::introspect::handle_introspect))
+        .route("/revoke", post(endpoints::revoke::handle_revoke))
+        .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
+        .route("/consent", get(endpoints::consent::handle_consent_get))
+        .route("/consent", post(endpoints::consent::handle_consent_post))
 }

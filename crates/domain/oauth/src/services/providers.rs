@@ -8,33 +8,32 @@ use super::generation::{generate_jwt, generate_secure_token, JwtConfig, JwtSigni
 use super::validation::jwt::validate_jwt_token;
 
 #[derive(Debug)]
-#[allow(clippy::struct_field_names)]
 pub struct JwtValidationProviderImpl {
-    jwt_secret: String,
-    jwt_issuer: String,
-    jwt_audiences: Vec<JwtAudience>,
+    secret: String,
+    issuer: String,
+    audiences: Vec<JwtAudience>,
 }
 
 impl JwtValidationProviderImpl {
     #[must_use]
-    pub const fn new(jwt_secret: String, jwt_issuer: String, jwt_audiences: Vec<JwtAudience>) -> Self {
+    pub const fn new(secret: String, issuer: String, audiences: Vec<JwtAudience>) -> Self {
         Self {
-            jwt_secret,
-            jwt_issuer,
-            jwt_audiences,
+            secret,
+            issuer,
+            audiences,
         }
     }
 
     pub fn from_config() -> JwtResult<Self> {
-        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+        let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|e| JwtProviderError::ConfigurationError(e.to_string()))?;
         let config = systemprompt_models::Config::get()
             .map_err(|e| JwtProviderError::ConfigurationError(e.to_string()))?;
 
         Ok(Self {
-            jwt_secret: jwt_secret.to_string(),
-            jwt_issuer: config.jwt_issuer.clone(),
-            jwt_audiences: config.jwt_audiences.clone(),
+            secret: secret.to_string(),
+            issuer: config.jwt_issuer.clone(),
+            audiences: config.jwt_audiences.clone(),
         })
     }
 }
@@ -42,7 +41,7 @@ impl JwtValidationProviderImpl {
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
         let claims =
-            validate_jwt_token(token, &self.jwt_secret, &self.jwt_issuer, &self.jwt_audiences)
+            validate_jwt_token(token, &self.secret, &self.issuer, &self.audiences)
                 .map_err(|e| {
                     if e.to_string().contains("expired") {
                         JwtProviderError::TokenExpired
@@ -100,8 +99,8 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
 
         let jti = generate_secure_token("jwt");
         let signing = JwtSigningParams {
-            secret: &self.jwt_secret,
-            issuer: &self.jwt_issuer,
+            secret: &self.secret,
+            issuer: &self.issuer,
         };
 
         generate_jwt(&user, config, jti, &params.session_id, &signing)

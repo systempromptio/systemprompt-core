@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
@@ -59,7 +61,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .await
         .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

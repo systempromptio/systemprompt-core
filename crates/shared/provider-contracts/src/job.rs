@@ -106,6 +106,10 @@ pub trait Job: Send + Sync + 'static {
     fn enabled(&self) -> bool {
         true
     }
+
+    fn run_on_startup(&self) -> bool {
+        false
+    }
 }
 
 inventory::collect!(&'static dyn Job);

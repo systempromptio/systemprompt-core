@@ -199,6 +199,10 @@ impl Job for PublishContentJob {
         "0 */15 * * * *"
     }
 
+    fn run_on_startup(&self) -> bool {
+        true
+    }
+
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
         let pool = ctx
             .db_pool::<DbPool>()

@@ -19,7 +19,7 @@ fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
             .context("Failed to create JWT provider")?,
     );
     Ok(Arc::new(AgentState::new(
-        ctx.db_pool().clone(),
+        Arc::clone(ctx.db_pool()),
         Arc::new(ctx.config().clone()),
         jwt_provider,
     )))
@@ -98,7 +98,7 @@ pub async fn execute_mcp(
     };
     CliService::section(&format!("{} MCP Server: {}", action, server_name));
 
-    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     if build {
         manager
@@ -171,7 +171,7 @@ pub async fn execute_all_mcp(ctx: &Arc<AppContext>, _config: &CliConfig) -> Resu
     CliService::section("Restarting All MCP Servers");
 
     let mcp_manager =
-        McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
+        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     systemprompt_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
@@ -283,7 +283,7 @@ async fn restart_failed_mcp(
     failed_count: &mut i32,
 ) -> Result<()> {
     let mcp_manager =
-        McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
+        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     systemprompt_mcp::services::RegistryManager::validate()?;
     let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;

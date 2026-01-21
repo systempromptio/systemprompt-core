@@ -96,7 +96,7 @@ pub async fn execute(
                 },
             };
             let agent_state = Arc::new(AgentState::new(
-                ctx.db_pool().clone(),
+                Arc::clone(ctx.db_pool()),
                 Arc::new(ctx.config().clone()),
                 jwt_provider,
             ));
