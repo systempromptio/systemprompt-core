@@ -12,9 +12,9 @@ use rmcp::transport::streamable_http_client::{
 use rmcp::ServiceExt;
 use std::sync::Arc;
 use std::time::Duration;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::HttpClientWithContext;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_models::ai::tools::CallToolResult;
 use systemprompt_runtime::AppContext;
 use tokio::time::timeout;

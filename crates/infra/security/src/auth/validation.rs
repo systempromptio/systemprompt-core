@@ -7,6 +7,14 @@ use systemprompt_models::execution::context::RequestContext;
 use crate::extraction::HeaderExtractor;
 use crate::session::ValidatedSessionClaims;
 
+const ANONYMOUS_SESSION_ID: &str = "anonymous";
+const TEST_SESSION_ID: &str = "test";
+const TEST_TRACE_ID: &str = "test-trace";
+const TEST_CONTEXT_ID: &str = "test-context";
+const TEST_AGENT_NAME: &str = "test-agent";
+const TEST_USER_ID: &str = "test-user";
+const BEARER_PREFIX: &str = "Bearer ";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AuthMode {
     Required,
@@ -74,7 +82,7 @@ impl AuthValidationService {
                     })
                     .ok()
             })
-            .and_then(|s| s.strip_prefix("Bearer "))
+            .and_then(|s| s.strip_prefix(BEARER_PREFIX))
     }
 
     fn validate_token(&self, token: &str) -> Result<ValidatedSessionClaims> {
@@ -132,7 +140,7 @@ impl AuthValidationService {
 
     fn create_anonymous_context(headers: &HeaderMap) -> RequestContext {
         RequestContext::new(
-            SessionId::new("anonymous".to_string()),
+            SessionId::new(ANONYMOUS_SESSION_ID.to_string()),
             HeaderExtractor::extract_trace_id(headers),
             HeaderExtractor::extract_context_id(headers),
             HeaderExtractor::extract_agent_name(headers),
@@ -143,12 +151,12 @@ impl AuthValidationService {
 
     fn create_test_context() -> RequestContext {
         RequestContext::new(
-            SessionId::new("test".to_string()),
-            TraceId::new("test-trace".to_string()),
-            ContextId::new("test-context".to_string()),
-            AgentName::new("test-agent".to_string()),
+            SessionId::new(TEST_SESSION_ID.to_string()),
+            TraceId::new(TEST_TRACE_ID.to_string()),
+            ContextId::new(TEST_CONTEXT_ID.to_string()),
+            AgentName::new(TEST_AGENT_NAME.to_string()),
         )
-        .with_user_id(UserId::new("test-user".to_string()))
+        .with_user_id(UserId::new(TEST_USER_ID.to_string()))
         .with_user_type(UserType::User)
     }
 }

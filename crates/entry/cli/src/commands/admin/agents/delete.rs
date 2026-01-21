@@ -9,11 +9,11 @@ use super::types::AgentDeleteOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_logging::CliService;
-use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::ProcessCleanup;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -94,14 +94,11 @@ pub async fn execute(
     for agent_name in &agents_to_delete {
         CliService::info(&format!("Deleting agent '{}'...", agent_name));
 
-        // Get the agent's port for fallback termination
         let agent_port = services_config.agents.get(agent_name).map(|c| c.port);
 
-        // Attempt to stop the running process
         let process_stopped =
             stop_agent_process(agent_name, agent_port, orchestrator.as_ref()).await;
 
-        // If process couldn't be stopped and --force not set, abort this agent
         if !process_stopped && !args.force {
             let msg = format!(
                 "Failed to stop agent '{}' process. Use --force to delete anyway.",
@@ -170,15 +167,11 @@ fn prompt_agent_selection(config: &systemprompt_models::ServicesConfig) -> Resul
     Ok(agents[selection].clone())
 }
 
-/// Attempts to stop an agent process using orchestrator first, then falling
-/// back to port-based cleanup. Returns true if the process was successfully
-/// stopped or wasn't running.
 async fn stop_agent_process(
     agent_name: &str,
     agent_port: Option<u16>,
     orchestrator: Option<&AgentOrchestrator>,
 ) -> bool {
-    // Try orchestrator-based termination first
     if let Some(orch) = orchestrator {
         match orch.delete_agent(agent_name).await {
             Ok(()) => {
@@ -195,19 +188,16 @@ async fn stop_agent_process(
         }
     }
 
-    // Fall back to port-based cleanup
     let Some(port) = agent_port else {
         tracing::debug!(agent = %agent_name, "No port configured, assuming not running");
         return true;
     };
 
-    // Check if anything is running on the port
     if ProcessCleanup::check_port(port).is_none() {
         tracing::debug!(agent = %agent_name, port, "No process on port, assuming stopped");
         return true;
     }
 
-    // Try graceful termination via port
     CliService::info(&format!(
         "Stopping agent '{}' on port {}...",
         agent_name, port

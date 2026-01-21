@@ -108,11 +108,15 @@ fn create_cli_stream(
                 let reader = BufReader::new(stdout);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    let _ = tx
+                    if tx
                         .send(CliOutputEvent::Stdout {
                             data: format!("{}\n", line),
                         })
-                        .await;
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
                 }
             });
         }
@@ -123,11 +127,15 @@ fn create_cli_stream(
                 let reader = BufReader::new(stderr);
                 let mut lines = reader.lines();
                 while let Ok(Some(line)) = lines.next_line().await {
-                    let _ = tx
+                    if tx
                         .send(CliOutputEvent::Stderr {
                             data: format!("{}\n", line),
                         })
-                        .await;
+                        .await
+                        .is_err()
+                    {
+                        break;
+                    }
                 }
             });
         }
@@ -146,7 +154,9 @@ fn create_cli_stream(
                 }
                 () = tokio::time::sleep_until(deadline) => {
                     tracing::warn!(timeout_secs = timeout.as_secs(), "CLI command timed out");
-                    let _ = child.kill().await;
+                    if let Err(e) = child.kill().await {
+                        tracing::error!(error = %e, "Failed to kill CLI process");
+                    }
                     yield Ok(CliOutputEvent::Error {
                         message: format!("Timeout after {}s", timeout.as_secs())
                     }.to_sse_event());

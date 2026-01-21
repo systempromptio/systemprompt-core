@@ -4,8 +4,8 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_logging::CliService;
 use systemprompt_loader::ProfileLoader;
+use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use super::{content, skills, ContentSyncArgs, SkillsSyncArgs};

@@ -2,8 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
 use systemprompt_database::DatabaseAdminService;
 use systemprompt_logging::CliService;
-use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
+use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 use crate::cli_settings::CliConfig;
 

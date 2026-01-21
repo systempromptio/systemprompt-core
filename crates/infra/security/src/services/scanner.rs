@@ -25,6 +25,16 @@ const SCANNER_PATHS: &[&str] = &[
     "/c99.php",
 ];
 
+const MIN_USER_AGENT_LENGTH: usize = 10;
+const MIN_CHROME_VERSION: i32 = 90;
+const MIN_FIREFOX_VERSION: i32 = 88;
+const MAX_REQUESTS_PER_MINUTE: f64 = 30.0;
+const MAX_CURL_UA_LENGTH: usize = 20;
+const MAX_WGET_UA_LENGTH: usize = 20;
+const MAX_PYTHON_REQUESTS_UA_LENGTH: usize = 30;
+const MAX_GO_HTTP_CLIENT_UA_LENGTH: usize = 30;
+const MAX_RUBY_UA_LENGTH: usize = 25;
+
 #[derive(Debug, Clone, Copy)]
 pub struct ScannerDetector;
 
@@ -52,7 +62,7 @@ impl ScannerDetector {
     pub fn is_scanner_agent(user_agent: &str) -> bool {
         let ua_lower = user_agent.to_lowercase();
 
-        if user_agent.is_empty() || user_agent.len() < 10 {
+        if user_agent.is_empty() || user_agent.len() < MIN_USER_AGENT_LENGTH {
             return true;
         }
 
@@ -75,7 +85,6 @@ impl ScannerDetector {
             || ua_lower.contains("zgrab")
             || ua_lower.contains("censys")
             || ua_lower.contains("shodan")
-            || ua_lower.contains("masscan")
             || ua_lower.contains("palo alto")
             || ua_lower.contains("cortex")
             || ua_lower.contains("xpanse")
@@ -87,11 +96,13 @@ impl ScannerDetector {
             || ua_lower.starts_with("wordpress/")
             || ua_lower.contains("wp-http")
             || ua_lower.contains("wp-cron")
-            || (ua_lower.contains("curl") && ua_lower.len() < 20)
-            || (ua_lower.contains("wget") && ua_lower.len() < 20)
-            || (ua_lower.contains("python-requests") && ua_lower.len() < 30)
-            || (ua_lower.contains("go-http-client") && ua_lower.len() < 30)
-            || (ua_lower.contains("ruby") && ua_lower.len() < 25)
+            || (ua_lower.contains("curl") && ua_lower.len() < MAX_CURL_UA_LENGTH)
+            || (ua_lower.contains("wget") && ua_lower.len() < MAX_WGET_UA_LENGTH)
+            || (ua_lower.contains("python-requests")
+                && ua_lower.len() < MAX_PYTHON_REQUESTS_UA_LENGTH)
+            || (ua_lower.contains("go-http-client")
+                && ua_lower.len() < MAX_GO_HTTP_CLIENT_UA_LENGTH)
+            || (ua_lower.contains("ruby") && ua_lower.len() < MAX_RUBY_UA_LENGTH)
             || Self::is_outdated_browser(&ua_lower)
     }
 
@@ -101,7 +112,7 @@ impl ScannerDetector {
                 let version_str = &ua_lower[pos + 7..];
                 if let Some(dot_pos) = version_str.find('.') {
                     if let Ok(major) = version_str[..dot_pos].parse::<i32>() {
-                        if major < 90 {
+                        if major < MIN_CHROME_VERSION {
                             return true;
                         }
                     }
@@ -114,7 +125,7 @@ impl ScannerDetector {
                 let version_str = &ua_lower[pos + 8..];
                 if let Some(space_pos) = version_str.find(|c: char| !c.is_numeric() && c != '.') {
                     if let Ok(major) = version_str[..space_pos].parse::<i32>() {
-                        if major < 88 {
+                        if major < MIN_FIREFOX_VERSION {
                             return true;
                         }
                     }
@@ -131,7 +142,7 @@ impl ScannerDetector {
         }
 
         let requests_per_minute = (request_count as f64 / duration_seconds as f64) * 60.0;
-        requests_per_minute > 30.0
+        requests_per_minute > MAX_REQUESTS_PER_MINUTE
     }
 
     pub fn is_scanner(

@@ -18,8 +18,8 @@ use crate::commands::plugins::mcp::types::McpToolEntry;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_mcp::services::McpManager;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_mcp::services::McpManager;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]

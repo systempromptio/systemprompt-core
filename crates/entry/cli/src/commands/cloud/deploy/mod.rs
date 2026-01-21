@@ -376,7 +376,6 @@ pub async fn deploy_with_secrets(
         }
     }
 
-    // Sync cloud credentials for CLI to work on the VM
     let creds = get_credentials()?;
     let spinner = CliService::spinner("Syncing cloud credentials...");
     let keys = sync_cloud_credentials(client, tenant_id, &creds).await?;

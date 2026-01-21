@@ -5,8 +5,8 @@ use std::sync::Arc;
 use super::types::McpStatusOutput;
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_mcp::services::McpManager;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_mcp::services::McpManager;
 use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 

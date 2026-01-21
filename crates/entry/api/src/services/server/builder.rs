@@ -45,9 +45,14 @@ impl ApiServer {
 
     pub async fn serve(self, addr: &str) -> Result<()> {
         if let Some(ref tx) = self.events {
-            let _ = tx.send(StartupEvent::ServerBinding {
-                address: addr.to_string(),
-            });
+            if tx
+                .send(StartupEvent::ServerBinding {
+                    address: addr.to_string(),
+                })
+                .is_err()
+            {
+                tracing::debug!("Startup event receiver dropped");
+            }
         }
 
         let listener = self.create_listener(addr).await?;

@@ -5,8 +5,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_scheduler::{RuntimeStatus, ServiceStateManager, VerifiedServiceState};
 use systemprompt_runtime::{display_validation_report, AppContext, StartupValidator};
+use systemprompt_scheduler::{RuntimeStatus, ServiceStateManager, VerifiedServiceState};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ServiceStatusOutput {

@@ -39,38 +39,62 @@ None - fully compliant
 
 ## Review Details
 
-### Safety
-| Check | Status | Notes |
-|-------|--------|-------|
-| No `.unwrap()` | ✅ | None in production code |
-| No `.expect()` | ✅ | None found |
-| No `panic!` | ✅ | None found |
-| Uses `?` operator | ✅ | Where appropriate |
+### Section 1: Limits (rust.md §1)
 
-### Error Handling
-| Check | Status | Notes |
-|-------|--------|-------|
-| Graceful error handling | ✅ | Serialization errors logged, broadcast continues |
-| No manual error construction | ✅ | Uses tracing for error reporting |
+| Metric | Limit | Actual | Status |
+|--------|-------|--------|--------|
+| Source file length | 300 lines | lib.rs:51, broadcaster.rs:191, mod.rs:10, routing.rs:51 | ✅ |
+| Cognitive complexity | 15 | All functions low complexity | ✅ |
+| Function length | 75 lines | Largest: `broadcast()` ~44 lines | ✅ |
+| Parameters | 5 | Max 3 (`register`) | ✅ |
 
-### Logging
-| Check | Status | Notes |
-|-------|--------|-------|
-| No secrets leaked | ✅ | Only event types and counts logged |
-| Appropriate log levels | ✅ | error for failures, debug for routing |
+### Section 2: Forbidden Constructs (rust.md §2)
 
-### Code Quality
-| Check | Status | Notes |
-|-------|--------|-------|
-| No dead code | ✅ | All code reachable |
-| No TODO comments | ✅ | None found |
-| Functions < 50 lines | ✅ | Largest is `broadcast()` at 44 lines |
-| Files < 500 lines (prod) | ✅ | lib.rs:52, broadcaster.rs:192, routing.rs:52, mod.rs:11 |
-| Idiomatic Rust | ✅ | Uses Arc<RwLock>, LazyLock, RAII patterns |
+| Construct | Status |
+|-----------|--------|
+| `unsafe` | ✅ None |
+| `unwrap()` | ✅ None |
+| `panic!()` / `todo!()` / `unimplemented!()` | ✅ None |
+| Inline comments (`//`) | ✅ None |
+| Doc comments (`///`, `//!`) | ✅ None |
+| TODO/FIXME/HACK | ✅ None |
+| Tests in source files | ✅ Moved to `crates/tests/unit/infra/events/` |
 
-### Architecture
-| Check | Status | Notes |
-|-------|--------|-------|
-| Correct layer (Infrastructure) | ✅ | Event broadcasting is infrastructure |
-| Clean separation of concerns | ✅ | Traits in lib.rs, impl in services/ |
-| No upward dependencies | ✅ | Only depends on shared crates |
+### Section 3: Mandatory Patterns (rust.md §3)
+
+| Pattern | Status |
+|---------|--------|
+| Typed identifiers | ✅ Uses `UserId` from systemprompt_identifiers |
+| Logging via tracing | ✅ Uses `tracing::error!`, `tracing::debug!` |
+| Repository pattern | N/A (no SQL) |
+| Error handling | ✅ Graceful error handling with early return |
+
+### Section 4: Naming (rust.md §4)
+
+| Check | Status |
+|-------|--------|
+| Function prefixes | ✅ Follows conventions |
+| Abbreviations | ✅ Uses allowed abbreviations (A2A, ctx) |
+
+### Section 5: Anti-Patterns (rust.md §5)
+
+| Anti-Pattern | Status |
+|--------------|--------|
+| Raw string identifiers | ✅ Uses typed UserId |
+| Magic numbers/strings | ✅ Uses constants (HEARTBEAT_JSON, HEARTBEAT_INTERVAL) |
+| `unwrap_or_default()` | ✅ None in production code |
+| Orphan tracing calls | ✅ Uses structured logging with context |
+
+### Files Changed
+
+| File | Change |
+|------|--------|
+| `src/services/broadcaster.rs:70` | Removed inline comment from `#[allow]` attribute |
+| `src/services/broadcaster.rs` | Removed `#[cfg(test)]` module (413 lines) |
+| `src/services/routing.rs` | Removed `#[cfg(test)]` module (260 lines) |
+
+### Tests Relocated
+
+Tests moved to `crates/tests/unit/infra/events/`:
+- `src/broadcaster.rs` - 35 test functions
+- `src/routing.rs` - 18 test functions

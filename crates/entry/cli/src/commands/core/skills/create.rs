@@ -12,8 +12,8 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_agent::services::skills::SkillIngestionService;
 use systemprompt_database::Database;
-use systemprompt_logging::CliService;
 use systemprompt_identifiers::SourceId;
+use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]

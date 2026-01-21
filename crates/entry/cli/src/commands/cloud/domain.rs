@@ -70,10 +70,7 @@ async fn set_domain(domain: String) -> Result<()> {
             println!();
 
             CliService::info("DNS Configuration Required:");
-            println!(
-                "    Type:   {}",
-                response.dns_instructions.record_type
-            );
+            println!("    Type:   {}", response.dns_instructions.record_type);
             println!("    Host:   {}", response.dns_instructions.host);
             println!("    Value:  {}", response.dns_instructions.value);
             println!("    TTL:    {}", response.dns_instructions.ttl);
@@ -123,10 +120,7 @@ async fn get_status() -> Result<()> {
 
             if !response.verified {
                 CliService::info("DNS Configuration Required:");
-                println!(
-                    "    Type:   {}",
-                    response.dns_instructions.record_type
-                );
+                println!("    Type:   {}", response.dns_instructions.record_type);
                 println!("    Host:   {}", response.dns_instructions.host);
                 println!("    Value:  {}", response.dns_instructions.value);
                 println!("    TTL:    {}", response.dns_instructions.ttl);
@@ -192,7 +186,10 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     match client.delete_custom_domain(&tenant_id).await {
         Ok(()) => {
             spinner.finish_and_clear();
-            CliService::success(&format!("Custom domain '{}' removed successfully", domain_name));
+            CliService::success(&format!(
+                "Custom domain '{}' removed successfully",
+                domain_name
+            ));
         },
         Err(e) => {
             spinner.finish_and_clear();

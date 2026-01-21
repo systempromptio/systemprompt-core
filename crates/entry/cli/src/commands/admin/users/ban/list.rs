@@ -3,8 +3,8 @@ use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_users::BannedIpRepository;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::BannedIpRepository;
 use tabled::{Table, Tabled};
 
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};

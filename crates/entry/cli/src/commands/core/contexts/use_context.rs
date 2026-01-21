@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Args;
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::CliSession;
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 

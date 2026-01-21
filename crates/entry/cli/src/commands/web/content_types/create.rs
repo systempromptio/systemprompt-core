@@ -6,8 +6,8 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
-use systemprompt_logging::CliService;
 use systemprompt_identifiers::{CategoryId, SourceId};
+use systemprompt_logging::CliService;
 use systemprompt_models::content_config::{
     ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig, SitemapConfig,
 };

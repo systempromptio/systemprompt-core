@@ -4,9 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::{Args, ValueEnum};
 use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
-use systemprompt_content::services::link::generation::{
-    GenerateLinkParams, LinkGenerationService,
-};
+use systemprompt_content::services::link::generation::{GenerateLinkParams, LinkGenerationService};
 use systemprompt_identifiers::{CampaignId, ContentId};
 use systemprompt_runtime::AppContext;
 

@@ -156,7 +156,9 @@ impl AnalyticsMiddleware {
         let session_repo = self.session_repo.clone();
 
         tokio::spawn(async move {
-            let _ = session_repo.mark_as_scanner(&session_id).await;
+            if let Err(e) = session_repo.mark_as_scanner(&session_id).await {
+                tracing::warn!(error = %e, session_id = %session_id, "Failed to mark session as scanner");
+            }
         });
     }
 }
