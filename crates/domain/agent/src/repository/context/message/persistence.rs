@@ -16,8 +16,8 @@ pub async fn persist_message_sqlx(
     trace_id: &TraceId,
     upload_ctx: Option<&FileUploadContext<'_>>,
 ) -> Result<(), RepositoryError> {
-    let metadata_json = serde_json::to_value(&message.metadata)
-        .map_err(|e| RepositoryError::Serialization(e))?;
+    let metadata_json =
+        serde_json::to_value(&message.metadata).map_err(|e| RepositoryError::Serialization(e))?;
 
     sqlx::query!(
         "DELETE FROM message_parts WHERE message_id = $1",

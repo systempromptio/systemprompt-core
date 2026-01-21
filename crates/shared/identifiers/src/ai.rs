@@ -5,7 +5,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// AI Request identifier for tracking individual AI API calls
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -61,7 +60,6 @@ impl ToDbValue for &AiRequestId {
     }
 }
 
-/// Message identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, JsonSchema)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -117,7 +115,6 @@ impl ToDbValue for &MessageId {
     }
 }
 
-/// Config identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, JsonSchema)]
 #[sqlx(transparent)]
 #[serde(transparent)]

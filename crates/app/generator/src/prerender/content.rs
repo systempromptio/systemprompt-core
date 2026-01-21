@@ -175,17 +175,12 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         }
     }
 
-    let extender_ctx = ExtenderContext::builder(
-        item,
-        all_items,
-        config_value,
-        &ctx.web_config,
-        &ctx.db_pool,
-    )
-    .with_content_html(&content_html)
-    .with_url_pattern(&sitemap_config.url_pattern)
-    .with_source_name(source_name)
-    .build();
+    let extender_ctx =
+        ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
+            .with_content_html(&content_html)
+            .with_url_pattern(&sitemap_config.url_pattern)
+            .with_source_name(source_name)
+            .build();
 
     for extender in ctx.template_registry.extenders_for(content_type) {
         if let Err(e) = extender.extend(&extender_ctx, &mut template_data).await {

@@ -5,7 +5,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Execution step identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -61,7 +60,6 @@ impl ToDbValue for &ExecutionStepId {
     }
 }
 
-/// Log identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -117,7 +115,6 @@ impl ToDbValue for &LogId {
     }
 }
 
-/// Token identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -173,7 +170,6 @@ impl ToDbValue for &TokenId {
     }
 }
 
-/// Artifact identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type, JsonSchema)]
 #[sqlx(transparent)]
 #[serde(transparent)]

@@ -63,18 +63,21 @@ async fn set_domain(domain: String) -> Result<()> {
             spinner.finish_and_clear();
 
             CliService::success("Custom Domain Configuration");
-            println!();
-            println!("  Domain:      {}", response.domain);
-            println!("  Status:      {}", response.status);
-            println!("  DNS Target:  {}", response.dns_target);
-            println!();
+            CliService::info("");
+            CliService::info(&format!("  Domain:      {}", response.domain));
+            CliService::info(&format!("  Status:      {}", response.status));
+            CliService::info(&format!("  DNS Target:  {}", response.dns_target));
+            CliService::info("");
 
             CliService::info("DNS Configuration Required:");
-            println!("    Type:   {}", response.dns_instructions.record_type);
-            println!("    Host:   {}", response.dns_instructions.host);
-            println!("    Value:  {}", response.dns_instructions.value);
-            println!("    TTL:    {}", response.dns_instructions.ttl);
-            println!();
+            CliService::info(&format!(
+                "    Type:   {}",
+                response.dns_instructions.record_type
+            ));
+            CliService::info(&format!("    Host:   {}", response.dns_instructions.host));
+            CliService::info(&format!("    Value:  {}", response.dns_instructions.value));
+            CliService::info(&format!("    TTL:    {}", response.dns_instructions.ttl));
+            CliService::info("");
 
             CliService::info(
                 "After configuring DNS, run 'systemprompt cloud domain status' to verify.",
@@ -101,30 +104,33 @@ async fn get_status() -> Result<()> {
         Ok(response) => {
             spinner.finish_and_clear();
 
-            println!();
-            println!("  Domain:      {}", response.domain);
-            println!("  Status:      {}", response.status);
-            println!(
+            CliService::info("");
+            CliService::info(&format!("  Domain:      {}", response.domain));
+            CliService::info(&format!("  Status:      {}", response.status));
+            CliService::info(&format!(
                 "  Verified:    {}",
                 if response.verified { "Yes" } else { "No" }
-            );
-            println!("  DNS Target:  {}", response.dns_target);
+            ));
+            CliService::info(&format!("  DNS Target:  {}", response.dns_target));
 
             if let Some(created) = &response.created_at {
-                println!("  Created:     {}", created);
+                CliService::info(&format!("  Created:     {}", created));
             }
             if let Some(verified) = &response.verified_at {
-                println!("  Verified:    {}", verified);
+                CliService::info(&format!("  Verified:    {}", verified));
             }
-            println!();
+            CliService::info("");
 
             if !response.verified {
                 CliService::info("DNS Configuration Required:");
-                println!("    Type:   {}", response.dns_instructions.record_type);
-                println!("    Host:   {}", response.dns_instructions.host);
-                println!("    Value:  {}", response.dns_instructions.value);
-                println!("    TTL:    {}", response.dns_instructions.ttl);
-                println!();
+                CliService::info(&format!(
+                    "    Type:   {}",
+                    response.dns_instructions.record_type
+                ));
+                CliService::info(&format!("    Host:   {}", response.dns_instructions.host));
+                CliService::info(&format!("    Value:  {}", response.dns_instructions.value));
+                CliService::info(&format!("    TTL:    {}", response.dns_instructions.ttl));
+                CliService::info("");
             }
         },
         Err(e) => {

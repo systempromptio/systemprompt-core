@@ -50,8 +50,8 @@ impl FileSystemLoader {
         for base in &self.base_paths {
             match fs::canonicalize(base).await {
                 Ok(canonical_base) if canonical.starts_with(&canonical_base) => return Ok(true),
-                Ok(_) => continue,
-                Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                Ok(_) => {},
+                Err(e) if e.kind() == ErrorKind::NotFound => {},
                 Err(e) => return Err(TemplateLoaderError::io(base, e)),
             }
         }
@@ -166,7 +166,7 @@ impl TemplateLoader for FileSystemLoader {
                         found_path = Some(canonical);
                         break;
                     },
-                    Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                    Err(e) if e.kind() == ErrorKind::NotFound => {},
                     Err(e) => return Err(TemplateLoaderError::io(&candidate, e)),
                 }
             }
@@ -186,9 +186,8 @@ impl TemplateLoader for FileSystemLoader {
             let entry_path = entry.path();
 
             if entry_path.extension().is_some_and(|ext| ext == "html") {
-                let file_stem = match entry_path.file_stem() {
-                    Some(stem) => stem,
-                    None => continue,
+                let Some(file_stem) = entry_path.file_stem() else {
+                    continue;
                 };
 
                 let template_name = file_stem
