@@ -1,4 +1,5 @@
 pub mod parser;
+mod scanner;
 
 use crate::error::ContentError;
 use crate::models::{
@@ -6,7 +7,6 @@ use crate::models::{
     IngestionOptions, IngestionReport, IngestionSource, UpdateContentParams,
 };
 use crate::repository::ContentRepository;
-use crate::services::validation::validate_content_metadata;
 use sha2::{Digest, Sha256};
 use std::path::Path;
 use systemprompt_database::DbPool;
@@ -42,20 +42,15 @@ impl IngestionService {
     ) -> Result<IngestionReport, ContentError> {
         let mut report = IngestionReport::new();
 
-        let (markdown_files, validation_errors, warnings) =
-            Self::scan_markdown_files(path, source.allowed_content_types, options.recursive);
-        report.files_found = markdown_files.len() + validation_errors.len();
-        report.errors.extend(validation_errors);
-        report.warnings.extend(warnings);
+        let scan_result =
+            scanner::scan_markdown_files(path, source.allowed_content_types, options.recursive);
+        report.files_found = scan_result.files.len() + scan_result.errors.len();
+        report.errors.extend(scan_result.errors);
+        report.warnings.extend(scan_result.warnings);
 
-        for file_path in markdown_files {
+        for file_path in scan_result.files {
             match self
-                .ingest_file(
-                    &file_path,
-                    source,
-                    options.override_existing,
-                    options.dry_run,
-                )
+                .ingest_file(&file_path, source, options.override_existing, options.dry_run)
                 .await
             {
                 Ok(result) => {
@@ -89,7 +84,7 @@ impl IngestionService {
     ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = std::fs::read_to_string(path)?;
         let (metadata, content_text) =
-            Self::parse_frontmatter(&markdown_text, source.allowed_content_types)?;
+            scanner::parse_frontmatter(&markdown_text, source.allowed_content_types)?;
 
         let resolved_category_id = metadata
             .category
@@ -118,145 +113,83 @@ impl IngestionService {
         let new_hash = Self::compute_version_hash(&new_content);
 
         match existing_content {
-            None => {
-                if dry_run {
-                    return Ok(IngestFileResult::WouldCreate(slug));
-                }
-                let params = CreateContentParams::new(
-                    new_content.slug.clone(),
-                    new_content.title.clone(),
-                    new_content.description.clone(),
-                    new_content.body.clone(),
-                    new_content.source_id.clone(),
-                )
-                .with_author(new_content.author.clone())
-                .with_published_at(new_content.published_at)
-                .with_keywords(new_content.keywords.clone())
-                .with_kind(new_content.kind.clone())
-                .with_image(new_content.image.clone())
-                .with_category_id(new_content.category_id.clone())
-                .with_version_hash(new_hash)
-                .with_links(new_content.links.clone());
-
-                self.content_repo.create(&params).await?;
-                Ok(IngestFileResult::Created)
-            },
+            None => self.handle_new_content(dry_run, slug, new_content, new_hash).await,
             Some(existing) => {
-                let content_unchanged = existing.version_hash == new_hash;
-
-                if content_unchanged {
-                    return Ok(IngestFileResult::Unchanged);
-                }
-
-                if !override_existing {
-                    return Ok(IngestFileResult::Skipped);
-                }
-
-                if dry_run {
-                    return Ok(IngestFileResult::WouldUpdate(slug));
-                }
-
-                let update_params = UpdateContentParams::new(
-                    existing.id.clone(),
-                    new_content.title.clone(),
-                    new_content.description.clone(),
-                    new_content.body.clone(),
+                self.handle_existing_content(
+                    existing,
+                    new_content,
+                    new_hash,
+                    override_existing,
+                    dry_run,
+                    slug,
                 )
-                .with_keywords(new_content.keywords.clone())
-                .with_image(new_content.image.clone())
-                .with_version_hash(new_hash);
-                self.content_repo.update(&update_params).await?;
-                Ok(IngestFileResult::Updated)
+                .await
             },
         }
     }
 
-    fn parse_frontmatter(
-        markdown: &str,
-        allowed_content_types: &[&str],
-    ) -> Result<(ContentMetadata, String), ContentError> {
-        let parts: Vec<&str> = markdown.splitn(3, "---").collect();
-
-        if parts.len() < 3 {
-            return Err(ContentError::Parse(
-                "Invalid frontmatter format".to_string(),
-            ));
+    async fn handle_new_content(
+        &self,
+        dry_run: bool,
+        slug: String,
+        new_content: Content,
+        new_hash: String,
+    ) -> Result<IngestFileResult, ContentError> {
+        if dry_run {
+            return Ok(IngestFileResult::WouldCreate(slug));
         }
+        let params = CreateContentParams::new(
+            new_content.slug.clone(),
+            new_content.title.clone(),
+            new_content.description.clone(),
+            new_content.body.clone(),
+            new_content.source_id.clone(),
+        )
+        .with_author(new_content.author.clone())
+        .with_published_at(new_content.published_at)
+        .with_keywords(new_content.keywords.clone())
+        .with_kind(new_content.kind.clone())
+        .with_image(new_content.image.clone())
+        .with_category_id(new_content.category_id.clone())
+        .with_version_hash(new_hash)
+        .with_links(new_content.links.clone());
 
-        let metadata: ContentMetadata = serde_yaml::from_str(parts[1])?;
-        validate_content_metadata(&metadata, allowed_content_types)?;
-
-        let content = parts[2].trim().to_string();
-
-        Ok((metadata, content))
+        self.content_repo.create(&params).await?;
+        Ok(IngestFileResult::Created)
     }
 
-    fn scan_markdown_files(
-        dir: &Path,
-        allowed_content_types: &[&str],
-        recursive: bool,
-    ) -> (Vec<std::path::PathBuf>, Vec<String>, Vec<String>) {
-        use walkdir::WalkDir;
-
-        let mut files = Vec::new();
-        let mut errors = Vec::new();
-        let mut warnings = Vec::new();
-
-        let walker = if recursive {
-            WalkDir::new(dir).min_depth(1)
-        } else {
-            WalkDir::new(dir).min_depth(1).max_depth(1)
-        };
-
-        let mut has_subdirectories = false;
-
-        for entry in walker.into_iter().filter_map(Result::ok) {
-            if entry.file_type().is_dir() && !recursive {
-                has_subdirectories = true;
-                continue;
-            }
-
-            if !entry.file_type().is_file() {
-                continue;
-            }
-
-            let Some(ext) = entry.path().extension() else {
-                continue;
-            };
-
-            if ext != "md" {
-                continue;
-            }
-
-            match Self::validate_markdown_file(entry.path(), allowed_content_types) {
-                Ok(()) => files.push(entry.path().to_path_buf()),
-                Err(e) => errors.push(format!("{}: {}", entry.path().display(), e)),
-            }
+    async fn handle_existing_content(
+        &self,
+        existing: Content,
+        new_content: Content,
+        new_hash: String,
+        override_existing: bool,
+        dry_run: bool,
+        slug: String,
+    ) -> Result<IngestFileResult, ContentError> {
+        if existing.version_hash == new_hash {
+            return Ok(IngestFileResult::Unchanged);
         }
 
-        if files.is_empty() && has_subdirectories {
-            warnings.push(
-                "No markdown files found in root directory, but subdirectories exist. Consider \
-                 using --recursive to scan nested directories."
-                    .to_string(),
-            );
+        if !override_existing {
+            return Ok(IngestFileResult::Skipped);
         }
 
-        (files, errors, warnings)
-    }
-
-    fn validate_markdown_file(
-        path: &Path,
-        allowed_content_types: &[&str],
-    ) -> Result<(), ContentError> {
-        let markdown_text = std::fs::read_to_string(path)?;
-        let (metadata, _) = Self::parse_frontmatter(&markdown_text, allowed_content_types)?;
-
-        if metadata.kind == ContentKind::Paper.as_str() {
-            parser::validate_paper_frontmatter(&markdown_text)?;
+        if dry_run {
+            return Ok(IngestFileResult::WouldUpdate(slug));
         }
 
-        Ok(())
+        let update_params = UpdateContentParams::new(
+            existing.id.clone(),
+            new_content.title.clone(),
+            new_content.description.clone(),
+            new_content.body.clone(),
+        )
+        .with_keywords(new_content.keywords.clone())
+        .with_image(new_content.image.clone())
+        .with_version_hash(new_hash);
+        self.content_repo.update(&update_params).await?;
+        Ok(IngestFileResult::Updated)
     }
 
     fn create_content_from_metadata(

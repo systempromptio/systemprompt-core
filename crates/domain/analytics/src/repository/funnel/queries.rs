@@ -6,9 +6,10 @@ use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{FunnelId, FunnelProgressId, SessionId};
 
+use super::types::{FunnelProgressRow, FunnelRow, FunnelStepRow};
 use crate::models::{
-    CreateFunnelInput, Funnel, FunnelMatchType, FunnelProgress, FunnelStats, FunnelStep,
-    FunnelStepStats, FunnelWithSteps,
+    CreateFunnelInput, Funnel, FunnelProgress, FunnelStats, FunnelStep, FunnelStepStats,
+    FunnelWithSteps,
 };
 
 #[derive(Clone, Debug)]
@@ -423,98 +424,5 @@ impl FunnelRepository {
         }
 
         Ok(stats)
-    }
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-struct FunnelRow {
-    id: String,
-    name: String,
-    description: Option<String>,
-    is_active: bool,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-impl FunnelRow {
-    fn into_funnel(self) -> Funnel {
-        Funnel {
-            id: FunnelId::new(self.id),
-            name: self.name,
-            description: self.description,
-            is_active: self.is_active,
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-        }
-    }
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-struct FunnelStepRow {
-    funnel_id: String,
-    step_order: i32,
-    name: String,
-    match_pattern: String,
-    match_type: String,
-}
-
-impl FunnelStepRow {
-    fn into_step(self) -> FunnelStep {
-        FunnelStep {
-            funnel_id: FunnelId::new(self.funnel_id),
-            step_order: self.step_order,
-            name: self.name,
-            match_pattern: self.match_pattern,
-            match_type: FunnelMatchType::from_str(&self.match_type),
-        }
-    }
-}
-
-#[derive(Debug, Clone, sqlx::FromRow)]
-struct FunnelProgressRow {
-    id: String,
-    funnel_id: String,
-    session_id: String,
-    current_step: i32,
-    completed_at: Option<DateTime<Utc>>,
-    dropped_at_step: Option<i32>,
-    step_timestamps: serde_json::Value,
-    created_at: DateTime<Utc>,
-    updated_at: DateTime<Utc>,
-}
-
-impl FunnelProgressRow {
-    fn into_progress(self) -> FunnelProgress {
-        FunnelProgress {
-            id: FunnelProgressId::new(self.id),
-            funnel_id: FunnelId::new(self.funnel_id),
-            session_id: SessionId::new(self.session_id),
-            current_step: self.current_step,
-            completed_at: self.completed_at,
-            dropped_at_step: self.dropped_at_step,
-            step_timestamps: self.step_timestamps,
-            created_at: self.created_at,
-            updated_at: self.updated_at,
-        }
-    }
-}
-
-impl FunnelMatchType {
-    const fn as_str(&self) -> &'static str {
-        match self {
-            Self::UrlExact => "url_exact",
-            Self::UrlPrefix => "url_prefix",
-            Self::UrlRegex => "url_regex",
-            Self::EventType => "event_type",
-        }
-    }
-
-    fn from_str(s: &str) -> Self {
-        match s {
-            "url_exact" => Self::UrlExact,
-            "url_regex" => Self::UrlRegex,
-            "event_type" => Self::EventType,
-            _ => Self::UrlPrefix,
-        }
     }
 }

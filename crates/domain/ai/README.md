@@ -62,6 +62,7 @@ src/
     ├── core/
     │   ├── mod.rs                      # Core service exports
     │   ├── image_service.rs            # ImageService for image generation
+    │   ├── image_persistence.rs        # Image persistence and file record management
     │   ├── request_logging.rs          # Structured logging helpers
     │   ├── ai_service/
     │   │   ├── mod.rs                  # AiService exports
@@ -83,6 +84,7 @@ src/
     │   ├── image_provider_trait.rs     # ImageProvider trait, capabilities
     │   ├── image_provider_factory.rs   # ImageProviderFactory
     │   ├── gemini_images.rs            # GeminiImageProvider implementation
+    │   ├── gemini_images_helpers.rs    # Request building and response parsing helpers
     │   ├── openai_images.rs            # OpenAiImageProvider implementation
     │   ├── shared/
     │   │   ├── mod.rs                  # Shared utilities exports
@@ -111,6 +113,7 @@ src/
     │       ├── provider.rs             # GeminiProvider struct
     │       ├── converters.rs           # Message/content conversion
     │       ├── request_builders.rs     # Request building helpers
+    │       ├── params.rs               # ToolRequestParams, ToolResultParams builders
     │       ├── tool_conversion.rs      # Tool schema transformation
     │       ├── tools.rs                # generate_with_tools(), tool result handling
     │       ├── generation.rs           # generate(), generate_with_schema()

@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** NON-COMPLIANT
+**Verdict:** NON-COMPLIANT (13 files exceed 300 line limit)
 
 ---
 
@@ -10,128 +10,43 @@
 
 | Category | Status |
 |----------|--------|
-| Boundary Rules | ✅ |
-| Required Structure | ❌ |
-| Code Quality | ❌ |
+| Boundary Rules | PASS |
+| Required Structure | PASS |
+| Forbidden Constructs | PASS |
+| Anti-Patterns | PASS |
+| Code Quality (File Length) | FAIL |
 
 ---
 
-## Violations
+## Fixed Violations
 
-| File:Line | Violation | Category |
-|-----------|-----------|----------|
-| `src/repository/content/artifact.rs` | 565 lines (limit: 300) | Code Quality |
-| `src/services/a2a_server/processing/message/stream_processor.rs` | 440 lines | Code Quality |
-| `src/repository/task/mod.rs` | 429 lines | Code Quality |
-| `src/services/a2a_server/processing/strategies/planned.rs` | 425 lines | Code Quality |
-| `src/services/registry.rs` | 408 lines | Code Quality |
-| `src/models/a2a/protocol.rs` | 399 lines | Code Quality |
-| `src/services/agent_orchestration/lifecycle.rs` | 382 lines | Code Quality |
-| `src/services/a2a_server/processing/task_builder.rs` | 380 lines | Code Quality |
-| `src/services/external_integrations/webhook/service.rs` | 375 lines | Code Quality |
-| `src/services/a2a_server/handlers/request/mod.rs` | 336 lines | Code Quality |
-| `src/repository/context/mod.rs` | 328 lines | Code Quality |
-| `src/repository/task/constructor/batch.rs` | 315 lines | Code Quality |
-| `src/api/routes/contexts/notifications/mod.rs` | 301 lines | Code Quality |
-| `src/repository/content/artifact.rs:47` | Inline comment (`// Build metadata...`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:55` | Inline comment (`// Insert artifact...`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:96` | Inline comment (`// Delete existing...`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:106` | Inline comment (`// Insert parts`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:339` | Inline comment (`// Parts are deleted...`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:352` | Doc comment (`///`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:389` | Doc comment (`///`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:428` | Doc comment (`///`) | Forbidden Construct |
-| `src/repository/content/artifact.rs:508` | Doc comment (`///`) | Forbidden Construct |
-| `src/models/a2a/mod.rs:5` | Inline comment (`// Re-export...`) | Forbidden Construct |
-| `src/models/a2a/service_status.rs:6` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/external_integrations/mcp/mod.rs:7` | Inline comment (`// Re-export...`) | Forbidden Construct |
-| `src/services/external_integrations/mcp/mod.rs:13` | Inline comment (`// Re-export...`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:20` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:23` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:25` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:27` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:29` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:165` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:171` | Inline comment (`// Perform startup...`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/mod.rs:174` | Inline comment (`// Get final counts...`) | Forbidden Construct |
-| `src/services/agent_orchestration/orchestrator/status.rs:7` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/a2a_server/streaming/agent_loader.rs:53` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/a2a_server/streaming/handlers/completion.rs:249` | Inline comment (`// Use the new method...`) | Forbidden Construct |
-| `src/services/a2a_server/processing/strategies/planned.rs:354-356` | Inline comments | Forbidden Construct |
-| `src/services/a2a_server/processing/strategies/planned.rs:385-395` | Inline comments | Forbidden Construct |
-| `src/repository/task/mutations.rs:137` | Doc comment (`///`) | Forbidden Construct |
-| `src/repository/task/mod.rs:175` | Doc comment (`///`) | Forbidden Construct |
-| `src/services/registry.rs:133` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/registry.rs:134` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/content/skill.rs:193` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/content/artifact.rs:357` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/content/artifact.rs:372` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/a2a_server/processing/strategies/plan_executor.rs:134-135` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/context/message/queries.rs:52` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/queries.rs:177` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/a2a_server/streaming/event_loop.rs:151` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/a2a_server/streaming/event_loop.rs:163` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/batch.rs:179` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/batch.rs:234` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/batch.rs:283` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/batch.rs:291` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/single.rs:225` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/converters.rs:14` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/converters.rs:49` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/converters.rs:61` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/converters.rs:73` | `unwrap_or_default()` | Anti-Pattern |
-| `src/repository/task/constructor/converters.rs:96` | `unwrap_or_default()` | Anti-Pattern |
-| `src/models/skill.rs:67` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/mcp/artifact_transformer/mod.rs:55` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/mcp/artifact_transformer/mod.rs:87` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/skills/ingestion.rs:100` | `unwrap_or_default()` | Anti-Pattern |
-| `src/services/external_integrations/webhook/service.rs:135` | `unwrap_or_default()` | Anti-Pattern |
-| `module.yaml` | Missing required file | Required Structure |
-| `src/services/a2a_server/auth/types.rs` | Import ordering | cargo fmt |
-| `src/services/a2a_server/auth/validation.rs` | Import ordering | cargo fmt |
-| `src/services/a2a_server/standalone.rs` | Import ordering | cargo fmt |
-| `src/services/agent_orchestration/process.rs` | Import ordering | cargo fmt |
+| Issue | Status |
+|-------|--------|
+| cargo fmt failures (4 files) | FIXED |
+| Missing module.yaml | FIXED |
+| Inline comments (//) - 20+ | FIXED |
+| Doc comments (///) - 15+ | FIXED |
+| `unwrap_or_default()` - 25 instances | FIXED |
 
 ---
 
-## Commands Run
+## Remaining Violations
 
-```
-cargo clippy -p systemprompt-agent -- -D warnings  # PASS
-cargo fmt -p systemprompt-agent -- --check          # FAIL
-```
-
----
-
-## Actions Required
-
-### Critical (Must Fix)
-
-1. **Run cargo fmt** to fix import ordering in 4 files
-2. **Create module.yaml** at crate root with required fields
-
-### High Priority
-
-3. **Remove all inline comments (`//`)** - 20+ occurrences
-4. **Remove all doc comments (`///`)** - 15+ occurrences
-5. **Replace `unwrap_or_default()` with explicit error handling** - 25 occurrences
-
-### Medium Priority
-
-6. **Split large files** (13 files exceed 300 line limit):
-   - `artifact.rs` (565) → split into `artifact_queries.rs`, `artifact_parts.rs`
-   - `stream_processor.rs` (440) → split by responsibility
-   - `task/mod.rs` (429) → move methods to separate files
-   - `planned.rs` (425) → extract helper functions
-   - `registry.rs` (408) → split loading and card generation
-   - `protocol.rs` (399) → split by type category
-   - `lifecycle.rs` (382) → extract state machine
-   - `task_builder.rs` (380) → split builder stages
-   - `webhook/service.rs` (375) → extract handlers
-   - `request/mod.rs` (336) → split by handler type
-   - `context/mod.rs` (328) → extract queries
-   - `batch.rs` (315) → extract converters
-   - `notifications/mod.rs` (301) → split handlers
+| File | Lines | Limit |
+|------|-------|-------|
+| `src/repository/content/artifact.rs` | 555 | 300 |
+| `src/services/a2a_server/processing/message/stream_processor.rs` | 440 | 300 |
+| `src/repository/task/mod.rs` | 428 | 300 |
+| `src/services/a2a_server/processing/strategies/planned.rs` | 419 | 300 |
+| `src/services/registry.rs` | 408 | 300 |
+| `src/models/a2a/protocol.rs` | 399 | 300 |
+| `src/services/agent_orchestration/lifecycle.rs` | 382 | 300 |
+| `src/services/a2a_server/processing/task_builder.rs` | 380 | 300 |
+| `src/services/external_integrations/webhook/service.rs` | 375 | 300 |
+| `src/services/a2a_server/handlers/request/mod.rs` | 336 | 300 |
+| `src/repository/context/mod.rs` | 328 | 300 |
+| `src/repository/task/constructor/batch.rs` | 315 | 300 |
+| `src/api/routes/contexts/notifications/mod.rs` | 301 | 300 |
 
 ---
 
@@ -139,15 +54,87 @@ cargo fmt -p systemprompt-agent -- --check          # FAIL
 
 | Check | Status |
 |-------|--------|
-| No `unsafe` blocks | ✅ |
-| No `unwrap()` | ✅ |
-| No `panic!()` | ✅ |
-| No `todo!()` | ✅ |
-| No TODO/FIXME comments | ✅ |
-| No entry layer imports | ✅ |
-| Uses SQLX macros | ✅ |
-| Uses typed identifiers | ✅ |
-| Uses thiserror | ✅ |
-| Repository pattern | ✅ |
-| Service layering | ✅ |
-| cargo clippy | ✅ |
+| No `unsafe` blocks | PASS |
+| No `unwrap()` | PASS |
+| No `panic!()` | PASS |
+| No `todo!()` | PASS |
+| No TODO/FIXME comments | PASS |
+| No inline comments (//) | PASS |
+| No doc comments (///) | PASS |
+| No `unwrap_or_default()` | PASS |
+| No entry layer imports | PASS |
+| Uses SQLX macros | PASS |
+| Uses typed identifiers | PASS |
+| Uses thiserror | PASS |
+| Repository pattern | PASS |
+| Service layering | PASS |
+| module.yaml exists | PASS |
+| cargo fmt | PASS |
+
+---
+
+## Actions Required
+
+### Medium Priority (File Splitting)
+
+To achieve full compliance, split these 13 files to under 300 lines:
+
+1. **artifact.rs** (555 lines)
+   - Extract `row_to_artifact()` and converters to `artifact_converters.rs`
+   - Extract `get_artifact_parts()` and `persist_artifact_part()` to `artifact_parts.rs`
+
+2. **stream_processor.rs** (440 lines)
+   - Extract stream state management to separate module
+   - Extract message building helpers
+
+3. **task/mod.rs** (428 lines)
+   - Move message-related methods to `task_messages.rs`
+   - Move update methods to `task_updates.rs`
+
+4. **planned.rs** (419 lines)
+   - Extract tool execution logic to `tool_execution.rs`
+   - Extract response handling to `response_handler.rs`
+
+5. **registry.rs** (408 lines)
+   - Extract skill loading to `skill_loader.rs`
+   - Extract card generation to `card_generator.rs`
+
+6. **protocol.rs** (399 lines)
+   - Split by type category: requests, responses, events
+
+7. **lifecycle.rs** (382 lines)
+   - Extract state machine to `state_machine.rs`
+
+8. **task_builder.rs** (380 lines)
+   - Extract builder stages to separate modules
+
+9. **webhook/service.rs** (375 lines)
+   - Extract delivery logic to `delivery.rs`
+
+10. **request/mod.rs** (336 lines)
+    - Split by handler type
+
+11. **context/mod.rs** (328 lines)
+    - Extract queries to `context_queries.rs`
+
+12. **batch.rs** (315 lines)
+    - Extract converters to separate module
+
+13. **notifications/mod.rs** (301 lines)
+    - Split handlers into separate files
+
+---
+
+## Summary
+
+| Metric | Before | After |
+|--------|--------|-------|
+| cargo fmt failures | 4 | 0 |
+| Missing module.yaml | 1 | 0 |
+| Inline comments | 20+ | 0 |
+| Doc comments | 15+ | 0 |
+| `unwrap_or_default()` | 25 | 0 |
+| Files >300 lines | 13 | 13 |
+| Total violations | 65+ | 13 |
+
+**Compliance Progress:** 80% complete (13 file-length violations remaining)

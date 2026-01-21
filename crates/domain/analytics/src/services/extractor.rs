@@ -2,94 +2,10 @@ use axum::extract::Request;
 use axum::http::{HeaderMap, Uri};
 use std::collections::HashMap;
 
+use super::bot_keywords::{matches_bot_ip_range, matches_bot_pattern};
 use super::detection;
+use super::user_agent::parse_user_agent;
 use crate::GeoIpReader;
-
-const BOT_KEYWORDS: &[&str] = &[
-    "bot",
-    "crawler",
-    "spider",
-    "scraper",
-    "crawling",
-    "googlebot",
-    "google-inspectiontool",
-    "adsbot-google",
-    "googleother",
-    "bingbot",
-    "bingpreview",
-    "msnbot",
-    "baiduspider",
-    "yandexbot",
-    "yandex.com/bots",
-    "duckduckbot",
-    "slurp",
-    "yahoo",
-    "facebookexternalhit",
-    "facebookcatalog",
-    "facebot",
-    "meta-externalagent",
-    "twitterbot",
-    "linkedinbot",
-    "slackbot",
-    "discordbot",
-    "whatsapp",
-    "telegrambot",
-    "pinterestbot",
-    "chatgpt-user",
-    "gptbot",
-    "claude-web",
-    "anthropic-ai",
-    "perplexitybot",
-    "cohere-ai",
-    "petalbot",
-    "bytespider",
-    "sogou",
-    "amazonbot",
-    "applebot",
-    "dotbot",
-    "semrushbot",
-    "ahrefsbot",
-    "majesticbot",
-    "mj12bot",
-    "rogerbot",
-    "exabot",
-    "sistrix",
-    "seolyt",
-    "barkrowler",
-    "blexbot",
-    "bubing",
-    "cliqzbot",
-    "uptimerobot",
-    "pingdom",
-    "statuscake",
-    "site24x7",
-    "lighthouse",
-    "pagespeed",
-    "speedcurve",
-    "headless",
-    "phantom",
-    "selenium",
-    "webdriver",
-    "puppeteer",
-    "archive.org_bot",
-    "ia_archiver",
-    "embedly",
-    "flipboard",
-    "google-structured-data-testing-tool",
-    "scrapy",
-    "python-requests",
-    "python-urllib",
-    "curl",
-    "wget",
-    "libwww",
-    "http.rb",
-    "guzzlehttp",
-    "okhttp",
-    "apache-httpclient",
-    "go-http-client",
-    "node-fetch",
-    "axios",
-];
 
 #[derive(Debug, Clone)]
 pub struct SessionAnalytics {
@@ -160,7 +76,7 @@ impl SessionAnalytics {
 
         let (device_type, browser, os) = user_agent
             .as_ref()
-            .map_or((None, None, None), |ua| Self::parse_user_agent(ua));
+            .map_or((None, None, None), |ua| parse_user_agent(ua));
 
         let (country, region, city) = ip_address
             .as_ref()
@@ -277,70 +193,6 @@ impl SessionAnalytics {
         Some((country, region, city_name))
     }
 
-    fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<String>) {
-        let ua_lower = ua.to_lowercase();
-
-        let device_type = if ua_lower.contains("mobile")
-            || ua_lower.contains("android")
-            || ua_lower.contains("iphone")
-        {
-            Some("mobile".to_string())
-        } else if ua_lower.contains("tablet") || ua_lower.contains("ipad") {
-            Some("tablet".to_string())
-        } else {
-            Some("desktop".to_string())
-        };
-
-        let browser = if ua_lower.contains("edg/") || ua_lower.contains("edge") {
-            Some("Edge".to_string())
-        } else if ua_lower.contains("samsungbrowser") {
-            Some("Samsung Internet".to_string())
-        } else if ua_lower.contains("ucbrowser") || ua_lower.contains("ucweb") {
-            Some("UC Browser".to_string())
-        } else if ua_lower.contains("yabrowser") {
-            Some("Yandex".to_string())
-        } else if ua_lower.contains("qqbrowser") {
-            Some("QQ Browser".to_string())
-        } else if ua_lower.contains("micromessenger") {
-            Some("WeChat".to_string())
-        } else if ua_lower.contains("silk/") {
-            Some("Silk".to_string())
-        } else if ua_lower.contains("electron") {
-            Some("Electron".to_string())
-        } else if ua_lower.contains("cordova") || ua_lower.contains("wv)") {
-            Some("WebView".to_string())
-        } else if ua_lower.contains("chrome") && !ua_lower.contains("edg") {
-            Some("Chrome".to_string())
-        } else if ua_lower.contains("firefox") {
-            Some("Firefox".to_string())
-        } else if ua_lower.contains("safari") && !ua_lower.contains("chrome") {
-            Some("Safari".to_string())
-        } else if ua_lower.contains("opera") || ua_lower.contains("opr/") {
-            Some("Opera".to_string())
-        } else {
-            None
-        };
-
-        let os = if ua_lower.contains("windows") {
-            Some("Windows".to_string())
-        } else if ua_lower.contains("mac os x") || ua_lower.contains("macos") {
-            Some("macOS".to_string())
-        } else if ua_lower.contains("linux") {
-            Some("Linux".to_string())
-        } else if ua_lower.contains("android") {
-            Some("Android".to_string())
-        } else if ua_lower.contains("iphone")
-            || ua_lower.contains("ipad")
-            || ua_lower.contains("ios")
-        {
-            Some("iOS".to_string())
-        } else {
-            None
-        };
-
-        (device_type, browser, os)
-    }
-
     fn parse_referrer_source(url: &str) -> Option<String> {
         url::Url::parse(url)
             .ok()
@@ -357,47 +209,13 @@ impl SessionAnalytics {
     pub fn is_bot(&self) -> bool {
         self.user_agent
             .as_ref()
-            .is_some_and(|ua| Self::matches_bot_pattern(ua))
-    }
-
-    fn matches_bot_pattern(user_agent: &str) -> bool {
-        let ua_lower = user_agent.to_lowercase();
-
-        if BOT_KEYWORDS
-            .iter()
-            .any(|keyword| ua_lower.contains(keyword))
-        {
-            return true;
-        }
-
-        if user_agent.len() < 10 {
-            return true;
-        }
-
-        if ua_lower.contains("compatible")
-            && !ua_lower.contains("chrome")
-            && !ua_lower.contains("firefox")
-            && !ua_lower.contains("safari")
-            && !ua_lower.contains("edge")
-        {
-            return true;
-        }
-
-        false
+            .is_some_and(|ua| matches_bot_pattern(ua))
     }
 
     pub fn is_bot_ip(&self) -> bool {
         self.ip_address
             .as_ref()
-            .is_some_and(|ip| Self::matches_bot_ip_range(ip))
-    }
-
-    fn matches_bot_ip_range(ip: &str) -> bool {
-        const BOT_IP_PREFIXES: &[&str] = &[
-            "66.249.", "40.77.", "157.55.", "207.46.", "69.171.", "173.252.", "31.13.",
-        ];
-
-        BOT_IP_PREFIXES.iter().any(|prefix| ip.starts_with(prefix))
+            .is_some_and(|ip| matches_bot_ip_range(ip))
     }
 
     pub fn is_spam_referrer(&self) -> bool {

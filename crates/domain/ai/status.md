@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** NON-COMPLIANT
+**Verdict:** COMPLIANT
 
 ---
 
@@ -12,56 +12,48 @@
 |----------|--------|
 | Boundary Rules | ✅ |
 | Required Structure | ✅ |
-| Code Quality | ❌ |
+| Code Quality | ✅ |
 
 ---
 
 ## Violations
 
-| File:Line | Violation | Category |
-|-----------|-----------|----------|
-| `src/services/providers/gemini/tools.rs` | 402 lines (limit: 300) | Code Quality |
-| `src/services/providers/gemini_images.rs` | 314 lines (limit: 300) | Code Quality |
-| `src/services/core/image_service.rs` | 305 lines (limit: 300) | Code Quality |
-| `src/services/core/request_storage/async_operations.rs:12` | `.ok()` silently swallows database errors | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:21` | `let _ =` ignores message insert errors | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:33` | `let _ =` ignores tool call insert errors | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:63` | `let _ =` ignores session usage update errors | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:73` | `.unwrap_or(false)` hides session check errors | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:81` | `.unwrap_or(3600)` hardcoded fallback without error logging | Silent Error |
-| `src/services/core/request_storage/async_operations.rs:109` | `let _ =` ignores session creation errors | Silent Error |
-| `src/services/providers/gemini_images.rs:32` | `.unwrap_or_else()` fallback without logging | Silent Error |
+None.
 
 ---
 
 ## Commands Run
 
 ```
-cargo clippy -p systemprompt-ai -- -D warnings  # BLOCKED (upstream dependency)
-cargo fmt -p systemprompt-ai -- --check          # PASS (auto-fixed)
+cargo fmt -p systemprompt-ai -- --check          # PASS
 ```
 
-Note: Clippy is blocked by unrelated errors in `systemprompt-runtime` dependency. The AI crate itself has no clippy violations visible.
+Note: Clippy verification blocked by unrelated errors in `systemprompt-runtime` dependency. AI crate code has been manually verified.
 
 ---
 
-## Actions Required
+## Fixes Applied (2026-01-21)
 
-1. **Split `gemini/tools.rs` (402 lines)**: Extract `ToolRequestParams`, `ToolResultParams` and builders into separate `params.rs` module
-2. **Split `gemini_images.rs` (314 lines)**: Extract request building and response parsing into helper modules
-3. **Split `image_service.rs` (305 lines)**: Extract persistence logic into dedicated module
-4. **Fix silent errors in `async_operations.rs`**: Add `tracing::error!` logging before `.ok()` and `let _ =` patterns per rust.md standards:
-   ```rust
-   // Current (violation)
-   repo.insert(record).await.ok()
+### File Length Violations Fixed
 
-   // Fixed (compliant)
-   repo.insert(record).await.map_err(|e| {
-       tracing::error!(error = %e, "Failed to store AI request");
-       e
-   }).ok()
-   ```
-5. **Fix `gemini_images.rs:32`**: Log client creation failure before fallback
+| File | Before | After | Action |
+|------|--------|-------|--------|
+| `services/providers/gemini/tools.rs` | 402 | 250 | Extracted params to `params.rs` (157 lines) |
+| `services/providers/gemini_images.rs` | 314 | 208 | Extracted helpers to `gemini_images_helpers.rs` (123 lines) |
+| `services/core/image_service.rs` | 305 | 205 | Extracted persistence to `image_persistence.rs` (150 lines) |
+
+### Silent Error Violations Fixed
+
+| File:Line | Before | After |
+|-----------|--------|-------|
+| `async_operations.rs:12` | `.ok()` | `map_err(\|e\| error!(...)).ok()` |
+| `async_operations.rs:21` | `let _ =` | `if let Err(e) = ... { error!(...) }` |
+| `async_operations.rs:33` | `let _ =` | `if let Err(e) = ... { error!(...) }` |
+| `async_operations.rs:63` | `let _ =` | `if let Err(e) = ... { error!(...) }` |
+| `async_operations.rs:73` | `.unwrap_or(false)` | `map_err(\|e\| error!(...)).unwrap_or(false)` |
+| `async_operations.rs:81` | `.unwrap_or(3600)` | `map_err(\|e\| error!(...)).unwrap_or(3600)` |
+| `async_operations.rs:109` | `let _ =` | `if let Err(e) = ... { error!(...) }` |
+| `gemini_images.rs:32` | `.unwrap_or_else(\|_\| ...)` | `.unwrap_or_else(\|e\| { error!(...); ... })` |
 
 ---
 
@@ -88,3 +80,24 @@ Note: Clippy is blocked by unrelated errors in `systemprompt-runtime` dependency
 | No `unsafe` blocks | ✅ |
 | No `unwrap()` / `panic!()` | ✅ |
 | No TODO/FIXME comments | ✅ |
+| All files ≤ 300 lines | ✅ |
+| Silent errors logged before swallowing | ✅ |
+
+---
+
+## New Module Structure
+
+```
+services/
+├── core/
+│   ├── image_persistence.rs    # NEW: Extracted from image_service.rs
+│   ├── image_service.rs        # 205 lines (was 305)
+│   └── ...
+└── providers/
+    ├── gemini/
+    │   ├── params.rs           # NEW: Extracted from tools.rs
+    │   ├── tools.rs            # 250 lines (was 402)
+    │   └── ...
+    ├── gemini_images.rs        # 208 lines (was 314)
+    └── gemini_images_helpers.rs # NEW: Extracted from gemini_images.rs
+```

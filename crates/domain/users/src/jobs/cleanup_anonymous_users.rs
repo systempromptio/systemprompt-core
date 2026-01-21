@@ -2,6 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_logging::SystemSpan;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use crate::UserService;
@@ -24,6 +25,7 @@ impl Job for CleanupAnonymousUsersJob {
     }
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+        let span = SystemSpan::new("cleanup_anonymous_users");
         let start_time = std::time::Instant::now();
 
         let db_pool = Arc::clone(
@@ -31,7 +33,7 @@ impl Job for CleanupAnonymousUsersJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        tracing::info!("Job started");
+        tracing::info!(parent: &span, "Job started");
 
         let user_service = UserService::new(&db_pool)?;
         let deleted_users = user_service.cleanup_old_anonymous(30).await?;
@@ -39,6 +41,7 @@ impl Job for CleanupAnonymousUsersJob {
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
         tracing::info!(
+            parent: &span,
             deleted_users = deleted_users,
             duration_ms = duration_ms,
             "Job completed"

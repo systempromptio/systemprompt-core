@@ -277,5 +277,4 @@ impl UserRepository {
 
         Ok(result.rows_affected())
     }
-
 }

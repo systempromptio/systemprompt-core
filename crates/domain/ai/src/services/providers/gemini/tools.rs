@@ -5,13 +5,13 @@ use uuid::Uuid;
 
 use crate::models::ai::{AiMessage, AiResponse, SamplingParams};
 use crate::models::providers::gemini::{
-    GeminiContent, GeminiFunctionCall, GeminiFunctionCallingConfig,
-    GeminiFunctionResponse, GeminiPart, GeminiRequest, GeminiResponse, GeminiToolConfig,
+    GeminiContent, GeminiFunctionCall, GeminiFunctionCallingConfig, GeminiFunctionResponse,
+    GeminiPart, GeminiRequest, GeminiResponse, GeminiToolConfig,
 };
 use crate::models::tools::{CallToolResult, ToolCall};
 
-pub use super::params::{ToolRequestParams, ToolResultParams};
 use super::params::ToolConfigParams;
+pub use super::params::{ToolRequestParams, ToolResultParams};
 use super::provider::GeminiProvider;
 use super::request_builders::AiResponseParams;
 use super::tool_conversion::{build_thinking_config, convert_tools, extract_tool_response};
