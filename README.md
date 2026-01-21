@@ -1,10 +1,14 @@
-# SystemPrompt Core
+# SystemPrompt
 
-**Platform and framework for SystemPrompt OS**
+**Extensible AI agent orchestration framework**
 
-## What is SystemPrompt Core?
+[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
+[![Documentation](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
-SystemPrompt Core provides the foundational platform for building AI agent orchestration systems:
+## What is SystemPrompt?
+
+SystemPrompt provides a foundational platform for building AI agent orchestration systems:
 
 - **Agent Orchestration**: Multi-agent lifecycle management via A2A protocol
 - **MCP Protocol**: Model Context Protocol server and client implementations
@@ -14,9 +18,59 @@ SystemPrompt Core provides the foundational platform for building AI agent orche
 - **Configuration**: Profile-based configuration with startup validation
 - **Structured Logging**: Context-aware logging with request tracing
 
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt = "0.0.1"
+```
+
+### Feature Flags
+
+```toml
+[dependencies]
+# Core only (traits, models, extension framework)
+systemprompt = "0.0.1"
+
+# With database support
+systemprompt = { version = "0.0.1", features = ["database"] }
+
+# With API server
+systemprompt = { version = "0.0.1", features = ["api"] }
+
+# Full functionality (all modules)
+systemprompt = { version = "0.0.1", features = ["full"] }
+```
+
+| Feature | Description |
+|---------|-------------|
+| `core` | Traits, models, identifiers, extension framework (default) |
+| `database` | Database abstraction with SQLx |
+| `mcp` | MCP protocol support |
+| `api` | HTTP API server functionality |
+| `cli` | Command-line interface |
+| `cloud` | Cloud infrastructure (API client, credentials) |
+| `sync` | Cloud synchronization services |
+| `full` | All modules and functionality |
+
+### Using Individual Crates
+
+For finer-grained control, depend on specific crates:
+
+```toml
+[dependencies]
+systemprompt-models = "0.0.1"
+systemprompt-api = "0.0.1"
+systemprompt-database = "0.0.1"
+systemprompt-mcp = "0.0.1"
+systemprompt-agent = "0.0.1"
+```
+
 ## Architecture
 
-Core uses a **layered crate architecture** with strict dependency rules:
+SystemPrompt uses a **layered crate architecture** with strict dependency rules:
 
 ```
 crates/
@@ -54,18 +108,17 @@ crates/
 │
 └── entry/            # Entry points (binaries, public APIs)
     ├── api/          # HTTP gateway, route handlers, middleware
-    ├── cli/          # Command-line interface
-    └── tui/          # Terminal UI
+    └── cli/          # Command-line interface
 
-systemprompt/         # Facade: Public API for external consumers
+systemprompt/         # Umbrella crate: Public API for external consumers
 ```
 
 ### Dependency Flow
 
 ```
-FACADE (systemprompt) ← External consumers
+UMBRELLA (systemprompt) ← External consumers
         │
-    ENTRY (api, cli, tui)
+    ENTRY (api, cli)
         │
     APP (runtime, scheduler, generator, sync)
         │
@@ -78,61 +131,6 @@ FACADE (systemprompt) ← External consumers
 
 Domain crates cannot depend on each other - use traits or events for cross-domain communication.
 
-## Distribution Model
-
-**SystemPrompt Core is distributed via Git (not crates.io).**
-
-This workspace contains 27+ interdependent crates that share a single version and are published together. This approach ensures version consistency and simplifies development.
-
-## Installation
-
-### Quick Start
-
-Add to your `Cargo.toml`:
-
-```toml
-[workspace.dependencies]
-# Import only the modules you need
-systemprompt-models = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
-systemprompt-core-api = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
-systemprompt-core-database = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
-systemprompt-core-mcp = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
-systemprompt-core-agent = { git = "https://github.com/systempromptio/systemprompt-core", tag = "v0.0.1" }
-```
-
-Then in your service crate:
-
-```toml
-[dependencies]
-systemprompt-models.workspace = true
-systemprompt-core-api.workspace = true
-```
-
-### For Core Contributors
-
-**Prerequisites:** Docker must be running for PostgreSQL containers.
-
-```bash
-# Clone repository
-git clone https://github.com/systempromptio/systemprompt-core
-cd systemprompt-core
-
-# Install web dependencies
-cd web && npm install && cd ..
-
-# Build all crates
-cargo build --workspace
-
-# Run tests (tests are in separate crates)
-cargo test --manifest-path crates/tests/Cargo.toml
-
-# Build specific crate
-cargo build -p systemprompt-core-api
-
-# Run CLI
-cargo run --bin systemprompt -- --help
-```
-
 ## Available Crates
 
 ### Shared Layer
@@ -144,37 +142,41 @@ cargo run --bin systemprompt -- --help
 | `systemprompt-identifiers` | Typed ID generators |
 | `systemprompt-client` | HTTP client |
 | `systemprompt-extension` | Extension framework |
+| `systemprompt-provider-contracts` | Provider trait contracts |
+| `systemprompt-template-provider` | Template provider traits |
 
 ### Infrastructure Layer
 
 | Crate | Description |
 |-------|-------------|
-| `systemprompt-core-database` | SQLx abstraction (PostgreSQL) |
-| `systemprompt-core-events` | Event bus, SSE infrastructure |
-| `systemprompt-core-security` | JWT, auth utilities |
-| `systemprompt-core-config` | Configuration loading |
-| `systemprompt-core-logging` | Tracing setup |
+| `systemprompt-database` | SQLx abstraction (PostgreSQL) |
+| `systemprompt-events` | Event bus, SSE infrastructure |
+| `systemprompt-security` | JWT, auth utilities |
+| `systemprompt-config` | Configuration loading |
+| `systemprompt-logging` | Tracing setup |
 | `systemprompt-cloud` | Cloud API, tenant management |
+| `systemprompt-loader` | Module loader |
 
 ### Domain Layer
 
 | Crate | Description |
 |-------|-------------|
-| `systemprompt-core-users` | User management |
-| `systemprompt-core-oauth` | OAuth2/OIDC authentication |
-| `systemprompt-core-files` | File storage |
-| `systemprompt-core-analytics` | Metrics and tracking |
-| `systemprompt-core-content` | Content management |
-| `systemprompt-core-ai` | LLM integration |
-| `systemprompt-core-mcp` | MCP protocol implementation |
-| `systemprompt-core-agent` | Agent orchestration (A2A) |
+| `systemprompt-users` | User management |
+| `systemprompt-oauth` | OAuth2/OIDC authentication |
+| `systemprompt-files` | File storage |
+| `systemprompt-analytics` | Metrics and tracking |
+| `systemprompt-content` | Content management |
+| `systemprompt-ai` | LLM integration |
+| `systemprompt-mcp` | MCP protocol implementation |
+| `systemprompt-agent` | Agent orchestration (A2A) |
+| `systemprompt-templates` | Template registry |
 
 ### Application Layer
 
 | Crate | Description |
 |-------|-------------|
 | `systemprompt-runtime` | AppContext, lifecycle management |
-| `systemprompt-core-scheduler` | Job scheduling |
+| `systemprompt-scheduler` | Job scheduling |
 | `systemprompt-generator` | Static site generation |
 | `systemprompt-sync` | Sync services |
 
@@ -182,9 +184,8 @@ cargo run --bin systemprompt -- --help
 
 | Crate | Description |
 |-------|-------------|
-| `systemprompt-core-api` | HTTP server framework |
+| `systemprompt-api` | HTTP server framework |
 | `systemprompt-cli` | Command-line interface |
-| `systemprompt-core-tui` | Terminal UI |
 
 ## Extension Framework
 
@@ -214,30 +215,34 @@ register_api_extension!(MyExtension);
 
 Extensions are discovered at runtime via the `inventory` crate.
 
-## Module System
+## Development
 
-Domain crates include a `module.yaml` defining:
+### Prerequisites
 
-```yaml
-name: users
-version: "0.1.0"
-display_name: "User Management"
-type: core
-weight: 1
+- Rust 1.75+
+- Docker (for PostgreSQL containers)
 
-schemas:
-  - file: "migrations/001_users.sql"
-    table: users
-    required_columns: [id, email, created_at]
+### Building
 
-tables_created: [users, user_roles]
+```bash
+# Clone repository
+git clone https://github.com/systempromptio/systemprompt-core
+cd systemprompt-core
 
-api:
-  enabled: true
-  path_prefix: "/api/v1/users"
+# Build all crates
+cargo build --workspace
+
+# Run tests (tests are in separate crates)
+cargo test --manifest-path crates/tests/Cargo.toml
+
+# Build specific crate
+cargo build -p systemprompt-api
+
+# Run CLI
+cargo run -p systemprompt-cli -- --help
 ```
 
-## Code Quality
+### Code Quality
 
 SystemPrompt enforces strict code quality through automated tooling:
 
@@ -256,18 +261,6 @@ cargo clippy --workspace
 - Low cognitive complexity
 - Pedantic clippy lints enabled
 - All tests in separate test crates
-
-## Testing
-
-Tests are in separate crates under `crates/tests/` for faster incremental builds:
-
-```bash
-# Run all tests
-cargo test --manifest-path crates/tests/Cargo.toml
-
-# Run specific test crate
-cargo test --manifest-path crates/tests/Cargo.toml -p systemprompt-integration-tests
-```
 
 ## Versioning
 
@@ -288,3 +281,4 @@ FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 - [GitHub Repository](https://github.com/systempromptio/systemprompt-core)
 - [Issues](https://github.com/systempromptio/systemprompt-core/issues)
 - [Documentation](https://docs.systemprompt.io)
+- [Website](https://systemprompt.io)
