@@ -99,7 +99,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::MCP_REGISTRY,
-        systemprompt_mcp::api::registry_router(ctx)
+        systemprompt_mcp::api::registry_router()
             .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -255,7 +255,7 @@ fn discovery_router(ctx: &AppContext) -> Router {
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {
-    systemprompt_oauth::api::wellknown::wellknown_routes(ctx)
+    systemprompt_oauth::api::wellknown::wellknown_routes()
         .merge(crate::routes::wellknown_router(ctx))
 }
 
