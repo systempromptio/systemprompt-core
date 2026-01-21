@@ -261,7 +261,6 @@ impl FileUploadService {
         let base = self.files_config.uploads();
         let upload_config = self.files_config.upload();
 
-        // Validate path components don't contain traversal sequences
         let context_str = context_id.as_str();
         if context_str.contains("..") || context_str.contains('\0') {
             return Err(FileUploadError::PathValidation(
@@ -304,8 +303,6 @@ impl FileUploadService {
             },
         };
 
-        // Final validation: ensure the resolved path is still under base directory
-        // Note: We use starts_with on the path components, not string prefix
         if !full_path.starts_with(&base) {
             return Err(FileUploadError::PathValidation(
                 "Resolved path escapes upload directory".to_string(),

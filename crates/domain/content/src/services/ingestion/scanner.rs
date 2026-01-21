@@ -12,7 +12,11 @@ pub struct ScanResult {
     pub warnings: Vec<String>,
 }
 
-pub fn scan_markdown_files(dir: &Path, allowed_content_types: &[&str], recursive: bool) -> ScanResult {
+pub fn scan_markdown_files(
+    dir: &Path,
+    allowed_content_types: &[&str],
+    recursive: bool,
+) -> ScanResult {
     let mut files = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -51,8 +55,8 @@ pub fn scan_markdown_files(dir: &Path, allowed_content_types: &[&str], recursive
 
     if files.is_empty() && has_subdirectories {
         warnings.push(
-            "No markdown files found in root directory, but subdirectories exist. Consider \
-             using --recursive to scan nested directories."
+            "No markdown files found in root directory, but subdirectories exist. Consider using \
+             --recursive to scan nested directories."
                 .to_string(),
         );
     }

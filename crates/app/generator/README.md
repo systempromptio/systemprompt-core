@@ -57,12 +57,16 @@ src/
 │
 └── templates/                # Template data preparation
     ├── mod.rs               # Module exports
-    ├── data.rs              # prepare_template_data, TemplateDataParams
     ├── engine.rs            # load_web_config, get_templates_path
     ├── html.rs              # Related content, CTA links, references HTML
     ├── items.rs             # find_latest_items, find_popular_items
     ├── navigation.rs        # Footer, social action bar HTML generation
-    └── paper.rs             # Paper content type: TOC, sections, read time
+    ├── paper.rs             # Paper content type: TOC, sections, read time
+    └── data/                # Template data preparation (split for maintainability)
+        ├── mod.rs           # prepare_template_data entry point
+        ├── types.rs         # TemplateDataParams, DateData, ImageData, etc.
+        ├── extractors.rs    # Config and field extraction functions
+        └── builders.rs      # JSON template building
 ```
 
 ## Module Descriptions
@@ -87,6 +91,7 @@ src/
 | `PublishContentJob` | Main job that runs the full publishing pipeline |
 | `SitemapUrl` | URL entry for sitemap XML generation |
 | `RssChannel` / `RssItem` | RSS feed data structures |
+| `TemplateDataParams` | Parameters for preparing template data |
 
 ## Public Exports
 
@@ -115,7 +120,6 @@ pub use jobs::{CopyExtensionAssetsJob, PublishContentJob};
 | `systemprompt-files` | File storage configuration |
 | `handlebars` | Template engine |
 | `comrak` | Markdown to HTML |
-| `quick-xml` | XML sitemap generation |
 
 ## Architecture Notes
 
@@ -125,3 +129,4 @@ This crate follows the application layer pattern:
 - **Read-only domain access** - Uses `ContentRepository` for data fetching
 - **Job interface** - Jobs implement `systemprompt_traits::Job` for scheduling
 - **Template delegation** - Uses `TemplateRegistry` from domain layer
+- **Config via models** - Uses `Config::get()` instead of direct `env::var()`

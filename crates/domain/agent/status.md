@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** NON-COMPLIANT (13 files exceed 300 line limit)
+**Verdict:** NON-COMPLIANT (10 files exceed 300 line limit)
 
 ---
 
@@ -27,6 +27,8 @@
 | Inline comments (//) - 20+ | FIXED |
 | Doc comments (///) - 15+ | FIXED |
 | `unwrap_or_default()` - 25 instances | FIXED |
+| artifact.rs (555 lines) | FIXED - Split into 4 modules |
+| task/mod.rs (428 lines) | FIXED - Split into 5 modules |
 
 ---
 
@@ -34,9 +36,7 @@
 
 | File | Lines | Limit |
 |------|-------|-------|
-| `src/repository/content/artifact.rs` | 555 | 300 |
 | `src/services/a2a_server/processing/message/stream_processor.rs` | 440 | 300 |
-| `src/repository/task/mod.rs` | 428 | 300 |
 | `src/services/a2a_server/processing/strategies/planned.rs` | 419 | 300 |
 | `src/services/registry.rs` | 408 | 300 |
 | `src/models/a2a/protocol.rs` | 399 | 300 |
@@ -46,7 +46,6 @@
 | `src/services/a2a_server/handlers/request/mod.rs` | 336 | 300 |
 | `src/repository/context/mod.rs` | 328 | 300 |
 | `src/repository/task/constructor/batch.rs` | 315 | 300 |
-| `src/api/routes/contexts/notifications/mod.rs` | 301 | 300 |
 
 ---
 
@@ -73,58 +72,6 @@
 
 ---
 
-## Actions Required
-
-### Medium Priority (File Splitting)
-
-To achieve full compliance, split these 13 files to under 300 lines:
-
-1. **artifact.rs** (555 lines)
-   - Extract `row_to_artifact()` and converters to `artifact_converters.rs`
-   - Extract `get_artifact_parts()` and `persist_artifact_part()` to `artifact_parts.rs`
-
-2. **stream_processor.rs** (440 lines)
-   - Extract stream state management to separate module
-   - Extract message building helpers
-
-3. **task/mod.rs** (428 lines)
-   - Move message-related methods to `task_messages.rs`
-   - Move update methods to `task_updates.rs`
-
-4. **planned.rs** (419 lines)
-   - Extract tool execution logic to `tool_execution.rs`
-   - Extract response handling to `response_handler.rs`
-
-5. **registry.rs** (408 lines)
-   - Extract skill loading to `skill_loader.rs`
-   - Extract card generation to `card_generator.rs`
-
-6. **protocol.rs** (399 lines)
-   - Split by type category: requests, responses, events
-
-7. **lifecycle.rs** (382 lines)
-   - Extract state machine to `state_machine.rs`
-
-8. **task_builder.rs** (380 lines)
-   - Extract builder stages to separate modules
-
-9. **webhook/service.rs** (375 lines)
-   - Extract delivery logic to `delivery.rs`
-
-10. **request/mod.rs** (336 lines)
-    - Split by handler type
-
-11. **context/mod.rs** (328 lines)
-    - Extract queries to `context_queries.rs`
-
-12. **batch.rs** (315 lines)
-    - Extract converters to separate module
-
-13. **notifications/mod.rs** (301 lines)
-    - Split handlers into separate files
-
----
-
 ## Summary
 
 | Metric | Before | After |
@@ -134,7 +81,47 @@ To achieve full compliance, split these 13 files to under 300 lines:
 | Inline comments | 20+ | 0 |
 | Doc comments | 15+ | 0 |
 | `unwrap_or_default()` | 25 | 0 |
-| Files >300 lines | 13 | 13 |
-| Total violations | 65+ | 13 |
+| Files >300 lines | 13 | 10 |
+| Total violations | 65+ | 10 |
 
-**Compliance Progress:** 80% complete (13 file-length violations remaining)
+**Compliance Progress:** 85% complete (10 file-length violations remaining)
+
+---
+
+## Files Split Successfully
+
+### artifact.rs (555 lines -> 4 modules)
+
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `artifact/mod.rs` | 39 | Repository struct, trait impl, re-exports |
+| `artifact/mutations.rs` | 102 | create_artifact, delete_artifact |
+| `artifact/queries.rs` | 293 | get_* query methods, converters |
+| `artifact/parts.rs` | 141 | get_artifact_parts, persist_artifact_part |
+
+### task/mod.rs (428 lines -> 5 modules)
+
+| Module | Lines | Purpose |
+|--------|-------|---------|
+| `task/mod.rs` | 198 | Repository struct, simple wrapper methods |
+| `task/mutations.rs` | 164 | create_task, update_task_state |
+| `task/queries.rs` | 179 | get_task, list_tasks_by_context |
+| `task/task_updates.rs` | 171 | update_task_and_save_messages, delete_task |
+| `task/task_messages.rs` | 73 | Message-related methods |
+
+---
+
+## Actions Required
+
+To achieve full compliance, split these 10 files to under 300 lines:
+
+1. **stream_processor.rs** (440 lines) - Extract stream state, message building
+2. **planned.rs** (419 lines) - Extract tool execution, response handling
+3. **registry.rs** (408 lines) - Extract skill loading, card generation
+4. **protocol.rs** (399 lines) - Split by type category
+5. **lifecycle.rs** (382 lines) - Extract state machine
+6. **task_builder.rs** (380 lines) - Extract builder stages
+7. **webhook/service.rs** (375 lines) - Extract delivery logic
+8. **request/mod.rs** (336 lines) - Split by handler type
+9. **context/mod.rs** (328 lines) - Extract queries
+10. **batch.rs** (315 lines) - Extract converters

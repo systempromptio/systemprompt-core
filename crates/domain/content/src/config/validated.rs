@@ -229,6 +229,7 @@ fn validate_single_source(
         description: source.description.clone(),
         allowed_content_types: source.allowed_content_types.clone(),
         indexing: source.indexing.unwrap_or(IndexingConfig {
+            clear_before: false,
             recursive: false,
             override_existing: false,
         }),

@@ -2,7 +2,7 @@
 
 **Layer:** Domain
 **Reviewed:** 2026-01-21
-**Verdict:** NON-COMPLIANT
+**Verdict:** COMPLIANT
 
 ---
 
@@ -12,38 +12,22 @@
 |----------|--------|
 | Boundary Rules | ✅ |
 | Required Structure | ✅ |
-| Code Quality | ❌ |
+| Code Quality | ✅ |
 
 ---
 
 ## Violations
 
-| File:Line | Violation | Category |
-|-----------|-----------|----------|
-| `src/services/orchestrator/reconciliation.rs` | 372 lines (exceeds 300 limit) | Code Quality |
-| `src/services/tool_provider.rs` | 318 lines (exceeds 300 limit) | Code Quality |
+None.
 
 ---
 
 ## Commands Run
 
 ```
-cargo clippy -p systemprompt-mcp -- -D warnings  # BLOCKED (upstream error in systemprompt-runtime)
 cargo fmt -p systemprompt-mcp -- --check          # PASS
+cargo clippy -p systemprompt-mcp -- -D warnings   # BLOCKED (upstream error in systemprompt-users)
 ```
-
----
-
-## Actions Required
-
-1. Split `src/services/orchestrator/reconciliation.rs` into smaller modules:
-   - Extract schema validation to `schema_validation.rs`
-   - Extract process cleanup helpers to separate functions
-   - Extract server startup coordination to `server_startup.rs`
-
-2. Split `src/services/tool_provider.rs` into smaller modules:
-   - Extract context creation to `context.rs`
-   - Extract tool conversion utilities to `conversions.rs`
 
 ---
 
@@ -55,6 +39,26 @@ cargo fmt -p systemprompt-mcp -- --check          # PASS
 | `src/services/monitoring/health.rs` | Line length | Merged statement to single line |
 | `src/services/client/mod.rs:165-166` | Inline comments | Removed inline comments |
 | `src/services/tool_provider.rs:320-345` | Tests in source file | Removed `#[cfg(test)]` block |
+| `src/services/orchestrator/reconciliation.rs` | 372 lines | Split into `reconciliation.rs`, `schema_sync.rs`, `server_startup.rs` |
+| `src/services/tool_provider.rs` | 318 lines | Split into `tool_provider/mod.rs`, `context.rs`, `conversions.rs` |
+
+---
+
+## File Length Verification
+
+All files are now at or under 300 lines:
+
+| File | Lines |
+|------|-------|
+| `services/orchestrator/mod.rs` | 300 |
+| `repository/tool_usage/mod.rs` | 295 |
+| `services/monitoring/health.rs` | 274 |
+| `orchestration/loader.rs` | 271 |
+| `services/client/mod.rs` | 236 |
+| `services/tool_provider/mod.rs` | 212 |
+| `services/orchestrator/reconciliation.rs` | 155 |
+| `services/orchestrator/server_startup.rs` | 150 |
+| `services/orchestrator/schema_sync.rs` | 103 |
 
 ---
 
@@ -110,7 +114,7 @@ cargo fmt -p systemprompt-mcp -- --check          # PASS
 
 | Location | Pattern | Justification |
 |----------|---------|---------------|
-| `reconciliation.rs:163,165,167` | `.ok()` | Cleanup path - already returning error |
+| `reconciliation.rs` | `.ok()` | Cleanup path - already returning error |
 | `port_manager.rs:35,39` | `let _ =` | Kill commands in cleanup |
 | `event_bus.rs:28` | `let _ =` | Broadcast send (receivers may drop) |
 | `health_check.rs:72` | `let _ =` | Non-critical event notification |
@@ -137,11 +141,14 @@ lib.rs ─┬─► orchestration/ ──┬─► loader.rs (McpToolLoader)
                              ├─► lifecycle/
                              ├─► monitoring/
                              ├─► network/
-                             ├─► orchestrator/ ─► handlers/
+                             ├─► orchestrator/ ─┬─► handlers/
+                             │                  ├─► schema_sync.rs
+                             │                  └─► server_startup.rs
                              ├─► process/
                              ├─► registry/
                              ├─► schema/
-                             └─► tool_provider.rs
+                             └─► tool_provider/ ─┬─► context.rs
+                                                 └─► conversions.rs
 ```
 
 ---
@@ -150,7 +157,7 @@ lib.rs ─┬─► orchestration/ ──┬─► loader.rs (McpToolLoader)
 
 | Trait | Implementation | Location |
 |-------|----------------|----------|
-| `ToolProvider` | `McpToolProvider` | `services/tool_provider.rs:152` |
+| `ToolProvider` | `McpToolProvider` | `services/tool_provider/mod.rs:38` |
 | `McpRegistry` | `RegistryManager` | `services/registry/trait_impl.rs:17` |
 | `McpToolProvider` | `RegistryManager` | `services/registry/trait_impl.rs:42` |
 | `McpDeploymentProvider` | `McpDeploymentProviderImpl` | `services/registry/trait_impl.rs:81` |

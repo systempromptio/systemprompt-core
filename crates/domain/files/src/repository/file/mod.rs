@@ -319,15 +319,15 @@ impl FileRepository {
         let document_count = row.document_count;
         let audio_count = row.audio_count;
         let video_count = row.video_count;
-        // Ensure other_count is non-negative (could be negative if categories overlap in SQL)
-        let other_count = (row.total_files - image_count - document_count - audio_count - video_count).max(0);
+        let other_count =
+            (row.total_files - image_count - document_count - audio_count - video_count).max(0);
 
         let image_size = row.image_size;
         let document_size = row.document_size;
         let audio_size = row.audio_size;
         let video_size = row.video_size;
-        // Ensure other_size is non-negative (could be negative if categories overlap in SQL)
-        let other_size = (row.total_size_bytes - image_size - document_size - audio_size - video_size).max(0);
+        let other_size =
+            (row.total_size_bytes - image_size - document_size - audio_size - video_size).max(0);
 
         Ok(FileStats {
             total_files: row.total_files,

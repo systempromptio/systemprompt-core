@@ -204,7 +204,7 @@ async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<Sitemap
 
     contents
         .iter()
-        .map(|content| build_sitemap_url_from_content(content, params))
+        .map(|content| build_sitemap_url_from_content(content, &params))
         .collect()
 }
 

@@ -1,158 +1,160 @@
-# OAuth Module
+# systemprompt-oauth
 
-OAuth 2.0 authorization server with WebAuthn passwordless authentication.
+OAuth 2.0 authorization server with WebAuthn passwordless authentication for SystemPrompt OS.
 
-## Structure
+## Overview
+
+This crate implements a complete OAuth 2.0 authorization server with:
+
+- Authorization Code Grant with PKCE
+- Client Credentials Grant
+- Refresh Token Grant
+- Dynamic Client Registration (RFC 7591)
+- Token Introspection (RFC 7662)
+- Token Revocation (RFC 7009)
+- WebAuthn/FIDO2 Passwordless Authentication
+- OpenID Connect Discovery
+
+## File Structure
 
 ```
-oauth/
-├── Cargo.toml
-├── README.md
-├── status.md                        # Review status (116 checks)
-└── src/
-    ├── lib.rs                       # Module exports
-    ├── api/                         # HTTP API layer
+src/
+├── lib.rs                              # Crate root, public exports
+├── api/                                # HTTP API layer
+│   ├── mod.rs                          # API module exports
+│   ├── wellknown.rs                    # /.well-known/openid-configuration
+│   └── routes/                         # Axum route handlers
+│       ├── mod.rs                      # Routes module
+│       ├── core.rs                     # Core OAuth router
+│       ├── health.rs                   # Health check endpoint
+│       ├── discovery.rs                # OpenID Connect discovery
+│       ├── clients.rs                  # Client routes registration
+│       ├── client/                     # Client management CRUD
+│       │   ├── mod.rs
+│       │   ├── create.rs               # POST /clients
+│       │   ├── get.rs                  # GET /clients/{id}
+│       │   ├── list.rs                 # GET /clients
+│       │   ├── update.rs               # PUT /clients/{id}
+│       │   └── delete.rs               # DELETE /clients/{id}
+│       ├── oauth/                      # OAuth 2.0 endpoints
+│       │   ├── mod.rs
+│       │   ├── anonymous.rs            # Anonymous session tokens
+│       │   ├── callback.rs             # OAuth callback handler
+│       │   ├── consent.rs              # User consent screen
+│       │   ├── introspect.rs           # Token introspection (RFC 7662)
+│       │   ├── register.rs             # Dynamic client registration
+│       │   ├── revoke.rs               # Token revocation (RFC 7009)
+│       │   ├── userinfo.rs             # UserInfo endpoint
+│       │   ├── webauthn_complete.rs    # WebAuthn OAuth completion
+│       │   ├── authorize/              # Authorization endpoint
+│       │   │   ├── mod.rs
+│       │   │   ├── handler.rs          # Authorization request handler
+│       │   │   ├── response_builder.rs # Authorization response builder
+│       │   │   └── validation.rs       # Request validation, PKCE entropy
+│       │   ├── client_config/          # Client configuration management
+│       │   │   ├── mod.rs
+│       │   │   ├── get.rs
+│       │   │   ├── update.rs
+│       │   │   ├── delete.rs
+│       │   │   └── validation.rs
+│       │   └── token/                  # Token endpoint
+│       │       ├── mod.rs              # Token request/response types
+│       │       ├── handler.rs          # Token grant handlers
+│       │       ├── generation.rs       # JWT token generation
+│       │       └── validation.rs       # Client credentials validation
+│       └── webauthn/                   # WebAuthn/FIDO2 endpoints
+│           ├── mod.rs
+│           ├── authenticate.rs         # WebAuthn authentication
+│           └── register/               # WebAuthn registration
+│               ├── mod.rs
+│               ├── start.rs            # Registration challenge
+│               └── finish.rs           # Registration completion
+├── models/                             # Data structures
+│   ├── mod.rs                          # Model exports
+│   ├── analytics.rs                    # Analytics data types
+│   ├── cimd.rs                         # Client Identity Metadata
+│   ├── clients/                        # Client models
+│   │   ├── mod.rs                      # OAuthClient, OAuthClientRow
+│   │   └── api.rs                      # API request/response types
+│   └── oauth/                          # OAuth models
+│       ├── mod.rs                      # GrantType, PkceMethod, JwtClaims
+│       ├── api.rs                      # Pagination types
+│       └── dynamic_registration.rs     # RFC 7591 types
+├── queries/                            # SQL queries
+│   ├── mod.rs
+│   └── postgres/
+│       └── mod.rs                      # PostgreSQL query implementations
+├── repository/                         # Data access layer
+│   ├── mod.rs                          # Repository exports
+│   ├── webauthn.rs                     # WebAuthn credential storage
+│   ├── client/                         # Client repository
+│   │   ├── mod.rs                      # ClientRepository struct
+│   │   ├── queries.rs                  # Read operations
+│   │   ├── mutations.rs                # Write operations
+│   │   ├── relations.rs                # Load client relations
+│   │   └── cleanup.rs                  # Stale client cleanup
+│   └── oauth/                          # OAuth repository
+│       ├── mod.rs                      # OAuthRepository struct
+│       ├── auth_code.rs                # Authorization code operations
+│       ├── refresh_token.rs            # Refresh token operations
+│       ├── scopes.rs                   # Scope validation
+│       └── user.rs                     # User retrieval
+└── services/                           # Business logic
+    ├── mod.rs                          # Service exports
+    ├── auth_provider.rs                # JwtAuthProvider, JwtAuthorizationProvider
+    ├── generation.rs                   # Token generation utilities
+    ├── http.rs                         # HTTP utilities
+    ├── templating.rs                   # HTML template rendering
+    ├── cimd/                           # Client metadata validation
     │   ├── mod.rs
-    │   ├── wellknown.rs             # /.well-known/openid-configuration
-    │   └── routes/                  # Axum route handlers
-    │       ├── mod.rs
-    │       ├── core.rs              # Core OAuth routes
-    │       ├── health.rs            # Health check endpoint
-    │       ├── discovery.rs         # OpenID Connect discovery
-    │       ├── clients.rs           # Client routes registration
-    │       ├── client/              # Client management endpoints
-    │       │   ├── mod.rs
-    │       │   ├── create.rs        # POST /clients
-    │       │   ├── get.rs           # GET /clients/{id}
-    │       │   ├── list.rs          # GET /clients
-    │       │   ├── update.rs        # PUT /clients/{id}
-    │       │   └── delete.rs        # DELETE /clients/{id}
-    │       ├── oauth/               # OAuth 2.0 endpoints
-    │       │   ├── mod.rs
-    │       │   ├── anonymous.rs     # Anonymous session token
-    │       │   ├── callback.rs      # OAuth callback handler
-    │       │   ├── consent.rs       # User consent screen
-    │       │   ├── introspect.rs    # Token introspection
-    │       │   ├── register.rs      # Dynamic client registration
-    │       │   ├── revoke.rs        # Token revocation
-    │       │   ├── userinfo.rs      # User info endpoint
-    │       │   ├── webauthn_complete.rs
-    │       │   ├── authorize/       # Authorization endpoint
-    │       │   │   ├── mod.rs
-    │       │   │   ├── handler.rs
-    │       │   │   ├── response_builder.rs
-    │       │   │   └── validation.rs
-    │       │   ├── client_config/   # Client configuration
-    │       │   │   ├── mod.rs
-    │       │   │   ├── get.rs
-    │       │   │   ├── update.rs
-    │       │   │   ├── delete.rs
-    │       │   │   └── validation.rs
-    │       │   └── token/           # Token endpoint
-    │       │       ├── mod.rs
-    │       │       ├── handler.rs
-    │       │       ├── generation.rs
-    │       │       └── validation.rs
-    │       └── webauthn/            # WebAuthn/FIDO2 endpoints
-    │           ├── mod.rs
-    │           ├── authenticate.rs
-    │           └── register/
-    │               ├── mod.rs
-    │               ├── start.rs
-    │               └── finish.rs
-    ├── models/                      # Data structures
+    │   ├── fetcher.rs                  # Metadata URL fetching
+    │   └── validator.rs                # Metadata validation
+    ├── jwt/                            # JWT handling
+    │   ├── mod.rs                      # TokenValidator trait
+    │   ├── authentication.rs           # Token authentication
+    │   └── authorization.rs            # Permission authorization
+    ├── session/                        # Session management
+    │   └── mod.rs                      # SessionCreationService
+    ├── validation/                     # Request validation
     │   ├── mod.rs
-    │   ├── analytics.rs             # Analytics data types
-    │   ├── cimd.rs                  # Client Identity & Metadata
-    │   ├── clients/
-    │   │   ├── mod.rs               # OAuthClient, OAuthClientRow
-    │   │   └── api.rs               # API request/response types
-    │   └── oauth/
-    │       ├── mod.rs               # GrantType, PkceMethod, ResponseType, etc.
-    │       ├── api.rs               # Pagination types
-    │       └── dynamic_registration.rs
-    ├── queries/                     # SQL queries
-    │   ├── mod.rs
-    │   ├── postgres/
-    │   │   └── mod.rs
-    │   └── seed/                    # SQL seed files
-    │       ├── test_client.sql
-    │       ├── webauthn_client.sql
-    │       └── webauthn_client_scopes.sql
-    ├── repository/                  # Data access layer
-    │   ├── mod.rs
-    │   ├── webauthn.rs              # WebAuthn credential operations
-    │   ├── client/                  # Client management
-    │   │   ├── mod.rs               # ClientRepository
-    │   │   ├── queries.rs           # Read operations
-    │   │   ├── mutations.rs         # Write operations
-    │   │   ├── relations.rs         # Load client relations
-    │   │   └── cleanup.rs           # Stale client cleanup
-    │   └── oauth/                   # OAuth repository
-    │       ├── mod.rs               # OAuthRepository
-    │       ├── auth_code.rs         # Authorization code operations
-    │       ├── refresh_token.rs     # Refresh token operations
-    │       ├── scopes.rs            # Scope operations
-    │       └── user.rs              # User retrieval
-    └── services/                    # Business logic
+    │   ├── audience.rs                 # JWT audience validation
+    │   ├── client_credentials.rs       # Client secret validation
+    │   ├── jwt.rs                      # JWT token validation
+    │   ├── oauth_params.rs             # OAuth parameter validation
+    │   └── redirect_uri.rs             # Redirect URI validation
+    └── webauthn/                       # WebAuthn/FIDO2 service
         ├── mod.rs
-        ├── auth_provider.rs         # JwtAuthProvider, JwtAuthorizationProvider
-        ├── generation.rs            # Token generation utilities
-        ├── http.rs                  # HTTP utilities
-        ├── templating.rs            # HTML template rendering
-        ├── cimd/                    # Client metadata validation
-        │   ├── mod.rs
-        │   ├── fetcher.rs
-        │   └── validator.rs
-        ├── jwt/                     # JWT handling
-        │   ├── mod.rs
-        │   ├── authentication.rs
-        │   ├── authorization.rs
-        │   └── extraction.rs
-        ├── session/                 # Session management
-        │   └── mod.rs               # SessionCreationService
-        ├── validation/              # Request validation
-        │   ├── mod.rs
-        │   ├── audience.rs
-        │   ├── jwt.rs
-        │   ├── oauth_params.rs
-        │   └── redirect_uri.rs
-        └── webauthn/                # WebAuthn/FIDO2 service
-            ├── mod.rs
-            ├── config.rs
-            ├── jwt.rs
-            ├── manager.rs
-            ├── user_service.rs      # Uses UserProvider trait
-            └── service/
-                ├── mod.rs
-                ├── authentication.rs
-                ├── credentials.rs
-                └── registration.rs
+        ├── config.rs                   # WebAuthn configuration
+        ├── jwt.rs                      # JWT for WebAuthn
+        ├── manager.rs                  # Credential manager
+        ├── user_service.rs             # User provider integration
+        └── service/                    # WebAuthn operations
+            ├── mod.rs                  # WebAuthnService
+            ├── authentication.rs       # Authentication flow
+            ├── credentials.rs          # Credential operations
+            └── registration.rs         # Registration flow
 ```
 
-## Key Files
+## Module Descriptions
 
-| File | Purpose |
-|------|---------|
-| `lib.rs` | Public API exports |
-| `models/oauth/mod.rs` | OAuth enums (GrantType, PkceMethod, etc.) |
-| `repository/oauth/mod.rs` | OAuthRepository with client and token operations |
-| `repository/client/mutations.rs` | Client CRUD operations |
-| `services/auth_provider.rs` | Trait implementations for auth |
-| `services/webauthn/service/mod.rs` | WebAuthn authentication service |
+### api/
+HTTP API layer implementing OAuth 2.0 endpoints per RFC 6749, 7009, 7591, 7662.
 
-## Database Tables
+### models/
+Data structures for OAuth clients, tokens, and JWT claims. Includes typed enums for grant types, response types, and PKCE methods.
 
-- `oauth_clients` - Registered OAuth clients
-- `oauth_client_redirect_uris` - Allowed redirect URIs
-- `oauth_client_grant_types` - Supported grant types
-- `oauth_client_response_types` - Supported response types
-- `oauth_client_scopes` - Allowed scopes
-- `oauth_client_contacts` - Contact emails
-- `oauth_auth_codes` - Authorization codes (600s TTL)
-- `oauth_refresh_tokens` - Refresh tokens
-- `webauthn_credentials` - FIDO2 credentials
-- `webauthn_challenges` - WebAuthn challenges
+### queries/
+SQL query definitions. PostgreSQL-specific implementations using sqlx macros.
+
+### repository/
+Data access layer with separate repositories for clients, OAuth operations, and WebAuthn credentials. All SQL uses compile-time verified sqlx macros.
+
+### services/
+Business logic including:
+- **auth_provider**: Trait implementations for `AuthProvider` and `AuthorizationProvider`
+- **generation**: Secure token and JWT generation
+- **validation**: PKCE, client credentials, and JWT validation
+- **webauthn**: FIDO2 passwordless authentication
 
 ## Public Exports
 
@@ -162,29 +164,64 @@ pub use repository::OAuthRepository;
 pub use services::validation::jwt::validate_jwt_token;
 pub use services::{
     extract_bearer_token, extract_cookie_token, AnonymousSessionInfo,
-    BrowserRedirectService, JwtAuthProvider, JwtAuthorizationProvider,
-    SessionCreationService, TemplateEngine, TokenValidator, TraitBasedAuthService,
+    BrowserRedirectService, CreateAnonymousSessionInput, JwtAuthProvider,
+    JwtAuthorizationProvider, SessionCreationService, TemplateEngine,
+    TokenValidator, TraitBasedAuthService,
 };
 pub use systemprompt_models::auth::{AuthError, AuthenticatedUser, BEARER_PREFIX};
 ```
 
+## Database Tables
+
+| Table | Purpose |
+|-------|---------|
+| `oauth_clients` | Registered OAuth clients |
+| `oauth_client_redirect_uris` | Allowed redirect URIs per client |
+| `oauth_client_grant_types` | Supported grant types per client |
+| `oauth_client_response_types` | Supported response types per client |
+| `oauth_client_scopes` | Allowed scopes per client |
+| `oauth_client_contacts` | Contact emails per client |
+| `oauth_auth_codes` | Authorization codes (600s TTL) |
+| `oauth_refresh_tokens` | Refresh tokens |
+| `webauthn_credentials` | FIDO2/WebAuthn credentials |
+| `webauthn_challenges` | WebAuthn challenge storage |
+
 ## Trait Implementations
 
-From `systemprompt-traits`:
+Implements traits from `systemprompt-traits`:
 
-- `AuthProvider` - Token validation via `JwtAuthProvider`
-- `AuthorizationProvider` - Permission checks via `JwtAuthorizationProvider`
-- `UserProvider` - User lookup (consumed via `Arc<dyn UserProvider>`)
+| Trait | Implementation | Purpose |
+|-------|----------------|---------|
+| `AuthProvider` | `JwtAuthProvider` | Token validation |
+| `AuthorizationProvider` | `JwtAuthorizationProvider` | Permission checks |
+| `UserProvider` | Consumed via `Arc<dyn UserProvider>` | User lookup |
 
 ## Dependencies
 
-Internal:
-- `systemprompt-core-system` - AppContext, Config
-- `systemprompt-core-users` - UserProviderImpl
-- `systemprompt-core-logging` - Logging
-- `systemprompt-core-database` - DbPool
+### Internal Crates
+- `systemprompt-runtime` - AppContext, Config
+- `systemprompt-users` - UserProviderImpl
+- `systemprompt-logging` - Logging infrastructure
+- `systemprompt-database` - DbPool
+- `systemprompt-analytics` - Session analytics
 
-Shared:
+### Shared Crates
 - `systemprompt-traits` - Auth traits
 - `systemprompt-models` - Shared types
 - `systemprompt-identifiers` - Typed identifiers
+
+### External
+- `jsonwebtoken` - JWT encoding/decoding
+- `bcrypt` - Password hashing
+- `webauthn-rs` - FIDO2/WebAuthn
+- `axum` - HTTP framework
+
+## Security Features
+
+- PKCE required for authorization code flow
+- S256 challenge method enforced (plain disallowed)
+- Entropy validation for code challenges
+- Constant-time client secret comparison
+- Secure cookie attributes (HttpOnly, Secure, SameSite)
+- Token revocation support
+- WebAuthn for passwordless authentication

@@ -246,25 +246,21 @@ impl AppContext {
 
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let config: Arc<dyn ConfigProvider> = self.config.clone();
-        config
+        self.config.clone()
     }
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        let db: Arc<dyn DatabaseHandle> = self.database.clone();
-        db
+        self.database.clone()
     }
 }
 
 impl ExtensionContext for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        let config: Arc<dyn ConfigProvider> = self.config.clone();
-        config
+        self.config.clone()
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
-        let db: Arc<dyn DatabaseHandle> = self.database.clone();
-        db
+        self.database.clone()
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {

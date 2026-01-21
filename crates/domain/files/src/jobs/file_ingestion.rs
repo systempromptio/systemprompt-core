@@ -156,16 +156,16 @@ async fn process_single_file(
 }
 
 fn resolve_public_url(ctx: &FileProcessingContext<'_>, path: &Path) -> String {
-    match path.strip_prefix(ctx.images_dir) {
-        Ok(relative) => ctx.files_config.public_url(&relative.to_string_lossy()),
-        Err(_) => {
-            let file_name = path
-                .file_name()
-                .map(|n| n.to_string_lossy().into_owned())
-                .unwrap_or_else(|| String::from("unknown"));
+    path.strip_prefix(ctx.images_dir).map_or_else(
+        |_| {
+            let file_name = path.file_name().map_or_else(
+                || String::from("unknown"),
+                |n| n.to_string_lossy().into_owned(),
+            );
             ctx.files_config.public_url(&file_name)
-        }
-    }
+        },
+        |relative| ctx.files_config.public_url(&relative.to_string_lossy()),
+    )
 }
 
 async fn check_file_exists(
@@ -205,7 +205,7 @@ async fn insert_file_record(
 fn build_file_record(file_path: &str, public_url: &str, extension: &str, path: &Path) -> File {
     let now = Utc::now();
     let metadata = serde_json::to_value(FileMetadata::default())
-        .expect("FileMetadata::default serialization is infallible");
+        .unwrap_or_else(|_| serde_json::Value::Object(serde_json::Map::new()));
 
     File {
         id: uuid::Uuid::new_v4(),

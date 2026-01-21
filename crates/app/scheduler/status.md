@@ -41,10 +41,11 @@ None - fully compliant
 
 ### .ok() Usage (Acceptable)
 
-All `.ok()` calls follow the correct pattern with error logging before conversion:
+All `.ok()` calls follow the correct pattern:
 
 - `scheduling/mod.rs:147,207,227` - Uses `.map_err(|e| error!(...))` before `.ok()`
-- `process_cleanup.rs:28` - Converts parse Result to Option (standard pattern)
+- `process_cleanup.rs:20,124,136` - Functions return `Option`, converting io::Error to None
+- `process_cleanup.rs:28,131` - Parsing strings in `Option`-returning functions
 
 ### unwrap_or() Usage (Acceptable)
 

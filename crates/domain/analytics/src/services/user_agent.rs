@@ -8,11 +8,9 @@ pub fn parse_user_agent(ua: &str) -> (Option<String>, Option<String>, Option<Str
     (device_type, browser, os)
 }
 
+#[allow(clippy::unnecessary_wraps)]
 fn parse_device_type(ua_lower: &str) -> Option<String> {
-    if ua_lower.contains("mobile")
-        || ua_lower.contains("android")
-        || ua_lower.contains("iphone")
-    {
+    if ua_lower.contains("mobile") || ua_lower.contains("android") || ua_lower.contains("iphone") {
         Some("mobile".to_string())
     } else if ua_lower.contains("tablet") || ua_lower.contains("ipad") {
         Some("tablet".to_string())
@@ -62,10 +60,7 @@ fn parse_os(ua_lower: &str) -> Option<String> {
         Some("Linux".to_string())
     } else if ua_lower.contains("android") {
         Some("Android".to_string())
-    } else if ua_lower.contains("iphone")
-        || ua_lower.contains("ipad")
-        || ua_lower.contains("ios")
-    {
+    } else if ua_lower.contains("iphone") || ua_lower.contains("ipad") || ua_lower.contains("ios") {
         Some("iOS".to_string())
     } else {
         None

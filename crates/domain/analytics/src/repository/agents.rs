@@ -27,8 +27,6 @@ impl AgentAnalyticsRepository {
         limit: i64,
         sort_order: &str,
     ) -> Result<Vec<AgentListRow>> {
-        // We need separate queries for each sort order to satisfy sqlx macro
-        // requirements
         match sort_order {
             "success_rate" => {
                 sqlx::query_as!(

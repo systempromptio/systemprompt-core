@@ -1,10 +1,12 @@
 mod anomaly_detection;
 mod behavioral_detector;
+mod bot_keywords;
 pub mod detection;
 mod extractor;
 mod service;
 mod session_cleanup;
 mod throttle;
+mod user_agent;
 
 pub use anomaly_detection::{
     AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
