@@ -191,12 +191,12 @@ impl TemplateRegistry {
     }
 
     #[must_use]
-    pub fn get_template(&self, name: &str) -> Option<&TemplateDefinition> {
+    pub fn find_template(&self, name: &str) -> Option<&TemplateDefinition> {
         self.resolved_templates.get(name)
     }
 
     #[must_use]
-    pub fn get_template_for_content_type(&self, content_type: &str) -> Option<&str> {
+    pub fn find_template_for_content_type(&self, content_type: &str) -> Option<&str> {
         let content_type_owned = content_type.to_string();
         self.resolved_templates
             .iter()
@@ -241,7 +241,7 @@ impl TemplateRegistry {
     }
 
     #[must_use]
-    pub fn get_template_provider(&self, name: &str) -> Option<&str> {
+    pub fn find_template_provider(&self, name: &str) -> Option<&str> {
         self.template_sources.get(name).map(String::as_str)
     }
 

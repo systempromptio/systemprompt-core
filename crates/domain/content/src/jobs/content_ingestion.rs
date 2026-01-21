@@ -165,11 +165,7 @@ async fn ingest_source(
         .iter()
         .map(String::as_str)
         .collect();
-    let source = IngestionSource::new(
-        config.source_id.as_str(),
-        config.category_id.as_str(),
-        &allowed_types,
-    );
+    let source = IngestionSource::new(&config.source_id, &config.category_id, &allowed_types);
 
     service
         .ingest_directory(

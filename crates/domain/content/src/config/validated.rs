@@ -1,9 +1,13 @@
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::{
     Category, ContentConfigError, ContentConfigErrors, ContentConfigRaw, ContentRouting,
     ContentSourceConfigRaw, IndexingConfig, Metadata, SitemapConfig, SourceBranding,
 };
+
+const SOURCE_WEB: &str = "web";
+const SOURCE_UNKNOWN: &str = "unknown";
 
 #[derive(Debug, Clone)]
 pub struct ContentConfigValidated {
@@ -16,8 +20,8 @@ pub struct ContentConfigValidated {
 #[derive(Debug, Clone)]
 pub struct ContentSourceConfigValidated {
     pub path: PathBuf,
-    pub source_id: String,
-    pub category_id: String,
+    pub source_id: SourceId,
+    pub category_id: CategoryId,
     pub enabled: bool,
     pub description: String,
     pub allowed_content_types: Vec<String>,
@@ -88,7 +92,7 @@ impl ContentConfigValidated {
 
     pub fn determine_source(&self, path: &str) -> String {
         if path == "/" {
-            return "web".to_string();
+            return SOURCE_WEB.to_string();
         }
 
         self.content_sources
@@ -100,7 +104,7 @@ impl ContentConfigValidated {
                         .then(|| name.clone())
                 })
             })
-            .unwrap_or_else(|| "unknown".to_string())
+            .unwrap_or_else(|| SOURCE_UNKNOWN.to_string())
     }
 }
 
@@ -217,14 +221,14 @@ fn validate_single_source(
         errors.push(ContentConfigError::Validation {
             field: format!("{field_prefix}.allowed_content_types"),
             message: "Enabled source must have at least one allowed_content_type".to_string(),
-            suggestion: Some("Add content types like 'article', 'paper', 'guide'".to_string()),
+            suggestion: Some("Add content types like 'article', 'guide', 'tutorial'".to_string()),
         });
     }
 
     Some(ContentSourceConfigValidated {
         path: canonical_path,
-        source_id: source.source_id.to_string(),
-        category_id: source.category_id.to_string(),
+        source_id: source.source_id.clone(),
+        category_id: source.category_id.clone(),
         enabled: source.enabled,
         description: source.description.clone(),
         allowed_content_types: source.allowed_content_types.clone(),

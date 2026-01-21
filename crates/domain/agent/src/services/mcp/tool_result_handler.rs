@@ -1,15 +1,11 @@
 use anyhow::{anyhow, Result};
 use std::fmt;
-use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::ai::tools::CallToolResult;
 
 use super::artifact_transformer::McpToA2aTransformer;
 
-pub struct ToolResultHandler {
-    #[allow(dead_code)]
-    db_pool: DbPool,
-}
+pub struct ToolResultHandler;
 
 impl fmt::Debug for ToolResultHandler {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -18,8 +14,8 @@ impl fmt::Debug for ToolResultHandler {
 }
 
 impl ToolResultHandler {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub const fn new() -> Self {
+        Self
     }
 
     pub async fn process_tool_result(

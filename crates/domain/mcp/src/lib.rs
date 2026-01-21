@@ -1,10 +1,13 @@
 pub mod api;
 pub mod cli;
+pub mod error;
 pub mod middleware;
 pub mod models;
 pub mod orchestration;
 pub mod repository;
 pub mod services;
+
+pub use error::{McpError, McpResult};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings, ERROR,

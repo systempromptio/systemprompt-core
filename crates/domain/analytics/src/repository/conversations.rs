@@ -50,14 +50,14 @@ impl ConversationAnalyticsRepository {
     }
 
     pub async fn get_context_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_contexts WHERE created_at >= $1 AND created_at < $2"#,
+            start,
+            end
         )
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_task_stats(
@@ -65,29 +65,29 @@ impl ConversationAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<(i64, Option<f64>)> {
-        let row: (i64, Option<f64>) = sqlx::query_as(
-            r"
-            SELECT COUNT(*), AVG(execution_time_ms)::float8
+        let row = sqlx::query!(
+            r#"
+            SELECT COUNT(*)::bigint as "count!", AVG(execution_time_ms)::float8 as avg_time
             FROM agent_tasks
             WHERE started_at >= $1 AND started_at < $2
-            ",
+            "#,
+            start,
+            end
         )
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row)
+        Ok((row.count, row.avg_time))
     }
 
     pub async fn get_message_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM task_messages WHERE created_at >= $1 AND created_at < $2",
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint as "count!" FROM task_messages WHERE created_at >= $1 AND created_at < $2"#,
+            start,
+            end
         )
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_context_timestamps(

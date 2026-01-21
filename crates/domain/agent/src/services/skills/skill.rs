@@ -12,7 +12,7 @@ use systemprompt_models::AgUiEventBuilder;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillMetadata {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub name: String,
 }
 
@@ -130,7 +130,7 @@ impl SkillService {
         tracing::info!(skill_id = %skill.skill_id, "Loaded skill metadata");
 
         Ok(SkillMetadata {
-            skill_id: skill.skill_id.to_string(),
+            skill_id: skill.skill_id,
             name: skill.name,
         })
     }

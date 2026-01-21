@@ -1,10 +1,11 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 
 use super::OAuthClient;
 
 #[derive(Debug, Deserialize)]
 pub struct CreateOAuthClientRequest {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub name: String,
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,
@@ -19,7 +20,7 @@ pub struct UpdateOAuthClientRequest {
 
 #[derive(Debug, Serialize)]
 pub struct OAuthClientResponse {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub name: String,
     pub redirect_uris: Vec<String>,
     pub scopes: Vec<String>,

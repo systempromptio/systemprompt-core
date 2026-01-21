@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{ContentId, SessionId};
 
 use crate::models::{CreateEngagementEventInput, EngagementEvent};
-use systemprompt_identifiers::ContentId;
 
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
@@ -193,7 +193,7 @@ impl EngagementRepository {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionEngagementSummary {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub page_count: Option<i64>,
     pub total_time_on_page_ms: Option<i64>,
     pub avg_scroll_depth: Option<f32>,

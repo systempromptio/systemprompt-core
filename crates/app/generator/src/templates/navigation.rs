@@ -218,8 +218,9 @@ pub fn generate_footer_html(web_config: &serde_yaml::Value) -> Result<String> {
 
     let social_html = social
         .and_then(|s| s.as_sequence())
-        .map(|links| build_footer_social_html(links.as_slice()))
-        .unwrap_or_default();
+        .map_or_else(String::new, |links| {
+            build_footer_social_html(links.as_slice())
+        });
 
     let nav_html = if sections_html.is_empty() {
         String::new()
@@ -232,14 +233,20 @@ pub fn generate_footer_html(web_config: &serde_yaml::Value) -> Result<String> {
         )
     };
 
+    let copyright = web_config
+        .get("branding")
+        .and_then(|b| b.get("copyright"))
+        .and_then(|c| c.as_str())
+        .ok_or_else(|| ContentError::missing_branding_config("branding.copyright"))?;
+
     Ok(format!(
         r#"{}
 
       {}
 
       <div class="footer-meta">
-        <p>&copy; 2025 tyingshoelaces. Built with AI agents.</p>
+        <p>{}</p>
       </div>"#,
-        nav_html, social_html
+        nav_html, social_html, copyright
     ))
 }

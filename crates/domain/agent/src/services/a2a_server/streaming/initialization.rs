@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
@@ -33,7 +33,7 @@ pub struct StreamInput {
 pub struct StreamSetupResult {
     pub task_id: TaskId,
     pub context_id: ContextId,
-    pub message_id: String,
+    pub message_id: MessageId,
     pub message: Message,
     pub agent_name: String,
     pub context: RequestContext,
@@ -107,11 +107,16 @@ pub async fn validate_context(
                 error = %e,
                 "Context validation failed"
             );
-            let _ = tx.send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Context validation failed: {e}"),
-                request_id,
-            ));
+            if tx
+                .send(create_jsonrpc_error_event(
+                    -32603,
+                    &format!("Context validation failed: {e}"),
+                    request_id,
+                ))
+                .is_err()
+            {
+                tracing::trace!("Failed to send error event, channel closed");
+            }
         })?;
 
     tracing::info!(
@@ -173,11 +178,16 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
         .map_err(|e| {
             tracing::error!(task_id = %task_id, error = %e, "Failed to persist task at start");
             let error_detail = classify_database_error(&e);
-            let _ = tx.send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Failed to create task: {error_detail}"),
-                request_id,
-            ));
+            if tx
+                .send(create_jsonrpc_error_event(
+                    -32603,
+                    &format!("Failed to create task: {error_detail}"),
+                    request_id,
+                ))
+                .is_err()
+            {
+                tracing::trace!("Failed to send error event, channel closed");
+            }
         })?;
 
     tracing::info!(task_id = %task_id, "Task persisted to database at stream start");
@@ -276,11 +286,16 @@ pub async fn setup_stream(
     let processor = MessageProcessor::new(state.db_pool.clone(), state.ai_service.clone())
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create MessageProcessor");
-            let _ = tx.send(create_jsonrpc_error_event(
-                -32603,
-                &format!("Failed to initialize message processor: {e}"),
-                &request_id,
-            ));
+            if tx
+                .send(create_jsonrpc_error_event(
+                    -32603,
+                    &format!("Failed to initialize message processor: {e}"),
+                    &request_id,
+                ))
+                .is_err()
+            {
+                tracing::trace!("Failed to send error event, channel closed");
+            }
         })?;
 
     Ok(StreamSetupResult {

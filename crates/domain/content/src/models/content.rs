@@ -9,7 +9,6 @@ use systemprompt_identifiers::{CategoryId, ContentId, SourceId, TagId};
 pub enum ContentKind {
     #[default]
     Article,
-    Paper,
     Guide,
     Tutorial,
 }
@@ -18,7 +17,6 @@ impl ContentKind {
     pub const fn as_str(&self) -> &'static str {
         match self {
             Self::Article => "article",
-            Self::Paper => "paper",
             Self::Guide => "guide",
             Self::Tutorial => "tutorial",
         }
@@ -169,15 +167,15 @@ impl IngestionOptions {
 
 #[derive(Debug, Clone)]
 pub struct IngestionSource<'a> {
-    pub source_id: &'a str,
-    pub category_id: &'a str,
+    pub source_id: &'a SourceId,
+    pub category_id: &'a CategoryId,
     pub allowed_content_types: &'a [&'a str],
 }
 
 impl<'a> IngestionSource<'a> {
     pub const fn new(
-        source_id: &'a str,
-        category_id: &'a str,
+        source_id: &'a SourceId,
+        category_id: &'a CategoryId,
         allowed_content_types: &'a [&'a str],
     ) -> Self {
         Self {

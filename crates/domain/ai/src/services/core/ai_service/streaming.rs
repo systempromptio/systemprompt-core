@@ -42,7 +42,7 @@ impl AiService {
                 request.provider()
             ));
         }
-        let tools = request.tools.clone().unwrap_or_default();
+        let tools = request.tools.clone().unwrap_or_else(Vec::new);
         let mut base = GenerationParams::new(
             &request.messages,
             request.model(),

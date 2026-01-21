@@ -13,9 +13,9 @@ use crate::services::tools::ToolDiscovery;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_analytics::SessionRepository;
+use systemprompt_database::DbPool;
 use systemprompt_models::services::AiConfig;
 use systemprompt_models::SecretsBootstrap;
-use systemprompt_runtime::AppContext;
 use systemprompt_traits::ToolProvider;
 
 pub struct AiService {
@@ -41,12 +41,10 @@ impl std::fmt::Debug for AiService {
 
 impl AiService {
     pub fn new(
-        app_context: &Arc<AppContext>,
+        db_pool: DbPool,
         ai_config: &AiConfig,
         tool_provider: Arc<dyn ToolProvider>,
     ) -> Result<Self> {
-        let db_pool = Arc::clone(app_context.db_pool());
-
         let mut config = ai_config.clone();
         let missing_env_vars = Self::expand_secrets(&mut config)?;
         ConfigValidator::validate(&config, &missing_env_vars)?;
@@ -69,7 +67,7 @@ impl AiService {
 
         let storage = RequestStorage::new(
             AiRequestRepository::new(&db_pool)?,
-            SessionRepository::new(Arc::clone(&db_pool)),
+            SessionRepository::new(db_pool.clone()),
         );
 
         Ok(Self {

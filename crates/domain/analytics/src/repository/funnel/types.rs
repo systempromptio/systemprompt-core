@@ -5,7 +5,7 @@ use crate::models::{Funnel, FunnelMatchType, FunnelProgress, FunnelStep};
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct FunnelRow {
-    pub id: String,
+    pub id: FunnelId,
     pub name: String,
     pub description: Option<String>,
     pub is_active: bool,
@@ -16,7 +16,7 @@ pub struct FunnelRow {
 impl FunnelRow {
     pub fn into_funnel(self) -> Funnel {
         Funnel {
-            id: FunnelId::new(self.id),
+            id: self.id,
             name: self.name,
             description: self.description,
             is_active: self.is_active,
@@ -28,7 +28,7 @@ impl FunnelRow {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct FunnelStepRow {
-    pub funnel_id: String,
+    pub funnel_id: FunnelId,
     pub step_order: i32,
     pub name: String,
     pub match_pattern: String,
@@ -38,7 +38,7 @@ pub struct FunnelStepRow {
 impl FunnelStepRow {
     pub fn into_step(self) -> FunnelStep {
         FunnelStep {
-            funnel_id: FunnelId::new(self.funnel_id),
+            funnel_id: self.funnel_id,
             step_order: self.step_order,
             name: self.name,
             match_pattern: self.match_pattern,
@@ -49,9 +49,9 @@ impl FunnelStepRow {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct FunnelProgressRow {
-    pub id: String,
-    pub funnel_id: String,
-    pub session_id: String,
+    pub id: FunnelProgressId,
+    pub funnel_id: FunnelId,
+    pub session_id: SessionId,
     pub current_step: i32,
     pub completed_at: Option<DateTime<Utc>>,
     pub dropped_at_step: Option<i32>,
@@ -63,9 +63,9 @@ pub struct FunnelProgressRow {
 impl FunnelProgressRow {
     pub fn into_progress(self) -> FunnelProgress {
         FunnelProgress {
-            id: FunnelProgressId::new(self.id),
-            funnel_id: FunnelId::new(self.funnel_id),
-            session_id: SessionId::new(self.session_id),
+            id: self.id,
+            funnel_id: self.funnel_id,
+            session_id: self.session_id,
             current_step: self.current_step,
             completed_at: self.completed_at,
             dropped_at_step: self.dropped_at_step,

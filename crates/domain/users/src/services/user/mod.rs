@@ -47,12 +47,12 @@ impl UserService {
         self.repository.find_first_admin().await
     }
 
-    pub async fn get_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
-        self.repository.get_authenticated_user(user_id).await
+    pub async fn find_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
+        self.repository.find_authenticated_user(user_id).await
     }
 
-    pub async fn get_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
-        self.repository.get_with_sessions(user_id).await
+    pub async fn find_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
+        self.repository.find_with_sessions(user_id).await
     }
 
     pub async fn get_activity(&self, user_id: &UserId) -> Result<UserActivity> {

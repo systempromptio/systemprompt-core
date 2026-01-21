@@ -21,7 +21,7 @@ impl BannedIpRepository {
         Ok(result)
     }
 
-    pub async fn get_ban(&self, ip_address: &str) -> Result<Option<BannedIp>> {
+    pub async fn find_ban(&self, ip_address: &str) -> Result<Option<BannedIp>> {
         let row = sqlx::query_as!(
             BannedIp,
             r#"

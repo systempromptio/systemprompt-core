@@ -124,7 +124,7 @@ impl UserRepository {
         Ok(row)
     }
 
-    pub async fn get_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
+    pub async fn find_authenticated_user(&self, user_id: &UserId) -> Result<Option<User>> {
         let active_status = UserStatus::Active.as_str();
         let row = sqlx::query_as!(
             User,

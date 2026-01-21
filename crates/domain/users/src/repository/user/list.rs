@@ -5,7 +5,7 @@ use crate::models::{User, UserActivity, UserRole, UserStatus, UserWithSessions};
 use crate::repository::{UserRepository, MAX_PAGE_SIZE};
 
 impl UserRepository {
-    pub async fn get_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
+    pub async fn find_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {
         let deleted_status = UserStatus::Deleted.as_str();
         let row = sqlx::query_as!(
             UserWithSessions,

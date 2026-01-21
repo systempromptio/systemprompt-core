@@ -53,7 +53,13 @@ pub async fn handle_userinfo(
 
 fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
     let auth_header = headers.get("authorization")?;
-    let auth_str = auth_header.to_str().ok()?;
+    let auth_str = auth_header
+        .to_str()
+        .map_err(|e| {
+            tracing::debug!(error = %e, "Invalid UTF-8 in Authorization header");
+            e
+        })
+        .ok()?;
 
     auth_str.strip_prefix("Bearer ").map(ToString::to_string)
 }

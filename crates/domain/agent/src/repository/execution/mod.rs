@@ -288,4 +288,16 @@ impl ExecutionStepRepository {
             content,
         })
     }
+
+    pub async fn mcp_execution_id_exists(&self, mcp_execution_id: &str) -> Result<bool> {
+        let exists = sqlx::query_scalar!(
+            r#"SELECT EXISTS(SELECT 1 FROM mcp_tool_executions WHERE mcp_execution_id = $1) as "exists!""#,
+            mcp_execution_id
+        )
+        .fetch_one(&*self.pool)
+        .await
+        .context("Failed to check mcp_execution_id existence")?;
+
+        Ok(exists)
+    }
 }

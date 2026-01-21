@@ -38,7 +38,9 @@ fn send_a2a_status_event(
 ) {
     let event = TaskStatusUpdateEvent::new(task_id.as_str(), context_id.as_str(), status, is_final);
     let jsonrpc = event.to_jsonrpc_response();
-    let _ = tx.send(Event::default().data(jsonrpc.to_string()));
+    if tx.send(Event::default().data(jsonrpc.to_string())).is_err() {
+        tracing::trace!("Failed to send status event, channel closed");
+    }
 }
 
 pub async fn handle_complete(params: HandleCompleteParams<'_>) {
@@ -172,9 +174,12 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
             tracing::error!(task_id = %task_id, error = %e, "Failed to complete task and persist messages");
 
             let failed_timestamp = chrono::Utc::now();
-            let _ = task_repo
+            if let Err(update_err) = task_repo
                 .update_task_failed_with_error(task_id, &error_msg, &failed_timestamp)
-                .await;
+                .await
+            {
+                tracing::error!(task_id = %task_id, error = %update_err, "Failed to update task to failed state");
+            }
 
             let error_event = AgUiEventBuilder::run_error(
                 format!("Failed to persist task: {e}"),
@@ -246,9 +251,12 @@ pub async fn handle_error(
     tracing::error!(task_id = %task_id, error = %error, "Stream error");
 
     let failed_timestamp = chrono::Utc::now();
-    let _ = task_repo
+    if let Err(e) = task_repo
         .update_task_failed_with_error(task_id, &error, &failed_timestamp)
-        .await;
+        .await
+    {
+        tracing::error!(task_id = %task_id, error = %e, "Failed to update task to failed state");
+    }
 
     let failed_status = TaskStatus {
         state: TaskState::Failed,

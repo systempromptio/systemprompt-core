@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{ContextId, McpExecutionId, MessageId, SkillId, TaskId};
 
 pub use systemprompt_models::{
     CreateContextRequest, UpdateContextRequest, UserContext, UserContextWithStats,
@@ -7,7 +8,7 @@ pub use systemprompt_models::{
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextMessage {
-    pub message_id: String,
+    pub message_id: MessageId,
     pub role: String,
     pub created_at: DateTime<Utc>,
     pub sequence_number: i32,
@@ -24,8 +25,8 @@ pub struct ContextDetail {
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ContextStateEvent {
     ToolExecutionCompleted {
-        context_id: String,
-        execution_id: String,
+        context_id: ContextId,
+        execution_id: McpExecutionId,
         tool_name: String,
         server_name: String,
         output: Option<String>,
@@ -36,17 +37,17 @@ pub enum ContextStateEvent {
     },
     TaskStatusChanged {
         task: super::a2a::Task,
-        context_id: String,
+        context_id: ContextId,
         timestamp: DateTime<Utc>,
     },
     ArtifactCreated {
         artifact: super::a2a::Artifact,
-        task_id: String,
-        context_id: String,
+        task_id: TaskId,
+        context_id: ContextId,
         timestamp: DateTime<Utc>,
     },
     SkillLoaded {
-        skill_id: String,
+        skill_id: SkillId,
         skill_name: String,
         description: String,
         request_context: systemprompt_models::execution::context::RequestContext,
@@ -54,24 +55,24 @@ pub enum ContextStateEvent {
         timestamp: DateTime<Utc>,
     },
     ContextCreated {
-        context_id: String,
+        context_id: ContextId,
         context: UserContext,
         timestamp: DateTime<Utc>,
     },
     ContextUpdated {
-        context_id: String,
+        context_id: ContextId,
         name: String,
         timestamp: DateTime<Utc>,
     },
     ContextDeleted {
-        context_id: String,
+        context_id: ContextId,
         timestamp: DateTime<Utc>,
     },
     Heartbeat {
         timestamp: DateTime<Utc>,
     },
     CurrentAgent {
-        context_id: String,
+        context_id: ContextId,
         agent_name: Option<String>,
         timestamp: DateTime<Utc>,
     },
@@ -80,17 +81,17 @@ pub enum ContextStateEvent {
 impl ContextStateEvent {
     pub fn context_id(&self) -> Option<&str> {
         match self {
-            Self::ToolExecutionCompleted { context_id, .. } => Some(context_id),
-            Self::TaskStatusChanged { context_id, .. } => Some(context_id),
-            Self::ArtifactCreated { context_id, .. } => Some(context_id),
+            Self::ToolExecutionCompleted { context_id, .. } => Some(context_id.as_str()),
+            Self::TaskStatusChanged { context_id, .. } => Some(context_id.as_str()),
+            Self::ArtifactCreated { context_id, .. } => Some(context_id.as_str()),
             Self::SkillLoaded {
                 request_context, ..
             } => Some(request_context.context_id().as_str()),
-            Self::ContextCreated { context_id, .. } => Some(context_id),
-            Self::ContextUpdated { context_id, .. } => Some(context_id),
-            Self::ContextDeleted { context_id, .. } => Some(context_id),
+            Self::ContextCreated { context_id, .. } => Some(context_id.as_str()),
+            Self::ContextUpdated { context_id, .. } => Some(context_id.as_str()),
+            Self::ContextDeleted { context_id, .. } => Some(context_id.as_str()),
             Self::Heartbeat { .. } => None,
-            Self::CurrentAgent { context_id, .. } => Some(context_id),
+            Self::CurrentAgent { context_id, .. } => Some(context_id.as_str()),
         }
     }
 

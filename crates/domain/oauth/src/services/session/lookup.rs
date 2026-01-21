@@ -14,7 +14,14 @@ impl SessionCreationService {
     ) -> Option<AnonymousSessionInfo> {
         let fp_repo = self.fingerprint_repo.as_ref()?;
 
-        let active_count = fp_repo.count_active_sessions(fingerprint).await.ok()?;
+        let active_count = fp_repo
+            .count_active_sessions(fingerprint)
+            .await
+            .map_err(|e| {
+                tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to count active sessions");
+                e
+            })
+            .ok()?;
         if active_count < MAX_SESSIONS_PER_FINGERPRINT {
             return None;
         }
@@ -22,6 +29,10 @@ impl SessionCreationService {
         let session_id_str = fp_repo
             .find_reusable_session(fingerprint)
             .await
+            .map_err(|e| {
+                tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to find reusable session");
+                e
+            })
             .ok()
             .flatten()?;
 
@@ -29,6 +40,10 @@ impl SessionCreationService {
             .analytics_service
             .find_recent_session_by_fingerprint(fingerprint, MAX_SESSION_AGE_SECONDS)
             .await
+            .map_err(|e| {
+                tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to find recent session");
+                e
+            })
             .ok()
             .flatten()?;
 
@@ -36,13 +51,22 @@ impl SessionCreationService {
         let user_id = UserId::new(user_id_str.clone());
         let session_id = SessionId::new(session_id_str);
 
-        let config = systemprompt_models::Config::get().ok()?;
+        let config = systemprompt_models::Config::get()
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to get config for session reuse");
+                e
+            })
+            .ok()?;
         let signing = JwtSigningParams {
             secret: jwt_secret,
             issuer: &config.jwt_issuer,
         };
-        let token =
-            generate_anonymous_jwt(user_id_str, session_id.as_str(), client_id, &signing).ok()?;
+        let token = generate_anonymous_jwt(user_id_str, session_id.as_str(), client_id, &signing)
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to generate JWT for session reuse");
+                e
+            })
+            .ok()?;
 
         tracing::debug!(
             fingerprint = %fingerprint,
@@ -72,13 +96,28 @@ impl SessionCreationService {
         )
         .await;
 
-        let existing_session = lookup_result.ok()?.ok()??;
+        let existing_session = lookup_result
+            .map_err(|_| {
+                tracing::debug!(fingerprint = %fingerprint, "Session lookup timed out");
+            })
+            .ok()?
+            .map_err(|e| {
+                tracing::warn!(error = %e, fingerprint = %fingerprint, "Failed to find existing session");
+                e
+            })
+            .ok()?
+            .flatten()?;
         let user_id_str = existing_session.user_id.as_ref()?;
 
         let user_id = UserId::new(user_id_str.clone());
         let session_id = SessionId::new(existing_session.session_id.clone());
 
-        let config = systemprompt_models::Config::get().ok()?;
+        let config = systemprompt_models::Config::get()
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to get config for session lookup");
+                e
+            })
+            .ok()?;
         let signing = JwtSigningParams {
             secret: jwt_secret,
             issuer: &config.jwt_issuer,
@@ -89,6 +128,10 @@ impl SessionCreationService {
             client_id,
             &signing,
         )
+        .map_err(|e| {
+            tracing::warn!(error = %e, "Failed to generate JWT for session lookup");
+            e
+        })
         .ok()?;
 
         Some(AnonymousSessionInfo {

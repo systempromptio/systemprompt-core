@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::ContentId;
+use systemprompt_identifiers::{ContentId, SessionId, UserId};
 
 use crate::models::{AnalyticsEventCreated, AnalyticsEventType, CreateAnalyticsEventInput};
 
@@ -167,8 +167,8 @@ impl AnalyticsEventsRepository {
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct StoredAnalyticsEvent {
     pub id: String,
-    pub user_id: String,
-    pub session_id: Option<String>,
+    pub user_id: UserId,
+    pub session_id: Option<SessionId>,
     pub event_type: String,
     pub event_category: String,
     pub page_url: Option<String>,

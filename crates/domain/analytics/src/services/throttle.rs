@@ -1,6 +1,11 @@
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 
+const BEHAVIORAL_BOT_SCORE_THRESHOLD: i32 = 50;
+const HIGH_REQUESTS_PER_MINUTE_THRESHOLD: f64 = 30.0;
+const HIGH_ERROR_RATE_THRESHOLD: f64 = 0.5;
+const MIN_REQUESTS_FOR_ERROR_ESCALATION: i64 = 20;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[repr(i32)]
 pub enum ThrottleLevel {
@@ -81,15 +86,17 @@ impl ThrottleService {
             return false;
         }
 
-        if criteria.behavioral_bot_score >= 50 {
+        if criteria.behavioral_bot_score >= BEHAVIORAL_BOT_SCORE_THRESHOLD {
             return true;
         }
 
-        if criteria.requests_per_minute > 30.0 {
+        if criteria.requests_per_minute > HIGH_REQUESTS_PER_MINUTE_THRESHOLD {
             return true;
         }
 
-        if criteria.error_rate > 0.5 && criteria.request_count > 20 {
+        if criteria.error_rate > HIGH_ERROR_RATE_THRESHOLD
+            && criteria.request_count > MIN_REQUESTS_FOR_ERROR_ESCALATION
+        {
             return true;
         }
 

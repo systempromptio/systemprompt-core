@@ -8,6 +8,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::ClientId;
 
 #[derive(Clone, Debug)]
 pub struct ClientRepository {
@@ -23,7 +24,7 @@ impl ClientRepository {
 
 #[derive(Debug, Clone)]
 pub struct CreateClientParams {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_secret_hash: String,
     pub client_name: String,
     pub redirect_uris: Vec<String>,
@@ -38,7 +39,7 @@ pub struct CreateClientParams {
 
 #[derive(Debug, Clone)]
 pub struct UpdateClientParams {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_name: String,
     pub redirect_uris: Vec<String>,
     pub grant_types: Option<Vec<String>>,
@@ -52,7 +53,7 @@ pub struct UpdateClientParams {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ClientSummary {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_name: String,
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: chrono::DateTime<Utc>,
@@ -60,7 +61,7 @@ pub struct ClientSummary {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct ClientUsageSummary {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub client_name: String,
     pub created_at: chrono::DateTime<Utc>,
     pub updated_at: chrono::DateTime<Utc>,

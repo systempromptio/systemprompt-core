@@ -5,6 +5,15 @@ use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId};
 
+mod utm_defaults {
+    pub const MEDIUM_SOCIAL: &str = "social";
+    pub const SOURCE_INTERNAL: &str = "internal";
+    pub const MEDIUM_CONTENT: &str = "content";
+    pub const SOURCE_BLOG: &str = "blog";
+    pub const MEDIUM_CTA: &str = "cta";
+    pub const POSITION_CTA: &str = "cta";
+}
+
 #[derive(Debug)]
 pub struct GenerateLinkParams {
     pub target_url: String,
@@ -82,7 +91,7 @@ impl LinkGenerationService {
 
         let utm_params = UtmParams {
             source: Some(platform.to_string()),
-            medium: Some("social".to_string()),
+            medium: Some(utm_defaults::MEDIUM_SOCIAL.to_string()),
             campaign: Some(campaign_name.to_string()),
             term: None,
             content: source_content_id.as_ref().map(ToString::to_string),
@@ -111,8 +120,8 @@ impl LinkGenerationService {
             CampaignId::new(format!("internal_navigation_{}", Utc::now().date_naive()));
 
         let utm_params = UtmParams {
-            source: Some("internal".to_string()),
-            medium: Some("content".to_string()),
+            source: Some(utm_defaults::SOURCE_INTERNAL.to_string()),
+            medium: Some(utm_defaults::MEDIUM_CONTENT.to_string()),
             campaign: None,
             term: None,
             content: Some(params.source_content_id.to_string()),
@@ -143,8 +152,8 @@ impl LinkGenerationService {
         let campaign_id = CampaignId::new(format!("external_cta_{}", Utc::now().timestamp()));
 
         let utm_params = UtmParams {
-            source: Some("blog".to_string()),
-            medium: Some("cta".to_string()),
+            source: Some(utm_defaults::SOURCE_BLOG.to_string()),
+            medium: Some(utm_defaults::MEDIUM_CTA.to_string()),
             campaign: Some(campaign_name.to_string()),
             term: None,
             content: source_content_id.as_ref().map(ToString::to_string),
@@ -159,7 +168,7 @@ impl LinkGenerationService {
             source_page: None,
             utm_params: Some(utm_params),
             link_text,
-            link_position: Some("cta".to_string()),
+            link_position: Some(utm_defaults::POSITION_CTA.to_string()),
             expires_at: None,
         })
         .await

@@ -1,6 +1,6 @@
 use axum::response::sse::Event;
 use std::sync::Arc;
-use systemprompt_identifiers::{ContextId, TaskId};
+use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use tokio::sync::mpsc::UnboundedSender;
 
 use crate::models::a2a::jsonrpc::NumberOrString;
@@ -13,7 +13,7 @@ pub struct StreamContext {
     pub tx: UnboundedSender<Event>,
     pub task_id: TaskId,
     pub context_id: ContextId,
-    pub message_id: String,
+    pub message_id: MessageId,
     pub request_id: NumberOrString,
     pub task_repo: TaskRepository,
     pub state: Arc<AgentHandlerState>,

@@ -4205,8 +4205,6 @@ dependencies = [
  "systemprompt-loader",
  "systemprompt-logging",
  "systemprompt-models",
- "systemprompt-oauth",
- "systemprompt-runtime",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.17",

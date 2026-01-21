@@ -22,14 +22,14 @@ impl OverviewAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<i64> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM user_contexts WHERE created_at >= $1 AND created_at < $2",
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_contexts WHERE created_at >= $1 AND created_at < $2"#,
+            start,
+            end
         )
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_agent_metrics(
@@ -101,18 +101,18 @@ impl OverviewAnalyticsRepository {
     }
 
     pub async fn get_active_session_count(&self, since: DateTime<Utc>) -> Result<i64> {
-        let row: (i64,) = sqlx::query_as(
-            r"
-            SELECT COUNT(*)
+        let count = sqlx::query_scalar!(
+            r#"
+            SELECT COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE ended_at IS NULL
               AND last_activity_at >= $1
-            ",
+            "#,
+            since
         )
-        .bind(since)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_total_session_count(
@@ -120,14 +120,14 @@ impl OverviewAnalyticsRepository {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> Result<i64> {
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM user_sessions WHERE started_at >= $1 AND started_at < $2",
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE started_at >= $1 AND started_at < $2"#,
+            start,
+            end
         )
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_cost(

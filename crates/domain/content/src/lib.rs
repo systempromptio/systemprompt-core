@@ -13,9 +13,7 @@ pub use config::{
     ValidationResult,
 };
 pub use error::ContentError;
-pub use services::{
-    validate_content_metadata, validate_paper_metadata, validate_paper_section_ids_unique,
-};
+pub use services::validate_content_metadata;
 
 pub use models::{
     Content, ContentMetadata, IngestionOptions, IngestionReport, IngestionSource, SearchFilters,

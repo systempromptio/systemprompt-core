@@ -1,10 +1,11 @@
 use crate::models::a2a::{AgentCard, AgentSkill};
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::AgentId;
 use systemprompt_models::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentInfo {
-    pub agent_id: String,
+    pub agent_id: AgentId,
     pub card: AgentCard,
     pub enabled: bool,
     pub skills: Option<Vec<AgentSkill>>,
@@ -12,7 +13,7 @@ pub struct AgentInfo {
 }
 
 impl AgentInfo {
-    pub const fn from_repository_data(agent_id: String, card: AgentCard, enabled: bool) -> Self {
+    pub const fn from_repository_data(agent_id: AgentId, card: AgentCard, enabled: bool) -> Self {
         Self {
             agent_id,
             card,
@@ -22,7 +23,7 @@ impl AgentInfo {
         }
     }
 
-    pub const fn from_card(agent_id: String, card: AgentCard, enabled: bool) -> Self {
+    pub const fn from_card(agent_id: AgentId, card: AgentCard, enabled: bool) -> Self {
         Self {
             agent_id,
             card,
@@ -33,7 +34,7 @@ impl AgentInfo {
     }
 
     pub fn id(&self) -> &str {
-        &self.agent_id
+        self.agent_id.as_str()
     }
 
     pub fn name(&self) -> &str {

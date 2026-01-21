@@ -5,11 +5,12 @@ mod validation;
 pub use handler::{handle_authorize_get, handle_authorize_post};
 
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug, Deserialize)]
 pub struct AuthorizeQuery {
     pub response_type: String,
-    pub client_id: String,
+    pub client_id: ClientId,
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
     pub state: Option<String>,
@@ -33,7 +34,7 @@ pub struct AuthorizeResponse {
 #[derive(Debug, Deserialize)]
 pub struct AuthorizeRequest {
     pub response_type: String,
-    pub client_id: String,
+    pub client_id: ClientId,
     pub redirect_uri: Option<String>,
     pub scope: Option<String>,
     pub state: Option<String>,

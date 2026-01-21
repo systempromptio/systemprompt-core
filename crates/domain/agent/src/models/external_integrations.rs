@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use systemprompt_identifiers::{AgentId, McpServerId};
 use systemprompt_models::ai::tools::McpTool;
 use thiserror::Error;
 
@@ -51,7 +52,7 @@ pub struct AuthorizationRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthorizationResult {
-    pub agent_id: String,
+    pub agent_id: AgentId,
     pub provider: String,
     pub success: bool,
     pub tokens: Option<TokenInfo>,
@@ -68,7 +69,7 @@ pub struct CallbackParams {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RegisteredMcpServer {
-    pub id: String,
+    pub id: McpServerId,
     pub name: String,
     pub url: String,
     pub status: String,
@@ -81,7 +82,7 @@ pub struct RegisteredMcpServer {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolExecutionResult {
     pub tool_name: String,
-    pub server_id: String,
+    pub server_id: McpServerId,
     pub result: serde_json::Value,
     pub execution_time_ms: u64,
     pub metadata: Option<serde_json::Value>,

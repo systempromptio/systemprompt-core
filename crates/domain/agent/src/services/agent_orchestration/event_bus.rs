@@ -13,7 +13,9 @@ impl AgentEventBus {
     }
 
     pub fn publish(&self, event: AgentEvent) {
-        let _ = self.sender.send(event);
+        if let Err(e) = self.sender.send(event) {
+            tracing::trace!(error = %e, "No active subscribers for agent event");
+        }
     }
 
     pub fn subscribe(&self) -> broadcast::Receiver<AgentEvent> {

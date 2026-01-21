@@ -29,14 +29,14 @@ pub struct CreateSessionParams<'a> {
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionRecord {
-    pub session_id: String,
-    pub user_id: Option<String>,
+    pub session_id: SessionId,
+    pub user_id: Option<UserId>,
     pub expires_at: Option<DateTime<Utc>>,
 }
 
 #[derive(Debug, Clone, sqlx::FromRow)]
 pub struct SessionBehavioralData {
-    pub session_id: String,
+    pub session_id: SessionId,
     pub fingerprint_hash: Option<String>,
     pub user_agent: Option<String>,
     pub request_count: Option<i32>,

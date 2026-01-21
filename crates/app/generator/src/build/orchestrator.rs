@@ -57,7 +57,6 @@ impl BuildMode {
 #[derive(Debug)]
 pub struct BuildOrchestrator {
     web_dir: PathBuf,
-    #[allow(dead_code)]
     mode: BuildMode,
 }
 
@@ -65,6 +64,11 @@ impl BuildOrchestrator {
     #[must_use]
     pub const fn new(web_dir: PathBuf, mode: BuildMode) -> Self {
         Self { web_dir, mode }
+    }
+
+    #[must_use]
+    pub const fn mode(&self) -> BuildMode {
+        self.mode
     }
 
     pub async fn build(&self) -> Result<()> {

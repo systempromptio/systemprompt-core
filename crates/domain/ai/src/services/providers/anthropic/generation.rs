@@ -231,7 +231,7 @@ pub async fn generate_with_schema(
             },
             _ => None,
         })
-        .unwrap_or_default();
+        .unwrap_or_else(String::new);
 
     let usage = &anthropic_response.usage;
     let tokens_used = Some(usage.input + usage.output);

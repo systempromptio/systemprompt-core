@@ -65,16 +65,15 @@ impl ToolAnalyticsRepository {
         end: DateTime<Utc>,
     ) -> Result<i64> {
         let pattern = format!("%{}%", tool_name);
-        let row: (i64,) = sqlx::query_as(
-            "SELECT COUNT(*) FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= \
-             $2 AND created_at < $3",
+        let count = sqlx::query_scalar!(
+            r#"SELECT COUNT(*)::bigint as "count!" FROM mcp_tool_executions WHERE tool_name ILIKE $1 AND created_at >= $2 AND created_at < $3"#,
+            pattern,
+            start,
+            end
         )
-        .bind(&pattern)
-        .bind(start)
-        .bind(end)
         .fetch_one(&*self.pool)
         .await?;
-        Ok(row.0)
+        Ok(count)
     }
 
     pub async fn get_tool_summary(

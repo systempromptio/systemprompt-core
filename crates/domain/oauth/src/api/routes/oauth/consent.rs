@@ -8,10 +8,11 @@ use axum::response::{Html, IntoResponse};
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_identifiers::ClientId;
 
 #[derive(Debug, Deserialize)]
 pub struct ConsentQuery {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub scope: Option<String>,
     pub state: Option<String>,
 }
@@ -59,10 +60,10 @@ pub async fn handle_consent_get(
 
 #[derive(Debug, Deserialize)]
 pub struct ConsentRequest {
-    pub client_id: String,
+    pub client_id: ClientId,
     pub scope: Option<String>,
     pub state: Option<String>,
-    pub decision: String, // "allow" or "deny"
+    pub decision: String,
 }
 
 pub async fn handle_consent_post(

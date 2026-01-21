@@ -131,7 +131,7 @@ pub async fn generate_with_tools(
         .message
         .tool_calls
         .clone()
-        .unwrap_or_default()
+        .unwrap_or_else(Vec::new)
         .into_iter()
         .map(|tc| {
             let arguments = serde_json::from_str::<serde_json::Value>(&tc.function.arguments)
