@@ -2,7 +2,7 @@ use anyhow::Result;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
 use systemprompt_cloud::{get_cloud_paths, CloudPath};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::LogoutArgs;
 use crate::cli_settings::CliConfig;

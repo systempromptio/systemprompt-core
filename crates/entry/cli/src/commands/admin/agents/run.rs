@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use clap::Args;
 
-use systemprompt_core_agent::services::a2a_server::run_standalone;
+use systemprompt_agent::services::a2a_server::run_standalone;
 
 #[derive(Debug, Clone, Args)]
 pub struct RunArgs {

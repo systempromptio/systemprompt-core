@@ -19,9 +19,9 @@ use crate::repository::context::message::{
 };
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_analytics::SessionRepository;
-use systemprompt_core_database::DbPool;
-use systemprompt_core_files::{FileUploadService, FilesConfig};
+use systemprompt_analytics::SessionRepository;
+use systemprompt_database::DbPool;
+use systemprompt_files::{FileUploadService, FilesConfig};
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug, Clone)]
@@ -343,7 +343,7 @@ impl TaskRepository {
 
     pub async fn get_next_sequence_number_in_tx(
         &self,
-        tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+        tx: &mut dyn systemprompt_database::DatabaseTransaction,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<i32, RepositoryError> {
         get_next_sequence_number_in_tx(tx, task_id).await
@@ -351,7 +351,7 @@ impl TaskRepository {
 
     pub async fn persist_message_with_tx(
         &self,
-        tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+        tx: &mut dyn systemprompt_database::DatabaseTransaction,
         message: &Message,
         task_id: &systemprompt_identifiers::TaskId,
         context_id: &systemprompt_identifiers::ContextId,

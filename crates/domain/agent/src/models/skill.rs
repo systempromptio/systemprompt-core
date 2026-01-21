@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use systemprompt_core_database::JsonRow;
+use systemprompt_database::JsonRow;
 use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,12 +79,12 @@ impl Skill {
 
         let created_at = row
             .get("created_at")
-            .and_then(|v| systemprompt_core_database::parse_database_datetime(v))
+            .and_then(|v| systemprompt_database::parse_database_datetime(v))
             .ok_or_else(|| anyhow!("Missing or invalid created_at"))?;
 
         let updated_at = row
             .get("updated_at")
-            .and_then(|v| systemprompt_core_database::parse_database_datetime(v))
+            .and_then(|v| systemprompt_database::parse_database_datetime(v))
             .ok_or_else(|| anyhow!("Missing or invalid updated_at"))?;
 
         Ok(Self {

@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_core_analytics::CostAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::CostAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{CostTrendPoint, CostTrendsOutput};

@@ -3,7 +3,7 @@ use crate::repository::{CreateClientParams, OAuthRepository};
 use anyhow::{anyhow, Result};
 use axum::http::HeaderMap;
 use axum::response::{IntoResponse, Redirect};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 #[derive(Debug, Clone)]
 pub struct BrowserRedirectService {

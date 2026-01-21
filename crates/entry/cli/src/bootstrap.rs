@@ -7,8 +7,8 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, ProjectContext};
-use systemprompt_core_files::FilesConfig;
-use systemprompt_core_logging::CliService;
+use systemprompt_files::FilesConfig;
+use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,

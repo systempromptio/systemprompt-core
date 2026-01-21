@@ -17,7 +17,7 @@ use clap::{Args, Subcommand};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
 

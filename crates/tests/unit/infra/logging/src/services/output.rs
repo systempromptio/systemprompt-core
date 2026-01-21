@@ -1,6 +1,6 @@
 //! Unit tests for output mode functions
 
-use systemprompt_core_logging::{is_startup_mode, set_startup_mode};
+use systemprompt_logging::{is_startup_mode, set_startup_mode};
 
 // ============================================================================
 // Startup Mode Tests

@@ -1,7 +1,7 @@
 //! Implementation of ContextProvider trait for the agent module.
 
 use async_trait::async_trait;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, SessionId, UserId};
 use systemprompt_traits::{ContextProvider, ContextProviderError, ContextWithStats};
 

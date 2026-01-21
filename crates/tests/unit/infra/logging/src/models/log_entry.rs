@@ -1,6 +1,6 @@
 //! Unit tests for LogEntry struct
 
-use systemprompt_core_logging::{LogEntry, LogLevel};
+use systemprompt_logging::{LogEntry, LogLevel};
 
 // ============================================================================
 // LogEntry Creation Tests

@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use chrono::Utc;
 use sqlx::PgPool;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, FileId, SessionId, TraceId, UserId};
 
 use crate::models::{File, FileMetadata};

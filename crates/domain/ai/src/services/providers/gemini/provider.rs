@@ -1,7 +1,7 @@
 use anyhow::Result;
 use reqwest::Client;
 use std::sync::{Arc, Mutex};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::services::schema::ToolNameMapper;
 

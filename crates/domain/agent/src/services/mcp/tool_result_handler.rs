@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use std::fmt;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::ai::tools::CallToolResult;
 

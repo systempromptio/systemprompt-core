@@ -4,7 +4,7 @@ use anyhow::{Context, Result};
 use systemprompt_cloud::{
     get_cloud_paths, CloudPath, ProfilePath, ProjectContext, SessionKey, SessionStore,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;

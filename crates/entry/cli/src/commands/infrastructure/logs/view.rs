@@ -2,8 +2,8 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_logging::models::{LogEntry, LogLevel};
-use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::models::{LogEntry, LogLevel};
+use systemprompt_logging::{CliService, LoggingMaintenanceService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;

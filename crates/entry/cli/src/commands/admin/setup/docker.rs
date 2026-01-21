@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::process::Command;
 use systemprompt_cloud::constants::docker::{container_name, COMPOSE_PATH};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::postgres::{generate_password, PostgresConfig};
 use super::SetupArgs;

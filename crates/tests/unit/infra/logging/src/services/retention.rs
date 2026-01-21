@@ -1,7 +1,7 @@
 //! Unit tests for RetentionPolicy and RetentionConfig
 
-use systemprompt_core_logging::services::retention::{RetentionConfig, RetentionPolicy};
-use systemprompt_core_logging::LogLevel;
+use systemprompt_logging::services::retention::{RetentionConfig, RetentionPolicy};
+use systemprompt_logging::LogLevel;
 
 // ============================================================================
 // RetentionPolicy Creation Tests

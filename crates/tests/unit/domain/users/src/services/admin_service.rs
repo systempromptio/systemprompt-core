@@ -6,7 +6,7 @@
 //! - Result type patterns
 
 use chrono::Utc;
-use systemprompt_core_users::{DemoteResult, PromoteResult, User};
+use systemprompt_users::{DemoteResult, PromoteResult, User};
 use systemprompt_identifiers::UserId;
 
 // Helper function to create a test user
@@ -242,7 +242,7 @@ mod demote_result_tests {
 // ============================================================================
 
 mod update_user_params_tests {
-    use systemprompt_core_users::{UpdateUserParams, UserStatus};
+    use systemprompt_users::{UpdateUserParams, UserStatus};
 
     #[test]
     fn update_user_params_creation() {

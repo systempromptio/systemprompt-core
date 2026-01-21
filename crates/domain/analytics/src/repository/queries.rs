@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::Serialize;
-use systemprompt_core_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
+use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug, Clone)]

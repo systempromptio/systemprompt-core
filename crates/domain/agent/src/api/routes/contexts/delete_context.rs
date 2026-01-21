@@ -5,7 +5,7 @@ use systemprompt_identifiers::ContextId;
 
 use super::is_valid_context_id;
 use crate::repository::context::ContextRepository;
-use systemprompt_core_events::EventRouter;
+use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
 
 pub async fn delete_context(

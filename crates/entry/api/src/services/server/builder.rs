@@ -3,7 +3,7 @@ use axum::extract::DefaultBodyLimit;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
-use systemprompt_core_database::DatabaseQuery;
+use systemprompt_database::DatabaseQuery;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::AppPaths;
@@ -226,7 +226,7 @@ pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
     use axum::http::StatusCode;
-    use systemprompt_core_database::{DatabaseProvider, ServiceRepository};
+    use systemprompt_database::{DatabaseProvider, ServiceRepository};
 
     let start = std::time::Instant::now();
 

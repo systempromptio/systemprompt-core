@@ -6,7 +6,7 @@
 //! - SearchResult struct
 //! - SearchResponse struct
 
-use systemprompt_core_content::{SearchFilters, SearchRequest, SearchResponse, SearchResult};
+use systemprompt_content::{SearchFilters, SearchRequest, SearchResponse, SearchResult};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 // ============================================================================

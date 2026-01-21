@@ -1,5 +1,5 @@
 use super::setup_test_pool;
-use systemprompt_core_oauth::repository::{OAuthRepository, WebAuthnCredentialParams};
+use systemprompt_oauth::repository::{OAuthRepository, WebAuthnCredentialParams};
 use uuid::Uuid;
 
 #[tokio::test]

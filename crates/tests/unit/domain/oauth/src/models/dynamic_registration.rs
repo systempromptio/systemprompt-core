@@ -1,6 +1,6 @@
 //! Tests for DynamicRegistrationRequest and DynamicRegistrationResponse
 
-use systemprompt_core_oauth::{DynamicRegistrationRequest, DynamicRegistrationResponse};
+use systemprompt_oauth::{DynamicRegistrationRequest, DynamicRegistrationResponse};
 
 // ============================================================================
 // DynamicRegistrationRequest Tests

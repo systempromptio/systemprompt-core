@@ -11,7 +11,7 @@ use crate::services::static_content::{
 };
 use axum::routing::get;
 use std::sync::Arc;
-use systemprompt_core_users::BannedIpRepository;
+use systemprompt_users::BannedIpRepository;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
@@ -41,21 +41,21 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::OAUTH_BASE,
-        systemprompt_core_oauth::api::public_router(ctx)
+        systemprompt_oauth::api::public_router(ctx)
             .with_rate_limit(rate_config, rate_config.oauth_public_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
 
     router = router.nest(
         ApiPaths::OAUTH_BASE,
-        systemprompt_core_oauth::api::authenticated_router(ctx)
+        systemprompt_oauth::api::authenticated_router(ctx)
             .with_rate_limit(rate_config, rate_config.oauth_auth_per_second)
             .with_auth_middleware(user_middleware.clone()),
     );
 
     router = router.nest(
         ApiPaths::CORE_CONTEXTS,
-        systemprompt_core_agent::api::contexts_router()
+        systemprompt_agent::api::contexts_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.contexts_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -63,14 +63,14 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::WEBHOOK,
-        systemprompt_core_agent::api::webhook_router()
+        systemprompt_agent::api::webhook_router()
             .with_state(ctx.clone())
             .with_auth_middleware(user_middleware.clone()),
     );
 
     router = router.nest(
         ApiPaths::CORE_TASKS,
-        systemprompt_core_agent::api::tasks_router()
+        systemprompt_agent::api::tasks_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.tasks_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -78,7 +78,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CORE_ARTIFACTS,
-        systemprompt_core_agent::api::artifacts_router()
+        systemprompt_agent::api::artifacts_router()
             .with_state(ctx.clone())
             .with_rate_limit(rate_config, rate_config.artifacts_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -86,7 +86,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::AGENTS_REGISTRY,
-        systemprompt_core_agent::api::registry_router(ctx)
+        systemprompt_agent::api::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.agent_registry_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -100,7 +100,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::MCP_REGISTRY,
-        systemprompt_core_mcp::api::registry_router(ctx)
+        systemprompt_mcp::api::registry_router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_registry_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -121,13 +121,13 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CONTENT_BASE,
-        systemprompt_core_content::api::router(ctx.db_pool())
+        systemprompt_content::api::router(ctx.db_pool())
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
 
     router = router.merge(
-        systemprompt_core_content::api::redirect_router(ctx.db_pool())
+        systemprompt_content::api::redirect_router(ctx.db_pool())
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );
@@ -237,7 +237,7 @@ fn discovery_router(ctx: &AppContext) -> Router {
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {
-    systemprompt_core_oauth::api::wellknown::wellknown_routes(ctx)
+    systemprompt_oauth::api::wellknown::wellknown_routes(ctx)
         .merge(crate::routes::wellknown_router(ctx))
 }
 

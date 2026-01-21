@@ -3,8 +3,8 @@ use crate::commands::core::content::types::LinkDeleteOutput;
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_content::services::LinkGenerationService;
-use systemprompt_core_logging::CliService;
+use systemprompt_content::services::LinkGenerationService;
+use systemprompt_logging::CliService;
 use systemprompt_identifiers::LinkId;
 use systemprompt_runtime::AppContext;
 

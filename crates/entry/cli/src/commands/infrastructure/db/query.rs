@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
-use systemprompt_core_database::{DatabaseCliDisplay, QueryExecutor, QueryResult};
-use systemprompt_core_logging::CliService;
+use systemprompt_database::{DatabaseCliDisplay, QueryExecutor, QueryResult};
+use systemprompt_logging::CliService;
 
 use crate::cli_settings::{CliConfig, OutputFormat};
 

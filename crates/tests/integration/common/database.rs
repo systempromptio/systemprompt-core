@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::Database;
+use systemprompt_database::Database;
 
 pub async fn wait_for_async_processing() {
     tokio::time::sleep(tokio::time::Duration::from_millis(2000)).await;

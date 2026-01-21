@@ -9,7 +9,7 @@
 use axum::http::{HeaderMap, HeaderValue};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use systemprompt_core_security::{AuthMode, AuthValidationService};
+use systemprompt_security::{AuthMode, AuthValidationService};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };

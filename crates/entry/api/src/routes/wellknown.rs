@@ -3,7 +3,7 @@ use axum::response::IntoResponse;
 use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
-use systemprompt_core_agent::services::registry::AgentRegistry;
+use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;

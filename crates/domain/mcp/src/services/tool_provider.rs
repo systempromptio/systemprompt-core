@@ -5,7 +5,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use tracing::{info, warn};
 
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider,

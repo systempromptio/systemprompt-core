@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{

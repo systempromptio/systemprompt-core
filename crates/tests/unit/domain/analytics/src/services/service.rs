@@ -1,7 +1,7 @@
 //! Tests for AnalyticsService static methods and related types.
 
 use axum::http::{HeaderMap, HeaderValue};
-use systemprompt_core_analytics::{AnalyticsService, SessionAnalytics};
+use systemprompt_analytics::{AnalyticsService, SessionAnalytics};
 
 mod analytics_service_tests {
     use super::*;
@@ -172,7 +172,7 @@ mod analytics_service_tests {
 mod create_analytics_session_input_tests {
     use super::*;
     use chrono::Utc;
-    use systemprompt_core_analytics::CreateAnalyticsSessionInput;
+    use systemprompt_analytics::CreateAnalyticsSessionInput;
     use systemprompt_identifiers::{SessionId, UserId};
 
     #[test]

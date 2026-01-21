@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, FileId};
 
 use crate::models::{ContentFile, File, FileRole};

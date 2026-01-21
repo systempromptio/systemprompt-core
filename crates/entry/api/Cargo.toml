@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-api"
+name = "systemprompt-api"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "HTTP API server and gateway for SystemPrompt OS"
 
 [dependencies]
@@ -60,18 +64,18 @@ systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-extension = { path = "../../shared/extension" }
 systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-core-users = { path = "../../domain/users" }
-systemprompt-core-oauth = { path = "../../domain/oauth" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-agent = { path = "../../domain/agent" }
-systemprompt-core-mcp = { path = "../../domain/mcp" }
-systemprompt-core-content = { path = "../../domain/content" }
-systemprompt-core-files = { path = "../../domain/files" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-scheduler = { path = "../../app/scheduler" }
-systemprompt-core-events = { path = "../../infra/events" }
-systemprompt-core-analytics = { path = "../../domain/analytics" }
-systemprompt-core-security = { path = "../../infra/security" }
+systemprompt-users = { path = "../../domain/users" }
+systemprompt-oauth = { path = "../../domain/oauth" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-agent = { path = "../../domain/agent" }
+systemprompt-mcp = { path = "../../domain/mcp" }
+systemprompt-content = { path = "../../domain/content" }
+systemprompt-files = { path = "../../domain/files" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-scheduler = { path = "../../app/scheduler" }
+systemprompt-events = { path = "../../infra/events" }
+systemprompt-analytics = { path = "../../domain/analytics" }
+systemprompt-security = { path = "../../infra/security" }
 
 # API registry
 inventory = { workspace = true }

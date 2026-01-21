@@ -5,7 +5,7 @@ use crate::models::{
 };
 use crate::repository::LinkRepository;
 use chrono::Utc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkClickId, LinkId};
 
 use super::repository::LinkAnalyticsRepository;

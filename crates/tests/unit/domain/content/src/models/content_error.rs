@@ -4,7 +4,7 @@
 //! - ContentError enum variants
 //! - Error factory methods
 
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 
 // ============================================================================
 // ContentError Variant Tests

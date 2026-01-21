@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-content"
+name = "systemprompt-content"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Content module for SystemPrompt with content management, analytics, and event tracking"
 
 [lints]
@@ -11,8 +15,8 @@ workspace = true
 
 [dependencies]
 # Core modules
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
@@ -51,7 +55,7 @@ inventory = { workspace = true }
 async-trait = { workspace = true }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
-systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-config = { path = "../../infra/config" }
 
 # Static content generation
 comrak = { workspace = true }

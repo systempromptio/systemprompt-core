@@ -1,6 +1,6 @@
 //! Unit tests for ImageMetadata and ImageGenerationInfo
 
-use systemprompt_core_files::{ImageGenerationInfo, ImageMetadata};
+use systemprompt_files::{ImageGenerationInfo, ImageMetadata};
 
 // ============================================================================
 // ImageMetadata Tests

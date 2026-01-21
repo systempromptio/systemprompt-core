@@ -6,7 +6,7 @@
 //! - ListLinksQuery deserialization
 //! - AnalyticsQuery deserialization
 
-use systemprompt_core_content::api::routes::links::{
+use systemprompt_content::api::routes::links::{
     AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery,
 };
 

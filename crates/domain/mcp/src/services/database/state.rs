@@ -2,7 +2,7 @@ use std::path::Path;
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_core_database::{CreateServiceInput, ServiceRepository};
+use systemprompt_database::{CreateServiceInput, ServiceRepository};
 use systemprompt_models::AppPaths;
 
 use super::ServiceInfo;
@@ -25,7 +25,7 @@ pub fn get_binary_mtime_for_service(service_name: &str) -> Option<i64> {
 }
 
 pub async fn register_service(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
     config: &McpServerConfig,
     pid: u32,
     _startup_time: Option<i32>,
@@ -64,7 +64,7 @@ pub async fn register_service(
 }
 
 pub async fn unregister_service(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
     service_name: &str,
 ) -> Result<()> {
     let repo = ServiceRepository::new(Arc::clone(db_pool));
@@ -72,7 +72,7 @@ pub async fn unregister_service(
 }
 
 pub async fn get_service_by_name(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
     name: &str,
 ) -> Result<Option<ServiceInfo>> {
     let repo = ServiceRepository::new(Arc::clone(db_pool));
@@ -88,7 +88,7 @@ pub async fn get_service_by_name(
 }
 
 pub async fn get_running_servers(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
 ) -> Result<Vec<McpServerConfig>> {
     use crate::services::registry::RegistryManager;
 
@@ -110,7 +110,7 @@ pub async fn get_running_servers(
 }
 
 pub async fn update_service_state(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
     name: &str,
     status: &str,
     _pid: Option<u32>,
@@ -120,7 +120,7 @@ pub async fn update_service_state(
 }
 
 pub async fn register_existing_process(
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
     config: &McpServerConfig,
     pid: u32,
 ) -> Result<String> {

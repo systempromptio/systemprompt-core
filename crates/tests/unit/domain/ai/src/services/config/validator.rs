@@ -1,6 +1,6 @@
 //! Tests for ConfigValidator.
 
-use systemprompt_core_ai::services::config::ConfigValidator;
+use systemprompt_ai::services::config::ConfigValidator;
 use systemprompt_models::services::{AiConfig, AiProviderConfig, HistoryConfig, McpConfig, SamplingConfig};
 use std::collections::HashMap;
 

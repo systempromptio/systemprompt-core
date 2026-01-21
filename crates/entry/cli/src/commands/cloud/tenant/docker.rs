@@ -3,7 +3,7 @@ use std::net::TcpListener;
 use std::path::Path;
 use std::process::Command;
 use std::time::Duration;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 pub fn nanoid() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};

@@ -5,7 +5,7 @@ pub use analytics::AnalyticsRepository;
 pub use jobs::JobRepository;
 
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::models::{JobStatus, ScheduledJob};
 

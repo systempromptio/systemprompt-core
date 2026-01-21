@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use sqlx::PgPool;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::models::{FingerprintReputation, FlagReason};
 

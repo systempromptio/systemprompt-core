@@ -5,7 +5,7 @@ use systemprompt_identifiers::UserId;
 pub async fn validate_message_context(
     message: &crate::models::a2a::Message,
     user_id: Option<&str>,
-    db_pool: &systemprompt_core_database::DbPool,
+    db_pool: &systemprompt_database::DbPool,
 ) -> Result<(), String> {
     let context_id = &message.context_id;
 

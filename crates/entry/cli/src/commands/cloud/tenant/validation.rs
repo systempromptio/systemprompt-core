@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use std::path::Path;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_models::ServicesConfig;
 

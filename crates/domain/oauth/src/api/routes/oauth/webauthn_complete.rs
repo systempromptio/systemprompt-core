@@ -8,7 +8,7 @@ use std::sync::Arc;
 
 use crate::repository::{AuthCodeParams, OAuthRepository};
 use crate::services::{generate_secure_token, BrowserRedirectService};
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_traits::UserProvider;
 

@@ -1,6 +1,6 @@
 //! Tests for redirect URI validation
 
-use systemprompt_core_oauth::services::validation::validate_redirect_uri;
+use systemprompt_oauth::services::validation::validate_redirect_uri;
 use systemprompt_models::AuthError;
 
 // ============================================================================

@@ -7,7 +7,7 @@
 //! - Event types (TaskStatusUpdateEvent, TaskArtifactUpdateEvent)
 //! - Push notification types
 
-use systemprompt_core_agent::{
+use systemprompt_agent::{
     A2aJsonRpcRequest, A2aRequestParams, A2aResponse, Task, TaskIdParams, TaskQueryParams,
     TaskState, TaskStatus,
 };
@@ -30,7 +30,7 @@ fn test_parse_message_send_request() {
                 "kind": "message"
             }
         }),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("1".to_string()),
     };
 
     let result = request.parse_request();
@@ -49,7 +49,7 @@ fn test_parse_tasks_get_request() {
         params: serde_json::json!({
             "id": "task-123"
         }),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::String("2".to_string()),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("2".to_string()),
     };
 
     let result = request.parse_request();
@@ -70,7 +70,7 @@ fn test_parse_tasks_cancel_request() {
         params: serde_json::json!({
             "id": "task-456"
         }),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::Number(3),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::Number(3),
     };
 
     let result = request.parse_request();
@@ -97,7 +97,7 @@ fn test_parse_message_stream_request() {
                 "kind": "message"
             }
         }),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("4".to_string()),
     };
 
     let result = request.parse_request();
@@ -114,7 +114,7 @@ fn test_parse_unsupported_method() {
         jsonrpc: "2.0".to_string(),
         method: "unsupported/method".to_string(),
         params: serde_json::json!({}),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::String("5".to_string()),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("5".to_string()),
     };
 
     let result = request.parse_request();
@@ -129,7 +129,7 @@ fn test_parse_invalid_params() {
         jsonrpc: "2.0".to_string(),
         method: "tasks/get".to_string(),
         params: serde_json::json!({"wrong": "params"}),
-        id: systemprompt_core_agent::models::a2a::jsonrpc::RequestId::String("6".to_string()),
+        id: systemprompt_agent::models::a2a::jsonrpc::RequestId::String("6".to_string()),
     };
 
     let result = request.parse_request();
@@ -212,7 +212,7 @@ fn test_task_id_params_equality() {
 
 #[test]
 fn test_a2a_response_send_message() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let task = Task::default();
     let request_id = RequestId::String("req-1".to_string());
@@ -230,7 +230,7 @@ fn test_a2a_response_send_message() {
 
 #[test]
 fn test_a2a_response_get_task() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let task = Task::default();
     let request_id = RequestId::Number(42);
@@ -248,7 +248,7 @@ fn test_a2a_response_get_task() {
 
 #[test]
 fn test_a2a_response_cancel_task() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let task = Task::default();
     let request_id = RequestId::String("cancel-1".to_string());
@@ -338,7 +338,7 @@ fn test_task_state_deserialize() {
 
 #[test]
 fn test_request_id_string() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let id = RequestId::String("test-id".to_string());
     let json = serde_json::to_string(&id).unwrap();
@@ -347,7 +347,7 @@ fn test_request_id_string() {
 
 #[test]
 fn test_request_id_number() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let id = RequestId::Number(42);
     let json = serde_json::to_string(&id).unwrap();
@@ -356,7 +356,7 @@ fn test_request_id_number() {
 
 #[test]
 fn test_request_id_deserialize_string() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let json = "\"my-id\"";
     let id: RequestId = serde_json::from_str(json).unwrap();
@@ -368,7 +368,7 @@ fn test_request_id_deserialize_string() {
 
 #[test]
 fn test_request_id_deserialize_number() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let json = "123";
     let id: RequestId = serde_json::from_str(json).unwrap();
@@ -380,7 +380,7 @@ fn test_request_id_deserialize_number() {
 
 #[test]
 fn test_request_id_equality() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::RequestId;
+    use systemprompt_agent::models::a2a::jsonrpc::RequestId;
 
     let id1 = RequestId::String("same".to_string());
     let id2 = RequestId::String("same".to_string());
@@ -393,7 +393,7 @@ fn test_request_id_equality() {
 
 #[test]
 fn test_jsonrpc_error_new() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::new(-32600, "Invalid Request");
     assert_eq!(error.code, -32600);
@@ -403,7 +403,7 @@ fn test_jsonrpc_error_new() {
 
 #[test]
 fn test_jsonrpc_error_with_data() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::with_data(-32000, "Custom error", serde_json::json!({"details": "test"}));
     assert_eq!(error.code, -32000);
@@ -414,7 +414,7 @@ fn test_jsonrpc_error_with_data() {
 
 #[test]
 fn test_jsonrpc_error_parse_error() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::parse_error();
     assert_eq!(error.code, -32700);
@@ -423,7 +423,7 @@ fn test_jsonrpc_error_parse_error() {
 
 #[test]
 fn test_jsonrpc_error_invalid_request() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::invalid_request();
     assert_eq!(error.code, -32600);
@@ -432,7 +432,7 @@ fn test_jsonrpc_error_invalid_request() {
 
 #[test]
 fn test_jsonrpc_error_method_not_found() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::method_not_found();
     assert_eq!(error.code, -32601);
@@ -441,7 +441,7 @@ fn test_jsonrpc_error_method_not_found() {
 
 #[test]
 fn test_jsonrpc_error_invalid_params() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::invalid_params();
     assert_eq!(error.code, -32602);
@@ -450,7 +450,7 @@ fn test_jsonrpc_error_invalid_params() {
 
 #[test]
 fn test_jsonrpc_error_internal_error() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::internal_error();
     assert_eq!(error.code, -32603);
@@ -459,7 +459,7 @@ fn test_jsonrpc_error_internal_error() {
 
 #[test]
 fn test_jsonrpc_error_serialize() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::new(-32600, "Test");
     let json = serde_json::to_string(&error).unwrap();
@@ -469,7 +469,7 @@ fn test_jsonrpc_error_serialize() {
 
 #[test]
 fn test_jsonrpc_error_deserialize() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let json = r#"{"code": -32700, "message": "Parse error"}"#;
     let error: JsonRpcError = serde_json::from_str(json).unwrap();
@@ -479,7 +479,7 @@ fn test_jsonrpc_error_deserialize() {
 
 #[test]
 fn test_jsonrpc_error_clone() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::new(-32600, "Test");
     let cloned = error.clone();
@@ -489,7 +489,7 @@ fn test_jsonrpc_error_clone() {
 
 #[test]
 fn test_jsonrpc_error_debug() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JsonRpcError;
+    use systemprompt_agent::models::a2a::jsonrpc::JsonRpcError;
 
     let error = JsonRpcError::new(-32600, "Test");
     let debug = format!("{:?}", error);
@@ -502,7 +502,7 @@ fn test_jsonrpc_error_debug() {
 
 #[test]
 fn test_jsonrpc_response_with_result() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -518,7 +518,7 @@ fn test_jsonrpc_response_with_result() {
 
 #[test]
 fn test_jsonrpc_response_with_error() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcError, JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcError, JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -534,7 +534,7 @@ fn test_jsonrpc_response_with_error() {
 
 #[test]
 fn test_jsonrpc_response_serialize_result() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -553,7 +553,7 @@ fn test_jsonrpc_response_serialize_result() {
 
 #[test]
 fn test_jsonrpc_response_serialize_error() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcError, JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcError, JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -571,7 +571,7 @@ fn test_jsonrpc_response_serialize_error() {
 
 #[test]
 fn test_jsonrpc_response_deserialize() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let json = r#"{"jsonrpc": "2.0", "result": "ok", "id": 1}"#;
     let response: JsonRpcResponse<String> = serde_json::from_str(json).unwrap();
@@ -582,7 +582,7 @@ fn test_jsonrpc_response_deserialize() {
 
 #[test]
 fn test_jsonrpc_response_clone() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -598,7 +598,7 @@ fn test_jsonrpc_response_clone() {
 
 #[test]
 fn test_jsonrpc_response_debug() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let response: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -613,7 +613,7 @@ fn test_jsonrpc_response_debug() {
 
 #[test]
 fn test_jsonrpc_response_equality() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{JsonRpcResponse, RequestId};
 
     let response1: JsonRpcResponse<String> = JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
@@ -632,7 +632,7 @@ fn test_jsonrpc_response_equality() {
 
 #[test]
 fn test_request_serialize() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{Request, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{Request, RequestId};
 
     let request: Request<serde_json::Value> = Request {
         jsonrpc: "2.0".to_string(),
@@ -650,7 +650,7 @@ fn test_request_serialize() {
 
 #[test]
 fn test_request_deserialize() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{Request, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{Request, RequestId};
 
     let json = r#"{"jsonrpc": "2.0", "method": "test", "params": {}, "id": 1}"#;
     let request: Request<serde_json::Value> = serde_json::from_str(json).unwrap();
@@ -661,7 +661,7 @@ fn test_request_deserialize() {
 
 #[test]
 fn test_request_clone() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{Request, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{Request, RequestId};
 
     let request: Request<serde_json::Value> = Request {
         jsonrpc: "2.0".to_string(),
@@ -676,7 +676,7 @@ fn test_request_clone() {
 
 #[test]
 fn test_request_debug() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::{Request, RequestId};
+    use systemprompt_agent::models::a2a::jsonrpc::{Request, RequestId};
 
     let request: Request<serde_json::Value> = Request {
         jsonrpc: "2.0".to_string(),
@@ -695,7 +695,7 @@ fn test_request_debug() {
 
 #[test]
 fn test_json_rpc_version_constant() {
-    use systemprompt_core_agent::models::a2a::jsonrpc::JSON_RPC_VERSION_2_0;
+    use systemprompt_agent::models::a2a::jsonrpc::JSON_RPC_VERSION_2_0;
 
     assert_eq!(JSON_RPC_VERSION_2_0, "2.0");
 }

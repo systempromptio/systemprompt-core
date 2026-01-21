@@ -1,12 +1,12 @@
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_core_mcp::services::registry::RegistryManager;
+use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 pub async fn reconcile_system_services(
     ctx: &AppContext,
-    mcp_orchestrator: &Arc<systemprompt_core_mcp::services::McpManager>,
+    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     if let Some(tx) = events {
@@ -71,8 +71,8 @@ pub async fn reconcile_system_services(
 async fn handle_reconcile_success(
     running_count: usize,
     required_count: usize,
-    required_servers: &[systemprompt_core_mcp::McpServerConfig],
-    mcp_orchestrator: &Arc<systemprompt_core_mcp::services::McpManager>,
+    required_servers: &[systemprompt_mcp::McpServerConfig],
+    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
@@ -100,8 +100,8 @@ async fn handle_reconcile_success(
 }
 
 async fn handle_missing_servers(
-    required_servers: &[systemprompt_core_mcp::McpServerConfig],
-    mcp_orchestrator: &Arc<systemprompt_core_mcp::services::McpManager>,
+    required_servers: &[systemprompt_mcp::McpServerConfig],
+    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     let running_servers = mcp_orchestrator.get_running_servers().await?;
@@ -141,11 +141,11 @@ async fn handle_missing_servers(
 }
 
 async fn verify_database_registration(
-    required_servers: &[systemprompt_core_mcp::McpServerConfig],
+    required_servers: &[systemprompt_mcp::McpServerConfig],
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
-    use systemprompt_core_database::ServiceRepository;
+    use systemprompt_database::ServiceRepository;
     let service_repo = ServiceRepository::new(ctx.db_pool().clone());
 
     let mut verification_failed = Vec::new();
@@ -209,8 +209,8 @@ async fn cleanup_stale_service_entries(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<u64> {
-    use systemprompt_core_database::ServiceRepository;
-    use systemprompt_core_scheduler::ProcessCleanup;
+    use systemprompt_database::ServiceRepository;
+    use systemprompt_scheduler::ProcessCleanup;
 
     let repo = ServiceRepository::new(ctx.db_pool().clone());
     let mut deleted_count = 0u64;

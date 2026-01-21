@@ -7,7 +7,7 @@ use sqlx::postgres::PgPoolOptions;
 use sqlx::Row;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::SetupArgs;
 use crate::CliConfig;

@@ -1,6 +1,6 @@
 //! Tests for audience validation
 
-use systemprompt_core_oauth::services::{validate_any_audience, validate_required_audience, validate_service_access};
+use systemprompt_oauth::services::{validate_any_audience, validate_required_audience, validate_service_access};
 use systemprompt_models::auth::JwtAudience;
 
 // ============================================================================

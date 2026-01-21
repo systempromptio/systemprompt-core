@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::queries::query_tools;

@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::LogService;
 
 use crate::models::{LogEntry, LogFilter, LoggingError};

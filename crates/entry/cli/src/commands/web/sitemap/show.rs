@@ -4,7 +4,7 @@ use std::fs;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 

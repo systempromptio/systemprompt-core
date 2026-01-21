@@ -9,7 +9,7 @@ use systemprompt_cloud::{
     run_checkout_callback_flow, CheckoutTemplates, CloudApiClient, CloudCredentials,
     ProjectContext, StoredTenant, TenantType,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use url::Url;
 
 use crate::cloud::deploy::deploy_with_secrets;

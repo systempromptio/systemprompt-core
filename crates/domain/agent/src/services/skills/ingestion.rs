@@ -4,7 +4,7 @@ use anyhow::{anyhow, Result};
 use std::collections::HashSet;
 use std::path::Path;
 use std::sync::Arc;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_models::IngestionReport;
 

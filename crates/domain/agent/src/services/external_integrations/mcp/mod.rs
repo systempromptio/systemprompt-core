@@ -5,11 +5,11 @@
 //! proper module boundaries.
 
 // Re-export orchestration types from MCP module
-pub use systemprompt_core_mcp::orchestration::{
+pub use systemprompt_mcp::orchestration::{
     McpServerConnectionInfo, McpServerMetadata, McpServiceState, McpToolLoader, ServerStatus,
     ServiceStateManager, SkillLoadingResult,
 };
 
 // Re-export MCP client types
-pub use systemprompt_core_mcp::services::client::McpClient;
+pub use systemprompt_mcp::services::client::McpClient;
 pub use systemprompt_models::ai::tools::McpTool;

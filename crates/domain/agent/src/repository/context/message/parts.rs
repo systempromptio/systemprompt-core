@@ -1,6 +1,6 @@
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_files::{FileUploadRequest, FileUploadService};
+use systemprompt_files::{FileUploadRequest, FileUploadService};
 use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_traits::RepositoryError;
 
@@ -206,7 +206,7 @@ async fn try_upload_file(
 }
 
 pub async fn persist_part_with_tx(
-    tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+    tx: &mut dyn systemprompt_database::DatabaseTransaction,
     part: &Part,
     message_id: &MessageId,
     task_id: &TaskId,

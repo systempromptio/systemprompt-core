@@ -7,7 +7,7 @@
 //! - BannedIp struct
 
 use chrono::{Duration, Utc};
-use systemprompt_core_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
+use systemprompt_users::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
 
 // ============================================================================
 // BanDuration Tests

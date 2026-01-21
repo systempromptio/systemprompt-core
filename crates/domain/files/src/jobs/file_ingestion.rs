@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use chrono::Utc;
 use std::path::Path;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult};
 use walkdir::WalkDir;
 

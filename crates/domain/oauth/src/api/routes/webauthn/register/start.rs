@@ -6,7 +6,7 @@ use axum::response::IntoResponse;
 use axum::Json;
 use serde::Deserialize;
 use std::sync::Arc;
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_users::{UserProviderImpl, UserService};
 use tracing::instrument;
 
 use super::RegisterError;

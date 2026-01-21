@@ -1,7 +1,7 @@
 //! Tests for throttle service types.
 
 use chrono::{Duration, Utc};
-use systemprompt_core_analytics::{EscalationCriteria, ThrottleLevel, ThrottleService};
+use systemprompt_analytics::{EscalationCriteria, ThrottleLevel, ThrottleService};
 
 mod throttle_level_tests {
     use super::*;

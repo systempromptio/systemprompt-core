@@ -4,7 +4,7 @@ use dialoguer::Input;
 use systemprompt_cloud::{
     get_cloud_paths, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use systemprompt_identifiers::TenantId;
 

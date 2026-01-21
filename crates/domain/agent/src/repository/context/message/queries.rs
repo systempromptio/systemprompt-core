@@ -145,7 +145,7 @@ pub async fn get_next_sequence_number_sqlx(
 }
 
 pub async fn get_next_sequence_number_in_tx(
-    tx: &mut dyn systemprompt_core_database::DatabaseTransaction,
+    tx: &mut dyn systemprompt_database::DatabaseTransaction,
     task_id: &TaskId,
 ) -> Result<i32, RepositoryError> {
     let query: &str =

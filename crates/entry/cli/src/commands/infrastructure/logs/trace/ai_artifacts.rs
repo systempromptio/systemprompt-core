@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use systemprompt_core_logging::{CliService, TaskArtifact};
+use systemprompt_logging::{CliService, TaskArtifact};
 use tabled::settings::Style;
 use tabled::Table;
 

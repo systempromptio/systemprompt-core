@@ -206,7 +206,7 @@ impl<T> Default for TableOutput<T> {
 }
 
 use crate::cli_settings::{get_global_config, OutputFormat};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 pub fn render_result<T: Serialize>(result: &CommandResult<T>) {
     if result.should_skip_render() {

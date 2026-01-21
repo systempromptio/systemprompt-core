@@ -7,9 +7,9 @@ use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
 
-use systemprompt_core_analytics::SessionRepository;
-use systemprompt_core_logging::AnalyticsRepository;
-use systemprompt_core_security::ScannerDetector;
+use systemprompt_analytics::SessionRepository;
+use systemprompt_logging::AnalyticsRepository;
+use systemprompt_security::ScannerDetector;
 use systemprompt_identifiers::SessionId;
 use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;

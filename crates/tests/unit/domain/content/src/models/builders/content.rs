@@ -5,7 +5,7 @@
 //! - UpdateContentParams builder
 
 use chrono::{TimeZone, Utc};
-use systemprompt_core_content::models::{CreateContentParams, UpdateContentParams};
+use systemprompt_content::models::{CreateContentParams, UpdateContentParams};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 // ============================================================================

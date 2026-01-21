@@ -327,7 +327,7 @@ pub fn validate_dockerfile_has_no_stale_binaries(
 }
 
 pub fn print_dockerfile_suggestion(project_root: &Path) {
-    systemprompt_core_logging::CliService::info(&generate_dockerfile_content(project_root));
+    systemprompt_logging::CliService::info(&generate_dockerfile_content(project_root));
 }
 
 pub fn validate_profile_dockerfile(

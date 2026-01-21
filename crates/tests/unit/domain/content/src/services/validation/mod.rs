@@ -6,8 +6,8 @@
 //! - validate_paper_section_ids_unique
 //! - is_valid_date_format (internal function behavior)
 
-use systemprompt_core_content::models::{PaperMetadata, PaperSection};
-use systemprompt_core_content::{
+use systemprompt_content::models::{PaperMetadata, PaperSection};
+use systemprompt_content::{
     validate_content_metadata, validate_paper_metadata, validate_paper_section_ids_unique,
     ContentMetadata,
 };

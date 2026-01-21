@@ -4,7 +4,7 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::path::PathBuf;
-use systemprompt_core_content::{IngestionOptions, IngestionService, IngestionSource};
+use systemprompt_content::{IngestionOptions, IngestionService, IngestionSource};
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig};
 use systemprompt_runtime::AppContext;
 

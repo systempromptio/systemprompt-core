@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_logging::{AiTraceService, CliService};
+use systemprompt_logging::{AiTraceService, CliService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};

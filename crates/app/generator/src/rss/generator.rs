@@ -1,8 +1,8 @@
 use super::xml::{build_rss_xml, RssChannel, RssItem};
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
-use systemprompt_core_content::ContentRepository;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::ContentRepository;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config};
 use tokio::fs;

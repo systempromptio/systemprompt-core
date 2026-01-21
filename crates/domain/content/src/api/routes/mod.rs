@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use axum::routing::{get, post};
 use axum::Router;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 pub use blog::{get_content_handler, list_content_by_source_handler};
 pub use links::{

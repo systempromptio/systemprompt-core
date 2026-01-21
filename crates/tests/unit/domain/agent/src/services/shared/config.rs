@@ -7,7 +7,7 @@
 //! - ConnectionConfiguration methods
 
 use std::time::Duration;
-use systemprompt_core_agent::services::shared::config::{
+use systemprompt_agent::services::shared::config::{
     AgentServiceConfig, ConfigValidation, ConnectionConfiguration, RuntimeConfiguration,
     RuntimeConfigurationBuilder, ServiceConfiguration,
 };

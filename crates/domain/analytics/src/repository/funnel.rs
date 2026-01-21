@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{FunnelId, FunnelProgressId, SessionId};
 
 use crate::models::{

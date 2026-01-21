@@ -1,7 +1,7 @@
 //! Tests for SchemaTransformer.
 
-use systemprompt_core_ai::services::schema::{ProviderCapabilities, SchemaTransformer, TransformedTool};
-use systemprompt_core_ai::models::tools::McpTool;
+use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaTransformer, TransformedTool};
+use systemprompt_ai::models::tools::McpTool;
 use systemprompt_identifiers::McpServerId;
 use serde_json::json;
 

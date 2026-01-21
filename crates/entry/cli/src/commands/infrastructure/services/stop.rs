@@ -1,11 +1,11 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_core_agent::services::registry::AgentRegistry;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_mcp::services::McpManager;
-use systemprompt_core_scheduler::{ProcessCleanup, ServiceManagementService};
+use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_logging::CliService;
+use systemprompt_mcp::services::McpManager;
+use systemprompt_scheduler::{ProcessCleanup, ServiceManagementService};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 

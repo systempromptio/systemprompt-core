@@ -4,8 +4,8 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use systemprompt_core_analytics::OverviewAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::OverviewAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::shared::{

@@ -1,6 +1,6 @@
 //! Unit tests for RepositoryError
 
-use systemprompt_core_database::RepositoryError;
+use systemprompt_database::RepositoryError;
 
 // ============================================================================
 // RepositoryError Construction Tests

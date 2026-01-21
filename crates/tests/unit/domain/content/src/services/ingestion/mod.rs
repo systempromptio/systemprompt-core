@@ -4,7 +4,7 @@
 //! - validate_paper_frontmatter
 //! - load_paper_chapters
 
-use systemprompt_core_content::services::{load_paper_chapters, validate_paper_frontmatter};
+use systemprompt_content::services::{load_paper_chapters, validate_paper_frontmatter};
 
 // ============================================================================
 // validate_paper_frontmatter Tests

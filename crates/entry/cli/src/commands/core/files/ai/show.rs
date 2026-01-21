@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_files::{FileService, TypeSpecificMetadata};
+use systemprompt_files::{FileService, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
@@ -69,7 +69,7 @@ fn parse_file_id(id: &str) -> Result<FileId> {
     Ok(FileId::new(id.to_string()))
 }
 
-fn convert_metadata(file: &systemprompt_core_files::File) -> FileMetadataOutput {
+fn convert_metadata(file: &systemprompt_files::File) -> FileMetadataOutput {
     let Ok(metadata) = file.metadata() else {
         return FileMetadataOutput::default();
     };

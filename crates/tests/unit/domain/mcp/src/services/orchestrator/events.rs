@@ -1,6 +1,6 @@
 //! Unit tests for MCP events
 
-use systemprompt_core_mcp::services::orchestrator::McpEvent;
+use systemprompt_mcp::services::orchestrator::McpEvent;
 
 // ============================================================================
 // McpEvent service_name Tests

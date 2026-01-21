@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use std::path::PathBuf;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_loader::ProfileLoader;
 
 use super::edit_secrets::edit_api_keys;

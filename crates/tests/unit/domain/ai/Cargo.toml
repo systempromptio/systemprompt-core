@@ -4,14 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-ai crate"
+description = "Unit tests for systemprompt-ai crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-ai = { workspace = true }
+systemprompt-ai = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }

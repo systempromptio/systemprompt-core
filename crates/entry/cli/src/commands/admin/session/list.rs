@@ -1,7 +1,7 @@
 //! List available profiles.
 
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;

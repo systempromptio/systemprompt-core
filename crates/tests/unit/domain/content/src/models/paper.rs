@@ -4,7 +4,7 @@
 //! - PaperSection struct and defaults
 //! - PaperMetadata struct and defaults
 
-use systemprompt_core_content::models::{PaperMetadata, PaperSection};
+use systemprompt_content::models::{PaperMetadata, PaperSection};
 
 // ============================================================================
 // PaperSection Tests

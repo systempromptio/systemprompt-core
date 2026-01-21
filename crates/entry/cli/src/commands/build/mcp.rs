@@ -3,7 +3,7 @@ use clap::Args;
 use std::path::Path;
 use std::process::Command;
 
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::BuildType;
 

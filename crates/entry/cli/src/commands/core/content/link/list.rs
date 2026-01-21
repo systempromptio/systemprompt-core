@@ -3,7 +3,7 @@ use crate::commands::core::content::types::{LinkListOutput, LinkSummary};
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_content::LinkAnalyticsService;
+use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::{CampaignId, ContentId};
 use systemprompt_runtime::AppContext;
 

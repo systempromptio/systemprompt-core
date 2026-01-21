@@ -1,6 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use super::{EventHandler, McpEvent};
 
@@ -16,7 +16,7 @@ impl MonitoringHandler {
 #[async_trait]
 impl EventHandler for MonitoringHandler {
     async fn handle(&self, event: &McpEvent) -> Result<()> {
-        let _guard = systemprompt_core_logging::SystemSpan::new("mcp_orchestrator").enter();
+        let _guard = systemprompt_logging::SystemSpan::new("mcp_orchestrator").enter();
         match event {
             McpEvent::ServiceStarted {
                 service_name,

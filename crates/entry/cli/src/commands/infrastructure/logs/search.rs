@@ -3,7 +3,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, Config};
 
 pub fn build_web_assets() -> Result<()> {

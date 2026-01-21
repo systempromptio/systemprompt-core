@@ -2,7 +2,7 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::{CliService, LoggingMaintenanceService};
 use systemprompt_runtime::AppContext;
 
 use super::duration::parse_duration;

@@ -1,6 +1,6 @@
 //! Tests for token generation services
 
-use systemprompt_core_oauth::services::{
+use systemprompt_oauth::services::{
     generate_access_token_jti, generate_client_secret, generate_secure_token, hash_client_secret,
     verify_client_secret, JwtConfig,
 };

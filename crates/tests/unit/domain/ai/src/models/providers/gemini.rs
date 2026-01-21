@@ -1,6 +1,6 @@
 //! Tests for Gemini model types.
 
-use systemprompt_core_ai::models::providers::gemini::{
+use systemprompt_ai::models::providers::gemini::{
     GeminiContent, GeminiModels, GeminiPart,
 };
 

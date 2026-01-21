@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde_json::Value;
-use systemprompt_core_logging::{CliService, TraceEvent};
+use systemprompt_logging::{CliService, TraceEvent};
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
 

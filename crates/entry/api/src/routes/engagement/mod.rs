@@ -1,8 +1,8 @@
 use axum::routing::post;
 use axum::Router;
 use std::sync::Arc;
-use systemprompt_core_analytics::EngagementRepository;
-use systemprompt_core_content::ContentRepository;
+use systemprompt_analytics::EngagementRepository;
+use systemprompt_content::ContentRepository;
 use systemprompt_runtime::AppContext;
 
 mod handlers;

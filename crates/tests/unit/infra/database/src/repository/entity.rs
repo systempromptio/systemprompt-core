@@ -1,6 +1,6 @@
 //! Unit tests for Entity and EntityId traits
 
-use systemprompt_core_database::repository::EntityId;
+use systemprompt_database::repository::EntityId;
 
 // ============================================================================
 // EntityId for String Tests

@@ -6,7 +6,7 @@
 //! - is_active logic in conversion
 
 use chrono::Utc;
-use systemprompt_core_users::User;
+use systemprompt_users::User;
 use systemprompt_identifiers::UserId;
 use systemprompt_traits::AuthUser;
 

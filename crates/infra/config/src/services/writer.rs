@@ -2,7 +2,7 @@ use super::types::{DeployEnvironment, EnvironmentConfig};
 use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 #[derive(Debug)]
 pub struct ConfigWriter {

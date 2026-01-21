@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Password, Select};
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 pub async fn edit_api_keys(profile_dir: &Path) -> Result<()> {

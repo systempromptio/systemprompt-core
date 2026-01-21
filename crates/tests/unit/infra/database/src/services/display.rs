@@ -4,7 +4,7 @@
 //! The actual output goes to stdout and is not captured in unit tests.
 
 use std::collections::HashMap;
-use systemprompt_core_database::{
+use systemprompt_database::{
     ColumnInfo, DatabaseCliDisplay, DatabaseInfo, QueryResult, TableInfo,
 };
 

@@ -1,7 +1,7 @@
 //! Tests for ResponseStrategy and TooledExecutor.
 
-use systemprompt_core_ai::services::tooled::ResponseStrategy;
-use systemprompt_core_ai::models::tools::{CallToolResult, ToolCall};
+use systemprompt_ai::services::tooled::ResponseStrategy;
+use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_identifiers::AiToolCallId;
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;

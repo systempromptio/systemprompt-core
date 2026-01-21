@@ -1,7 +1,7 @@
 use anyhow::Result;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::{Environment, LogLevel, Profile};
 
 pub fn edit_server_settings(profile: &mut Profile) -> Result<()> {

@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-ai"
+name = "systemprompt-ai"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core AI module for SystemPrompt"
 
 [lints]
@@ -40,13 +44,13 @@ inventory = { workspace = true }
 
 # Internal dependencies
 systemprompt-models = { path = "../../shared/models" }
-systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-database = { path = "../../infra/database" }
 systemprompt-runtime = { path = "../../app/runtime" }
 systemprompt-loader = { path = "../../infra/loader" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-oauth = { path = "../oauth" }
-systemprompt-core-files = { path = "../files" }
-systemprompt-core-analytics = { path = "../analytics" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-oauth = { path = "../oauth" }
+systemprompt-files = { path = "../files" }
+systemprompt-analytics = { path = "../analytics" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 

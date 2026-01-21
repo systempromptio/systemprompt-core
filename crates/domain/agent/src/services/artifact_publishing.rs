@@ -4,7 +4,7 @@ use serde_json::json;
 use crate::models::a2a::{Artifact, Message, Part, TextPart};
 use crate::repository::content::{ArtifactRepository, SkillRepository};
 use crate::services::MessageService;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::execution::CallSource;
 use systemprompt_models::RequestContext;

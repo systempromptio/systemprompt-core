@@ -3,8 +3,8 @@
 //! These tests require a running PostgreSQL database with the schema set up.
 //! Set DATABASE_URL environment variable to run these tests.
 
-use systemprompt_core_database::Database;
-use systemprompt_core_files::{
+use systemprompt_database::Database;
+use systemprompt_files::{
     AiService, ContentService, FileRepository, FileService, InsertFileRequest,
 };
 use systemprompt_identifiers::{ContentId, FileId, UserId};
@@ -192,7 +192,7 @@ async fn test_file_service_update_metadata() {
         return;
     };
 
-    use systemprompt_core_files::FileMetadata;
+    use systemprompt_files::FileMetadata;
 
     let service = FileService::new(db.pool()).expect("Failed to create service");
     let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
@@ -357,7 +357,7 @@ async fn test_content_service_link_operations() {
         return;
     };
 
-    use systemprompt_core_files::FileRole;
+    use systemprompt_files::FileRole;
 
     let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
     let file_service = FileService::new(db.pool()).expect("Failed to create file service");

@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::{Database, DatabaseProvider};
+use systemprompt_database::{Database, DatabaseProvider};
 
 pub const TEST_SOURCE_PREFIX: &str = "test_";
 

@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Minimal shared traits and contracts for SystemPrompt"
 
 [lints]
@@ -29,4 +33,4 @@ tokio = { workspace = true, features = ["sync"] }
 
 [dev-dependencies]
 tokio = { workspace = true }
-systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-database = { path = "../../infra/database" }

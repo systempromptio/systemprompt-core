@@ -921,7 +921,7 @@ fn test_escape_yaml_multiple_escapes() {
 
 #[test]
 fn test_generate_skill_markdown_structure() {
-    use systemprompt_core_agent::models::Skill;
+    use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
     let skill = Skill {
@@ -951,7 +951,7 @@ fn test_generate_skill_markdown_structure() {
 
 #[test]
 fn test_generate_skill_config_structure() {
-    use systemprompt_core_agent::models::Skill;
+    use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
     let skill = Skill {
@@ -979,7 +979,7 @@ fn test_generate_skill_config_structure() {
 
 #[test]
 fn test_generate_skill_config_empty_tags() {
-    use systemprompt_core_agent::models::Skill;
+    use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{SkillId, SourceId};
 
     let skill = Skill {
@@ -1004,7 +1004,7 @@ fn test_generate_skill_config_empty_tags() {
 
 #[test]
 fn test_export_skill_to_disk_creates_files() {
-    use systemprompt_core_agent::models::Skill;
+    use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
     let temp_dir = TempDir::new().unwrap();
@@ -1039,7 +1039,7 @@ fn test_export_skill_to_disk_creates_files() {
 
 #[test]
 fn test_export_skill_underscore_to_dash() {
-    use systemprompt_core_agent::models::Skill;
+    use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{SkillId, SourceId};
 
     let temp_dir = TempDir::new().unwrap();
@@ -1066,7 +1066,7 @@ fn test_export_skill_underscore_to_dash() {
 
 #[test]
 fn test_generate_content_markdown_structure() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
     let content = Content {
@@ -1102,7 +1102,7 @@ fn test_generate_content_markdown_structure() {
 
 #[test]
 fn test_generate_content_markdown_no_image() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
     let content = Content {
@@ -1132,7 +1132,7 @@ fn test_generate_content_markdown_no_image() {
 
 #[test]
 fn test_export_content_to_file_docs() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
     let temp_dir = TempDir::new().unwrap();
@@ -1167,7 +1167,7 @@ fn test_export_content_to_file_docs() {
 
 #[test]
 fn test_export_content_to_file_blog_creates_directory() {
-    use systemprompt_core_content::models::Content;
+    use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
     let temp_dir = TempDir::new().unwrap();

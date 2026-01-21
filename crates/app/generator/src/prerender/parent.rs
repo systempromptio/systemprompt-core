@@ -2,7 +2,7 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use systemprompt_cloud::constants::storage;
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
 use systemprompt_template_provider::ComponentContext;
 use systemprompt_templates::TemplateRegistry;

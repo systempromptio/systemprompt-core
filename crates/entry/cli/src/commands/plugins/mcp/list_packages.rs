@@ -6,7 +6,7 @@ use clap::Args;
 use super::types::McpPackagesOutput;
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_core_mcp::services::registry::RegistryManager;
+use systemprompt_mcp::services::registry::RegistryManager;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListPackagesArgs {

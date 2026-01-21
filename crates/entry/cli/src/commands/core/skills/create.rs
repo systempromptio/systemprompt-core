@@ -10,9 +10,9 @@ use std::sync::Arc;
 use super::types::SkillCreateOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use systemprompt_core_agent::services::skills::SkillIngestionService;
-use systemprompt_core_database::Database;
-use systemprompt_core_logging::CliService;
+use systemprompt_agent::services::skills::SkillIngestionService;
+use systemprompt_database::Database;
+use systemprompt_logging::CliService;
 use systemprompt_identifiers::SourceId;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 

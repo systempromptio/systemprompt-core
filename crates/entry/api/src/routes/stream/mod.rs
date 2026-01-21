@@ -5,8 +5,8 @@ use axum::routing::get;
 use axum::Router;
 use std::convert::Infallible;
 use std::sync::{Arc, LazyLock};
-use systemprompt_core_agent::services::ContextProviderService;
-use systemprompt_core_events::{
+use systemprompt_agent::services::ContextProviderService;
+use systemprompt_events::{
     standard_keep_alive, Broadcaster, ConnectionGuard, GenericBroadcaster, A2A_BROADCASTER,
     AGUI_BROADCASTER,
 };

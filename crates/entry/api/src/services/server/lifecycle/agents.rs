@@ -8,8 +8,8 @@ pub async fn reconcile_agents(
     ctx: &AppContext,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
-    use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
-    use systemprompt_core_agent::services::registry::AgentRegistry;
+    use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+    use systemprompt_agent::services::registry::AgentRegistry;
 
     let orchestrator = match AgentOrchestrator::new(Arc::new(ctx.clone()), events).await {
         Ok(orch) => orch,
@@ -132,8 +132,8 @@ pub async fn reconcile_agents(
 async fn handle_failed_agents(
     mut started: usize,
     failed_agents: &[(String, String)],
-    agent_registry: &systemprompt_core_agent::services::registry::AgentRegistry,
-    orchestrator: &systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator,
+    agent_registry: &systemprompt_agent::services::registry::AgentRegistry,
+    orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
     events: Option<&StartupEventSender>,
 ) -> Result<usize> {
     if let Some(tx) = events {
@@ -208,17 +208,17 @@ async fn handle_failed_agents(
 }
 
 async fn enforce_clean_agent_state(
-    orchestrator: &systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator,
+    orchestrator: &systemprompt_agent::services::agent_orchestration::AgentOrchestrator,
     agent_id: &str,
     desired_port: u16,
     events: Option<&StartupEventSender>,
 ) -> Result<bool> {
-    use systemprompt_core_agent::services::agent_orchestration::{AgentStatus, PortManager};
+    use systemprompt_agent::services::agent_orchestration::{AgentStatus, PortManager};
 
     if let Ok(status) = orchestrator.get_status(agent_id).await {
         match status {
             AgentStatus::Running { pid, port } => {
-                use systemprompt_core_agent::services::agent_orchestration::process;
+                use systemprompt_agent::services::agent_orchestration::process;
                 let reason = if port == desired_port {
                     format!("Restarting agent to ensure fresh state (pid {pid})")
                 } else {

@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Static site generation for SystemPrompt"
 
 [lints]
@@ -17,14 +21,14 @@ systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 # Infrastructure layer
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-config = { path = "../../infra/config" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-config = { path = "../../infra/config" }
 systemprompt-cloud = { path = "../../infra/cloud" }
 
 # Domain layer (read-only access for content types)
-systemprompt-core-content = { path = "../../domain/content" }
-systemprompt-core-files = { path = "../../domain/files" }
+systemprompt-content = { path = "../../domain/content" }
+systemprompt-files = { path = "../../domain/files" }
 systemprompt-templates = { path = "../../domain/templates" }
 
 # Template provider traits

@@ -1,7 +1,7 @@
 use crate::services::validation::jwt as jwt_validation;
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
-use systemprompt_core_security::TokenExtractor;
+use systemprompt_security::TokenExtractor;
 use systemprompt_models::auth::AuthenticatedUser;
 use uuid::Uuid;
 

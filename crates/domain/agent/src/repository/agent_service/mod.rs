@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug)]

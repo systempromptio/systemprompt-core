@@ -3,7 +3,7 @@ use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
 use crate::services::MessageService;
 use rmcp::ErrorData as McpError;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::{Config, TaskMetadata};
 

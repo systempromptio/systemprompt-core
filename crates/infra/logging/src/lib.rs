@@ -20,7 +20,7 @@ pub use trace::{
 
 use std::sync::OnceLock;
 
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};

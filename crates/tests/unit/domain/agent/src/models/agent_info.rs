@@ -6,8 +6,8 @@
 //! - Builder pattern methods (with_skills, with_mcp_servers)
 //! - Count methods (skills_count, mcp_count)
 
-use systemprompt_core_agent::models::agent_info::AgentInfo;
-use systemprompt_core_agent::models::a2a::AgentCard;
+use systemprompt_agent::models::agent_info::AgentInfo;
+use systemprompt_agent::models::a2a::AgentCard;
 
 fn create_test_card() -> AgentCard {
     AgentCard {
@@ -100,7 +100,7 @@ fn test_agent_info_version() {
 
 #[test]
 fn test_agent_info_with_skills() {
-    use systemprompt_core_agent::models::a2a::AgentSkill;
+    use systemprompt_agent::models::a2a::AgentSkill;
 
     let card = create_test_card();
     let skills = vec![
@@ -145,7 +145,7 @@ fn test_agent_info_with_mcp_servers() {
 
 #[test]
 fn test_agent_info_builder_chain() {
-    use systemprompt_core_agent::models::a2a::AgentSkill;
+    use systemprompt_agent::models::a2a::AgentSkill;
 
     let card = create_test_card();
     let skills = vec![AgentSkill {
@@ -182,7 +182,7 @@ fn test_agent_info_skills_count_none() {
 
 #[test]
 fn test_agent_info_skills_count_with_skills() {
-    use systemprompt_core_agent::models::a2a::AgentSkill;
+    use systemprompt_agent::models::a2a::AgentSkill;
 
     let card = create_test_card();
     let skills = vec![

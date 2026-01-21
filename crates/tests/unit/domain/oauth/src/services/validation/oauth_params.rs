@@ -1,6 +1,6 @@
 //! Tests for OAuth parameter validation
 
-use systemprompt_core_oauth::services::validation::{
+use systemprompt_oauth::services::validation::{
     get_audit_user, optional_param, required_param, scope_param, validate_pkce, CsrfToken,
     ValidatedClientRegistration,
 };

@@ -2,8 +2,8 @@ use anyhow::Result;
 use clap::Args;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use systemprompt_core_analytics::AgentAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::AgentAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{AgentTrendPoint, AgentTrendsOutput};

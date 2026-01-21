@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::time::Duration;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use tokio::net::TcpStream;
 use tokio::time::timeout;
 

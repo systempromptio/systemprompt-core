@@ -4,7 +4,7 @@
 //! are internal to the layer module and not publicly exported.
 //! These tests focus on the publicly available DatabaseLayer functionality.
 
-use systemprompt_core_logging::DatabaseLayer;
+use systemprompt_logging::DatabaseLayer;
 
 // ============================================================================
 // DatabaseLayer Debug Tests

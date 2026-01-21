@@ -12,7 +12,7 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 
 use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
-use systemprompt_core_logging::set_startup_mode;
+use systemprompt_logging::set_startup_mode;
 use systemprompt_runtime::DatabaseContext;
 
 use crate::requirements::{CommandRequirements, HasRequirements};
@@ -212,7 +212,7 @@ pub async fn run() -> Result<()> {
     // Initialize console logging for commands that don't need database.
     // Database commands get logging initialized in AppContext::new().
     if !reqs.database {
-        systemprompt_core_logging::init_console_logging();
+        systemprompt_logging::init_console_logging();
     }
 
     // Initialize based on requirements
@@ -280,7 +280,7 @@ async fn run_with_database_url(
         .context("Failed to connect to database")?;
 
     // Initialize logging with database persistence
-    systemprompt_core_logging::init_logging(db_ctx.db_pool_arc());
+    systemprompt_logging::init_logging(db_ctx.db_pool_arc());
 
     match command {
         Some(Commands::Core(cmd)) => core::execute_with_db(cmd, &db_ctx, config).await,

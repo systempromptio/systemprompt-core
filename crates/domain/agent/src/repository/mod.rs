@@ -1,4 +1,4 @@
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 pub mod agent_service;
 pub mod content;
@@ -25,7 +25,7 @@ pub struct A2ARepositories {
 impl A2ARepositories {
     pub async fn new(database_url: &str) -> Result<Self, RepositoryError> {
         use std::sync::Arc;
-        use systemprompt_core_database::Database;
+        use systemprompt_database::Database;
 
         let db_pool = Database::new_postgres(database_url)
             .await

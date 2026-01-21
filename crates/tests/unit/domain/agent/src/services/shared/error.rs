@@ -4,7 +4,7 @@
 //! - Error variant creation and display messages
 //! - Error conversions from other error types
 
-use systemprompt_core_agent::services::shared::error::AgentServiceError;
+use systemprompt_agent::services::shared::error::AgentServiceError;
 
 // ============================================================================
 // AgentServiceError Variant Tests
@@ -178,13 +178,13 @@ fn test_agent_service_error_match_timeout() {
 
 #[test]
 fn test_result_ok() {
-    let result: systemprompt_core_agent::services::shared::error::Result<i32> = Ok(42);
+    let result: systemprompt_agent::services::shared::error::Result<i32> = Ok(42);
     assert_eq!(result.unwrap(), 42);
 }
 
 #[test]
 fn test_result_err() {
-    let result: systemprompt_core_agent::services::shared::error::Result<i32> =
+    let result: systemprompt_agent::services::shared::error::Result<i32> =
         Err(AgentServiceError::NotFound("item".to_string()));
     assert!(result.is_err());
 }

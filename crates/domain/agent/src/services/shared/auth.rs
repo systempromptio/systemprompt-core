@@ -1,6 +1,6 @@
 use crate::services::shared::error::{AgentServiceError, Result};
 use jsonwebtoken::{decode, DecodingKey, Validation};
-pub use systemprompt_core_oauth::models::JwtClaims;
+pub use systemprompt_oauth::models::JwtClaims;
 
 pub struct JwtValidator {
     decoding_key: DecodingKey,

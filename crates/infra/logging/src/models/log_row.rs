@@ -22,7 +22,7 @@ pub struct LogRow {
 }
 
 impl LogRow {
-    pub fn from_json_row(row: &systemprompt_core_database::JsonRow) -> Result<Self> {
+    pub fn from_json_row(row: &systemprompt_database::JsonRow) -> Result<Self> {
         use anyhow::anyhow;
 
         let id = row
@@ -33,7 +33,7 @@ impl LogRow {
 
         let timestamp = row
             .get("timestamp")
-            .and_then(systemprompt_core_database::parse_database_datetime)
+            .and_then(systemprompt_database::parse_database_datetime)
             .ok_or_else(|| anyhow!("Invalid timestamp"))?;
 
         let level = row

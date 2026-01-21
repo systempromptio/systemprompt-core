@@ -1,6 +1,6 @@
 //! Unit tests for FileMetadata, TypeSpecificMetadata, and related types
 
-use systemprompt_core_files::{
+use systemprompt_files::{
     AudioMetadata, DocumentMetadata, FileChecksums, FileMetadata, ImageMetadata,
     TypeSpecificMetadata, VideoMetadata,
 };

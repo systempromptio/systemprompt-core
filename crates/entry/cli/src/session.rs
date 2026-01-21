@@ -9,11 +9,11 @@ use systemprompt_cloud::{
     CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, ProjectContext, SessionKey,
     SessionStore,
 };
-use systemprompt_core_agent::repository::context::ContextRepository;
-use systemprompt_core_database::{Database, DbPool};
-use systemprompt_core_logging::CliService;
-use systemprompt_core_security::{SessionGenerator, SessionParams};
-use systemprompt_core_users::UserService;
+use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_database::{Database, DbPool};
+use systemprompt_logging::CliService;
+use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_users::UserService;
 use systemprompt_identifiers::{
     AgentName, ContextId, Email, ProfileName, SessionId, SessionToken, TraceId, UserId,
 };
@@ -385,7 +385,7 @@ async fn create_session_for_tenant(
     )
 }
 
-async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_core_users::User> {
+async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_users::User> {
     let user_service = UserService::new(db_pool)?;
     let user = user_service
         .find_by_email(email)

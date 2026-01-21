@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Redirect};
 use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
-use systemprompt_core_users::{UserProviderImpl, UserService};
+use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{
     AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
 };
@@ -194,7 +194,7 @@ async fn exchange_code_for_token(
 
 async fn load_authenticated_user(
     user_id: &UserId,
-    db_pool: systemprompt_core_database::DbPool,
+    db_pool: systemprompt_database::DbPool,
 ) -> anyhow::Result<AuthenticatedUser> {
     let user_service = UserService::new(&db_pool)?;
 

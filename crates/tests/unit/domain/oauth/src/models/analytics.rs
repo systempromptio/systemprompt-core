@@ -1,7 +1,7 @@
 //! Tests for Analytics models
 
 use chrono::Utc;
-use systemprompt_core_oauth::models::analytics::{
+use systemprompt_oauth::models::analytics::{
     ClientAnalytics, ClientAnalyticsRow, ClientErrorAnalytics, ClientErrorAnalyticsRow,
 };
 

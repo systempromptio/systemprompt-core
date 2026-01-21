@@ -1,4 +1,4 @@
-use systemprompt_core_content::models::PaperMetadata;
+use systemprompt_content::models::PaperMetadata;
 
 use crate::content::render_markdown;
 

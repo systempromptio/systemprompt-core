@@ -1,6 +1,6 @@
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_files::ContentService;
+use systemprompt_files::ContentService;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 

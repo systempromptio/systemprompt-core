@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
-use systemprompt_core_content::models::Content;
-use systemprompt_core_content::ContentRepository;
+use systemprompt_content::models::Content;
+use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::SourceId;
 
 use crate::prerender::context::PrerenderContext;

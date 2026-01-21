@@ -3,8 +3,8 @@ use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
 use std::sync::Arc;
 
-use systemprompt_core_analytics::{SessionRepository, ThrottleLevel};
-use systemprompt_core_database::DbPool;
+use systemprompt_analytics::{SessionRepository, ThrottleLevel};
+use systemprompt_database::DbPool;
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::RequestContext;
 

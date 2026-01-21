@@ -5,7 +5,7 @@
 //! - JwtValidator creation and debug
 //! - AgentSessionUser construction
 
-use systemprompt_core_agent::services::shared::auth::{
+use systemprompt_agent::services::shared::auth::{
     extract_bearer_token, AgentSessionUser, JwtValidator,
 };
 

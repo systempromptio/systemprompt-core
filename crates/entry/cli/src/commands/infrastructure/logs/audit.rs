@@ -187,7 +187,7 @@ async fn find_by_trace_id(
 }
 
 fn render_not_found(id: &str) {
-    use systemprompt_core_logging::CliService;
+    use systemprompt_logging::CliService;
     CliService::warning(&format!("No AI request found for: {id}"));
     CliService::info("Tip: Use 'systemprompt infra logs request list' to see recent requests");
     CliService::info("     Use 'systemprompt infra logs trace list' to see recent traces");

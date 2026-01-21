@@ -7,7 +7,7 @@ use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use tokio::sync::{oneshot, Mutex};
 
 use crate::api_client::{CheckoutEvent, ProvisioningEventType};

@@ -1,5 +1,5 @@
 use std::time::Duration;
-use systemprompt_core_logging::services::cli::{
+use systemprompt_logging::services::cli::{
     render_phase_warning, render_service_table, render_startup_banner, render_startup_complete,
     BrandColors, ServiceStatus, ServiceTableEntry,
 };
@@ -46,14 +46,14 @@ impl CompletionMessage {
     }
 
     pub fn render_failure(duration: Duration, error: &str) {
-        systemprompt_core_logging::CliService::info("");
-        systemprompt_core_logging::CliService::info(&format!(
+        systemprompt_logging::CliService::info("");
+        systemprompt_logging::CliService::info(&format!(
             "{} {} {}",
             BrandColors::stopped("✗"),
             BrandColors::white_bold("Startup failed"),
             BrandColors::dim(format!("after {:.1}s", duration.as_secs_f64()))
         ));
-        systemprompt_core_logging::CliService::info(&format!("  {}", BrandColors::stopped(error)));
-        systemprompt_core_logging::CliService::info("");
+        systemprompt_logging::CliService::info(&format!("  {}", BrandColors::stopped(error)));
+        systemprompt_logging::CliService::info("");
     }
 }

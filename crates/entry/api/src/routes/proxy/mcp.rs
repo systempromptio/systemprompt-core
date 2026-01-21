@@ -5,7 +5,7 @@ use axum::routing::{any, get};
 use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_core_mcp::repository::ToolUsageRepository;
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_identifiers::McpExecutionId;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::ApiError;

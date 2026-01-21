@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use serde_json::Value;
-use systemprompt_core_content::services::link::generation::GenerateContentLinkParams;
-use systemprompt_core_content::services::LinkGenerationService;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::services::link::generation::GenerateContentLinkParams;
+use systemprompt_content::services::LinkGenerationService;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContentId;
 
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 
 use crate::content::{generate_related_card, CardData};
 

@@ -1,8 +1,8 @@
 use anyhow::{anyhow, Context, Result};
 use std::sync::Arc;
-use systemprompt_core_database::DatabaseAdminService;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_users::{PromoteResult, UserAdminService, UserService};
+use systemprompt_database::DatabaseAdminService;
+use systemprompt_logging::CliService;
+use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
@@ -11,7 +11,7 @@ use super::helpers::format_bytes;
 use super::types::{DbAssignAdminOutput, DbMigrateOutput, DbStatusOutput};
 
 pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
-    use systemprompt_core_database::Database;
+    use systemprompt_database::Database;
     use systemprompt_loader::ModuleLoader;
     use systemprompt_models::Config;
     use systemprompt_runtime::{install_module_with_db, Modules};

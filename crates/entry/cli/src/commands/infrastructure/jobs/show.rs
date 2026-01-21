@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_scheduler::{JobRepository, ScheduledJob};
+use systemprompt_scheduler::{JobRepository, ScheduledJob};
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::Job;
 

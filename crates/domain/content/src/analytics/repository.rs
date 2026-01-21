@@ -4,7 +4,7 @@ use crate::models::{
 };
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,
 };

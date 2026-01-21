@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_core_database::{
+use systemprompt_database::{
     install_module_schemas_from_source, install_module_seeds_from_path, DatabaseProvider,
 };
 use systemprompt_models::modules::Module;

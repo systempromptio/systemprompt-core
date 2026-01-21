@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "SystemPrompt OS - CLI for agent orchestration, AI operations, and system management"
 
 [lints]
@@ -12,10 +16,6 @@ workspace = true
 [lib]
 name = "systemprompt_cli"
 path = "src/lib.rs"
-
-[[bin]]
-name = "systemprompt"
-path = "src/main.rs"
 
 [dependencies]
 # Core runtime
@@ -27,20 +27,20 @@ async-trait = { workspace = true }
 
 # SystemPrompt crates
 systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-core-agent = { path = "../../domain/agent" }
-systemprompt-core-mcp = { path = "../../domain/mcp" }
-systemprompt-core-api = { path = "../api" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-users = { path = "../../domain/users" }
-systemprompt-core-oauth = { path = "../../domain/oauth" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-content = { path = "../../domain/content" }
-systemprompt-core-files = { path = "../../domain/files" }
-systemprompt-core-scheduler = { path = "../../app/scheduler" }
-systemprompt-core-config = { path = "../../infra/config" }
-systemprompt-core-analytics = { path = "../../domain/analytics" }
-systemprompt-core-security = { path = "../../infra/security" }
-systemprompt-core-ai = { path = "../../domain/ai" }
+systemprompt-agent = { path = "../../domain/agent" }
+systemprompt-mcp = { path = "../../domain/mcp" }
+systemprompt-api = { path = "../api" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-users = { path = "../../domain/users" }
+systemprompt-oauth = { path = "../../domain/oauth" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-content = { path = "../../domain/content" }
+systemprompt-files = { path = "../../domain/files" }
+systemprompt-scheduler = { path = "../../app/scheduler" }
+systemprompt-config = { path = "../../infra/config" }
+systemprompt-analytics = { path = "../../domain/analytics" }
+systemprompt-security = { path = "../../infra/security" }
+systemprompt-ai = { path = "../../domain/ai" }
 systemprompt-sync = { path = "../../app/sync" }
 systemprompt-generator = { path = "../../app/generator" }
 systemprompt-models = { path = "../../shared/models" }
@@ -88,7 +88,7 @@ regex = { workspace = true }
 [dev-dependencies]
 reqwest = { workspace = true }
 systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-core-ai = { path = "../../domain/ai" }
+systemprompt-ai = { path = "../../domain/ai" }
 uuid = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

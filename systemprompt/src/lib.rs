@@ -34,19 +34,19 @@ pub mod template_provider {
 #[cfg(feature = "database")]
 #[cfg_attr(docsrs, doc(cfg(feature = "database")))]
 pub mod database {
-    pub use systemprompt_core_database::*;
+    pub use systemprompt_database::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod logging {
-    pub use systemprompt_core_logging::*;
+    pub use systemprompt_logging::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod config {
-    pub use systemprompt_core_config::*;
+    pub use systemprompt_config::*;
 }
 
 #[cfg(feature = "full")]
@@ -58,7 +58,7 @@ pub mod loader {
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod events {
-    pub use systemprompt_core_events::*;
+    pub use systemprompt_events::*;
 }
 
 #[cfg(feature = "full")]
@@ -70,7 +70,7 @@ pub mod client {
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod security {
-    pub use systemprompt_core_security::*;
+    pub use systemprompt_security::*;
 }
 
 #[cfg(feature = "api")]
@@ -82,7 +82,7 @@ pub mod system {
 #[cfg(feature = "api")]
 #[cfg_attr(docsrs, doc(cfg(feature = "api")))]
 pub mod api {
-    pub use systemprompt_core_api::*;
+    pub use systemprompt_api::*;
 }
 
 #[cfg(feature = "cli")]
@@ -91,58 +91,65 @@ pub mod cli {
     pub use systemprompt_cli::{run, CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 }
 
+#[cfg(feature = "runtime")]
+#[cfg_attr(docsrs, doc(cfg(feature = "runtime")))]
+pub mod runtime;
+
+#[cfg(feature = "runtime")]
+pub use runtime::{RuntimeBuilder, WebAssets};
+
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod agent {
-    pub use systemprompt_core_agent::*;
+    pub use systemprompt_agent::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod ai {
-    pub use systemprompt_core_ai::*;
+    pub use systemprompt_ai::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod mcp {
-    pub use systemprompt_core_mcp::*;
+    pub use systemprompt_mcp::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod oauth {
-    pub use systemprompt_core_oauth::*;
+    pub use systemprompt_oauth::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod users {
-    pub use systemprompt_core_users::*;
+    pub use systemprompt_users::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod content {
-    pub use systemprompt_core_content::*;
+    pub use systemprompt_content::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod analytics {
-    pub use systemprompt_core_analytics::*;
+    pub use systemprompt_analytics::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod scheduler {
-    pub use systemprompt_core_scheduler::*;
+    pub use systemprompt_scheduler::*;
 }
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod files {
-    pub use systemprompt_core_files::*;
+    pub use systemprompt_files::*;
 }
 
 #[cfg(feature = "sync")]

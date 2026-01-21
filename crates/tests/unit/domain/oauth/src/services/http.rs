@@ -1,7 +1,7 @@
 //! Tests for HTTP service (BrowserRedirectService)
 
 use axum::http::HeaderMap;
-use systemprompt_core_oauth::BrowserRedirectService;
+use systemprompt_oauth::BrowserRedirectService;
 
 // ============================================================================
 // is_browser_request Tests

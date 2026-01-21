@@ -1,11 +1,11 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_core_agent::services::agent_orchestration::AgentOrchestrator;
-use systemprompt_core_agent::services::registry::AgentRegistry;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_mcp::services::McpManager;
-use systemprompt_core_scheduler::ProcessCleanup;
+use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
+use systemprompt_agent::services::registry::AgentRegistry;
+use systemprompt_logging::CliService;
+use systemprompt_mcp::services::McpManager;
+use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
 
@@ -157,8 +157,8 @@ pub async fn execute_all_mcp(ctx: &Arc<AppContext>, _config: &CliConfig) -> Resu
     let mcp_manager =
         McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
-    systemprompt_core_mcp::services::RegistryManager::validate()?;
-    let servers = systemprompt_core_mcp::services::RegistryManager::get_enabled_servers()?;
+    systemprompt_mcp::services::RegistryManager::validate()?;
+    let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
 
     let mut restarted = 0i32;
     let mut failed = 0i32;
@@ -240,7 +240,7 @@ async fn restart_failed_agents(
             continue;
         }
 
-        if let systemprompt_core_agent::services::agent_orchestration::AgentStatus::Failed {
+        if let systemprompt_agent::services::agent_orchestration::AgentStatus::Failed {
             ..
         } = status
         {
@@ -269,8 +269,8 @@ async fn restart_failed_mcp(
     let mcp_manager =
         McpManager::new(Arc::clone(ctx)).context("Failed to initialize MCP manager")?;
 
-    systemprompt_core_mcp::services::RegistryManager::validate()?;
-    let servers = systemprompt_core_mcp::services::RegistryManager::get_enabled_servers()?;
+    systemprompt_mcp::services::RegistryManager::validate()?;
+    let servers = systemprompt_mcp::services::RegistryManager::get_enabled_servers()?;
 
     for server in servers {
         if !server.enabled {
@@ -278,7 +278,7 @@ async fn restart_failed_mcp(
         }
 
         let database =
-            systemprompt_core_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
+            systemprompt_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
         let service_info = database.get_service_by_name(&server.name).await?;
 
         let needs_restart = match service_info {

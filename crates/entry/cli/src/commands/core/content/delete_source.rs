@@ -3,8 +3,8 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_content::ContentRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_content::ContentRepository;
+use systemprompt_logging::CliService;
 use systemprompt_identifiers::SourceId;
 use systemprompt_runtime::AppContext;
 

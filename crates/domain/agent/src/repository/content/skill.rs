@@ -2,7 +2,7 @@ use crate::models::{Skill, SkillRow};
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
 #[derive(Debug)]

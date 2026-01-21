@@ -2,7 +2,7 @@ use anyhow::Result;
 use systemprompt_cloud::{
     get_cloud_paths, CloudPath, ProjectContext, SessionStore, TenantStore, LOCAL_SESSION_KEY,
 };
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use crate::cli_settings::CliConfig;

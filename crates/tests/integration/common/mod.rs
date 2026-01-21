@@ -24,4 +24,4 @@ pub use database::{
 };
 pub use factories::{conversation_message, fingerprint, user_agent, SessionFactory};
 
-pub use systemprompt_core_database::DatabaseProvider;
+pub use systemprompt_database::DatabaseProvider;

@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::LogEntryRow;
 

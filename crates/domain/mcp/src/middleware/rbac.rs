@@ -1,6 +1,6 @@
 use rmcp::service::RequestContext as McpContext;
 use rmcp::{ErrorData as McpError, RoleServer};
-use systemprompt_core_oauth::services::validation::jwt::validate_jwt_token;
+use systemprompt_oauth::services::validation::jwt::validate_jwt_token;
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::auth::AuthenticatedUser;
@@ -112,7 +112,7 @@ pub async fn enforce_rbac_from_registry(
 fn validate_and_extract_claims(
     server_name: &str,
     token: &str,
-) -> Result<systemprompt_core_oauth::JwtClaims, McpError> {
+) -> Result<systemprompt_oauth::JwtClaims, McpError> {
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
         tracing::error!(server = %server_name, error = %e, "Failed to get JWT secret");
         McpError::invalid_request(format!("Failed to get JWT secret: {e}"), None)
@@ -129,7 +129,7 @@ fn validate_and_extract_claims(
 
 fn validate_audience(
     server_name: &str,
-    claims: &systemprompt_core_oauth::JwtClaims,
+    claims: &systemprompt_oauth::JwtClaims,
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
     if claims.aud.contains(&oauth_config.audience) {
@@ -153,7 +153,7 @@ fn validate_audience(
 
 fn validate_scopes(
     server_name: &str,
-    claims: &systemprompt_core_oauth::JwtClaims,
+    claims: &systemprompt_oauth::JwtClaims,
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
     let user_scopes = claims.get_scopes();
@@ -184,7 +184,7 @@ fn validate_scopes(
 
 fn build_authenticated_context(
     request_context: RequestContext,
-    claims: &systemprompt_core_oauth::JwtClaims,
+    claims: &systemprompt_oauth::JwtClaims,
     token: String,
 ) -> Result<AuthenticatedRequestContext, McpError> {
     let user_id = claims.sub.parse().map_err(|e| {

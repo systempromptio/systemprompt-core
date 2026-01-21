@@ -1,7 +1,7 @@
 //! Tests for shared response builder.
 
 use std::time::Instant;
-use systemprompt_core_ai::services::providers::shared::{
+use systemprompt_ai::services::providers::shared::{
     build_response, BuildResponseParams, TokenUsage,
 };
 use uuid::Uuid;

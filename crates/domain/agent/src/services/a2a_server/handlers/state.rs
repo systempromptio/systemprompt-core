@@ -1,5 +1,5 @@
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::{AgentConfig, AiProvider};
 use systemprompt_runtime::AppContext;
 use tokio::sync::RwLock;

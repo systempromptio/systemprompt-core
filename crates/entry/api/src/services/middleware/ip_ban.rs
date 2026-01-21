@@ -4,7 +4,7 @@ use axum::response::{IntoResponse, Response};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use systemprompt_core_users::BannedIpRepository;
+use systemprompt_users::BannedIpRepository;
 use systemprompt_models::api::ApiError;
 use tracing::warn;
 

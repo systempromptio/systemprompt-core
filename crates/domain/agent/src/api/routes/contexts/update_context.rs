@@ -6,7 +6,7 @@ use systemprompt_identifiers::ContextId;
 use super::is_valid_context_id;
 use crate::models::context::UpdateContextRequest;
 use crate::repository::context::ContextRepository;
-use systemprompt_core_events::EventRouter;
+use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SingleResponse, SystemEventBuilder};
 
 pub async fn update_context(

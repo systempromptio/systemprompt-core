@@ -1,8 +1,8 @@
 use anyhow::Result;
 use async_trait::async_trait;
-use systemprompt_core_analytics::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
-use systemprompt_core_database::DbPool;
-use systemprompt_core_users::{BanDuration, BanIpParams, BannedIpRepository};
+use systemprompt_analytics::detection::{DATACENTER_IP_PREFIXES, HIGH_RISK_COUNTRIES};
+use systemprompt_database::DbPool;
+use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use systemprompt_traits::{Job, JobContext, JobResult};
 use tracing::{info, warn};
 

@@ -4,6 +4,10 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "SystemPrompt Cloud infrastructure - API client, credentials, OAuth"
 
 [lints]
@@ -52,7 +56,7 @@ uuid = { workspace = true }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-client = { path = "../../shared/client" }
-systemprompt-core-logging = { path = "../logging" }
+systemprompt-logging = { path = "../logging" }
 
 [dev-dependencies]
 tempfile.workspace = true

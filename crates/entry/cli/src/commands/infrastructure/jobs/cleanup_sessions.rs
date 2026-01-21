@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_analytics::SessionCleanupService;
+use systemprompt_analytics::SessionCleanupService;
 use systemprompt_runtime::AppContext;
 
 use super::types::SessionCleanupOutput;

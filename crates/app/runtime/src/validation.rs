@@ -1,7 +1,7 @@
 use crate::AppContext;
 use anyhow::{bail, Result};
 use std::path::Path;
-use systemprompt_core_database::validate_database_connection;
+use systemprompt_database::validate_database_connection;
 
 pub async fn validate_system(ctx: &AppContext) -> Result<()> {
     validate_database(ctx).await?;

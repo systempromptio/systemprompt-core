@@ -1,7 +1,7 @@
 //! Unit tests for DatabaseQuery, QueryResult, and QuerySelector
 
 use std::collections::HashMap;
-use systemprompt_core_database::{DatabaseQuery, QueryResult, QuerySelector};
+use systemprompt_database::{DatabaseQuery, QueryResult, QuerySelector};
 
 // ============================================================================
 // DatabaseQuery Tests

@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::models::a2a::{Message, Part, TextPart};
 use crate::repository::task::TaskRepository;
-use systemprompt_core_database::{DatabaseProvider, DatabaseTransaction, DbPool};
+use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::Repository;

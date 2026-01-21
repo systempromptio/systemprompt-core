@@ -10,7 +10,7 @@ use dialoguer::Select;
 use super::types::AgentLogsOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use systemprompt_core_logging::LoggingRepository;
+use systemprompt_logging::LoggingRepository;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 

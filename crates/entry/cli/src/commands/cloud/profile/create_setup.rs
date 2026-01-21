@@ -4,7 +4,7 @@ use dialoguer::Confirm;
 use std::path::Path;
 use std::process::Command;
 use systemprompt_cloud::ProjectContext;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 use super::templates::{run_migrations_cmd, validate_connection};
 use crate::cloud::tenant::wait_for_postgres_healthy;

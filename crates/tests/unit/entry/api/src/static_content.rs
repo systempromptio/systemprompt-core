@@ -8,7 +8,7 @@
 //! Note: `StaticContentMatcher::from_config` requires filesystem access
 //! and is tested through integration tests.
 
-use systemprompt_core_api::services::static_content::StaticContentMatcher;
+use systemprompt_api::services::static_content::StaticContentMatcher;
 
 // ============================================================================
 // StaticContentMatcher Empty State Tests

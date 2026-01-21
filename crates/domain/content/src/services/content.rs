@@ -1,7 +1,7 @@
 use crate::error::ContentError;
 use crate::models::Content;
 use crate::repository::ContentRepository;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 
 #[derive(Debug)]

@@ -2,7 +2,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_core_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
+use systemprompt_logging::{AiTraceService, CliService, TraceEvent, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::ai_artifacts::print_artifacts;
@@ -48,9 +48,9 @@ struct FormattedDisplayContext<'a> {
     trace_id: &'a str,
     task_id: Option<&'a str>,
     verbose: bool,
-    ai_summary: &'a systemprompt_core_logging::AiRequestSummary,
-    mcp_summary: &'a systemprompt_core_logging::McpExecutionSummary,
-    step_summary: &'a systemprompt_core_logging::ExecutionStepSummary,
+    ai_summary: &'a systemprompt_logging::AiRequestSummary,
+    mcp_summary: &'a systemprompt_logging::McpExecutionSummary,
+    step_summary: &'a systemprompt_logging::ExecutionStepSummary,
 }
 
 pub async fn execute(args: ShowArgs) -> Result<()> {

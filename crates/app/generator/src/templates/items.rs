@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value;
 
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 
 pub fn find_latest_items<'a>(
     item: &Value,

@@ -1,8 +1,8 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_core_logging::CliService;
-use systemprompt_core_users::UserService;
+use systemprompt_logging::CliService;
+use systemprompt_users::UserService;
 use systemprompt_runtime::AppContext;
 
 use crate::commands::admin::users::types::SessionCleanupOutput;

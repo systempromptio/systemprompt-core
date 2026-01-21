@@ -1,10 +1,10 @@
 //! Tests for Anthropic converter functions.
 
 use serde_json::json;
-use systemprompt_core_ai::models::ai::{AiMessage, MessageRole};
-use systemprompt_core_ai::models::providers::anthropic::AnthropicContent;
-use systemprompt_core_ai::models::tools::McpTool;
-use systemprompt_core_ai::services::providers::anthropic::converters::{
+use systemprompt_ai::models::ai::{AiMessage, MessageRole};
+use systemprompt_ai::models::providers::anthropic::AnthropicContent;
+use systemprompt_ai::models::tools::McpTool;
+use systemprompt_ai::services::providers::anthropic::converters::{
     convert_messages, convert_tools,
 };
 use systemprompt_identifiers::McpServerId;

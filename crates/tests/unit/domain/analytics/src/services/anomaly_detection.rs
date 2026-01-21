@@ -1,6 +1,6 @@
 //! Tests for anomaly detection service.
 
-use systemprompt_core_analytics::{
+use systemprompt_analytics::{
     AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
 };
 

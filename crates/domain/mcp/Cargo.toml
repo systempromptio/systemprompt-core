@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-mcp"
+name = "systemprompt-mcp"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Core MCP (Model Context Protocol) functionality for SystemPrompt OS"
 
 [lints]
@@ -46,11 +50,11 @@ clap = { workspace = true }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-core-oauth = { path = "../oauth" }
-systemprompt-core-logging = { path = "../../infra/logging" }
-systemprompt-core-config = { path = "../../infra/config" }
-systemprompt-core-database = { path = "../../infra/database" }
-systemprompt-core-scheduler = { path = "../../app/scheduler" }
+systemprompt-oauth = { path = "../oauth" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-config = { path = "../../infra/config" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-scheduler = { path = "../../app/scheduler" }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-loader = { path = "../../infra/loader" }
 

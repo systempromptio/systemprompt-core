@@ -5,7 +5,7 @@ use crate::models::{ArtifactPartRow, ArtifactRow};
 use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 

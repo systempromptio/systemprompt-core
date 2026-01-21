@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_core_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
+use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 

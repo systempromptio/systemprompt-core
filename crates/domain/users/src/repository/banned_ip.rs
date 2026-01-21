@@ -4,7 +4,7 @@ use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, PgPool, Row};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct BannedIp {

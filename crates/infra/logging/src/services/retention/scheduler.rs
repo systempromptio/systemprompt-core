@@ -3,7 +3,7 @@ use std::sync::Arc;
 use super::policies::RetentionConfig;
 use crate::repository::LoggingRepository;
 use chrono::Utc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use tokio_cron_scheduler::{Job, JobScheduler};
 
 #[derive(Debug)]

@@ -1,6 +1,6 @@
 //! Tests for JsonParser.
 
-use systemprompt_core_ai::services::structured_output::parser::JsonParser;
+use systemprompt_ai::services::structured_output::parser::JsonParser;
 
 mod extract_json_tests {
     use super::*;

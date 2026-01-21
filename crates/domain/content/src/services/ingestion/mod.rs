@@ -9,7 +9,7 @@ use crate::repository::ContentRepository;
 use crate::services::validation::validate_content_metadata;
 use sha2::{Digest, Sha256};
 use std::path::Path;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 #[derive(Debug)]

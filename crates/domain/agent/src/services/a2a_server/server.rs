@@ -1,7 +1,7 @@
 use axum::routing::{get, post};
 use axum::{middleware, Router};
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{AgentConfig, AiProvider};
 use systemprompt_runtime::AppContext;

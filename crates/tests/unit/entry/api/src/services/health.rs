@@ -7,7 +7,7 @@
 //! - HealthChecker builder pattern
 
 use std::time::Duration;
-use systemprompt_core_api::{HealthChecker, HealthSummary, ModuleHealth};
+use systemprompt_api::{HealthChecker, HealthSummary, ModuleHealth};
 
 // ============================================================================
 // ModuleHealth Tests

@@ -1,6 +1,6 @@
 //! Tests for Gemini tool conversion functions.
 
-use systemprompt_core_ai::services::providers::gemini::tool_conversion::build_thinking_config;
+use systemprompt_ai::services::providers::gemini::tool_conversion::build_thinking_config;
 
 mod build_thinking_config_tests {
     use super::*;

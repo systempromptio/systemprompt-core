@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};
 
 use crate::services::agent_orchestration::database::AgentDatabaseService;

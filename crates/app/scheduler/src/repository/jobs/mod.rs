@@ -2,7 +2,7 @@ use crate::models::{JobStatus, ScheduledJob};
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::ScheduledJobId;
 
 #[derive(Debug, Clone)]

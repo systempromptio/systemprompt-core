@@ -5,7 +5,7 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_core_content::ContentIngestionJob;
+use systemprompt_content::ContentIngestionJob;
 use systemprompt_generator::{
     generate_sitemap, prerender_content, prerender_homepage, CopyExtensionAssetsJob,
 };

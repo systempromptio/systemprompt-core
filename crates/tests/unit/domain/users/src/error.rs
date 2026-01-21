@@ -6,7 +6,7 @@
 //! - Error conversions (From implementations)
 //! - Result type alias
 
-use systemprompt_core_users::UserError;
+use systemprompt_users::UserError;
 use systemprompt_identifiers::UserId;
 
 // ============================================================================
@@ -234,7 +234,7 @@ mod error_trait_tests {
 
 mod result_type_tests {
     use super::*;
-    use systemprompt_core_users::Result;
+    use systemprompt_users::Result;
 
     #[test]
     fn result_ok_variant() {

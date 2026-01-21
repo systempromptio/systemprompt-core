@@ -2,7 +2,7 @@ use crate::error::ContentError;
 use crate::models::SearchResult;
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::CategoryId;
 
 #[derive(Debug)]

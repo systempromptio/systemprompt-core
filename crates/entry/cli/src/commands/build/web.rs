@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use std::process::Command;
 use std::time::Instant;
 
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use super::types::WebBuildOutput;

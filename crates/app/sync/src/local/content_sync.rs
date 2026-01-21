@@ -3,10 +3,10 @@ use crate::export::export_content_to_file;
 use crate::models::{ContentDiffResult, LocalSyncResult};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
-use systemprompt_core_content::models::{IngestionOptions, IngestionSource};
-use systemprompt_core_content::repository::ContentRepository;
-use systemprompt_core_content::services::IngestionService;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::models::{IngestionOptions, IngestionSource};
+use systemprompt_content::repository::ContentRepository;
+use systemprompt_content::services::IngestionService;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContentId, SourceId};
 use tracing::info;
 

@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
 
-use systemprompt_core_oauth::models::JwtClaims;
+use systemprompt_oauth::models::JwtClaims;
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;
 

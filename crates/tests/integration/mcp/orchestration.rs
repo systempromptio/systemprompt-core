@@ -1,9 +1,9 @@
 use anyhow::Result;
-use systemprompt_core_mcp::services::orchestrator::McpEvent;
+use systemprompt_mcp::services::orchestrator::McpEvent;
 
 #[tokio::test]
 async fn test_event_bus_publishes_events() -> Result<()> {
-    use systemprompt_core_mcp::services::orchestrator::EventBus;
+    use systemprompt_mcp::services::orchestrator::EventBus;
 
     let event_bus = EventBus::new(10);
     let mut receiver = event_bus.subscribe();

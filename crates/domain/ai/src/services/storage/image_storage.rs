@@ -5,7 +5,7 @@ use chrono::{Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_core_files::FilesConfig;
+use systemprompt_files::FilesConfig;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

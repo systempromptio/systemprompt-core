@@ -1,9 +1,13 @@
 [package]
-name = "systemprompt-core-analytics"
+name = "systemprompt-analytics"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+keywords.workspace = true
+categories.workspace = true
 description = "Analytics module for SystemPrompt - session tracking, metrics, and reporting"
 
 [lints]
@@ -36,4 +40,4 @@ url = { workspace = true }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers" }
 systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-core-database = { path = "../../infra/database" }
+systemprompt-database = { path = "../../infra/database" }

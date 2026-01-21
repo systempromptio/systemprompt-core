@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::{
     AgentConfig, AiConfig, ContentConfigRaw, Deployment, SkillsConfig, WebConfig,
 };

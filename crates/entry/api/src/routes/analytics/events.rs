@@ -4,11 +4,11 @@ use axum::response::IntoResponse;
 use axum::Json;
 use std::sync::Arc;
 
-use systemprompt_core_analytics::{
+use systemprompt_analytics::{
     AnalyticsEventBatchResponse, AnalyticsEventsRepository, CreateAnalyticsEventBatchInput,
     CreateAnalyticsEventInput,
 };
-use systemprompt_core_content::ContentRepository;
+use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::ContentId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;

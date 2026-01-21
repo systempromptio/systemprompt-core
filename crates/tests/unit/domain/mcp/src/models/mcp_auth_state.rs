@@ -1,6 +1,6 @@
 //! Unit tests for McpAuthState
 
-use systemprompt_core_mcp::McpAuthState;
+use systemprompt_mcp::McpAuthState;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use uuid::Uuid;
 

@@ -1,6 +1,6 @@
 //! Tests for SchemaSanitizer.
 
-use systemprompt_core_ai::services::schema::{ProviderCapabilities, SchemaSanitizer};
+use systemprompt_ai::services::schema::{ProviderCapabilities, SchemaSanitizer};
 use serde_json::json;
 
 mod remove_unsupported_keywords_tests {

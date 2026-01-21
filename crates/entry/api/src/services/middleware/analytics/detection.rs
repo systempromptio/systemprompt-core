@@ -1,7 +1,7 @@
 use chrono::Utc;
 use std::sync::Arc;
 
-use systemprompt_core_analytics::{
+use systemprompt_analytics::{
     BehavioralAnalysisInput, BehavioralBotDetector, SessionRepository, ThrottleLevel,
 };
 use systemprompt_identifiers::SessionId;

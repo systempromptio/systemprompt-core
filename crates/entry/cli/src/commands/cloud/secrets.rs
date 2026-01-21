@@ -3,7 +3,7 @@ use clap::Subcommand;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{CloudApiClient, CloudCredentials, ProfilePath};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use super::tenant::get_credentials;

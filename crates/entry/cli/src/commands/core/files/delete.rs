@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
 use dialoguer::Confirm;
-use systemprompt_core_files::FileService;
+use systemprompt_files::FileService;
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 

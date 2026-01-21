@@ -5,7 +5,7 @@ use axum::Json;
 
 use crate::models::context::CreateContextRequest;
 use crate::repository::context::ContextRepository;
-use systemprompt_core_events::EventRouter;
+use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, ApiErrorExt, SingleResponse, SystemEventBuilder};
 
 pub async fn create_context(

@@ -22,7 +22,7 @@ use clap::{Args, Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Input, Select};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {

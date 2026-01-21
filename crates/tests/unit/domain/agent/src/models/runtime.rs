@@ -4,7 +4,7 @@
 //! - AgentRuntimeInfo serialization and deserialization
 //! - Conversion from AgentConfig
 
-use systemprompt_core_agent::models::runtime::AgentRuntimeInfo;
+use systemprompt_agent::models::runtime::AgentRuntimeInfo;
 use systemprompt_models::ai::ToolModelOverrides;
 
 // ============================================================================

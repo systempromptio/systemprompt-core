@@ -5,7 +5,7 @@ use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use super::{StreamState, StreamWithGuard};
-use systemprompt_core_events::{
+use systemprompt_events::{
     standard_keep_alive, Broadcaster, ConnectionGuard, CONTEXT_BROADCASTER,
 };
 use systemprompt_models::events::ContextSummary;

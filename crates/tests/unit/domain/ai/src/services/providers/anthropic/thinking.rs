@@ -1,4 +1,4 @@
-use systemprompt_core_ai::services::providers::anthropic::thinking::{
+use systemprompt_ai::services::providers::anthropic::thinking::{
     build_thinking_config, supports_extended_thinking,
 };
 

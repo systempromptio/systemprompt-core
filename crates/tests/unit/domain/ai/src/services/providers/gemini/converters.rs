@@ -2,9 +2,9 @@
 
 use rmcp::model::{Annotated, Content, RawContent, RawTextContent};
 use serde_json::json;
-use systemprompt_core_ai::models::ai::{AiMessage, MessageRole};
-use systemprompt_core_ai::models::tools::CallToolResult;
-use systemprompt_core_ai::services::providers::gemini::converters::{
+use systemprompt_ai::models::ai::{AiMessage, MessageRole};
+use systemprompt_ai::models::tools::CallToolResult;
+use systemprompt_ai::services::providers::gemini::converters::{
     convert_messages, convert_tool_result_to_json,
 };
 

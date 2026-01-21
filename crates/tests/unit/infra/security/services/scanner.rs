@@ -6,7 +6,7 @@
 //! - High velocity request detection
 //! - Combined scanner detection
 
-use systemprompt_core_security::ScannerDetector;
+use systemprompt_security::ScannerDetector;
 
 // ============================================================================
 // Scanner Path Detection - Extension Tests

@@ -1,6 +1,6 @@
 //! Tests for SchemaValidator.
 
-use systemprompt_core_ai::services::structured_output::validator::SchemaValidator;
+use systemprompt_ai::services::structured_output::validator::SchemaValidator;
 use serde_json::json;
 
 mod type_validation_tests {

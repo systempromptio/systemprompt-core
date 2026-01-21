@@ -54,6 +54,8 @@ version = "0.0.1"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
 documentation = "https://docs.systemprompt.io"
+keywords = ["ai", "agents", "mcp", "llm", "orchestration"]
+categories = ["api-bindings", "development-tools"]
 
 [workspace.lints.clippy]
 all = { level = "deny", priority = -1 }

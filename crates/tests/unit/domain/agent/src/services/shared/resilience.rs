@@ -7,7 +7,7 @@
 //! - Delay calculation logic
 
 use std::time::Duration;
-use systemprompt_core_agent::services::shared::resilience::{
+use systemprompt_agent::services::shared::resilience::{
     RetryConfiguration, TimeoutConfiguration, TimeoutType,
 };
 
@@ -266,10 +266,10 @@ fn test_timeout_selection() {
 // Async Retry Operation Tests
 // ============================================================================
 
-use systemprompt_core_agent::services::shared::resilience::{
+use systemprompt_agent::services::shared::resilience::{
     execute_with_timeout, execute_with_custom_timeout, retry_operation, retry_operation_with_backoff,
 };
-use systemprompt_core_agent::services::shared::error::AgentServiceError;
+use systemprompt_agent::services::shared::error::AgentServiceError;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 

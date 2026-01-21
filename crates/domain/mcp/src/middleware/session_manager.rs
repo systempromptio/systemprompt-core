@@ -6,7 +6,7 @@ use rmcp::transport::streamable_http_server::session::local::{
     LocalSessionManager, LocalSessionManagerError,
 };
 use rmcp::transport::streamable_http_server::session::{SessionId, SessionManager};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 #[derive(Debug)]
 pub struct DatabaseSessionManager {

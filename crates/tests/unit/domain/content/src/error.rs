@@ -4,7 +4,7 @@
 //! - ContentError enum variants and Display impl
 //! - Error type conversions (From implementations)
 
-use systemprompt_core_content::ContentError;
+use systemprompt_content::ContentError;
 
 // ============================================================================
 // ContentError Display Tests

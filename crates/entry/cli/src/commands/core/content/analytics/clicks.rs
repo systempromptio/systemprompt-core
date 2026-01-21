@@ -3,8 +3,8 @@ use crate::commands::core::content::types::{ClickRow, ClicksOutput};
 use crate::shared::CommandResult;
 use anyhow::Result;
 use clap::Args;
-use systemprompt_core_content::LinkAnalyticsService;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::LinkAnalyticsService;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::LinkId;
 use systemprompt_runtime::AppContext;
 

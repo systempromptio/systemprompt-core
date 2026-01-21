@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
 use axum::http::{HeaderMap, StatusCode};
 use std::str::FromStr;
-use systemprompt_core_oauth::services::{
+use systemprompt_oauth::services::{
     generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams,
 };
-use systemprompt_core_oauth::validate_jwt_token;
-use systemprompt_core_users::UserService;
+use systemprompt_oauth::validate_jwt_token;
+use systemprompt_users::UserService;
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience, Permission};
 use uuid;
@@ -93,9 +93,9 @@ pub async fn generate_cross_protocol_token(
 }
 
 async fn verify_user_exists_and_active(
-    claims: &systemprompt_core_oauth::JwtClaims,
+    claims: &systemprompt_oauth::JwtClaims,
     user_service: &UserService,
-) -> Result<systemprompt_core_users::models::User> {
+) -> Result<systemprompt_users::models::User> {
     let user_id = UserId::new(claims.sub.clone());
     let user = user_service
         .find_by_id(&user_id)
@@ -127,8 +127,8 @@ async fn verify_user_exists_and_active(
 }
 
 fn verify_a2a_permissions(
-    claims: &systemprompt_core_oauth::JwtClaims,
-    user: &systemprompt_core_users::models::User,
+    claims: &systemprompt_oauth::JwtClaims,
+    user: &systemprompt_users::models::User,
 ) -> Result<()> {
     let token_has_a2a_permission = claims.has_permission(Permission::Admin);
 

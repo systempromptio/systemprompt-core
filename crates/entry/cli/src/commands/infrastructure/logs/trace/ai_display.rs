@@ -1,4 +1,4 @@
-use systemprompt_core_logging::{
+use systemprompt_logging::{
     AiRequestInfo, CliService, ConversationMessage, ExecutionStep, TaskInfo,
 };
 use tabled::settings::Style;

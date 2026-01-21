@@ -6,8 +6,8 @@
 //! - Business logic methods
 
 use anyhow::Result;
-use systemprompt_core_database::Database;
-use systemprompt_core_users::{UserRole, UserService, UserStatus};
+use systemprompt_database::Database;
+use systemprompt_users::{UserRole, UserService, UserStatus};
 
 async fn get_db() -> Option<Database> {
     let database_url = std::env::var("DATABASE_URL").ok()?;

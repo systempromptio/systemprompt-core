@@ -1,7 +1,7 @@
 use crate::common::context::TestContext;
 use anyhow::Result;
 use serde_json::json;
-use systemprompt_core_database::DatabaseProvider;
+use systemprompt_database::DatabaseProvider;
 
 #[tokio::test]
 async fn test_link_generation() -> Result<()> {

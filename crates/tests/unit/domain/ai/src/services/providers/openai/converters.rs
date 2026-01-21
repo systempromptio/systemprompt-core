@@ -1,10 +1,10 @@
 //! Tests for OpenAI converter functions.
 
 use serde_json::json;
-use systemprompt_core_ai::services::providers::openai::converters::{
+use systemprompt_ai::services::providers::openai::converters::{
     convert_response_format, convert_tools,
 };
-use systemprompt_core_ai::models::tools::McpTool;
+use systemprompt_ai::models::tools::McpTool;
 use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ai::ResponseFormat;
 

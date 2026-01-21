@@ -12,11 +12,11 @@ use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{CliSession, ProjectContext};
-use systemprompt_core_agent::repository::context::ContextRepository;
-use systemprompt_core_database::{Database, DbPool};
-use systemprompt_core_logging::CliService;
-use systemprompt_core_security::{SessionGenerator, SessionParams};
-use systemprompt_core_users::{User, UserService};
+use systemprompt_agent::repository::context::ContextRepository;
+use systemprompt_database::{Database, DbPool};
+use systemprompt_logging::CliService;
+use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_users::{User, UserService};
 use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 

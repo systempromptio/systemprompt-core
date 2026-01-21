@@ -250,7 +250,7 @@ fn build_level_counts(rows: &[LevelRow]) -> LevelCounts {
 }
 
 fn render_text_output(output: &LogsSummaryOutput) {
-    use systemprompt_core_logging::CliService;
+    use systemprompt_logging::CliService;
 
     CliService::section("Logs Summary");
 

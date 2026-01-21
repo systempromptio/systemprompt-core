@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use systemprompt_core_content::models::ContentError;
+use systemprompt_content::models::ContentError;
 use systemprompt_models::{ContentConfigRaw, SitemapConfig};
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;

@@ -1,4 +1,4 @@
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::{process, OrchestrationResult};

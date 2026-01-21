@@ -3,8 +3,8 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
-use systemprompt_core_analytics::RequestAnalyticsRepository;
-use systemprompt_core_logging::CliService;
+use systemprompt_analytics::RequestAnalyticsRepository;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::commands::analytics::shared::{

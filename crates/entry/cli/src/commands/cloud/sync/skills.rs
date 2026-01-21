@@ -2,8 +2,8 @@ use super::SkillsSyncArgs;
 use anyhow::{Context, Result};
 use dialoguer::{Confirm, Select};
 use std::sync::Arc;
-use systemprompt_core_database::{Database, DatabaseProvider};
-use systemprompt_core_logging::CliService;
+use systemprompt_database::{Database, DatabaseProvider};
+use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult, SkillsLocalSync};
 

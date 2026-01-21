@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::constants::container;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 use systemprompt_models::{CliPaths, Profile};
 
 use crate::cloud::dockerfile::DockerfileBuilder;

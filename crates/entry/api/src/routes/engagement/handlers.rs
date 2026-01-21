@@ -5,8 +5,8 @@ use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use systemprompt_core_analytics::{CreateEngagementEventInput, EngagementRepository};
-use systemprompt_core_content::ContentRepository;
+use systemprompt_analytics::{CreateEngagementEventInput, EngagementRepository};
+use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::ContentId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;

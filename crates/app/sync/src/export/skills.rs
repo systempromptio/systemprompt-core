@@ -2,7 +2,7 @@ use super::escape_yaml;
 use anyhow::Result;
 use std::fs;
 use std::path::Path;
-use systemprompt_core_agent::models::Skill;
+use systemprompt_agent::models::Skill;
 
 pub fn generate_skill_markdown(skill: &Skill) -> String {
     let tags_str = skill.tags.join(", ");

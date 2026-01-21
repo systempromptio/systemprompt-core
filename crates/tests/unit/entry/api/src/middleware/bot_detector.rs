@@ -5,7 +5,7 @@
 //! - BotMarker struct construction and field access
 //! - Clone and Debug implementations
 
-use systemprompt_core_api::services::middleware::bot_detector::{BotMarker, BotType};
+use systemprompt_api::services::middleware::bot_detector::{BotMarker, BotType};
 
 // ============================================================================
 // BotType Enum Tests

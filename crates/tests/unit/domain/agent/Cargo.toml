@@ -4,15 +4,15 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Unit tests for systemprompt-core-agent crate"
+description = "Unit tests for systemprompt-agent crate"
 publish = false
 
 [lints]
 workspace = true
 
 [dependencies]
-systemprompt-core-agent = { workspace = true }
-systemprompt-core-database = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-database = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }

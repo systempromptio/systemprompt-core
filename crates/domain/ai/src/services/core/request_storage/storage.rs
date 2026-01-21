@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::{AiRequestRecord, RequestStatus};
 use crate::repository::AiRequestRepository;
-use systemprompt_core_analytics::SessionRepository;
+use systemprompt_analytics::SessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::AnalyticsEventPublisher;
 

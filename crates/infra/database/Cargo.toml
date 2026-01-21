@@ -1,13 +1,15 @@
 [package]
-name = "systemprompt-core-database"
+name = "systemprompt-database"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 description = "Database abstraction layer for SystemPrompt supporting SQLite, PostgreSQL, and MySQL"
 keywords = ["database", "abstraction", "sqlx", "repository", "pattern"]
 categories = ["database"]
-documentation = "https://docs.rs/systemprompt-core-database"
+documentation = "https://docs.rs/systemprompt-database"
 
 [lints]
 workspace = true

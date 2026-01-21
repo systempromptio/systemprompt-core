@@ -1,6 +1,6 @@
 //! Unit tests for ValidationResultType enum
 
-use systemprompt_core_mcp::models::ValidationResultType;
+use systemprompt_mcp::models::ValidationResultType;
 
 // ============================================================================
 // ValidationResultType as_str Tests

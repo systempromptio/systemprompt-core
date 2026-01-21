@@ -14,7 +14,7 @@ use chrono::Utc;
 use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Instant;
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 use tracing::instrument;
 use uuid::Uuid;

@@ -2,7 +2,7 @@ use super::types::{DeployEnvironment, EnvironmentConfig};
 use anyhow::{anyhow, Result};
 use regex::Regex;
 use std::path::Path;
-use systemprompt_core_logging::CliService;
+use systemprompt_logging::CliService;
 
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigValidator;

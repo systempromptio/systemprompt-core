@@ -1,7 +1,7 @@
 use anyhow::{anyhow, Context, Result};
 use std::collections::HashSet;
-use systemprompt_core_database::{DatabaseAdminService, DatabaseCliDisplay};
-use systemprompt_core_logging::CliService;
+use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay};
+use systemprompt_logging::CliService;
 use tabled::{Table, Tabled};
 
 use crate::cli_settings::CliConfig;

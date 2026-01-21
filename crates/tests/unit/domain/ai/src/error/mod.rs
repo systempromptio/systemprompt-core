@@ -1,6 +1,6 @@
 //! Tests for error module types and implementations.
 
-use systemprompt_core_ai::error::{AiError, RepositoryError};
+use systemprompt_ai::error::{AiError, RepositoryError};
 use uuid::Uuid;
 
 // sqlx is needed for Database error variants

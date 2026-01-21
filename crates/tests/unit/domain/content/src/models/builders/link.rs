@@ -6,7 +6,7 @@
 //! - TrackClickParams builder
 
 use chrono::{TimeZone, Utc};
-use systemprompt_core_content::models::{CreateLinkParams, RecordClickParams, TrackClickParams};
+use systemprompt_content::models::{CreateLinkParams, RecordClickParams, TrackClickParams};
 use systemprompt_identifiers::{
     CampaignId, ContentId, ContextId, LinkClickId, LinkId, SessionId, TaskId, UserId,
 };

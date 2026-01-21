@@ -6,8 +6,8 @@
 //! - inject_utm_params
 //! - determine_destination_type (internal behavior)
 
-use systemprompt_core_content::models::UtmParams;
-use systemprompt_core_content::services::LinkGenerationService;
+use systemprompt_content::models::UtmParams;
+use systemprompt_content::services::LinkGenerationService;
 
 // ============================================================================
 // inject_utm_params Tests
@@ -120,7 +120,7 @@ fn test_inject_utm_params_url_with_fragment() {
 
 #[test]
 fn test_build_trackable_url_redirect_type() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     // Create a minimal CampaignLink for testing
@@ -153,7 +153,7 @@ fn test_build_trackable_url_redirect_type() {
 
 #[test]
 fn test_build_trackable_url_both_type() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -185,7 +185,7 @@ fn test_build_trackable_url_both_type() {
 
 #[test]
 fn test_build_trackable_url_utm_type() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -218,7 +218,7 @@ fn test_build_trackable_url_utm_type() {
 
 #[test]
 fn test_build_trackable_url_unknown_type() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -255,7 +255,7 @@ fn test_build_trackable_url_unknown_type() {
 
 #[test]
 fn test_campaign_link_get_full_url_no_utm() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -286,7 +286,7 @@ fn test_campaign_link_get_full_url_no_utm() {
 
 #[test]
 fn test_campaign_link_get_full_url_with_utm() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -319,7 +319,7 @@ fn test_campaign_link_get_full_url_with_utm() {
 
 #[test]
 fn test_campaign_link_get_full_url_with_existing_query() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -353,7 +353,7 @@ fn test_campaign_link_get_full_url_with_existing_query() {
 
 #[test]
 fn test_campaign_link_get_full_url_invalid_utm_json() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -389,8 +389,8 @@ fn test_campaign_link_get_full_url_invalid_utm_json() {
 
 #[test]
 fn test_generate_link_params_debug() {
-    use systemprompt_core_content::services::link::generation::GenerateLinkParams;
-    use systemprompt_core_content::models::LinkType;
+    use systemprompt_content::services::link::generation::GenerateLinkParams;
+    use systemprompt_content::models::LinkType;
 
     let params = GenerateLinkParams {
         target_url: "https://example.com".to_string(),
@@ -412,8 +412,8 @@ fn test_generate_link_params_debug() {
 
 #[test]
 fn test_generate_link_params_full() {
-    use systemprompt_core_content::services::link::generation::GenerateLinkParams;
-    use systemprompt_core_content::models::{LinkType, UtmParams};
+    use systemprompt_content::services::link::generation::GenerateLinkParams;
+    use systemprompt_content::models::{LinkType, UtmParams};
     use systemprompt_identifiers::{CampaignId, ContentId};
     use chrono::Utc;
 
@@ -449,7 +449,7 @@ fn test_generate_link_params_full() {
 
 #[test]
 fn test_generate_content_link_params_debug() {
-    use systemprompt_core_content::services::link::generation::GenerateContentLinkParams;
+    use systemprompt_content::services::link::generation::GenerateContentLinkParams;
     use systemprompt_identifiers::ContentId;
 
     let content_id = ContentId::new("content-123");
@@ -467,7 +467,7 @@ fn test_generate_content_link_params_debug() {
 
 #[test]
 fn test_generate_content_link_params_full() {
-    use systemprompt_core_content::services::link::generation::GenerateContentLinkParams;
+    use systemprompt_content::services::link::generation::GenerateContentLinkParams;
     use systemprompt_identifiers::ContentId;
 
     let content_id = ContentId::new("content-456");
@@ -491,7 +491,7 @@ fn test_generate_content_link_params_full() {
 
 #[test]
 fn test_link_type_redirect_in_trackable_url() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {
@@ -523,7 +523,7 @@ fn test_link_type_redirect_in_trackable_url() {
 
 #[test]
 fn test_link_type_both_in_trackable_url() {
-    use systemprompt_core_content::models::CampaignLink;
+    use systemprompt_content::models::CampaignLink;
     use systemprompt_identifiers::LinkId;
 
     let link = CampaignLink {

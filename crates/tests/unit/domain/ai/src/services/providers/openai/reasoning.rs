@@ -1,5 +1,5 @@
-use systemprompt_core_ai::models::providers::openai::OpenAiReasoningEffort;
-use systemprompt_core_ai::services::providers::openai::reasoning::{
+use systemprompt_ai::models::providers::openai::OpenAiReasoningEffort;
+use systemprompt_ai::services::providers::openai::reasoning::{
     build_reasoning_config, is_reasoning_model,
 };
 

@@ -1,6 +1,6 @@
 //! Tests for ImageStorage and StorageConfig.
 
-use systemprompt_core_ai::services::storage::{ImageStorage, StorageConfig};
+use systemprompt_ai::services::storage::{ImageStorage, StorageConfig};
 use std::path::PathBuf;
 use tempfile::TempDir;
 

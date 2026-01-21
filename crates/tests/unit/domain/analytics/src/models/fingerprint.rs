@@ -1,6 +1,6 @@
 //! Tests for fingerprint model types.
 
-use systemprompt_core_analytics::{FingerprintAnalysisResult, FlagReason};
+use systemprompt_analytics::{FingerprintAnalysisResult, FlagReason};
 
 mod flag_reason_tests {
     use super::*;

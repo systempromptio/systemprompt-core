@@ -1,7 +1,7 @@
 #![allow(clippy::print_stdout)]
 
 use chrono::{DateTime, Utc};
-use systemprompt_core_database::DbPool;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::LogId;
 
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};

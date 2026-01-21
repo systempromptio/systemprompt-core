@@ -1,6 +1,6 @@
 use super::setup_test_pool;
 use chrono::Utc;
-use systemprompt_core_oauth::repository::{AuthCodeParams, OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository, RefreshTokenParams};
 use uuid::Uuid;
 
 #[tokio::test]

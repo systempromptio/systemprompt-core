@@ -4,7 +4,7 @@
 //! - ValidationReport creation and error/warning tracking
 //! - ValidationReport is_valid state management
 
-use systemprompt_core_config::ValidationReport;
+use systemprompt_config::ValidationReport;
 
 // ============================================================================
 // ValidationReport Creation Tests

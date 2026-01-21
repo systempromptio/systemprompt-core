@@ -1,6 +1,6 @@
 //! Unit tests for MCP EventBus
 
-use systemprompt_core_mcp::services::orchestrator::{EventBus, McpEvent};
+use systemprompt_mcp::services::orchestrator::{EventBus, McpEvent};
 
 // ============================================================================
 // EventBus Creation Tests

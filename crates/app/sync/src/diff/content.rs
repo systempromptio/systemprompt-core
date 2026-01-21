@@ -3,9 +3,9 @@ use crate::models::{ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent}
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::Path;
-use systemprompt_core_content::models::Content;
-use systemprompt_core_content::repository::ContentRepository;
-use systemprompt_core_database::DbPool;
+use systemprompt_content::models::Content;
+use systemprompt_content::repository::ContentRepository;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use tracing::warn;
 use walkdir::WalkDir;

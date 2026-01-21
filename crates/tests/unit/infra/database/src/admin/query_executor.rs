@@ -1,6 +1,6 @@
 //! Unit tests for QueryExecutorError
 
-use systemprompt_core_database::QueryExecutorError;
+use systemprompt_database::QueryExecutorError;
 
 // ============================================================================
 // QueryExecutorError Display Tests
