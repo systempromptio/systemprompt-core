@@ -1,6 +1,5 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use std::sync::Arc;
 
 use super::types::McpStatusOutput;
 use crate::shared::CommandResult;
@@ -27,13 +26,11 @@ pub async fn execute(
     let paths = AppPaths::get().context("Failed to get application paths")?;
     let bin_path = paths.build().bin().to_path_buf();
 
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize application context")?,
-    );
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(ctx).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

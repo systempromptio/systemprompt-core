@@ -32,11 +32,11 @@ pub async fn execute_with_events(
 
     if let Some(pid) = check_port_available(port) {
         if let Some(tx) = events {
-            tx.send(StartupEvent::PortConflict { port, pid }).ok();
+            tx.unbounded_send(StartupEvent::PortConflict { port, pid }).ok();
         }
         handle_port_conflict(port, pid, kill_port_process, config, events).await?;
         if let Some(tx) = events {
-            tx.send(StartupEvent::PortConflictResolved { port }).ok();
+            tx.unbounded_send(StartupEvent::PortConflictResolved { port }).ok();
         }
     } else if let Some(tx) = events {
         tx.port_available(port);
@@ -60,7 +60,7 @@ pub async fn execute_with_events(
 
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);
-        tx.send(StartupEvent::DatabaseValidated).ok();
+        tx.unbounded_send(StartupEvent::DatabaseValidated).ok();
         tx.phase_completed(Phase::Database);
     } else {
         CliService::phase("Validation");

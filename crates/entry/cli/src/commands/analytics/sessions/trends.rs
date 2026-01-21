@@ -73,7 +73,7 @@ async fn execute_internal(
             .or_insert_with(|| (0, std::collections::HashSet::new(), 0));
         entry.0 += 1;
         if let Some(user_id) = row.user_id {
-            entry.1.insert(user_id);
+            entry.1.insert(user_id.to_string());
         }
         entry.2 += i64::from(row.duration_seconds.unwrap_or(0));
     }

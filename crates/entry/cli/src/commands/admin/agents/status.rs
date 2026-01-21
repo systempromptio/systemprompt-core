@@ -6,7 +6,9 @@ use super::types::{AgentStatusOutput, AgentStatusRow};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
+use systemprompt_agent::AgentState;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
@@ -21,13 +23,21 @@ pub async fn execute(
 ) -> Result<CommandResult<AgentStatusOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize application context")?,
-    );
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to initialize application context")?;
 
-    let orchestrator = AgentOrchestrator::new(Arc::clone(&ctx), None)
+    let jwt_provider = Arc::new(
+        JwtValidationProviderImpl::from_config()
+            .context("Failed to create JWT provider")?,
+    );
+    let agent_state = Arc::new(AgentState::new(
+        ctx.db_pool().clone(),
+        Arc::new(ctx.config().clone()),
+        jwt_provider,
+    ));
+
+    let orchestrator = AgentOrchestrator::new(agent_state, None)
         .await
         .context("Failed to initialize agent orchestrator")?;
 

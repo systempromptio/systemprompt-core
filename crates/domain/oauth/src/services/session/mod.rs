@@ -2,7 +2,7 @@ mod creation;
 mod lookup;
 
 use anyhow::Result;
-use axum::http::{HeaderMap, Uri};
+use http::{HeaderMap, Uri};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

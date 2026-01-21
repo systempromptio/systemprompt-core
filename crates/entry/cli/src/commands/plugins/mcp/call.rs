@@ -10,7 +10,6 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use rmcp::ServiceExt;
-use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::HttpClientWithContext;
@@ -56,13 +55,11 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .get(&server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' not found in configuration", server_name))?;
 
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize application context")?,
-    );
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(Arc::clone(&ctx)).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

@@ -84,6 +84,11 @@ inventory = { workspace = true }
 jsonwebtoken = { workspace = true }
 once_cell = { workspace = true }
 
+# Authentication
+bcrypt = { workspace = true }
+validator = { workspace = true }
+webauthn-rs = { workspace = true }
+
 # Sync/compression
 flate2 = { workspace = true }
 tar = { workspace = true }

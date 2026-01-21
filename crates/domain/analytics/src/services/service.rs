@@ -1,9 +1,11 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use axum::extract::Request;
-use axum::http::{HeaderMap, Uri};
+use http::{HeaderMap, Uri};
 use chrono::{DateTime, Utc};
+
+#[cfg(feature = "axum")]
+use axum::extract::Request;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
@@ -61,9 +63,11 @@ impl AnalyticsService {
         )
     }
 
+    #[cfg(feature = "axum")]
     pub fn extract_from_request(&self, request: &Request) -> SessionAnalytics {
-        SessionAnalytics::from_request(
-            request,
+        SessionAnalytics::from_headers_and_uri(
+            request.headers(),
+            Some(request.uri()),
             self.geoip_reader.as_ref(),
             self.content_routing.as_deref(),
         )

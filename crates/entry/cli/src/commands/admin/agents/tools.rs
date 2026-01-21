@@ -7,7 +7,6 @@ use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
 use rmcp::ServiceExt;
-use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_identifiers::SessionToken;
 use tokio::time::timeout;
@@ -73,13 +72,11 @@ pub async fn execute(
     let session_ctx = get_or_create_session(config).await?;
     let session_token = session_ctx.session_token();
 
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize application context")?,
-    );
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to initialize application context")?;
 
-    let manager = McpManager::new(Arc::clone(&ctx)).context("Failed to initialize MCP manager")?;
+    let manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
     let running_servers = manager
         .get_running_servers()
         .await

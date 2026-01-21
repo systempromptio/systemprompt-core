@@ -96,7 +96,7 @@ async fn fetch_live_sessions(
             let current_duration = (Utc::now() - row.started_at).num_seconds();
 
             ActiveSessionRow {
-                session_id: row.session_id,
+                session_id: row.session_id.to_string(),
                 user_type: row.user_type.unwrap_or_else(|| "unknown".to_string()),
                 started_at: row.started_at.format("%H:%M:%S").to_string(),
                 duration_seconds: row.duration_seconds.map_or(current_duration, i64::from),

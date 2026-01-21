@@ -36,13 +36,11 @@ pub async fn execute(
 ) -> Result<CommandResult<McpBatchValidateOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let ctx = Arc::new(
-        AppContext::new()
-            .await
-            .context("Failed to initialize application context")?,
-    );
+    let ctx = AppContext::new()
+        .await
+        .context("Failed to initialize application context")?;
 
-    let _manager = McpManager::new(Arc::clone(&ctx)).context("Failed to initialize MCP manager")?;
+    let _manager = McpManager::new(ctx.db_pool().clone()).context("Failed to initialize MCP manager")?;
     let database = DatabaseManager::new(Arc::clone(ctx.db_pool()));
 
     let servers_to_validate: Vec<String> = if args.all {

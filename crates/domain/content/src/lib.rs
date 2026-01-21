@@ -1,6 +1,5 @@
 #![allow(clippy::use_self)]
 
-pub mod api;
 pub mod config;
 pub mod error;
 pub mod jobs;
@@ -22,8 +21,11 @@ pub use models::{
 
 pub use repository::{ContentRepository, LinkAnalyticsRepository, SearchRepository};
 
-pub use services::{DefaultContentProvider, IngestionService, LinkAnalyticsService, SearchService};
+pub use services::{
+    ContentService, DefaultContentProvider, GenerateLinkParams, IngestionService,
+    LinkAnalyticsService, LinkGenerationService, SearchService,
+};
 
-pub use api::{get_content_handler, list_content_by_source_handler, query_handler, router};
+pub use models::{LinkType, TrackClickParams, UtmParams};
 
 pub use jobs::ContentIngestionJob;

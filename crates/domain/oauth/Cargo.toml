@@ -53,8 +53,11 @@ bcrypt = { workspace = true }
 # WebAuthn
 webauthn-rs = { workspace = true }
 
-# Web interface dependencies
-axum = { workspace = true }
+# HTTP types (framework-agnostic)
+http = { workspace = true }
+
+# Web framework (optional, for response types)
+axum = { workspace = true, optional = true }
 
 # HTTP client for CLI-to-REST calls
 reqwest = { workspace = true }
@@ -70,7 +73,7 @@ systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sql
 
 [features]
 default = ["web"]
-web = []
+web = ["dep:axum"]
 
 [dev-dependencies]
 tokio-test = { workspace = true }

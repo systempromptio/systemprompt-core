@@ -20,10 +20,6 @@ systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 
-# Web framework
-axum = { workspace = true }
-tower = { workspace = true }
-
 # Async
 tokio = { workspace = true }
 

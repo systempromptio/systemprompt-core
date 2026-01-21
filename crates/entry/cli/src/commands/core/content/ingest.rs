@@ -5,6 +5,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_content::{IngestionOptions, IngestionService, IngestionSource};
+use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw, IndexingConfig};
 use systemprompt_runtime::AppContext;
 
@@ -70,11 +71,13 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<IngestResu
     let service = IngestionService::new(ctx.db_pool())?;
 
     let allowed_types = resolve_allowed_types(&args, source_id)?;
-    let category_id = resolve_category_id(&args, source_id);
+    let category_id_str = resolve_category_id(&args, source_id);
     let indexing_options = resolve_indexing_options(&args, source_id);
 
+    let source_id_typed = SourceId::new(source_id);
+    let category_id = CategoryId::new(category_id_str);
     let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
-    let source = IngestionSource::new(source_id, &category_id, &allowed_types_refs);
+    let source = IngestionSource::new(&source_id_typed, &category_id, &allowed_types_refs);
 
     let options = IngestionOptions::default()
         .with_recursive(indexing_options.recursive)
@@ -149,13 +152,15 @@ async fn execute_all_sources(args: &IngestArgs) -> Result<IngestResult> {
         }
 
         let allowed_types = source_config.allowed_content_types.clone();
-        let category_id = source_config.category_id.as_str().to_string();
+        let category_id_str = source_config.category_id.as_str().to_string();
         let indexing = source_config
             .indexing
             .unwrap_or_else(IndexingConfig::default);
 
+        let source_id = SourceId::new(&name);
+        let category_id = CategoryId::new(category_id_str);
         let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
-        let source = IngestionSource::new(&name, &category_id, &allowed_types_refs);
+        let source = IngestionSource::new(&source_id, &category_id, &allowed_types_refs);
 
         let options = IngestionOptions::default()
             .with_recursive(args.recursive || indexing.recursive)
