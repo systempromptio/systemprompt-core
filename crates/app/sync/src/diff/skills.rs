@@ -28,7 +28,7 @@ impl SkillsDiffCalculator {
             .map(|s| (s.skill_id.as_str().to_string(), s))
             .collect();
 
-        let disk_skills = self.scan_disk_skills(skills_path)?;
+        let disk_skills = Self::scan_disk_skills(skills_path)?;
 
         let mut result = SkillsDiffResult::default();
 
@@ -80,7 +80,7 @@ impl SkillsDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_skills(&self, path: &Path) -> Result<HashMap<String, DiskSkill>> {
+    fn scan_disk_skills(path: &Path) -> Result<HashMap<String, DiskSkill>> {
         let mut skills = HashMap::new();
 
         if !path.exists() {
