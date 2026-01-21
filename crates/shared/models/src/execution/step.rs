@@ -152,7 +152,6 @@ impl StepContent {
         }
     }
 
-    /// Create a SkillUsage step
     pub fn skill_usage(skill_id: SkillId, skill_name: impl Into<String>) -> Self {
         Self::SkillUsage {
             skill_id,
@@ -160,7 +159,6 @@ impl StepContent {
         }
     }
 
-    /// Create a ToolExecution step (in-progress, no result yet)
     pub fn tool_execution(tool_name: impl Into<String>, tool_arguments: serde_json::Value) -> Self {
         Self::ToolExecution {
             tool_name: tool_name.into(),
@@ -169,7 +167,6 @@ impl StepContent {
         }
     }
 
-    /// Create a Completion step
     pub const fn completion() -> Self {
         Self::Completion
     }

@@ -63,8 +63,7 @@ fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Resul
         api_server_url: require_env("API_SERVER_URL")?,
         api_internal_url: require_env("API_INTERNAL_URL")?,
         api_external_url: require_env("API_EXTERNAL_URL")?,
-        use_https: get_env("USE_HTTPS")
-            .is_some_and(|v| v.to_lowercase() == "true"),
+        use_https: get_env("USE_HTTPS").is_some_and(|v| v.to_lowercase() == "true"),
         cors_allowed_origins: get_env("CORS_ALLOWED_ORIGINS")
             .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
             .unwrap_or_default(),
@@ -131,8 +130,7 @@ fn rate_limits_from_env() -> RateLimitsConfig {
     };
 
     RateLimitsConfig {
-        disabled: get_env("RATE_LIMIT_DISABLED")
-            .is_some_and(|v| v.to_lowercase() == "true"),
+        disabled: get_env("RATE_LIMIT_DISABLED").is_some_and(|v| v.to_lowercase() == "true"),
         oauth_public_per_second: parse_rate(
             "RATE_LIMIT_OAUTH_PUBLIC_PER_SECOND",
             default_oauth_public,

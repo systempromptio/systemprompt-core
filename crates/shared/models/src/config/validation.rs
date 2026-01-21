@@ -23,8 +23,12 @@ pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> Validati
         &profile.paths.content_config(),
     );
 
-    validate_optional_path(&mut report, "geoip_database", &profile.paths.geoip_database);
-    validate_optional_path(&mut report, "storage", &profile.paths.storage);
+    validate_optional_path(
+        &mut report,
+        "geoip_database",
+        profile.paths.geoip_database.as_ref(),
+    );
+    validate_optional_path(&mut report, "storage", profile.paths.storage.as_ref());
 
     let _ = profile_path;
     report

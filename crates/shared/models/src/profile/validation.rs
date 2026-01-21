@@ -63,9 +63,13 @@ impl Profile {
         Self::validate_local_required_path(errors, "services", &self.paths.services);
         Self::validate_local_required_path(errors, "bin", &self.paths.bin);
 
-        Self::validate_local_optional_path(errors, "storage", &self.paths.storage);
-        Self::validate_local_optional_path(errors, "geoip_database", &self.paths.geoip_database);
-        Self::validate_local_optional_path(errors, "web_path", &self.paths.web_path);
+        Self::validate_local_optional_path(errors, "storage", self.paths.storage.as_ref());
+        Self::validate_local_optional_path(
+            errors,
+            "geoip_database",
+            self.paths.geoip_database.as_ref(),
+        );
+        Self::validate_local_optional_path(errors, "web_path", self.paths.web_path.as_ref());
     }
 
     fn validate_local_required_path(errors: &mut Vec<String>, name: &str, path: &str) {
@@ -79,7 +83,7 @@ impl Profile {
         }
     }
 
-    fn validate_local_optional_path(errors: &mut Vec<String>, name: &str, path: &Option<String>) {
+    fn validate_local_optional_path(errors: &mut Vec<String>, name: &str, path: Option<&String>) {
         if let Some(p) = path {
             if !p.is_empty() && !Path::new(p).exists() {
                 errors.push(format!("paths.{} does not exist: {}", name, p));

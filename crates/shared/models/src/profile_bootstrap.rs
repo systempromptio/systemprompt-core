@@ -1,8 +1,3 @@
-//! Profile bootstrap system for SystemPrompt applications.
-//!
-//! This module provides a global profile initialization system that ensures
-//! profiles are the SINGLE source of truth for all configuration.
-
 use anyhow::{Context, Result};
 use std::path::Path;
 use std::sync::OnceLock;
@@ -34,13 +29,6 @@ pub enum ProfileBootstrapError {
 }
 
 impl ProfileBootstrap {
-    /// Initialize the application with a profile.
-    /// This MUST be called at startup before any config access.
-    ///
-    /// Reads profile path from SYSTEMPROMPT_PROFILE environment variable.
-    /// The env var must contain the full path to the profile file.
-    ///
-    /// Returns error if profile cannot be loaded or validated.
     pub fn init() -> Result<&'static Profile> {
         if PROFILE.get().is_some() {
             anyhow::bail!(ProfileBootstrapError::AlreadyInitialized);

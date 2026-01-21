@@ -22,17 +22,13 @@ impl ValidatedFilePath {
                 "cannot contain null bytes",
             ));
         }
-        // Comprehensive path traversal prevention
         for component in value.split(['/', '\\']) {
-            // Check for ".." traversal (including with extra dots like "..." which could be
-            // problematic)
             if component == ".." {
                 return Err(IdValidationError::invalid(
                     "ValidatedFilePath",
                     "cannot contain '..' path traversal",
                 ));
             }
-            // Check for encoded traversal sequences (URL-encoded)
             let lower = component.to_lowercase();
             if lower.contains("%2e%2e") || lower.contains("%2e.") || lower.contains(".%2e") {
                 return Err(IdValidationError::invalid(
@@ -41,7 +37,6 @@ impl ValidatedFilePath {
                 ));
             }
         }
-        // Additional check for double-encoded sequences in the full path
         let lower_value = value.to_lowercase();
         if lower_value.contains("%252e") {
             return Err(IdValidationError::invalid(

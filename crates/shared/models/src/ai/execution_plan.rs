@@ -118,7 +118,7 @@ impl ExecutionState {
     pub fn add_result(&mut self, result: ToolCallResult) {
         if !result.success && !self.halted {
             self.halted = true;
-            self.halt_reason = result.error.clone();
+            self.halt_reason.clone_from(&result.error);
         }
         self.results.push(result);
     }
