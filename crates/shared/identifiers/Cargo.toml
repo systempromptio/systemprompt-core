@@ -18,7 +18,6 @@ serde = { workspace = true }
 uuid = { workspace = true }
 schemars = { workspace = true }
 sqlx = { workspace = true }
-systemprompt-traits = { path = "../traits" }
-
-[dev-dependencies]
+chrono = { workspace = true }
+anyhow = { workspace = true }
 serde_json = { workspace = true }

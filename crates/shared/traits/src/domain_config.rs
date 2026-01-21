@@ -11,6 +11,7 @@ use crate::validation_report::ValidationReport;
 
 /// Error type for domain config operations.
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum DomainConfigError {
     #[error("Failed to load config: {0}")]
     LoadError(String),
@@ -145,6 +146,7 @@ pub struct DomainConfigRegistry {
 }
 
 impl DomainConfigRegistry {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             validators: Vec::new(),

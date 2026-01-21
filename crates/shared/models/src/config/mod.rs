@@ -98,8 +98,7 @@ impl Config {
 
     pub fn from_profile(profile: &Profile) -> Result<Self> {
         let profile_path = ProfileBootstrap::get_path()
-            .map(ToString::to_string)
-            .unwrap_or_else(|_| "<not set>".to_string());
+            .map_or_else(|_| "<not set>".to_string(), ToString::to_string);
 
         let path_report = validate_profile_paths(profile, &profile_path);
         if path_report.has_errors() {

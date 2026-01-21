@@ -1,5 +1,3 @@
-//! Database value types and conversions.
-
 mod from_value;
 mod to_value;
 mod value;

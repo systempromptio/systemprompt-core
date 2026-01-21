@@ -31,7 +31,7 @@ pub async fn fetch_task_rows(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }
 
 pub async fn fetch_messages(
@@ -60,7 +60,7 @@ pub async fn fetch_messages(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }
 
 pub async fn fetch_message_parts(
@@ -87,7 +87,7 @@ pub async fn fetch_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }
 
 pub async fn fetch_artifacts(
@@ -116,7 +116,7 @@ pub async fn fetch_artifacts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }
 
 pub async fn fetch_artifact_parts(
@@ -147,7 +147,7 @@ pub async fn fetch_artifact_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }
 
 pub async fn fetch_execution_steps(
@@ -174,5 +174,5 @@ pub async fn fetch_execution_steps(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))
+    .map_err(|e| RepositoryError::Database(e))
 }

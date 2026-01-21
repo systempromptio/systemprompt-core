@@ -1,14 +1,3 @@
-//! Execution Plan Types for Plan-Based Agentic Execution
-//!
-//! Simplified model: PLAN → EXECUTE → RESPOND
-//!
-//! - PLAN: AI outputs tool_calls[] or direct_response with template references
-//! - EXECUTE: Sequential tool execution with template resolution
-//! - RESPOND: AI generates response with full context
-//!
-//! Template syntax: `$N.output.field.path` references output from tool at index
-//! N
-
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;

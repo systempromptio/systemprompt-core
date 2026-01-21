@@ -1,10 +1,11 @@
-use std::collections::HashSet;
-use std::path::{Path, PathBuf};
+use std::io::ErrorKind;
+use std::path::{Component, Path, PathBuf};
 
-use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use systemprompt_provider_contracts::TemplateSource;
 use tokio::fs;
+
+use super::error::{Result, TemplateLoaderError};
 
 #[async_trait]
 pub trait TemplateLoader: Send + Sync {
@@ -13,7 +14,7 @@ pub trait TemplateLoader: Send + Sync {
     fn can_load(&self, source: &TemplateSource) -> bool;
 
     async fn load_directory(&self, _path: &Path) -> Result<Vec<(String, String)>> {
-        Err(anyhow!("Directory loading not supported by this loader"))
+        Err(TemplateLoaderError::DirectoryLoadingUnsupported)
     }
 }
 
@@ -41,16 +42,57 @@ impl FileSystemLoader {
         self
     }
 
-    fn is_safe_path(path: &Path) -> bool {
-        !path
-            .components()
-            .any(|c| matches!(c, std::path::Component::ParentDir))
+    fn has_traversal_components(path: &Path) -> bool {
+        path.components().any(|c| matches!(c, Component::ParentDir))
     }
 
-    fn is_within_base_paths(&self, resolved: &Path) -> bool {
-        self.base_paths
-            .iter()
-            .any(|base| resolved.starts_with(base))
+    async fn is_within_base_paths(&self, canonical: &Path) -> Result<bool> {
+        for base in &self.base_paths {
+            match fs::canonicalize(base).await {
+                Ok(canonical_base) if canonical.starts_with(&canonical_base) => return Ok(true),
+                Ok(_) => continue,
+                Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                Err(e) => return Err(TemplateLoaderError::io(base, e)),
+            }
+        }
+        Ok(false)
+    }
+
+    async fn canonicalize_and_validate(&self, path: &Path) -> Result<PathBuf> {
+        let canonical = fs::canonicalize(path)
+            .await
+            .map_err(|e| TemplateLoaderError::io(path, e))?;
+
+        if !self.is_within_base_paths(&canonical).await? {
+            return Err(TemplateLoaderError::OutsideBasePath(path.to_path_buf()));
+        }
+
+        Ok(canonical)
+    }
+
+    async fn try_read_from_base(&self, base: &Path, relative: &Path) -> Option<Result<String>> {
+        let full_path = base.join(relative);
+
+        match fs::canonicalize(&full_path).await {
+            Ok(canonical) => {
+                let canonical_base = match fs::canonicalize(base).await {
+                    Ok(cb) => cb,
+                    Err(e) => return Some(Err(TemplateLoaderError::io(base, e))),
+                };
+
+                if !canonical.starts_with(&canonical_base) {
+                    return Some(Err(TemplateLoaderError::OutsideBasePath(full_path)));
+                }
+
+                Some(
+                    fs::read_to_string(&canonical)
+                        .await
+                        .map_err(|e| TemplateLoaderError::io(&full_path, e)),
+                )
+            },
+            Err(e) if e.kind() == ErrorKind::NotFound => None,
+            Err(e) => Some(Err(TemplateLoaderError::io(&full_path, e))),
+        }
     }
 }
 
@@ -60,42 +102,32 @@ impl TemplateLoader for FileSystemLoader {
         match source {
             TemplateSource::Embedded(content) => Ok((*content).to_string()),
             TemplateSource::File(path) => {
-                if !Self::is_safe_path(path) {
-                    return Err(anyhow!(
-                        "Invalid template path (directory traversal not allowed): {}",
-                        path.display()
-                    ));
+                if Self::has_traversal_components(path) {
+                    return Err(TemplateLoaderError::DirectoryTraversal(path.clone()));
                 }
 
                 if path.is_absolute() {
-                    if !self.is_within_base_paths(path) {
-                        return Err(anyhow!(
-                            "Template path not within allowed directories: {}",
-                            path.display()
-                        ));
-                    }
-                    if fs::try_exists(path).await? {
-                        return fs::read_to_string(path).await.map_err(|e| {
-                            anyhow!("Failed to load template {}: {}", path.display(), e)
-                        });
-                    }
+                    let canonical = self.canonicalize_and_validate(path).await?;
+                    return fs::read_to_string(&canonical)
+                        .await
+                        .map_err(|e| TemplateLoaderError::io(path, e));
+                }
+
+                if self.base_paths.is_empty() {
+                    return Err(TemplateLoaderError::NoBasePaths);
                 }
 
                 for base in &self.base_paths {
-                    let full_path = base.join(path);
-                    if fs::try_exists(&full_path).await? {
-                        return fs::read_to_string(&full_path).await.map_err(|e| {
-                            anyhow!("Failed to load template {}: {}", full_path.display(), e)
-                        });
+                    if let Some(result) = self.try_read_from_base(base, path).await {
+                        return result;
                     }
                 }
 
-                Err(anyhow!("Template not found: {}", path.display()))
+                Err(TemplateLoaderError::NotFound(path.clone()))
             },
-            TemplateSource::Directory(path) => Err(anyhow!(
-                "Cannot load single template from directory: {}",
-                path.display()
-            )),
+            TemplateSource::Directory(path) => {
+                Err(TemplateLoaderError::DirectoryNotSupported(path.clone()))
+            },
         }
     }
 
@@ -107,56 +139,67 @@ impl TemplateLoader for FileSystemLoader {
     }
 
     async fn load_directory(&self, path: &Path) -> Result<Vec<(String, String)>> {
-        if !Self::is_safe_path(path) {
-            return Err(anyhow!(
-                "Invalid template path (directory traversal not allowed): {}",
-                path.display()
-            ));
+        if Self::has_traversal_components(path) {
+            return Err(TemplateLoaderError::DirectoryTraversal(path.to_path_buf()));
         }
 
-        let mut templates = Vec::new();
-        let mut seen = HashSet::new();
+        if self.base_paths.is_empty() {
+            return Err(TemplateLoaderError::NoBasePaths);
+        }
 
         let dir_path = if path.is_absolute() {
-            if !self.is_within_base_paths(path) {
-                return Err(anyhow!(
-                    "Template path not within allowed directories: {}",
-                    path.display()
-                ));
-            }
-            if !fs::try_exists(path).await? {
-                return Err(anyhow!("Template directory not found: {}", path.display()));
-            }
-            path.to_path_buf()
+            self.canonicalize_and_validate(path).await?
         } else {
             let mut found_path = None;
             for base in &self.base_paths {
                 let candidate = base.join(path);
-                if fs::try_exists(&candidate).await? {
-                    found_path = Some(candidate);
-                    break;
+                match fs::canonicalize(&candidate).await {
+                    Ok(canonical) => {
+                        let canonical_base = fs::canonicalize(base)
+                            .await
+                            .map_err(|e| TemplateLoaderError::io(base, e))?;
+
+                        if !canonical.starts_with(&canonical_base) {
+                            return Err(TemplateLoaderError::OutsideBasePath(candidate));
+                        }
+
+                        found_path = Some(canonical);
+                        break;
+                    },
+                    Err(e) if e.kind() == ErrorKind::NotFound => continue,
+                    Err(e) => return Err(TemplateLoaderError::io(&candidate, e)),
                 }
             }
-            found_path.ok_or_else(|| anyhow!("Template directory not found: {}", path.display()))?
+            found_path.ok_or_else(|| TemplateLoaderError::NotFound(path.to_path_buf()))?
         };
 
-        let mut entries = fs::read_dir(&dir_path).await?;
+        let mut templates = Vec::new();
+        let mut entries = fs::read_dir(&dir_path)
+            .await
+            .map_err(|e| TemplateLoaderError::io(&dir_path, e))?;
 
-        while let Some(entry) = entries.next_entry().await? {
+        while let Some(entry) = entries
+            .next_entry()
+            .await
+            .map_err(|e| TemplateLoaderError::io(&dir_path, e))?
+        {
             let entry_path = entry.path();
 
             if entry_path.extension().is_some_and(|ext| ext == "html") {
-                let Some(file_stem) = entry_path.file_stem() else {
-                    continue;
+                let file_stem = match entry_path.file_stem() {
+                    Some(stem) => stem,
+                    None => continue,
                 };
-                let template_name = file_stem.to_string_lossy().to_string();
 
-                if seen.contains(&template_name) {
-                    continue;
-                }
+                let template_name = file_stem
+                    .to_str()
+                    .ok_or_else(|| TemplateLoaderError::InvalidEncoding(entry_path.clone()))?
+                    .to_owned();
 
-                let content = fs::read_to_string(&entry_path).await?;
-                seen.insert(template_name.clone());
+                let content = fs::read_to_string(&entry_path)
+                    .await
+                    .map_err(|e| TemplateLoaderError::io(&entry_path, e))?;
+
                 templates.push((template_name, content));
             }
         }
@@ -173,7 +216,7 @@ impl TemplateLoader for EmbeddedLoader {
     async fn load(&self, source: &TemplateSource) -> Result<String> {
         match source {
             TemplateSource::Embedded(content) => Ok((*content).to_string()),
-            _ => Err(anyhow!("EmbeddedLoader only handles embedded templates")),
+            _ => Err(TemplateLoaderError::EmbeddedOnly),
         }
     }
 

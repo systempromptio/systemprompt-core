@@ -53,11 +53,10 @@ pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: 
     }
 }
 
-/// Validate a path that's Option<String> but required for operation.
 pub fn validate_required_optional_path(
     report: &mut ValidationReport,
     field: &str,
-    path: &Option<String>,
+    path: Option<&String>,
 ) {
     match path {
         None => {
@@ -89,8 +88,7 @@ pub fn validate_required_optional_path(
     }
 }
 
-/// Validate an optional path (warn if set but doesn't exist).
-pub fn validate_optional_path(report: &mut ValidationReport, field: &str, path: &Option<String>) {
+pub fn validate_optional_path(report: &mut ValidationReport, field: &str, path: Option<&String>) {
     if let Some(p) = path {
         if !p.is_empty() {
             let path_buf = std::path::Path::new(p);
@@ -107,7 +105,6 @@ pub fn validate_optional_path(report: &mut ValidationReport, field: &str, path: 
     }
 }
 
-/// Format path validation errors for display.
 pub fn format_path_errors(report: &ValidationReport, profile_path: &str) -> String {
     let mut output = String::new();
     output.push_str("Profile Path Validation Failed\n\n");
@@ -141,7 +138,6 @@ pub fn format_path_errors(report: &ValidationReport, profile_path: &str) -> Stri
     output
 }
 
-/// Validate PostgreSQL connection URL.
 pub fn validate_postgres_url(url: &str) -> Result<()> {
     if !url.starts_with("postgres://") && !url.starts_with("postgresql://") {
         return Err(anyhow::anyhow!(

@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum SchedulerError {
     #[error("Job not found: {0}")]
     JobNotFound(String),
@@ -19,6 +20,7 @@ pub enum SchedulerError {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum JobStatus {
     Pending,
     Running,

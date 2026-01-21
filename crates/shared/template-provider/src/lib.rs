@@ -3,7 +3,8 @@ pub mod traits;
 pub use traits::{
     ComponentContext, ComponentRenderer, EmbeddedLoader, ExtendedData, ExtenderContext,
     FileSystemLoader, PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender,
-    TemplateDefinition, TemplateLoader, TemplateProvider, TemplateSource,
+    TemplateDefinition, TemplateLoader, TemplateLoaderError, TemplateLoaderResult,
+    TemplateProvider, TemplateSource,
 };
 
 pub type DynTemplateProvider = std::sync::Arc<dyn TemplateProvider>;

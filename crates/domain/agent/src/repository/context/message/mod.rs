@@ -25,7 +25,7 @@ pub struct MessageRepository {
 impl MessageRepository {
     pub fn new(db_pool: DbPool) -> Result<Self, RepositoryError> {
         let pool = db_pool.as_ref().get_postgres_pool().ok_or_else(|| {
-            RepositoryError::Database("PostgreSQL pool not available".to_string())
+            RepositoryError::InvalidData("PostgreSQL pool not available".to_string())
         })?;
         Ok(Self { pool })
     }

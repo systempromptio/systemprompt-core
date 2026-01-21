@@ -37,7 +37,7 @@ pub async fn get_task(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let Some(_row) = row else {
         return Ok(None);
@@ -78,7 +78,7 @@ pub async fn list_tasks_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let constructor = TaskConstructor::new(db_pool.clone());
     let mut tasks = Vec::new();
@@ -127,7 +127,7 @@ pub async fn get_tasks_by_user_id(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     let constructor = TaskConstructor::new(db_pool.clone());
     let mut tasks = Vec::new();
@@ -170,7 +170,7 @@ pub async fn get_task_context_info(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::Database(e.to_string()))?;
+    .map_err(|e| RepositoryError::Database(e))?;
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,

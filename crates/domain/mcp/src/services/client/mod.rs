@@ -137,7 +137,7 @@ impl McpClient {
                 description: tool.description.map(|d| d.to_string()),
                 input_schema: Some(input_schema),
                 output_schema,
-                service_id: service_id.clone().into(),
+                service_id: McpServerId::new(service_id.clone()),
                 terminal_on_success,
                 model_config,
             });

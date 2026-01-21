@@ -194,7 +194,7 @@ impl Profile {
     pub fn mask_database_url(url: &str) -> String {
         if let Some(at_pos) = url.find('@') {
             if let Some(colon_pos) = url[..at_pos].rfind(':') {
-                let prefix = &url[..colon_pos + 1];
+                let prefix = &url[..=colon_pos];
                 let suffix = &url[at_pos..];
                 return format!("{}***{}", prefix, suffix);
             }

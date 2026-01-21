@@ -5,66 +5,35 @@ use systemprompt_traits::validation::{
     MetadataValidation, Validate, ValidationError, ValidationResult,
 };
 
-/// Metadata for A2A Artifact entities
-/// Matches frontend `ArtifactMetadata` interface in web/src/types/artifact.ts
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ArtifactMetadata {
-    /// Type of artifact (table, chart, code, etc.)
     pub artifact_type: String,
-
-    /// Context ID this artifact belongs to
     pub context_id: ContextId,
-
-    /// ISO 8601 timestamp when artifact was created
     pub created_at: String,
-
-    /// Task ID that generated this artifact - REQUIRED (artifacts belong to
-    /// tasks)
     pub task_id: TaskId,
-
-    /// Rendering hints for UI display
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rendering_hints: Option<serde_json::Value>,
-
-    /// Source of artifact (e.g., "`mcp_tool`")
     #[serde(skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
-
-    /// MCP tool execution ID
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_execution_id: Option<String>,
-
-    /// Original MCP schema
     #[serde(skip_serializing_if = "Option::is_none")]
     pub mcp_schema: Option<serde_json::Value>,
-
-    /// Whether this is an internal tool
     #[serde(skip_serializing_if = "Option::is_none")]
     pub is_internal: Option<bool>,
-
-    /// Unique fingerprint for deduplication
     #[serde(skip_serializing_if = "Option::is_none")]
     pub fingerprint: Option<String>,
-
-    /// Tool name that generated this artifact
     #[serde(skip_serializing_if = "Option::is_none")]
     pub tool_name: Option<String>,
-
-    /// Execution index for tool executions
     #[serde(skip_serializing_if = "Option::is_none")]
     pub execution_index: Option<usize>,
-
-    /// Skill ID that generated this artifact
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_id: Option<String>,
-
-    /// Skill name that generated this artifact
     #[serde(skip_serializing_if = "Option::is_none")]
     pub skill_name: Option<String>,
 }
 
 impl ArtifactMetadata {
-    /// Create new artifact metadata with required fields
     pub fn new(artifact_type: String, context_id: ContextId, task_id: TaskId) -> Self {
         Self {
             artifact_type,
