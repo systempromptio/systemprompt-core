@@ -53,11 +53,47 @@ impl ValidatedUrl {
         let host_part = authority
             .rfind('@')
             .map_or(authority, |i| &authority[i + 1..]);
+
+        // Handle IPv6 addresses (enclosed in brackets) and regular hosts
         let host = if host_part.starts_with('[') {
-            host_part.find(']').map_or(host_part, |i| &host_part[..=i])
+            // IPv6 address - must have closing bracket
+            let bracket_end = host_part.find(']').ok_or_else(|| {
+                IdValidationError::invalid("ValidatedUrl", "IPv6 address missing closing bracket")
+            })?;
+            &host_part[..=bracket_end]
         } else {
+            // Regular host - split on ':' to separate from port
             host_part.split(':').next().unwrap_or(host_part)
         };
+
+        // Validate IPv6 format if present
+        if host.starts_with('[') && host.ends_with(']') {
+            let ipv6_content = &host[1..host.len() - 1];
+            if ipv6_content.is_empty() {
+                return Err(IdValidationError::invalid(
+                    "ValidatedUrl",
+                    "IPv6 address cannot be empty",
+                ));
+            }
+        }
+
+        // Check for empty port (e.g., "http://example.com:/path")
+        if host_part.contains("]:") || (!host_part.starts_with('[') && host_part.contains(':')) {
+            let port_part = if host_part.starts_with('[') {
+                host_part.rsplit("]:").next()
+            } else {
+                host_part.split(':').nth(1)
+            };
+            if let Some(port) = port_part {
+                if port.is_empty() || port.starts_with('/') {
+                    return Err(IdValidationError::invalid(
+                        "ValidatedUrl",
+                        "port cannot be empty when ':' is present",
+                    ));
+                }
+            }
+        }
+
         if host.is_empty() && !scheme.eq_ignore_ascii_case("file") {
             return Err(IdValidationError::invalid(
                 "ValidatedUrl",

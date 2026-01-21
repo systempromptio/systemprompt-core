@@ -4,6 +4,7 @@ use std::sync::Arc;
 pub type AuthResult<T> = Result<T, AuthProviderError>;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum AuthProviderError {
     #[error("Invalid credentials")]
     InvalidCredentials,
@@ -39,6 +40,7 @@ pub struct TokenPair {
 }
 
 impl TokenPair {
+    #[must_use]
     pub fn new(access_token: String, refresh_token: Option<String>, expires_in: i64) -> Self {
         Self {
             access_token,
@@ -68,6 +70,7 @@ pub trait AuthProvider: Send + Sync {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
 pub enum AuthAction {
     Read,
     Write,
@@ -95,6 +98,7 @@ pub struct AuthPermission {
 }
 
 impl AuthPermission {
+    #[must_use]
     pub fn new(resource: impl Into<String>, action: AuthAction) -> Self {
         Self {
             resource: resource.into(),

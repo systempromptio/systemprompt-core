@@ -29,14 +29,14 @@ impl A2ARepositories {
 
         let db_pool = Database::new_postgres(database_url)
             .await
-            .map_err(RepositoryError::GenericError)?;
+            .map_err(RepositoryError::Other)?;
         let db_pool = Arc::new(db_pool);
 
         let agent_services = agent_service::AgentServiceRepository::new(db_pool.clone());
         let tasks = task::TaskRepository::new(db_pool.clone());
-        let execution_steps = execution::ExecutionStepRepository::new(db_pool.clone())?;
+        let execution_steps = execution::ExecutionStepRepository::new(&db_pool)?;
         let push_notification_configs =
-            content::PushNotificationConfigRepository::new(db_pool.clone())?;
+            content::PushNotificationConfigRepository::new(&db_pool)?;
 
         Ok(Self {
             db_pool,
@@ -55,9 +55,9 @@ impl A2ARepositories {
     pub fn from_pool(db_pool: DbPool) -> Result<Self, RepositoryError> {
         let agent_services = agent_service::AgentServiceRepository::new(db_pool.clone());
         let tasks = task::TaskRepository::new(db_pool.clone());
-        let execution_steps = execution::ExecutionStepRepository::new(db_pool.clone())?;
+        let execution_steps = execution::ExecutionStepRepository::new(&db_pool)?;
         let push_notification_configs =
-            content::PushNotificationConfigRepository::new(db_pool.clone())?;
+            content::PushNotificationConfigRepository::new(&db_pool)?;
 
         Ok(Self {
             db_pool,

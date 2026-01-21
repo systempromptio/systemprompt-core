@@ -20,21 +20,16 @@ pub trait CrudRepository<T>: Repository {
 }
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum RepositoryError {
     #[error("database error: {0}")]
-    DatabaseError(#[from] sqlx::Error),
-
-    #[error("database error: {0}")]
-    Database(String),
+    Database(#[from] sqlx::Error),
 
     #[error("entity not found: {0}")]
     NotFound(String),
 
     #[error("serialization error: {0}")]
-    SerializationError(#[from] serde_json::Error),
-
-    #[error("serialization error: {0}")]
-    Serialization(String),
+    Serialization(#[from] serde_json::Error),
 
     #[error("invalid data: {0}")]
     InvalidData(String),
@@ -42,6 +37,6 @@ pub enum RepositoryError {
     #[error("constraint violation: {0}")]
     ConstraintViolation(String),
 
-    #[error("generic error: {0}")]
-    GenericError(#[from] anyhow::Error),
+    #[error("{0}")]
+    Other(#[from] anyhow::Error),
 }

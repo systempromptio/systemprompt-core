@@ -1,9 +1,3 @@
-#![allow(clippy::doc_markdown)]
-#![allow(clippy::map_unwrap_or)]
-#![allow(clippy::assigning_clones)]
-#![allow(clippy::ref_option)]
-#![allow(clippy::range_plus_one)]
-
 pub mod a2a;
 pub mod admin;
 pub mod agui;

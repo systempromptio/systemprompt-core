@@ -188,7 +188,7 @@ async fn load_execution_steps(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Vec<ExecutionStep>>, RepositoryError> {
-    let step_repo = ExecutionStepRepository::new(constructor.db_pool().clone())?;
+    let step_repo = ExecutionStepRepository::new(constructor.db_pool())?;
 
     let steps = step_repo
         .list_by_task(task_id)

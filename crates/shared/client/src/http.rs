@@ -1,35 +1,37 @@
 use crate::error::{ClientError, ClientResult};
-use reqwest::Client;
+use reqwest::{Client, Response};
 use serde::de::DeserializeOwned;
 use systemprompt_identifiers::JwtToken;
+
+async fn extract_error(response: Response) -> ClientError {
+    let status = response.status().as_u16();
+    let body = response.text().await.unwrap_or_else(|e| {
+        tracing::warn!(error = %e, status = %status, "Failed to read error response body");
+        format!("(body unreadable: {})", e)
+    });
+    ClientError::from_response(status, body)
+}
+
+fn apply_auth(request: reqwest::RequestBuilder, token: Option<&JwtToken>) -> reqwest::RequestBuilder {
+    match token {
+        Some(t) => request.header("Authorization", format!("Bearer {}", t.as_str())),
+        None => request,
+    }
+}
 
 pub async fn get<T: DeserializeOwned>(
     client: &Client,
     url: &str,
     token: Option<&JwtToken>,
 ) -> ClientResult<T> {
-    let mut request = client.get(url);
-
-    if let Some(token) = token {
-        request = request.header("Authorization", format!("Bearer {}", token.as_str()));
-    }
-
+    let request = apply_auth(client.get(url), token);
     let response = request.send().await?;
 
     if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let body = match response.text().await {
-            Ok(text) => text,
-            Err(e) => {
-                tracing::warn!(error = %e, status = %status, "Failed to read error response body");
-                format!("(body unreadable: {})", e)
-            },
-        };
-        return Err(ClientError::from_response(status, body));
+        return Err(extract_error(response).await);
     }
 
-    let data: T = response.json().await?;
-    Ok(data)
+    Ok(response.json().await?)
 }
 
 pub async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
@@ -38,28 +40,14 @@ pub async fn post<T: DeserializeOwned, B: serde::Serialize + Sync>(
     body: &B,
     token: Option<&JwtToken>,
 ) -> ClientResult<T> {
-    let mut request = client.post(url).header("Content-Type", "application/json");
-
-    if let Some(token) = token {
-        request = request.header("Authorization", format!("Bearer {}", token.as_str()));
-    }
-
-    let response = request.json(body).send().await?;
+    let request = apply_auth(client.post(url), token).json(body);
+    let response = request.send().await?;
 
     if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let body = match response.text().await {
-            Ok(text) => text,
-            Err(e) => {
-                tracing::warn!(error = %e, status = %status, "Failed to read error response body");
-                format!("(body unreadable: {})", e)
-            },
-        };
-        return Err(ClientError::from_response(status, body));
+        return Err(extract_error(response).await);
     }
 
-    let data: T = response.json().await?;
-    Ok(data)
+    Ok(response.json().await?)
 }
 
 pub async fn put<B: serde::Serialize + Sync>(
@@ -68,48 +56,22 @@ pub async fn put<B: serde::Serialize + Sync>(
     body: &B,
     token: Option<&JwtToken>,
 ) -> ClientResult<()> {
-    let mut request = client.put(url).header("Content-Type", "application/json");
-
-    if let Some(token) = token {
-        request = request.header("Authorization", format!("Bearer {}", token.as_str()));
-    }
-
-    let response = request.json(body).send().await?;
+    let request = apply_auth(client.put(url), token).json(body);
+    let response = request.send().await?;
 
     if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let body = match response.text().await {
-            Ok(text) => text,
-            Err(e) => {
-                tracing::warn!(error = %e, status = %status, "Failed to read error response body");
-                format!("(body unreadable: {})", e)
-            },
-        };
-        return Err(ClientError::from_response(status, body));
+        return Err(extract_error(response).await);
     }
 
     Ok(())
 }
 
 pub async fn delete(client: &Client, url: &str, token: Option<&JwtToken>) -> ClientResult<()> {
-    let mut request = client.delete(url);
-
-    if let Some(token) = token {
-        request = request.header("Authorization", format!("Bearer {}", token.as_str()));
-    }
-
+    let request = apply_auth(client.delete(url), token);
     let response = request.send().await?;
 
     if !response.status().is_success() {
-        let status = response.status().as_u16();
-        let body = match response.text().await {
-            Ok(text) => text,
-            Err(e) => {
-                tracing::warn!(error = %e, status = %status, "Failed to read error response body");
-                format!("(body unreadable: {})", e)
-            },
-        };
-        return Err(ClientError::from_response(status, body));
+        return Err(extract_error(response).await);
     }
 
     Ok(())

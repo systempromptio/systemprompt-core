@@ -12,8 +12,7 @@ pub trait TemplateLoader: Send + Sync {
 
     fn can_load(&self, source: &TemplateSource) -> bool;
 
-    async fn load_directory(&self, path: &Path) -> Result<Vec<(String, String)>> {
-        let _ = path;
+    async fn load_directory(&self, _path: &Path) -> Result<Vec<(String, String)>> {
         Err(anyhow!("Directory loading not supported by this loader"))
     }
 }
@@ -41,6 +40,18 @@ impl FileSystemLoader {
         self.base_paths.push(path.into());
         self
     }
+
+    fn is_safe_path(path: &Path) -> bool {
+        !path
+            .components()
+            .any(|c| matches!(c, std::path::Component::ParentDir))
+    }
+
+    fn is_within_base_paths(&self, resolved: &Path) -> bool {
+        self.base_paths
+            .iter()
+            .any(|base| resolved.starts_with(base))
+    }
 }
 
 #[async_trait]
@@ -49,15 +60,30 @@ impl TemplateLoader for FileSystemLoader {
         match source {
             TemplateSource::Embedded(content) => Ok((*content).to_string()),
             TemplateSource::File(path) => {
-                if path.is_absolute() && path.exists() {
-                    return fs::read_to_string(path)
-                        .await
-                        .map_err(|e| anyhow!("Failed to load template {}: {}", path.display(), e));
+                if !Self::is_safe_path(path) {
+                    return Err(anyhow!(
+                        "Invalid template path (directory traversal not allowed): {}",
+                        path.display()
+                    ));
+                }
+
+                if path.is_absolute() {
+                    if !self.is_within_base_paths(path) {
+                        return Err(anyhow!(
+                            "Template path not within allowed directories: {}",
+                            path.display()
+                        ));
+                    }
+                    if fs::try_exists(path).await? {
+                        return fs::read_to_string(path).await.map_err(|e| {
+                            anyhow!("Failed to load template {}: {}", path.display(), e)
+                        });
+                    }
                 }
 
                 for base in &self.base_paths {
                     let full_path = base.join(path);
-                    if full_path.exists() {
+                    if fs::try_exists(&full_path).await? {
                         return fs::read_to_string(&full_path).await.map_err(|e| {
                             anyhow!("Failed to load template {}: {}", full_path.display(), e)
                         });
@@ -76,30 +102,43 @@ impl TemplateLoader for FileSystemLoader {
     fn can_load(&self, source: &TemplateSource) -> bool {
         matches!(
             source,
-            TemplateSource::Embedded(_) | TemplateSource::File(_) | TemplateSource::Directory(_)
+            TemplateSource::Embedded(_) | TemplateSource::File(_)
         )
     }
 
     async fn load_directory(&self, path: &Path) -> Result<Vec<(String, String)>> {
+        if !Self::is_safe_path(path) {
+            return Err(anyhow!(
+                "Invalid template path (directory traversal not allowed): {}",
+                path.display()
+            ));
+        }
+
         let mut templates = Vec::new();
         let mut seen = HashSet::new();
 
         let dir_path = if path.is_absolute() {
+            if !self.is_within_base_paths(path) {
+                return Err(anyhow!(
+                    "Template path not within allowed directories: {}",
+                    path.display()
+                ));
+            }
+            if !fs::try_exists(path).await? {
+                return Err(anyhow!("Template directory not found: {}", path.display()));
+            }
             path.to_path_buf()
         } else {
-            self.base_paths
-                .iter()
-                .map(|base| base.join(path))
-                .find(|p| p.exists())
-                .ok_or_else(|| anyhow!("Template directory not found: {}", path.display()))?
+            let mut found_path = None;
+            for base in &self.base_paths {
+                let candidate = base.join(path);
+                if fs::try_exists(&candidate).await? {
+                    found_path = Some(candidate);
+                    break;
+                }
+            }
+            found_path.ok_or_else(|| anyhow!("Template directory not found: {}", path.display()))?
         };
-
-        if !dir_path.exists() {
-            return Err(anyhow!(
-                "Template directory not found: {}",
-                dir_path.display()
-            ));
-        }
 
         let mut entries = fs::read_dir(&dir_path).await?;
 

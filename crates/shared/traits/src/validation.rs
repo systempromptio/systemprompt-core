@@ -8,6 +8,7 @@ pub struct ValidationError {
 }
 
 impl ValidationError {
+    #[must_use]
     pub fn new(field: impl Into<String>, message: impl Into<String>) -> Self {
         Self {
             field: field.into(),

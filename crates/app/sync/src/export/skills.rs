@@ -11,8 +11,7 @@ pub fn generate_skill_markdown(skill: &Skill) -> String {
     let category = skill
         .category_id
         .as_ref()
-        .map(|c| c.as_str())
-        .unwrap_or(DEFAULT_SKILL_CATEGORY);
+        .map_or(DEFAULT_SKILL_CATEGORY, systemprompt_identifiers::CategoryId::as_str);
 
     format!(
         r#"---

@@ -17,7 +17,7 @@ pub async fn handle_set_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Setting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(state.db_pool.clone()) {
+    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
         Ok(repo) => repo,
         Err(e) => {
             tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");
@@ -76,7 +76,7 @@ pub async fn handle_get_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Getting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(state.db_pool.clone()) {
+    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
         Ok(repo) => repo,
         Err(e) => {
             tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");
@@ -129,7 +129,7 @@ pub async fn handle_list_push_notification_configs(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %task_id, "Listing push notification configs");
 
-    let repo = match PushNotificationConfigRepository::new(state.db_pool.clone()) {
+    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
         Ok(repo) => repo,
         Err(e) => {
             tracing::error!(task_id = %task_id, error = %e, "Failed to create repository");
@@ -187,7 +187,7 @@ pub async fn handle_delete_push_notification_config(
 ) -> Result<(StatusCode, Json<serde_json::Value>), (StatusCode, Json<serde_json::Value>)> {
     tracing::info!(task_id = %request.task_id, "Deleting push notification config");
 
-    let repo = match PushNotificationConfigRepository::new(state.db_pool.clone()) {
+    let repo = match PushNotificationConfigRepository::new(&state.db_pool) {
         Ok(repo) => repo,
         Err(e) => {
             tracing::error!(task_id = %request.task_id, error = %e, "Failed to create repository");

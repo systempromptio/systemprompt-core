@@ -40,8 +40,8 @@ impl ClientError {
     pub fn from_response(status: u16, body: String) -> Self {
         Self::ApiError {
             status,
-            message: body.clone(),
-            details: Some(body),
+            details: Some(body.clone()),
+            message: body,
         }
     }
 

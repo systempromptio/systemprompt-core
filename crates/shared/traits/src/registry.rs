@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use std::sync::Arc;
 
 #[derive(Debug, thiserror::Error)]
+#[non_exhaustive]
 pub enum RegistryError {
     #[error("Not found: {0}")]
     NotFound(String),

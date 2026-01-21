@@ -1,5 +1,6 @@
 //! MCP (Model Context Protocol) identifier types.
 
+use crate::error::IdValidationError;
 use crate::{DbValue, ToDbValue};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -136,22 +137,39 @@ impl ToDbValue for &McpExecutionId {
 pub struct McpServerId(String);
 
 impl McpServerId {
-    pub fn new(id: impl Into<String>) -> Self {
+    /// Create a new validated MCP server ID.
+    ///
+    /// # Errors
+    /// Returns `IdValidationError::Empty` if the ID is empty.
+    pub fn try_new(id: impl Into<String>) -> Result<Self, IdValidationError> {
         let id = id.into();
-        assert!(!id.is_empty(), "MCP server ID cannot be empty");
-        Self(id)
+        if id.is_empty() {
+            return Err(IdValidationError::empty("McpServerId"));
+        }
+        Ok(Self(id))
     }
 
-    pub fn from_env() -> Result<Self, String> {
-        std::env::var("MCP_SERVICE_ID")
-            .map_err(|_| "MCP_SERVICE_ID environment variable not set".to_string())
-            .and_then(|id| {
-                if id.is_empty() {
-                    Err("MCP_SERVICE_ID environment variable is empty".to_string())
-                } else {
-                    Ok(Self(id))
-                }
-            })
+    /// Create a new MCP server ID, panicking if validation fails.
+    ///
+    /// # Panics
+    /// Panics if the ID is empty.
+    #[allow(clippy::expect_used)]
+    pub fn new(id: impl Into<String>) -> Self {
+        Self::try_new(id).expect("MCP server ID cannot be empty")
+    }
+
+    /// Load MCP server ID from the `MCP_SERVICE_ID` environment variable.
+    ///
+    /// # Errors
+    /// Returns an error if the environment variable is not set or is empty.
+    pub fn from_env() -> Result<Self, IdValidationError> {
+        let id = std::env::var("MCP_SERVICE_ID").map_err(|_| {
+            IdValidationError::invalid(
+                "McpServerId",
+                "MCP_SERVICE_ID environment variable not set",
+            )
+        })?;
+        Self::try_new(id)
     }
 
     pub fn as_str(&self) -> &str {
@@ -165,15 +183,27 @@ impl fmt::Display for McpServerId {
     }
 }
 
-impl From<String> for McpServerId {
-    fn from(s: String) -> Self {
-        Self::new(s)
+impl TryFrom<String> for McpServerId {
+    type Error = IdValidationError;
+
+    fn try_from(s: String) -> Result<Self, Self::Error> {
+        Self::try_new(s)
     }
 }
 
-impl From<&str> for McpServerId {
-    fn from(s: &str) -> Self {
-        Self::new(s)
+impl TryFrom<&str> for McpServerId {
+    type Error = IdValidationError;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        Self::try_new(s)
+    }
+}
+
+impl std::str::FromStr for McpServerId {
+    type Err = IdValidationError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Self::try_new(s)
     }
 }
 

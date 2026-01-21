@@ -67,7 +67,7 @@ impl AgentName {
         if name.is_empty() {
             return Err(IdValidationError::empty("AgentName"));
         }
-        if name.to_lowercase() == "unknown" {
+        if name.eq_ignore_ascii_case("unknown") {
             return Err(IdValidationError::invalid(
                 "AgentName",
                 "'unknown' is reserved for error detection",
