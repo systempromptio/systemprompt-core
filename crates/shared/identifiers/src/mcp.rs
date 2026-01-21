@@ -164,10 +164,7 @@ impl McpServerId {
     /// Returns an error if the environment variable is not set or is empty.
     pub fn from_env() -> Result<Self, IdValidationError> {
         let id = std::env::var("MCP_SERVICE_ID").map_err(|_| {
-            IdValidationError::invalid(
-                "McpServerId",
-                "MCP_SERVICE_ID environment variable not set",
-            )
+            IdValidationError::invalid("McpServerId", "MCP_SERVICE_ID environment variable not set")
         })?;
         Self::try_new(id)
     }

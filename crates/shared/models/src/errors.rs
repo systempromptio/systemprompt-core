@@ -251,9 +251,7 @@ impl From<RepositoryError> for ApiError {
             RepositoryError::InvalidData(msg) | RepositoryError::ConstraintViolation(msg) => {
                 Self::bad_request(msg)
             },
-            RepositoryError::Database(e) => {
-                Self::internal_error(format!("Database error: {e}"))
-            },
+            RepositoryError::Database(e) => Self::internal_error(format!("Database error: {e}")),
             RepositoryError::Serialization(e) => {
                 Self::internal_error(format!("Serialization error: {e}"))
             },

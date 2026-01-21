@@ -1,5 +1,3 @@
-//! Type-safe extension type definitions.
-
 use std::any::TypeId;
 
 use crate::typed_registry::TypedExtensionRegistry;

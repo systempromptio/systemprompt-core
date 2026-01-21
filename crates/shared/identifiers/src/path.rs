@@ -24,7 +24,8 @@ impl ValidatedFilePath {
         }
         // Comprehensive path traversal prevention
         for component in value.split(['/', '\\']) {
-            // Check for ".." traversal (including with extra dots like "..." which could be problematic)
+            // Check for ".." traversal (including with extra dots like "..." which could be
+            // problematic)
             if component == ".." {
                 return Err(IdValidationError::invalid(
                     "ValidatedFilePath",

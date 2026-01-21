@@ -1,5 +1,3 @@
-//! Type-safe extension traits with compile-time dependency checking.
-
 mod api;
 mod config;
 mod job;

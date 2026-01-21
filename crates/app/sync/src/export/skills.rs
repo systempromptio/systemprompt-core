@@ -8,10 +8,10 @@ const DEFAULT_SKILL_CATEGORY: &str = "skills";
 
 pub fn generate_skill_markdown(skill: &Skill) -> String {
     let tags_str = skill.tags.join(", ");
-    let category = skill
-        .category_id
-        .as_ref()
-        .map_or(DEFAULT_SKILL_CATEGORY, systemprompt_identifiers::CategoryId::as_str);
+    let category = skill.category_id.as_ref().map_or(
+        DEFAULT_SKILL_CATEGORY,
+        systemprompt_identifiers::CategoryId::as_str,
+    );
 
     format!(
         r#"---

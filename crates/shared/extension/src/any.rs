@@ -1,5 +1,3 @@
-//! Runtime type erasure for extensions.
-
 use std::any::Any;
 use std::fmt::Debug;
 

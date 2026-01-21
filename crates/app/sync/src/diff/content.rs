@@ -95,10 +95,7 @@ impl ContentDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_content(
-        path: &Path,
-        allowed_types: &[String],
-    ) -> HashMap<String, DiskContent> {
+    fn scan_disk_content(path: &Path, allowed_types: &[String]) -> HashMap<String, DiskContent> {
         let mut items = HashMap::new();
 
         if !path.exists() {

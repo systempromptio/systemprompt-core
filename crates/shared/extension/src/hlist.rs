@@ -1,9 +1,5 @@
-//! Type-level heterogeneous list operations.
-
 use std::any::TypeId;
 
-/// Marker trait for type-level lists represented as nested tuples: `(A, (B, (C,
-/// ())))`
 pub trait TypeList: 'static {
     fn contains_type<T: 'static>() -> bool;
     fn type_ids() -> Vec<TypeId>;
@@ -43,7 +39,6 @@ impl<H: 'static, T: TypeList> TypeList for (H, T) {
     }
 }
 
-/// Subset check with runtime containment verification.
 pub trait Subset<B: TypeList>: TypeList {
     fn is_subset_of() -> bool;
 }
@@ -60,12 +55,10 @@ impl<H: 'static, T: TypeList + Subset<B>, B: TypeList> Subset<B> for (H, T) {
     }
 }
 
-/// Type-level membership check marker.
 pub trait Contains<T: 'static>: TypeList {}
 
 impl<T: 'static, Tail: TypeList> Contains<T> for (T, Tail) {}
 
-/// Helper trait to indicate two types are not the same.
 pub trait NotSame {}
 
 impl<A, B> NotSame for (A, B) {}

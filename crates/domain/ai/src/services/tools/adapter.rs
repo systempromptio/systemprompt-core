@@ -1,4 +1,4 @@
-use systemprompt_identifiers::AiToolCallId;
+use systemprompt_identifiers::{AiToolCallId, McpServerId};
 use systemprompt_models::ai::tools::{CallToolResult, McpTool, ToolCall};
 use systemprompt_models::RequestContext;
 use systemprompt_traits::{

@@ -35,16 +35,18 @@ pub fn set_injected_extensions(config: InjectedExtensions) -> Result<(), Injecte
     INJECTED_EXTENSIONS.set(config)
 }
 
+#[must_use]
 pub fn get_injected_extensions() -> Vec<Arc<dyn Extension>> {
     INJECTED_EXTENSIONS
         .get()
-        .map(|c| c.extensions.clone())
-        .unwrap_or_default()
+        .map_or_else(Vec::new, |config| config.extensions.clone())
 }
 
+#[must_use]
 pub fn get_web_assets_strategy() -> WebAssetsStrategy {
     INJECTED_EXTENSIONS
         .get()
-        .map(|c| c.web_assets.clone())
-        .unwrap_or_default()
+        .map_or(WebAssetsStrategy::Disabled, |config| {
+            config.web_assets.clone()
+        })
 }

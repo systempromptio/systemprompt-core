@@ -1,5 +1,3 @@
-//! Capability traits for dependency injection.
-
 use std::sync::Arc;
 
 use systemprompt_traits::{ConfigProvider, DatabaseHandle};

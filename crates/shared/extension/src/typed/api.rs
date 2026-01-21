@@ -1,5 +1,3 @@
-//! API route extension trait.
-
 use axum::Router;
 
 use crate::types::ExtensionMeta;
