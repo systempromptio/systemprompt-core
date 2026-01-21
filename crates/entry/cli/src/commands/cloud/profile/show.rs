@@ -2,8 +2,8 @@ use anyhow::{bail, Result};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
-use systemprompt_logging::CliService;
 use systemprompt_loader::EnhancedConfigLoader;
+use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
 
 use super::show_display::print_formatted_config;

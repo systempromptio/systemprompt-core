@@ -1,5 +1,6 @@
 mod client;
 mod streams;
+mod tenant_api;
 mod types;
 
 pub use client::CloudApiClient;

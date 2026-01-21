@@ -2,8 +2,8 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
-use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
 use crate::commands::admin::users::types::BanAddOutput;
 

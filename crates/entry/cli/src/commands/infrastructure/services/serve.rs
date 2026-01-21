@@ -1,13 +1,13 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_logging::CliService;
-use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_loader::ModuleLoader;
+use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::{
     install_module_with_db, validate_system, AppContext, Modules, ServiceCategory,
 };
+use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
 const DEFAULT_API_PORT: u16 = 8080;
@@ -32,11 +32,11 @@ pub async fn execute_with_events(
 
     if let Some(pid) = check_port_available(port) {
         if let Some(tx) = events {
-            let _ = tx.send(StartupEvent::PortConflict { port, pid });
+            tx.send(StartupEvent::PortConflict { port, pid }).ok();
         }
         handle_port_conflict(port, pid, kill_port_process, config, events).await?;
         if let Some(tx) = events {
-            let _ = tx.send(StartupEvent::PortConflictResolved { port });
+            tx.send(StartupEvent::PortConflictResolved { port }).ok();
         }
     } else if let Some(tx) = events {
         tx.port_available(port);
@@ -60,7 +60,7 @@ pub async fn execute_with_events(
 
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);
-        let _ = tx.send(StartupEvent::DatabaseValidated);
+        tx.send(StartupEvent::DatabaseValidated).ok();
         tx.phase_completed(Phase::Database);
     } else {
         CliService::phase("Validation");
@@ -88,11 +88,8 @@ pub async fn execute_with_events(
     }
 
     if foreground {
-        systemprompt_api::services::server::run_server(
-            Arc::unwrap_or_clone(ctx),
-            events.cloned(),
-        )
-        .await?;
+        systemprompt_api::services::server::run_server(Arc::unwrap_or_clone(ctx), events.cloned())
+            .await?;
     }
 
     Ok(format!("http://127.0.0.1:{}", port))

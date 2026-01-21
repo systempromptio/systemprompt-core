@@ -8,10 +8,10 @@ use std::time::Duration;
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
+use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseManager;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_loader::ConfigLoader;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]

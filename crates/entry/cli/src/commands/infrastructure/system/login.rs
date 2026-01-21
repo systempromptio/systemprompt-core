@@ -10,15 +10,15 @@ use serde::{Deserialize, Serialize};
 use super::types::LoginOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{CliSession, ProjectContext};
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::{Database, DbPool};
+use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_logging::CliService;
+use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserService};
-use systemprompt_identifiers::{ContextId, SessionId};
-use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {

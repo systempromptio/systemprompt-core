@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, StatusDisplay};
 use crate::services::cli::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
 #[derive(Debug)]

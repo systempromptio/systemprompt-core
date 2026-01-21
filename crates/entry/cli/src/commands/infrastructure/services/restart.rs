@@ -5,9 +5,9 @@ use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::AppContext;
+use systemprompt_scheduler::ProcessCleanup;
 
 const DEFAULT_API_PORT: u16 = 8080;
 
@@ -240,9 +240,8 @@ async fn restart_failed_agents(
             continue;
         }
 
-        if let systemprompt_agent::services::agent_orchestration::AgentStatus::Failed {
-            ..
-        } = status
+        if let systemprompt_agent::services::agent_orchestration::AgentStatus::Failed { .. } =
+            status
         {
             CliService::info(&format!("Restarting failed agent: {}", agent_config.name));
             match orchestrator.restart_agent(agent_id, None).await {
@@ -277,8 +276,7 @@ async fn restart_failed_mcp(
             continue;
         }
 
-        let database =
-            systemprompt_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
+        let database = systemprompt_mcp::services::DatabaseManager::new(Arc::clone(ctx.db_pool()));
         let service_info = database.get_service_by_name(&server.name).await?;
 
         let needs_restart = match service_info {

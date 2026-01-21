@@ -2,6 +2,10 @@ use axum::http::HeaderMap;
 use std::error::Error;
 use std::fmt;
 
+const DEFAULT_COOKIE_NAME: &str = "access_token";
+const DEFAULT_MCP_HEADER_NAME: &str = "x-mcp-proxy-auth";
+const BEARER_PREFIX: &str = "Bearer ";
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ExtractionMethod {
     AuthorizationHeader,
@@ -30,8 +34,8 @@ impl TokenExtractor {
     pub fn new(fallback_chain: Vec<ExtractionMethod>) -> Self {
         Self {
             fallback_chain,
-            cookie_name: "access_token".to_string(),
-            mcp_header_name: "x-mcp-proxy-auth".to_string(),
+            cookie_name: DEFAULT_COOKIE_NAME.to_string(),
+            mcp_header_name: DEFAULT_MCP_HEADER_NAME.to_string(),
         }
     }
 
@@ -100,12 +104,16 @@ impl TokenExtractor {
         }
 
         for auth_value in &auth_headers {
-            let Ok(auth_header) = auth_value.to_str() else {
+            let Ok(auth_header) = auth_value.to_str().map_err(|e| {
+                tracing::debug!(error = %e, "Authorization header contains non-ASCII characters");
+                e
+            }) else {
                 continue;
             };
 
-            if let Some(token) = auth_header.strip_prefix("Bearer ") {
-                if !token.trim().is_empty() {
+            if let Some(token) = auth_header.strip_prefix(BEARER_PREFIX) {
+                let token = token.trim();
+                if !token.is_empty() {
                     return Ok(token.to_string());
                 }
             }
@@ -127,7 +135,7 @@ impl TokenExtractor {
             .map_err(|_| TokenExtractionError::InvalidMcpProxyFormat)?;
 
         auth_header
-            .strip_prefix("Bearer ")
+            .strip_prefix(BEARER_PREFIX)
             .ok_or(TokenExtractionError::InvalidMcpProxyFormat)
             .map(ToString::to_string)
     }

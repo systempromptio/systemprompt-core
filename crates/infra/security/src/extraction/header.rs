@@ -1,6 +1,19 @@
 use axum::http::{HeaderMap, HeaderValue};
+use std::error::Error;
+use std::fmt;
 use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::execution::context::RequestContext;
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HeaderInjectionError;
+
+impl fmt::Display for HeaderInjectionError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Header value contains invalid characters")
+    }
+}
+
+impl Error for HeaderInjectionError {}
 
 #[derive(Debug, Clone, Copy)]
 pub struct HeaderExtractor;
@@ -45,37 +58,55 @@ impl HeaderExtractor {
 pub struct HeaderInjector;
 
 impl HeaderInjector {
-    pub fn inject_session_id(headers: &mut HeaderMap, session_id: &SessionId) -> Result<(), ()> {
+    pub fn inject_session_id(
+        headers: &mut HeaderMap,
+        session_id: &SessionId,
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_header(headers, headers::SESSION_ID, session_id.as_str())
     }
 
-    pub fn inject_user_id(headers: &mut HeaderMap, user_id: &UserId) -> Result<(), ()> {
+    pub fn inject_user_id(
+        headers: &mut HeaderMap,
+        user_id: &UserId,
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_header(headers, headers::USER_ID, user_id.as_str())
     }
 
-    pub fn inject_trace_id(headers: &mut HeaderMap, trace_id: &TraceId) -> Result<(), ()> {
+    pub fn inject_trace_id(
+        headers: &mut HeaderMap,
+        trace_id: &TraceId,
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_header(headers, headers::TRACE_ID, trace_id.as_str())
     }
 
-    pub fn inject_context_id(headers: &mut HeaderMap, context_id: &ContextId) -> Result<(), ()> {
+    pub fn inject_context_id(
+        headers: &mut HeaderMap,
+        context_id: &ContextId,
+    ) -> Result<(), HeaderInjectionError> {
         if context_id.as_str().is_empty() {
             return Ok(());
         }
         Self::inject_header(headers, headers::CONTEXT_ID, context_id.as_str())
     }
 
-    pub fn inject_task_id(headers: &mut HeaderMap, task_id: &TaskId) -> Result<(), ()> {
+    pub fn inject_task_id(
+        headers: &mut HeaderMap,
+        task_id: &TaskId,
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_header(headers, headers::TASK_ID, task_id.as_str())
     }
 
-    pub fn inject_agent_name(headers: &mut HeaderMap, agent_name: &str) -> Result<(), ()> {
+    pub fn inject_agent_name(
+        headers: &mut HeaderMap,
+        agent_name: &str,
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_header(headers, headers::AGENT_NAME, agent_name)
     }
 
     pub fn inject_from_request_context(
         headers: &mut HeaderMap,
         ctx: &RequestContext,
-    ) -> Result<(), ()> {
+    ) -> Result<(), HeaderInjectionError> {
         Self::inject_session_id(headers, &ctx.request.session_id)?;
         Self::inject_user_id(headers, &ctx.auth.user_id)?;
         Self::inject_trace_id(headers, &ctx.execution.trace_id)?;
@@ -84,8 +115,12 @@ impl HeaderInjector {
         Ok(())
     }
 
-    fn inject_header(headers: &mut HeaderMap, name: &'static str, value: &str) -> Result<(), ()> {
-        HeaderValue::from_str(value).map_or(Err(()), |header_value| {
+    fn inject_header(
+        headers: &mut HeaderMap,
+        name: &'static str,
+        value: &str,
+    ) -> Result<(), HeaderInjectionError> {
+        HeaderValue::from_str(value).map_or(Err(HeaderInjectionError), |header_value| {
             headers.insert(name, header_value);
             Ok(())
         })

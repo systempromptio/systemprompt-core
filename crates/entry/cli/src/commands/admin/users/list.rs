@@ -3,8 +3,8 @@ use anyhow::Result;
 use clap::{Args, ValueEnum};
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_users::{UserRole, UserService, UserStatus};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserRole, UserService, UserStatus};
 use tabled::{Table, Tabled};
 
 use super::types::{UserListOutput, UserSummary};

@@ -2,8 +2,8 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
-use systemprompt_users::{UserAdminService, UserService, UserStatus};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserAdminService, UserService, UserStatus};
 
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;

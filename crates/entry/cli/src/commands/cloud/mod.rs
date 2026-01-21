@@ -1,8 +1,8 @@
 pub mod auth;
 pub mod db;
 mod deploy;
-mod domain;
 pub mod dockerfile;
+mod domain;
 mod init;
 pub mod profile;
 mod restart;

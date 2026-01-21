@@ -127,7 +127,14 @@ pub async fn generate_client_tokens(
     let client_allowed: Vec<Permission> = client
         .scopes
         .iter()
-        .filter_map(|s| Permission::from_str(s).ok())
+        .filter_map(|s| {
+            Permission::from_str(s)
+                .map_err(|e| {
+                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
+                    e
+                })
+                .ok()
+        })
         .collect();
 
     let permissions: Vec<Permission> = requested_permissions

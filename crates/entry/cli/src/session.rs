@@ -4,24 +4,24 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use serde::{Deserialize, Serialize};
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{
     CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, ProjectContext, SessionKey,
     SessionStore,
 };
-use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_database::{Database, DbPool};
-use systemprompt_logging::CliService;
-use systemprompt_security::{SessionGenerator, SessionParams};
-use systemprompt_users::UserService;
 use systemprompt_identifiers::{
     AgentName, ContextId, Email, ProfileName, SessionId, SessionToken, TraceId, UserId,
 };
 use systemprompt_loader::ProfileLoader;
+use systemprompt_logging::CliService;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
+use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_users::UserService;
 
 use crate::CliConfig;
 

@@ -2,10 +2,10 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
-use systemprompt_users::{UserAdminService, UserService};
 use systemprompt_identifiers::SessionId;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserAdminService, UserService};
 use tabled::{Table, Tabled};
 
 use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};

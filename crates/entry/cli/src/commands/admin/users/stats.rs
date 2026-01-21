@@ -2,8 +2,8 @@ use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_users::UserService;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::UserService;
 
 use super::types::UserStatsOutput;
 

@@ -3,8 +3,8 @@ use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_logging::CliService;
-use systemprompt_users::{UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
 

@@ -4,8 +4,8 @@ use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_content::ContentRepository;
-use systemprompt_logging::CliService;
 use systemprompt_identifiers::SourceId;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]

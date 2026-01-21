@@ -177,10 +177,15 @@ pub fn configure_routes(
         Ok(p) => p,
         Err(e) => {
             if let Some(tx) = events {
-                let _ = tx.send(StartupEvent::Warning {
-                    message: format!("Failed to load paths: {e}"),
-                    context: Some("Static content matching will be disabled".to_string()),
-                });
+                if tx
+                    .send(StartupEvent::Warning {
+                        message: format!("Failed to load paths: {e}"),
+                        context: Some("Static content matching will be disabled".to_string()),
+                    })
+                    .is_err()
+                {
+                    tracing::debug!("Startup event receiver dropped");
+                }
             }
             return Ok(router);
         },
@@ -191,20 +196,30 @@ pub fn configure_routes(
             Ok(matcher) => Arc::new(matcher),
             Err(e) => {
                 if let Some(tx) = events {
-                    let _ = tx.send(StartupEvent::Warning {
-                        message: format!("Failed to load content config: {e}"),
-                        context: Some("Static content matching will be disabled".to_string()),
-                    });
+                    if tx
+                        .send(StartupEvent::Warning {
+                            message: format!("Failed to load content config: {e}"),
+                            context: Some("Static content matching will be disabled".to_string()),
+                        })
+                        .is_err()
+                    {
+                        tracing::debug!("Startup event receiver dropped");
+                    }
                 }
                 Arc::new(StaticContentMatcher::empty())
             },
         }
     } else {
         if let Some(tx) = events {
-            let _ = tx.send(StartupEvent::Warning {
-                message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
-                context: None,
-            });
+            if tx
+                .send(StartupEvent::Warning {
+                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
+                    context: None,
+                })
+                .is_err()
+            {
+                tracing::debug!("Startup event receiver dropped");
+            }
         }
         Arc::new(StaticContentMatcher::empty())
     };
@@ -300,11 +315,16 @@ fn mount_extension_routes(
         };
 
         if let Some(tx) = events {
-            let _ = tx.send(StartupEvent::ExtensionRouteMounted {
-                name: ext_name.to_string(),
-                path: base_path.to_string(),
-                auth_required: requires_auth,
-            });
+            if tx
+                .send(StartupEvent::ExtensionRouteMounted {
+                    name: ext_name.to_string(),
+                    path: base_path.to_string(),
+                    auth_required: requires_auth,
+                })
+                .is_err()
+            {
+                tracing::debug!("Startup event receiver dropped");
+            }
         }
 
         router = router.nest(base_path, ext_router);

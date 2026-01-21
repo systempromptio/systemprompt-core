@@ -9,8 +9,8 @@ use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
 use crate::shared::{resolve_input, CommandResult};
 use crate::CliConfig;
-use systemprompt_logging::CliService;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
+use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, CapabilitiesConfig, OAuthConfig,

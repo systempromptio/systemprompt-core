@@ -14,11 +14,11 @@ crates/infra/events/
 ├── README.md
 ├── status.md
 └── src/
-    ├── lib.rs                      # 52 lines  - Trait definitions, type aliases, re-exports
+    ├── lib.rs                      # 51 lines  - Trait definitions, type aliases, re-exports
     └── services/
-        ├── mod.rs                  # 11 lines  - Module re-exports
-        ├── broadcaster.rs          # 192 lines - GenericBroadcaster implementation (+413 lines tests)
-        └── routing.rs              # 52 lines  - EventRouter, global singletons (+260 lines tests)
+        ├── mod.rs                  # 10 lines  - Module re-exports
+        ├── broadcaster.rs          # 191 lines - GenericBroadcaster implementation
+        └── routing.rs              # 51 lines  - EventRouter, global singletons
 ```
 
 ## Modules
@@ -86,7 +86,7 @@ Event routing and global state:
         │                    │                    │
         ▼                    ▼                    ▼
 ┌───────────────┐    ┌───────────────┐    ┌───────────────┐
-│ AGUI_BROADCASTER │    │ A2A_BROADCASTER │    │CONTEXT_BROADCASTER│
+│AGUI_BROADCASTER│    │A2A_BROADCASTER│    │CONTEXT_BROADCASTER│
 └───────┬───────┘    └───────┬───────┘    └───────┬───────┘
         │                    │                    │
         ▼                    ▼                    ▼
@@ -105,3 +105,7 @@ AgUI and A2A events are routed to both their primary broadcaster AND the context
 | `axum` | SSE `Event` and `KeepAlive` types |
 | `async-trait` | Async trait support |
 | `tracing` | Structured logging |
+
+## Tests
+
+Tests are located in `crates/tests/unit/infra/events/` following the project convention of separating tests from source files.

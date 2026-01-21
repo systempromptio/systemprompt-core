@@ -1,10 +1,10 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
-use systemprompt_users::{UserAdminService, UserService};
 use systemprompt_identifiers::SessionId;
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserAdminService, UserService};
 
 use crate::commands::admin::users::types::SessionEndOutput;
 

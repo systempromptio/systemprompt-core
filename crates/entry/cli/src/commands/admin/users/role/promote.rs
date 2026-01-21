@@ -2,8 +2,8 @@ use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_logging::CliService;
-use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
 
