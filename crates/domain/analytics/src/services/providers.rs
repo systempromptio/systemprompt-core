@@ -5,11 +5,12 @@ use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
     CreateSessionInput, FingerprintProvider, SessionAnalytics as TraitSessionAnalytics,
+    SessionAnalyticsProvider, SessionAnalyticsProviderError, SessionAnalyticsResult,
 };
 
 use super::service::AnalyticsService;
 use super::SessionAnalytics;
-use crate::repository::FingerprintRepository;
+use crate::repository::{FingerprintRepository, SessionRepository};
 
 #[async_trait]
 impl AnalyticsProvider for AnalyticsService {
@@ -128,5 +129,14 @@ impl FingerprintProvider for FingerprintRepository {
             .await
             .map(|_| ())
             .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))
+    }
+}
+
+#[async_trait]
+impl SessionAnalyticsProvider for SessionRepository {
+    async fn increment_task_count(&self, session_id: &SessionId) -> SessionAnalyticsResult<()> {
+        SessionRepository::increment_task_count(self, session_id)
+            .await
+            .map_err(|e| SessionAnalyticsProviderError::Internal(e.to_string()))
     }
 }
