@@ -20,7 +20,14 @@ pub async fn persist_image_generation(
     location: FileLocation<'_>,
 ) -> Result<()> {
     persist_ai_request(ai_request_repo, request, response).await?;
-    persist_file_record(file_repo, request, response, location.path, location.public_url).await
+    persist_file_record(
+        file_repo,
+        request,
+        response,
+        location.path,
+        location.public_url,
+    )
+    .await
 }
 
 async fn persist_ai_request(
@@ -102,19 +109,15 @@ async fn persist_file_record(
         deleted_at: None,
     };
 
-    file_repo
-        .insert_file(&file)
-        .await
-        .map(|_| ())
-        .map_err(|e| {
-            AiError::DatabaseError(anyhow::anyhow!(
-                "Failed to persist generated image (id: {}, path: {}, url: {}): {}",
-                response.id,
-                file_path,
-                public_url,
-                e
-            ))
-        })
+    file_repo.insert_file(&file).await.map(|_| ()).map_err(|e| {
+        AiError::DatabaseError(anyhow::anyhow!(
+            "Failed to persist generated image (id: {}, path: {}, url: {}): {}",
+            response.id,
+            file_path,
+            public_url,
+            e
+        ))
+    })
 }
 
 pub async fn get_generated_image(file_repo: &FileRepository, uuid: &str) -> Result<Option<File>> {

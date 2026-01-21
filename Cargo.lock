@@ -4889,12 +4889,12 @@ dependencies = [
 name = "systemprompt-template-provider"
 version = "0.0.1"
 dependencies = [
- "anyhow",
  "async-trait",
  "serde",
  "serde_json",
  "serde_yaml",
  "systemprompt-provider-contracts",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
 ]

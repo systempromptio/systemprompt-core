@@ -1,5 +1,3 @@
-//! Database schema extension trait.
-
 use std::path::PathBuf;
 
 use serde::{Deserialize, Serialize};

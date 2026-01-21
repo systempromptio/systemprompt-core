@@ -35,8 +35,7 @@ impl A2ARepositories {
         let agent_services = agent_service::AgentServiceRepository::new(db_pool.clone());
         let tasks = task::TaskRepository::new(db_pool.clone());
         let execution_steps = execution::ExecutionStepRepository::new(&db_pool)?;
-        let push_notification_configs =
-            content::PushNotificationConfigRepository::new(&db_pool)?;
+        let push_notification_configs = content::PushNotificationConfigRepository::new(&db_pool)?;
 
         Ok(Self {
             db_pool,
@@ -56,8 +55,7 @@ impl A2ARepositories {
         let agent_services = agent_service::AgentServiceRepository::new(db_pool.clone());
         let tasks = task::TaskRepository::new(db_pool.clone());
         let execution_steps = execution::ExecutionStepRepository::new(&db_pool)?;
-        let push_notification_configs =
-            content::PushNotificationConfigRepository::new(&db_pool)?;
+        let push_notification_configs = content::PushNotificationConfigRepository::new(&db_pool)?;
 
         Ok(Self {
             db_pool,

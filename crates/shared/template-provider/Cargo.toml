@@ -17,13 +17,14 @@ workspace = true
 systemprompt-provider-contracts = { path = "../provider-contracts" }
 
 async-trait = { workspace = true }
-anyhow = { workspace = true }
+thiserror = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 
 tokio = { workspace = true, features = ["fs", "sync"] }
+futures = { workspace = true }
 
 tracing = { workspace = true }
 

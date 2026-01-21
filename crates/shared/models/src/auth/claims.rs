@@ -6,14 +6,8 @@ use super::{
     UserType,
 };
 
-/// JWT Claims structure for SystemPrompt authentication tokens.
-///
-/// This is the canonical claims structure used across all modules.
-/// It follows RFC 7519 for standard claims and includes SystemPrompt-specific
-/// claims.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtClaims {
-    // Standard JWT Claims (RFC 7519)
     pub sub: String,
     pub iat: i64,
     pub exp: i64,
@@ -25,23 +19,19 @@ pub struct JwtClaims {
     pub aud: Vec<JwtAudience>,
     pub jti: String,
 
-    // OAuth 2.0 Claims
     #[serde(
         serialize_with = "serialize_scope",
         deserialize_with = "deserialize_scope"
     )]
     pub scope: Vec<Permission>,
 
-    // SystemPrompt User Claims
     pub username: String,
     pub email: String,
     pub user_type: UserType,
 
-    // User roles (extension-defined roles as strings)
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub roles: Vec<String>,
 
-    // Enhanced Security Claims
     #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
     pub token_type: TokenType,
@@ -49,7 +39,6 @@ pub struct JwtClaims {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub session_id: Option<String>,
 
-    // Rate Limiting & Security Metadata (optional)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub rate_limit_tier: Option<RateLimitTier>,
 }

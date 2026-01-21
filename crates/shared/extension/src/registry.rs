@@ -174,7 +174,11 @@ impl ExtensionRegistry {
         for id in self.extensions.keys() {
             if color.get(id.as_str()) == Some(&WHITE) {
                 if let Err(cycle_path) = dfs(id.as_str(), &self.extensions, &mut color, &mut path) {
-                    let cycle_start = cycle_path.last().copied().unwrap_or("");
+                    let Some(&cycle_start) = cycle_path.last() else {
+                        return Err(LoaderError::CircularDependency {
+                            chain: "unknown cycle".to_string(),
+                        });
+                    };
                     let cycle_start_idx = cycle_path
                         .iter()
                         .position(|&x| x == cycle_start)

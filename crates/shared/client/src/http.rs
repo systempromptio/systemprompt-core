@@ -12,7 +12,10 @@ async fn extract_error(response: Response) -> ClientError {
     ClientError::from_response(status, body)
 }
 
-fn apply_auth(request: reqwest::RequestBuilder, token: Option<&JwtToken>) -> reqwest::RequestBuilder {
+fn apply_auth(
+    request: reqwest::RequestBuilder,
+    token: Option<&JwtToken>,
+) -> reqwest::RequestBuilder {
     match token {
         Some(t) => request.header("Authorization", format!("Bearer {}", t.as_str())),
         None => request,

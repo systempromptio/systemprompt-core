@@ -17,27 +17,10 @@ pub use card::{CardCta, CardSection, PresentationCardArtifact, PresentationCardR
 pub use chart::{ChartArtifact, ChartDataset};
 pub use copy_paste_text::CopyPasteTextArtifact;
 pub use dashboard::{
-    // Typed section data
-    ChartSectionData,
-    DashboardArtifact,
-    DashboardHints,
-    DashboardSection,
-    DatabaseStatus,
-    ErrorCounts,
-    ItemList,
-    LayoutMode,
-    LayoutWidth,
-    ListItem as DashboardListItem,
-    ListSectionData,
-    MetricCard,
-    MetricStatus,
-    MetricsCardsData,
-    SectionLayout,
-    SectionType,
-    ServiceStatus,
-    SortConfig,
-    StatusSectionData,
-    TableSectionData,
+    ChartSectionData, DashboardArtifact, DashboardHints, DashboardSection, DatabaseStatus,
+    ErrorCounts, ItemList, LayoutMode, LayoutWidth, ListItem as DashboardListItem, ListSectionData,
+    MetricCard, MetricStatus, MetricsCardsData, SectionLayout, SectionType, ServiceStatus,
+    SortConfig, StatusSectionData, TableSectionData,
 };
 pub use list::{ListArtifact, ListItem};
 pub use metadata::{ExecutionMetadata, ToolResponse};

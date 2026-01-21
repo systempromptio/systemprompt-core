@@ -9,6 +9,7 @@ use rmcp::transport::streamable_http_client::{
 };
 use rmcp::{ClientHandler, RoleClient, ServiceExt};
 use std::time::Duration;
+use systemprompt_identifiers::McpServerId;
 use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::Config;
 use tokio::time::timeout;

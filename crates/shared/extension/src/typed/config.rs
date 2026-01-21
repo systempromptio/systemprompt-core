@@ -1,5 +1,3 @@
-//! Configuration extension trait.
-
 use serde_json::Value as JsonValue;
 
 use crate::error::ConfigError;
