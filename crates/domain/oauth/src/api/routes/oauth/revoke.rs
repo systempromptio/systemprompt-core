@@ -123,24 +123,17 @@ async fn revoke_token(
 ) -> Result<()> {
     use systemprompt_identifiers::RefreshTokenId;
 
-    // Try to revoke based on token type hint, or try both if not specified
     match token_type_hint {
         Some("refresh_token") => {
             let token_id = RefreshTokenId::new(token);
             repo.revoke_refresh_token(&token_id).await?;
         },
         Some("access_token") => {
-            // Access tokens are JWTs and cannot be directly revoked without a blacklist.
-            // For now, we accept the request per RFC 7009 (revocation endpoint should
-            // not reveal whether the token was valid). In production, consider implementing
-            // a token blacklist backed by Redis or similar.
             tracing::debug!("Access token revocation requested - JWT tokens are stateless");
         },
         _ => {
-            // Try refresh token first (most common case for revocation)
             let token_id = RefreshTokenId::new(token);
             let _ = repo.revoke_refresh_token(&token_id).await;
-            // Per RFC 7009, we don't reveal if the token was actually found/revoked
         },
     }
 

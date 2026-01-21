@@ -1,5 +1,4 @@
-// Minimal clippy allows - only for unavoidable patterns in this crate
-#![allow(clippy::module_name_repetitions)] // OAuth module names naturally repeat "oauth"
+#![allow(clippy::module_name_repetitions)]
 
 pub mod api;
 pub mod models;

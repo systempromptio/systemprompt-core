@@ -108,7 +108,6 @@ async fn find_browser_client(
     repo: &OAuthRepository,
     redirect_uri: &str,
 ) -> anyhow::Result<BrowserClient> {
-    // Use indexed query instead of loading all clients
     let client = repo
         .find_client_by_redirect_uri_with_scope(redirect_uri, &["admin", "user"])
         .await?

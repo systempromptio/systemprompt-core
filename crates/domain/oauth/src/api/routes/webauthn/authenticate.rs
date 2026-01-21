@@ -238,9 +238,7 @@ pub struct DevAuthResponse {
 }
 
 fn is_dev_mode() -> bool {
-    std::env::var("DANGEROUSLY_BYPASS_OAUTH")
-        .map(|s| s.to_lowercase() == "true")
-        .unwrap_or(false)
+    cfg!(feature = "dangerous-dev-bypass")
 }
 
 #[allow(unused_qualifications)]

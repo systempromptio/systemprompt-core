@@ -148,7 +148,8 @@ pub async fn process_events(params: ProcessEventsParams) {
                     tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_START");
                 }
 
-                let args_json = serde_json::to_string(&tool_call.arguments).unwrap_or_else(|_| String::new());
+                let args_json =
+                    serde_json::to_string(&tool_call.arguments).unwrap_or_else(|_| String::new());
                 let args_event = AgUiEventBuilder::tool_call_args(tool_call_id, &args_json);
                 if let Err(e) = webhook_context.broadcast_agui(args_event).await {
                     tracing::error!(error = %e, "Failed to broadcast TOOL_CALL_ARGS");
@@ -160,7 +161,8 @@ pub async fn process_events(params: ProcessEventsParams) {
                 }
             },
             StreamEvent::ToolResult { call_id, result } => {
-                let result_value = serde_json::to_value(&result).unwrap_or_else(|_| serde_json::Value::Null);
+                let result_value =
+                    serde_json::to_value(&result).unwrap_or_else(|_| serde_json::Value::Null);
                 let result_event = AgUiEventBuilder::tool_call_result(
                     &uuid::Uuid::new_v4().to_string(),
                     &call_id,

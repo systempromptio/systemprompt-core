@@ -176,7 +176,11 @@ fn build_messages(
             parts,
             id: msg_row.message_id.clone().into(),
             task_id: Some(msg_row.task_id.clone().into()),
-            context_id: msg_row.context_id.clone().unwrap_or_else(String::new).into(),
+            context_id: msg_row
+                .context_id
+                .clone()
+                .unwrap_or_else(String::new)
+                .into(),
             kind: "message".to_string(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None
