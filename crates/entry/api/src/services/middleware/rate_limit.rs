@@ -150,7 +150,14 @@ pub async fn tiered_rate_limit_middleware(
             let ip = request
                 .headers()
                 .get("x-forwarded-for")
-                .and_then(|h| h.to_str().ok())
+                .and_then(|h| {
+                    h.to_str()
+                        .map_err(|e| {
+                            tracing::trace!(error = %e, "Invalid UTF-8 in x-forwarded-for header");
+                            e
+                        })
+                        .ok()
+                })
                 .and_then(|s| s.split(',').next())
                 .map_or_else(|| "unknown".to_string(), ToString::to_string);
             (RateLimitTier::Anon, ip)

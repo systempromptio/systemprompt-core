@@ -85,7 +85,10 @@ pub async fn execute(
             let ctx = Arc::new(ctx);
             AgentOrchestrator::new(ctx, None).await.ok()
         },
-        Err(_) => None,
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to create AppContext for agent deletion");
+            None
+        },
     };
 
     let mut deleted = Vec::new();

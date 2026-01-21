@@ -150,7 +150,7 @@ async fn execute_all_sources(args: &IngestArgs) -> Result<IngestResult> {
 
         let allowed_types = source_config.allowed_content_types.clone();
         let category_id = source_config.category_id.as_str().to_string();
-        let indexing = source_config.indexing.unwrap_or_default();
+        let indexing = source_config.indexing.clone().unwrap_or_else(IndexingConfig::default);
 
         let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
         let source = IngestionSource::new(&name, &category_id, &allowed_types_refs);
@@ -264,10 +264,14 @@ fn load_content_config() -> Result<ContentConfigRaw> {
 
 fn resolve_indexing_options(args: &IngestArgs, source_id: &str) -> IndexingConfig {
     let config_indexing = load_content_config()
+        .map_err(|e| {
+            tracing::debug!(error = %e, "Failed to load content config, using defaults");
+            e
+        })
         .ok()
         .and_then(|c| c.content_sources.get(source_id).cloned())
         .and_then(|s| s.indexing)
-        .unwrap_or_default();
+        .unwrap_or_else(IndexingConfig::default);
 
     IndexingConfig {
         recursive: args.recursive || config_indexing.recursive,

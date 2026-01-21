@@ -52,6 +52,7 @@ Token extraction from multiple sources with fallback chain support.
 | `TokenExtractionError` | Enum | Specific error types for extraction failures |
 | `HeaderExtractor` | Struct | Extracts trace_id, context_id, agent_name from headers |
 | `HeaderInjector` | Struct | Injects RequestContext fields into outgoing headers |
+| `HeaderInjectionError` | Struct | Error type for header injection failures |
 | `CookieExtractor` | Struct | Dedicated cookie-based token extraction |
 | `CookieExtractionError` | Enum | Cookie-specific error types |
 
@@ -130,4 +131,24 @@ let params = AdminTokenParams {
     duration: Duration::days(365),
 };
 let token = JwtService::generate_admin_token(&params)?;
+```
+
+### Session Token Generation
+
+```rust
+use systemprompt_security::{SessionGenerator, SessionParams};
+use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
+
+let generator = SessionGenerator::new(jwt_secret, "systemprompt");
+let params = SessionParams {
+    user_id: &user_id,
+    session_id: &session_id,
+    email: "user@example.com",
+    duration: Duration::hours(24),
+    user_type: UserType::User,
+    permissions: vec![Permission::Read, Permission::Write],
+    roles: vec!["user".to_string()],
+    rate_limit_tier: RateLimitTier::Standard,
+};
+let token = generator.generate(&params)?;
 ```

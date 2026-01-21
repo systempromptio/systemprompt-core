@@ -207,14 +207,12 @@ impl DatabaseProvider for PostgresProvider {
     }
 
     async fn execute_batch(&self, sql: &str) -> Result<()> {
-        for statement in sql.split(';') {
-            let trimmed = statement.trim();
-            if !trimmed.is_empty() {
-                sqlx::query(trimmed)
-                    .execute(&*self.pool)
-                    .await
-                    .map_err(|e| anyhow!("Batch execution failed: {e}"))?;
-            }
+        let statements = crate::services::SqlExecutor::parse_sql_statements(sql);
+        for statement in statements {
+            sqlx::query(&statement)
+                .execute(&*self.pool)
+                .await
+                .map_err(|e| anyhow!("Batch execution failed: {e}"))?;
         }
         Ok(())
     }
@@ -261,7 +259,11 @@ impl DatabaseProvider for PostgresProvider {
                         .collect();
                     query_obj.bind(strings)
                 },
-                serde_json::Value::Object(_) => query_obj.bind(serde_json::to_string(&param).ok()),
+                serde_json::Value::Object(_) => {
+                    let json_str = serde_json::to_string(&param)
+                        .map_err(|e| anyhow!("Failed to serialize JSON object: {e}"))?;
+                    query_obj.bind(Some(json_str))
+                },
             };
         }
 

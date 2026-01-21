@@ -213,8 +213,8 @@ async fn build_ai_messages(
         );
 
         let mut skills_prompt = String::from(
-            "# Your Skills\n\nYou have the following skills that define your capabilities \
-             and writing style:\n\n",
+            "# Your Skills\n\nYou have the following skills that define your capabilities and \
+             writing style:\n\n",
         );
 
         for skill_id in &agent_runtime.skills {

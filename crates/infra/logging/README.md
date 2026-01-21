@@ -48,12 +48,17 @@ src/
 │   ├── maintenance.rs                  - LoggingMaintenanceService: cleanup operations
 │   │
 │   ├── cli/
-│   │   ├── mod.rs                      - CliService: logging facade (success, warning, error, etc.)
-│   │   ├── display.rs                  - Display traits, render_table, truncate_to_width
+│   │   ├── mod.rs                      - Module declarations and re-exports
+│   │   ├── display.rs                  - Display traits, DisplayUtils, StatusDisplay, CollectionDisplay
+│   │   ├── macros.rs                   - cli_success!, cli_warning!, cli_error!, cli_info! macros
 │   │   ├── module.rs                   - ModuleDisplay, ModuleInstall, ModuleUpdate
 │   │   ├── prompts.rs                  - Prompts, PromptBuilder, QuickPrompts
+│   │   ├── service.rs                  - CliService: logging facade (success, warning, error, etc.)
+│   │   ├── startup.rs                  - Startup banner and phase rendering functions
 │   │   ├── summary.rs                  - ValidationSummary, OperationResult, ProgressSummary
-│   │   └── theme.rs                    - Icons, Colors, Theme, MessageLevel, ItemStatus
+│   │   ├── table.rs                    - Table rendering, ServiceTableEntry, render_service_table
+│   │   ├── theme.rs                    - Theme, Icons, Colors, BrandColors, ServiceStatus
+│   │   └── types.rs                    - ItemStatus, ModuleType, MessageLevel, IconType, ColorType
 │   │
 │   ├── output/
 │   │   └── mod.rs                      - Startup mode: is_startup_mode(), set_startup_mode()
@@ -72,9 +77,11 @@ src/
 │   ├── models.rs                       - TraceEvent, TaskInfo, ExecutionStep, AiRequestInfo,
 │   │                                     McpToolExecution, ConversationMessage, ToolLogEntry
 │   ├── service.rs                      - TraceQueryService: generic trace querying
-│   ├── queries.rs                      - SQL queries for trace events and summaries
+│   ├── queries.rs                      - SQL queries for log events and AI request summaries
+│   ├── step_queries.rs                 - SQL queries for MCP executions and execution steps
 │   ├── ai_trace_service.rs             - AiTraceService: AI/MCP operation tracing
-│   └── ai_trace_queries.rs             - SQL queries for AI requests, tasks, MCP executions
+│   ├── ai_trace_queries.rs             - SQL queries for tasks, AI requests, messages
+│   └── mcp_trace_queries.rs            - SQL queries for MCP executions, tool logs, artifacts
 │
 schema/
 ├── log.sql                             - logs table, indexes, analytical views

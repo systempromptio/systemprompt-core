@@ -19,7 +19,10 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Conf
     for section in ConfigSection::all() {
         let section_files = match section.all_files() {
             Ok(f) => f,
-            Err(_) => continue,
+            Err(e) => {
+                tracing::debug!(section = %section, error = %e, "Failed to list config files for section");
+                continue;
+            },
         };
 
         for file_path in section_files {

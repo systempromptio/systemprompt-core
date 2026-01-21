@@ -3,7 +3,9 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId};
+use systemprompt_identifiers::{
+    ContextId, Email, ProfileName, SessionId, SessionToken, TenantId, UserId,
+};
 use systemprompt_models::auth::UserType;
 
 use super::{SessionKey, LOCAL_SESSION_KEY};

@@ -8,9 +8,9 @@ pub use push_notification::{
     DeleteTaskPushNotificationConfigResponse, GetTaskPushNotificationConfigParams,
     GetTaskPushNotificationConfigRequest, GetTaskPushNotificationConfigResponse,
     ListTaskPushNotificationConfigRequest, ListTaskPushNotificationConfigResponse,
-    PushNotificationConfig, PushNotificationNotSupportedError, SetTaskPushNotificationConfigRequest,
-    SetTaskPushNotificationConfigResponse, TaskPushNotificationConfig, TaskResubscriptionRequest,
-    TaskResubscriptionResponse,
+    PushNotificationConfig, PushNotificationNotSupportedError,
+    SetTaskPushNotificationConfigRequest, SetTaskPushNotificationConfigResponse,
+    TaskPushNotificationConfig, TaskResubscriptionRequest, TaskResubscriptionResponse,
 };
 pub use requests::{
     A2aJsonRpcRequest, A2aParseError, A2aRequest, A2aRequestParams, A2aResponse,

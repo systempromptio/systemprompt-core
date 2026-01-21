@@ -89,7 +89,14 @@ impl AuthorizationService {
 
         let allowed_auds: Vec<JwtAudience> = allowed_audiences
             .iter()
-            .filter_map(|s| JwtAudience::from_str(s).ok())
+            .filter_map(|s| {
+                JwtAudience::from_str(s)
+                    .map_err(|e| {
+                        tracing::warn!(audience = %s, error = %e, "Invalid audience in configuration");
+                        e
+                    })
+                    .ok()
+            })
             .collect();
 
         if !audience::validate_any_audience(&claims.aud, &allowed_auds) {

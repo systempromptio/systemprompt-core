@@ -38,6 +38,7 @@ where
         + Send,
 {
     let mut attempts = 0;
+    let base_delay_ms = 10u64;
 
     loop {
         let mut tx = pool.begin().await?;
@@ -49,10 +50,12 @@ where
             },
             Err(e) => {
                 if attempts < max_retries && is_retriable_error(&e) {
-                    attempts += 1;
                     if let Err(rollback_err) = tx.rollback().await {
                         tracing::error!(error = %rollback_err, "Transaction rollback failed during retry");
                     }
+                    attempts += 1;
+                    let delay_ms = base_delay_ms * (1 << attempts.min(6));
+                    tokio::time::sleep(std::time::Duration::from_millis(delay_ms)).await;
                     continue;
                 }
                 if let Err(rollback_err) = tx.rollback().await {

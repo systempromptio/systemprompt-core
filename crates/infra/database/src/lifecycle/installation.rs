@@ -96,28 +96,25 @@ pub async fn install_seed(db: &dyn DatabaseProvider, seed_path: &Path) -> Result
 }
 
 async fn table_exists(db: &dyn DatabaseProvider, table_name: &str) -> Result<bool> {
-    let query = format!(
-        "SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = '{}')",
-        table_name
-    );
-    match db.fetch_optional(&query, &[]).await {
-        Ok(Some(row)) => {
-            let exists: bool = row
-                .get("exists")
-                .and_then(serde_json::Value::as_bool)
-                .unwrap_or(false);
-            Ok(exists)
-        },
-        Ok(None) => Ok(false),
-        Err(e) => {
+    let result = db
+        .query_raw_with(
+            &"SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = $1) as exists",
+            vec![serde_json::Value::String(table_name.to_string())],
+        )
+        .await
+        .map_err(|e| {
             tracing::error!(error = %e, table = %table_name, "Database error checking table existence");
-            Err(anyhow::anyhow!(
-                "Database error checking table '{}': {}",
-                table_name,
-                e
-            ))
-        },
-    }
+            anyhow::anyhow!("Database error checking table '{}': {}", table_name, e)
+        })?;
+
+    let exists = result
+        .rows
+        .first()
+        .and_then(|row| row.get("exists"))
+        .and_then(serde_json::Value::as_bool)
+        .unwrap_or(false);
+
+    Ok(exists)
 }
 
 pub async fn install_extension_schemas(
@@ -260,19 +257,21 @@ async fn validate_single_column(
     column: &str,
     extension_id: &str,
 ) -> std::result::Result<(), LoaderError> {
-    let query = format!(
-        "SELECT 1 FROM information_schema.columns WHERE table_name = '{table}' AND column_name = \
-         '{column}'"
-    );
-
-    let result = db.fetch_optional(&query, &[]).await.map_err(|e| {
-        LoaderError::SchemaInstallationFailed {
+    let result = db
+        .query_raw_with(
+            &"SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2",
+            vec![
+                serde_json::Value::String(table.to_string()),
+                serde_json::Value::String(column.to_string()),
+            ],
+        )
+        .await
+        .map_err(|e| LoaderError::SchemaInstallationFailed {
             extension: extension_id.to_string(),
             message: format!("Failed to validate column '{column}': {e}"),
-        }
-    })?;
+        })?;
 
-    if result.is_none() {
+    if result.rows.is_empty() {
         warn!(
             "Extension '{}': Required column '{}' not found in table '{}'",
             extension_id, column, table

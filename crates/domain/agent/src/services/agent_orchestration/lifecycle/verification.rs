@@ -1,7 +1,9 @@
 use std::time::Duration;
 
 use super::AgentLifecycle;
-use crate::services::agent_orchestration::{process, AgentStatus, OrchestrationError, OrchestrationResult};
+use crate::services::agent_orchestration::{
+    process, AgentStatus, OrchestrationError, OrchestrationResult,
+};
 
 impl AgentLifecycle {
     pub(crate) async fn validate_prerequisites(&self, port: u16) -> OrchestrationResult<()> {

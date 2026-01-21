@@ -260,7 +260,10 @@ pub async fn handle_health(
 
     let web_dir = AppPaths::get()
         .map(|p| p.web().dist().to_path_buf())
-        .unwrap_or_else(|_| std::path::PathBuf::from("/var/www/html/dist"));
+        .unwrap_or_else(|e| {
+            tracing::debug!(error = %e, "Failed to get web dist path, using default");
+            std::path::PathBuf::from("/var/www/html/dist")
+        });
     let sitemap_exists = web_dir.join("sitemap.xml").exists();
     let index_exists = web_dir.join("index.html").exists();
 

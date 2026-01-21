@@ -1,8 +1,8 @@
 use anyhow::Result;
 use systemprompt_identifiers::TaskId;
+use systemprompt_models::{ExecutionStep, TrackedStep};
 
 use super::super::{ExecutionContext, ExecutionResult};
-use crate::models::ExecutionStep;
 use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::ExecutionTrackingService;
 
@@ -10,7 +10,7 @@ pub async fn handle_direct_response(
     content: String,
     context: &ExecutionContext,
     tracking: &ExecutionTrackingService,
-    planning_tracked: Result<(ExecutionStep, ExecutionStep), anyhow::Error>,
+    planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
     task_id: TaskId,
 ) -> Result<ExecutionResult> {
     if let Ok((tracked, _)) = planning_tracked {

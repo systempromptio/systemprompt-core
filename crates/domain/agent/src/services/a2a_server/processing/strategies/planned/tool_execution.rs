@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde_json::Value;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::ai::{GenerateResponseParams, PlannedCall, TemplateValidator};
-use systemprompt_models::{AiMessage, McpTool, PlannedTool};
+use systemprompt_models::{AiMessage, ExecutionStep, McpTool, PlannedTool, TrackedStep};
 
 use super::super::plan_executor::{
     convert_to_call_tool_results, convert_to_tool_calls, execute_tools_with_templates,
@@ -10,7 +10,6 @@ use super::super::plan_executor::{
 };
 use super::super::tool_executor::ContextToolExecutor;
 use super::super::{ExecutionContext, ExecutionResult};
-use crate::models::ExecutionStep;
 use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::ExecutionTrackingService;
 
@@ -19,7 +18,7 @@ pub async fn handle_tool_calls(
     calls: Vec<PlannedCall>,
     context: &ExecutionContext,
     tracking: &ExecutionTrackingService,
-    planning_tracked: Result<(ExecutionStep, ExecutionStep), anyhow::Error>,
+    planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
     task_id: TaskId,
     messages: Vec<AiMessage>,
     tools: Vec<McpTool>,
@@ -236,7 +235,7 @@ fn build_tool_summary(calls: &[PlannedCall]) -> (String, Value) {
 
 async fn record_execution_status(
     tracking: &ExecutionTrackingService,
-    tracked: &ExecutionStep,
+    tracked: &TrackedStep,
     state: &super::super::plan_executor::ExecutionState,
     has_failures: bool,
 ) {

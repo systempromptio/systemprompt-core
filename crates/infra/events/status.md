@@ -43,7 +43,7 @@ None - fully compliant
 
 | Metric | Limit | Actual | Status |
 |--------|-------|--------|--------|
-| Source file length | 300 lines | lib.rs:51, broadcaster.rs:191, mod.rs:10, routing.rs:51 | ✅ |
+| Source file length | 300 lines | lib.rs:27, broadcaster.rs:191, mod.rs:10, routing.rs:51 | ✅ |
 | Cognitive complexity | 15 | All functions low complexity | ✅ |
 | Function length | 75 lines | Largest: `broadcast()` ~44 lines | ✅ |
 | Parameters | 5 | Max 3 (`register`) | ✅ |
@@ -84,11 +84,13 @@ None - fully compliant
 | Magic numbers/strings | ✅ Uses constants (HEARTBEAT_JSON, HEARTBEAT_INTERVAL) |
 | `unwrap_or_default()` | ✅ None in production code |
 | Orphan tracing calls | ✅ Uses structured logging with context |
+| Unused code / dead code | ✅ Removed unused `EventBus` trait |
 
-### Files Changed
+### Files Changed (This Review)
 
 | File | Change |
 |------|--------|
+| `src/lib.rs` | Removed dead `EventBus` trait (24 lines) |
 | `src/services/broadcaster.rs:70` | Removed inline comment from `#[allow]` attribute |
 | `src/services/broadcaster.rs` | Removed `#[cfg(test)]` module (413 lines) |
 | `src/services/routing.rs` | Removed `#[cfg(test)]` module (260 lines) |

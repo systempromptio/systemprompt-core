@@ -177,7 +177,10 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
     let build_result = check_build_ready();
     let cloud_option = match &build_result {
         Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_string(),
-        Err(_) => "Cloud (unavailable - build requirements not met)".to_string(),
+        Err(e) => {
+            tracing::debug!(error = %e, "Build requirements check failed");
+            "Cloud (unavailable - build requirements not met)".to_string()
+        },
     };
 
     let options = vec![

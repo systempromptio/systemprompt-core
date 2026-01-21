@@ -200,7 +200,19 @@ async fn load_authenticated_user(
     let permissions: Vec<Permission> = user
         .roles
         .iter()
-        .filter_map(|s| Permission::from_str(s).ok())
+        .filter_map(|s| {
+            Permission::from_str(s)
+                .map_err(|e| {
+                    tracing::warn!(
+                        user_id = %user.id,
+                        role = %s,
+                        error = %e,
+                        "Invalid role in user record"
+                    );
+                    e
+                })
+                .ok()
+        })
         .collect();
 
     let user_uuid = uuid::Uuid::parse_str(user.id.as_ref())

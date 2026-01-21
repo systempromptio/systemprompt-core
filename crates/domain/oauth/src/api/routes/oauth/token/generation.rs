@@ -214,7 +214,14 @@ pub async fn resolve_user_permissions(
     let client_allowed: Vec<Permission> = client
         .scopes
         .iter()
-        .filter_map(|s| Permission::from_str(s).ok())
+        .filter_map(|s| {
+            Permission::from_str(s)
+                .map_err(|e| {
+                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
+                    e
+                })
+                .ok()
+        })
         .collect();
 
     let mut final_permissions = Vec::new();

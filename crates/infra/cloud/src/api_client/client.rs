@@ -5,8 +5,8 @@ use serde::Serialize;
 use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
-    ApiError, ApiErrorDetail, ApiResponse, CheckoutRequest, CheckoutResponse, ListResponse, Plan,
-    Tenant, UserMeResponse,
+    ApiError, ApiErrorDetail, CheckoutRequest, CheckoutResponse, ListResponse, Plan, Tenant,
+    UserMeResponse,
 };
 
 #[derive(Debug)]
