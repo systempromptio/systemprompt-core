@@ -1,4 +1,3 @@
-use std::sync::Arc;
 use systemprompt_database::{ServiceConfig, ServiceRepository};
 use systemprompt_mcp::services::McpManager;
 use systemprompt_runtime::AppContext;

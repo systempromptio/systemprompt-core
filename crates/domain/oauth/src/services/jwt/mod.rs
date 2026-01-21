@@ -12,7 +12,7 @@ pub trait TokenValidator: Send + Sync {
     async fn validate_token(&self, token: &str) -> Result<AuthenticatedUser, AuthError>;
 }
 
-pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Result<String, AuthError> {
+pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
     systemprompt_security::TokenExtractor::standard()
         .extract(headers)
         .map_err(|_| AuthError::AuthenticationFailed {
@@ -20,7 +20,7 @@ pub fn extract_bearer_token(headers: &axum::http::HeaderMap) -> Result<String, A
         })
 }
 
-pub fn extract_cookie_token(headers: &axum::http::HeaderMap) -> Result<String, AuthError> {
+pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthError> {
     headers
         .get("cookie")
         .ok_or(AuthError::AuthenticationFailed {
@@ -49,30 +49,30 @@ pub struct AuthService;
 
 impl AuthService {
     pub fn extract_bearer_token(
-        headers: &axum::http::HeaderMap,
-    ) -> Result<String, axum::http::StatusCode> {
+        headers: &http::HeaderMap,
+    ) -> Result<String, http::StatusCode> {
         systemprompt_security::TokenExtractor::standard()
             .extract(headers)
-            .map_err(|_| axum::http::StatusCode::UNAUTHORIZED)
+            .map_err(|_| http::StatusCode::UNAUTHORIZED)
     }
 
     pub fn authenticate(
-        headers: &axum::http::HeaderMap,
-    ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
+        headers: &http::HeaderMap,
+    ) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthenticationService::authenticate(headers)
     }
 
     pub fn authorize_service_access(
-        headers: &axum::http::HeaderMap,
+        headers: &http::HeaderMap,
         service_name: &str,
-    ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
+    ) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthorizationService::authorize_service_access(headers, service_name)
     }
 
     pub fn authorize_required_audience(
-        headers: &axum::http::HeaderMap,
+        headers: &http::HeaderMap,
         required_audience: &str,
-    ) -> Result<AuthenticatedUser, axum::http::StatusCode> {
+    ) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthorizationService::authorize_required_audience(headers, required_audience)
     }
 }

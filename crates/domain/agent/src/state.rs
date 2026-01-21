@@ -3,9 +3,7 @@ use systemprompt_database::DbPool;
 use systemprompt_models::Config;
 use systemprompt_traits::{
     AnalyticsProvider, DynFileUploadProvider, DynJwtValidationProvider, DynMcpServiceProvider,
-    DynProcessCleanupProvider, DynSessionAnalyticsProvider, DynUserProvider, FileUploadProvider,
-    JwtValidationProvider, McpServiceProvider, ProcessCleanupProvider, SessionAnalyticsProvider,
-    UserProvider,
+    DynProcessCleanupProvider, DynSessionAnalyticsProvider, DynUserProvider,
 };
 
 #[derive(Clone)]

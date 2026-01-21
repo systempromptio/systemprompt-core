@@ -9,7 +9,7 @@ pub mod templating;
 pub mod validation;
 pub mod webauthn;
 
-pub use http::BrowserRedirectService;
+pub use http::is_browser_request;
 pub use jwt::{extract_bearer_token, extract_cookie_token, AuthService, TokenValidator};
 pub use session::{AnonymousSessionInfo, CreateAnonymousSessionInput, SessionCreationService};
 pub use templating::TemplateEngine;

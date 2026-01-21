@@ -7,7 +7,7 @@ pub mod utils;
 use crate::McpServerConfig;
 use anyhow::Result;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct ProcessManager;
 
 impl ProcessManager {

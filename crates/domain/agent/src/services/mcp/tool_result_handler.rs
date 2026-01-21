@@ -5,6 +5,7 @@ use systemprompt_models::ai::tools::CallToolResult;
 
 use super::artifact_transformer::McpToA2aTransformer;
 
+#[derive(Clone, Copy)]
 pub struct ToolResultHandler;
 
 impl fmt::Debug for ToolResultHandler {

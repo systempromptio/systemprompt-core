@@ -3,11 +3,11 @@ use chrono::{DateTime, Utc};
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::http::StatusCode;
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::response::IntoResponse;
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::Json;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -267,28 +267,28 @@ impl<T: Serialize + 'static> DiscoveryResponse<T> {
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl<T: Serialize + 'static> IntoResponse for SingleResponse<T> {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::OK, Json(self)).into_response()
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl<T: Serialize + 'static> IntoResponse for CollectionResponse<T> {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::OK, Json(self)).into_response()
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl IntoResponse for SuccessResponse {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::OK, Json(self)).into_response()
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl<T: Serialize + 'static> IntoResponse for CreatedResponse<T> {
     fn into_response(self) -> axum::response::Response {
         (
@@ -300,7 +300,7 @@ impl<T: Serialize + 'static> IntoResponse for CreatedResponse<T> {
     }
 }
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 impl IntoResponse for AcceptedResponse {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::ACCEPTED, Json(self)).into_response()

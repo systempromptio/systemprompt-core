@@ -91,8 +91,10 @@ async fn get_session_for_profile(
 ) -> Result<CliSessionContext> {
     let (profile_path, profile) = resolve_profile_by_name(profile_name)?;
 
-    ProfileBootstrap::init_from_path(&profile_path)
-        .with_context(|| format!("Failed to initialize profile '{}'", profile_name))?;
+    if !ProfileBootstrap::is_initialized() {
+        ProfileBootstrap::init_from_path(&profile_path)
+            .with_context(|| format!("Failed to initialize profile '{}'", profile_name))?;
+    }
 
     get_session_for_loaded_profile(&profile, &profile_path, config).await
 }
@@ -190,12 +192,14 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
         )
     })?;
 
-    ProfileBootstrap::init_from_path(profile_path).with_context(|| {
-        format!(
-            "Failed to initialize profile from {}",
-            profile_path.display()
-        )
-    })?;
+    if !ProfileBootstrap::is_initialized() {
+        ProfileBootstrap::init_from_path(profile_path).with_context(|| {
+            format!(
+                "Failed to initialize profile from {}",
+                profile_path.display()
+            )
+        })?;
+    }
 
     let ctx = get_session_for_loaded_profile(&profile, profile_path, config).await?;
     Ok(Some(ctx))

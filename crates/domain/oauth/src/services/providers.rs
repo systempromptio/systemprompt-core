@@ -7,6 +7,7 @@ use uuid::Uuid;
 use super::generation::{generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams};
 use super::validation::jwt::validate_jwt_token;
 
+#[derive(Debug)]
 pub struct JwtValidationProviderImpl {
     jwt_secret: String,
     jwt_issuer: String,

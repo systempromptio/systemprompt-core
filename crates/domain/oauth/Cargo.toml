@@ -23,7 +23,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
-systemprompt-models = { path = "../../shared/models", features = ["axum"] }
+systemprompt-models = { path = "../../shared/models", features = ["web"] }
 
 # Database
 sqlx = { workspace = true }

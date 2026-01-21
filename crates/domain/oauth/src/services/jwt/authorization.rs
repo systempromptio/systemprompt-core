@@ -1,6 +1,6 @@
 use crate::models::JwtClaims;
 use crate::services::validation::{audience, jwt as jwt_validation};
-use axum::http::{HeaderMap, StatusCode};
+use http::{HeaderMap, StatusCode};
 use std::str::FromStr;
 use systemprompt_models::auth::{AuthenticatedUser, JwtAudience};
 use systemprompt_security::TokenExtractor;

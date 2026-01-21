@@ -277,11 +277,13 @@ impl AppContextTrait for AppContext {
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        self.fingerprint_repo.clone().map(|r| r as Arc<dyn FingerprintProvider>)
+        let provider: Arc<dyn FingerprintProvider> = self.fingerprint_repo.clone()?;
+        Some(provider)
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        self.user_service.clone().map(|s| s as Arc<dyn UserProvider>)
+        let provider: Arc<dyn UserProvider> = self.user_service.clone()?;
+        Some(provider)
     }
 }
 

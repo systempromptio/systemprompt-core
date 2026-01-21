@@ -42,6 +42,13 @@ impl CommandRequirements {
         database: false,
     };
 
+    pub const PROFILE_SECRETS_AND_PATHS: Self = Self {
+        profile: true,
+        secrets: true,
+        paths: true,
+        database: false,
+    };
+
     /// Command requires full initialization (profile, secrets, paths, and
     /// database).
     pub const FULL: Self = Self {

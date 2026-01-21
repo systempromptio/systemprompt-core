@@ -15,7 +15,7 @@ workspace = true
 
 [features]
 default = []
-axum = ["dep:axum"]
+web = ["dep:axum"]
 
 [dependencies]
 # Core runtime

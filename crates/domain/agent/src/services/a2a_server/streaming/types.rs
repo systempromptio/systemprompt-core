@@ -12,6 +12,7 @@ use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
 
+#[derive(Debug)]
 pub struct StreamInput {
     pub message: Message,
     pub agent_name: String,
@@ -21,6 +22,7 @@ pub struct StreamInput {
     pub callback_config: Option<PushNotificationConfig>,
 }
 
+#[derive(Debug)]
 pub struct StreamSetupResult {
     pub task_id: TaskId,
     pub context_id: ContextId,
@@ -34,6 +36,7 @@ pub struct StreamSetupResult {
     pub request_id: NumberOrString,
 }
 
+#[derive(Debug)]
 pub struct PersistTaskInput<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,

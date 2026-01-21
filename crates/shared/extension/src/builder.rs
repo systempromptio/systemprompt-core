@@ -1,11 +1,11 @@
 use std::marker::PhantomData;
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use crate::any::ApiExtensionWrapper;
 use crate::any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
 use crate::error::LoaderError;
 use crate::hlist::{Subset, TypeList};
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use crate::typed::ApiExtensionTypedDyn;
 use crate::typed::SchemaExtensionTyped;
 use crate::typed_registry::TypedExtensionRegistry;
@@ -66,7 +66,7 @@ impl<R: TypeList> ExtensionBuilder<R> {
         }
     }
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub fn api_extension<E>(mut self, ext: E) -> ExtensionBuilder<(E, R)>
     where
         E: ExtensionType + Dependencies + ApiExtensionTypedDyn + std::fmt::Debug + 'static,
@@ -90,7 +90,7 @@ impl<R: TypeList> ExtensionBuilder<R> {
                 return Err(LoaderError::DuplicateExtension(ext.id().to_string()));
             }
 
-            #[cfg(feature = "axum")]
+            #[cfg(feature = "web")]
             if let Some(api) = ext.as_api() {
                 registry.validate_api_path(ext.id(), api.base_path())?;
             }

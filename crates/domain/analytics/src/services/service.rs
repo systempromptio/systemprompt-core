@@ -4,7 +4,7 @@ use anyhow::Result;
 use http::{HeaderMap, Uri};
 use chrono::{DateTime, Utc};
 
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 use axum::extract::Request;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
@@ -63,7 +63,7 @@ impl AnalyticsService {
         )
     }
 
-    #[cfg(feature = "axum")]
+    #[cfg(feature = "web")]
     pub fn extract_from_request(&self, request: &Request) -> SessionAnalytics {
         SessionAnalytics::from_headers_and_uri(
             request.headers(),

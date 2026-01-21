@@ -24,7 +24,7 @@ pub struct AiService {
     pub(super) tooled_executor: TooledExecutor,
     pub(super) synthesizer: ResponseSynthesizer,
     pub(super) storage: RequestStorage,
-    _db_pool: systemprompt_database::DbPool,
+    _db_pool: DbPool,
     default_provider: String,
     default_model: String,
     default_max_output_tokens: u32,

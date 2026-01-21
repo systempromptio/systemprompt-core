@@ -56,7 +56,7 @@ pub trait Module: Send + Sync {
 }
 
 /// API module trait - for modules with REST APIs
-#[cfg(feature = "axum")]
+#[cfg(feature = "web")]
 #[async_trait]
 pub trait ApiModule: Module {
     fn router(&self, ctx: Arc<dyn AppContext>) -> axum::Router;

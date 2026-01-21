@@ -2,7 +2,6 @@ use crate::error::{AiError, Result};
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::models::AiRequestRecordBuilder;
 use crate::repository::AiRequestRepository;
-use chrono::Utc;
 use systemprompt_identifiers::{FileId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_traits::{
     AiFilePersistenceProvider, AiGeneratedFile, ImageGenerationInfo, ImageMetadata,
