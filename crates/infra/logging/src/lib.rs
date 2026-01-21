@@ -25,8 +25,6 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
-/// Guard to prevent double initialization of the tracing subscriber.
-/// The tracing subscriber can only be set once per process.
 static LOGGING_INITIALIZED: OnceLock<()> = OnceLock::new();
 
 pub fn init_logging(db_pool: DbPool) {

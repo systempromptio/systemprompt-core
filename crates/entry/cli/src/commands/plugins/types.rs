@@ -1,10 +1,6 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-// =============================================================================
-// CLI Extension Types (from ext/types.rs)
-// =============================================================================
-
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CliExtensionInfo {
     pub name: String,
@@ -25,10 +21,6 @@ pub struct CliExtListOutput {
     pub extensions: Vec<CliExtensionInfo>,
     pub total: usize,
 }
-
-// =============================================================================
-// Registry Extension Types (from extensions/types.rs)
-// =============================================================================
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]

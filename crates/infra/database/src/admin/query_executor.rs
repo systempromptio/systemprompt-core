@@ -19,7 +19,6 @@ pub enum QueryExecutorError {
     ExecutionFailed(#[from] sqlx::Error),
 }
 
-/// Executes SQL queries against the database with safety checks.
 #[derive(Debug)]
 pub struct QueryExecutor {
     pool: Arc<PgPool>,
@@ -30,10 +29,6 @@ impl QueryExecutor {
         Self { pool }
     }
 
-    /// Execute a query with optional read-only restriction.
-    ///
-    /// When `read_only` is true, only SELECT, WITH, EXPLAIN, and PRAGMA queries
-    /// are allowed.
     pub async fn execute_query(
         &self,
         query: &str,
@@ -75,7 +70,6 @@ impl QueryExecutor {
         })
     }
 
-    /// Check if a query is safe (read-only).
     fn is_safe_query(query: &str) -> bool {
         let trimmed = query.trim().to_lowercase();
         let safe_starts = ["select", "with", "explain", "pragma"];
@@ -87,11 +81,7 @@ impl QueryExecutor {
             && !unsafe_ops.iter().any(|op| trimmed.contains(op))
     }
 
-    /// Extract a value from a `PostgreSQL` row at the given column index.
-    ///
-    /// Handles various `PostgreSQL` types and converts them to JSON values.
     fn extract_value(row: &sqlx::postgres::PgRow, column_index: usize) -> serde_json::Value {
-        // Try each type in order of likelihood/specificity
         if let Ok(val) = row.try_get::<Option<chrono::NaiveDateTime>, _>(column_index) {
             return val.map_or(serde_json::Value::Null, |dt| {
                 serde_json::Value::String(dt.and_utc().to_rfc3339())

@@ -147,19 +147,17 @@ async fn store_authorization_code(
         .redirect_uri
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("redirect_uri is required"))?;
-    let scope = if let Some(scope_str) = &query.scope {
-        scope_str.clone()
-    } else {
-        let default_roles = repo
-            .get_default_roles()
-            .await
-            .map_err(|e| anyhow::anyhow!("Failed to get default roles: {e}"))?;
-        if default_roles.is_empty() {
-            "user".to_string()
-        } else {
-            default_roles.join(" ")
-        }
-    };
+    let scope = query.scope.as_ref().map_or_else(
+        || {
+            let default_roles = OAuthRepository::get_default_roles();
+            if default_roles.is_empty() {
+                "user".to_string()
+            } else {
+                default_roles.join(" ")
+            }
+        },
+        |scope_str| scope_str.clone(),
+    );
 
     let code = AuthorizationCode::new(code_str);
     let client_id = ClientId::new(client_id_str);

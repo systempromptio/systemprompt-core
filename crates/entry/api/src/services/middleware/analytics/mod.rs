@@ -8,11 +8,11 @@ use axum::response::Response;
 use std::sync::Arc;
 
 use systemprompt_analytics::SessionRepository;
-use systemprompt_logging::AnalyticsRepository;
-use systemprompt_security::ScannerDetector;
 use systemprompt_identifiers::SessionId;
+use systemprompt_logging::AnalyticsRepository;
 use systemprompt_models::{RequestContext, RouteClassifier};
 use systemprompt_runtime::AppContext;
+use systemprompt_security::ScannerDetector;
 
 pub use events::AnalyticsEventParams;
 

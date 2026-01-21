@@ -106,7 +106,13 @@ impl ProjectContext {
 
     #[must_use]
     pub fn discover() -> Self {
-        let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let cwd = match std::env::current_dir() {
+            Ok(dir) => dir,
+            Err(e) => {
+                tracing::debug!(error = %e, "Failed to get current directory, using '.'");
+                PathBuf::from(".")
+            },
+        };
         Self::discover_from(&cwd)
     }
 

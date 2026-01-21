@@ -12,6 +12,10 @@ pub struct SessionParams<'a> {
     pub session_id: &'a SessionId,
     pub email: &'a str,
     pub duration: Duration,
+    pub user_type: UserType,
+    pub permissions: Vec<Permission>,
+    pub roles: Vec<String>,
+    pub rate_limit_tier: RateLimitTier,
 }
 
 #[derive(Debug)]
@@ -39,16 +43,16 @@ impl SessionGenerator {
             iss: self.issuer.clone(),
             aud: JwtAudience::standard(),
             jti: uuid::Uuid::new_v4().to_string(),
-            scope: vec![Permission::Admin],
+            scope: params.permissions.clone(),
             username: params.email.to_string(),
             email: params.email.to_string(),
-            user_type: UserType::Admin,
-            roles: vec!["admin".to_string(), "user".to_string()],
-            client_id: Some("sp_tui".to_string()),
+            user_type: params.user_type,
+            roles: params.roles.clone(),
+            client_id: None,
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),
             session_id: Some(params.session_id.to_string()),
-            rate_limit_tier: Some(RateLimitTier::Admin),
+            rate_limit_tier: Some(params.rate_limit_tier),
         };
 
         let header = Header::new(Algorithm::HS256);

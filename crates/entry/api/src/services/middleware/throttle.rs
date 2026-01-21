@@ -48,16 +48,14 @@ impl ThrottleMiddleware {
             let mut response = api_error.into_response();
             response
                 .headers_mut()
-                .insert("Retry-After", "3600".parse().expect("valid header value"));
+                .insert("Retry-After", http::HeaderValue::from_static("3600"));
             response.headers_mut().insert(
                 "X-Throttle-Level",
-                "blocked".parse().expect("valid header value"),
+                http::HeaderValue::from_static("blocked"),
             );
             response.headers_mut().insert(
                 "X-Throttle-Reason",
-                "behavioral_bot_detection"
-                    .parse()
-                    .expect("valid header value"),
+                http::HeaderValue::from_static("behavioral_bot_detection"),
             );
             return Ok(response);
         }

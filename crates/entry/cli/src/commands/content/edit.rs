@@ -54,12 +54,10 @@ pub async fn execute_with_pool(
 ) -> Result<CommandResult<UpdateOutput>> {
     let repo = ContentRepository::new(pool)?;
 
-    // Resolve content identifier
     let identifier = resolve_input(args.identifier.clone(), "identifier", config, || {
         prompt_content_selection(&repo, args.source.as_deref(), config)
     })?;
 
-    // Fetch the content
     let content = if identifier.starts_with("content_")
         || identifier.contains('-') && identifier.len() > 30
     {
@@ -84,7 +82,6 @@ pub async fn execute_with_pool(
             })?
     };
 
-    // Collect changes
     let mut changes = Vec::new();
     let mut title = content.title.clone();
     let mut description = content.description.clone();
@@ -95,7 +92,6 @@ pub async fn execute_with_pool(
     let mut public_value: Option<bool> = None;
     let mut kind_value: Option<String> = None;
 
-    // Handle --public and --private flags
     if args.public {
         public_value = Some(true);
         changes.push("public: true".to_string());
@@ -106,7 +102,6 @@ pub async fn execute_with_pool(
         changes.push("public: false".to_string());
     }
 
-    // Handle --body and --body-file
     if let Some(b) = &args.body {
         body = b.clone();
         changes.push("body: updated".to_string());
@@ -119,7 +114,6 @@ pub async fn execute_with_pool(
         changes.push("body: updated from file".to_string());
     }
 
-    // Process --set values
     for set_value in &args.set_values {
         let parts: Vec<&str> = set_value.splitn(2, '=').collect();
         if parts.len() != 2 {
@@ -159,7 +153,6 @@ pub async fn execute_with_pool(
                     changes.push("category_id: cleared".to_string());
                 } else {
                     let cat_id = CategoryId::new(value.to_string());
-                    // Validate category exists
                     if !repo.category_exists(&cat_id).await? {
                         return Err(anyhow!(
                             "Category '{}' not found. Please use an existing category ID.",
@@ -207,7 +200,6 @@ pub async fn execute_with_pool(
 
     CliService::info(&format!("Updating content '{}'...", content.slug));
 
-    // Build update params
     let params = systemprompt_content::UpdateContentParams::new(
         content.id.clone(),
         title,
@@ -221,7 +213,6 @@ pub async fn execute_with_pool(
     .with_public(public_value)
     .with_kind(kind_value);
 
-    // Perform the update
     repo.update(&params).await?;
 
     CliService::success(&format!("Content '{}' updated successfully", content.slug));
@@ -241,7 +232,6 @@ fn prompt_content_selection(
     source_id: Option<&str>,
     _config: &CliConfig,
 ) -> Result<String> {
-    // Use tokio runtime to fetch content list
     let rt = tokio::runtime::Handle::current();
     let contents = rt.block_on(async {
         if let Some(source) = source_id {

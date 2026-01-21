@@ -114,7 +114,7 @@ pub async fn register_client(
         },
     };
 
-    let scopes = match determine_scopes(&repository, &request).await {
+    let scopes = match determine_scopes(&request) {
         Ok(scopes) => scopes,
         Err(e) => {
             return (
@@ -211,10 +211,7 @@ fn generate_registration_access_token() -> String {
     format!("reg_{}", Uuid::new_v4().simple())
 }
 
-async fn determine_scopes(
-    repository: &OAuthRepository,
-    request: &DynamicRegistrationRequest,
-) -> Result<Vec<String>, String> {
+fn determine_scopes(request: &DynamicRegistrationRequest) -> Result<Vec<String>, String> {
     if let Some(scope_string) = &request.scope {
         let requested_scopes: Vec<String> = scope_string
             .split_whitespace()
@@ -222,19 +219,14 @@ async fn determine_scopes(
             .collect();
 
         if !requested_scopes.is_empty() {
-            let valid_requested = repository
-                .validate_scopes(&requested_scopes)
-                .await
+            let valid_requested = OAuthRepository::validate_scopes(&requested_scopes)
                 .map_err(|e| format!("Invalid scopes requested: {e}"))?;
 
             return Ok(valid_requested);
         }
     }
 
-    let default_roles = repository
-        .get_default_roles()
-        .await
-        .map_err(|e| format!("Failed to get default roles: {e}"))?;
+    let default_roles = OAuthRepository::get_default_roles();
 
     if default_roles.is_empty() {
         Ok(vec!["user".to_string()])

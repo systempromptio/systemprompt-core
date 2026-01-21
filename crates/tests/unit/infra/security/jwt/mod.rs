@@ -1,6 +1,6 @@
 use chrono::Duration;
-use systemprompt_security::{AdminTokenParams, JwtService};
 use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_security::{AdminTokenParams, JwtService};
 
 #[test]
 fn test_admin_token_params_creation() {

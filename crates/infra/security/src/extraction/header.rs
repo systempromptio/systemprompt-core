@@ -29,7 +29,14 @@ impl HeaderExtractor {
     fn extract_header(headers: &HeaderMap, name: &str) -> Option<String> {
         headers
             .get(name)
-            .and_then(|v| v.to_str().ok())
+            .and_then(|v| {
+                v.to_str()
+                    .map_err(|e| {
+                        tracing::debug!(error = %e, header = %name, "Header contains non-ASCII characters");
+                        e
+                    })
+                    .ok()
+            })
             .map(ToString::to_string)
     }
 }

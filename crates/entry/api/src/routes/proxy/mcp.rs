@@ -5,8 +5,8 @@ use axum::routing::{any, get};
 use axum::{Json, Router};
 use serde::Serialize;
 use std::sync::Arc;
-use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_identifiers::McpExecutionId;
+use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::ApiError;
 use systemprompt_runtime::{AppContext, ServiceCategory};
@@ -74,18 +74,17 @@ pub async fn handle_get_execution(
     }
 }
 
-pub fn router(ctx: &AppContext) -> Router {
+pub fn router(ctx: &AppContext) -> anyhow::Result<Router> {
     let engine = ProxyEngine::new();
 
-    let repo =
-        ToolUsageRepository::new(ctx.db_pool()).expect("Failed to initialize ToolUsageRepository");
+    let repo = ToolUsageRepository::new(ctx.db_pool())?;
 
     let state = McpState {
         ctx: ctx.clone(),
         repo: Arc::new(repo),
     };
 
-    Router::new()
+    Ok(Router::new()
         .route("/executions/{id}", get(handle_get_execution))
         .route(
             "/{service_name}/{*path}",
@@ -106,7 +105,7 @@ pub fn router(ctx: &AppContext) -> Router {
                 }
             }),
         )
-        .with_state(state)
+        .with_state(state))
 }
 
 systemprompt_runtime::register_module_api!(

@@ -27,8 +27,7 @@ impl DatabaseCliDisplay for (Vec<ColumnInfo>, i64) {
             let default_display = col
                 .default
                 .as_deref()
-                .map(|d| format!("DEFAULT {d}"))
-                .unwrap_or_default();
+                .map_or_else(String::new, |d| format!("DEFAULT {d}"));
 
             println!(
                 "  {} {} {} {} {}",

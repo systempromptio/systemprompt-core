@@ -27,16 +27,24 @@ pub fn decode_expiry(token: &CloudAuthToken) -> CloudResult<i64> {
 }
 
 pub fn is_expired(token: &CloudAuthToken) -> bool {
-    decode_expiry(token)
-        .map(|exp| exp < Utc::now().timestamp())
-        .unwrap_or(true)
+    match decode_expiry(token) {
+        Ok(exp) => exp < Utc::now().timestamp(),
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to decode token expiry, treating as expired");
+            true
+        },
+    }
 }
 
 pub fn expires_within(token: &CloudAuthToken, duration: Duration) -> bool {
-    decode_expiry(token)
-        .map(|exp| {
+    match decode_expiry(token) {
+        Ok(exp) => {
             let threshold = Utc::now().timestamp() + duration.num_seconds();
             exp < threshold
-        })
-        .unwrap_or(true)
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to decode token expiry, treating as expiring");
+            true
+        },
+    }
 }

@@ -69,16 +69,8 @@ pub async fn handle_consent_post(
     State(_ctx): State<systemprompt_runtime::AppContext>,
     Json(decision): Json<ConsentRequest>,
 ) -> impl IntoResponse {
-    match process_consent_decision(decision).await {
-        Ok(response) => (StatusCode::OK, Json(response)).into_response(),
-        Err(error) => {
-            let error = ConsentError {
-                error: "server_error".to_string(),
-                error_description: Some(error.to_string()),
-            };
-            (StatusCode::INTERNAL_SERVER_ERROR, Json(error)).into_response()
-        },
-    }
+    let response = process_consent_decision(&decision);
+    (StatusCode::OK, Json(response)).into_response()
 }
 
 async fn get_consent_info(
@@ -236,10 +228,10 @@ fn get_javascript_section(client_id: &str, scope: &str, state: &str) -> String {
     )
 }
 
-fn process_consent_decision(decision: ConsentRequest) -> Result<serde_json::Value> {
-    Ok(serde_json::json!({
+fn process_consent_decision(decision: &ConsentRequest) -> serde_json::Value {
+    serde_json::json!({
         "status": "processed",
         "decision": decision.decision,
         "client_id": decision.client_id
-    }))
+    })
 }

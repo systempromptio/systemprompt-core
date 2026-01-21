@@ -4,8 +4,8 @@ use axum::response::{IntoResponse, Response};
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use systemprompt_users::BannedIpRepository;
 use systemprompt_models::api::ApiError;
+use systemprompt_users::BannedIpRepository;
 use tracing::warn;
 
 #[derive(Clone, Copy, Debug)]
@@ -51,7 +51,7 @@ pub async fn ip_ban_middleware(
                 let mut response = api_error.into_response();
                 response.headers_mut().insert(
                     "X-Blocked-Reason",
-                    "ip-banned".parse().expect("valid header value"),
+                    http::HeaderValue::from_static("ip-banned"),
                 );
                 return response;
             },

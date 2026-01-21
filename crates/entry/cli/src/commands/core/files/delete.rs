@@ -39,7 +39,6 @@ pub async fn execute(
         .await?
         .ok_or_else(|| anyhow!("File not found: {}", args.file_id))?;
 
-    // Dry-run doesn't require confirmation since no changes are made
     if args.dry_run {
         let output = FileDeleteOutput {
             file_id,
@@ -51,7 +50,6 @@ pub async fn execute(
         return Ok(CommandResult::card(output).with_title("File Delete (Dry Run)"));
     }
 
-    // Only require confirmation for actual deletions
     if !args.yes {
         if config.is_interactive() {
             let confirmed = Confirm::new()

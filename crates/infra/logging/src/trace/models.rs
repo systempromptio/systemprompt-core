@@ -52,7 +52,6 @@ pub struct TaskInfo {
     pub started_at: Option<DateTime<Utc>>,
     pub completed_at: Option<DateTime<Utc>>,
     pub execution_time_ms: Option<i32>,
-    /// Error message captured when task fails
     pub error_message: Option<String>,
 }
 

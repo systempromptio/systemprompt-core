@@ -57,17 +57,23 @@ impl ProfileLoader {
             return Vec::new();
         }
 
-        std::fs::read_dir(&profiles_dir)
-            .map(|entries| {
-                entries
-                    .filter_map(std::result::Result::ok)
-                    .filter_map(|e| {
-                        let name = e.file_name().to_string_lossy().to_string();
-                        name.strip_suffix(".secrets.profile.yaml")
-                            .map(ToString::to_string)
-                    })
-                    .collect()
-            })
-            .unwrap_or_default()
+        match std::fs::read_dir(&profiles_dir) {
+            Ok(entries) => entries
+                .filter_map(std::result::Result::ok)
+                .filter_map(|e| {
+                    let name = e.file_name().to_string_lossy().to_string();
+                    name.strip_suffix(".secrets.profile.yaml")
+                        .map(ToString::to_string)
+                })
+                .collect(),
+            Err(e) => {
+                tracing::warn!(
+                    error = %e,
+                    path = %profiles_dir.display(),
+                    "Failed to read profiles directory"
+                );
+                Vec::new()
+            },
+        }
     }
 }

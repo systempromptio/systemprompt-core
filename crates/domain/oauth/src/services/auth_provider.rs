@@ -180,6 +180,8 @@ impl TraitBasedAuthService {
     }
 
     pub async fn has_audience(&self, token: &str, audience: &str) -> AuthResult<bool> {
-        self.authorization_provider.has_audience(token, audience).await
+        self.authorization_provider
+            .has_audience(token, audience)
+            .await
     }
 }

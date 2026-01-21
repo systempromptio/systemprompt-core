@@ -11,7 +11,13 @@ pub struct DiscoveredProject {
 impl DiscoveredProject {
     #[must_use]
     pub fn discover() -> Option<Self> {
-        let cwd = std::env::current_dir().ok()?;
+        let cwd = match std::env::current_dir() {
+            Ok(dir) => dir,
+            Err(e) => {
+                tracing::debug!(error = %e, "Failed to get current directory for project discovery");
+                return None;
+            },
+        };
         Self::discover_from(&cwd)
     }
 

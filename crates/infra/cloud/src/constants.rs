@@ -1,12 +1,5 @@
-//! Constants for cloud infrastructure.
-//!
-//! Re-exports unified path constants from `systemprompt_models` and provides
-//! cloud-specific constants for OAuth, API endpoints, and Docker configuration.
-
-// Re-export unified path constants from shared models
 pub use systemprompt_models::paths::constants::{build, dir_names, file_names, storage};
 
-/// Container path constants with backward-compatible aliases.
 pub mod container {
     use systemprompt_models::paths::constants::cloud_container;
 
@@ -81,8 +74,6 @@ pub mod regions {
     ];
 }
 
-/// Path constants - re-exports from unified module with backward-compatible
-/// names.
 pub mod paths {
     use super::{dir_names, file_names};
 
@@ -112,9 +103,7 @@ pub mod profile {
     pub const DEFAULT_CLOUD_URL: &str = "https://cloud.systemprompt.io";
     pub const LOCAL_ISSUER: &str = "systemprompt-local";
     pub const CLOUD_ISSUER: &str = "systemprompt";
-    /// Access token expiration in seconds. Default: 30 days.
     pub const ACCESS_TOKEN_EXPIRATION: i64 = 2_592_000;
-    /// Refresh token expiration in seconds. Default: 180 days.
     pub const REFRESH_TOKEN_EXPIRATION: i64 = 15_552_000;
     pub const CLOUD_APP_PATH: &str = container::APP_ROOT;
     pub const CREDENTIALS_PATH: &str = "../../credentials.json";
@@ -122,8 +111,6 @@ pub mod profile {
 }
 
 pub mod env_vars {
-    /// System-managed environment variables that should never be set by users.
-    /// These are managed by the cloud infrastructure or deployment process.
     pub const SYSTEM_MANAGED: &[&str] = &[
         "DATABASE_URL",
         "JWT_SECRET",
@@ -134,8 +121,6 @@ pub mod env_vars {
         "API_EXTERNAL_URL",
     ];
 
-    /// Environment variables synced by the CLI during deployment.
-    /// These are set automatically and should not be manually modified.
     pub const CLI_SYNCED: &[&str] = &[
         "SYSTEMPROMPT_API_TOKEN",
         "SYSTEMPROMPT_USER_EMAIL",
@@ -143,7 +128,6 @@ pub mod env_vars {
         "SYSTEMPROMPT_PROFILE",
     ];
 
-    /// Check if a key is a system-managed variable (case-insensitive).
     pub fn is_system_managed(key: &str) -> bool {
         SYSTEM_MANAGED.iter().any(|&k| k.eq_ignore_ascii_case(key))
     }

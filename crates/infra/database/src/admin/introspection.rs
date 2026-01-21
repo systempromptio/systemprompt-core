@@ -78,7 +78,7 @@ impl DatabaseAdminService {
         .bind(table_name)
         .fetch_all(&*self.pool)
         .await
-        .unwrap_or_default();
+        .unwrap_or_else(|_| Vec::new());
 
         let pk_columns: Vec<String> = pk_rows
             .iter()
@@ -172,14 +172,13 @@ impl DatabaseAdminService {
 
         let size: i64 = sqlx::query_scalar("SELECT pg_database_size(current_database())")
             .fetch_one(&*self.pool)
-            .await
-            .unwrap_or(0);
+            .await?;
 
         let tables = self.list_tables().await?;
 
         Ok(DatabaseInfo {
             path: "PostgreSQL".to_string(),
-            size: size as u64,
+            size: u64::try_from(size).unwrap_or(0),
             version,
             tables,
         })

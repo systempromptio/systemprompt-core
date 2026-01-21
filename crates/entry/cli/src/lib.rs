@@ -209,13 +209,10 @@ pub async fn run() -> Result<()> {
         .as_ref()
         .map_or(CommandRequirements::FULL, HasRequirements::requirements);
 
-    // Initialize console logging for commands that don't need database.
-    // Database commands get logging initialized in AppContext::new().
     if !reqs.database {
         systemprompt_logging::init_console_logging();
     }
 
-    // Initialize based on requirements
     if reqs.profile {
         let profile_path = bootstrap::resolve_profile(cli_config.profile_override.as_deref())?;
         bootstrap::init_profile(&profile_path)?;
@@ -279,7 +276,6 @@ async fn run_with_database_url(
         .await
         .context("Failed to connect to database")?;
 
-    // Initialize logging with database persistence
     systemprompt_logging::init_logging(db_ctx.db_pool_arc());
 
     match command {

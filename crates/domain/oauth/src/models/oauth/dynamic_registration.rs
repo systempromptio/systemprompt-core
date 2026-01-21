@@ -79,9 +79,9 @@ impl DynamicRegistrationRequest {
     }
 
     pub fn get_scopes(&self) -> Vec<String> {
-        self.scope
-            .as_ref()
-            .map_or_else(Vec::new, |s| s.split_whitespace().map(ToString::to_string).collect())
+        self.scope.as_ref().map_or_else(Vec::new, |s| {
+            s.split_whitespace().map(ToString::to_string).collect()
+        })
     }
 
     pub fn get_token_endpoint_auth_method(&self) -> Result<String, String> {

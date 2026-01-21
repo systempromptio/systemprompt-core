@@ -47,7 +47,6 @@ impl SessionKey {
         }
     }
 
-    /// Get tenant ID as a string slice for backward compatibility.
     #[must_use]
     pub fn tenant_id_str(&self) -> Option<&str> {
         self.tenant_id().map(TenantId::as_str)
@@ -207,7 +206,9 @@ impl SessionStore {
                 store.upsert_session(&key, legacy_session);
                 store.set_active(&key);
                 store.save(sessions_dir)?;
-                fs::remove_file(legacy_path).ok();
+                if let Err(e) = fs::remove_file(legacy_path) {
+                    tracing::warn!(error = %e, path = %legacy_path.display(), "Failed to remove legacy session file");
+                }
             }
         }
 
@@ -365,8 +366,22 @@ impl CliSession {
             return None;
         }
 
-        let content = fs::read_to_string(path).ok()?;
-        let partial: PartialSession = serde_json::from_str(&content).ok()?;
+        let content = match fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                tracing::debug!(error = %e, path = %path.display(), "Failed to read session file for profile path");
+                return None;
+            },
+        };
+
+        let partial: PartialSession = match serde_json::from_str(&content) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::debug!(error = %e, "Failed to parse session file for profile path");
+                return None;
+            },
+        };
+
         partial.profile_path.filter(|p| p.exists())
     }
 

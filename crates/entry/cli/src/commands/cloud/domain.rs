@@ -155,7 +155,6 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    // First get the current domain to show in confirmation
     let domain_name = match client.get_custom_domain(&tenant_id).await {
         Ok(response) => response.domain,
         Err(e) => {

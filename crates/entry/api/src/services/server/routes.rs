@@ -11,10 +11,10 @@ use crate::services::static_content::{
 };
 use axum::routing::get;
 use std::sync::Arc;
-use systemprompt_users::BannedIpRepository;
 use systemprompt_extension::LoaderError;
 use systemprompt_models::AppPaths;
 use systemprompt_traits::{StartupEvent, StartupEventSender};
+use systemprompt_users::BannedIpRepository;
 
 pub fn configure_routes(
     ctx: &AppContext,
@@ -108,6 +108,10 @@ pub fn configure_routes(
     router = router.nest(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
+            .map_err(|e| LoaderError::InitializationFailed {
+                extension: "mcp_proxy".to_string(),
+                message: e.to_string(),
+            })?
             .with_rate_limit(rate_config, rate_config.mcp_per_second)
             .with_auth_middleware(mcp_middleware.clone()),
     );
@@ -140,6 +144,10 @@ pub fn configure_routes(
     router = router.nest(
         "/api/v1/analytics",
         crate::routes::analytics::router(ctx)
+            .map_err(|e| LoaderError::InitializationFailed {
+                extension: "analytics".to_string(),
+                message: e.to_string(),
+            })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(user_middleware.clone()),
     );
@@ -147,6 +155,10 @@ pub fn configure_routes(
     router = router.nest(
         "/api/v1/engagement",
         crate::routes::engagement::router(ctx)
+            .map_err(|e| LoaderError::InitializationFailed {
+                extension: "engagement".to_string(),
+                message: e.to_string(),
+            })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(user_middleware.clone()),
     );
@@ -203,8 +215,6 @@ pub fn configure_routes(
         route_classifier: ctx.route_classifier().clone(),
     };
 
-    // Merge discovery and wellknown routes BEFORE static router
-    // This ensures API routes take precedence over the static fallback
     router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
 
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
