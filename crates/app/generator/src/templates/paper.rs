@@ -25,9 +25,8 @@ pub fn parse_paper_metadata(content: &str) -> Option<PaperMetadata> {
 
     let frontmatter = parts[1].trim();
     serde_yaml::from_str(frontmatter)
-        .map_err(|e| {
+        .inspect_err(|e| {
             tracing::warn!(error = %e, "Failed to parse paper frontmatter");
-            e
         })
         .ok()
 }

@@ -8,9 +8,9 @@ use std::sync::Arc;
 
 use crate::repository::{AuthCodeParams, OAuthRepository};
 use crate::services::{generate_secure_token, BrowserRedirectService};
-use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_traits::UserProvider;
+use systemprompt_users::{UserProviderImpl, UserService};
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
@@ -213,9 +213,9 @@ fn create_successful_response(
     } else {
         let response_data = WebAuthnCompleteResponse {
             authorization_code: authorization_code.to_string(),
-            state: state.unwrap_or_default().to_string(),
+            state: state.unwrap_or("").to_string(),
             redirect_uri: redirect_uri.to_string(),
-            client_id: params.client_id.as_deref().unwrap_or_default().to_string(),
+            client_id: params.client_id.as_deref().unwrap_or("").to_string(),
         };
 
         let mut response = Json(response_data).into_response();

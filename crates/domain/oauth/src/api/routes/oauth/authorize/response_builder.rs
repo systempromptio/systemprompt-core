@@ -42,7 +42,7 @@ pub fn create_error_response(
     error_description: &str,
     status_code: StatusCode,
 ) -> axum::response::Response {
-    let state_value = query.state.as_deref().unwrap_or_default();
+    let state_value = query.state.as_deref().unwrap_or("");
 
     if let Some(redirect_uri) = &query.redirect_uri {
         let error_url = format!(
@@ -71,10 +71,10 @@ pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> 
     let template = TemplateEngine::load_webauthn_oauth_template();
     let mut context = HashMap::new();
 
-    let redirect_uri = params.redirect_uri.as_deref().unwrap_or_default();
-    let state = params.state.as_deref().unwrap_or_default();
-    let code_challenge = params.code_challenge.as_deref().unwrap_or_default();
-    let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or_default();
+    let redirect_uri = params.redirect_uri.as_deref().unwrap_or("");
+    let state = params.state.as_deref().unwrap_or("");
+    let code_challenge = params.code_challenge.as_deref().unwrap_or("");
+    let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or("");
     let api_external_url = Config::get()
         .map(|c| c.api_external_url.as_str())
         .unwrap_or("");

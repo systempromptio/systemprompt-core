@@ -115,8 +115,8 @@ async fn get_consent_info(
 
 fn generate_consent_page(consent_info: &ConsentResponse, params: &ConsentQuery) -> String {
     let scope_items = generate_scope_items(&consent_info.scopes);
-    let scope_value = params.scope.as_deref().unwrap_or_default();
-    let state_value = params.state.as_deref().unwrap_or_default();
+    let scope_value = params.scope.as_deref().unwrap_or("");
+    let state_value = params.state.as_deref().unwrap_or("");
 
     let template_vars = ConsentTemplateVars {
         client_name: &consent_info.client_name,

@@ -1,6 +1,7 @@
 use anyhow::{anyhow, Result};
 use serde_json::json;
 use std::time::Instant;
+use tracing::warn;
 use uuid::Uuid;
 
 use crate::models::ai::AiResponse;
@@ -134,7 +135,15 @@ pub async fn generate_with_tools(
         .into_iter()
         .map(|tc| {
             let arguments = serde_json::from_str::<serde_json::Value>(&tc.function.arguments)
-                .unwrap_or_else(|_| json!({}));
+                .unwrap_or_else(|e| {
+                    warn!(
+                        error = %e,
+                        tool_name = %tc.function.name,
+                        raw_arguments = %tc.function.arguments,
+                        "Failed to parse OpenAI tool arguments"
+                    );
+                    json!({})
+                });
 
             ToolCall {
                 ai_tool_call_id: AiToolCallId::from(tc.id),

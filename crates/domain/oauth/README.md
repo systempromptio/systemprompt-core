@@ -90,7 +90,8 @@ src/
 │   ├── client/                         # Client repository
 │   │   ├── mod.rs                      # ClientRepository struct
 │   │   ├── queries.rs                  # Read operations
-│   │   ├── mutations.rs                # Write operations
+│   │   ├── mutations.rs                # Write operations (create/update/delete)
+│   │   ├── inserts.rs                  # Bulk insert helpers
 │   │   ├── relations.rs                # Load client relations
 │   │   └── cleanup.rs                  # Stale client cleanup
 │   └── oauth/                          # OAuth repository
@@ -114,7 +115,9 @@ src/
     │   ├── authentication.rs           # Token authentication
     │   └── authorization.rs            # Permission authorization
     ├── session/                        # Session management
-    │   └── mod.rs                      # SessionCreationService
+    │   ├── mod.rs                      # SessionCreationService
+    │   ├── lookup.rs                   # Session lookup/reuse
+    │   └── creation.rs                 # New session creation
     ├── validation/                     # Request validation
     │   ├── mod.rs
     │   ├── audience.rs                 # JWT audience validation

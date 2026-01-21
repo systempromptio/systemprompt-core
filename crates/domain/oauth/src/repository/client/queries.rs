@@ -126,7 +126,11 @@ impl ClientRepository {
         let client = self.find_by_redirect_uri(redirect_uri).await?;
 
         match client {
-            Some(c) if required_scopes.iter().any(|s| c.scopes.contains(&s.to_string())) => {
+            Some(c)
+                if required_scopes
+                    .iter()
+                    .any(|s| c.scopes.contains(&s.to_string())) =>
+            {
                 Ok(Some(c))
             },
             _ => Ok(None),

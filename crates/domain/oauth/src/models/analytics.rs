@@ -72,7 +72,7 @@ impl From<ClientErrorAnalyticsRow> for ClientErrorAnalytics {
             client_id: ClientId::new(&row.client_id),
             error_count: row.error_count,
             affected_sessions: row.affected_sessions,
-            last_error: row.last_error.unwrap_or_default(),
+            last_error: row.last_error.unwrap_or_else(String::new),
         }
     }
 }

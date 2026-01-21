@@ -9,10 +9,10 @@ use crate::services::cimd::ClientValidator;
 use crate::services::{
     generate_admin_jwt, CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService,
 };
-use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{ClientId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserProviderImpl, UserService};
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {

@@ -157,15 +157,15 @@ pub struct GeminiTool {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)] // Required for serde JSON serialization as `{}`
+#[allow(clippy::empty_structs_with_brackets)]
 pub struct GoogleSearch {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)] // Required for serde JSON serialization as `{}`
+#[allow(clippy::empty_structs_with_brackets)]
 pub struct UrlContext {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)] // Required for serde JSON serialization as `{}`
+#[allow(clippy::empty_structs_with_brackets)]
 pub struct CodeExecution {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

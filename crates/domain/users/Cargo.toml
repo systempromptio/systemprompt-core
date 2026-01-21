@@ -14,47 +14,18 @@ description = "Core user management module for SystemPrompt"
 workspace = true
 
 [dependencies]
-# Core dependencies
-tokio = { workspace = true }
 anyhow = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-serde_yaml = { workspace = true }
+async-trait = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
-
-# Database
+serde = { workspace = true }
 sqlx = { workspace = true }
-
-# HTTP Client for REST API calls
-reqwest = { workspace = true }
-urlencoding = { workspace = true }
-
-# Core libs
-systemprompt-models = { path = "../../shared/models" }
-systemprompt-database = { path = "../../infra/database" }
-systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
-
-# Traits
-async-trait = { workspace = true }
 thiserror = { workspace = true }
-
-# Logging
 tracing = { workspace = true }
-
-# Security
 uuid = { workspace = true }
-rand = { workspace = true }
 
-# Validation
-validator = { workspace = true }
-
-# Web interface dependencies (always included)
-axum = { workspace = true }
-
-[features]
-default = ["web"]
-web = []
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
+systemprompt-traits = { path = "../../shared/traits" }

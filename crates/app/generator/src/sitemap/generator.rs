@@ -202,25 +202,25 @@ async fn fetch_urls_from_database(params: FetchParams<'_>) -> Result<Vec<Sitemap
         .await
         .context("Failed to fetch content for sitemap")?;
 
-    contents
+    Ok(contents
         .iter()
         .map(|content| build_sitemap_url_from_content(content, &params))
-        .collect()
+        .collect())
 }
 
 fn build_sitemap_url_from_content(
     content: &systemprompt_content::models::Content,
     params: &FetchParams<'_>,
-) -> Result<SitemapUrl> {
+) -> SitemapUrl {
     let relative_url = params.url_pattern.replace(SLUG_PLACEHOLDER, &content.slug);
     let absolute_url = format!("{}{}", params.base_url, relative_url);
 
     let lastmod = content.published_at.format("%Y-%m-%d").to_string();
 
-    Ok(SitemapUrl {
+    SitemapUrl {
         loc: absolute_url,
         lastmod,
         changefreq: params.changefreq.to_string(),
         priority: params.priority,
-    })
+    }
 }

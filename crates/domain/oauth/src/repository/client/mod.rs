@@ -1,4 +1,5 @@
 mod cleanup;
+mod inserts;
 mod mutations;
 mod queries;
 mod relations;

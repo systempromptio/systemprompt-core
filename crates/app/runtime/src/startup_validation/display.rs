@@ -1,3 +1,5 @@
+#![allow(clippy::print_stdout)]
+
 use systemprompt_logging::services::cli::BrandColors;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 

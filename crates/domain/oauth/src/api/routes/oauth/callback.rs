@@ -4,13 +4,13 @@ use axum::response::{IntoResponse, Redirect};
 use serde::Deserialize;
 use std::str::FromStr;
 use std::sync::Arc;
-use systemprompt_users::{UserProviderImpl, UserService};
 use systemprompt_identifiers::{
     AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
 };
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_runtime::AppContext;
+use systemprompt_users::{UserProviderImpl, UserService};
 
 use crate::repository::{OAuthRepository, RefreshTokenParams};
 
