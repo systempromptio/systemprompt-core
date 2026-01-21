@@ -13,11 +13,15 @@ description = "Core identifier types for SystemPrompt OS"
 [lints]
 workspace = true
 
+[features]
+default = []
+sqlx = ["dep:sqlx"]
+
 [dependencies]
 serde = { workspace = true }
 uuid = { workspace = true }
 schemars = { workspace = true }
-sqlx = { workspace = true }
+sqlx = { workspace = true, optional = true }
 chrono = { workspace = true }
 anyhow = { workspace = true }
 serde_json = { workspace = true }

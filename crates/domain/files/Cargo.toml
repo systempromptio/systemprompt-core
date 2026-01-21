@@ -18,7 +18,7 @@ systemprompt-cloud = { path = "../../infra/cloud" }
 systemprompt-database = { path = "../../infra/database" }
 systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 systemprompt-traits = { path = "../../shared/traits" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
 tokio = { workspace = true }

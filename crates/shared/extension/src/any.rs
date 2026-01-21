@@ -1,9 +1,10 @@
 use std::any::Any;
 use std::fmt::Debug;
 
+#[cfg(feature = "axum")]
+use crate::typed::ApiExtensionTypedDyn;
 use crate::typed::{
-    ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
-    SchemaExtensionTyped,
+    ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped, SchemaExtensionTyped,
 };
 use crate::types::ExtensionType;
 
@@ -16,6 +17,7 @@ pub trait AnyExtension: Send + Sync + 'static {
     fn as_schema(&self) -> Option<&dyn SchemaExtensionTyped> {
         None
     }
+    #[cfg(feature = "axum")]
     fn as_api(&self) -> Option<&dyn ApiExtensionTypedDyn> {
         None
     }
@@ -115,11 +117,13 @@ impl<T: ExtensionType + SchemaExtensionTyped + Debug + 'static> AnyExtension
     }
 }
 
+#[cfg(feature = "axum")]
 #[derive(Debug)]
 pub struct ApiExtensionWrapper<T: Debug> {
     inner: T,
 }
 
+#[cfg(feature = "axum")]
 impl<T: ExtensionType + ApiExtensionTypedDyn + Debug> ApiExtensionWrapper<T> {
     #[must_use]
     pub const fn new(inner: T) -> Self {
@@ -127,6 +131,7 @@ impl<T: ExtensionType + ApiExtensionTypedDyn + Debug> ApiExtensionWrapper<T> {
     }
 }
 
+#[cfg(feature = "axum")]
 impl<T: ExtensionType + ApiExtensionTypedDyn + Debug + 'static> AnyExtension
     for ApiExtensionWrapper<T>
 {

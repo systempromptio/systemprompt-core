@@ -1,9 +1,11 @@
 mod ai;
+mod ai_provider;
 mod content;
 mod file;
 pub mod upload;
 
 pub use ai::AiService;
+pub use ai_provider::FilesAiPersistenceProvider;
 pub use content::ContentService;
 pub use file::FileService;
 pub use upload::{

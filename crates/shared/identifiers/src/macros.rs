@@ -1,8 +1,9 @@
 #[macro_export]
 macro_rules! define_id {
     ($name:ident) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, sqlx::Type)]
-        #[sqlx(transparent)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
         pub struct $name(String);
 
@@ -54,8 +55,9 @@ macro_rules! define_id {
     };
 
     ($name:ident, non_empty) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, sqlx::Type)]
-        #[sqlx(transparent)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
         pub struct $name(String);
 
@@ -138,8 +140,9 @@ macro_rules! define_id {
     };
 
     ($name:ident, validated, $validator:expr) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, sqlx::Type)]
-        #[sqlx(transparent)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
         pub struct $name(String);
 
@@ -255,8 +258,9 @@ macro_rules! define_id {
     };
 
     ($name:ident, schema) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, sqlx::Type)]
-        #[sqlx(transparent)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
         pub struct $name(String);
 
@@ -318,8 +322,9 @@ macro_rules! define_id {
     };
 
     (@ $name:ident, schema) => {
-        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema, sqlx::Type)]
-        #[sqlx(transparent)]
+        #[derive(Debug, Clone, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+        #[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
+        #[cfg_attr(feature = "sqlx", sqlx(transparent))]
         #[serde(transparent)]
         pub struct $name(String);
 

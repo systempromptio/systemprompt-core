@@ -30,11 +30,9 @@ All ID types implement:
 - `Clone`, `Debug`, `PartialEq`, `Eq`, `Hash`
 - `Serialize`, `Deserialize` (with `#[serde(transparent)]`)
 - `AsRef<str>`, `Display`
-- `sqlx::Type`, `sqlx::Encode`, `sqlx::Decode`
 
 ## Dependencies
 
 - `serde` - Serialization
 - `uuid` - UUID generation
-- `sqlx` - Database support
 - `schemars` - JSON schema generation

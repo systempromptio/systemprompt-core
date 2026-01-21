@@ -7,8 +7,7 @@ use std::time::Duration;
 use systemprompt_identifiers::UserId;
 use tokio::sync::RwLock;
 
-use crate::{Broadcaster, EventSender};
-use systemprompt_models::events::ToSse;
+use crate::{Broadcaster, EventSender, ToSse};
 
 pub const HEARTBEAT_JSON: &str = r#"{"type":"heartbeat"}"#;
 pub const HEARTBEAT_INTERVAL: Duration = Duration::from_secs(15);

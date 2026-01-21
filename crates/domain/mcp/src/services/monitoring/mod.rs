@@ -5,17 +5,13 @@ pub mod status;
 use crate::McpServerConfig;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::sync::Arc;
-use systemprompt_runtime::AppContext;
 
-#[derive(Debug, Clone)]
-pub struct MonitoringManager {
-    app_context: Arc<AppContext>,
-}
+#[derive(Debug, Clone, Default)]
+pub struct MonitoringManager;
 
 impl MonitoringManager {
-    pub const fn new(app_context: Arc<AppContext>) -> Self {
-        Self { app_context }
+    pub fn new() -> Self {
+        Self
     }
 
     pub async fn check_health(&self, config: &McpServerConfig) -> Result<health::HealthStatus> {
@@ -34,9 +30,5 @@ impl MonitoringManager {
         status_data: &HashMap<String, status::ServiceStatus>,
     ) {
         status::display_service_status(servers, status_data);
-    }
-
-    pub const fn app_context(&self) -> &Arc<AppContext> {
-        &self.app_context
     }
 }

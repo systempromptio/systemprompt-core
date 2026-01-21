@@ -1,15 +1,11 @@
 use anyhow::Result;
-use std::sync::Arc;
-use systemprompt_runtime::AppContext;
+use systemprompt_database::DbPool;
 
 use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 use crate::McpServerConfig;
 
-pub async fn validate_schemas(
-    servers: &[McpServerConfig],
-    app_context: &Arc<AppContext>,
-) -> Result<()> {
-    let schema_report = validate_and_migrate_schemas(servers, app_context).await?;
+pub async fn validate_schemas(servers: &[McpServerConfig], db_pool: &DbPool) -> Result<()> {
+    let schema_report = validate_and_migrate_schemas(servers, db_pool).await?;
 
     report_schema_errors(&schema_report)?;
 
@@ -37,9 +33,9 @@ fn report_schema_errors(report: &SchemaValidationReport) -> Result<()> {
 
 pub async fn validate_and_migrate_schemas(
     servers: &[McpServerConfig],
-    app_context: &Arc<AppContext>,
+    db_pool: &DbPool,
 ) -> Result<SchemaValidationReport> {
-    let validator = create_schema_validator(app_context)?;
+    let validator = create_schema_validator(db_pool)?;
     let mut combined_report = SchemaValidationReport::new("all".to_string());
 
     for server in servers.iter().filter(|s| !s.schemas.is_empty()) {
@@ -49,17 +45,14 @@ pub async fn validate_and_migrate_schemas(
     Ok(combined_report)
 }
 
-fn create_schema_validator(app_context: &Arc<AppContext>) -> Result<SchemaValidator<'_>> {
+fn create_schema_validator(db_pool: &DbPool) -> Result<SchemaValidator<'_>> {
     use systemprompt_loader::ConfigLoader;
 
     let services_config = ConfigLoader::load()?;
     let validation_mode =
         SchemaValidationMode::from_string(&services_config.settings.schema_validation_mode);
 
-    Ok(SchemaValidator::new(
-        app_context.db_pool().as_ref(),
-        validation_mode,
-    ))
+    Ok(SchemaValidator::new(db_pool.as_ref(), validation_mode))
 }
 
 async fn validate_server_schemas(

@@ -40,18 +40,22 @@ pub mod registry {
 
 pub use cli::{list_services, show_status, start_services, stop_services};
 
+pub mod state;
+
 pub use rmcp::model::ProtocolVersion;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use rmcp::transport::StreamableHttpService;
 use rmcp::ServerHandler;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_runtime::AppContext;
+use systemprompt_database::DbPool;
 use tokio_util::sync::CancellationToken;
 
 use crate::middleware::DatabaseSessionManager;
 
-pub fn create_router<S>(server: S, app_context: &Arc<AppContext>) -> axum::Router
+pub use state::McpState;
+
+pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,
 {
@@ -61,7 +65,7 @@ where
         cancellation_token: CancellationToken::new(),
     };
 
-    let session_manager = DatabaseSessionManager::new(Arc::clone(app_context.db_pool()));
+    let session_manager = DatabaseSessionManager::new(Arc::clone(db_pool));
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

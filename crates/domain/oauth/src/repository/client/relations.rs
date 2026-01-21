@@ -8,11 +8,11 @@ impl ClientRepository {
         row: OAuthClientRow,
     ) -> Result<OAuthClient> {
         let relations = ClientRelations {
-            redirect_uris: self.load_redirect_uris(&row.client_id).await?,
-            grant_types: self.load_grant_types(&row.client_id).await?,
-            response_types: self.load_response_types(&row.client_id).await?,
-            scopes: self.load_scopes(&row.client_id).await?,
-            contacts: self.load_contacts(&row.client_id).await?,
+            redirect_uris: self.load_redirect_uris(row.client_id.as_str()).await?,
+            grant_types: self.load_grant_types(row.client_id.as_str()).await?,
+            response_types: self.load_response_types(row.client_id.as_str()).await?,
+            scopes: self.load_scopes(row.client_id.as_str()).await?,
+            contacts: self.load_contacts(row.client_id.as_str()).await?,
         };
 
         Ok(OAuthClient::from_row_with_relations(row, relations))

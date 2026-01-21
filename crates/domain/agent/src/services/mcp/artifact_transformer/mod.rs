@@ -83,7 +83,14 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     use std::hash::{Hash, Hasher};
 
     let args_str = tool_arguments
-        .and_then(|args| serde_json::to_string(args).ok())
+        .and_then(|args| {
+            serde_json::to_string(args)
+                .map_err(|e| {
+                    tracing::debug!(error = %e, "Failed to serialize tool arguments for fingerprint");
+                    e
+                })
+                .ok()
+        })
         .unwrap_or_else(String::new);
 
     let mut hasher = DefaultHasher::new();

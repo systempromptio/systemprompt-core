@@ -5,6 +5,55 @@ use systemprompt_identifiers::{
     AgentName, ArtifactId, CategoryId, ContextId, ExecutionStepId, McpExecutionId, MessageId,
     SessionId, SkillId, SourceId, TaskId, TraceId, UserId,
 };
+use systemprompt_models::{UserContext, UserContextWithStats};
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserContextRow {
+    pub context_id: ContextId,
+    pub user_id: UserId,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+impl From<UserContextRow> for UserContext {
+    fn from(row: UserContextRow) -> Self {
+        Self {
+            context_id: row.context_id,
+            user_id: row.user_id,
+            name: row.name,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct UserContextWithStatsRow {
+    pub context_id: ContextId,
+    pub user_id: UserId,
+    pub name: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+    pub task_count: i64,
+    pub message_count: i64,
+    pub last_message_at: Option<DateTime<Utc>>,
+}
+
+impl From<UserContextWithStatsRow> for UserContextWithStats {
+    fn from(row: UserContextWithStatsRow) -> Self {
+        Self {
+            context_id: row.context_id,
+            user_id: row.user_id,
+            name: row.name,
+            created_at: row.created_at,
+            updated_at: row.updated_at,
+            task_count: row.task_count,
+            message_count: row.message_count,
+            last_message_at: row.last_message_at,
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TaskRow {

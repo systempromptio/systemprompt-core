@@ -8,9 +8,8 @@ use std::sync::Arc;
 
 use crate::repository::{AuthCodeParams, OAuthRepository};
 use crate::services::{generate_secure_token, BrowserRedirectService};
+use crate::OAuthState;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
-use systemprompt_traits::UserProvider;
-use systemprompt_users::{UserProviderImpl, UserService};
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
@@ -35,9 +34,9 @@ pub struct WebAuthnCompleteError {
 pub async fn handle_webauthn_complete(
     headers: HeaderMap,
     Query(params): Query<WebAuthnCompleteQuery>,
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -68,20 +67,7 @@ pub async fn handle_webauthn_complete(
             .into_response();
     };
 
-    let user_service = match UserService::new(ctx.db_pool()) {
-        Ok(s) => s,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(WebAuthnCompleteError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Failed to create user service: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
-    let user_provider: Arc<dyn UserProvider> = Arc::new(UserProviderImpl::new(user_service));
+    let user_provider = state.user_provider();
 
     match user_provider.find_by_id(&params.user_id).await {
         Ok(Some(_)) => {

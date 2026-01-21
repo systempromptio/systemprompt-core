@@ -5,7 +5,7 @@
 ### Boundary Rules
 | Rule | Status | Notes |
 |------|--------|-------|
-| R1.1 | No `sqlx` dependency | FAIL | Has sqlx for database support |
+| R1.1 | No `sqlx` dependency | FAIL | Required by domain layer consumers |
 | R1.2 | No `tokio` runtime | PASS | Types only |
 | R1.3 | No `reqwest` / HTTP | PASS | None |
 | R1.4 | No `std::fs` | PASS | None |
@@ -33,4 +33,3 @@
 ## Action Items
 1. Split lib.rs into multiple modules
 2. Remove doc comments
-3. Evaluate sqlx dependency (may be required)

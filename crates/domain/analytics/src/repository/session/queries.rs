@@ -88,7 +88,10 @@ pub async fn find_recent_by_fingerprint(
     sqlx::query_as!(
         SessionRecord,
         r#"
-        SELECT session_id, user_id, expires_at
+        SELECT
+            session_id as "session_id: SessionId",
+            user_id as "user_id: UserId",
+            expires_at
         FROM user_sessions
         WHERE fingerprint_hash = $1
           AND last_activity_at > $2

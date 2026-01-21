@@ -24,7 +24,6 @@ serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
 systemprompt-models = { path = "../../shared/models" }
-systemprompt-runtime = { path = "../../app/runtime" }
 
 # Database
 sqlx = { workspace = true }
@@ -61,13 +60,11 @@ axum = { workspace = true }
 reqwest = { workspace = true }
 
 # Core module dependencies
-systemprompt-users = { path = "../users" }
 systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-database = { path = "../../infra/database" }
-systemprompt-analytics = { path = "../analytics" }
 systemprompt-security = { path = "../../infra/security" }
 systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 
 
 

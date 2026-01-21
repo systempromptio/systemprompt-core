@@ -8,17 +8,17 @@ use uuid::Uuid;
 
 use crate::models::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use crate::repository::{CreateClientParams, OAuthRepository};
+use crate::OAuthState;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ApiError, CreatedResponse, RequestContext};
-use systemprompt_runtime::AppContext;
 
-#[instrument(skip(ctx, req_ctx, request), fields(client_id = %request.client_id))]
+#[instrument(skip(state, req_ctx, request), fields(client_id = %request.client_id))]
 pub async fn create_client(
     Extension(req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Json(request): Json<CreateOAuthClientRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -71,7 +71,7 @@ pub async fn create_client(
                 "OAuth client created"
             );
 
-            let location = ApiPaths::oauth_client_location(&client.client_id);
+            let location = ApiPaths::oauth_client_location(client.client_id.as_str());
             let response: OAuthClientResponse = client.into();
 
             match serde_json::to_value(response) {

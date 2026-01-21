@@ -5,7 +5,7 @@ use chrono::{Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::{Path, PathBuf};
-use systemprompt_files::FilesConfig;
+use systemprompt_traits::ImageStorageConfig;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -27,14 +27,13 @@ const fn default_organize_by_date() -> bool {
 }
 
 impl StorageConfig {
-    pub fn try_default() -> Result<Self, anyhow::Error> {
-        let files_config = FilesConfig::get()?;
-        Ok(Self {
-            base_path: files_config.generated_images(),
-            url_prefix: format!("{}/images/generated", files_config.url_prefix()),
+    pub fn from_image_storage_config(config: ImageStorageConfig) -> Self {
+        Self {
+            base_path: config.base_path,
+            url_prefix: config.url_prefix,
             max_file_size_bytes: default_max_file_size(),
             organize_by_date: true,
-        })
+        }
     }
 }
 

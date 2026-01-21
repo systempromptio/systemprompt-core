@@ -13,7 +13,7 @@ pub async fn validate_authorize_request(
     }
 
     let client = repo
-        .find_client_by_id(&params.client_id)
+        .find_client_by_id(params.client_id.as_str())
         .await?
         .ok_or_else(|| anyhow::anyhow!("Invalid client_id"))?;
 

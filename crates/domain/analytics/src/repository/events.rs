@@ -101,8 +101,14 @@ impl AnalyticsEventsRepository {
             StoredAnalyticsEvent,
             r#"
             SELECT
-                id, user_id, session_id, event_type, event_category,
-                endpoint as page_url, event_data, timestamp
+                id,
+                user_id as "user_id: UserId",
+                session_id as "session_id: SessionId",
+                event_type,
+                event_category,
+                endpoint as page_url,
+                event_data,
+                timestamp
             FROM analytics_events
             WHERE session_id = $1
             ORDER BY timestamp DESC
@@ -126,8 +132,14 @@ impl AnalyticsEventsRepository {
             StoredAnalyticsEvent,
             r#"
             SELECT
-                id, user_id, session_id, event_type, event_category,
-                endpoint as page_url, event_data, timestamp
+                id,
+                user_id as "user_id: UserId",
+                session_id as "session_id: SessionId",
+                event_type,
+                event_category,
+                endpoint as page_url,
+                event_data,
+                timestamp
             FROM analytics_events
             WHERE event_data->>'content_id' = $1
             ORDER BY timestamp DESC

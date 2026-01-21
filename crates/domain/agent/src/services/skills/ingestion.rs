@@ -135,11 +135,13 @@ impl SkillIngestionService {
         let mut skill_dirs = Vec::new();
         let mut seen = HashSet::new();
 
-        for entry in WalkDir::new(dir)
-            .max_depth(2)
-            .into_iter()
-            .filter_map(|e| e.ok())
-        {
+        for entry in WalkDir::new(dir).max_depth(2).into_iter().filter_map(|e| {
+            e.map_err(|err| {
+                tracing::debug!(error = %err, "Failed to read directory entry, skipping");
+                err
+            })
+            .ok()
+        }) {
             if entry.file_type().is_dir() && entry.file_name() != "." {
                 let index_file = entry.path().join("index.md");
                 if index_file.exists() {

@@ -3,11 +3,11 @@ use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
 
-use super::errors::InternalApiError;
-use super::{
+use systemprompt_models::{
     AcceptedResponse, ApiError, CollectionResponse, CreatedResponse, ErrorCode, SingleResponse,
     SuccessResponse,
 };
+use systemprompt_models::api::errors::InternalApiError;
 
 impl ErrorCode {
     pub const fn status_code(&self) -> StatusCode {

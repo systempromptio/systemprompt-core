@@ -29,7 +29,7 @@ sqlx = { workspace = true, features = ["postgres", "uuid"] }
 
 # SystemPrompt dependencies
 systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-extension = { path = "../../shared/extension" }
 

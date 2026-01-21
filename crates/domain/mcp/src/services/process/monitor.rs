@@ -1,7 +1,8 @@
 use anyhow::Result;
 use std::process::Command;
 use std::time::Duration;
-use systemprompt_scheduler::ProcessCleanup;
+
+use super::utils;
 
 const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
 
@@ -25,7 +26,7 @@ async fn is_port_responsive(port: u16) -> Result<bool> {
 }
 
 pub fn is_process_running(pid: u32) -> bool {
-    ProcessCleanup::process_exists(pid)
+    utils::process_exists(pid)
 }
 
 pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {

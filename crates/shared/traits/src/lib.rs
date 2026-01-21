@@ -1,3 +1,5 @@
+pub mod ai_providers;
+pub mod analytics;
 pub mod artifact;
 pub mod auth;
 pub mod content;
@@ -24,9 +26,12 @@ pub use systemprompt_provider_contracts::{
 };
 
 pub use context::{
-    ApiModule, AppContext, ConfigProvider, ContextPropagation, DatabaseHandle,
-    InjectContextHeaders, Module, ModuleRegistry,
+    AppContext, ConfigProvider, ContextPropagation, DatabaseHandle, InjectContextHeaders, Module,
+    ModuleRegistry,
 };
+
+#[cfg(feature = "axum")]
+pub use context::ApiModule;
 
 pub use systemprompt_identifiers::{
     parse_database_datetime, DbValue, FromDbValue, JsonRow, ToDbValue,
@@ -51,6 +56,12 @@ pub use events::{
     UserEvent, UserEventPublisher,
 };
 
+pub use analytics::{
+    AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
+    CreateSessionInput, DynAnalyticsProvider, DynFingerprintProvider, FingerprintProvider,
+    SessionAnalytics,
+};
+
 pub use auth::{
     AuthAction, AuthPermission, AuthProvider, AuthProviderError, AuthResult, AuthUser,
     AuthorizationProvider, DynAuthProvider, DynAuthorizationProvider, DynRoleProvider,
@@ -58,6 +69,12 @@ pub use auth::{
 };
 
 pub use storage::{FileStorage, StoredFileId, StoredFileMetadata};
+
+pub use ai_providers::{
+    AiFilePersistenceProvider, AiGeneratedFile, AiProviderError, AiProviderResult,
+    AiSessionProvider, CreateAiSessionParams, DynAiFilePersistenceProvider, DynAiSessionProvider,
+    ImageGenerationInfo, ImageMetadata, ImageStorageConfig, InsertAiFileParams,
+};
 
 pub use scheduler::JobStatus;
 

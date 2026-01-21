@@ -2,24 +2,21 @@ pub mod cleanup;
 pub mod monitor;
 pub mod pid_manager;
 pub mod spawner;
+pub mod utils;
 
 use crate::McpServerConfig;
 use anyhow::Result;
-use std::sync::Arc;
-use systemprompt_runtime::AppContext;
 
-#[derive(Debug, Clone)]
-pub struct ProcessManager {
-    app_context: Arc<AppContext>,
-}
+#[derive(Debug, Clone, Default)]
+pub struct ProcessManager;
 
 impl ProcessManager {
-    pub const fn new(app_context: Arc<AppContext>) -> Self {
-        Self { app_context }
+    pub fn new() -> Self {
+        Self
     }
 
     pub fn spawn_server(&self, config: &McpServerConfig) -> Result<u32> {
-        spawner::spawn_server(self, config)
+        spawner::spawn_server(config)
     }
 
     pub fn is_running(pid: u32) -> bool {
@@ -48,9 +45,5 @@ impl ProcessManager {
 
     pub fn force_kill(pid: u32) -> Result<()> {
         cleanup::force_kill(pid)
-    }
-
-    pub const fn app_context(&self) -> &Arc<AppContext> {
-        &self.app_context
     }
 }

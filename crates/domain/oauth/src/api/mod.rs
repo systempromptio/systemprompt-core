@@ -1,29 +1,24 @@
 use axum::Router;
 
+use crate::OAuthState;
+
 pub mod routes;
 pub mod wellknown;
 
-pub fn router(ctx: &systemprompt_runtime::AppContext) -> Router {
+pub fn router(state: OAuthState) -> Router {
     Router::new()
         .merge(routes::router())
-        .with_state(ctx.clone())
+        .with_state(state)
 }
 
-pub fn public_router(ctx: &systemprompt_runtime::AppContext) -> Router {
+pub fn public_router(state: OAuthState) -> Router {
     Router::new()
         .merge(routes::public_router())
-        .with_state(ctx.clone())
+        .with_state(state)
 }
 
-pub fn authenticated_router(ctx: &systemprompt_runtime::AppContext) -> Router {
+pub fn authenticated_router(state: OAuthState) -> Router {
     Router::new()
         .merge(routes::authenticated_router())
-        .with_state(ctx.clone())
+        .with_state(state)
 }
-
-systemprompt_runtime::register_module_api!(
-    "oauth",
-    systemprompt_runtime::ServiceCategory::Core,
-    router,
-    false
-);

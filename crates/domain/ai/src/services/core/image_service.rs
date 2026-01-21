@@ -6,8 +6,8 @@ use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_files::{File, FileRepository};
 use systemprompt_identifiers::UserId;
+use systemprompt_traits::{AiGeneratedFile, DynAiFilePersistenceProvider};
 use tracing::error;
 use uuid::Uuid;
 
@@ -16,7 +16,7 @@ use super::image_persistence;
 pub struct ImageService {
     providers: HashMap<String, BoxedImageProvider>,
     storage: Arc<ImageStorage>,
-    file_repo: FileRepository,
+    file_provider: DynAiFilePersistenceProvider,
     ai_request_repo: AiRequestRepository,
     default_provider: Option<String>,
 }
@@ -26,7 +26,7 @@ impl std::fmt::Debug for ImageService {
         f.debug_struct("ImageService")
             .field("providers", &format!("{} providers", self.providers.len()))
             .field("storage", &self.storage)
-            .field("file_repo", &"FileRepository")
+            .field("file_provider", &"AiFilePersistenceProvider")
             .field("ai_request_repo", &"AiRequestRepository")
             .field("default_provider", &self.default_provider)
             .finish()
@@ -34,15 +34,18 @@ impl std::fmt::Debug for ImageService {
 }
 
 impl ImageService {
-    pub fn new(db_pool: &DbPool, storage_config: StorageConfig) -> Result<Self> {
+    pub fn new(
+        db_pool: &DbPool,
+        storage_config: StorageConfig,
+        file_provider: DynAiFilePersistenceProvider,
+    ) -> Result<Self> {
         let storage = Arc::new(ImageStorage::new(storage_config)?);
-        let file_repo = FileRepository::new(db_pool)?;
         let ai_request_repo = AiRequestRepository::new(db_pool)?;
 
         Ok(Self {
             providers: HashMap::new(),
             storage,
-            file_repo,
+            file_provider,
             ai_request_repo,
             default_provider: None,
         })
@@ -51,17 +54,17 @@ impl ImageService {
     pub fn with_providers(
         db_pool: &DbPool,
         storage_config: StorageConfig,
+        file_provider: DynAiFilePersistenceProvider,
         providers: HashMap<String, BoxedImageProvider>,
         default_provider: Option<String>,
     ) -> Result<Self> {
         let storage = Arc::new(ImageStorage::new(storage_config)?);
-        let file_repo = FileRepository::new(db_pool)?;
         let ai_request_repo = AiRequestRepository::new(db_pool)?;
 
         Ok(Self {
             providers,
             storage,
-            file_repo,
+            file_provider,
             ai_request_repo,
             default_provider,
         })
@@ -144,7 +147,7 @@ impl ImageService {
 
         image_persistence::persist_image_generation(
             &self.ai_request_repo,
-            &self.file_repo,
+            self.file_provider.as_ref(),
             &request,
             &response,
             image_persistence::FileLocation {
@@ -175,8 +178,8 @@ impl ImageService {
         Ok(responses)
     }
 
-    pub async fn get_generated_image(&self, uuid: &str) -> Result<Option<File>> {
-        image_persistence::get_generated_image(&self.file_repo, uuid).await
+    pub async fn get_generated_image(&self, uuid: &str) -> Result<Option<AiGeneratedFile>> {
+        image_persistence::get_generated_image(self.file_provider.as_ref(), uuid).await
     }
 
     pub async fn list_user_images(
@@ -184,12 +187,13 @@ impl ImageService {
         user_id: &UserId,
         limit: Option<i64>,
         offset: Option<i64>,
-    ) -> Result<Vec<File>> {
-        image_persistence::list_user_images(&self.file_repo, user_id, limit, offset).await
+    ) -> Result<Vec<AiGeneratedFile>> {
+        image_persistence::list_user_images(self.file_provider.as_ref(), user_id, limit, offset)
+            .await
     }
 
     pub async fn delete_image(&self, uuid: &str) -> Result<()> {
-        image_persistence::delete_image(&self.file_repo, &self.storage, uuid).await
+        image_persistence::delete_image(self.file_provider.as_ref(), &self.storage, uuid).await
     }
 
     fn find_provider_for_model(&self, model: &str) -> Result<String> {

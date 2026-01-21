@@ -166,6 +166,10 @@ impl PortManager {
                 Ok(false) => {
                     let info = self
                         .get_process_info(pid)
+                        .map_err(|e| {
+                            tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
+                            e
+                        })
                         .ok()
                         .flatten()
                         .map(|i| i.command)
@@ -240,6 +244,10 @@ impl PortManager {
                 .map(|(port, pid)| {
                     let info = self
                         .get_process_info(*pid)
+                        .map_err(|e| {
+                            tracing::trace!(pid = %pid, error = %e, "Failed to get process info for port status");
+                            e
+                        })
                         .ok()
                         .flatten()
                         .map(|i| i.command)

@@ -9,10 +9,9 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{UserProviderImpl, UserService};
 
 use crate::repository::{OAuthRepository, RefreshTokenParams};
+use crate::OAuthState;
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
@@ -22,10 +21,10 @@ pub struct CallbackQuery {
 
 pub async fn handle_callback(
     Query(params): Query<CallbackQuery>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -69,7 +68,7 @@ pub async fn handle_callback(
             redirect_uri: &redirect_uri,
             headers: &headers,
         },
-        &ctx,
+        &state,
     )
     .await
     {
@@ -115,7 +114,7 @@ async fn find_browser_client(
         .ok_or_else(|| anyhow::anyhow!("No suitable browser client found"))?;
 
     Ok(BrowserClient {
-        client_id: client.client_id,
+        client_id: client.client_id.to_string(),
     })
 }
 
@@ -129,7 +128,7 @@ struct CodeExchangeParams<'a> {
 async fn exchange_code_for_token(
     repo: &OAuthRepository,
     params: CodeExchangeParams<'_>,
-    ctx: &AppContext,
+    state: &OAuthState,
 ) -> anyhow::Result<TokenResponse> {
     use crate::services::{
         generate_access_token_jti, generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams,
@@ -144,14 +143,13 @@ async fn exchange_code_for_token(
         )
         .await?;
 
-    let user = load_authenticated_user(&user_id, Arc::clone(ctx.db_pool())).await?;
+    let user = load_authenticated_user(&user_id, state.user_provider()).await?;
 
     let permissions = parse_permissions(&scope)?;
 
-    let user_provider = Arc::new(UserProviderImpl::new(UserService::new(ctx.db_pool())?));
     let session_service = crate::services::SessionCreationService::new(
-        Arc::clone(ctx.analytics_service()),
-        user_provider,
+        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.user_provider()),
     );
     let session_id = session_service
         .create_authenticated_session(&user_id, params.headers, SessionSource::Oauth)
@@ -191,13 +189,12 @@ async fn exchange_code_for_token(
 
 async fn load_authenticated_user(
     user_id: &UserId,
-    db_pool: systemprompt_database::DbPool,
+    user_provider: &Arc<dyn systemprompt_traits::UserProvider>,
 ) -> anyhow::Result<AuthenticatedUser> {
-    let user_service = UserService::new(&db_pool)?;
-
-    let user = user_service
-        .find_by_id(user_id)
-        .await?
+    let user = user_provider
+        .find_by_id(user_id.as_str())
+        .await
+        .map_err(|e| anyhow::anyhow!("{}", e))?
         .ok_or_else(|| anyhow::anyhow!("User not found: {user_id}"))?;
 
     let permissions: Vec<Permission> = user
@@ -218,7 +215,7 @@ async fn load_authenticated_user(
         })
         .collect();
 
-    let user_uuid = uuid::Uuid::parse_str(user.id.as_ref())
+    let user_uuid = uuid::Uuid::parse_str(&user.id)
         .map_err(|_| anyhow::anyhow!("Invalid user UUID: {}", user.id))?;
 
     Ok(AuthenticatedUser::new_with_roles(

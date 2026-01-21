@@ -8,11 +8,11 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use systemprompt_analytics::{
-    AnalyticsService, CreateAnalyticsSessionInput, FingerprintRepository, SessionAnalytics,
-};
 use systemprompt_identifiers::{ClientId, SessionId, SessionSource, UserId};
-use systemprompt_traits::{UserEvent, UserEventPublisher, UserProvider};
+use systemprompt_traits::{
+    AnalyticsProvider, CreateSessionInput, FingerprintProvider, SessionAnalytics, UserEvent,
+    UserEventPublisher, UserProvider,
+};
 
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 
@@ -49,17 +49,17 @@ pub struct CreateAnonymousSessionInput<'a> {
 
 #[derive(Clone)]
 pub struct SessionCreationService {
-    analytics_service: Arc<AnalyticsService>,
+    analytics_provider: Arc<dyn AnalyticsProvider>,
     user_provider: Arc<dyn UserProvider>,
     fingerprint_locks: Arc<RwLock<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
-    fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
 }
 
 impl std::fmt::Debug for SessionCreationService {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SessionCreationService")
-            .field("analytics_service", &self.analytics_service)
+            .field("analytics_provider", &"<provider>")
             .field(
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
@@ -70,15 +70,15 @@ impl std::fmt::Debug for SessionCreationService {
 
 impl SessionCreationService {
     pub fn new(
-        analytics_service: Arc<AnalyticsService>,
+        analytics_provider: Arc<dyn AnalyticsProvider>,
         user_provider: Arc<dyn UserProvider>,
     ) -> Self {
         Self {
-            analytics_service,
+            analytics_provider,
             user_provider,
             fingerprint_locks: Arc::new(RwLock::new(HashMap::new())),
             event_publisher: None,
-            fingerprint_repo: None,
+            fingerprint_provider: None,
         }
     }
 
@@ -87,8 +87,8 @@ impl SessionCreationService {
         self
     }
 
-    pub fn with_fingerprint_repo(mut self, repo: Arc<FingerprintRepository>) -> Self {
-        self.fingerprint_repo = Some(repo);
+    pub fn with_fingerprint_provider(mut self, provider: Arc<dyn FingerprintProvider>) -> Self {
+        self.fingerprint_provider = Some(provider);
         self
     }
 
@@ -103,10 +103,10 @@ impl SessionCreationService {
         input: CreateAnonymousSessionInput<'_>,
     ) -> Result<AnonymousSessionInfo> {
         let analytics = self
-            .analytics_service
+            .analytics_provider
             .extract_analytics(input.headers, input.uri);
-        let is_bot = AnalyticsService::is_bot(&analytics);
-        let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+        let is_bot = analytics.is_bot();
+        let fingerprint = analytics.compute_fingerprint();
 
         let params = SessionCreationParams {
             analytics,
@@ -126,15 +126,15 @@ impl SessionCreationService {
         session_source: SessionSource,
     ) -> Result<SessionId> {
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
-        let analytics = self.analytics_service.extract_analytics(headers, None);
-        let is_bot = AnalyticsService::is_bot(&analytics);
+        let analytics = self.analytics_provider.extract_analytics(headers, None);
+        let is_bot = analytics.is_bot();
 
         let global_config = systemprompt_models::Config::get()?;
         let expires_at = chrono::Utc::now()
             + chrono::Duration::seconds(global_config.jwt_access_token_expiration);
 
-        self.analytics_service
-            .create_analytics_session(CreateAnalyticsSessionInput {
+        self.analytics_provider
+            .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(user_id),
                 analytics: &analytics,
@@ -142,7 +142,8 @@ impl SessionCreationService {
                 is_bot,
                 expires_at,
             })
-            .await?;
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         self.publish_event(UserEvent::SessionCreated {
             user_id: user_id.to_string(),
@@ -198,11 +199,11 @@ impl SessionCreationService {
         fingerprint: &str,
         analytics: &SessionAnalytics,
     ) {
-        let Some(ref fp_repo) = self.fingerprint_repo else {
+        let Some(ref fp_provider) = self.fingerprint_provider else {
             return;
         };
 
-        if let Err(e) = fp_repo
+        if let Err(e) = fp_provider
             .upsert_fingerprint(
                 fingerprint,
                 analytics.ip_address.as_deref(),

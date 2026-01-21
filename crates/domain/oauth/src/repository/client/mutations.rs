@@ -19,7 +19,7 @@ impl ClientRepository {
                                        token_endpoint_auth_method, client_uri, logo_uri,
                                        is_active, created_at, updated_at)
              VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)",
-            params.client_id,
+            params.client_id.as_str(),
             params.client_secret_hash,
             params.client_name,
             auth_method,
@@ -33,7 +33,7 @@ impl ClientRepository {
         Self::insert_related_data(
             &mut tx,
             InsertRelatedData {
-                client_id: &params.client_id,
+                client_id: params.client_id.as_str(),
                 redirect_uris: &params.redirect_uris,
                 grant_types: params.grant_types.as_deref(),
                 response_types: params.response_types.as_deref(),
@@ -45,7 +45,7 @@ impl ClientRepository {
 
         tx.commit().await?;
 
-        self.get_by_client_id(&params.client_id)
+        self.get_by_client_id(params.client_id.as_str())
             .await?
             .ok_or_else(|| anyhow::anyhow!("Failed to load created client"))
     }
@@ -68,7 +68,7 @@ impl ClientRepository {
             params.client_uri,
             params.logo_uri,
             now,
-            params.client_id
+            params.client_id.as_str()
         )
         .execute(&mut *tx)
         .await?;
@@ -77,11 +77,11 @@ impl ClientRepository {
             return Ok(None);
         }
 
-        Self::delete_related_data(&mut tx, &params.client_id).await?;
+        Self::delete_related_data(&mut tx, params.client_id.as_str()).await?;
         Self::insert_related_data(
             &mut tx,
             InsertRelatedData {
-                client_id: &params.client_id,
+                client_id: params.client_id.as_str(),
                 redirect_uris: &params.redirect_uris,
                 grant_types: params.grant_types.as_deref(),
                 response_types: params.response_types.as_deref(),
@@ -93,7 +93,7 @@ impl ClientRepository {
 
         tx.commit().await?;
 
-        self.get_by_client_id(&params.client_id).await
+        self.get_by_client_id(params.client_id.as_str()).await
     }
 
     pub async fn update_secret(

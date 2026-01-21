@@ -183,14 +183,6 @@ impl From<anyhow::Error> for CoreError {
     }
 }
 
-impl From<sqlx::Error> for CoreError {
-    fn from(err: sqlx::Error) -> Self {
-        Self::DatabaseError {
-            reason: err.to_string(),
-        }
-    }
-}
-
 impl From<std::io::Error> for CoreError {
     fn from(err: std::io::Error) -> Self {
         Self::IoError {

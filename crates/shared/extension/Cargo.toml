@@ -11,8 +11,9 @@ categories.workspace = true
 description = "Extension framework for SystemPrompt - register custom modules, providers, and APIs"
 
 [features]
-default = []
+default = ["axum"]
 plugin-discovery = []
+axum = ["dep:axum", "dep:reqwest", "systemprompt-traits/axum"]
 
 [lints]
 workspace = true
@@ -22,12 +23,12 @@ async-trait = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 inventory = { workspace = true }
-axum = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
 tracing = { workspace = true }
-reqwest = { workspace = true }
+axum = { workspace = true, optional = true }
+reqwest = { workspace = true, optional = true }
 systemprompt-provider-contracts = { path = "../provider-contracts" }
 systemprompt-traits = { path = "../traits" }
 

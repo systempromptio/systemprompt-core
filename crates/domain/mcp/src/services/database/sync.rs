@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
+use crate::services::process::utils;
 use crate::{McpServerConfig, ERROR, RUNNING, STOPPED};
 use anyhow::Result;
 use systemprompt_database::ServiceRepository;
-use systemprompt_scheduler::ProcessCleanup;
 use tokio::net::TcpStream;
 use tokio::time::{timeout, Duration};
 
@@ -23,7 +23,7 @@ async fn is_port_listening(port: u16) -> bool {
 async fn is_service_healthy(port: u16, pid: Option<i32>) -> bool {
     let port_healthy = is_port_listening(port).await;
 
-    let process_alive = pid.is_some_and(|p| ProcessCleanup::process_exists(p as u32));
+    let process_alive = pid.is_some_and(|p| utils::process_exists(p as u32));
 
     port_healthy && process_alive
 }
@@ -148,8 +148,8 @@ pub async fn delete_disabled_services(
         if !enabled_names.contains(service.name.as_str()) {
             if let Some(pid) = service.pid {
                 let pid_u32 = pid as u32;
-                if ProcessCleanup::process_exists(pid_u32) {
-                    ProcessCleanup::terminate_gracefully(pid_u32, 500).await;
+                if utils::process_exists(pid_u32) {
+                    utils::terminate_gracefully(pid_u32, 500).await;
                 }
             }
 

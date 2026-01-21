@@ -21,8 +21,12 @@ pub async fn run_standalone(agent_name: &str, port: u16) -> Result<()> {
     let tool_provider: Arc<dyn ToolProvider> = Arc::new(McpToolProvider::new(&app_context));
 
     let ai_service: Arc<dyn systemprompt_models::AiProvider> = Arc::new(
-        AiService::new(app_context.db_pool().clone(), &services_config.ai, tool_provider)
-            .context("Failed to create AI service")?,
+        AiService::new(
+            app_context.db_pool().clone(),
+            &services_config.ai,
+            tool_provider,
+        )
+        .context("Failed to create AI service")?,
     );
 
     let server = Server::new(

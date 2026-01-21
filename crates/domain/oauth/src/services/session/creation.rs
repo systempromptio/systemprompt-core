@@ -2,7 +2,7 @@ use super::{AnonymousSessionInfo, SessionCreationParams, SessionCreationService}
 use crate::services::generation::{generate_anonymous_jwt, JwtSigningParams};
 use anyhow::Result;
 use systemprompt_identifiers::{SessionId, UserId};
-use systemprompt_traits::UserEvent;
+use systemprompt_traits::{CreateSessionInput, UserEvent};
 use uuid::Uuid;
 
 impl SessionCreationService {
@@ -23,8 +23,8 @@ impl SessionCreationService {
             systemprompt_models::Config::get()?.jwt_access_token_expiration;
         let expires_at = chrono::Utc::now() + chrono::Duration::seconds(jwt_expiration_seconds);
 
-        self.analytics_service
-            .create_analytics_session(systemprompt_analytics::CreateAnalyticsSessionInput {
+        self.analytics_provider
+            .create_session(CreateSessionInput {
                 session_id: &session_id,
                 user_id: Some(&user_id),
                 analytics: &params.analytics,
@@ -32,7 +32,8 @@ impl SessionCreationService {
                 is_bot: params.is_bot,
                 expires_at,
             })
-            .await?;
+            .await
+            .map_err(|e| anyhow::anyhow!("{}", e))?;
 
         let config = systemprompt_models::Config::get()?;
         let signing = JwtSigningParams {

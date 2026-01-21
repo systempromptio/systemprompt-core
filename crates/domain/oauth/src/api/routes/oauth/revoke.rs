@@ -1,5 +1,6 @@
 use crate::repository::OAuthRepository;
 use crate::services::validation::{get_audit_user, validate_client_credentials};
+use crate::OAuthState;
 use anyhow::Result;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
@@ -9,7 +10,6 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 use tracing::instrument;
 
 #[derive(Debug, Deserialize)]
@@ -26,13 +26,13 @@ pub struct RevokeError {
     pub error_description: Option<String>,
 }
 
-#[instrument(skip(ctx, req_ctx, request))]
+#[instrument(skip(state, req_ctx, request))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     Form(request): Form<RevokeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

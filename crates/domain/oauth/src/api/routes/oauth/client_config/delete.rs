@@ -5,13 +5,14 @@ use std::sync::Arc;
 
 use super::validation::validate_registration_token;
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 
 pub async fn delete_client_configuration(
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (

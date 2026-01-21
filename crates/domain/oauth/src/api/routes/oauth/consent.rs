@@ -1,6 +1,7 @@
 #![allow(unused_qualifications)]
 
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 use anyhow::Result;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -32,9 +33,9 @@ pub struct ConsentError {
 
 pub async fn handle_consent_get(
     Query(params): Query<ConsentQuery>,
-    State(ctx): State<systemprompt_runtime::AppContext>,
+    State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -67,7 +68,7 @@ pub struct ConsentRequest {
 }
 
 pub async fn handle_consent_post(
-    State(_ctx): State<systemprompt_runtime::AppContext>,
+    State(_state): State<OAuthState>,
     Json(decision): Json<ConsentRequest>,
 ) -> impl IntoResponse {
     let response = process_consent_decision(&decision);
@@ -79,7 +80,7 @@ async fn get_consent_info(
     params: &ConsentQuery,
 ) -> Result<ConsentResponse> {
     let client = repo
-        .find_client_by_id(&params.client_id)
+        .find_client_by_id(params.client_id.as_str())
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
@@ -114,7 +115,7 @@ fn generate_consent_page(consent_info: &ConsentResponse, params: &ConsentQuery) 
     let template_vars = ConsentTemplateVars {
         client_name: &consent_info.client_name,
         scope_items: &scope_items,
-        client_id: &params.client_id,
+        client_id: params.client_id.as_str(),
         scope: scope_value,
         state: state_value,
     };

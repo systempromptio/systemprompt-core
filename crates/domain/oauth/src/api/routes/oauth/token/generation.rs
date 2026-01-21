@@ -1,6 +1,7 @@
 use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
 use crate::repository::{OAuthRepository, RefreshTokenParams};
 use crate::services::{generate_jwt, JwtConfig, JwtSigningParams};
+use crate::OAuthState;
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
@@ -11,8 +12,6 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
-use systemprompt_runtime::AppContext;
-use systemprompt_users::{UserProviderImpl, UserService};
 
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,
@@ -24,7 +23,7 @@ pub struct TokenGenerationParams<'a> {
 pub async fn generate_tokens_by_user_id(
     repo: &OAuthRepository,
     params: TokenGenerationParams<'_>,
-    ctx: &AppContext,
+    state: &OAuthState,
 ) -> Result<TokenResponse> {
     use crate::services::{generate_access_token_jti, generate_secure_token};
 
@@ -44,10 +43,9 @@ pub async fn generate_tokens_by_user_id(
             .await?;
     let scope_string = systemprompt_models::auth::permissions_to_string(&final_permissions);
 
-    let user_provider = Arc::new(UserProviderImpl::new(UserService::new(ctx.db_pool())?));
     let session_service = crate::services::SessionCreationService::new(
-        Arc::clone(ctx.analytics_service()),
-        user_provider,
+        Arc::clone(state.analytics_provider()),
+        Arc::clone(state.user_provider()),
     );
     let session_id = session_service
         .create_authenticated_session(params.user_id, params.headers, SessionSource::Oauth)

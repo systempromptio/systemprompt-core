@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
@@ -10,7 +10,6 @@ use uuid::Uuid;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
-use crate::models::AgentRuntimeInfo;
 use crate::repository::content::PushNotificationConfigRepository;
 use crate::repository::context::ContextRepository;
 use crate::repository::task::TaskRepository;
@@ -20,28 +19,7 @@ use crate::services::a2a_server::processing::message::MessageProcessor;
 
 use super::agent_loader::load_agent_runtime;
 use super::broadcast::broadcast_task_created;
-
-pub struct StreamInput {
-    pub message: Message,
-    pub agent_name: String,
-    pub state: Arc<AgentHandlerState>,
-    pub request_id: NumberOrString,
-    pub context: RequestContext,
-    pub callback_config: Option<PushNotificationConfig>,
-}
-
-pub struct StreamSetupResult {
-    pub task_id: TaskId,
-    pub context_id: ContextId,
-    pub message_id: MessageId,
-    pub message: Message,
-    pub agent_name: String,
-    pub context: RequestContext,
-    pub task_repo: TaskRepository,
-    pub agent_runtime: AgentRuntimeInfo,
-    pub processor: Arc<MessageProcessor>,
-    pub request_id: NumberOrString,
-}
+use super::types::{PersistTaskInput, StreamInput, StreamSetupResult};
 
 pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberOrString) -> Event {
     let error_event = json!({
@@ -57,6 +35,10 @@ pub async fn detect_mcp_server_and_update_context(agent_name: &str, context: &mu
 
     let is_mcp_server = match McpServerRegistry::validate() {
         Ok(()) => McpServerRegistry::find_server(agent_name)
+            .map_err(|e| {
+                tracing::trace!(agent_name = %agent_name, error = %e, "MCP server lookup failed");
+                e
+            })
             .ok()
             .flatten()
             .is_some(),
@@ -126,16 +108,6 @@ pub async fn validate_context(
     );
 
     Ok(())
-}
-
-pub struct PersistTaskInput<'a> {
-    pub task_id: &'a TaskId,
-    pub context_id: &'a ContextId,
-    pub agent_name: &'a str,
-    pub context: &'a RequestContext,
-    pub state: &'a Arc<AgentHandlerState>,
-    pub tx: &'a UnboundedSender<Event>,
-    pub request_id: &'a NumberOrString,
 }
 
 pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRepository, ()> {

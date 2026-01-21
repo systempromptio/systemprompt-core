@@ -1,4 +1,3 @@
-use super::ProcessManager;
 use crate::McpServerConfig;
 use anyhow::{Context, Result};
 use std::fs;
@@ -24,7 +23,7 @@ fn rotate_log_if_needed(log_path: &Path) {
     }
 }
 
-pub fn spawn_server(_manager: &ProcessManager, config: &McpServerConfig) -> Result<u32> {
+pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
     let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("{}", e))?;
 
     let binary_path = paths

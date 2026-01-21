@@ -109,6 +109,31 @@ impl ExtensionRole {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct ExtensionRouterConfig {
+    pub base_path: &'static str,
+    pub requires_auth: bool,
+}
+
+impl ExtensionRouterConfig {
+    #[must_use]
+    pub const fn new(base_path: &'static str) -> Self {
+        Self {
+            base_path,
+            requires_auth: true,
+        }
+    }
+
+    #[must_use]
+    pub const fn public(base_path: &'static str) -> Self {
+        Self {
+            base_path,
+            requires_auth: false,
+        }
+    }
+}
+
+#[cfg(feature = "axum")]
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
     pub router: axum::Router,
@@ -116,6 +141,7 @@ pub struct ExtensionRouter {
     pub requires_auth: bool,
 }
 
+#[cfg(feature = "axum")]
 impl ExtensionRouter {
     #[must_use]
     pub const fn new(router: axum::Router, base_path: &'static str) -> Self {
@@ -134,6 +160,14 @@ impl ExtensionRouter {
             requires_auth: false,
         }
     }
+
+    #[must_use]
+    pub const fn config(&self) -> ExtensionRouterConfig {
+        ExtensionRouterConfig {
+            base_path: self.base_path,
+            requires_auth: self.requires_auth,
+        }
+    }
 }
 
 pub trait Extension: Send + Sync + 'static {
@@ -147,8 +181,13 @@ pub trait Extension: Send + Sync + 'static {
         100
     }
 
+    #[cfg(feature = "axum")]
     fn router(&self, ctx: &dyn ExtensionContext) -> Option<ExtensionRouter> {
         let _ = ctx;
+        None
+    }
+
+    fn router_config(&self) -> Option<ExtensionRouterConfig> {
         None
     }
 
@@ -225,8 +264,14 @@ pub trait Extension: Send + Sync + 'static {
         !self.schemas().is_empty()
     }
 
+    #[cfg(feature = "axum")]
     fn has_router(&self, ctx: &dyn ExtensionContext) -> bool {
         self.router(ctx).is_some()
+    }
+
+    #[cfg(not(feature = "axum"))]
+    fn has_router(&self, _ctx: &dyn ExtensionContext) -> bool {
+        false
     }
 
     fn has_jobs(&self) -> bool {
@@ -302,21 +347,29 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        register_extension, Extension, ExtensionMetadata, ExtensionRole, ExtensionRouter,
-        SchemaDefinition, SchemaSource,
+        register_extension, Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition,
+        SchemaSource,
     };
+
+    #[cfg(feature = "axum")]
+    pub use crate::ExtensionRouter;
 
     pub use crate::any::AnyExtension;
     pub use crate::builder::ExtensionBuilder;
     pub use crate::capabilities::{
         CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
-        HasHttpClient,
     };
+
+    #[cfg(feature = "axum")]
+    pub use crate::capabilities::HasHttpClient;
     pub use crate::hlist::{Contains, NotSame, Subset, TypeList};
     pub use crate::typed::{
-        ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
-        ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+        ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
+        SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
     };
+
+    #[cfg(feature = "axum")]
+    pub use crate::typed::ApiExtensionTypedDyn;
     pub use crate::typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
     pub use crate::types::{
         Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,
@@ -329,17 +382,22 @@ pub mod prelude {
     };
 }
 
-pub use any::{AnyExtension, ApiExtensionWrapper, ExtensionWrapper, SchemaExtensionWrapper};
+pub use any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
+#[cfg(feature = "axum")]
+pub use any::ApiExtensionWrapper;
 pub use builder::ExtensionBuilder;
 pub use capabilities::{
     CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
-    HasHttpClient,
 };
+#[cfg(feature = "axum")]
+pub use capabilities::HasHttpClient;
 pub use hlist::{Contains, NotSame, Subset, TypeList};
 pub use typed::{
-    ApiExtensionTyped, ApiExtensionTypedDyn, ConfigExtensionTyped, JobExtensionTyped,
-    ProviderExtensionTyped, SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
+    ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
+    SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
+#[cfg(feature = "axum")]
+pub use typed::ApiExtensionTypedDyn;
 pub use typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
 pub use types::{
     Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,

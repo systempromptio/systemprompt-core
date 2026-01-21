@@ -29,6 +29,10 @@ impl ArtifactPublishingService {
     pub fn new(db_pool: DbPool) -> Self {
         let execution_repo = ExecutionStepRepository::new(&db_pool)
             .map(Arc::new)
+            .map_err(|e| {
+                tracing::debug!(error = %e, "ExecutionStepRepository not available, FK validation disabled");
+                e
+            })
             .ok();
 
         Self {
@@ -54,7 +58,7 @@ impl ArtifactPublishingService {
                     "Failed to check mcp_execution_id existence"
                 );
                 false
-            }
+            },
         }
     }
 

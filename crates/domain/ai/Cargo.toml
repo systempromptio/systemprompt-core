@@ -47,8 +47,6 @@ systemprompt-models = { path = "../../shared/models" }
 systemprompt-database = { path = "../../infra/database" }
 systemprompt-loader = { path = "../../infra/loader" }
 systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-files = { path = "../files" }
-systemprompt-analytics = { path = "../analytics" }
 systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 

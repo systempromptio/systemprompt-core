@@ -8,6 +8,7 @@ use super::validation::{
 use super::{TokenError, TokenRequest};
 use crate::models::GrantType;
 use crate::repository::OAuthRepository;
+use crate::OAuthState;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
@@ -15,17 +16,16 @@ use axum::Form;
 use std::sync::Arc;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_models::RequestContext;
-use systemprompt_runtime::AppContext;
 use tracing::instrument;
 
-#[instrument(skip(ctx, _req_ctx, headers, request), fields(grant_type = %request.grant_type))]
+#[instrument(skip(state, _req_ctx, headers, request), fields(grant_type = %request.grant_type))]
 pub async fn handle_token(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(ctx): State<AppContext>,
+    State(state): State<OAuthState>,
     headers: HeaderMap,
     Form(request): Form<TokenRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(ctx.db_pool())) {
+    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -42,10 +42,10 @@ pub async fn handle_token(
         e
     }).ok() {
         Some(GrantType::AuthorizationCode) => {
-            handle_authorization_code_grant(repo, request, &headers, &ctx).await
+            handle_authorization_code_grant(repo, request, &headers, &state).await
         },
         Some(GrantType::RefreshToken) => {
-            handle_refresh_token_grant(repo, request, &headers, &ctx).await
+            handle_refresh_token_grant(repo, request, &headers, &state).await
         },
         Some(GrantType::ClientCredentials) => handle_client_credentials_grant(repo, request).await,
         None => {
@@ -71,7 +71,7 @@ async fn handle_authorization_code_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
-    ctx: &AppContext,
+    state: &OAuthState,
 ) -> axum::response::Response {
     let result = async {
         let code_str = extract_required_field(request.code.as_deref(), "code")?;
@@ -114,7 +114,7 @@ async fn handle_authorization_code_grant(
                 scope: Some(&authorized_scope),
                 headers,
             },
-            ctx,
+            state,
         )
         .await
         .map_err(|e| TokenError::ServerError {
@@ -151,7 +151,7 @@ async fn handle_refresh_token_grant(
     repo: OAuthRepository,
     request: TokenRequest,
     headers: &HeaderMap,
-    ctx: &AppContext,
+    state: &OAuthState,
 ) -> axum::response::Response {
     let result = async {
         let refresh_token_str =
@@ -207,7 +207,7 @@ async fn handle_refresh_token_grant(
                 scope: Some(effective_scope),
                 headers,
             },
-            ctx,
+            state,
         )
         .await
         .map_err(|e| TokenError::ServerError {
