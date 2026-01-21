@@ -85,29 +85,6 @@ impl StartupRenderer {
                 render_warning(&format!("Port {} in use by PID {}", port, pid));
             },
 
-            StartupEvent::PortCheckStarted { .. }
-            | StartupEvent::PortAvailable { .. }
-            | StartupEvent::PortConflictResolved { .. }
-            | StartupEvent::ModulesLoaded { .. }
-            | StartupEvent::MigrationStarted
-            | StartupEvent::MigrationApplied { .. }
-            | StartupEvent::MigrationComplete { .. }
-            | StartupEvent::DatabaseValidated
-            | StartupEvent::McpServerStarting { .. }
-            | StartupEvent::McpServerHealthCheck { .. }
-            | StartupEvent::McpServiceCleanup { .. }
-            | StartupEvent::AgentStarting { .. }
-            | StartupEvent::AgentCleanup { .. }
-            | StartupEvent::RoutesConfiguring
-            | StartupEvent::RoutesConfigured { .. }
-            | StartupEvent::ExtensionRouteMounted { .. }
-            | StartupEvent::ServerBinding { .. }
-            | StartupEvent::ServerListening { .. }
-            | StartupEvent::SchedulerJobRegistered { .. }
-            | StartupEvent::BootstrapJobStarted { .. }
-            | StartupEvent::BootstrapJobCompleted { .. }
-            | StartupEvent::Info { .. } => {},
-
             StartupEvent::McpServerReady {
                 name,
                 port,
@@ -224,6 +201,8 @@ impl StartupRenderer {
                 CompletionMessage::render_failure(duration, &error);
                 return true;
             },
+
+            _ => {},
         }
 
         false

@@ -4,7 +4,6 @@ use crate::{DbValue, ToDbValue};
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// Task identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]

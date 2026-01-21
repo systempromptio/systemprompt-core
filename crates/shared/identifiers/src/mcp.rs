@@ -6,8 +6,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
-/// AI Provider's tool call identifier (from Anthropic/OpenAI API response)
-/// Example: `toolu_01D7XQ2V9K3J8N5M4P6R7T8W9Y`
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -59,8 +57,6 @@ impl ToDbValue for &AiToolCallId {
     }
 }
 
-/// MCP execution identifier (internal tracking in `mcp_tool_executions` table)
-/// Example: `550e8400-e29b-41d4-a716-446655440000`
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, JsonSchema, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
@@ -116,31 +112,12 @@ impl ToDbValue for &McpExecutionId {
     }
 }
 
-/// MCP Server identifier - the canonical name of an MCP server.
-///
-/// This identifies which MCP server provides a tool, used for routing tool
-/// calls to the correct server endpoint. The value MUST match the key in
-/// `mcp_servers` in the YAML configuration.
-///
-/// # Format
-/// - Lowercase alphanumeric with hyphens
-/// - Examples: "content-manager", "systemprompt-admin", "tyingshoelaces"
-///
-/// # Flow
-/// 1. YAML config defines `mcp_servers.{name}` - this is the canonical ID
-/// 2. Spawner passes `MCP_SERVICE_ID={name}` to the server process
-/// 3. Server reads env and validates it matches expected value
-/// 4. Tools use this ID so the system knows where to route calls
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(transparent)]
 #[serde(transparent)]
 pub struct McpServerId(String);
 
 impl McpServerId {
-    /// Create a new validated MCP server ID.
-    ///
-    /// # Errors
-    /// Returns `IdValidationError::Empty` if the ID is empty.
     pub fn try_new(id: impl Into<String>) -> Result<Self, IdValidationError> {
         let id = id.into();
         if id.is_empty() {
@@ -149,19 +126,11 @@ impl McpServerId {
         Ok(Self(id))
     }
 
-    /// Create a new MCP server ID, panicking if validation fails.
-    ///
-    /// # Panics
-    /// Panics if the ID is empty.
     #[allow(clippy::expect_used)]
     pub fn new(id: impl Into<String>) -> Self {
         Self::try_new(id).expect("MCP server ID cannot be empty")
     }
 
-    /// Load MCP server ID from the `MCP_SERVICE_ID` environment variable.
-    ///
-    /// # Errors
-    /// Returns an error if the environment variable is not set or is empty.
     pub fn from_env() -> Result<Self, IdValidationError> {
         let id = std::env::var("MCP_SERVICE_ID").map_err(|_| {
             IdValidationError::invalid("McpServerId", "MCP_SERVICE_ID environment variable not set")

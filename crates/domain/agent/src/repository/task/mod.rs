@@ -51,10 +51,9 @@ impl TaskRepository {
     }
 
     pub(crate) fn get_pg_pool(&self) -> Result<Arc<PgPool>, RepositoryError> {
-        self.db_pool
-            .as_ref()
-            .get_postgres_pool()
-            .ok_or_else(|| RepositoryError::InvalidData("PostgreSQL pool not available".to_string()))
+        self.db_pool.as_ref().get_postgres_pool().ok_or_else(|| {
+            RepositoryError::InvalidData("PostgreSQL pool not available".to_string())
+        })
     }
 
     pub async fn create_task(

@@ -174,13 +174,18 @@ Public API for external consumers. Published to crates.io for downstream project
 
 **Feature flags:**
 
-| Feature | Includes |
-|---------|----------|
-| `core` (default) | traits, models, identifiers, extension |
-| `database` | database abstraction |
-| `api` | HTTP server, AppContext |
-| `cli` | CLI entry point (`systemprompt::cli::run()`) |
-| `full` | Everything: all domain modules + CLI |
+| Feature | Includes | Notes |
+|---------|----------|-------|
+| `core` (default) | traits, models, identifiers, extension, template-provider | Base types |
+| `database` | database abstraction, sqlx | Data access |
+| `mcp` | Model Context Protocol (rmcp) | MCP support |
+| `api` | HTTP server, AppContext | Requires core + database |
+| `sync` | Cloud synchronization services | |
+| `cloud` | Cloud infrastructure, credentials, OAuth | |
+| `test-utils` | Test utilities | Requires cloud |
+| `cli` | CLI entry point (`systemprompt::cli::run()`) | |
+| `runtime` | RuntimeBuilder for library embedding | Requires cli |
+| `full` | All domain modules + infrastructure | Superset of all |
 
 ---
 
@@ -188,33 +193,50 @@ Public API for external consumers. Published to crates.io for downstream project
 
 The extension system enables downstream projects to extend core functionality without modifying it.
 
-**Extension traits:**
+**Core trait:**
+
+`Extension` - Base trait with 20+ optional capabilities: metadata, schemas, routes, jobs, config validation, providers, storage paths, RBAC roles, assets.
+
+**Typed extension traits:**
 
 | Trait | Purpose |
 |-------|---------|
-| `Extension` | Base trait - ID, name, version, dependencies |
-| `SchemaExtension` | Database table definitions |
-| `ApiExtension` | HTTP route handlers |
-| `ConfigExtensionTyped` | Config validation - validated at startup by `StartupValidator` |
-| `JobExtension` | Background job definitions |
-| `ProviderExtension` | Custom LLM/tool provider implementations |
+| `ExtensionType` | Compile-time constants: ID, NAME, VERSION, PRIORITY |
+| `SchemaExtensionTyped` | Database table definitions with migration weights |
+| `ApiExtensionTyped` | HTTP route handlers with base path and auth requirements |
+| `JobExtensionTyped` | Background job definitions |
+| `ProviderExtensionTyped` | Custom LLM/tool provider implementations |
+| `ConfigExtensionTyped` | Config validation at startup |
 
-**Discovery mechanism:**
+**Capability traits:**
 
-Extensions use the `inventory` crate for compile-time registration:
+| Trait | Purpose |
+|-------|---------|
+| `HasConfig` | Access to configuration provider |
+| `HasDatabase` | Access to database handle |
+| `HasExtension<E>` | Access to another extension |
+| `HasHttpClient` | Access to HTTP client |
+| `HasEventBus` | Access to event publisher |
+| `FullContext` | Composite: HasConfig + HasDatabase + HasEventBus |
+
+**Registries:**
+
+- `ExtensionRegistry` - Dynamic discovery via `inventory` crate
+- `TypedExtensionRegistry` - Type-safe registry using `TypeId`
+- `ExtensionBuilder` - Type-safe composition with dependency validation
+
+**Discovery:**
 
 ```rust
 use systemprompt_extension::*;
 
 struct MyExtension;
 impl Extension for MyExtension { ... }
-impl ApiExtension for MyExtension { ... }
-
 register_extension!(MyExtension);
-register_api_extension!(MyExtension);
-```
 
-At runtime, `ExtensionRegistry::discover()` collects all registered extensions.
+// At runtime
+let registry = ExtensionRegistry::discover();
+```
 
 ---
 
@@ -236,189 +258,46 @@ Path constants are centralized in `shared/models/src/paths/constants.rs` with re
 
 ```rust
 use systemprompt_models::paths::constants::{dir_names, file_names};
-
-let systemprompt_dir = root.join(dir_names::SYSTEMPROMPT);
-let credentials = systemprompt_dir.join(file_names::CREDENTIALS);
-```
-
-**Cloud crate re-exports** (with backward compatibility):
-
-```rust
-use systemprompt_cloud::constants::{container, paths, dir_names, file_names};
-
-let app_root = container::APP;  // backward-compatible alias for APP_ROOT
-```
-
----
-
-### Storage Path Constants
-
-Storage paths are centralized in `infra/cloud/src/constants.rs` to ensure consistency across core and extensions.
-
-**Core storage structure:**
-
-```
-storage/                          <- profile.paths.storage
-  files/                          <- storage::FILES
-    images/                       <- storage::IMAGES
-      generated/                  <- storage::GENERATED
-      logos/                      <- storage::LOGOS
-      {extension}/                <- Extension-specific (e.g., blog/, social/)
-    audio/                        <- storage::AUDIO
-    video/                        <- storage::VIDEO
-    documents/                    <- storage::DOCUMENTS
-    uploads/                      <- storage::UPLOADS
-```
-
-**Using paths in core:**
-
-```rust
 use systemprompt_cloud::constants::storage;
 
-let images_path = storage_root.join(storage::IMAGES);      // storage/files/images
-let generated = storage_root.join(storage::GENERATED);     // storage/files/images/generated
-let audio = storage_root.join(storage::AUDIO);             // storage/files/audio
+let systemprompt_dir = root.join(dir_names::SYSTEMPROMPT);
+let images_path = storage_root.join(storage::IMAGES);
 ```
 
-**Using paths in extensions:**
-
-Extensions declare required storage paths via `required_storage_paths()`. These are:
-1. Included in generated Dockerfiles (mkdir commands)
-2. Available for validation via `ConfigExtensionTyped`
-
-```rust
-use systemprompt_extension::Extension;
-
-impl Extension for BlogExtension {
-    fn required_storage_paths(&self) -> Vec<&'static str> {
-        vec!["files/images/blog"]
-    }
-}
-```
-
-**Profile configuration:**
-
-The `paths.storage` in profile.yaml points to the **root** storage directory:
-
-```yaml
-paths:
-  storage: /var/www/html/myproject/storage  # Root, NOT storage/files
-```
+**Storage structure:** `storage/files/{images,audio,video,documents,uploads}/`. Extensions declare paths via `required_storage_paths()`.
 
 **Key rules:**
-
-| Rule | Description |
-|------|-------------|
-| Core owns structure | Core defines `files/`, `images/`, `audio/`, etc. |
-| Extensions own subdirs | Extensions define paths like `files/images/blog/` |
-| Profile points to root | `paths.storage` = root storage dir (not `storage/files`) |
-| Use constants | Always use `storage::*` constants, never hardcode paths |
-| Dockerfile discovery | Extensions register paths via `required_storage_paths()` |
+- Core owns top-level structure; extensions own subdirectories
+- `profile.yaml` `paths.storage` points to root storage directory
+- Always use `storage::*` constants, never hardcode paths
 
 ---
 
 ### Core Defaults Directory
 
-The `defaults/` directory at repository root contains fallback templates, assets, and web content that extensions can override.
+The `defaults/` directory contains fallback templates, assets, and web content that extensions can override.
 
-**Directory structure:**
+**Structure:** `defaults/{templates,assets,web}/`
 
-```
-defaults/                         <- systemprompt-core/defaults/
-  templates/                      <- Default templates (homepage, etc.)
-  assets/                         <- Default static assets
-  web/                            <- Default web content
-```
+**Access:** `AppPaths::get()?.system().default_templates()` (etc.)
 
-**Access via SystemPaths:**
-
-```rust
-let paths = AppPaths::get()?;
-
-let templates = paths.system().default_templates();  // defaults/templates
-let assets = paths.system().default_assets();        // defaults/assets
-let web = paths.system().default_web();              // defaults/web
-```
-
-**Template fallback pattern:**
-
-Extensions define templates in `services/web/templates/`. Core defaults provide fallbacks:
-
-```rust
-let extension_path = get_templates_path(&web_config)?;  // services/web/templates
-let core_path = paths.system().default_templates();      // core/defaults/templates
-
-let extension_provider = CoreTemplateProvider::discover_with_priority(
-    &extension_path,
-    CoreTemplateProvider::EXTENSION_PRIORITY,  // 500 - wins
-).await?;
-
-let core_provider = CoreTemplateProvider::discover_with_priority(
-    &core_path,
-    CoreTemplateProvider::DEFAULT_PRIORITY,    // 1000 - fallback
-).await?;
-```
-
-**Key rules:**
-
-| Rule | Description |
-|------|-------------|
-| Extensions override core | Extension templates (priority 500) override core defaults (priority 1000) |
-| Path is derived | `defaults` path is computed: `{system_root}/core/defaults` |
-| Not configurable | Unlike `storage`, defaults path is not in profile.yaml |
-| Submodule pattern | In extension projects, core is at `{root}/core/`, so defaults is at `{root}/core/defaults/` |
+**Priority:** Extension templates (500) override core defaults (1000). Path is derived from `{system_root}/core/defaults`.
 
 ---
 
 ### File Upload System
 
-The file upload system handles file attachments in A2A messages, persisting them to storage and database.
-
-**Core Components:**
-
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| `FileUploadService` | `domain/files/src/services/upload/mod.rs` | File upload orchestration |
-| `FileUploadRequest` | Same file | Request builder with validation |
-| `FileRepository` | `domain/files/src/repository/file/mod.rs` | Database persistence |
+Handles file attachments in A2A messages via `FileUploadService` in `domain/files/`.
 
 **Persistence Modes:**
 
-| Mode | Storage Path Pattern | Use Case |
-|------|---------------------|----------|
-| `ContextScoped` (default) | `contexts/{context_id}/{category}/{filename}` | Chat file attachments |
-| `UserLibrary` | `users/{user_id}/{category}/{filename}` | User's permanent files |
-| `Disabled` | N/A | Skip file persistence |
+| Mode | Path Pattern | Use Case |
+|------|--------------|----------|
+| `ContextScoped` | `contexts/{context_id}/{category}/{filename}` | Chat attachments (default) |
+| `UserLibrary` | `users/{user_id}/{category}/{filename}` | Permanent files |
+| `Disabled` | N/A | Skip persistence |
 
-**Upload Flow:**
-
-```
-User uploads file → Base64 in message → FileUploadService
-                                         ↓
-                                    Validate (MIME, size)
-                                         ↓
-                                    Generate UUID + path
-                                         ↓
-                                    Write to disk
-                                         ↓
-                                    Calculate SHA256
-                                         ↓
-                                    Store metadata in DB
-                                         ↓
-                                    Return public_url
-```
-
-**Message Parts Storage:**
-
-Files attached to messages are stored in `message_parts` table:
-
-| Column | Purpose |
-|--------|---------|
-| `file_name` | Original filename |
-| `file_mime_type` | MIME type (image/png, audio/wav) |
-| `file_uri` | Public URL to uploaded file |
-| `file_bytes` | Base64-encoded bytes (fallback) |
-| `file_id` | UUID reference to file record |
+**Flow:** Upload → Validate (MIME/size) → Generate UUID → Write disk → SHA256 → DB metadata → Return URL
 
 ---
 
@@ -517,89 +396,19 @@ let ai_message = AiMessage {
 
 ### Product Binary Pattern
 
-Template/product repositories must own the final binary to include extension jobs. Core provides reusable entry points; products compose them with extensions.
+Products must own the final binary to include extension jobs via `inventory` static initialization.
 
-**Architecture:**
-
-```
-┌──────────────────────────────────────────────────────────┐
-│  Product Repository (template)                           │
-│                                                          │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │  src/lib.rs (FACADE)                               │ │
-│  │  - Re-exports core: pub use systemprompt::*        │ │
-│  │  - Exports extensions: pub use blog_extension as   │ │
-│  └────────────────────────────────────────────────────┘ │
-│                          │                               │
-│  ┌────────────────────────────────────────────────────┐ │
-│  │  src/main.rs (BINARY)                              │ │
-│  │  - Uses facade (forces all linkage)                │ │
-│  │  - Delegates to systemprompt_cli::run()            │ │
-│  └────────────────────────────────────────────────────┘ │
-│           │                              │               │
-│           ▼                              ▼               │
-│  ┌─────────────────┐          ┌─────────────────────┐   │
-│  │ core/           │          │ extensions/         │   │
-│  │ (submodule)     │          │ └── blog/           │   │
-│  │ - systemprompt  │          │     └── jobs/       │   │
-│  │ - CLI run()     │          │                     │   │
-│  └─────────────────┘          └─────────────────────┘   │
-└──────────────────────────────────────────────────────────┘
-```
-
-**Why this pattern:**
-
-The `inventory` crate uses static initialization. `submit_job!()` registers jobs in a static collector, but statics are only included if the crate is linked into the binary.
-
-Core's CLI binary only links core crates. To include extension jobs, the product must own the binary that links both core and extensions.
+**Why:** The `inventory` crate's `submit_job!()` registers jobs in static collectors, but statics are only linked if the crate is in the binary. Core's CLI doesn't link extensions.
 
 **Product structure:**
 
 | File | Purpose |
 |------|---------|
 | `src/lib.rs` | Facade re-exporting core + extensions |
-| `src/main.rs` | Binary calling `systemprompt_cli::run()` |
+| `src/main.rs` | Binary: `use my_product as _; systemprompt_cli::run().await` |
 | `Cargo.toml` | `[[bin]]` target + all dependencies |
 
-**Example product Cargo.toml:**
-
-```toml
-[package]
-name = "my-product"
-
-[lib]
-path = "src/lib.rs"
-
-[[bin]]
-name = "systemprompt"
-path = "src/main.rs"
-
-[dependencies]
-systemprompt = { path = "core/systemprompt" }
-systemprompt-cli = { path = "core/crates/entry/cli" }
-my-blog-extension = { path = "extensions/blog" }
-```
-
-**Example product main.rs:**
-
-```rust
-use my_product as _;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    systemprompt_cli::run().await
-}
-```
-
-The `use my_product as _;` forces the facade (and all its dependencies) to be linked, pulling in extension job registrations.
-
-**Migration weights:**
-
-Schema extensions define `migration_weight()` to control installation order:
-- Core modules: 1-10
-- User extensions: 100+
-
-This ensures core tables exist before extension tables that reference them.
+**Migration weights:** Core modules: 1-10, User extensions: 100+. Ensures core tables exist before extension tables.
 
 ---
 
@@ -1230,31 +1039,33 @@ Run these checks after adding or moving crates:
 
 | Crate | Package Name | Purpose |
 |-------|--------------|---------|
-| `infra/database` | `systemprompt-core-database` | SQLx abstraction |
-| `infra/events` | `systemprompt-core-events` | Event bus, SSE |
-| `infra/security` | `systemprompt-core-security` | JWT, auth utils |
-| `infra/config` | `systemprompt-core-config` | Config loading |
-| `infra/logging` | `systemprompt-core-logging` | Tracing setup |
+| `infra/database` | `systemprompt-database` | SQLx abstraction |
+| `infra/events` | `systemprompt-events` | Event bus, SSE |
+| `infra/security` | `systemprompt-security` | JWT, auth utils |
+| `infra/config` | `systemprompt-config` | Config loading |
+| `infra/logging` | `systemprompt-logging` | Tracing setup |
+| `infra/loader` | `systemprompt-loader` | File loading, module discovery |
 | `infra/cloud` | `systemprompt-cloud` | Cloud API, tenants |
 
 ### Domain Layer
 
 | Crate | Package Name | Purpose |
 |-------|--------------|---------|
-| `domain/users` | `systemprompt-core-users` | User management |
-| `domain/oauth` | `systemprompt-core-oauth` | OAuth2/OIDC |
-| `domain/files` | `systemprompt-core-files` | File storage |
-| `domain/analytics` | `systemprompt-core-analytics` | Metrics |
-| `domain/content` | `systemprompt-core-content` | Content management |
-| `domain/ai` | `systemprompt-core-ai` | LLM integration |
-| `domain/mcp` | `systemprompt-core-mcp` | MCP protocol |
-| `domain/agent` | `systemprompt-core-agent` | A2A protocol |
+| `domain/users` | `systemprompt-users` | User management |
+| `domain/oauth` | `systemprompt-oauth` | OAuth2/OIDC |
+| `domain/files` | `systemprompt-files` | File storage |
+| `domain/analytics` | `systemprompt-analytics` | Metrics |
+| `domain/content` | `systemprompt-content` | Content management |
+| `domain/ai` | `systemprompt-ai` | LLM integration |
+| `domain/mcp` | `systemprompt-mcp` | MCP protocol |
+| `domain/agent` | `systemprompt-agent` | A2A protocol |
+| `domain/templates` | `systemprompt-templates` | Template registry and rendering |
 
 ### Application Layer
 
 | Crate | Package Name | Purpose |
 |-------|--------------|---------|
-| `app/scheduler` | `systemprompt-core-scheduler` | Job scheduling |
+| `app/scheduler` | `systemprompt-scheduler` | Job scheduling |
 | `app/generator` | `systemprompt-generator` | Static site gen |
 | `app/sync` | `systemprompt-sync` | Sync services |
 | `app/runtime` | `systemprompt-runtime` | AppContext, lifecycle |
@@ -1264,8 +1075,7 @@ Run these checks after adding or moving crates:
 | Crate | Package Name | Purpose |
 |-------|--------------|---------|
 | `entry/cli` | `systemprompt-cli` | Command-line interface |
-| `entry/api` | `systemprompt-core-api` | HTTP server |
-| `entry/tui` | `systemprompt-core-tui` | Terminal UI |
+| `entry/api` | `systemprompt-api` | HTTP server |
 
 ### Facade Layer
 
