@@ -8,6 +8,7 @@ use super::generation::{generate_jwt, generate_secure_token, JwtConfig, JwtSigni
 use super::validation::jwt::validate_jwt_token;
 
 #[derive(Debug)]
+#[allow(clippy::struct_field_names)]
 pub struct JwtValidationProviderImpl {
     jwt_secret: String,
     jwt_issuer: String,
@@ -16,7 +17,7 @@ pub struct JwtValidationProviderImpl {
 
 impl JwtValidationProviderImpl {
     #[must_use]
-    pub fn new(jwt_secret: String, jwt_issuer: String, jwt_audiences: Vec<JwtAudience>) -> Self {
+    pub const fn new(jwt_secret: String, jwt_issuer: String, jwt_audiences: Vec<JwtAudience>) -> Self {
         Self {
             jwt_secret,
             jwt_issuer,
@@ -55,8 +56,8 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
             subject: claims.sub,
             username: claims.username,
             user_type: claims.user_type.to_string(),
-            audiences: claims.aud.iter().map(|a| a.to_string()).collect(),
-            permissions: claims.scope.iter().map(|p| p.to_string()).collect(),
+            audiences: claims.aud.iter().map(ToString::to_string).collect(),
+            permissions: claims.scope.iter().map(ToString::to_string).collect(),
             is_admin,
             expires_at: claims.exp,
             issued_at: claims.iat,

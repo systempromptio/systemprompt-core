@@ -24,7 +24,7 @@ pub struct McpToolProvider {
 }
 
 impl McpToolProvider {
-    pub fn new(db_pool: DbPool) -> Self {
+    pub const fn new(db_pool: DbPool) -> Self {
         Self { db_pool }
     }
 

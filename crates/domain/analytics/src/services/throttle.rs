@@ -28,7 +28,7 @@ impl From<i32> for ThrottleLevel {
 
 impl From<ThrottleLevel> for i32 {
     fn from(level: ThrottleLevel) -> Self {
-        level as i32
+        level as Self
     }
 }
 

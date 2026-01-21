@@ -43,6 +43,6 @@ pub type McpResult<T> = Result<T, McpError>;
 
 impl From<anyhow::Error> for McpError {
     fn from(err: anyhow::Error) -> Self {
-        McpError::Internal(err.to_string())
+        Self::Internal(err.to_string())
     }
 }
