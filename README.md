@@ -14,13 +14,11 @@
 - [Architecture](#architecture)
 - [Available Crates](#available-crates)
 - [Extension Framework](#extension-framework)
-- [Development](#development)
-- [Troubleshooting](#troubleshooting)
 - [License](#license)
 
 ## Why systemprompt.io?
 
-The new stack for the agentic age - both infrastructure and application in one.
+The new stack for the agentic age - infrastructure and application as one.
 
 - **Infrastructure + Application**: Not just a framework - a complete runtime combining Web API, agent processes, and MCP servers with shared authentication and database
 - **Open Standards**: Built on A2A framework, AGUI, and MCP protocols
@@ -100,7 +98,7 @@ systemprompt cloud profile create production
 systemprompt cloud deploy --profile production
 ```
 
-Your agentic mesh will be available at your tenant URL (e.g., `https://my-tenant.systemprompt.io`).
+Your agentic mesh will be deployed in the region of your choice and available at your tenant URL (e.g., `https://my-tenant.systemprompt.io`). This can we easily used (CNAME) to run your own web accessible agent mesh and domain.  
 
 ### Native MCP Client Support
 
@@ -117,52 +115,11 @@ Use the [systemprompt-template](https://github.com/systempromptio/systemprompt-t
 
 ## Installation
 
-Add to your `Cargo.toml`:
+Add the facade to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-systemprompt = "0.0.1"
-```
-
-### Feature Flags
-
-```toml
-[dependencies]
-# Core only (traits, models, extension framework)
-systemprompt = "0.0.1"
-
-# With database support
-systemprompt = { version = "0.0.1", features = ["database"] }
-
-# With API server
-systemprompt = { version = "0.0.1", features = ["api"] }
-
-# Full functionality (all modules)
 systemprompt = { version = "0.0.1", features = ["full"] }
-```
-
-| Feature | Description |
-|---------|-------------|
-| `core` | Traits, models, identifiers, extension framework (default) |
-| `database` | Database abstraction with SQLx |
-| `mcp` | MCP protocol support |
-| `api` | HTTP API server functionality |
-| `cli` | Command-line interface |
-| `cloud` | Cloud infrastructure (API client, credentials) |
-| `sync` | Cloud synchronization services |
-| `full` | All modules and functionality |
-
-### Using Individual Crates
-
-For finer-grained control, depend on specific crates:
-
-```toml
-[dependencies]
-systemprompt-models = "0.0.1"
-systemprompt-api = "0.0.1"
-systemprompt-database = "0.0.1"
-systemprompt-mcp = "0.0.1"
-systemprompt-agent = "0.0.1"
 ```
 
 ## Architecture
@@ -311,127 +268,6 @@ register_api_extension!(MyExtension);
 | `ProviderExtension` | Custom LLM/tool provider implementations |
 
 Extensions are discovered at runtime via the `inventory` crate.
-
-## Development
-
-### Prerequisites
-
-- Rust 1.75+
-- Docker (for PostgreSQL containers)
-
-### Building
-
-```bash
-# Clone repository
-git clone https://github.com/systempromptio/systemprompt-core
-cd systemprompt-core
-
-# Build all crates
-cargo build --workspace
-
-# Run tests (tests are in separate crates)
-cargo test --manifest-path crates/tests/Cargo.toml
-
-# Build specific crate
-cargo build -p systemprompt-api
-
-# Run CLI
-cargo run -p systemprompt-cli -- --help
-```
-
-### Code Quality
-
-systemprompt.io enforces strict code quality through automated tooling:
-
-```bash
-# Format code
-cargo fmt
-
-# Run clippy with strict rules
-cargo clippy --workspace
-```
-
-**Standards:**
-
-- No `unsafe` code (forbidden)
-- No `.unwrap()` (denied)
-- Low cognitive complexity
-- Pedantic clippy lints enabled
-- All tests in separate test crates
-
-## Troubleshooting
-
-### Database Connection Refused
-
-```
-Error: Connection refused (os error 111)
-```
-
-**Solution**: Ensure PostgreSQL is running and the connection URL in `profile.yaml` is correct.
-
-```bash
-# Check if PostgreSQL container is running
-docker ps | grep systemprompt-db
-
-# Restart if needed
-docker start systemprompt-db
-```
-
-### Profile Not Found
-
-```
-Error: Profile not found at .systemprompt/profiles/local/profile.yaml
-```
-
-**Solution**: Create a profile using the CLI:
-
-```bash
-systemprompt cloud auth login
-systemprompt cloud profile create local
-```
-
-### Extension Not Discovered
-
-```
-Warning: ExtensionRegistry::discover() returned empty
-```
-
-**Solution**: Ensure you're using `lto = "thin"` in release builds. Full LTO can strip `inventory` crate static initializers.
-
-```toml
-# Cargo.toml
-[profile.release]
-lto = "thin"
-```
-
-### Database Migration Failed
-
-```
-Error: relation "..." does not exist
-```
-
-**Solution**: Run migrations to create database schema:
-
-```bash
-cargo run -p systemprompt-cli -- infra db migrate
-```
-
-### Port Already in Use
-
-```
-Error: Address already in use (os error 98)
-```
-
-**Solution**: Change the port in `profile.yaml` or stop the existing process:
-
-```bash
-# Find process using port 8080
-lsof -i :8080
-
-# Or change port in profile.yaml
-server:
-  port: 8081
-```
 
 ## Versioning
 
