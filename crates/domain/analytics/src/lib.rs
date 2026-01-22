@@ -1,7 +1,10 @@
 pub mod error;
+pub mod extension;
 pub mod models;
 pub mod repository;
 pub mod services;
+
+pub use extension::AnalyticsExtension;
 
 pub use error::{AnalyticsError, Result as AnalyticsResult};
 

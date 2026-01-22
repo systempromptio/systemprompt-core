@@ -1,5 +1,5 @@
 pub fn root_config() -> String {
-    r#"# SystemPrompt Services Configuration
+    r#"# systemprompt.io Services Configuration
 settings:
   agent_port_range: [3100, 3199]
   mcp_port_range: [3200, 3299]
@@ -20,7 +20,7 @@ default: true
 
 card:
   display_name: "{} Assistant"
-  description: "AI assistant powered by SystemPrompt"
+  description: "AI assistant powered by systemprompt.io"
   version: "1.0.0"
 
 metadata:
@@ -60,7 +60,7 @@ prompt:
 }
 
 pub fn admin_mcp_config() -> String {
-    r#"# SystemPrompt Admin MCP Server
+    r#"# systemprompt.io Admin MCP Server
 endpoint: systemprompt-admin
 port: 3200
 enabled: true
@@ -127,7 +127,7 @@ pub fn web_metadata(project_name: &str) -> String {
         r#"# Web Metadata
 site:
   title: "{}"
-  description: "Powered by SystemPrompt"
+  description: "Powered by systemprompt.io"
 "#,
         project_name
     )

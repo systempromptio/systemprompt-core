@@ -1,8 +1,14 @@
 # systemprompt-files
 
-File management domain module for SystemPrompt.
+File management module for systemprompt.io.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-files.svg)](https://crates.io/crates/systemprompt-files)
+[![Documentation](https://docs.rs/systemprompt-files/badge.svg)](https://docs.rs/systemprompt-files)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 This crate provides file storage, metadata management, and content-file linking capabilities. It handles file uploads with validation, AI-generated image tracking, and content associations.
 
@@ -100,3 +106,16 @@ files:
 | systemprompt-traits | Job trait for background jobs |
 | systemprompt-models | AppPaths, ProfileBootstrap |
 | systemprompt-cloud | Storage path constants |
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-files = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

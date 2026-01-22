@@ -1,6 +1,16 @@
 # systemprompt-loader
 
-File loading infrastructure for SystemPrompt. This crate provides pure I/O operations for loading configuration files, profiles, secrets, extensions, and module definitions without any domain logic.
+File loading infrastructure for systemprompt.io - separates I/O from shared models.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-loader.svg)](https://crates.io/crates/systemprompt-loader)
+[![Documentation](https://docs.rs/systemprompt-loader/badge.svg)](https://docs.rs/systemprompt-loader)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+
+## Overview
+
+**Part of the Infra layer in the systemprompt.io architecture.**
+
+This crate provides pure I/O operations for loading configuration files, profiles, secrets, extensions, and module definitions without any domain logic.
 
 ## Architecture
 
@@ -63,7 +73,7 @@ src/
 
 ### Module Definitions
 
-The `modules/` directory contains definitions for each SystemPrompt module. Each definition specifies:
+The `modules/` directory contains definitions for each systemprompt.io module. Each definition specifies:
 
 - Module metadata (name, version, description)
 - Database schemas with required columns
@@ -98,3 +108,16 @@ let extensions = ExtensionLoader::discover(project_root);
 - `tokio` - Async runtime
 - `tracing` - Logging
 - `systemprompt-models` - Shared model types
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-loader = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

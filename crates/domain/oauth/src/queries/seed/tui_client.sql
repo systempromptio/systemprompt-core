@@ -1,5 +1,5 @@
 -- OAuth TUI Client Seed Data
--- TUI client for the SystemPrompt Terminal User Interface
+-- TUI client for the systemprompt.io Terminal User Interface
 
 INSERT INTO oauth_clients (
     client_id,
@@ -12,7 +12,7 @@ INSERT INTO oauth_clients (
 ) VALUES (
     'sp_tui',
     '$2b$12$sp_tui.client.secret.hash.value.for.authentication',
-    'SystemPrompt TUI',
+    'systemprompt.io TUI',
     'none',
     true,
     CURRENT_TIMESTAMP,

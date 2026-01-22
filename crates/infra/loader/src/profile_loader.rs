@@ -41,7 +41,7 @@ impl ProfileLoader {
         let content = profile.to_yaml()?;
 
         let content_with_header = format!(
-            "# SystemPrompt Profile: {}\n# \n# WARNING: This file contains secrets.\n# DO NOT \
+            "# systemprompt.io Profile: {}\n# \n# WARNING: This file contains secrets.\n# DO NOT \
              commit to version control.\n\n{content}",
             profile.display_name
         );

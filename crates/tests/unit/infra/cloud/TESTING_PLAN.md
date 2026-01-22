@@ -1,7 +1,7 @@
 # systemprompt-cloud Unit Tests
 
 ## Crate Overview
-Cloud infrastructure, OAuth, and API client for external SystemPrompt Cloud. Handles OAuth flows, checkout, credentials, and tenant management.
+Cloud infrastructure, OAuth, and API client for external systemprompt.io Cloud. Handles OAuth flows, checkout, credentials, and tenant management.
 
 ## Source Files
 - `src/api_client/` - Cloud API communication

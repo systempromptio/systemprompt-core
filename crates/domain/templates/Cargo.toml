@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Template registry and management for SystemPrompt"
+description = "Template registry and management for systemprompt.io"
 
 [lints]
 workspace = true

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Configuration module for SystemPrompt - environment configuration and validation"
+description = "Configuration module for systemprompt.io - environment configuration and validation"
 
 [lints]
 workspace = true
@@ -28,6 +28,6 @@ schemars = { workspace = true }
 # Utilities
 regex = { workspace = true }
 
-# SystemPrompt dependencies
+# systemprompt.io dependencies
 systemprompt-logging = { path = "../logging", version = "0.0.1" }
 systemprompt-models = { path = "../../shared/models", version = "0.0.1" }

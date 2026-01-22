@@ -1,6 +1,16 @@
 # systemprompt-cloud
 
-Cloud infrastructure services for SystemPrompt including API client, credentials, OAuth, and tenant management.
+systemprompt.io Cloud infrastructure - API client, credentials, OAuth.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-cloud.svg)](https://crates.io/crates/systemprompt-cloud)
+[![Documentation](https://docs.rs/systemprompt-cloud/badge.svg)](https://docs.rs/systemprompt-cloud)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+
+## Overview
+
+**Part of the Infra layer in the systemprompt.io architecture.**
+
+Cloud infrastructure services including API client, credentials, OAuth, and tenant management.
 
 ## Structure
 
@@ -54,7 +64,7 @@ cloud/
 
 | Module | Purpose |
 |--------|---------|
-| `api_client` | HTTP client for SystemPrompt Cloud API with SSE streaming support |
+| `api_client` | HTTP client for systemprompt.io Cloud API with SSE streaming support |
 | `auth` | JWT token handling and expiry checking |
 | `checkout` | Paddle checkout callback flow and provisioning wait logic |
 | `cli_session` | CLI session management with multi-tenant support |
@@ -72,7 +82,7 @@ cloud/
 
 | Type | Source | Description |
 |------|--------|-------------|
-| `CloudApiClient` | `api_client/client.rs` | HTTP client for SystemPrompt Cloud API |
+| `CloudApiClient` | `api_client/client.rs` | HTTP client for systemprompt.io Cloud API |
 | `CloudCredentials` | `credentials.rs` | API token and authentication data |
 | `CredentialsBootstrap` | `credentials_bootstrap.rs` | Global credential initialization |
 | `CloudContext` | `context.rs` | Resolved cloud context with tenant info |
@@ -143,3 +153,16 @@ cloud/
 - `tracing` - Logging
 - `clap` - CLI argument parsing
 - `validator` - Struct validation
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-cloud = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

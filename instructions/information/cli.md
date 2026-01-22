@@ -1,6 +1,6 @@
-# SystemPrompt CLI User Guide
+# systemprompt.io CLI User Guide
 
-Complete reference for the SystemPrompt command-line interface. The CLI is the primary interface for managing the platform, including services, agents, databases, content, analytics, and cloud deployments.
+Complete reference for the systemprompt.io command-line interface. The CLI is the primary interface for managing the platform, including services, agents, databases, content, analytics, and cloud deployments.
 
 ---
 
@@ -637,7 +637,7 @@ systemprompt cloud profile show production --filter agents --json
 
 ### cloud deploy
 
-Deploy to SystemPrompt Cloud.
+Deploy to systemprompt.io Cloud.
 
 | Option | Description |
 |--------|-------------|

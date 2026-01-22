@@ -1,8 +1,11 @@
+pub mod extension;
 pub mod layer;
 pub mod models;
 pub mod repository;
 pub mod services;
 pub mod trace;
+
+pub use extension::LoggingExtension;
 
 pub use layer::DatabaseLayer;
 pub use models::{LogEntry, LogFilter, LogLevel};

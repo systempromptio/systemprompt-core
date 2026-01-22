@@ -1,10 +1,16 @@
 # systemprompt-client
 
-HTTP client library for communicating with the SystemPrompt API server.
+HTTP API client library for systemprompt.io - enables TUI and external clients to communicate with the server.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg)](https://crates.io/crates/systemprompt-client)
+[![Documentation](https://docs.rs/systemprompt-client/badge.svg)](https://docs.rs/systemprompt-client)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This crate provides a type-safe, async HTTP client for interacting with the SystemPrompt API. It serves as the primary interface for external applications (TUI, CLI tools, third-party integrations) to communicate with the SystemPrompt server without depending on internal business logic.
+**Part of the Shared layer in the systemprompt.io architecture.**
+
+This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (TUI, CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
 
 ### Design Principles
 
@@ -175,4 +181,4 @@ client.set_token(token);
 
 ## License
 
-See workspace `Cargo.toml` for license information.
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

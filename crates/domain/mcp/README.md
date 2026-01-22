@@ -1,6 +1,25 @@
-# systemprompt-core-mcp
+# systemprompt-mcp
+
+Core MCP (Model Context Protocol) functionality for systemprompt.io OS.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-mcp.svg)](https://crates.io/crates/systemprompt-mcp)
+[![Documentation](https://docs.rs/systemprompt-mcp/badge.svg)](https://docs.rs/systemprompt-mcp)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+
+## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 MCP (Model Context Protocol) server lifecycle management module.
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-mcp = "0.0.1"
+```
 
 ## Trait Implementations
 
@@ -106,3 +125,7 @@ src/
 Schema: `schema/mcp_tool_executions.sql`
 
 Uses `ToolUsageRepository` for tool execution tracking.
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

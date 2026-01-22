@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core identifier types for SystemPrompt OS"
+description = "Core identifier types for systemprompt.io OS"
 
 [lints]
 workspace = true

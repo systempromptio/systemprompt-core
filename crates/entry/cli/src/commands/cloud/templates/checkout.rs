@@ -1,7 +1,7 @@
 pub const WAITING_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Provisioning in Progress - SystemPrompt</title>
+    <title>Provisioning in Progress - systemprompt.io</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -59,7 +59,7 @@ pub const WAITING_HTML: &str = r#"<!DOCTYPE html>
 pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Purchase Successful - SystemPrompt</title>
+    <title>Purchase Successful - systemprompt.io</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -193,7 +193,7 @@ pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 pub const ERROR_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Checkout Failed - SystemPrompt</title>
+    <title>Checkout Failed - systemprompt.io</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

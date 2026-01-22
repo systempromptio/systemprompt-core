@@ -1,10 +1,16 @@
 # systemprompt-security
 
-Security infrastructure module providing authentication, JWT handling, and token extraction.
+Security module for systemprompt.io - authentication, authorization, JWT, and token extraction.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-security.svg)](https://crates.io/crates/systemprompt-security)
+[![Documentation](https://docs.rs/systemprompt-security/badge.svg)](https://docs.rs/systemprompt-security)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This is a foundation-level infrastructure crate that provides security primitives for the SystemPrompt platform. It handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
+**Part of the Infra layer in the systemprompt.io architecture.**
+
+This crate provides security primitives for the systemprompt.io platform. It handles JWT token generation and validation, multi-method token extraction, and bot/scanner detection.
 
 ## File Structure
 
@@ -152,3 +158,16 @@ let params = SessionParams {
 };
 let token = generator.generate(&params)?;
 ```
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-security = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

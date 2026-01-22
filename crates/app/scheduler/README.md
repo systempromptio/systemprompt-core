@@ -1,6 +1,16 @@
 # systemprompt-scheduler
 
-Background job scheduling and execution module for SystemPrompt OS. Discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
+Core scheduler module for systemprompt.io OS - background jobs and cron tasks.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-scheduler.svg)](https://crates.io/crates/systemprompt-scheduler)
+[![Documentation](https://docs.rs/systemprompt-scheduler/badge.svg)](https://docs.rs/systemprompt-scheduler)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+
+## Overview
+
+**Part of the App layer in the systemprompt.io architecture.**
+
+Background job scheduling and execution module. Discovers jobs via the `inventory` crate and executes them on configurable cron schedules.
 
 ## File Structure
 
@@ -132,3 +142,16 @@ let config = SchedulerConfig::from_context(&app_context);
 let service = SchedulerService::new(config, db_pool, app_context)?;
 service.start().await?;
 ```
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-scheduler = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

@@ -326,7 +326,7 @@ myapp/
 
 **Full Setup:**
 ```bash
-# Step 1: Login to SystemPrompt Cloud
+# Step 1: Login to systemprompt.io Cloud
 systemprompt cloud login
 
 # Step 2: Run the config wizard
@@ -508,7 +508,7 @@ if let Some(key) = secrets.get("anthropic") {
 ### Not Logged In
 
 ```
-Not logged in to SystemPrompt Cloud.
+Not logged in to systemprompt.io Cloud.
 Run 'systemprompt cloud login' first.
 ```
 

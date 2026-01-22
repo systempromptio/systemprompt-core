@@ -1,7 +1,7 @@
 pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Authentication Successful - SystemPrompt</title>
+    <title>Authentication Successful - systemprompt.io</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -53,7 +53,7 @@ pub const SUCCESS_HTML: &str = r#"<!DOCTYPE html>
 pub const ERROR_HTML: &str = r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Authentication Failed - SystemPrompt</title>
+    <title>Authentication Failed - systemprompt.io</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

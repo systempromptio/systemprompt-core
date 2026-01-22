@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "HTTP API client library for SystemPrompt - enables TUI and external clients to communicate with the server"
+description = "HTTP API client library for systemprompt.io - enables TUI and external clients to communicate with the server"
 
 [lints]
 workspace = true

@@ -11,10 +11,9 @@ use super::helpers::format_bytes;
 use super::types::{DbAssignAdminOutput, DbMigrateOutput, DbStatusOutput};
 
 pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
-    use systemprompt_database::Database;
-    use systemprompt_loader::ModuleLoader;
+    use systemprompt_database::{install_extension_schemas, Database};
+    use systemprompt_extension::ExtensionRegistry;
     use systemprompt_models::Config;
-    use systemprompt_runtime::{install_module_with_db, Modules};
 
     let sys_config = Config::get()?;
 
@@ -29,34 +28,29 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
             .await
             .context("Failed to connect to database")?,
     );
-    let modules = Modules::from_vec(ModuleLoader::all())?;
-    let all_modules = modules.all();
 
-    let mut installed_modules = Vec::new();
-    let mut error_count = 0;
+    let registry = ExtensionRegistry::discover();
+    let extension_count = registry.schema_extensions().len();
 
     if config.should_show_verbose() {
-        CliService::info(&format!("Installing {} modules", all_modules.len()));
+        CliService::info(&format!(
+            "Installing schemas for {} extensions",
+            extension_count
+        ));
     }
 
-    for module in all_modules {
-        if config.should_show_verbose() {
-            CliService::info(&format!("  Installing: {}", module.name));
-        }
-        if let Err(e) = install_module_with_db(module, database.as_ref()).await {
-            CliService::error(&format!("{} failed: {}", module.name, e));
-            error_count += 1;
-        } else {
-            installed_modules.push(module.name.clone());
-        }
-    }
+    install_extension_schemas(&registry, database.as_ref())
+        .await
+        .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
 
-    if error_count > 0 {
-        return Err(anyhow!("Some modules failed to install"));
-    }
+    let installed_extensions: Vec<String> = registry
+        .schema_extensions()
+        .iter()
+        .map(|ext| ext.id().to_string())
+        .collect();
 
     let output = DbMigrateOutput {
-        modules_installed: installed_modules,
+        modules_installed: installed_extensions,
         message: "Database migration completed successfully".to_string(),
     };
 
@@ -73,39 +67,33 @@ pub async fn execute_migrate_standalone(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<()> {
-    use systemprompt_loader::ModuleLoader;
-    use systemprompt_runtime::{install_module_with_db, Modules};
+    use systemprompt_database::install_extension_schemas;
+    use systemprompt_extension::ExtensionRegistry;
 
     let database = db_ctx.db_pool();
 
-    let modules = Modules::from_vec(ModuleLoader::all())?;
-    let all_modules = modules.all();
-
-    let mut installed_modules = Vec::new();
-    let mut error_count = 0;
+    let registry = ExtensionRegistry::discover();
+    let extension_count = registry.schema_extensions().len();
 
     if config.should_show_verbose() {
-        CliService::info(&format!("Installing {} modules", all_modules.len()));
+        CliService::info(&format!(
+            "Installing schemas for {} extensions",
+            extension_count
+        ));
     }
 
-    for module in all_modules {
-        if config.should_show_verbose() {
-            CliService::info(&format!("  Installing: {}", module.name));
-        }
-        if let Err(e) = install_module_with_db(module, database.as_ref()).await {
-            CliService::error(&format!("{} failed: {}", module.name, e));
-            error_count += 1;
-        } else {
-            installed_modules.push(module.name.clone());
-        }
-    }
+    install_extension_schemas(&registry, database.as_ref())
+        .await
+        .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
 
-    if error_count > 0 {
-        return Err(anyhow!("Some modules failed to install"));
-    }
+    let installed_extensions: Vec<String> = registry
+        .schema_extensions()
+        .iter()
+        .map(|ext| ext.id().to_string())
+        .collect();
 
     let output = DbMigrateOutput {
-        modules_installed: installed_modules,
+        modules_installed: installed_extensions,
         message: "Database migration completed successfully".to_string(),
     };
 
@@ -143,7 +131,7 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
                 CliService::success(&output.message);
                 CliService::info(&format!("   Roles: {:?}", new_roles));
             }
-        },
+        }
         PromoteResult::AlreadyAdmin(u) => {
             let output = DbAssignAdminOutput {
                 user_id: u.id.clone(),
@@ -159,10 +147,10 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
             } else {
                 CliService::warning(&output.message);
             }
-        },
+        }
         PromoteResult::UserNotFound => {
             return Err(anyhow!("User '{}' not found", user));
-        },
+        }
     }
 
     Ok(())

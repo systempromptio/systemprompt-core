@@ -10,7 +10,7 @@ use super::Environment;
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum AuthCommands {
-    #[command(about = "Authenticate with SystemPrompt Cloud via OAuth")]
+    #[command(about = "Authenticate with systemprompt.io Cloud via OAuth")]
     Login {
         #[arg(value_enum, default_value_t = Environment::default())]
         environment: Environment,

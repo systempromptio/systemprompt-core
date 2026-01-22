@@ -1,10 +1,10 @@
 # systemprompt-api
 
-HTTP API gateway for SystemPrompt OS.
+HTTP API gateway for systemprompt.io OS.
 
 ## Overview
 
-This crate serves as the entry point for all HTTP requests to SystemPrompt OS. It provides:
+This crate serves as the entry point for all HTTP requests to systemprompt.io OS. It provides:
 
 - **Route Configuration:** Mounts all API endpoints from domain crates
 - **Middleware Stack:** Authentication, rate limiting, analytics, CORS, session management
@@ -197,3 +197,16 @@ The API server is configured through `systemprompt-runtime::Config`:
 - All routes mounted through `services/server/routes.rs`
 - Middleware order is significant (see `services/server/builder.rs`)
 - Static content requires prebuilt web assets in `WEB_DIR`
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-api = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

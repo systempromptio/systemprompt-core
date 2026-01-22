@@ -51,7 +51,7 @@ impl LocalProfileBuilder {
             display_name,
             target: ProfileType::Local,
             site: SiteConfig {
-                name: "SystemPrompt".to_string(),
+                name: "systemprompt.io".to_string(),
                 github_link: None,
             },
             database: ProfileDatabaseConfig {
@@ -163,7 +163,7 @@ impl CloudProfileBuilder {
             display_name,
             target: ProfileType::Cloud,
             site: SiteConfig {
-                name: "SystemPrompt".to_string(),
+                name: "systemprompt.io".to_string(),
                 github_link: None,
             },
             database: ProfileDatabaseConfig {

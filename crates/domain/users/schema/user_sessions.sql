@@ -44,6 +44,8 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     throttle_level INTEGER NOT NULL DEFAULT 0,
     behavioral_bot_score INTEGER NOT NULL DEFAULT 0,
     throttle_escalated_at TIMESTAMPTZ,
+    session_source VARCHAR(50) DEFAULT 'web'
+        CHECK (session_source IN ('web', 'api', 'cli', 'tui', 'oauth', 'unknown')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -56,6 +58,7 @@ COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
 COMMENT ON COLUMN user_sessions.behavioral_bot_reason IS 'Reason for behavioral bot classification (e.g., request_count_exceeded, high_page_coverage)';
+COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), tui (terminal UI), oauth (token endpoint)';
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON user_sessions(started_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON user_sessions(last_activity_at);
@@ -95,6 +98,10 @@ CREATE INDEX IF NOT EXISTS idx_sessions_fingerprint_time ON user_sessions(finger
 CREATE INDEX IF NOT EXISTS idx_sessions_user_time ON user_sessions(user_id, started_at) WHERE is_bot = false;
 CREATE INDEX IF NOT EXISTS idx_sessions_bot_time ON user_sessions(is_bot, started_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_bot ON user_sessions(started_at DESC, is_bot);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_session_source ON user_sessions(session_source);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_visitor_traffic
+    ON user_sessions(started_at)
+    WHERE session_source = 'web' AND is_bot = false;
 DROP VIEW IF EXISTS v_session_analytics_by_client CASCADE;
 CREATE VIEW v_session_analytics_by_client AS
 SELECT

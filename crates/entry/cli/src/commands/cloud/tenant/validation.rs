@@ -18,7 +18,7 @@ pub fn check_build_ready() -> Result<(), String> {
 
 pub fn validate_build_ready() -> Result<BuildValidationResult> {
     let project_root =
-        ProjectRoot::discover().context("Must be in a SystemPrompt project directory")?;
+        ProjectRoot::discover().context("Must be in a systemprompt.io project directory")?;
     let root = project_root.as_path();
 
     let binary_path = root.join("target/release/systemprompt");

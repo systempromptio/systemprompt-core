@@ -1,14 +1,329 @@
 # Crates.io Publishing Guide
 
-Complete guide for publishing SystemPrompt crates to crates.io.
+Complete guide for publishing and maintaining systemprompt.io crates on crates.io.
 
 ---
 
-## Overview
+## Published Status
 
-The SystemPrompt workspace contains **27 internal crates** organized in 5 layers. Publishing requires strict topological ordering due to inter-crate dependencies.
+**Current Version:** `0.0.1` (Initial Release - January 21, 2026)
 
-### Layer Hierarchy
+All **29 crates** have been published to crates.io.
+
+### Crate Links
+
+#### Shared Layer
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt-identifiers` | [crates.io](https://crates.io/crates/systemprompt-identifiers) | [docs.rs](https://docs.rs/systemprompt-identifiers) |
+| `systemprompt-provider-contracts` | [crates.io](https://crates.io/crates/systemprompt-provider-contracts) | [docs.rs](https://docs.rs/systemprompt-provider-contracts) |
+| `systemprompt-traits` | [crates.io](https://crates.io/crates/systemprompt-traits) | [docs.rs](https://docs.rs/systemprompt-traits) |
+| `systemprompt-extension` | [crates.io](https://crates.io/crates/systemprompt-extension) | [docs.rs](https://docs.rs/systemprompt-extension) |
+| `systemprompt-models` | [crates.io](https://crates.io/crates/systemprompt-models) | [docs.rs](https://docs.rs/systemprompt-models) |
+| `systemprompt-client` | [crates.io](https://crates.io/crates/systemprompt-client) | [docs.rs](https://docs.rs/systemprompt-client) |
+| `systemprompt-template-provider` | [crates.io](https://crates.io/crates/systemprompt-template-provider) | [docs.rs](https://docs.rs/systemprompt-template-provider) |
+
+#### Infrastructure Layer
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt-database` | [crates.io](https://crates.io/crates/systemprompt-database) | [docs.rs](https://docs.rs/systemprompt-database) |
+| `systemprompt-logging` | [crates.io](https://crates.io/crates/systemprompt-logging) | [docs.rs](https://docs.rs/systemprompt-logging) |
+| `systemprompt-events` | [crates.io](https://crates.io/crates/systemprompt-events) | [docs.rs](https://docs.rs/systemprompt-events) |
+| `systemprompt-security` | [crates.io](https://crates.io/crates/systemprompt-security) | [docs.rs](https://docs.rs/systemprompt-security) |
+| `systemprompt-loader` | [crates.io](https://crates.io/crates/systemprompt-loader) | [docs.rs](https://docs.rs/systemprompt-loader) |
+| `systemprompt-config` | [crates.io](https://crates.io/crates/systemprompt-config) | [docs.rs](https://docs.rs/systemprompt-config) |
+| `systemprompt-cloud` | [crates.io](https://crates.io/crates/systemprompt-cloud) | [docs.rs](https://docs.rs/systemprompt-cloud) |
+
+#### Domain Layer
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt-analytics` | [crates.io](https://crates.io/crates/systemprompt-analytics) | [docs.rs](https://docs.rs/systemprompt-analytics) |
+| `systemprompt-users` | [crates.io](https://crates.io/crates/systemprompt-users) | [docs.rs](https://docs.rs/systemprompt-users) |
+| `systemprompt-files` | [crates.io](https://crates.io/crates/systemprompt-files) | [docs.rs](https://docs.rs/systemprompt-files) |
+| `systemprompt-templates` | [crates.io](https://crates.io/crates/systemprompt-templates) | [docs.rs](https://docs.rs/systemprompt-templates) |
+| `systemprompt-content` | [crates.io](https://crates.io/crates/systemprompt-content) | [docs.rs](https://docs.rs/systemprompt-content) |
+| `systemprompt-ai` | [crates.io](https://crates.io/crates/systemprompt-ai) | [docs.rs](https://docs.rs/systemprompt-ai) |
+| `systemprompt-oauth` | [crates.io](https://crates.io/crates/systemprompt-oauth) | [docs.rs](https://docs.rs/systemprompt-oauth) |
+| `systemprompt-mcp` | [crates.io](https://crates.io/crates/systemprompt-mcp) | [docs.rs](https://docs.rs/systemprompt-mcp) |
+| `systemprompt-agent` | [crates.io](https://crates.io/crates/systemprompt-agent) | [docs.rs](https://docs.rs/systemprompt-agent) |
+
+#### Application Layer
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt-runtime` | [crates.io](https://crates.io/crates/systemprompt-runtime) | [docs.rs](https://docs.rs/systemprompt-runtime) |
+| `systemprompt-scheduler` | [crates.io](https://crates.io/crates/systemprompt-scheduler) | [docs.rs](https://docs.rs/systemprompt-scheduler) |
+| `systemprompt-generator` | [crates.io](https://crates.io/crates/systemprompt-generator) | [docs.rs](https://docs.rs/systemprompt-generator) |
+| `systemprompt-sync` | [crates.io](https://crates.io/crates/systemprompt-sync) | [docs.rs](https://docs.rs/systemprompt-sync) |
+
+#### Entry Layer
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt-api` | [crates.io](https://crates.io/crates/systemprompt-api) | [docs.rs](https://docs.rs/systemprompt-api) |
+| `systemprompt-cli` | [crates.io](https://crates.io/crates/systemprompt-cli) | [docs.rs](https://docs.rs/systemprompt-cli) |
+
+#### Facade
+| Crate | crates.io | docs.rs |
+|-------|-----------|---------|
+| `systemprompt` | [crates.io](https://crates.io/crates/systemprompt) | [docs.rs](https://docs.rs/systemprompt) |
+
+---
+
+## Pre-Publish Checklist (MANDATORY)
+
+Before publishing any crate, ALL checks must pass:
+
+### 1. Verify Package Compiles as Standalone
+
+```bash
+# Test that each crate compiles when packaged (simulates crates.io download)
+cargo package -p <crate-name> --allow-dirty
+
+# For all crates:
+for crate in systemprompt-{identifiers,provider-contracts,traits,extension,models,client,template-provider,database,logging,events,security,loader,config,cloud,analytics,users,files,templates,content,ai,runtime,scheduler,oauth,mcp,agent,generator,sync,api,cli} systemprompt; do
+  echo "Verifying $crate..."
+  cargo package -p "$crate" --allow-dirty 2>&1 | tail -1
+done
+```
+
+This catches issues like:
+- `include_str!` paths pointing outside the crate
+- Missing files not included in package
+- Dependencies that only work with path references
+
+### 2. Run Full Test Suite
+
+```bash
+cargo test --workspace
+cargo clippy --workspace -- -D warnings
+cargo fmt --all -- --check
+```
+
+### 3. Update CHANGELOG.md
+
+**REQUIRED**: Every crate must have a `CHANGELOG.md` in its root directory. Update it before every publish.
+
+Location: `crates/<layer>/<crate>/CHANGELOG.md`
+
+Format:
+```markdown
+# Changelog
+
+## [0.0.2] - 2026-01-22
+
+### Added
+- New feature X
+
+### Changed
+- Modified behavior Y
+
+### Fixed
+- Bug fix Z
+
+## [0.0.1] - 2026-01-21
+
+- Initial release
+```
+
+### 4. Verify Dry Run
+
+```bash
+cargo publish -p <crate-name> --dry-run --allow-dirty
+```
+
+---
+
+## Version Bumping
+
+### Bump All Crates
+
+```bash
+# 1. Update workspace version in root Cargo.toml
+sed -i 's/version = "0.0.1"/version = "0.0.2"/' Cargo.toml
+
+# 2. Update all inter-crate dependency versions
+find crates -name "Cargo.toml" -exec sed -i 's/version = "0.0.1"/version = "0.0.2"/g' {} \;
+find systemprompt -name "Cargo.toml" -exec sed -i 's/version = "0.0.1"/version = "0.0.2"/g' {} \;
+
+# 3. Verify changes
+git diff --stat
+
+# 4. Test build
+cargo build --workspace
+
+# 5. Commit
+git add -A
+git commit -m "chore: bump version to 0.0.2"
+```
+
+### Bump Single Crate
+
+Not recommended - all crates share workspace version. If needed for hotfix:
+
+```bash
+# Override workspace version in specific crate
+# In crates/domain/agent/Cargo.toml:
+[package]
+version = "0.0.2"  # Remove version.workspace = true
+```
+
+---
+
+## Publishing Commands
+
+### Prerequisites
+
+```bash
+# Login to crates.io (one-time)
+cargo login <your-api-token>
+
+# Verify credentials
+cargo owner --list systemprompt
+```
+
+### Publish Single Crate
+
+```bash
+# Dry run first
+cargo publish -p systemprompt-agent --dry-run
+
+# Publish (requires --allow-dirty if uncommitted changes)
+cargo publish -p systemprompt-agent --no-verify --allow-dirty
+
+# With explicit token
+CARGO_REGISTRY_TOKEN=<token> cargo publish -p systemprompt-agent --no-verify --allow-dirty
+```
+
+### Publish All Crates (In Order)
+
+```bash
+#!/bin/bash
+set -e
+
+echo "=== Pre-publish verification ==="
+
+# 1. Verify all packages compile standalone
+echo "Verifying packages compile..."
+for crate in systemprompt-{identifiers,provider-contracts,traits,extension,models,client,template-provider,database,logging,events,security,loader,config,cloud,analytics,users,files,templates,content,ai,runtime,scheduler,oauth,mcp,agent,generator,sync,api,cli} systemprompt; do
+  echo "  Checking $crate..."
+  if ! cargo package -p "$crate" --allow-dirty >/dev/null 2>&1; then
+    echo "ERROR: $crate failed to package!"
+    exit 1
+  fi
+done
+echo "All packages verified."
+
+# 2. Run tests
+echo "Running tests..."
+cargo test --workspace || exit 1
+
+# 3. Check clippy
+echo "Running clippy..."
+cargo clippy --workspace -- -D warnings || exit 1
+
+echo "=== All checks passed, starting publish ==="
+
+export CARGO_REGISTRY_TOKEN="<your-token>"
+
+CRATES=(
+    # Shared Layer
+    "systemprompt-identifiers"
+    "systemprompt-provider-contracts"
+    "systemprompt-traits"
+    "systemprompt-extension"
+    "systemprompt-models"
+    "systemprompt-client"
+    "systemprompt-template-provider"
+    # Infrastructure Layer
+    "systemprompt-database"
+    "systemprompt-logging"
+    "systemprompt-events"
+    "systemprompt-security"
+    "systemprompt-loader"
+    "systemprompt-config"
+    "systemprompt-cloud"
+    # Domain Layer
+    "systemprompt-analytics"
+    "systemprompt-users"
+    "systemprompt-files"
+    "systemprompt-templates"
+    "systemprompt-content"
+    "systemprompt-ai"
+    # App Layer
+    "systemprompt-runtime"
+    "systemprompt-scheduler"
+    # Domain Layer (depends on app)
+    "systemprompt-oauth"
+    "systemprompt-mcp"
+    "systemprompt-agent"
+    # App Layer (depends on domain)
+    "systemprompt-generator"
+    "systemprompt-sync"
+    # Entry Layer
+    "systemprompt-api"
+    "systemprompt-cli"
+    # Facade
+    "systemprompt"
+)
+
+for crate in "${CRATES[@]}"; do
+    echo "Publishing $crate..."
+    cargo publish -p "$crate" --no-verify --allow-dirty
+    echo "Waiting for crates.io index..."
+    sleep 30
+done
+
+echo "All crates published!"
+```
+
+### Rate Limits
+
+crates.io has rate limits for new crate publishers:
+- ~1 new crate per 10 minutes for new accounts
+- Higher limits for established accounts
+
+If you hit rate limits:
+```
+error: 429 Too Many Requests
+Please try again after <timestamp>
+```
+
+Wait until the specified time and retry.
+
+---
+
+## Yanking Versions
+
+To remove a broken version (does not delete, just hides from new installs):
+
+```bash
+# Yank a version
+cargo yank --version 0.0.1 systemprompt-loader
+
+# Un-yank if needed
+cargo yank --version 0.0.1 systemprompt-loader --undo
+```
+
+---
+
+## Verifying Published Crates
+
+```bash
+# Search crates.io
+cargo search systemprompt
+
+# Check specific crate info
+cargo info systemprompt-agent
+
+# Test installation in new project
+mkdir /tmp/test-sp && cd /tmp/test-sp
+cargo init
+echo 'systemprompt = "0.0.1"' >> Cargo.toml
+cargo build
+```
+
+---
+
+## Layer Hierarchy
 
 ```
 Entry (api, cli)
@@ -22,500 +337,76 @@ Infra (cloud, config, database, events, loader, logging, security)
 Shared (identifiers, provider-contracts, traits, extension, models, client, template-provider)
 ```
 
----
-
-## Prerequisites
-
-### 1. crates.io Account Setup
-
-```bash
-# Login to crates.io
-cargo login <your-api-token>
-
-# Verify login
-cargo owner --list
-```
-
-### 2. External Dependencies Verification
-
-All external dependencies must be available on crates.io:
-
-| Dependency | crates.io | Notes |
-|------------|-----------|-------|
-| `rmcp` | :white_check_mark: | MCP protocol implementation |
-| `sqlx` | :white_check_mark: | Database |
-| `tokio` | :white_check_mark: | Async runtime |
-| `axum` | :white_check_mark: | HTTP framework |
-| All others | :white_check_mark: | Standard ecosystem crates |
-
-### 3. Workspace Cargo.toml Preparation
-
-Before publishing, update the root `Cargo.toml` to include:
-
-```toml
-[workspace.package]
-version = "0.1.0"
-authors = ["SystemPrompt <team@systemprompt.io>"]
-license = "MIT OR Apache-2.0"
-repository = "https://github.com/systemprompt/systemprompt-core"
-homepage = "https://systemprompt.io"
-keywords = ["ai", "mcp", "agent", "llm"]
-categories = ["development-tools", "web-programming"]
-```
+Dependencies flow downward only. No circular dependencies.
 
 ---
 
-## Publishing Order
+## Complete Publishing Order
 
-### Phase 1: Shared Layer (No Internal Dependencies First)
+| # | Crate | Layer |
+|---|-------|-------|
+| 1 | `systemprompt-identifiers` | Shared |
+| 2 | `systemprompt-provider-contracts` | Shared |
+| 3 | `systemprompt-traits` | Shared |
+| 4 | `systemprompt-extension` | Shared |
+| 5 | `systemprompt-models` | Shared |
+| 6 | `systemprompt-client` | Shared |
+| 7 | `systemprompt-template-provider` | Shared |
+| 8 | `systemprompt-database` | Infra |
+| 9 | `systemprompt-logging` | Infra |
+| 10 | `systemprompt-events` | Infra |
+| 11 | `systemprompt-security` | Infra |
+| 12 | `systemprompt-loader` | Infra |
+| 13 | `systemprompt-config` | Infra |
+| 14 | `systemprompt-cloud` | Infra |
+| 15 | `systemprompt-analytics` | Domain |
+| 16 | `systemprompt-users` | Domain |
+| 17 | `systemprompt-files` | Domain |
+| 18 | `systemprompt-templates` | Domain |
+| 19 | `systemprompt-content` | Domain |
+| 20 | `systemprompt-ai` | Domain |
+| 21 | `systemprompt-runtime` | App |
+| 22 | `systemprompt-scheduler` | App |
+| 23 | `systemprompt-oauth` | Domain |
+| 24 | `systemprompt-mcp` | Domain |
+| 25 | `systemprompt-agent` | Domain |
+| 26 | `systemprompt-generator` | App |
+| 27 | `systemprompt-sync` | App |
+| 28 | `systemprompt-api` | Entry |
+| 29 | `systemprompt-cli` | Entry |
+| 30 | `systemprompt` | Facade |
 
-**Step 1.1: systemprompt-identifiers** (no internal deps)
-```bash
-cd crates/shared/identifiers
-cargo publish --dry-run
-cargo publish
-```
+---
 
-**Step 1.2: systemprompt-provider-contracts** (depends on: identifiers)
+## Usage Examples
+
+### Basic Usage
+
 ```toml
-# Update Cargo.toml
-systemprompt-identifiers = "0.1.0"  # was path = "../identifiers"
-```
-```bash
-cd crates/shared/provider-contracts
-cargo publish
+[dependencies]
+systemprompt = "0.0.1"
 ```
 
-**Step 1.3: systemprompt-traits** (depends on: identifiers, provider-contracts)
+### With Features
 
 ```toml
-# Update Cargo.toml
-systemprompt-identifiers = "0.1.0"
-systemprompt-provider-contracts = "0.1.0"
-```
-```bash
-cd crates/shared/traits
-cargo publish
+[dependencies]
+systemprompt = { version = "0.0.1", features = ["full"] }
 ```
 
-**Step 1.4: systemprompt-extension** (depends on: provider-contracts, traits)
-```toml
-systemprompt-provider-contracts = "0.1.0"
-systemprompt-traits = "0.1.0"
-```
+### Specific Crates Only
 
-**Step 1.5: systemprompt-models** (depends on: traits, identifiers, extension)
 ```toml
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-extension = "0.1.0"
-```
-
-**Step 1.6: systemprompt-client** (depends on: models, identifiers)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
-**Step 1.7: systemprompt-template-provider** (depends on: provider-contracts)
-```toml
-systemprompt-provider-contracts = "0.1.0"
+[dependencies]
+systemprompt-models = "0.0.1"
+systemprompt-extension = "0.0.1"
+systemprompt-identifiers = "0.0.1"
 ```
 
 ---
 
-### Phase 2: Infrastructure Layer
+## Changelog
 
-**Step 2.1: systemprompt-database** (depends on: traits, identifiers, models, extension)
-```toml
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-models = "0.1.0"
-systemprompt-extension = "0.1.0"
-```
+### v0.0.1 (2026-01-21)
 
-**Step 2.2: systemprompt-logging** (depends on: database, traits, identifiers)
-```toml
-systemprompt-database = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
-**Step 2.3: systemprompt-events** (depends on: models, identifiers)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
-**Step 2.4: systemprompt-security** (depends on: models, identifiers)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
-**Step 2.5: systemprompt-loader** (depends on: models)
-```toml
-systemprompt-models = "0.1.0"
-```
-
-**Step 2.6: systemprompt-config** (depends on: logging, models)
-```toml
-systemprompt-logging = "0.1.0"
-systemprompt-models = "0.1.0"
-```
-
-**Step 2.7: systemprompt-cloud** (depends on: identifiers, models, client, logging)
-```toml
-systemprompt-identifiers = "0.1.0"
-systemprompt-models = "0.1.0"
-systemprompt-client = "0.1.0"
-systemprompt-logging = "0.1.0"
-```
-
----
-
-### Phase 3: Domain Layer
-
-**Step 3.1: systemprompt-analytics** (depends on: models, identifiers, traits, database)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-database = "0.1.0"
-```
-
-**Step 3.2: systemprompt-users** (depends on: database, identifiers, models, provider-contracts, traits)
-```toml
-systemprompt-database = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-models = "0.1.0"
-systemprompt-provider-contracts = "0.1.0"
-systemprompt-traits = "0.1.0"
-```
-
-**Step 3.3: systemprompt-files** (depends on: cloud, database, logging, models, identifiers, traits, provider-contracts)
-```toml
-systemprompt-cloud = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-provider-contracts = "0.1.0"
-```
-
-**Step 3.4: systemprompt-templates** (depends on: template-provider)
-```toml
-systemprompt-template-provider = "0.1.0"
-```
-
-**Step 3.5: systemprompt-content** (depends on: database, logging, models, identifiers, traits, provider-contracts, config)
-```toml
-systemprompt-database = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-provider-contracts = "0.1.0"
-systemprompt-config = "0.1.0"
-```
-
-**Step 3.6: systemprompt-ai** (depends on: models, database, loader, logging, files, analytics, traits, identifiers)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-loader = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-files = "0.1.0"
-systemprompt-analytics = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
----
-
-### Phase 4: Application Layer
-
-**Step 4.1: systemprompt-runtime** (depends on: models, traits, extension, identifiers, database, logging, config, loader, analytics, files)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-extension = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-config = "0.1.0"
-systemprompt-loader = "0.1.0"
-systemprompt-analytics = "0.1.0"
-systemprompt-files = "0.1.0"
-```
-
-**Step 4.2: systemprompt-scheduler** (depends on: runtime, database, logging, analytics, users, traits, provider-contracts, identifiers, models)
-```toml
-systemprompt-runtime = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-analytics = "0.1.0"
-systemprompt-users = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-provider-contracts = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-models = "0.1.0"
-```
-
-**Step 4.3: systemprompt-oauth** (depends on: models, runtime, users, logging, database, analytics, security, traits, identifiers)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-runtime = "0.1.0"
-systemprompt-users = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-analytics = "0.1.0"
-systemprompt-security = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
-**Step 4.4: systemprompt-mcp** (depends on: models, identifiers, runtime, oauth, logging, config, database, scheduler, traits, loader)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-runtime = "0.1.0"
-systemprompt-oauth = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-config = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-scheduler = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-loader = "0.1.0"
-```
-
-**Step 4.5: systemprompt-agent** (depends on: many - publish last in domain)
-```toml
-systemprompt-models = "0.1.0"
-systemprompt-traits = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-systemprompt-runtime = "0.1.0"
-systemprompt-loader = "0.1.0"
-systemprompt-events = "0.1.0"
-systemprompt-oauth = "0.1.0"
-systemprompt-users = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-config = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-analytics = "0.1.0"
-systemprompt-security = "0.1.0"
-systemprompt-scheduler = "0.1.0"
-systemprompt-mcp = "0.1.0"
-systemprompt-ai = "0.1.0"
-systemprompt-files = "0.1.0"
-```
-
-**Step 4.6: systemprompt-generator** (depends on: models, traits, provider-contracts, identifiers, database, logging, config, cloud, content, files, templates, template-provider, extension)
-```toml
-# Update all path dependencies to version dependencies
-```
-
-**Step 4.7: systemprompt-sync** (depends on: agent, content, database, logging, identifiers)
-```toml
-systemprompt-agent = "0.1.0"
-systemprompt-content = "0.1.0"
-systemprompt-database = "0.1.0"
-systemprompt-logging = "0.1.0"
-systemprompt-identifiers = "0.1.0"
-```
-
----
-
-### Phase 5: Entry Layer
-
-**Step 5.1: systemprompt-api** (depends on: many domain and app crates)
-```toml
-# Update all path dependencies to version dependencies
-```
-
-**Step 5.2: systemprompt-cli** (depends on: nearly everything)
-```toml
-# Update all path dependencies to version dependencies
-```
-
----
-
-## Complete Publishing Order (27 crates)
-
-| Order | Crate | Layer | Dependencies |
-|-------|-------|-------|--------------|
-| 1 | `systemprompt-identifiers` | Shared | None |
-| 2 | `systemprompt-provider-contracts` | Shared | identifiers |
-| 3 | `systemprompt-traits` | Shared | identifiers, provider-contracts |
-| 4 | `systemprompt-extension` | Shared | provider-contracts, traits |
-| 5 | `systemprompt-models` | Shared | traits, identifiers, extension |
-| 6 | `systemprompt-client` | Shared | models, identifiers |
-| 7 | `systemprompt-template-provider` | Shared | provider-contracts |
-| 8 | `systemprompt-database` | Infra | traits, identifiers, models, extension |
-| 9 | `systemprompt-logging` | Infra | database, traits, identifiers |
-| 10 | `systemprompt-events` | Infra | models, identifiers |
-| 11 | `systemprompt-security` | Infra | models, identifiers |
-| 12 | `systemprompt-loader` | Infra | models |
-| 13 | `systemprompt-config` | Infra | logging, models |
-| 14 | `systemprompt-cloud` | Infra | identifiers, models, client, logging |
-| 15 | `systemprompt-analytics` | Domain | models, identifiers, traits, database |
-| 16 | `systemprompt-users` | Domain | database, identifiers, models, provider-contracts, traits |
-| 17 | `systemprompt-files` | Domain | cloud, database, logging, models, identifiers, traits, provider-contracts |
-| 18 | `systemprompt-templates` | Domain | template-provider |
-| 19 | `systemprompt-content` | Domain | database, logging, models, identifiers, traits, provider-contracts, config |
-| 20 | `systemprompt-ai` | Domain | models, database, loader, logging, files, analytics, traits, identifiers |
-| 21 | `systemprompt-runtime` | App | models, traits, extension, identifiers, database, logging, config, loader, analytics, files |
-| 22 | `systemprompt-scheduler` | App | runtime, database, logging, analytics, users, traits, provider-contracts, identifiers, models |
-| 23 | `systemprompt-oauth` | Domain | models, runtime, users, logging, database, analytics, security, traits, identifiers |
-| 24 | `systemprompt-mcp` | Domain | models, identifiers, runtime, oauth, logging, config, database, scheduler, traits, loader |
-| 25 | `systemprompt-agent` | Domain | (many) |
-| 26 | `systemprompt-generator` | App | (many) |
-| 27 | `systemprompt-sync` | App | agent, content, database, logging, identifiers |
-| 28 | `systemprompt-api` | Entry | (many) |
-| 29 | `systemprompt-cli` | Entry | (nearly all) |
-
----
-
-## Known Issues
-
-### 1. ~~Circular Dependency: traits ↔ database~~ (RESOLVED)
-
-**Status**: Fixed. The `systemprompt-database` dev-dependency in `systemprompt-traits` was orphaned and has been removed.
-
-**Original Problem**: `systemprompt-traits` had a dev-dependency on `systemprompt-database`, but `systemprompt-database` depends on `systemprompt-traits`.
-
-**Resolution Applied**: Removed the unused `systemprompt-database` dev-dependency from `crates/shared/traits/Cargo.toml`. Analysis confirmed no source code or tests actually used this dependency.
-
-**Current State**:
-```
-systemprompt-database (Infra) ──[depends on]──> systemprompt-traits (Shared) ✓
-systemprompt-traits (Shared) ──[no infra deps]──> (shared crates only)       ✓
-```
-
-### 2. Cross-Layer Dependencies
-
-Several domain crates depend on app layer (`systemprompt-runtime`):
-- `systemprompt-oauth`
-- `systemprompt-mcp`
-- `systemprompt-agent`
-
-**Resolution**: These were architectural violations. The `systemprompt-ai` crate was fixed to remove runtime dependency. Similar fixes needed for others.
-
----
-
-## Automation Script
-
-```bash
-#!/bin/bash
-# publish-all.sh - Publish all crates in order
-
-set -e
-
-CRATES=(
-    "crates/shared/identifiers"
-    "crates/shared/provider-contracts"
-    "crates/shared/traits"
-    "crates/shared/extension"
-    "crates/shared/models"
-    "crates/shared/client"
-    "crates/shared/template-provider"
-    "crates/infra/database"
-    "crates/infra/logging"
-    "crates/infra/events"
-    "crates/infra/security"
-    "crates/infra/loader"
-    "crates/infra/config"
-    "crates/infra/cloud"
-    "crates/domain/analytics"
-    "crates/domain/users"
-    "crates/domain/files"
-    "crates/domain/templates"
-    "crates/domain/content"
-    "crates/domain/ai"
-    "crates/app/runtime"
-    "crates/app/scheduler"
-    "crates/domain/oauth"
-    "crates/domain/mcp"
-    "crates/domain/agent"
-    "crates/app/generator"
-    "crates/app/sync"
-    "crates/entry/api"
-    "crates/entry/cli"
-)
-
-for crate in "${CRATES[@]}"; do
-    echo "Publishing $crate..."
-    cd "$crate"
-    cargo publish
-    cd -
-    sleep 30  # Wait for crates.io to index
-done
-
-echo "All crates published!"
-```
-
----
-
-## Pre-Publication Checklist
-
-For each crate:
-
-- [ ] Update `Cargo.toml` path deps to version deps
-- [ ] Ensure `version`, `license`, `repository` are set
-- [ ] Run `cargo publish --dry-run`
-- [ ] Verify no `path = ` dependencies remain
-- [ ] Check README.md exists and is accurate
-- [ ] Verify all tests pass: `cargo test`
-- [ ] Verify clippy passes: `cargo clippy -- -D warnings`
-- [ ] Verify formatting: `cargo fmt -- --check`
-
----
-
-## Version Strategy
-
-### Initial Release: 0.1.0
-
-All crates start at `0.1.0` for initial crates.io publication.
-
-### Subsequent Releases
-
-Use workspace-level versioning:
-```toml
-# Root Cargo.toml
-[workspace.package]
-version = "0.2.0"
-```
-
-When updating:
-1. Update workspace version
-2. Update all inter-crate dependencies to new version
-3. Publish in topological order
-4. Tag release: `git tag v0.2.0`
-
----
-
-## Selective Publishing
-
-To publish only specific crates (e.g., just the AI module):
-
-```bash
-# Minimum set for systemprompt-ai
-REQUIRED=(
-    "systemprompt-identifiers"
-    "systemprompt-provider-contracts"
-    "systemprompt-traits"
-    "systemprompt-extension"
-    "systemprompt-models"
-    "systemprompt-database"
-    "systemprompt-logging"
-    "systemprompt-loader"
-    "systemprompt-cloud"
-    "systemprompt-client"
-    "systemprompt-analytics"
-    "systemprompt-files"
-    "systemprompt-ai"
-)
-```
-
-This requires **13 crates** to publish `systemprompt-ai` independently.
+- Initial publication of all 29 crates to crates.io

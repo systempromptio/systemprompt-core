@@ -39,7 +39,7 @@ pub fn execute(args: LogoutArgs, config: &CliConfig) -> Result<()> {
         "Removed credentials from",
         &creds_path.display().to_string(),
     );
-    CliService::success("Logged out of SystemPrompt Cloud");
+    CliService::success("Logged out of systemprompt.io Cloud");
 
     Ok(())
 }

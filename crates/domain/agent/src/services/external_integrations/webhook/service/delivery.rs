@@ -18,7 +18,7 @@ impl WebhookService {
             .post(url)
             .json(&payload)
             .header("Content-Type", "application/json")
-            .header("User-Agent", "SystemPrompt-Webhook/1.0");
+            .header("User-Agent", "systemprompt.io-Webhook/1.0");
 
         for (key, value) in &config.headers {
             request_builder = request_builder.header(key, value);

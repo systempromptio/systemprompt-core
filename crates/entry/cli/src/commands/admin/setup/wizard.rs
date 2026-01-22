@@ -12,7 +12,7 @@ use crate::CliConfig;
 
 pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResult<SetupOutput>> {
     if !config.is_json_output() {
-        CliService::section("SystemPrompt Setup Wizard");
+        CliService::section("systemprompt.io Setup Wizard");
     }
 
     let project_root = detect_project_root()?;

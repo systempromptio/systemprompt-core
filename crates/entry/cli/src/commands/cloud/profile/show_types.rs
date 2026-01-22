@@ -82,7 +82,7 @@ impl FullConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct EnvironmentConfig {
     pub core: CoreEnvVars,
-    pub systemprompt: SystemPromptEnvVars,
+    pub systemprompt: SystempromptEnvVars,
     pub database: DatabaseEnvVars,
     pub jwt: JwtEnvVars,
     pub rate_limits: RateLimitEnvVars,
@@ -103,7 +103,7 @@ pub struct CoreEnvVars {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SystemPromptEnvVars {
+pub struct SystempromptEnvVars {
     pub env: String,
     pub verbosity: String,
     pub services_path: Option<String>,
@@ -169,7 +169,7 @@ pub fn build_env_config(config: &systemprompt_models::Config) -> EnvironmentConf
                 .map(|_| "[REDACTED]".to_string()),
             cors_allowed_origins: config.cors_allowed_origins.clone(),
         },
-        systemprompt: SystemPromptEnvVars {
+        systemprompt: SystempromptEnvVars {
             env: format!("{:?}", env),
             verbosity: format!("{:?}", verbosity),
             services_path: AppPaths::get()

@@ -1,10 +1,16 @@
 # systemprompt-config
 
-Infrastructure module for environment configuration management, YAML loading, variable resolution, and validation.
+Configuration module for systemprompt.io - environment configuration and validation.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-config.svg)](https://crates.io/crates/systemprompt-config)
+[![Documentation](https://docs.rs/systemprompt-config/badge.svg)](https://docs.rs/systemprompt-config)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This crate provides configuration management for the SystemPrompt platform:
+**Part of the Infra layer in the systemprompt.io architecture.**
+
+This crate provides configuration management for the systemprompt.io platform:
 
 - **YAML Configuration Loading**: Loads and merges base and environment-specific YAML files
 - **Variable Resolution**: Resolves `${VAR_NAME}` and `${VAR_NAME:-default}` patterns
@@ -84,3 +90,16 @@ use systemprompt_config::{
 | `anyhow` | Error handling |
 | `thiserror` | Typed errors for schema validation |
 | `tracing` | Warning logs for unsupported features |
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-config = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

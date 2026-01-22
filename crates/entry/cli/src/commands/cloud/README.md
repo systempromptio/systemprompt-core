@@ -20,7 +20,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 | Command | Description | Artifact Type | Requires Services |
 |---------|-------------|---------------|-------------------|
-| `cloud auth login` | Authenticate with SystemPrompt Cloud | `Card` | No |
+| `cloud auth login` | Authenticate with systemprompt.io Cloud | `Card` | No |
 | `cloud auth logout` | Log out from cloud | `Text` | No |
 | `cloud auth whoami` | Show current authentication status | `Card` | No |
 | `cloud init` | Initialize project structure | `Text` | No |
@@ -32,7 +32,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 | `cloud profile create` | Create a new profile | `Text` | No |
 | `cloud profile edit` | Edit profile configuration | `Text` | No |
 | `cloud profile delete` | Delete a profile | `Text` | No |
-| `cloud deploy` | Deploy to SystemPrompt Cloud | `Text` | No |
+| `cloud deploy` | Deploy to systemprompt.io Cloud | `Text` | No |
 | `cloud status` | Check cloud deployment status | `Card` | No |
 | `cloud restart` | Restart tenant machine | `Text` | Yes |
 | `cloud sync` | Sync between local and cloud | `Text` | Yes |
@@ -45,7 +45,7 @@ alias sp="./target/debug/systemprompt --non-interactive"
 
 ### cloud auth login
 
-Authenticate with SystemPrompt Cloud.
+Authenticate with systemprompt.io Cloud.
 
 ```bash
 sp cloud auth login
@@ -79,7 +79,7 @@ sp cloud auth login --token "api_token"
 
 ### cloud auth logout
 
-Log out from SystemPrompt Cloud.
+Log out from systemprompt.io Cloud.
 
 ```bash
 sp cloud auth logout
@@ -124,7 +124,7 @@ sp --json cloud auth whoami
 
 ### cloud init
 
-Initialize project structure for SystemPrompt.
+Initialize project structure for systemprompt.io.
 
 ```bash
 sp cloud init
@@ -465,7 +465,7 @@ sp cloud profile delete staging --yes
 
 ### cloud deploy
 
-Deploy to SystemPrompt Cloud.
+Deploy to systemprompt.io Cloud.
 
 ```bash
 sp cloud deploy
@@ -663,7 +663,7 @@ Prints a suggested Dockerfile to stdout based on:
 
 ## Complete Cloud Deployment Flow Example
 
-This flow demonstrates deploying a project to SystemPrompt Cloud:
+This flow demonstrates deploying a project to systemprompt.io Cloud:
 
 ```bash
 # Phase 1: Initialize project (if not done)

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SystemPrompt OS - CLI for agent orchestration, AI operations, and system management"
+description = "systemprompt.io OS - CLI for agent orchestration, AI operations, and system management"
 
 [lints]
 workspace = true
@@ -25,7 +25,7 @@ clap = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 
-# SystemPrompt crates
+# systemprompt.io crates
 systemprompt-runtime = { path = "../../app/runtime", version = "0.0.1" }
 systemprompt-agent = { path = "../../domain/agent", version = "0.0.1" }
 systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.1" }

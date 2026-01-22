@@ -59,7 +59,7 @@ impl<'a> DockerfileBuilder<'a> {
         let extension_assets_section = self.extension_asset_copy_section();
 
         format!(
-            r#"# SystemPrompt Application Dockerfile
+            r#"# systemprompt.io Application Dockerfile
 # Built by: systemprompt cloud profile create
 # Used by: systemprompt cloud deploy
 

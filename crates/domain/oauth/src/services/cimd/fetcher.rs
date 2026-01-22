@@ -12,7 +12,7 @@ impl CimdFetcher {
     pub fn new() -> Result<Self> {
         let client = Client::builder()
             .timeout(Duration::from_secs(10))
-            .user_agent("SystemPrompt-OS/2.0")
+            .user_agent("systemprompt.io-OS/2.0")
             .redirect(reqwest::redirect::Policy::limited(3))
             .build()
             .map_err(|e| anyhow!("Failed to build HTTP client: {}", e))?;

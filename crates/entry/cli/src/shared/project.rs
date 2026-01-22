@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ProjectError {
-    #[error("Not a SystemPrompt project: {path}\n\nLooking for .systemprompt directory")]
+    #[error("Not a systemprompt.io project: {path}\n\nLooking for .systemprompt directory")]
     ProjectNotFound { path: PathBuf },
 
     #[error("Failed to resolve path {path}: {source}")]

@@ -1,4 +1,4 @@
-# SystemPrompt OS - Lean Justfile
+# systemprompt.io OS - Lean Justfile
 # Use CLI directly with global flags: --json, --verbose, --debug, --no-color
 
 # Show all commands

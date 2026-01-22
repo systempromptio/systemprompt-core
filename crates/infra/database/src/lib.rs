@@ -1,10 +1,13 @@
 pub mod admin;
 pub mod error;
+pub mod extension;
 pub mod lifecycle;
 pub mod models;
 #[macro_use]
 pub mod repository;
 pub mod services;
+
+pub use extension::DatabaseExtension;
 
 pub use models::{
     parse_database_datetime, ArtifactId, ClientId, ColumnInfo, ContentId, ContextId, DatabaseInfo,

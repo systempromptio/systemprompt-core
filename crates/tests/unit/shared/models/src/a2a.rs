@@ -43,12 +43,12 @@ fn test_agent_card_builder_with_provider() {
         "https://example.com".to_string(),
         "1.0.0".to_string(),
     )
-    .with_provider("SystemPrompt".to_string(), "https://systemprompt.io".to_string())
+    .with_provider("systemprompt.io".to_string(), "https://systemprompt.io".to_string())
     .build();
 
     assert!(card.provider.is_some());
     let provider = card.provider.unwrap();
-    assert_eq!(provider.organization, "SystemPrompt");
+    assert_eq!(provider.organization, "systemprompt.io");
     assert_eq!(provider.url, "https://systemprompt.io");
 }
 

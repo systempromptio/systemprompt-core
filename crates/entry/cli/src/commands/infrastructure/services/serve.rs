@@ -1,12 +1,11 @@
 use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_loader::ModuleLoader;
+use systemprompt_database::install_extension_schemas;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
-use systemprompt_runtime::{
-    install_module_with_db, validate_system, AppContext, Modules, ServiceCategory,
-};
+use systemprompt_runtime::{validate_system, AppContext, ServiceCategory};
 use systemprompt_scheduler::ProcessCleanup;
 use systemprompt_traits::{ModuleInfo, Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
@@ -204,13 +203,11 @@ fn register_modules(events: Option<&StartupEventSender>) {
 }
 
 async fn run_migrations(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
-    let modules = Modules::from_vec(ModuleLoader::all())?;
+    let registry = ExtensionRegistry::discover();
 
-    for module in modules.all() {
-        install_module_with_db(module, ctx.db_pool().as_ref())
-            .await
-            .with_context(|| format!("Failed to install module '{}'", module.name))?;
-    }
+    install_extension_schemas(&registry, ctx.db_pool().as_ref())
+        .await
+        .context("Failed to install extension schemas")?;
 
     if events.is_none() {
         CliService::phase_success("Database schemas installed", None);

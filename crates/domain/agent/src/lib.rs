@@ -49,10 +49,13 @@
 )]
 
 pub mod error;
+pub mod extension;
 pub mod models;
 pub mod repository;
 pub mod services;
 pub mod state;
+
+pub use extension::AgentExtension;
 
 pub use state::AgentState;
 

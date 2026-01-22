@@ -2,7 +2,7 @@
   "name": "systemprompt-integration-tests",
   "version": "1.0.0",
   "type": "module",
-  "description": "Integration tests for SystemPrompt OS",
+  "description": "Integration tests for systemprompt.io OS",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",

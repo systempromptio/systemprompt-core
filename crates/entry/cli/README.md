@@ -1,15 +1,15 @@
-# SystemPrompt CLI
+# systemprompt.io CLI
 
 **Layer:** Entry
 **Binary:** `systemprompt`
 
-Command-line interface for SystemPrompt OS. Every command supports both human-friendly interactive mode and agent-friendly non-interactive mode.
+Command-line interface for systemprompt.io OS. Every command supports both human-friendly interactive mode and agent-friendly non-interactive mode.
 
 ---
 
 ## Overview
 
-The CLI provides comprehensive management of SystemPrompt OS including:
+The CLI provides comprehensive management of systemprompt.io OS including:
 
 - **Agent Management** - Create, configure, and orchestrate AI agents
 - **Cloud Operations** - Deploy, sync, and manage cloud tenants
@@ -589,3 +589,20 @@ systemprompt --non-interactive --json admin agents create --name myagent
 - [Validation Checklist](./validation.md)
 - [Rust Standards](/instructions/rust/rust.md)
 - [Compliance Status](./status.md)
+
+## Installation
+
+```bash
+cargo install systemprompt-cli
+```
+
+Or add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-cli = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

@@ -2,10 +2,13 @@
 
 pub mod config;
 pub mod error;
+pub mod extension;
 pub mod jobs;
 pub mod models;
 pub mod repository;
 pub mod services;
+
+pub use extension::ContentExtension;
 
 pub use config::{
     ContentConfigValidated, ContentReady, ContentSourceConfigValidated, LoadStats, ParsedContent,

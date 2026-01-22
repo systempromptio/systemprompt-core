@@ -1,10 +1,16 @@
 # systemprompt-events
 
-Event broadcasting and routing infrastructure for SSE (Server-Sent Events) connections.
+Events module for systemprompt.io - event broadcasting and routing.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-events.svg)](https://crates.io/crates/systemprompt-events)
+[![Documentation](https://docs.rs/systemprompt-events/badge.svg)](https://docs.rs/systemprompt-events)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This crate provides a type-safe, generic event broadcasting system for real-time communication with connected clients. It manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
+**Part of the Infra layer in the systemprompt.io architecture.**
+
+This crate provides a type-safe, generic event broadcasting system for real-time communication with connected clients via SSE (Server-Sent Events). It manages connection lifecycles, routes events to appropriate channels, and handles automatic cleanup of disconnected clients.
 
 ## File Structure
 
@@ -104,6 +110,19 @@ AgUI and A2A events are routed to both their primary broadcaster AND the context
 | `async-trait` | Async trait support |
 | `tracing` | Structured logging |
 
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-events = "0.0.1"
+```
+
 ## Tests
 
 Tests are located in `crates/tests/unit/infra/events/` following the project convention of separating tests from source files.
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

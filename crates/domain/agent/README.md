@@ -1,8 +1,16 @@
 # systemprompt-agent
 
-A2A protocol server/client, agent orchestration, and agent business logic for SystemPrompt.
+Core Agent protocol module for systemprompt.io.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-agent.svg)](https://crates.io/crates/systemprompt-agent)
+[![Documentation](https://docs.rs/systemprompt-agent/badge.svg)](https://docs.rs/systemprompt-agent)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
+
+A2A protocol server/client, agent orchestration, and agent business logic.
 
 This crate implements the Agent-to-Agent (A2A) protocol, providing:
 
@@ -336,3 +344,16 @@ pub use services::{
 | `default` | Includes `web` feature |
 | `web` | HTTP API routes (Axum, Tower) |
 | `cli` | CLI-specific functionality |
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-agent = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

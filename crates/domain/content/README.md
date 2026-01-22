@@ -1,8 +1,14 @@
 # systemprompt-content
 
-Content management domain module for SystemPrompt. Provides content ingestion, search, link tracking, analytics, and configuration validation.
+Content module for systemprompt.io with content management, analytics, and event tracking.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-content.svg)](https://crates.io/crates/systemprompt-content)
+[![Documentation](https://docs.rs/systemprompt-content/badge.svg)](https://docs.rs/systemprompt-content)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 This crate handles all content-related functionality:
 
@@ -159,3 +165,16 @@ use systemprompt_content::{
 - `ContentProvider` (systemprompt-traits) - `DefaultContentProvider`
 - `Job` (systemprompt-traits) - `ContentIngestionJob`
 - `ContentRouting` (systemprompt-models) - `ContentConfigValidated`, `ContentReady`
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-content = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

@@ -1,8 +1,14 @@
 # systemprompt-oauth
 
-OAuth 2.0 authorization server with WebAuthn passwordless authentication for SystemPrompt OS.
+OAuth 2.0 authentication and authorization module for systemprompt.io OS.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-oauth.svg)](https://crates.io/crates/systemprompt-oauth)
+[![Documentation](https://docs.rs/systemprompt-oauth/badge.svg)](https://docs.rs/systemprompt-oauth)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 This crate implements a complete OAuth 2.0 authorization server with:
 
@@ -227,3 +233,16 @@ Implements traits from `systemprompt-traits`:
 - Secure cookie attributes (HttpOnly, Secure, SameSite)
 - Token revocation support
 - WebAuthn for passwordless authentication
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-oauth = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

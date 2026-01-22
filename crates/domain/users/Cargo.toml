@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core user management module for SystemPrompt"
+description = "Core user management module for systemprompt.io"
 
 [lints]
 workspace = true
@@ -25,6 +25,7 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.1" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
 systemprompt-models = { path = "../../shared/models", version = "0.0.1" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.1" }

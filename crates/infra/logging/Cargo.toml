@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core logging module for SystemPrompt OS"
+description = "Core logging module for systemprompt.io OS"
 
 [lints]
 workspace = true
@@ -39,8 +39,9 @@ indicatif = { workspace = true }
 
 # Core libs
 systemprompt-database = { path = "../database", version = "0.0.1" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.1" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
 
 # Traits
 async-trait = { workspace = true }

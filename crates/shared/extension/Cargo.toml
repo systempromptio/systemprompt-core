@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Extension framework for SystemPrompt - register custom modules, providers, and APIs"
+description = "Extension framework for systemprompt.io - register custom modules, providers, and APIs"
 
 [features]
 default = ["web"]

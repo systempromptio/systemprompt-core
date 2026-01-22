@@ -109,7 +109,7 @@ async fn connect_and_validate(
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {
-            name: format!("SystemPrompt MCP Validator for {service_name}"),
+            name: format!("systemprompt.io MCP Validator for {service_name}"),
             title: None,
             version: "1.0.0".to_string(),
             website_url: None,

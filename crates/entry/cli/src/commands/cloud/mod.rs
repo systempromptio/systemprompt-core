@@ -42,7 +42,7 @@ pub enum CloudCommands {
         command: Option<profile::ProfileCommands>,
     },
 
-    #[command(about = "Deploy to SystemPrompt Cloud")]
+    #[command(about = "Deploy to systemprompt.io Cloud")]
     Deploy {
         #[arg(long)]
         skip_push: bool,

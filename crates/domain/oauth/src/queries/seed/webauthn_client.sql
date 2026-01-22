@@ -1,5 +1,5 @@
 -- OAuth WebAuthn Client Seed Data
--- Web client for the SystemPrompt application
+-- Web client for the systemprompt.io application
 
 INSERT INTO oauth_clients (
     client_id,
@@ -12,7 +12,7 @@ INSERT INTO oauth_clients (
 ) VALUES (
     'sp_web',
     '$2b$12$sp_web.client.secret.hash.value.for.authentication',
-    'SystemPrompt Web Application',
+    'systemprompt.io Web Application',
     'none',
     true,
     CURRENT_TIMESTAMP,
