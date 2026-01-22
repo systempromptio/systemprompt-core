@@ -28,18 +28,18 @@ web = [
 
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)
-systemprompt-models = { path = "../../shared/models", features = ["web"] }
-systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
+systemprompt-models = { path = "../../shared/models", version = "0.0.1", features = ["web"] }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
 inventory = { workspace = true }
 
 # Core module dependencies
-systemprompt-loader = { path = "../../infra/loader" }
-systemprompt-events = { path = "../../infra/events" }
-systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-config = { path = "../../infra/config" }
-systemprompt-database = { path = "../../infra/database" }
-systemprompt-security = { path = "../../infra/security" }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.1" }
+systemprompt-events = { path = "../../infra/events", version = "0.0.1" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.1" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.1" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.1" }
 rmcp = { workspace = true }
 
 # Async runtime

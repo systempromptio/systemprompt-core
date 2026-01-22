@@ -45,7 +45,7 @@ maxminddb = { workspace = true }
 url = { workspace = true }
 
 # SystemPrompt dependencies
-systemprompt-models = { path = "../../shared/models" }
-systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
-systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-database = { path = "../../infra/database" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.1" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
