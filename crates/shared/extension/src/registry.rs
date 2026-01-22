@@ -264,6 +264,58 @@ impl ExtensionRegistry {
     }
 
     #[must_use]
+    pub fn enabled_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
+        self.sorted_extensions
+            .iter()
+            .filter(|ext| {
+                let id = ext.id();
+                if ext.is_required() {
+                    if disabled_ids.iter().any(|d| d == id) {
+                        warn!(
+                            extension = %id,
+                            "Cannot disable required extension - ignoring disabled flag"
+                        );
+                    }
+                    return true;
+                }
+                !disabled_ids.iter().any(|d| d == id)
+            })
+            .cloned()
+            .collect()
+    }
+
+    #[must_use]
+    pub fn enabled_schema_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
+        let mut exts: Vec<_> = self
+            .enabled_extensions(disabled_ids)
+            .into_iter()
+            .filter(|e| e.has_schemas() || e.has_migrations())
+            .collect();
+        exts.sort_by_key(|e| e.migration_weight());
+        exts
+    }
+
+    #[must_use]
+    pub fn enabled_api_extensions(
+        &self,
+        ctx: &dyn crate::ExtensionContext,
+        disabled_ids: &[String],
+    ) -> Vec<Arc<dyn Extension>> {
+        self.enabled_extensions(disabled_ids)
+            .into_iter()
+            .filter(|e| e.has_router(ctx))
+            .collect()
+    }
+
+    #[must_use]
+    pub fn enabled_job_extensions(&self, disabled_ids: &[String]) -> Vec<Arc<dyn Extension>> {
+        self.enabled_extensions(disabled_ids)
+            .into_iter()
+            .filter(|e| e.has_jobs())
+            .collect()
+    }
+
+    #[must_use]
     pub fn api_extensions(&self, ctx: &dyn crate::ExtensionContext) -> Vec<Arc<dyn Extension>> {
         self.sorted_extensions
             .iter()

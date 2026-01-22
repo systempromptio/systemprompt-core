@@ -3844,171 +3844,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-agent-tests"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "serde_json",
- "systemprompt-core-agent",
- "systemprompt-core-database",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-traits",
- "tempfile",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-ai-tests"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "rmcp",
- "serde",
- "serde_json",
- "sqlx",
- "systemprompt-core-ai",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-traits",
- "tempfile",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-analytics-tests"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "axum",
- "chrono",
- "http",
- "serde_json",
- "systemprompt-core-analytics",
- "systemprompt-identifiers",
- "systemprompt-models",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-api-tests"
-version = "0.0.1"
-dependencies = [
- "axum",
- "http",
- "serde_json",
- "systemprompt-core-api",
- "systemprompt-identifiers",
- "systemprompt-models",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-client"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "chrono",
- "futures",
- "reqwest",
- "serde",
- "serde_json",
- "systemprompt-identifiers",
- "systemprompt-models",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "systemprompt-client-tests"
-version = "0.0.1"
-dependencies = [
- "serde",
- "serde_json",
- "systemprompt-client",
- "systemprompt-identifiers",
- "systemprompt-models",
- "tokio",
- "wiremock",
-]
-
-[[package]]
-name = "systemprompt-cloud"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-stream",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "chrono",
- "clap",
- "futures",
- "open",
- "reqwest",
- "reqwest-eventsource",
- "serde",
- "serde_json",
- "systemprompt-client",
- "systemprompt-core-logging",
- "systemprompt-identifiers",
- "systemprompt-models",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
- "urlencoding",
- "uuid",
- "validator",
-]
-
-[[package]]
-name = "systemprompt-cloud-tests"
-version = "0.0.1"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "serde_json",
- "systemprompt-cloud",
- "systemprompt-identifiers",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-config-tests"
-version = "0.0.1"
-dependencies = [
- "schemars",
- "serde",
- "serde_json",
- "serde_yaml",
- "systemprompt-core-config",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-content-tests"
-version = "0.0.1"
-dependencies = [
- "chrono",
- "serde_json",
- "serde_yaml",
- "systemprompt-core-content",
- "systemprompt-identifiers",
- "systemprompt-models",
- "tempfile",
- "tokio",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-core-agent"
-version = "0.0.1"
+name = "systemprompt-agent"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4036,22 +3873,15 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
- "systemprompt-core-ai",
- "systemprompt-core-analytics",
- "systemprompt-core-config",
- "systemprompt-core-database",
- "systemprompt-core-events",
- "systemprompt-core-files",
- "systemprompt-core-logging",
- "systemprompt-core-mcp",
- "systemprompt-core-oauth",
- "systemprompt-core-scheduler",
- "systemprompt-core-security",
- "systemprompt-core-users",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-events",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
  "systemprompt-models",
- "systemprompt-runtime",
+ "systemprompt-security",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
@@ -4068,8 +3898,24 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-ai"
-version = "0.0.1"
+name = "systemprompt-agent-tests"
+version = "0.0.3"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-agent",
+ "systemprompt-database",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-ai"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4091,15 +3937,12 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sqlx",
- "systemprompt-core-analytics",
- "systemprompt-core-database",
- "systemprompt-core-files",
- "systemprompt-core-logging",
- "systemprompt-core-oauth",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
  "systemprompt-models",
- "systemprompt-runtime",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.17",
@@ -4109,17 +3952,40 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-analytics"
-version = "0.0.1"
+name = "systemprompt-ai-tests"
+version = "0.0.3"
 dependencies = [
  "anyhow",
- "axum",
+ "async-trait",
  "chrono",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "systemprompt-ai",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-analytics"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "http",
+ "inventory",
  "maxminddb",
  "serde",
  "serde_json",
  "sqlx",
- "systemprompt-core-database",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-traits",
@@ -4131,13 +3997,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-api"
-version = "0.0.1"
+name = "systemprompt-analytics-tests"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "axum",
+ "chrono",
+ "http",
+ "serde_json",
+ "systemprompt-analytics",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-api"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
  "axum",
+ "bcrypt",
  "chrono",
  "clap",
  "dotenvy",
@@ -4157,24 +4039,24 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
- "systemprompt-core-agent",
- "systemprompt-core-analytics",
- "systemprompt-core-content",
- "systemprompt-core-database",
- "systemprompt-core-events",
- "systemprompt-core-files",
- "systemprompt-core-logging",
- "systemprompt-core-mcp",
- "systemprompt-core-oauth",
- "systemprompt-core-scheduler",
- "systemprompt-core-security",
- "systemprompt-core-users",
+ "systemprompt-agent",
+ "systemprompt-analytics",
+ "systemprompt-content",
+ "systemprompt-database",
+ "systemprompt-events",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-mcp",
  "systemprompt-models",
+ "systemprompt-oauth",
  "systemprompt-runtime",
+ "systemprompt-scheduler",
+ "systemprompt-security",
  "systemprompt-traits",
+ "systemprompt-users",
  "tar",
  "thiserror 2.0.17",
  "tokio",
@@ -4185,11 +4067,98 @@ dependencies = [
  "tracing",
  "urlencoding",
  "uuid",
+ "validator",
+ "webauthn-rs",
 ]
 
 [[package]]
-name = "systemprompt-core-config"
-version = "0.0.1"
+name = "systemprompt-api-tests"
+version = "0.0.3"
+dependencies = [
+ "axum",
+ "http",
+ "serde_json",
+ "systemprompt-api",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-client"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "futures",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-client-tests"
+version = "0.0.3"
+dependencies = [
+ "serde",
+ "serde_json",
+ "systemprompt-client",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tokio",
+ "wiremock",
+]
+
+[[package]]
+name = "systemprompt-cloud"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "futures",
+ "open",
+ "reqwest",
+ "reqwest-eventsource",
+ "serde",
+ "serde_json",
+ "systemprompt-client",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "urlencoding",
+ "uuid",
+ "validator",
+]
+
+[[package]]
+name = "systemprompt-cloud-tests"
+version = "0.0.3"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "serde_json",
+ "systemprompt-cloud",
+ "systemprompt-identifiers",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-config"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "regex",
@@ -4197,19 +4166,30 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "systemprompt-core-logging",
+ "systemprompt-logging",
  "systemprompt-models",
  "thiserror 2.0.17",
  "tracing",
 ]
 
 [[package]]
-name = "systemprompt-core-content"
-version = "0.0.1"
+name = "systemprompt-config-tests"
+version = "0.0.3"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "systemprompt-config",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-content"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
- "axum",
  "chrono",
  "comrak",
  "dotenvy",
@@ -4226,16 +4206,16 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
- "systemprompt-core-config",
- "systemprompt-core-database",
- "systemprompt-core-logging",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
  "thiserror 2.0.17",
  "tokio",
- "tower",
  "tracing",
  "url",
  "urlencoding",
@@ -4244,13 +4224,29 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-database"
-version = "0.0.1"
+name = "systemprompt-content-tests"
+version = "0.0.3"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "serde_yaml",
+ "systemprompt-content",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "tempfile",
+ "tokio",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-database"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
  "base64 0.22.1",
  "chrono",
+ "inventory",
  "rust_decimal",
  "serde",
  "serde_json",
@@ -4266,13 +4262,27 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-events"
-version = "0.0.1"
+name = "systemprompt-database-tests"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "chrono",
+ "serde_json",
+ "systemprompt-database",
+ "thiserror 2.0.17",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-events"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
  "once_cell",
+ "serde",
+ "serde_json",
  "systemprompt-identifiers",
  "systemprompt-models",
  "tokio",
@@ -4280,8 +4290,37 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-files"
-version = "0.0.1"
+name = "systemprompt-extension"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "inventory",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.17",
+ "tracing",
+]
+
+[[package]]
+name = "systemprompt-extension-tests"
+version = "0.0.3"
+dependencies = [
+ "axum",
+ "serde_json",
+ "systemprompt-extension",
+ "systemprompt-traits",
+ "tokio",
+ "trybuild",
+]
+
+[[package]]
+name = "systemprompt-files"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4295,9 +4334,10 @@ dependencies = [
  "sha2",
  "sqlx",
  "systemprompt-cloud",
- "systemprompt-core-database",
- "systemprompt-core-logging",
+ "systemprompt-database",
+ "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-traits",
@@ -4309,239 +4349,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-core-logging"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "colored",
- "console",
- "dialoguer",
- "indicatif",
- "inventory",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "systemprompt-core-database",
- "systemprompt-identifiers",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tokio-cron-scheduler",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "validator",
-]
-
-[[package]]
-name = "systemprompt-core-mcp"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "clap",
- "futures",
- "http",
- "inventory",
- "rand 0.9.2",
- "reqwest",
- "rmcp",
- "rmcp-macros",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "sse-stream",
- "systemprompt-core-config",
- "systemprompt-core-database",
- "systemprompt-core-logging",
- "systemprompt-core-oauth",
- "systemprompt-core-scheduler",
- "systemprompt-identifiers",
- "systemprompt-loader",
- "systemprompt-models",
- "systemprompt-runtime",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tokio-util",
- "tower",
- "tower-http",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-core-oauth"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "base64 0.22.1",
- "bcrypt",
- "chrono",
- "dotenvy",
- "inventory",
- "jsonwebtoken",
- "once_cell",
- "rand 0.9.2",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "sha2",
- "sqlx",
- "systemprompt-core-analytics",
- "systemprompt-core-database",
- "systemprompt-core-logging",
- "systemprompt-core-security",
- "systemprompt-core-users",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-runtime",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
- "urlencoding",
- "uuid",
- "validator",
- "webauthn-rs",
-]
-
-[[package]]
-name = "systemprompt-core-scheduler"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "inventory",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "systemprompt-core-analytics",
- "systemprompt-core-database",
- "systemprompt-core-logging",
- "systemprompt-core-users",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-provider-contracts",
- "systemprompt-runtime",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tokio-cron-scheduler",
- "tracing",
- "url",
- "urlencoding",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-core-security"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "jsonwebtoken",
- "systemprompt-identifiers",
- "systemprompt-models",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "systemprompt-core-users"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "chrono",
- "inventory",
- "rand 0.9.2",
- "reqwest",
- "serde",
- "serde_json",
- "serde_yaml",
- "sqlx",
- "systemprompt-core-database",
- "systemprompt-core-logging",
- "systemprompt-identifiers",
- "systemprompt-models",
- "systemprompt-provider-contracts",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
- "urlencoding",
- "uuid",
- "validator",
-]
-
-[[package]]
-name = "systemprompt-database-tests"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "chrono",
- "serde_json",
- "systemprompt-core-database",
- "thiserror 2.0.17",
- "tokio",
-]
-
-[[package]]
-name = "systemprompt-extension"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "async-trait",
- "axum",
- "inventory",
- "reqwest",
- "serde",
- "serde_json",
- "systemprompt-provider-contracts",
- "systemprompt-traits",
- "thiserror 2.0.17",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "systemprompt-extension-tests"
-version = "0.0.1"
-dependencies = [
- "axum",
- "serde_json",
- "systemprompt-extension",
- "systemprompt-traits",
- "tokio",
- "trybuild",
-]
-
-[[package]]
 name = "systemprompt-files-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-core-files",
+ "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-traits",
  "tokio",
@@ -4550,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4570,13 +4383,13 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "systemprompt-cloud",
- "systemprompt-core-config",
- "systemprompt-core-content",
- "systemprompt-core-database",
- "systemprompt-core-files",
- "systemprompt-core-logging",
+ "systemprompt-config",
+ "systemprompt-content",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
  "systemprompt-template-provider",
@@ -4593,12 +4406,12 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
  "serde_yaml",
- "systemprompt-core-content",
+ "systemprompt-content",
  "systemprompt-generator",
  "systemprompt-models",
  "systemprompt-traits",
@@ -4608,18 +4421,20 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
+ "anyhow",
+ "chrono",
  "schemars",
  "serde",
+ "serde_json",
  "sqlx",
- "systemprompt-traits",
  "uuid",
 ]
 
 [[package]]
 name = "systemprompt-identifiers-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "serde_json",
  "systemprompt-identifiers",
@@ -4629,12 +4444,13 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "serde",
  "serde_json",
  "serde_yaml",
+ "systemprompt-extension",
  "systemprompt-models",
  "thiserror 2.0.17",
  "tokio",
@@ -4643,7 +4459,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "serde",
  "serde_json",
@@ -4655,24 +4471,94 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-logging"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "colored",
+ "console",
+ "dialoguer",
+ "indicatif",
+ "inventory",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-traits",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-cron-scheduler",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "validator",
+]
+
+[[package]]
 name = "systemprompt-logging-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-core-logging",
  "systemprompt-identifiers",
+ "systemprompt-logging",
  "tokio",
 ]
 
 [[package]]
+name = "systemprompt-mcp"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "clap",
+ "futures",
+ "http",
+ "inventory",
+ "jsonwebtoken",
+ "rand 0.9.2",
+ "reqwest",
+ "rmcp",
+ "rmcp-macros",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sqlx",
+ "sse-stream",
+ "systemprompt-config",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-loader",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-traits",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-util",
+ "tower",
+ "tower-http",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-mcp-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-core-mcp",
  "systemprompt-identifiers",
+ "systemprompt-mcp",
  "systemprompt-models",
  "tokio",
  "uuid",
@@ -4680,14 +4566,14 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
  "chrono",
- "dotenvy",
  "futures",
+ "http",
  "indexmap",
  "once_cell",
  "regex",
@@ -4696,21 +4582,18 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "sqlx",
  "systemprompt-extension",
  "systemprompt-identifiers",
  "systemprompt-traits",
  "thiserror 2.0.17",
- "tokio",
  "tracing",
  "uuid",
  "validator",
- "walkdir",
 ]
 
 [[package]]
 name = "systemprompt-models-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4722,16 +4605,54 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-oauth"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "base64 0.22.1",
+ "bcrypt",
+ "chrono",
+ "dotenvy",
+ "http",
+ "inventory",
+ "jsonwebtoken",
+ "once_cell",
+ "rand 0.9.2",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "sha2",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-security",
+ "systemprompt-traits",
+ "thiserror 2.0.17",
+ "tokio",
+ "tracing",
+ "urlencoding",
+ "uuid",
+ "validator",
+ "webauthn-rs",
+]
+
+[[package]]
 name = "systemprompt-oauth-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "axum",
  "chrono",
  "http",
  "serde_json",
- "systemprompt-core-oauth",
  "systemprompt-identifiers",
  "systemprompt-models",
+ "systemprompt-oauth",
  "systemprompt-traits",
  "tokio",
  "uuid",
@@ -4739,7 +4660,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4748,12 +4669,13 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "systemprompt-identifiers",
  "thiserror 2.0.17",
 ]
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -4763,23 +4685,24 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
- "systemprompt-core-analytics",
- "systemprompt-core-config",
- "systemprompt-core-database",
- "systemprompt-core-files",
- "systemprompt-core-logging",
+ "systemprompt-analytics",
+ "systemprompt-config",
+ "systemprompt-database",
  "systemprompt-extension",
+ "systemprompt-files",
  "systemprompt-identifiers",
  "systemprompt-loader",
+ "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
  "tracing",
 ]
 
 [[package]]
 name = "systemprompt-runtime-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "axum",
  "serde_json",
@@ -4793,22 +4716,66 @@ dependencies = [
 ]
 
 [[package]]
-name = "systemprompt-template-provider"
-version = "0.0.1"
+name = "systemprompt-scheduler"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
+ "inventory",
  "serde",
  "serde_json",
  "serde_yaml",
+ "sqlx",
+ "systemprompt-analytics",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-logging",
+ "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-runtime",
+ "systemprompt-traits",
+ "systemprompt-users",
+ "thiserror 2.0.17",
+ "tokio",
+ "tokio-cron-scheduler",
+ "tracing",
+ "url",
+ "urlencoding",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-security"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum",
+ "chrono",
+ "jsonwebtoken",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "thiserror 2.0.17",
  "tokio",
  "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "systemprompt-template-provider"
+version = "0.0.3"
+dependencies = [
+ "async-trait",
+ "systemprompt-provider-contracts",
+ "thiserror 2.0.17",
+ "tokio",
 ]
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4825,25 +4792,26 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "async-trait",
  "axum",
  "chrono",
  "futures",
+ "http",
  "inventory",
  "serde",
  "serde_json",
- "sqlx",
+ "systemprompt-identifiers",
  "systemprompt-provider-contracts",
  "thiserror 2.0.17",
- "tokio",
+ "uuid",
 ]
 
 [[package]]
 name = "systemprompt-traits-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "anyhow",
  "axum",
@@ -4855,14 +4823,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-users"
+version = "0.0.3"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "inventory",
+ "serde",
+ "sqlx",
+ "systemprompt-database",
+ "systemprompt-extension",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
+ "thiserror 2.0.17",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
 name = "systemprompt-users-tests"
-version = "0.0.1"
+version = "0.0.3"
 dependencies = [
  "chrono",
  "serde_json",
- "systemprompt-core-users",
  "systemprompt-identifiers",
  "systemprompt-traits",
+ "systemprompt-users",
  "tokio",
 ]
 

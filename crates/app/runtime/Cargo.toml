@@ -20,17 +20,17 @@ tracing = { workspace = true }
 inventory = { workspace = true }
 axum = { workspace = true }
 maxminddb = { workspace = true }
-systemprompt-models = { path = "../../shared/models", version = "0.0.2" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.2" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.2" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.2" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.2" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.2" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.2" }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.2" }
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.2" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.2" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.2" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.3" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.3" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.3" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.3" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.3" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.3" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.3" }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.3" }
+systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.3" }
+systemprompt-files = { path = "../../domain/files", version = "0.0.3" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.3" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_yaml = { workspace = true }

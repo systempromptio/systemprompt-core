@@ -6,8 +6,9 @@
 use super::{
     default_agent_registry, default_agents, default_artifacts, default_burst, default_content,
     default_contexts, default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public,
-    default_stream, default_tasks, DatabaseConfig, PathsConfig, Profile, ProfileType,
-    RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig, TierMultipliers,
+    default_stream, default_tasks, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile,
+    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
+    TierMultipliers,
 };
 use anyhow::{Context, Result};
 
@@ -41,6 +42,7 @@ impl Profile {
             runtime: runtime_config_from_env()?,
             cloud: None,
             secrets: None,
+            extensions: ExtensionsConfig::default(),
         })
     }
 }

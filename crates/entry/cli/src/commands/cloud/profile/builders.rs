@@ -6,9 +6,9 @@ use systemprompt_identifiers::TenantId;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
-    CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig, Profile,
-    ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
-    ServerConfig, SiteConfig,
+    CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, LogLevel, OutputFormat,
+    PathsConfig, Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig,
+    SecurityConfig, ServerConfig, SiteConfig,
 };
 
 use super::templates::generate_display_name;
@@ -108,6 +108,7 @@ impl LocalProfileBuilder {
                 validation: SecretsValidationMode::Warn,
                 source: SecretsSource::File,
             }),
+            extensions: ExtensionsConfig::default(),
         }
     }
 }
@@ -217,6 +218,7 @@ impl CloudProfileBuilder {
                 validation: SecretsValidationMode::Strict,
                 source: SecretsSource::Env,
             }),
+            extensions: ExtensionsConfig::default(),
         }
     }
 }

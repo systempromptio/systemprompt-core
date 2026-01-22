@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.0.3] - 2026-01-22
+
+### Added
+- `Migration` struct for versioned extension migrations
+- `is_required()` trait method to mark core extensions as non-disableable
+- `migrations()` trait method for extensions to define versioned migrations
+- `has_migrations()` helper method
+- `MigrationFailed` error variant in `LoaderError`
+- `enabled_extensions()`, `enabled_schema_extensions()`, `enabled_api_extensions()`, `enabled_job_extensions()` methods to filter by enabled state
+
+### Changed
+- Extensions can now define versioned migrations that are tracked in database
+- Required extensions cannot be disabled even if listed in profile config
+
 ## [0.0.2] - 2026-01-22
 
 ### Changed

@@ -16,6 +16,10 @@ impl Extension for LoggingExtension {
         5
     }
 
+    fn is_required(&self) -> bool {
+        true
+    }
+
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::inline("logs", include_str!("../schema/log.sql"))

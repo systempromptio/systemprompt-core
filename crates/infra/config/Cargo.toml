@@ -29,5 +29,5 @@ schemars = { workspace = true }
 regex = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-logging = { path = "../logging", version = "0.0.2" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.2" }
+systemprompt-logging = { path = "../logging", version = "0.0.3" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.3" }

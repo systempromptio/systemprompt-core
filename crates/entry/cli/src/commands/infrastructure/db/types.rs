@@ -133,3 +133,34 @@ pub struct TableSizeInfo {
     pub size_bytes: i64,
     pub rows: i64,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrationStatusOutput {
+    pub extensions: Vec<ExtensionMigrationStatus>,
+    pub total_pending: usize,
+    pub total_applied: usize,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExtensionMigrationStatus {
+    pub extension_id: String,
+    pub is_required: bool,
+    pub total_defined: usize,
+    pub total_applied: usize,
+    pub pending_count: usize,
+    pub pending_versions: Vec<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MigrationHistoryOutput {
+    pub extension_id: String,
+    pub migrations: Vec<AppliedMigrationInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AppliedMigrationInfo {
+    pub version: u32,
+    pub name: String,
+    pub checksum: String,
+    pub applied_at: Option<String>,
+}

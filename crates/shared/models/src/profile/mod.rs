@@ -36,6 +36,18 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::LazyLock;
 
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ExtensionsConfig {
+    #[serde(default)]
+    pub disabled: Vec<String>,
+}
+
+impl ExtensionsConfig {
+    pub fn is_disabled(&self, extension_id: &str) -> bool {
+        self.disabled.iter().any(|id| id == extension_id)
+    }
+}
+
 #[allow(clippy::expect_used)]
 static ENV_VAR_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(r"\$\{(\w+)\}")
@@ -102,6 +114,9 @@ pub struct Profile {
 
     #[serde(default)]
     pub secrets: Option<SecretsConfig>,
+
+    #[serde(default)]
+    pub extensions: ExtensionsConfig,
 }
 
 impl Profile {

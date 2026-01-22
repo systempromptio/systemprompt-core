@@ -30,8 +30,7 @@ impl Extension for FilesExtension {
             SchemaDefinition::inline(
                 "ai_image_analytics",
                 include_str!("../schema/ai_image_analytics.sql"),
-            )
-            .with_required_columns(vec!["id".into(), "file_id".into()]),
+            ),
         ]
     }
 

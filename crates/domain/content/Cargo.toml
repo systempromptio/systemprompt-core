@@ -15,11 +15,11 @@ workspace = true
 
 [dependencies]
 # Core modules
-systemprompt-database = { path = "../../infra/database", version = "0.0.2" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.2" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.2", features = ["sqlx"] }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.2" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.2" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.3" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.3" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.3", features = ["sqlx"] }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.3" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.3" }
 
 # Async
 tokio = { workspace = true }
@@ -50,9 +50,9 @@ tracing = { workspace = true }
 # Job registration
 inventory = { workspace = true }
 async-trait = { workspace = true }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.2" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.2" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.2" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.3" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.3" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.3" }
 
 # Static content generation
 comrak = { workspace = true }

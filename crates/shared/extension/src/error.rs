@@ -17,6 +17,9 @@ pub enum LoaderError {
     #[error("Failed to install schema for extension '{extension}': {message}")]
     SchemaInstallationFailed { extension: String, message: String },
 
+    #[error("Migration failed for extension '{extension}': {message}")]
+    MigrationFailed { extension: String, message: String },
+
     #[error("Configuration validation failed for extension '{extension}': {message}")]
     ConfigValidationFailed { extension: String, message: String },
 

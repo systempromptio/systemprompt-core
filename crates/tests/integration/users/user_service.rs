@@ -323,7 +323,7 @@ async fn service_delete_user() -> Result<()> {
 }
 
 #[tokio::test]
-async fn service_delete_user() -> Result<()> {
+async fn service_delete_anonymous_user() -> Result<()> {
     let Some(db) = get_db().await else {
         eprintln!("Skipping test (database not available)");
         return Ok(());

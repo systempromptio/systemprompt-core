@@ -1,0 +1,20 @@
+[package]
+name = "systemprompt-templates-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-templates crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-templates = { path = "../../../domain/templates" }
+systemprompt-template-provider = { path = "../../../shared/template-provider", features = ["tokio"] }
+tokio = { workspace = true }
+tempfile = { workspace = true }
+serde_json = { workspace = true }
+async-trait = { workspace = true }
+anyhow = { workspace = true }

@@ -1,9 +1,10 @@
+use super::migrations::MigrationService;
 use crate::services::{DatabaseProvider, SqlExecutor};
 use anyhow::Result;
 use std::path::Path;
 use systemprompt_extension::{Extension, ExtensionRegistry, LoaderError, SchemaSource, SeedSource};
 use systemprompt_models::modules::{Module, ModuleSchema};
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 #[derive(Debug, Clone, Copy)]
 pub struct ModuleInstaller;
@@ -121,7 +122,15 @@ pub async fn install_extension_schemas(
     registry: &ExtensionRegistry,
     db: &dyn DatabaseProvider,
 ) -> std::result::Result<(), LoaderError> {
-    let schema_extensions = registry.schema_extensions();
+    install_extension_schemas_with_config(registry, db, &[]).await
+}
+
+pub async fn install_extension_schemas_with_config(
+    registry: &ExtensionRegistry,
+    db: &dyn DatabaseProvider,
+    disabled_extensions: &[String],
+) -> std::result::Result<(), LoaderError> {
+    let schema_extensions = registry.enabled_schema_extensions(disabled_extensions);
 
     if schema_extensions.is_empty() {
         log_no_schemas();
@@ -130,8 +139,18 @@ pub async fn install_extension_schemas(
 
     log_installing_schemas(schema_extensions.len());
 
+    let migration_service = MigrationService::new(db);
+
     for ext in schema_extensions {
         install_extension_schema(ext.as_ref(), db).await?;
+
+        if ext.has_migrations() {
+            debug!(
+                extension = %ext.id(),
+                "Running pending migrations"
+            );
+            migration_service.run_pending_migrations(ext.as_ref()).await?;
+        }
     }
 
     log_installation_complete();

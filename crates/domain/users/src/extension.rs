@@ -16,6 +16,10 @@ impl Extension for UsersExtension {
         10
     }
 
+    fn is_required(&self) -> bool {
+        true
+    }
+
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::inline("users", include_str!("../schema/users.sql"))

@@ -716,3 +716,444 @@ mod user_session_tests {
         assert!(session.user_id.is_none());
     }
 }
+
+// ============================================================================
+// UserStats Tests
+// ============================================================================
+
+mod user_stats_tests {
+    use super::*;
+    use systemprompt_users::UserStats;
+
+    #[test]
+    fn user_stats_creation() {
+        let stats = UserStats {
+            total: 100,
+            created_24h: 5,
+            created_7d: 20,
+            created_30d: 50,
+            active: 80,
+            suspended: 10,
+            admins: 3,
+            anonymous: 15,
+            bots: 2,
+            oldest_user: Some(Utc::now()),
+            newest_user: Some(Utc::now()),
+        };
+
+        assert_eq!(stats.total, 100);
+        assert_eq!(stats.created_24h, 5);
+        assert_eq!(stats.created_7d, 20);
+        assert_eq!(stats.created_30d, 50);
+        assert_eq!(stats.active, 80);
+        assert_eq!(stats.suspended, 10);
+        assert_eq!(stats.admins, 3);
+        assert_eq!(stats.anonymous, 15);
+        assert_eq!(stats.bots, 2);
+    }
+
+    #[test]
+    fn user_stats_clone() {
+        let stats = UserStats {
+            total: 50,
+            created_24h: 2,
+            created_7d: 10,
+            created_30d: 25,
+            active: 40,
+            suspended: 5,
+            admins: 2,
+            anonymous: 8,
+            bots: 1,
+            oldest_user: None,
+            newest_user: None,
+        };
+
+        let cloned = stats;
+        assert_eq!(stats.total, cloned.total);
+        assert_eq!(stats.active, cloned.active);
+    }
+
+    #[test]
+    fn user_stats_copy() {
+        let stats = UserStats {
+            total: 10,
+            created_24h: 1,
+            created_7d: 3,
+            created_30d: 7,
+            active: 8,
+            suspended: 1,
+            admins: 1,
+            anonymous: 2,
+            bots: 0,
+            oldest_user: None,
+            newest_user: None,
+        };
+
+        let copied = stats;
+        assert_eq!(stats.total, copied.total);
+    }
+
+    #[test]
+    fn user_stats_debug() {
+        let stats = UserStats {
+            total: 100,
+            created_24h: 5,
+            created_7d: 20,
+            created_30d: 50,
+            active: 80,
+            suspended: 10,
+            admins: 3,
+            anonymous: 15,
+            bots: 2,
+            oldest_user: None,
+            newest_user: None,
+        };
+
+        let debug = format!("{:?}", stats);
+        assert!(debug.contains("UserStats"));
+    }
+
+    #[test]
+    fn user_stats_serialization_roundtrip() {
+        let stats = UserStats {
+            total: 100,
+            created_24h: 5,
+            created_7d: 20,
+            created_30d: 50,
+            active: 80,
+            suspended: 10,
+            admins: 3,
+            anonymous: 15,
+            bots: 2,
+            oldest_user: Some(Utc::now()),
+            newest_user: Some(Utc::now()),
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        let deserialized: UserStats = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(stats.total, deserialized.total);
+        assert_eq!(stats.active, deserialized.active);
+        assert_eq!(stats.admins, deserialized.admins);
+    }
+
+    #[test]
+    fn user_stats_with_no_dates() {
+        let stats = UserStats {
+            total: 0,
+            created_24h: 0,
+            created_7d: 0,
+            created_30d: 0,
+            active: 0,
+            suspended: 0,
+            admins: 0,
+            anonymous: 0,
+            bots: 0,
+            oldest_user: None,
+            newest_user: None,
+        };
+
+        assert!(stats.oldest_user.is_none());
+        assert!(stats.newest_user.is_none());
+    }
+
+    #[test]
+    fn user_stats_json_includes_all_fields() {
+        let stats = UserStats {
+            total: 100,
+            created_24h: 5,
+            created_7d: 20,
+            created_30d: 50,
+            active: 80,
+            suspended: 10,
+            admins: 3,
+            anonymous: 15,
+            bots: 2,
+            oldest_user: None,
+            newest_user: None,
+        };
+
+        let json = serde_json::to_string(&stats).unwrap();
+        assert!(json.contains("total"));
+        assert!(json.contains("created_24h"));
+        assert!(json.contains("created_7d"));
+        assert!(json.contains("created_30d"));
+        assert!(json.contains("active"));
+        assert!(json.contains("suspended"));
+        assert!(json.contains("admins"));
+        assert!(json.contains("anonymous"));
+        assert!(json.contains("bots"));
+    }
+}
+
+// ============================================================================
+// UserCountBreakdown Tests
+// ============================================================================
+
+mod user_count_breakdown_tests {
+    use super::*;
+    use std::collections::HashMap;
+    use systemprompt_users::UserCountBreakdown;
+
+    #[test]
+    fn user_count_breakdown_creation() {
+        let mut by_status = HashMap::new();
+        by_status.insert("active".to_string(), 80);
+        by_status.insert("suspended".to_string(), 10);
+
+        let mut by_role = HashMap::new();
+        by_role.insert("user".to_string(), 85);
+        by_role.insert("admin".to_string(), 5);
+
+        let breakdown = UserCountBreakdown {
+            total: 100,
+            by_status,
+            by_role,
+        };
+
+        assert_eq!(breakdown.total, 100);
+        assert_eq!(breakdown.by_status.get("active"), Some(&80));
+        assert_eq!(breakdown.by_role.get("admin"), Some(&5));
+    }
+
+    #[test]
+    fn user_count_breakdown_clone() {
+        let mut by_status = HashMap::new();
+        by_status.insert("active".to_string(), 50);
+
+        let mut by_role = HashMap::new();
+        by_role.insert("user".to_string(), 50);
+
+        let breakdown = UserCountBreakdown {
+            total: 50,
+            by_status,
+            by_role,
+        };
+
+        let cloned = breakdown.clone();
+        assert_eq!(breakdown.total, cloned.total);
+    }
+
+    #[test]
+    fn user_count_breakdown_debug() {
+        let breakdown = UserCountBreakdown {
+            total: 100,
+            by_status: HashMap::new(),
+            by_role: HashMap::new(),
+        };
+
+        let debug = format!("{:?}", breakdown);
+        assert!(debug.contains("UserCountBreakdown"));
+    }
+
+    #[test]
+    fn user_count_breakdown_serialization_roundtrip() {
+        let mut by_status = HashMap::new();
+        by_status.insert("active".to_string(), 80);
+
+        let mut by_role = HashMap::new();
+        by_role.insert("user".to_string(), 85);
+
+        let breakdown = UserCountBreakdown {
+            total: 100,
+            by_status,
+            by_role,
+        };
+
+        let json = serde_json::to_string(&breakdown).unwrap();
+        let deserialized: UserCountBreakdown = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(breakdown.total, deserialized.total);
+    }
+
+    #[test]
+    fn user_count_breakdown_empty_maps() {
+        let breakdown = UserCountBreakdown {
+            total: 0,
+            by_status: HashMap::new(),
+            by_role: HashMap::new(),
+        };
+
+        assert!(breakdown.by_status.is_empty());
+        assert!(breakdown.by_role.is_empty());
+    }
+
+    #[test]
+    fn user_count_breakdown_multiple_statuses() {
+        let mut by_status = HashMap::new();
+        by_status.insert("active".to_string(), 50);
+        by_status.insert("inactive".to_string(), 20);
+        by_status.insert("suspended".to_string(), 10);
+        by_status.insert("pending".to_string(), 15);
+        by_status.insert("deleted".to_string(), 5);
+
+        let breakdown = UserCountBreakdown {
+            total: 100,
+            by_status,
+            by_role: HashMap::new(),
+        };
+
+        assert_eq!(breakdown.by_status.len(), 5);
+    }
+}
+
+// ============================================================================
+// UserExport Tests
+// ============================================================================
+
+mod user_export_tests {
+    use super::*;
+    use systemprompt_users::UserExport;
+
+    fn create_test_user_export() -> UserExport {
+        UserExport {
+            id: "user-export-123".to_string(),
+            name: "exportuser".to_string(),
+            email: "export@example.com".to_string(),
+            full_name: Some("Export User".to_string()),
+            display_name: Some("Export".to_string()),
+            status: Some("active".to_string()),
+            email_verified: Some(true),
+            roles: vec!["user".to_string()],
+            is_bot: false,
+            is_scanner: false,
+            created_at: Some(Utc::now()),
+            updated_at: Some(Utc::now()),
+        }
+    }
+
+    #[test]
+    fn user_export_creation() {
+        let export = create_test_user_export();
+
+        assert_eq!(export.id, "user-export-123");
+        assert_eq!(export.name, "exportuser");
+        assert_eq!(export.email, "export@example.com");
+    }
+
+    #[test]
+    fn user_export_clone() {
+        let export = create_test_user_export();
+        let cloned = export.clone();
+
+        assert_eq!(export.id, cloned.id);
+        assert_eq!(export.name, cloned.name);
+    }
+
+    #[test]
+    fn user_export_debug() {
+        let export = create_test_user_export();
+        let debug = format!("{:?}", export);
+
+        assert!(debug.contains("UserExport"));
+    }
+
+    #[test]
+    fn user_export_serialization_roundtrip() {
+        let export = create_test_user_export();
+        let json = serde_json::to_string(&export).unwrap();
+        let deserialized: UserExport = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(export.id, deserialized.id);
+        assert_eq!(export.name, deserialized.name);
+        assert_eq!(export.email, deserialized.email);
+    }
+
+    #[test]
+    fn user_export_from_user_conversion() {
+        let user = User {
+            id: UserId::new("user-456".to_string()),
+            name: "testuser".to_string(),
+            email: "test@example.com".to_string(),
+            full_name: Some("Test User".to_string()),
+            display_name: Some("Test".to_string()),
+            status: Some("active".to_string()),
+            email_verified: Some(true),
+            roles: vec!["user".to_string(), "admin".to_string()],
+            avatar_url: Some("https://example.com/avatar.png".to_string()),
+            is_bot: false,
+            is_scanner: true,
+            created_at: Some(Utc::now()),
+            updated_at: Some(Utc::now()),
+        };
+
+        let export: UserExport = user.clone().into();
+
+        assert_eq!(export.id, user.id.to_string());
+        assert_eq!(export.name, user.name);
+        assert_eq!(export.email, user.email);
+        assert_eq!(export.full_name, user.full_name);
+        assert_eq!(export.display_name, user.display_name);
+        assert_eq!(export.status, user.status);
+        assert_eq!(export.email_verified, user.email_verified);
+        assert_eq!(export.roles, user.roles);
+        assert_eq!(export.is_bot, user.is_bot);
+        assert_eq!(export.is_scanner, user.is_scanner);
+    }
+
+    #[test]
+    fn user_export_from_user_with_none_fields() {
+        let user = User {
+            id: UserId::new("user-789".to_string()),
+            name: "minimal".to_string(),
+            email: "minimal@example.com".to_string(),
+            full_name: None,
+            display_name: None,
+            status: None,
+            email_verified: None,
+            roles: vec![],
+            avatar_url: None,
+            is_bot: true,
+            is_scanner: false,
+            created_at: None,
+            updated_at: None,
+        };
+
+        let export: UserExport = user.into();
+
+        assert!(export.full_name.is_none());
+        assert!(export.display_name.is_none());
+        assert!(export.status.is_none());
+        assert!(export.email_verified.is_none());
+        assert!(export.created_at.is_none());
+        assert!(export.updated_at.is_none());
+        assert!(export.is_bot);
+    }
+
+    #[test]
+    fn user_export_with_empty_roles() {
+        let export = UserExport {
+            id: "user-empty-roles".to_string(),
+            name: "emptyroles".to_string(),
+            email: "empty@example.com".to_string(),
+            full_name: None,
+            display_name: None,
+            status: None,
+            email_verified: None,
+            roles: vec![],
+            is_bot: false,
+            is_scanner: false,
+            created_at: None,
+            updated_at: None,
+        };
+
+        assert!(export.roles.is_empty());
+    }
+
+    #[test]
+    fn user_export_json_includes_all_fields() {
+        let export = create_test_user_export();
+        let json = serde_json::to_string(&export).unwrap();
+
+        assert!(json.contains("id"));
+        assert!(json.contains("name"));
+        assert!(json.contains("email"));
+        assert!(json.contains("full_name"));
+        assert!(json.contains("display_name"));
+        assert!(json.contains("status"));
+        assert!(json.contains("email_verified"));
+        assert!(json.contains("roles"));
+        assert!(json.contains("is_bot"));
+        assert!(json.contains("is_scanner"));
+    }
+}
