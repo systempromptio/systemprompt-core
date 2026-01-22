@@ -6,7 +6,7 @@
 
 ## Overview
 
-The cloud infrastructure provides SystemPrompt Cloud integration:
+The cloud infrastructure provides systemprompt.io Cloud integration:
 - Tenant management (local and cloud)
 - API client for cloud operations
 - Checkout flow for subscription provisioning
@@ -29,7 +29,7 @@ The cloud infrastructure provides SystemPrompt Cloud integration:
 ### Authentication
 
 ```bash
-systemprompt cloud auth login       # OAuth login to SystemPrompt Cloud
+systemprompt cloud auth login       # OAuth login to systemprompt.io Cloud
 systemprompt cloud auth logout      # Clear saved credentials
 systemprompt cloud auth whoami      # Show current user and token status
 ```

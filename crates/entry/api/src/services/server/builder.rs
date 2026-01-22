@@ -145,7 +145,7 @@ pub async fn handle_root_discovery(
     let data = json!({
         "name": format!("{} API", ctx.config().sitename),
         "version": "1.0.0",
-        "description": "SystemPrompt OS API Gateway",
+        "description": "systemprompt.io OS API Gateway",
         "endpoints": {
             "health": format!("{}{}", base, ApiPaths::HEALTH),
             "oauth": {

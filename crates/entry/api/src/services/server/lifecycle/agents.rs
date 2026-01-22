@@ -197,7 +197,7 @@ async fn handle_failed_agents(
     if !retry_failed.is_empty() {
         let agent_names: Vec<String> = retry_failed.iter().map(|(name, _)| name.clone()).collect();
         return Err(anyhow::anyhow!(
-            "FATAL: {} required agent(s) failed to start after retry: {}\n\nSystemPrompt OS \
+            "FATAL: {} required agent(s) failed to start after retry: {}\n\nsystemprompt.io OS \
              cannot operate without all enabled agents.\nAgents are the core service \
              layer.\n\nFailures:\n{}\n\nPossible causes:\n  - Agent binaries not built (run: \
              cargo build)\n  - Ports occupied by non-agent processes (check with: lsof -i:PORT)\n  \

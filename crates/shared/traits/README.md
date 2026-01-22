@@ -1,10 +1,31 @@
 # systemprompt-traits
 
-Shared traits and contracts for SystemPrompt OS.
+Minimal shared traits and contracts for systemprompt.io.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-traits.svg)](https://crates.io/crates/systemprompt-traits)
+[![Documentation](https://docs.rs/systemprompt-traits/badge.svg)](https://docs.rs/systemprompt-traits)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This crate provides the core trait definitions that enable polymorphism, dependency injection, and consistent patterns across the SystemPrompt OS codebase. It has minimal dependencies and no dependencies on other SystemPrompt crates.
+**Part of the Shared layer in the systemprompt.io architecture.**
+
+This crate provides the core trait definitions that enable polymorphism, dependency injection, and consistent patterns across the systemprompt.io codebase.
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-traits = "0.0.1"
+```
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `web` | No | Axum router types for `ApiModule` trait |
 
 ## Traits
 
@@ -113,7 +134,7 @@ impl AsyncService for MyAsyncService {
 
 ### Module Traits
 
-**`Module`** - Core module trait for SystemPrompt modules
+**`Module`** - Core module trait for systemprompt.io modules
 ```rust
 #[async_trait]
 impl Module for MyModule {
@@ -205,7 +226,7 @@ Minimal dependencies to avoid circular deps:
 - `sqlx` - Database types for Repository
 - `serde_json` - Serialization errors
 
-**No dependencies on other SystemPrompt crates** - this is intentional to prevent circular dependencies.
+**No dependencies on other systemprompt.io crates** - this is intentional to prevent circular dependencies.
 
 ## Tool Provider Traits
 
@@ -260,3 +281,7 @@ impl ToolExecutor for MyExecutor {
 ```
 
 Supporting types: `ChatMessage`, `ChatRole`, `ChatRequest`, `ChatResponse`, `SamplingParameters`, `TokenUsage`, `ToolExecutionContext`
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

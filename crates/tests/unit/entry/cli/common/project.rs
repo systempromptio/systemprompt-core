@@ -32,7 +32,7 @@ fn test_project_error_not_found_display() {
         path: PathBuf::from("/some/path"),
     };
     let msg = error.to_string();
-    assert!(msg.contains("Not a SystemPrompt project"));
+    assert!(msg.contains("Not a systemprompt.io project"));
     assert!(msg.contains("/some/path"));
     assert!(msg.contains(".systemprompt"));
 }

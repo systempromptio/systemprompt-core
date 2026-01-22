@@ -8,7 +8,7 @@
 
 ## Summary
 
-The `systemprompt-api` crate serves as the HTTP API gateway for SystemPrompt OS. Initial review found 62 violations. All have been addressed.
+The `systemprompt-api` crate serves as the HTTP API gateway for systemprompt.io OS. Initial review found 62 violations. All have been addressed.
 
 ---
 

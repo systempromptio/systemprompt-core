@@ -1,8 +1,14 @@
 # systemprompt-templates
 
-Template registry and management for SystemPrompt.
+Template registry and management for systemprompt.io.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-templates.svg)](https://crates.io/crates/systemprompt-templates)
+[![Documentation](https://docs.rs/systemprompt-templates/badge.svg)](https://docs.rs/systemprompt-templates)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 This crate provides the core template system for discovering, loading, and rendering HTML templates using Handlebars. It supports a plugin architecture with providers, loaders, extenders, and component renderers.
 
@@ -69,3 +75,16 @@ Templates are resolved by priority where lower values take precedence:
 |----------|-------|----------|
 | `EXTENSION_PRIORITY` | 500 | Override default templates |
 | `DEFAULT_PRIORITY` | 1000 | Standard templates |
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-templates = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

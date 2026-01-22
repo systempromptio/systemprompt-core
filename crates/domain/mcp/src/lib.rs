@@ -1,10 +1,13 @@
 pub mod cli;
 pub mod error;
+pub mod extension;
 pub mod middleware;
 pub mod models;
 pub mod orchestration;
 pub mod repository;
 pub mod services;
+
+pub use extension::McpExtension;
 
 pub use error::{McpError, McpResult};
 

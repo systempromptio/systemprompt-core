@@ -21,7 +21,7 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
 
     let api_url = environment.api_url();
 
-    CliService::section("SystemPrompt Cloud Login");
+    CliService::section("systemprompt.io Cloud Login");
     CliService::info(&format!("Environment: {:?}", environment));
 
     let cloud_paths = get_cloud_paths()?;

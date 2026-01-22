@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Events module for SystemPrompt - event broadcasting and routing"
+description = "Events module for systemprompt.io - event broadcasting and routing"
 
 [lints]
 workspace = true
@@ -30,7 +30,7 @@ serde_json = { workspace = true }
 # Utilities
 once_cell = { workspace = true }
 
-# SystemPrompt dependencies
+# systemprompt.io dependencies
 systemprompt-models = { path = "../../shared/models", version = "0.0.1" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1" }
 

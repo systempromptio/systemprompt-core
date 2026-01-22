@@ -1,8 +1,14 @@
 # systemprompt-analytics
 
-Analytics domain crate for SystemPrompt providing session tracking, behavioral analysis, engagement metrics, bot detection, and platform statistics.
+Analytics module for systemprompt.io - session tracking, metrics, and reporting.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-analytics.svg)](https://crates.io/crates/systemprompt-analytics)
+[![Documentation](https://docs.rs/systemprompt-analytics/badge.svg)](https://docs.rs/systemprompt-analytics)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
 
 This crate provides comprehensive analytics capabilities including:
 
@@ -161,3 +167,16 @@ pub use repository::{...};  // 15 repositories + types
 pub use services::{...};  // Services + detection helpers
 pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
 ```
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-analytics = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

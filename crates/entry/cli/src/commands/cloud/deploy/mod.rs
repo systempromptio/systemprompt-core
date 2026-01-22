@@ -161,7 +161,7 @@ pub async fn execute(
     profile_name: Option<String>,
     config: &CliConfig,
 ) -> Result<()> {
-    CliService::section("SystemPrompt Cloud Deploy");
+    CliService::section("systemprompt.io Cloud Deploy");
 
     let (profile, profile_path) = resolve_profile(profile_name.as_deref(), config)?;
 

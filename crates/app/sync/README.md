@@ -1,6 +1,6 @@
 # systemprompt-sync
 
-Synchronization services for SystemPrompt - file, database, and crate deployment synchronization between local and cloud environments.
+Synchronization services for systemprompt.io - file, database, and crate deployment synchronization between local and cloud environments.
 
 ## Overview
 
@@ -102,3 +102,16 @@ The crate uses `SyncError` for all error conditions:
 | `systemprompt-agent` | Skill repository and ingestion |
 | `systemprompt-identifiers` | Typed identifiers (SkillId, SourceId, etc.) |
 | `systemprompt-logging` | Tracing integration |
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-sync = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

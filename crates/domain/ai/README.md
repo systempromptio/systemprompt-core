@@ -1,8 +1,16 @@
 # systemprompt-ai
 
-Multi-provider AI integration with tool execution, structured output, and request tracking.
+Core AI module for systemprompt.io.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-ai.svg)](https://crates.io/crates/systemprompt-ai)
+[![Documentation](https://docs.rs/systemprompt-ai/badge.svg)](https://docs.rs/systemprompt-ai)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Domain layer in the systemprompt.io architecture.**
+
+Multi-provider AI integration with tool execution, structured output, and request tracking.
 
 This module provides a unified interface for AI model interactions across multiple providers (Anthropic, OpenAI, Gemini) with support for:
 
@@ -195,3 +203,16 @@ let request = AiRequest::builder(
 
 let response = ai_service.generate(&request).await?;
 ```
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-ai = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

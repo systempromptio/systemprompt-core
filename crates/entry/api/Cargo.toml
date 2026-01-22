@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "HTTP API server and gateway for SystemPrompt OS"
+description = "HTTP API server and gateway for systemprompt.io OS"
 
 [dependencies]
 # Core runtime
@@ -57,7 +57,7 @@ tracing = { workspace = true }
 # Configuration
 dotenvy = { workspace = true }
 
-# SystemPrompt crates
+# systemprompt.io crates
 systemprompt-models = { path = "../../shared/models", version = "0.0.1", features = ["web"] }
 systemprompt-loader = { path = "../../infra/loader", version = "0.0.1" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1" }

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core Agent protocol module for SystemPrompt"
+description = "Core Agent protocol module for systemprompt.io"
 
 [lints]
 workspace = true
@@ -28,9 +28,10 @@ web = [
 
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.1" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
 systemprompt-models = { path = "../../shared/models", version = "0.0.1", features = ["web"] }
 systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
 inventory = { workspace = true }
 
 # Core module dependencies

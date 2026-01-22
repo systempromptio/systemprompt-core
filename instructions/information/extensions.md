@@ -1,6 +1,6 @@
 # Extension System Guide
 
-Technical guide for extending SystemPrompt with custom templates, components, and data providers.
+Technical guide for extending systemprompt.io with custom templates, components, and data providers.
 
 ---
 

@@ -126,7 +126,7 @@ fn test_tenant_not_found_display() {
 #[test]
 fn test_user_message_not_authenticated() {
     let error = CloudError::NotAuthenticated;
-    assert_eq!(error.user_message(), "Not logged in to SystemPrompt Cloud");
+    assert_eq!(error.user_message(), "Not logged in to systemprompt.io Cloud");
 }
 
 #[test]

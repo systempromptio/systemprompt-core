@@ -16,7 +16,7 @@ All tables directly implement A2A specification interfaces:
 - **`agent_card_signatures`** - AgentCardSignature (A2A spec 5.5.6)
 - **`tasks`** - Task, Message, Artifact interfaces (A2A spec 6.1-6.7)
 
-### SystemPrompt Extension Tables
+### systemprompt.io Extension Tables
 - **`agent_metadata`** - Deployment-specific fields (port, is_active, etc.)
 
 ## Architecture Pattern
@@ -222,15 +222,15 @@ CREATE TRIGGER IF NOT EXISTS tasks_updated_at
     END;
 ```
 
-## SystemPrompt Extensions
+## systemprompt.io Extensions
 
 ### Agent Metadata (Non-A2A)
 ```sql
--- agent_metadata.sql - SystemPrompt deployment fields
+-- agent_metadata.sql - systemprompt.io deployment fields
 CREATE TABLE IF NOT EXISTS agent_metadata (
     uuid TEXT PRIMARY KEY, -- 1:1 with agent_cards (A2A v0.3.0 compliant)
 
-    -- SystemPrompt deployment fields
+    -- systemprompt.io deployment fields
     port INTEGER NOT NULL CHECK(port > 0 AND port <= 65535) UNIQUE,
     is_enabled BOOLEAN DEFAULT TRUE,
     is_primary BOOLEAN DEFAULT FALSE,

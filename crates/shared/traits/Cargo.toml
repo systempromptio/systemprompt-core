@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Minimal shared traits and contracts for SystemPrompt"
+description = "Minimal shared traits and contracts for systemprompt.io"
 
 [lints]
 workspace = true

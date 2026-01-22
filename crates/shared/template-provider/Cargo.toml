@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Template provider traits and abstractions for SystemPrompt"
+description = "Template provider traits and abstractions for systemprompt.io"
 
 [lints]
 workspace = true

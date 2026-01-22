@@ -6,7 +6,7 @@ use systemprompt_cloud::{
 use systemprompt_logging::CliService;
 
 pub async fn execute() -> Result<()> {
-    CliService::section("SystemPrompt Cloud Identity");
+    CliService::section("systemprompt.io Cloud Identity");
 
     let cloud_paths = get_cloud_paths()?;
 

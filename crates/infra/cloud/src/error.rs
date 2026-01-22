@@ -62,7 +62,7 @@ pub type CloudResult<T> = Result<T, CloudError>;
 impl CloudError {
     pub const fn user_message(&self) -> &'static str {
         match self {
-            Self::NotAuthenticated => "Not logged in to SystemPrompt Cloud",
+            Self::NotAuthenticated => "Not logged in to systemprompt.io Cloud",
             Self::TokenExpired => "Your session has expired",
             Self::TenantNotConfigured => "No project linked to this environment",
             Self::AppNotConfigured => "No deployment target configured",

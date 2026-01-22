@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Static site generation for SystemPrompt"
+description = "Static site generation for systemprompt.io"
 
 [lints]
 workspace = true

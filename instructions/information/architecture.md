@@ -83,7 +83,7 @@ Full bounded contexts. Each crate owns its database tables, repositories, and se
 | SQL/Database | YES (required) |
 | Repository | YES (required, in `src/repository/`) |
 | Service | YES (required, in `src/services/`) |
-| Module definition | YES (in `crates/infra/loader/src/modules/`) |
+| Extension | YES (in `src/extension.rs`, registers schemas via `register_extension!`) |
 | Bounded context | YES (single domain responsibility) |
 | Can depend on | `shared/`, `infra/` |
 | Cross-domain deps | NEVER (use traits or events) |
@@ -93,10 +93,11 @@ Full bounded contexts. Each crate owns its database tables, repositories, and se
 ```
 domain/{name}/
   Cargo.toml
-  schema/             # SQL schema files
+  schema/             # SQL schema files (no migrations/ subfolder)
     {table}.sql
   src/
-    lib.rs            # Public API
+    lib.rs            # Public API, exports extension
+    extension.rs      # Extension trait implementation with schema registration
     error.rs          # Domain-specific errors
     models/           # Domain models (or re-export from shared)
     repository/       # Data access layer
@@ -412,65 +413,81 @@ Products must own the final binary to include extension jobs via `inventory` sta
 
 ---
 
-### Module System
+### Schema Registration System
 
-Modules are defined in Rust code at `crates/infra/loader/src/modules/`. Each module file uses `include_str!()` to embed SQL schemas at compile time.
+Each crate owns its database schemas via the Extension trait. Schemas are embedded at compile time using `include_str!()` within each crate's `src/extension.rs`.
 
-**Structure:**
-
-```
-crates/infra/loader/src/modules/
-  mod.rs           # pub fn all() -> Vec<Module>
-  database.rs      # pub fn define() -> Module
-  log.rs
-  users.rs
-  oauth.rs
-  mcp.rs
-  files.rs
-  content.rs
-  ai.rs
-  analytics.rs
-  agent.rs
-  scheduler.rs
-  api.rs
-```
-
-**Module definition pattern:**
+**Extension-based schema registration:**
 
 ```rust
-// crates/infra/loader/src/modules/users.rs
-use systemprompt_models::modules::{Module, ModuleSchema, SchemaSource};
+// crates/domain/users/src/extension.rs
+use systemprompt_extension::prelude::*;
 
-pub fn define() -> Module {
-    Module {
-        name: "users".into(),
-        weight: Some(1),
-        schemas: Some(vec![
-            ModuleSchema {
-                table: "users".into(),
-                sql: SchemaSource::Inline(
-                    include_str!("../../../../domain/users/schema/users.sql").into()
-                ),
-                required_columns: vec!["id".into(), "email".into()],
-            },
-        ]),
-        // ...
+#[derive(Default)]
+pub struct UsersExtension;
+
+impl Extension for UsersExtension {
+    fn metadata(&self) -> ExtensionMetadata {
+        ExtensionMetadata {
+            id: "users",
+            name: "Users",
+            version: env!("CARGO_PKG_VERSION"),
+        }
+    }
+
+    fn migration_weight(&self) -> u32 {
+        10  // Lower weights run first
+    }
+
+    fn schemas(&self) -> Vec<SchemaDefinition> {
+        vec![
+            SchemaDefinition::inline("users", include_str!("../schema/users.sql"))
+                .with_required_columns(vec!["id".into(), "email".into()]),
+        ]
+    }
+
+    fn dependencies(&self) -> Vec<&'static str> {
+        vec![]  // No dependencies for base module
     }
 }
+
+register_extension!(UsersExtension);
+```
+
+**Migration weights (execution order):**
+
+| Weight | Crate | Purpose |
+|--------|-------|---------|
+| 1 | database | PostgreSQL functions |
+| 5 | logging | Log and analytics tables |
+| 10 | users | Base user identity |
+| 15 | analytics, files | Depend on users |
+| 20 | ai, mcp, oauth | Depend on users |
+| 25 | agent | Depends on users, oauth, mcp |
+| 30 | content | Depends on users, analytics |
+| 35 | scheduler | Depends on users |
+
+**Schema discovery:**
+
+```rust
+use systemprompt_loader::ModuleLoader;
+
+// Discover all extensions and their schemas
+let extensions = ModuleLoader::discover_extensions();
+let schemas = ModuleLoader::collect_extension_schemas();
 ```
 
 **Benefits:**
 - Compile-time SQL validation (missing file = compile error)
-- No YAML parsing at runtime
-- Matches extension pattern (`SchemaSource::Inline`)
-- Works in Docker without source tree
+- Works when published to crates.io (schemas within crate boundary)
+- Automatic discovery via `inventory` crate
+- Dependency ordering via `migration_weight()`
 
-**Adding a new module:**
-1. Create SQL files in `domain/{name}/schema/`
-2. Create `modules/{name}.rs` with `pub fn define() -> Module`
-3. Add `mod {name};` and call in `modules/mod.rs`
-
-Extensions use a separate discovery mechanism via the `inventory` crate and `ExtensionRegistry::discover()`. See [Extension Framework](#extension-framework-cratessharedextension) above.
+**Adding schemas to a crate:**
+1. Create SQL files in `{crate}/schema/`
+2. Create `src/extension.rs` implementing `Extension` trait
+3. Add `pub mod extension;` to `lib.rs`
+4. Use `register_extension!()` macro for automatic discovery
 
 ---
 

@@ -1,4 +1,4 @@
-# Clippy configuration for SystemPrompt code quality standards
+# Clippy configuration for systemprompt.io code quality standards
 # This supplements the workspace lints in Cargo.toml
 # See: tests/validator/coding-standards.md
 

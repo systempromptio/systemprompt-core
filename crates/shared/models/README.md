@@ -1,10 +1,31 @@
 # systemprompt-models
 
-Shared data models, types, and repository patterns for SystemPrompt OS.
+Shared data models and types for systemprompt.io OS.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-models.svg)](https://crates.io/crates/systemprompt-models)
+[![Documentation](https://docs.rs/systemprompt-models/badge.svg)](https://docs.rs/systemprompt-models)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
 
-This crate provides common data models, error types, and repository patterns used throughout SystemPrompt OS. It includes API models, authentication types, configuration, database models, and service-layer error handling.
+**Part of the Shared layer in the systemprompt.io architecture.**
+
+This crate provides common data models, error types, and repository patterns used throughout systemprompt.io. It includes API models, authentication types, configuration, database models, and service-layer error handling.
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-models = "0.0.1"
+```
+
+## Feature Flags
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `web` | No | Axum `IntoResponse` implementations |
 
 ## Modules
 
@@ -128,7 +149,7 @@ let req_ctx = RequestContext {
 
 ## Error Handling Pattern
 
-SystemPrompt uses a layered error handling approach:
+systemprompt.io uses a layered error handling approach:
 
 ### Layer 1: Repository (Database)
 
@@ -357,3 +378,7 @@ mod tests {
     }
 }
 ```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

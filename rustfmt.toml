@@ -1,4 +1,4 @@
-# Rustfmt configuration for SystemPrompt code formatting standards
+# Rustfmt configuration for systemprompt.io code formatting standards
 # Requires nightly Rust (configured via rust-toolchain.toml)
 # See: tests/validator/coding-standards.md
 

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Application runtime context and module registry for SystemPrompt"
+description = "Application runtime context and module registry for systemprompt.io"
 
 [lints]
 workspace = true

@@ -1,8 +1,14 @@
 # systemprompt-logging
 
-Core logging infrastructure for SystemPrompt.
+Core logging module for systemprompt.io OS.
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt-logging.svg)](https://crates.io/crates/systemprompt-logging)
+[![Documentation](https://docs.rs/systemprompt-logging/badge.svg)](https://docs.rs/systemprompt-logging)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 
 ## Overview
+
+**Part of the Infra layer in the systemprompt.io architecture.**
 
 This crate provides a dual-layer logging architecture combining console output with PostgreSQL persistence. It includes async batch processing, automatic context propagation, retention policies, and rich CLI output utilities.
 
@@ -146,3 +152,16 @@ schema/
 - `chrono` - Timestamp handling
 - `tokio-cron-scheduler` - Retention job scheduling
 - `colored`, `console`, `indicatif`, `dialoguer` - CLI utilities
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-logging = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

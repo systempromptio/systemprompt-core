@@ -1,6 +1,6 @@
 # systemprompt-generator
 
-Static site generation and content publishing orchestrator for SystemPrompt. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets.
+Static site generation and content publishing orchestrator for systemprompt.io. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets.
 
 ## Overview
 
@@ -130,3 +130,16 @@ This crate follows the application layer pattern:
 - **Job interface** - Jobs implement `systemprompt_traits::Job` for scheduling
 - **Template delegation** - Uses `TemplateRegistry` from domain layer
 - **Config via models** - Uses `Config::get()` instead of direct `env::var()`
+
+## Installation
+
+Add to your `Cargo.toml`:
+
+```toml
+[dependencies]
+systemprompt-generator = "0.0.1"
+```
+
+## License
+
+FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.

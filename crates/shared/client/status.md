@@ -10,7 +10,7 @@
 
 ## Executive Summary
 
-All violations identified in the initial review have been resolved. The crate now follows idiomatic Rust patterns and SystemPrompt standards.
+All violations identified in the initial review have been resolved. The crate now follows idiomatic Rust patterns and systemprompt.io standards.
 
 ---
 
@@ -116,4 +116,4 @@ src/
 
 **Status:** COMPLIANT
 
-The crate follows SystemPrompt Rust standards and is ready for crates.io publication.
+The crate follows systemprompt.io Rust standards and is ready for crates.io publication.

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Provider trait contracts for SystemPrompt - LLM, Tool, Job, Template, Component providers"
+description = "Provider trait contracts for systemprompt.io - LLM, Tool, Job, Template, Component providers"
 
 [lints]
 workspace = true

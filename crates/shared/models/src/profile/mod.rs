@@ -159,7 +159,7 @@ impl Profile {
         let content = serde_yaml::to_string(self).context("Failed to serialize profile")?;
 
         let content_with_header = format!(
-            "# SystemPrompt Profile: {}\n# \n# WARNING: This file contains secrets (API keys, JWT \
+            "# systemprompt.io Profile: {}\n# \n# WARNING: This file contains secrets (API keys, JWT \
              secrets, database credentials).\n# DO NOT commit this file to version control.\n# DO \
              NOT share this file publicly.\n# \n# Generated from environment variables\n\n{}",
             self.display_name, content

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "SystemPrompt Cloud infrastructure - API client, credentials, OAuth"
+description = "systemprompt.io Cloud infrastructure - API client, credentials, OAuth"
 
 [lints]
 workspace = true

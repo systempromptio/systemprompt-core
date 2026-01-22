@@ -1,6 +1,6 @@
-# SystemPrompt Core
+# systemprompt.io Core
 
-The core platform engine for SystemPrompt - a multi-tenant AI agent platform with A2A protocol support, MCP integration, and cloud deployment.
+The core platform engine for systemprompt.io - a multi-tenant AI agent platform with A2A protocol support, MCP integration, and cloud deployment.
 
 ## Architecture
 

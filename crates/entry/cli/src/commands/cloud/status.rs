@@ -4,7 +4,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 pub async fn execute() -> Result<()> {
-    CliService::section("SystemPrompt Cloud Status");
+    CliService::section("systemprompt.io Cloud Status");
 
     let mut tenant_id_from_profile: Option<String> = None;
 

@@ -1,7 +1,10 @@
+pub mod extension;
 pub mod jobs;
 pub mod models;
 pub mod repository;
 pub mod services;
+
+pub use extension::SchedulerExtension;
 
 pub use jobs::{
     BehavioralAnalysisJob, CleanupEmptyContextsJob, CleanupInactiveSessionsJob, DatabaseCleanupJob,

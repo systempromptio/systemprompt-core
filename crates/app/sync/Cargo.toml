@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Sync services for SystemPrompt - file, database, and crate deployment synchronization"
+description = "Sync services for systemprompt.io - file, database, and crate deployment synchronization"
 
 [dependencies]
 # Core runtime

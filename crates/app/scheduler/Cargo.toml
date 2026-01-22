@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Core scheduler module for SystemPrompt OS - background jobs and cron tasks"
+description = "Core scheduler module for systemprompt.io OS - background jobs and cron tasks"
 
 [lints]
 workspace = true
@@ -35,15 +35,16 @@ url = { workspace = true }
 urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
-systemprompt-runtime = { path = "../runtime", version = "0.0.1" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.1" }
 systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.1" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.1" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.1" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.1" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.1" }
 systemprompt-models = { path = "../../shared/models", version = "0.0.1" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.1" }
+systemprompt-runtime = { path = "../runtime", version = "0.0.1" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.1" }
 
 # Job registration and discovery
 inventory = { workspace = true }

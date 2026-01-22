@@ -1,6 +1,6 @@
 # Services Configuration System
 
-This document explains the relationship between **Profiles**, **Services**, and the build/deploy process. Understanding this architecture is essential for configuring and deploying SystemPrompt applications.
+This document explains the relationship between **Profiles**, **Services**, and the build/deploy process. Understanding this architecture is essential for configuring and deploying systemprompt.io applications.
 
 ---
 

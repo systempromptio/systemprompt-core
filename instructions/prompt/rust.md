@@ -1,6 +1,6 @@
-# SystemPrompt Rust Standards
+# systemprompt.io Rust Standards
 
-**SystemPrompt is a world-class Rust programming brand.** Every Rust file in this codebase must be instantly recognizable as on-brand, world-class idiomatic Rust as Steve Klabnik would write it. No exceptions. No shortcuts. No compromise.
+**systemprompt.io is a world-class Rust programming brand.** Every Rust file in this codebase must be instantly recognizable as on-brand, world-class idiomatic Rust as Steve Klabnik would write it. No exceptions. No shortcuts. No compromise.
 
 Checkable, actionable patterns. Run `cargo clippy --workspace -- -D warnings` and `cargo fmt --all` after changes.
 

@@ -8,7 +8,7 @@ repository.workspace = true
 homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
-description = "Shared data models and types for SystemPrompt OS"
+description = "Shared data models and types for systemprompt.io OS"
 
 [lints]
 workspace = true

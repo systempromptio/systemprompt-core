@@ -64,7 +64,7 @@ impl AgentExtension {
     pub fn agent_identity(agent_name: &str) -> Self {
         Self {
             uri: "systemprompt:agent-identity".to_string(),
-            description: Some("SystemPrompt platform agent name".to_string()),
+            description: Some("systemprompt.io platform agent name".to_string()),
             required: Some(true),
             params: Some(serde_json::json!({
                 "name": agent_name

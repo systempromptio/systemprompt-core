@@ -1,35 +1,42 @@
 use systemprompt_loader::ModuleLoader;
 
 #[test]
-fn test_all_returns_modules() {
-    let modules = ModuleLoader::all();
-    assert!(!modules.is_empty(), "Should return embedded modules");
+fn test_discover_extensions_returns_extensions() {
+    let extensions = ModuleLoader::discover_extensions();
+    assert!(
+        !extensions.is_empty(),
+        "Should discover registered extensions"
+    );
 }
 
 #[test]
-fn test_modules_have_required_fields() {
-    let modules = ModuleLoader::all();
+fn test_extensions_have_required_metadata() {
+    let extensions = ModuleLoader::discover_extensions();
 
-    for module in &modules {
-        assert!(!module.name.is_empty(), "Module name should not be empty");
+    for ext in &extensions {
+        assert!(!ext.id().is_empty(), "Extension id should not be empty");
+        assert!(!ext.name().is_empty(), "Extension name should not be empty");
         assert!(
-            !module.display_name.is_empty(),
-            "Module display_name should not be empty"
+            !ext.version().is_empty(),
+            "Extension version should not be empty"
         );
     }
 }
 
 #[test]
-fn test_modules_are_sorted_by_weight() {
-    let modules = ModuleLoader::all();
+fn test_collect_extension_schemas() {
+    let schemas = ModuleLoader::collect_extension_schemas();
+    assert!(
+        !schemas.is_empty(),
+        "Should collect schemas from extensions"
+    );
+}
 
-    let weights: Vec<i32> = modules
-        .iter()
-        .map(|m| m.weight.unwrap_or(100))
-        .collect();
+#[test]
+fn test_schemas_have_required_fields() {
+    let schemas = ModuleLoader::collect_extension_schemas();
 
-    let mut sorted_weights = weights.clone();
-    sorted_weights.sort();
-
-    assert_eq!(weights, sorted_weights, "Modules should be sorted by weight");
+    for schema in &schemas {
+        assert!(!schema.table.is_empty(), "Schema table should not be empty");
+    }
 }

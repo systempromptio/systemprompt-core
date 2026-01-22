@@ -1,4 +1,4 @@
-# SystemPrompt Clippy Linting Standards
+# systemprompt.io Clippy Linting Standards
 
 **Reference:** This document extends [rust.md](../rust/rust.md). All code must meet world-class idiomatic Rust standards.
 
