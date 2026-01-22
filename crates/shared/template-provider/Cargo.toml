@@ -18,7 +18,7 @@ default = []
 tokio = ["dep:tokio"]
 
 [dependencies]
-systemprompt-provider-contracts = { path = "../provider-contracts" }
+systemprompt-provider-contracts = { path = "../provider-contracts", version = "0.0.1" }
 
 async-trait = { workspace = true }
 thiserror = { workspace = true }

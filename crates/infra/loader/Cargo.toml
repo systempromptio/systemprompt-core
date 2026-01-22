@@ -28,5 +28,5 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 
 # SystemPrompt dependencies
-systemprompt-models = { path = "../../shared/models" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.1" }
 
