@@ -23,7 +23,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
-systemprompt-models = { path = "../../shared/models", version = "0.0.1", features = ["web"] }
+systemprompt-models = { path = "../../shared/models", version = "0.0.2", features = ["web"] }
 
 # Database
 sqlx = { workspace = true }
@@ -63,12 +63,12 @@ axum = { workspace = true, optional = true }
 reqwest = { workspace = true }
 
 # Core module dependencies
-systemprompt-database = { path = "../../infra/database", version = "0.0.1" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.1" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.1", features = ["sqlx"] }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.1" }
-systemprompt-security = { path = "../../infra/security", version = "0.0.1" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.1" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.2" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.2" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.2", features = ["sqlx"] }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.2" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.2" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.2" }
 
 
 
