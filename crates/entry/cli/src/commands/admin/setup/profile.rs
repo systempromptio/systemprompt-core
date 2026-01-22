@@ -5,9 +5,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
-    CliPaths, CloudConfig, CloudValidationMode, Environment, LogLevel, OutputFormat, PathsConfig,
-    Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
-    ServerConfig, SiteConfig,
+    CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, LogLevel,
+    OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig,
+    RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
 };
 
 use crate::shared::profile::generate_display_name;
@@ -103,6 +103,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             validation: SecretsValidationMode::Warn,
             source: SecretsSource::File,
         }),
+        extensions: ExtensionsConfig::default(),
     };
 
     validate_profile(&profile)?;

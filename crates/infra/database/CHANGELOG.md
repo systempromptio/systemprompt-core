@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.3] - 2026-01-22
+
+### Added
+- `extension_migrations` table for tracking applied migrations
+- `MigrationService` for running and tracking extension migrations
+- `MigrationStatus`, `MigrationResult`, `AppliedMigration` types
+- `install_extension_schemas_with_config()` function supporting disabled extensions
+- Database extension marked as required (`is_required() -> true`)
+
+### Changed
+- Schema installation now runs pending migrations after base schema creation
+- Migrations are tracked with version, name, and checksum for integrity validation
+
 ## [0.0.2] - 2026-01-22
 
 ### Changed

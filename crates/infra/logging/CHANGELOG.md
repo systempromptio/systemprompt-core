@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.3] - 2026-01-22
+
+### Changed
+- Logging extension marked as required (`is_required() -> true`)
+
 ## [0.0.2] - 2026-01-22
 
 ### Changed

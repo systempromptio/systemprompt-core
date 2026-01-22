@@ -26,6 +26,32 @@ pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
 
+#[derive(Debug, Clone)]
+pub struct Migration {
+    pub version: u32,
+    pub name: String,
+    pub sql: &'static str,
+}
+
+impl Migration {
+    #[must_use]
+    pub fn new(version: u32, name: impl Into<String>, sql: &'static str) -> Self {
+        Self {
+            version,
+            name: name.into(),
+            sql,
+        }
+    }
+
+    #[must_use]
+    pub fn checksum(&self) -> String {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        self.sql.hash(&mut hasher);
+        format!("{:x}", hasher.finish())
+    }
+}
+
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct ExtensionMetadata {
     pub id: &'static str,
@@ -240,6 +266,14 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn is_required(&self) -> bool {
+        false
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![]
+    }
+
     fn roles(&self) -> Vec<ExtensionRole> {
         vec![]
     }
@@ -314,6 +348,10 @@ pub trait Extension: Send + Sync + 'static {
         !self.roles().is_empty()
     }
 
+    fn has_migrations(&self) -> bool {
+        !self.migrations().is_empty()
+    }
+
     fn required_assets(&self) -> Vec<AssetDefinition> {
         vec![]
     }
@@ -347,7 +385,7 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        register_extension, Extension, ExtensionMetadata, ExtensionRole, SchemaDefinition,
+        register_extension, Extension, ExtensionMetadata, ExtensionRole, Migration, SchemaDefinition,
         SchemaSource,
     };
 

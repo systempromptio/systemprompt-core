@@ -18,6 +18,9 @@
 mod error;
 
 #[cfg(test)]
+mod extension;
+
+#[cfg(test)]
 mod jobs;
 
 #[cfg(test)]

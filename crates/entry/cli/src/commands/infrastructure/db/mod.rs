@@ -44,6 +44,11 @@ pub enum DbCommands {
     Info,
     #[command(about = "Run database migrations")]
     Migrate,
+    #[command(about = "Show migration status and history")]
+    Migrations {
+        #[command(subcommand)]
+        cmd: MigrationsCommands,
+    },
     #[command(about = "Assign admin role to a user")]
     AssignAdmin { user: String },
     #[command(about = "Show database connection status")]
@@ -59,6 +64,17 @@ pub enum DbCommands {
     },
     #[command(about = "Show database and table sizes")]
     Size,
+}
+
+#[derive(Debug, Subcommand)]
+pub enum MigrationsCommands {
+    #[command(about = "Show migration status for all extensions")]
+    Status,
+    #[command(about = "Show migration history for an extension")]
+    History {
+        #[arg(help = "Extension ID")]
+        extension: String,
+    },
 }
 
 struct DatabaseTool {
@@ -116,6 +132,9 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
         DbCommands::Migrate => unreachable!(),
+        DbCommands::Migrations { cmd } => {
+            admin::execute_migrations(&db.ctx, cmd, config).await
+        },
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
         },
@@ -169,6 +188,9 @@ pub async fn execute_with_db(
         },
         DbCommands::Info => schema::execute_info(&admin_service, config).await,
         DbCommands::Migrate => admin::execute_migrate_standalone(db_ctx, config).await,
+        DbCommands::Migrations { cmd } => {
+            admin::execute_migrations_standalone(db_ctx, cmd, config).await
+        },
         DbCommands::AssignAdmin { .. } => {
             bail!("assign-admin requires full profile context")
         },

@@ -1,6 +1,8 @@
 # systemprompt.io
 
-**Extensible AI agent orchestration framework**
+**Production infrastructure for AI agents. Self-hosted or cloud.**
+
+The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Documentation](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
@@ -10,23 +12,41 @@
 
 - [Why systemprompt.io?](#why-systemprompt)
 - [Quick Start](#quick-start)
-- [Installation](#installation)
+- [Using as a Library](#using-as-a-library)
 - [Architecture](#architecture)
-- [Available Crates](#available-crates)
 - [Extension Framework](#extension-framework)
 - [License](#license)
 
 ## Why systemprompt.io?
 
-The new stack for the agentic age - infrastructure and application as one.
+Frameworks give you building blocks. We give you the building.
 
-- **Infrastructure + Application**: Not just a framework - a complete runtime combining Web API, agent processes, and MCP servers with shared authentication and database
-- **Open Standards**: Built on A2A framework, AGUI, and MCP protocols
-- **Secure by Design**: OAuth2/OIDC, user management, and process isolation for agents and tools
-- **Native Rust Performance**: Zero-cost abstractions and async-first design built on Tokio
-- **Self-Hosted or Cloud**: Run locally on Docker, or deploy to your own isolated VM with included multi-tenant database
-- **Open Source Foundation**: Extensible architecture with compile-time safe extensions
-- **100% Extensible**: Build proprietary Rust wrappers on top of the core platform
+| Problem | How others solve it | systemprompt.io |
+|---------|---------------------|-----------------|
+| Agent auth | Build it yourself | OAuth2/OIDC + WebAuthn built-in |
+| User permissions | Build it yourself | Role-based, per-agent, per-tool scopes |
+| MCP hosting | Run locally only | Production deployment with auth |
+| Multi-agent | Orchestration libraries | A2A protocol with shared state |
+| Deployment | Figure it out | One command to cloud or self-host |
+
+**Core capabilities:**
+- **Complete Runtime**: Web API + agent processes + MCP servers with shared auth and database
+- **Open Standards**: MCP, A2A, OAuth2, WebAuthn - no vendor lock-in
+- **Agent-Executable CLI**: Your AI manages infrastructure directly via the same CLI you use
+- **Native Rust**: Async-first on Tokio, zero-cost abstractions
+- **Self-Hosted or Cloud**: Docker locally, or deploy to isolated VM with managed database
+- **100% Extensible**: Build proprietary Rust extensions on the open core
+
+### What You Get
+
+A complete platform with built-in:
+- **User Authentication**: OAuth2/OIDC, sessions, roles, and permissions
+- **File Storage**: Upload, serve, and manage files with metadata
+- **Content Management**: Markdown ingestion, search, and publishing
+- **AI Integration**: Multi-provider LLM support with request logging
+- **Analytics**: Session tracking, metrics, and usage reporting
+- **Agent Orchestration**: A2A protocol for agent-to-agent communication
+- **MCP Servers**: Tool and resource providers for AI clients
 
 ## Quick Start
 
@@ -35,7 +55,7 @@ The new stack for the agentic age - infrastructure and application as one.
 - Rust 1.75+
 - Docker (for local PostgreSQL) **OR** systemprompt.io Cloud account
 
-### Installation
+### Install the CLI
 
 **Option A: Install from crates.io**
 ```bash
@@ -64,7 +84,7 @@ docker run -d --name systemprompt-db \
   -p 5432:5432 \
   postgres:16
 
-# Login to systemprompt.io Cloud (required for CLI functionality)
+# Login to systemprompt.io Cloud (free account - enables CLI profile management)
 systemprompt cloud auth login
 
 # Create a local tenant with your Docker database
@@ -98,24 +118,111 @@ systemprompt cloud profile create production
 systemprompt cloud deploy --profile production
 ```
 
-Your agentic mesh will be deployed in the region of your choice and available at your tenant URL (e.g., `https://my-tenant.systemprompt.io`). This can we easily used (CNAME) to run your own web accessible agent mesh and domain.  
+Your agentic mesh will be deployed in the region of your choice and available at your tenant URL (e.g., `https://my-tenant.systemprompt.io`). This can be easily used (CNAME) to run your own web accessible agent mesh and domain.  
 
 ### Native MCP Client Support
 
-Works out of the box with any MCP client - Claude Code, Claude Desktop, ChatGPT, and more. Use agent-native interfaces to directly manage your mesh in production with no extra infrastructure required.
+Works out of the box with any MCP client - Claude Code, Claude Desktop, ChatGPT, and more. All transports are HTTP-native, supported by modern MCP clients.
+
+```json
+// claude_desktop_config.json
+{
+  "mcpServers": {
+    "my-server": {
+      "url": "https://my-tenant.systemprompt.io/api/v1/mcp/my-server/mcp",
+      "transport": "streamable-http"
+    }
+  }
+}
+```
+
+Your AI can now manage your entire infrastructure: deploy updates, query analytics, manage users, and orchestrate agents - all through natural conversation.
+
+### Discovery API
+
+Get agent and MCP connection details from the API at any time:
+
+| Endpoint | Description |
+|----------|-------------|
+| `/.well-known/agent-card.json` | Default agent card |
+| `/.well-known/agent-cards` | List all available agents |
+| `/.well-known/agent-cards/{name}` | Specific agent card |
+| `/api/v1/agents/registry` | Full agent registry with status |
+| `/api/v1/mcp/registry` | All MCP servers with endpoints |
+
+### Config as Code
+
+Define your entire infrastructure in the `services/` directory - granular permissions for agents, MCP tools, and users backed by production-grade OAuth2 and WebAuthn:
+
+```
+services/
+├── agents/           # Agent definitions with OAuth scopes
+│   └── blog.yaml     # security: [oauth2: ["admin"]]
+├── mcp/              # MCP servers with per-tool permissions
+│   └── content.yaml  # oauth: { required: true, scopes: ["admin"] }
+├── skills/           # Reusable agent capabilities
+├── ai/               # Provider configs (Anthropic, OpenAI, Gemini)
+├── content/          # Markdown content sources
+├── scheduler/        # Cron jobs and background tasks
+└── web/              # Theme, branding, navigation
+```
+
+**Granular Security:**
+- **Agents**: OAuth2 scopes define who can interact with each agent
+- **MCP Tools**: Per-tool OAuth requirements and audience restrictions
+- **Users**: WebAuthn passwordless auth with role-based permissions
+- **All config changes deploy instantly** - no code changes required
+
+### CLI - Universal Agent Interface
+
+The CLI executes any task, sends messages to agents, and invokes MCP tools in any environment. Enable local-to-remote and remote-to-remote agentic flows:
 
 ```bash
-# Your deployed agents are accessible via MCP
-# Connect from Claude Code, Claude Desktop, or any MCP-compatible client
+# Send a message to an agent
+systemprompt admin agents message blog "Write a post about MCP security"
+
+# List available MCP tools
+systemprompt admin agents tools content-manager
+
+# Execute from local to remote, or remote to remote
+systemprompt cloud deploy --profile production
 ```
+
+The same CLI runs locally during development and in production on your cloud instance - your AI can manage infrastructure from anywhere.
+
+### Scheduling - Deterministic Tasks
+
+Run scheduled jobs when you need predictable, time-based execution:
+
+```yaml
+# services/scheduler/daily-analytics.yaml
+jobs:
+  daily_report:
+    cron: "0 9 * * *"
+    task: "analytics:generate_daily_report"
+    enabled: true
+```
+
+```bash
+# List scheduled jobs
+systemprompt infra jobs list
+
+# Run a job manually
+systemprompt infra jobs run daily_report
+
+# View execution history
+systemprompt infra jobs history
+```
+
+Scheduling complements agentic flows - use agents for dynamic reasoning and schedulers for deterministic tasks.
 
 ### Building Your Own Project
 
 Use the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) to create a new project with the recommended structure for agents, MCP servers, and content.
 
-## Installation
+## Using as a Library
 
-Add the facade to your `Cargo.toml`:
+Build your own extensions by adding the facade to your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -124,122 +231,25 @@ systemprompt = { version = "0.0.1", features = ["full"] }
 
 ## Architecture
 
-systemprompt.io uses a **layered crate architecture** with strict dependency rules:
+systemprompt.io uses a **layered crate architecture**:
 
 ```
-crates/
-├── shared/           # Pure types, zero internal dependencies
-│   ├── traits/       # Core trait definitions (LlmProvider, ToolProvider, Job)
-│   ├── models/       # Data models, API types, config structs
-│   ├── identifiers/  # Typed IDs (UserId, TaskId, etc.)
-│   ├── client/       # HTTP client for external APIs
-│   └── extension/    # Extension framework for customization
-│
-├── infra/            # Stateless infrastructure utilities
-│   ├── database/     # SQLx abstraction, connection pooling
-│   ├── events/       # Event bus, broadcasters, SSE
-│   ├── security/     # JWT validation, token handling
-│   ├── config/       # Configuration loading
-│   ├── logging/      # Tracing setup, log sinks
-│   ├── cloud/        # Cloud API, tenant management
-│   └── loader/       # Module loader
-│
-├── domain/           # Bounded contexts with SQL + repos + services
-│   ├── users/        # User identity (User, Role)
-│   ├── oauth/        # Authentication (Token, Client, Grant, Session)
-│   ├── files/        # File storage (File, FileMetadata)
-│   ├── analytics/    # Metrics & tracking (Session, Event, Metric)
-│   ├── content/      # Content management (Content, Category, Tag)
-│   ├── ai/           # LLM integration (Request, Response, Provider)
-│   ├── mcp/          # MCP protocol (Server, Tool, Deployment)
-│   └── agent/        # A2A protocol (Agent, Task, Context, Skill)
-│
-├── app/              # Orchestration, no business logic
-│   ├── runtime/      # AppContext, StartupValidator, lifecycle
-│   ├── scheduler/    # Job scheduling, cron execution
-│   ├── generator/    # Static site generation
-│   └── sync/         # Sync services
-│
-└── entry/            # Entry points (binaries, public APIs)
-    ├── api/          # HTTP gateway, route handlers, middleware
-    └── cli/          # Command-line interface
-
-systemprompt/         # Umbrella crate: Public API for external consumers
+┌─────────────────────────────────────────────────────────┐
+│  ENTRY: api, cli                                        │
+├─────────────────────────────────────────────────────────┤
+│  APP: runtime, scheduler, generator, sync               │
+├─────────────────────────────────────────────────────────┤
+│  DOMAIN: users, oauth, ai, agent, mcp, files, content   │
+├─────────────────────────────────────────────────────────┤
+│  INFRA: database, events, security, config, logging     │
+├─────────────────────────────────────────────────────────┤
+│  SHARED: models, traits, identifiers, extension         │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Dependency Flow
+Dependencies flow downward only. Domain crates communicate via traits and events, not direct dependencies.
 
-```
-UMBRELLA (systemprompt) ← External consumers
-        │
-    ENTRY (api, cli)
-        │
-    APP (runtime, scheduler, generator, sync)
-        │
-    DOMAIN (users, oauth, ai, agent, mcp, ...)
-        │
-    INFRA (database, events, security, config, logging, cloud)
-        │
-    SHARED (models, traits, identifiers, client, extension)
-```
-
-Domain crates cannot depend on each other - use traits or events for cross-domain communication.
-
-## Available Crates
-
-### Shared Layer
-
-| Crate | Description |
-|-------|-------------|
-| `systemprompt-traits` | Core trait definitions |
-| `systemprompt-models` | Data models and config types |
-| `systemprompt-identifiers` | Typed ID generators |
-| `systemprompt-client` | HTTP client |
-| `systemprompt-extension` | Extension framework |
-| `systemprompt-provider-contracts` | Provider trait contracts |
-| `systemprompt-template-provider` | Template provider traits |
-
-### Infrastructure Layer
-
-| Crate | Description |
-|-------|-------------|
-| `systemprompt-database` | SQLx abstraction (PostgreSQL) |
-| `systemprompt-events` | Event bus, SSE infrastructure |
-| `systemprompt-security` | JWT, auth utilities |
-| `systemprompt-config` | Configuration loading |
-| `systemprompt-logging` | Tracing setup |
-| `systemprompt-cloud` | Cloud API, tenant management |
-| `systemprompt-loader` | Module loader |
-
-### Domain Layer
-
-| Crate | Description |
-|-------|-------------|
-| `systemprompt-users` | User management |
-| `systemprompt-oauth` | OAuth2/OIDC authentication |
-| `systemprompt-files` | File storage |
-| `systemprompt-analytics` | Metrics and tracking |
-| `systemprompt-content` | Content management |
-| `systemprompt-ai` | LLM integration |
-| `systemprompt-mcp` | MCP protocol implementation |
-| `systemprompt-agent` | Agent orchestration (A2A) |
-| `systemprompt-templates` | Template registry |
-
-### Application Layer
-
-| Crate | Description |
-|-------|-------------|
-| `systemprompt-runtime` | AppContext, lifecycle management |
-| `systemprompt-scheduler` | Job scheduling |
-| `systemprompt-generator` | Static site generation |
-| `systemprompt-sync` | Sync services |
-
-### Entry Layer
-
-| Crate | Description |
-|-------|-------------|
-| `systemprompt-api` | HTTP server framework |
-| `systemprompt-cli` | Command-line interface |
+See [full architecture documentation](https://docs.systemprompt.io/architecture) for details on all 25+ crates.
 
 ## Extension Framework
 

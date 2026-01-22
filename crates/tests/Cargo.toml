@@ -43,7 +43,7 @@ resolver = "2"
 edition = "2021"
 authors = ["Edward Burton"]
 license = "BSL-1.0"
-version = "0.0.2"
+version = "0.0.3"
 publish = false
 
 # Relaxed linting for tests

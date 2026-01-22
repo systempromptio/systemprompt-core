@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.3] - 2026-01-22
+
+### Added
+- `ExtensionsConfig` struct for profile-based extension enable/disable configuration
+- `extensions` field in `Profile` struct
+
 ## [0.0.2] - 2026-01-22
 
 ### Changed
