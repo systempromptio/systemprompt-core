@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.4` (CLI Features - January 23, 2026)
+**Current Version:** `0.0.6` (CLI Session Fix - January 23, 2026)
 
 All **30 crates** have been published to crates.io.
 
@@ -407,6 +407,19 @@ systemprompt-identifiers = "0.0.1"
 
 ## Changelog
 
+### v0.0.6 (2026-01-23)
+
+- Fix `admin session login` profile initialization error
+- Session login now properly reads SYSTEMPROMPT_PROFILE env var
+
+### v0.0.5 (2026-01-23)
+
+- Update inter-crate dependency versions
+
+### v0.0.4 (2026-01-23)
+
+- CLI features: tenant cancel, profile auto-creation, migration commands
+
 ### v0.0.1 (2026-01-21)
 
-- Initial publication of all 29 crates to crates.io
+- Initial publication of all 30 crates to crates.io
