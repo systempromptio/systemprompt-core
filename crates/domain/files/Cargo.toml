@@ -17,7 +17,7 @@ workspace = true
 systemprompt-cloud = { path = "../../infra/cloud" }
 systemprompt-database = { path = "../../infra/database" }
 systemprompt-extension = { path = "../../shared/extension" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4", features = ["sqlx"] }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
 systemprompt-logging = { path = "../../infra/logging" }
 systemprompt-models = { path = "../../shared/models" }
 systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }

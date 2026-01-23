@@ -29,8 +29,8 @@ web = [
 [dependencies]
 # Core traits for interface definitions (no circular dependencies)
 systemprompt-extension = { path = "../../shared/extension" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4", features = ["sqlx"] }
-systemprompt-models = { path = "../../shared/models", version = "0.0.4", features = ["web"] }
+systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
+systemprompt-models = { path = "../../shared/models", features = ["web"] }
 systemprompt-traits = { path = "../../shared/traits" }
 inventory = { workspace = true }
 
