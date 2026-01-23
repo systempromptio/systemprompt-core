@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.7] - 2026-01-23
+
+### Changed
+- `RotateCredentialsResponse` now returns `internal_database_url` and `external_database_url` instead of single `database_url` field
+
 ## [0.0.4] - 2026-01-23
 
 ### Added
