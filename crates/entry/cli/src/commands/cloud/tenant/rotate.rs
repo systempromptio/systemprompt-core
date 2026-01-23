@@ -64,7 +64,7 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
         .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found after rotation"))?;
 
-    tenant.database_url = Some(response.database_url.clone());
+    tenant.database_url = Some(response.internal_database_url.clone());
 
     store.save_to_path(&tenants_path)?;
 
@@ -72,7 +72,8 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
     CliService::key_value("Status", &response.status);
 
     CliService::section("New Database Connection");
-    CliService::key_value("Database URL", &response.database_url);
+    CliService::key_value("Internal URL", &response.internal_database_url);
+    CliService::key_value("External URL", &response.external_database_url);
 
     Ok(())
 }
