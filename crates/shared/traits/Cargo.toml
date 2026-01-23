@@ -18,8 +18,8 @@ default = []
 web = ["dep:axum"]
 
 [dependencies]
-systemprompt-provider-contracts = { path = "../provider-contracts", version = "0.0.3" }
-systemprompt-identifiers = { path = "../identifiers", version = "0.0.3" }
+systemprompt-provider-contracts = { path = "../provider-contracts", version = "0.0.4" }
+systemprompt-identifiers = { path = "../identifiers", version = "0.0.4" }
 
 async-trait = { workspace = true }
 anyhow = { workspace = true }
