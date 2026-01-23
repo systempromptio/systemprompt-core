@@ -28,10 +28,10 @@ async-trait = { workspace = true }
 sqlx = { workspace = true, features = ["postgres", "uuid"] }
 
 # systemprompt.io dependencies
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.5" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.5", features = ["sqlx"] }
-systemprompt-models = { path = "../../shared/models", version = "0.0.5" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.5" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.6" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.6", features = ["sqlx"] }
+systemprompt-models = { path = "../../shared/models", version = "0.0.6" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.6" }
 
 # Utilities
 chrono = { workspace = true }

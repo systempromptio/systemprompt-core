@@ -168,9 +168,8 @@ impl HasRequirements for Commands {
         match self {
             Self::Cloud(cmd) => cmd.requirements(),
             Self::Plugins(cmd) => cmd.requirements(),
-            Self::Admin(admin::AdminCommands::Setup(_) | admin::AdminCommands::Session(_)) => {
-                CommandRequirements::NONE
-            },
+            Self::Admin(admin::AdminCommands::Setup(_)) => CommandRequirements::NONE,
+            Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.requirements(),
             Self::Build(_) => CommandRequirements::PROFILE_ONLY,
             Self::Infra(infrastructure::InfraCommands::System(_)) => {
                 CommandRequirements::PROFILE_AND_SECRETS

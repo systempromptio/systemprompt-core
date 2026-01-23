@@ -2,11 +2,14 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
+    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
 use systemprompt_logging::CliService;
+use systemprompt_models::Profile;
 
 use systemprompt_identifiers::TenantId;
+
+use crate::commands::cloud::tenant::{get_credentials, swap_to_external_host};
 
 use super::api_keys::{collect_api_keys, ApiKeys};
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
@@ -80,6 +83,8 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
         )?;
         (tenant, api_keys)
     };
+
+    let tenant = ensure_unmasked_credentials(tenant, &tenants_path).await?;
 
     std::fs::create_dir_all(&profile_dir)
         .with_context(|| format!("Failed to create directory {}", profile_dir.display()))?;
@@ -301,4 +306,68 @@ fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<St
     }
 
     Ok(tenant.clone())
+}
+
+async fn refresh_tenant_credentials(
+    client: &CloudApiClient,
+    tenant_id: &str,
+) -> Result<(String, Option<String>)> {
+    let status = client.get_tenant_status(tenant_id).await?;
+    let secrets_url = status
+        .secrets_url
+        .ok_or_else(|| anyhow::anyhow!("No secrets URL available for tenant"))?;
+    let secrets = client.fetch_secrets(&secrets_url).await?;
+    Ok((secrets.database_url, secrets.sync_token))
+}
+
+async fn ensure_unmasked_credentials(
+    tenant: StoredTenant,
+    tenants_path: &std::path::Path,
+) -> Result<StoredTenant> {
+    if tenant.tenant_type != TenantType::Cloud {
+        return Ok(tenant);
+    }
+
+    let external_url = tenant.get_local_database_url();
+    let internal_url = tenant.internal_database_url.as_deref();
+
+    let needs_refresh = external_url.is_none_or(|url| Profile::is_masked_database_url(url))
+        || internal_url.is_none_or(Profile::is_masked_database_url);
+
+    if !needs_refresh {
+        return Ok(tenant);
+    }
+
+    CliService::info("Fetching database credentials...");
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    match refresh_tenant_credentials(&client, &tenant.id).await {
+        Ok((db_url, sync_token)) => {
+            let mut updated_tenant = tenant.clone();
+            updated_tenant.internal_database_url = Some(db_url.clone());
+            if updated_tenant.external_db_access {
+                updated_tenant.database_url = Some(swap_to_external_host(&db_url));
+            }
+            if let Some(token) = sync_token {
+                updated_tenant.sync_token = Some(token);
+            }
+
+            let mut store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
+            if let Some(t) = store.tenants.iter_mut().find(|t| t.id == tenant.id) {
+                *t = updated_tenant.clone();
+                store.save_to_path(tenants_path)?;
+            }
+
+            CliService::success("Database credentials retrieved");
+            Ok(updated_tenant)
+        },
+        Err(e) => {
+            CliService::warning(&format!("Could not fetch credentials: {}", e));
+            CliService::warning(
+                "Run 'systemprompt cloud tenant rotate-credentials' to fetch real credentials.",
+            );
+            Ok(tenant)
+        },
+    }
 }
