@@ -320,13 +320,6 @@ fn display_readonly_cloud_fields(tenant: &StoredTenant) {
 async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
     let mut local_store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
 
-    let local_tenants: Vec<StoredTenant> = local_store
-        .tenants
-        .iter()
-        .filter(|t| t.tenant_type == TenantType::Local)
-        .cloned()
-        .collect();
-
     let creds = match get_credentials() {
         Ok(creds) => creds,
         Err(_) => {
@@ -336,26 +329,28 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
 
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let cloud_tenants = match client.get_user().await {
-        Ok(response) => response
-            .tenants
-            .iter()
-            .map(StoredTenant::from_tenant_info)
-            .collect::<Vec<_>>(),
+    let cloud_tenant_infos = match client.get_user().await {
+        Ok(response) => response.tenants,
         Err(e) => {
             CliService::warning(&format!("Failed to sync cloud tenants: {}", e));
             return local_store;
         },
     };
 
-    let mut merged_tenants = local_tenants;
-    for cloud_tenant in cloud_tenants {
-        if !merged_tenants.iter().any(|t| t.id == cloud_tenant.id) {
-            merged_tenants.push(cloud_tenant);
+    for cloud_info in &cloud_tenant_infos {
+        if let Some(existing) = local_store
+            .tenants
+            .iter_mut()
+            .find(|t| t.id == cloud_info.id)
+        {
+            existing.update_from_tenant_info(cloud_info);
+        } else {
+            local_store
+                .tenants
+                .push(StoredTenant::from_tenant_info(cloud_info));
         }
     }
 
-    local_store.tenants = merged_tenants;
     local_store.synced_at = Utc::now();
 
     if let Err(e) = local_store.save_to_path(tenants_path) {

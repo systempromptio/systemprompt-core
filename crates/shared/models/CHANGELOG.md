@@ -6,6 +6,7 @@
 - `tenant_subscription_cancel` API path for subscription cancellation
 - `ExtensionsConfig` struct for profile-based extension enable/disable configuration
 - `extensions` field in `Profile` struct
+- `is_masked_database_url` helper to detect masked credentials
 
 ### Fixed
 - Fix schema validation for VIEW-based schemas

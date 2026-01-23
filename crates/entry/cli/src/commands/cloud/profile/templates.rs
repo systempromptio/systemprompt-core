@@ -114,6 +114,24 @@ pub fn save_secrets(
     secrets_path: &Path,
 ) -> Result<()> {
     use serde_json::json;
+    use systemprompt_models::Profile;
+
+    if Profile::is_masked_database_url(db_urls.external) {
+        CliService::warning(
+            "Database URL appears to be masked. Credentials may not work correctly.",
+        );
+        CliService::warning(
+            "Run 'systemprompt cloud tenant refresh-credentials' to fetch real credentials.",
+        );
+    }
+
+    if let Some(internal) = db_urls.internal {
+        if Profile::is_masked_database_url(internal) {
+            CliService::warning(
+                "Internal database URL appears to be masked. Credentials may not work correctly.",
+            );
+        }
+    }
 
     if let Some(parent) = secrets_path.parent() {
         std::fs::create_dir_all(parent)

@@ -15,6 +15,8 @@
 - Local tenant creation now prompts for profile name and API keys
 
 ### Fixed
+- Fix tenant sync overwriting credentials with masked URLs from API
+- Add warning when saving secrets with masked database URLs
 - Fix schema validation for VIEW-based schemas
 - Add migration system infrastructure
 

@@ -218,6 +218,10 @@ impl Profile {
         url.to_string()
     }
 
+    pub fn is_masked_database_url(url: &str) -> bool {
+        url.contains(":***@") || url.contains(":********@")
+    }
+
     pub fn credentials_path(&self, profile_dir: Option<&Path>) -> Result<PathBuf> {
         let cloud = self
             .cloud
