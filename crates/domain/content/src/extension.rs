@@ -13,7 +13,7 @@ impl Extension for ContentExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        30
+        45
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

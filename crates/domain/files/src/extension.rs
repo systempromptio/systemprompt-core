@@ -13,7 +13,7 @@ impl Extension for FilesExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        15
+        50
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
@@ -35,7 +35,7 @@ impl Extension for FilesExtension {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
+        vec!["users", "content"]
     }
 }
 
