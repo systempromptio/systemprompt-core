@@ -4,15 +4,15 @@ use super::response_builder::{
 };
 use super::validation::{validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::validation::CsrfToken;
-use systemprompt_oauth::OAuthState;
 use axum::extract::{Extension, Form, Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect};
 use axum::Json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::validation::CsrfToken;
+use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
 #[instrument(skip(state, _req_ctx, params), fields(client_id = %params.client_id))]

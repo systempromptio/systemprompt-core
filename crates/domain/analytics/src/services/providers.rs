@@ -1,6 +1,6 @@
 use async_trait::async_trait;
-use http::{HeaderMap, Uri};
 use chrono::Utc;
+use http::{HeaderMap, Uri};
 use systemprompt_identifiers::{SessionId, UserId};
 use systemprompt_traits::{
     AnalyticsProvider, AnalyticsProviderError, AnalyticsResult, AnalyticsSession,
@@ -57,13 +57,9 @@ impl AnalyticsProvider for AnalyticsService {
         fingerprint: &str,
         max_age_seconds: i64,
     ) -> AnalyticsResult<Option<AnalyticsSession>> {
-        let result = Self::find_recent_session_by_fingerprint(
-            self,
-            fingerprint,
-            max_age_seconds,
-        )
-        .await
-        .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
+        let result = Self::find_recent_session_by_fingerprint(self, fingerprint, max_age_seconds)
+            .await
+            .map_err(|e| AnalyticsProviderError::Internal(e.to_string()))?;
 
         Ok(result.map(|r| AnalyticsSession {
             session_id: r.session_id.to_string(),

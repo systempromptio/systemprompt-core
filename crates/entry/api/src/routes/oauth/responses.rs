@@ -36,10 +36,5 @@ pub fn single_response<T: Serialize>(data: T) -> Response {
 }
 
 pub fn created_response(body: serde_json::Value, location: String) -> Response {
-    (
-        StatusCode::CREATED,
-        [("Location", location)],
-        Json(body),
-    )
-        .into_response()
+    (StatusCode::CREATED, [("Location", location)], Json(body)).into_response()
 }

@@ -137,14 +137,14 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
     }
 
     let extensions = ExtensionRegistry::discover();
-    tracing::info!(
+    tracing::debug!(
         extension_count = extensions.extensions().len(),
         "Discovered extensions for prerender context"
     );
 
     for ext in extensions.extensions() {
         let providers = ext.page_data_providers();
-        tracing::info!(
+        tracing::debug!(
             extension_id = %ext.metadata().id,
             page_provider_count = providers.len(),
             component_count = ext.component_renderers().len(),

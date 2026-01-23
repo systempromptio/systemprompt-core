@@ -39,7 +39,8 @@ impl<'a> MigrationService<'a> {
         let result = self
             .db
             .query_raw_with(
-                &"SELECT extension_id, version, name, checksum FROM extension_migrations WHERE extension_id = $1 ORDER BY version",
+                &"SELECT extension_id, version, name, checksum FROM extension_migrations WHERE \
+                  extension_id = $1 ORDER BY version",
                 vec![serde_json::Value::String(extension_id.to_string())],
             )
             .await
@@ -165,7 +166,8 @@ impl<'a> MigrationService<'a> {
         let name = migration.name.replace('\'', "''");
 
         let sql = format!(
-            "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) VALUES ('{}', '{}', {}, '{}', '{}')",
+            "INSERT INTO extension_migrations (id, extension_id, version, name, checksum) VALUES \
+             ('{}', '{}', {}, '{}', '{}')",
             id, ext_id, migration.version, name, checksum
         );
 

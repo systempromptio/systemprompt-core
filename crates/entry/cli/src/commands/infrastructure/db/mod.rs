@@ -132,9 +132,7 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
         },
         DbCommands::Info => schema::execute_info(&db.admin_service, config).await,
         DbCommands::Migrate => unreachable!(),
-        DbCommands::Migrations { cmd } => {
-            admin::execute_migrations(&db.ctx, cmd, config).await
-        },
+        DbCommands::Migrations { cmd } => admin::execute_migrations(&db.ctx, cmd, config).await,
         DbCommands::AssignAdmin { user } => {
             admin::execute_assign_admin(&db.ctx, &user, config).await
         },

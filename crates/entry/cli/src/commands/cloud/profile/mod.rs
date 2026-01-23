@@ -28,7 +28,7 @@ use systemprompt_logging::CliService;
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {
     #[command(about = "Create a new profile")]
-    Create { name: String },
+    Create(CreateArgs),
 
     #[command(about = "List all profiles")]
     List,
@@ -55,7 +55,7 @@ pub enum ProfileCommands {
     Delete(DeleteArgs),
 
     #[command(about = "Edit profile configuration")]
-    Edit { name: Option<String> },
+    Edit(EditArgs),
 }
 
 #[derive(Debug, Args)]
@@ -64,6 +64,87 @@ pub struct DeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct CreateArgs {
+    pub name: String,
+
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_TENANT_ID",
+        help = "Tenant ID (required in non-interactive mode)"
+    )]
+    pub tenant_id: Option<String>,
+
+    #[arg(long, value_enum, default_value = "local", help = "Tenant type")]
+    pub tenant_type: TenantTypeArg,
+
+    #[arg(long, env = "ANTHROPIC_API_KEY", help = "Anthropic (Claude) API key")]
+    pub anthropic_key: Option<String>,
+
+    #[arg(long, env = "OPENAI_API_KEY", help = "OpenAI (GPT) API key")]
+    pub openai_key: Option<String>,
+
+    #[arg(long, env = "GEMINI_API_KEY", help = "Google AI (Gemini) API key")]
+    pub gemini_key: Option<String>,
+
+    #[arg(long, env = "GITHUB_TOKEN", help = "GitHub token (optional)")]
+    pub github_token: Option<String>,
+}
+
+impl CreateArgs {
+    pub fn has_api_key(&self) -> bool {
+        self.anthropic_key.is_some() || self.openai_key.is_some() || self.gemini_key.is_some()
+    }
+}
+
+#[derive(Clone, Copy, Debug, ValueEnum)]
+pub enum TenantTypeArg {
+    Local,
+    Cloud,
+}
+
+#[derive(Debug, Args)]
+pub struct EditArgs {
+    pub name: Option<String>,
+
+    #[arg(long, help = "Set Anthropic API key")]
+    pub set_anthropic_key: Option<String>,
+
+    #[arg(long, help = "Set OpenAI API key")]
+    pub set_openai_key: Option<String>,
+
+    #[arg(long, help = "Set Gemini API key")]
+    pub set_gemini_key: Option<String>,
+
+    #[arg(long, help = "Set GitHub token")]
+    pub set_github_token: Option<String>,
+
+    #[arg(long, help = "Set database URL")]
+    pub set_database_url: Option<String>,
+
+    #[arg(long, help = "Set external URL (cloud profiles)")]
+    pub set_external_url: Option<String>,
+
+    #[arg(long, help = "Set server host")]
+    pub set_host: Option<String>,
+
+    #[arg(long, help = "Set server port")]
+    pub set_port: Option<u16>,
+}
+
+impl EditArgs {
+    pub fn has_updates(&self) -> bool {
+        self.set_anthropic_key.is_some()
+            || self.set_openai_key.is_some()
+            || self.set_gemini_key.is_some()
+            || self.set_github_token.is_some()
+            || self.set_database_url.is_some()
+            || self.set_external_url.is_some()
+            || self.set_host.is_some()
+            || self.set_port.is_some()
+    }
 }
 
 #[derive(Clone, Copy, Debug, ValueEnum)]
@@ -99,7 +180,7 @@ pub async fn execute(cmd: Option<ProfileCommands>, config: &CliConfig) -> Result
 
 async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<bool> {
     match cmd {
-        ProfileCommands::Create { name } => create::execute(&name, config).await.map(|()| true),
+        ProfileCommands::Create(args) => create::execute(&args, config).await.map(|()| true),
         ProfileCommands::List => list::execute(config).map(|()| false),
         ProfileCommands::Show {
             name,
@@ -108,9 +189,7 @@ async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<boo
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml, config).map(|()| false),
         ProfileCommands::Delete(args) => delete::execute(&args, config).map(|()| false),
-        ProfileCommands::Edit { name } => {
-            edit::execute(name.as_deref(), config).await.map(|()| false)
-        },
+        ProfileCommands::Edit(args) => edit::execute(&args, config).await.map(|()| false),
     }
 }
 
@@ -156,7 +235,15 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             let name: String = Input::with_theme(&ColorfulTheme::default())
                 .with_prompt("Profile name")
                 .interact_text()?;
-            Some(ProfileCommands::Create { name })
+            Some(ProfileCommands::Create(CreateArgs {
+                name,
+                tenant_id: None,
+                tenant_type: TenantTypeArg::Local,
+                anthropic_key: None,
+                openai_key: None,
+                gemini_key: None,
+                github_token: None,
+            }))
         },
         1 => Some(ProfileCommands::List),
         2 | 3 if !has_profiles => {
@@ -164,7 +251,17 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             CliService::info("Run 'systemprompt cloud profile create <name>' to create one.");
             return Ok(Some(ProfileCommands::List));
         },
-        2 => Some(ProfileCommands::Edit { name: None }),
+        2 => Some(ProfileCommands::Edit(EditArgs {
+            name: None,
+            set_anthropic_key: None,
+            set_openai_key: None,
+            set_gemini_key: None,
+            set_github_token: None,
+            set_database_url: None,
+            set_external_url: None,
+            set_host: None,
+            set_port: None,
+        })),
         3 => select_profile("Select profile to delete")?
             .map(|name| ProfileCommands::Delete(DeleteArgs { name, yes: false })),
         4 => None,

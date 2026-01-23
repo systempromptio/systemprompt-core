@@ -10,10 +10,10 @@ use tracing::instrument;
 use validator::Validate;
 
 use super::super::responses::{bad_request, internal_error};
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::OAuthState;
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::OAuthState;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct ListClientsQuery {
@@ -90,7 +90,7 @@ pub async fn list_clients(
             let items: Vec<systemprompt_oauth::clients::api::OAuthClientResponse> =
                 clients.into_iter().map(Into::into).collect();
             paginated_response(items, pagination)
-        }
+        },
         (Err(e), _) | (_, Err(e)) => {
             tracing::error!(
                 error = %e,
@@ -98,6 +98,6 @@ pub async fn list_clients(
                 "OAuth clients list failed"
             );
             internal_error(format!("Failed to list clients: {e}"))
-        }
+        },
     }
 }

@@ -192,7 +192,7 @@ impl CloudApiClient {
             match error {
                 Ok(parsed) => {
                     return Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message));
-                }
+                },
                 Err(_parse_error) => {
                     // Parsing failed - show raw response for debugging
                     return Err(anyhow!(
@@ -200,7 +200,7 @@ impl CloudApiClient {
                         status,
                         error_text.chars().take(500).collect::<String>()
                     ));
-                }
+                },
             }
         }
 

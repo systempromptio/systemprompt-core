@@ -1,7 +1,5 @@
 use async_trait::async_trait;
-use systemprompt_traits::{
-    ProcessCleanupProvider, ProcessProviderError, ProcessResult,
-};
+use systemprompt_traits::{ProcessCleanupProvider, ProcessProviderError, ProcessResult};
 
 use super::orchestration::ProcessCleanup;
 
@@ -23,7 +21,12 @@ impl ProcessCleanupProvider for ProcessCleanup {
         Self::terminate_gracefully(pid, grace_period_ms).await
     }
 
-    async fn wait_for_port_free(&self, port: u16, max_retries: u8, delay_ms: u64) -> ProcessResult<()> {
+    async fn wait_for_port_free(
+        &self,
+        port: u16,
+        max_retries: u8,
+        delay_ms: u64,
+    ) -> ProcessResult<()> {
         Self::wait_for_port_free(port, max_retries, delay_ms)
             .await
             .map_err(|_e| ProcessProviderError::PortTimeout(port))

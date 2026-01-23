@@ -1792,8 +1792,10 @@ fn test_sync_api_client_new() {
 fn test_sync_api_client_with_direct_sync() {
     use systemprompt_sync::SyncApiClient;
 
-    let client = SyncApiClient::new("https://api.example.com", "test-token")
-        .with_direct_sync(Some("app.example.com".to_string()), Some("sync-token".to_string()));
+    let client = SyncApiClient::new("https://api.example.com", "test-token").with_direct_sync(
+        Some("app.example.com".to_string()),
+        Some("sync-token".to_string()),
+    );
 
     let debug_str = format!("{:?}", client);
     assert!(debug_str.contains("app.example.com"));
@@ -1803,8 +1805,8 @@ fn test_sync_api_client_with_direct_sync() {
 fn test_sync_api_client_with_direct_sync_none() {
     use systemprompt_sync::SyncApiClient;
 
-    let client = SyncApiClient::new("https://api.example.com", "test-token")
-        .with_direct_sync(None, None);
+    let client =
+        SyncApiClient::new("https://api.example.com", "test-token").with_direct_sync(None, None);
 
     let debug_str = format!("{:?}", client);
     assert!(debug_str.contains("None"));
@@ -1988,8 +1990,7 @@ fn test_database_sync_service_direction_pull() {
 
 #[test]
 fn test_file_sync_service_creation() {
-    use systemprompt_sync::FileSyncService;
-    use systemprompt_sync::SyncApiClient;
+    use systemprompt_sync::{FileSyncService, SyncApiClient};
 
     let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
 

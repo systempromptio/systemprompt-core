@@ -88,9 +88,9 @@ pub enum CloudCommands {
 impl HasRequirements for CloudCommands {
     fn requirements(&self) -> CommandRequirements {
         match self {
-            Self::Sync { command: Some(sync::SyncCommands::Local(_)) } => {
-                CommandRequirements::PROFILE_SECRETS_AND_PATHS
-            },
+            Self::Sync {
+                command: Some(sync::SyncCommands::Local(_)),
+            } => CommandRequirements::PROFILE_SECRETS_AND_PATHS,
             Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
                 CommandRequirements::PROFILE_AND_SECRETS
             },

@@ -1,7 +1,7 @@
-use super::{clients, health, endpoints, webauthn};
-use systemprompt_oauth::OAuthState;
+use super::{clients, endpoints, health, webauthn};
 use axum::routing::{get, post};
 use axum::Router;
+use systemprompt_oauth::OAuthState;
 
 pub fn router() -> Router<OAuthState> {
     Router::new()
@@ -12,14 +12,23 @@ pub fn router() -> Router<OAuthState> {
 pub fn public_router() -> Router<OAuthState> {
     Router::new()
         .route("/health", get(health::handle_health_api))
-        .route("/session", post(endpoints::anonymous::generate_anonymous_token))
+        .route(
+            "/session",
+            post(endpoints::anonymous::generate_anonymous_token),
+        )
         .route(
             "/webauthn/complete",
             get(endpoints::webauthn_complete::handle_webauthn_complete),
         )
         .route("/token", post(endpoints::token::handle_token))
-        .route("/authorize", get(endpoints::authorize::handle_authorize_get))
-        .route("/authorize", post(endpoints::authorize::handle_authorize_post))
+        .route(
+            "/authorize",
+            get(endpoints::authorize::handle_authorize_get),
+        )
+        .route(
+            "/authorize",
+            post(endpoints::authorize::handle_authorize_post),
+        )
         .route("/callback", get(endpoints::callback::handle_callback))
         .route("/register", post(endpoints::register::register_client))
         .route(
@@ -55,7 +64,10 @@ pub fn public_router() -> Router<OAuthState> {
 pub fn authenticated_router() -> Router<OAuthState> {
     Router::new()
         .nest("/clients", clients::router())
-        .route("/introspect", post(endpoints::introspect::handle_introspect))
+        .route(
+            "/introspect",
+            post(endpoints::introspect::handle_introspect),
+        )
         .route("/revoke", post(endpoints::revoke::handle_revoke))
         .route("/userinfo", get(endpoints::userinfo::handle_userinfo))
         .route("/consent", get(endpoints::consent::handle_consent_get))

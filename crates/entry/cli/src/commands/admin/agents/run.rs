@@ -30,8 +30,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
     );
 
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config()
-            .context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
 
     let agent_state = Arc::new(AgentState::new(

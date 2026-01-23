@@ -385,8 +385,8 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        register_extension, Extension, ExtensionMetadata, ExtensionRole, Migration, SchemaDefinition,
-        SchemaSource,
+        register_extension, Extension, ExtensionMetadata, ExtensionRole, Migration,
+        SchemaDefinition, SchemaSource,
     };
 
     #[cfg(feature = "web")]
@@ -420,22 +420,22 @@ pub mod prelude {
     };
 }
 
-pub use any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
 #[cfg(feature = "web")]
 pub use any::ApiExtensionWrapper;
+pub use any::{AnyExtension, ExtensionWrapper, SchemaExtensionWrapper};
 pub use builder::ExtensionBuilder;
+#[cfg(feature = "web")]
+pub use capabilities::HasHttpClient;
 pub use capabilities::{
     CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus, HasExtension,
 };
-#[cfg(feature = "web")]
-pub use capabilities::HasHttpClient;
 pub use hlist::{Contains, NotSame, Subset, TypeList};
+#[cfg(feature = "web")]
+pub use typed::ApiExtensionTypedDyn;
 pub use typed::{
     ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
     SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
-#[cfg(feature = "web")]
-pub use typed::ApiExtensionTypedDyn;
 pub use typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
 pub use types::{
     Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,

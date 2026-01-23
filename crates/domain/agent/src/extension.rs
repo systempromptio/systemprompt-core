@@ -18,11 +18,8 @@ impl Extension for AgentExtension {
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
-            SchemaDefinition::inline(
-                "user_contexts",
-                include_str!("../schema/user_contexts.sql"),
-            )
-            .with_required_columns(vec!["id".into(), "user_id".into(), "created_at".into()]),
+            SchemaDefinition::inline("user_contexts", include_str!("../schema/user_contexts.sql"))
+                .with_required_columns(vec!["id".into(), "user_id".into(), "created_at".into()]),
             SchemaDefinition::inline("agent_tasks", include_str!("../schema/agent_tasks.sql"))
                 .with_required_columns(vec![
                     "task_id".into(),
@@ -38,11 +35,7 @@ impl Extension for AgentExtension {
                     "created_at".into(),
                 ]),
             SchemaDefinition::inline("message_parts", include_str!("../schema/message_parts.sql"))
-                .with_required_columns(vec![
-                    "id".into(),
-                    "message_id".into(),
-                    "part_type".into(),
-                ]),
+                .with_required_columns(vec!["id".into(), "message_id".into(), "part_type".into()]),
             SchemaDefinition::inline(
                 "task_artifacts",
                 include_str!("../schema/task_artifacts.sql"),
@@ -65,7 +58,11 @@ impl Extension for AgentExtension {
                 "context_agents",
                 include_str!("../schema/context_agents.sql"),
             )
-            .with_required_columns(vec!["id".into(), "context_id".into(), "agent_id".into()]),
+            .with_required_columns(vec![
+                "id".into(),
+                "context_id".into(),
+                "agent_id".into(),
+            ]),
             SchemaDefinition::inline(
                 "context_notifications",
                 include_str!("../schema/context_notifications.sql"),

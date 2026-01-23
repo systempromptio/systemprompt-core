@@ -163,7 +163,10 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         return Ok(CommandResult::text(output).with_skip_render());
     }
 
-    CliService::success(&format!("Session saved to {}/index.json", sessions_dir.display()));
+    CliService::success(&format!(
+        "Session saved to {}/index.json",
+        sessions_dir.display()
+    ));
     Ok(CommandResult::card(output).with_title("Session Created"))
 }
 
@@ -195,7 +198,9 @@ fn try_use_existing_session(
     }
 
     CliService::success("Using existing valid session");
-    Ok(Some(CommandResult::card(output).with_title("Existing Session")))
+    Ok(Some(
+        CommandResult::card(output).with_title("Existing Session"),
+    ))
 }
 
 async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<User> {

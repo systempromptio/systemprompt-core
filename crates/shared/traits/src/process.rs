@@ -35,7 +35,12 @@ pub trait ProcessCleanupProvider: Send + Sync {
 
     async fn terminate_gracefully(&self, pid: u32, grace_period_ms: u64) -> bool;
 
-    async fn wait_for_port_free(&self, port: u16, max_retries: u8, delay_ms: u64) -> ProcessResult<()>;
+    async fn wait_for_port_free(
+        &self,
+        port: u16,
+        max_retries: u8,
+        delay_ms: u64,
+    ) -> ProcessResult<()>;
 }
 
 pub type DynProcessCleanupProvider = Arc<dyn ProcessCleanupProvider>;

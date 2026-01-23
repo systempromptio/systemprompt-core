@@ -48,17 +48,13 @@ pub fn extract_cookie_token(headers: &http::HeaderMap) -> Result<String, AuthErr
 pub struct AuthService;
 
 impl AuthService {
-    pub fn extract_bearer_token(
-        headers: &http::HeaderMap,
-    ) -> Result<String, http::StatusCode> {
+    pub fn extract_bearer_token(headers: &http::HeaderMap) -> Result<String, http::StatusCode> {
         systemprompt_security::TokenExtractor::standard()
             .extract(headers)
             .map_err(|_| http::StatusCode::UNAUTHORIZED)
     }
 
-    pub fn authenticate(
-        headers: &http::HeaderMap,
-    ) -> Result<AuthenticatedUser, http::StatusCode> {
+    pub fn authenticate(headers: &http::HeaderMap) -> Result<AuthenticatedUser, http::StatusCode> {
         AuthenticationService::authenticate(headers)
     }
 

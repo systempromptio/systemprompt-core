@@ -1,6 +1,3 @@
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
-use systemprompt_oauth::OAuthState;
 use anyhow::Result;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
@@ -10,6 +7,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
+use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
 #[derive(Debug, Deserialize)]

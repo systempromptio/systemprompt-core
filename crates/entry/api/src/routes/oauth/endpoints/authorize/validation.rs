@@ -1,6 +1,6 @@
 use super::AuthorizeQuery;
-use systemprompt_oauth::repository::OAuthRepository;
 use anyhow::Result;
+use systemprompt_oauth::repository::OAuthRepository;
 
 pub async fn validate_authorize_request(
     params: &AuthorizeQuery,

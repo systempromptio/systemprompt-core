@@ -95,13 +95,9 @@ impl AppContext {
             content_routing,
         ));
 
-        let fingerprint_repo = FingerprintRepository::new(&database)
-            .ok()
-            .map(Arc::new);
+        let fingerprint_repo = FingerprintRepository::new(&database).ok().map(Arc::new);
 
-        let user_service = UserService::new(&database)
-            .ok()
-            .map(Arc::new);
+        let user_service = UserService::new(&database).ok().map(Arc::new);
 
         systemprompt_logging::init_logging(Arc::clone(&database));
 

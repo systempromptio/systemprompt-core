@@ -1,10 +1,10 @@
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
-use systemprompt_oauth::services::templating::TemplateEngine;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use axum::Json;
 use std::collections::HashMap;
 use systemprompt_models::Config;
+use systemprompt_oauth::services::templating::TemplateEngine;
 
 pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
     AuthorizeQuery {

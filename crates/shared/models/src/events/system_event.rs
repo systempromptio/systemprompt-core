@@ -63,7 +63,6 @@ impl SystemEvent {
             | Self::Heartbeat { timestamp } => *timestamp,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]

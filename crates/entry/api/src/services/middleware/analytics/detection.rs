@@ -97,7 +97,8 @@ pub fn spawn_behavioral_detection_task(
             }
 
             if result.is_suspicious {
-                escalate_throttle_if_needed(&session_repo, &session_id_for_update, result.score).await;
+                escalate_throttle_if_needed(&session_repo, &session_id_for_update, result.score)
+                    .await;
             }
         }
     });

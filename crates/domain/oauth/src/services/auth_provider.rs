@@ -87,7 +87,6 @@ impl JwtAuthorizationProvider {
             audiences,
         }
     }
-
 }
 
 #[async_trait]

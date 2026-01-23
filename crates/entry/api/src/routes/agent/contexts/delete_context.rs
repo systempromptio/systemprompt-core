@@ -4,8 +4,8 @@ use axum::response::{IntoResponse, Response};
 use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
-use super::is_valid_context_id;
 use super::super::responses::api_error_response;
+use super::is_valid_context_id;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{ApiError, SystemEventBuilder};
@@ -41,7 +41,9 @@ pub async fn delete_context(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to delete context");
-            api_error_response(ApiError::not_found(format!("Failed to delete context: {e}")))
+            api_error_response(ApiError::not_found(format!(
+                "Failed to delete context: {e}"
+            )))
         },
     }
 }

@@ -16,15 +16,11 @@ use super::templates::{
     get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
     save_secrets, DatabaseUrls,
 };
+use super::{CreateArgs, TenantTypeArg};
 use crate::cli_settings::CliConfig;
 
-pub async fn execute(name: &str, config: &CliConfig) -> Result<()> {
-    if !config.is_interactive() {
-        return Err(anyhow::anyhow!(
-            "Profile creation requires interactive mode.\nUse --tenant-id and --anthropic-key \
-             flags in non-interactive mode (not yet implemented)."
-        ));
-    }
+pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
+    let name = &args.name;
     CliService::section(&format!("Create Profile: {}", name));
 
     let cloud_user = get_cloud_user()?;
@@ -50,20 +46,40 @@ pub async fn execute(name: &str, config: &CliConfig) -> Result<()> {
         TenantStore::default()
     });
 
-    let tenant_type = select_tenant_type(&store)?;
-    let eligible_tenants = get_tenants_by_type(&store, tenant_type);
-    let tenant = select_tenant(&eligible_tenants)?;
+    let (tenant, api_keys) = if config.is_interactive() && args.tenant_id.is_none() {
+        let tenant_type = select_tenant_type(&store)?;
+        let eligible_tenants = get_tenants_by_type(&store, tenant_type);
+        let tenant = select_tenant(&eligible_tenants)?;
 
-    if !tenant.has_database_url() {
-        bail!(
-            "Tenant '{}' does not have a database URL configured.\nFor local tenants, recreate \
-             with 'systemprompt cloud tenant create'.",
-            tenant.name
-        );
-    }
+        if !tenant.has_database_url() {
+            bail!(
+                "Tenant '{}' does not have a database URL configured.\nFor local tenants, \
+                 recreate with 'systemprompt cloud tenant create'.",
+                tenant.name
+            );
+        }
 
-    CliService::section("API Keys");
-    let api_keys = collect_api_keys()?;
+        CliService::section("API Keys");
+        let api_keys = collect_api_keys()?;
+        (tenant, api_keys)
+    } else {
+        let tenant = resolve_tenant_from_args(args, &store)?;
+
+        if !tenant.has_database_url() {
+            bail!(
+                "Tenant '{}' does not have a database URL configured.\nFor local tenants, \
+                 recreate with 'systemprompt cloud tenant create'.",
+                tenant.name
+            );
+        }
+
+        let api_keys = ApiKeys::from_options(
+            args.gemini_key.clone(),
+            args.anthropic_key.clone(),
+            args.openai_key.clone(),
+        )?;
+        (tenant, api_keys)
+    };
 
     std::fs::create_dir_all(&profile_dir)
         .with_context(|| format!("Failed to create directory {}", profile_dir.display()))?;
@@ -253,4 +269,36 @@ pub fn create_profile_for_tenant(
     }
 
     Ok(CreatedProfile { name })
+}
+
+fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<StoredTenant> {
+    let tenant_id = args.tenant_id.as_ref().ok_or_else(|| {
+        anyhow::anyhow!(
+            "Missing required flag: --tenant-id\nIn non-interactive mode, --tenant-id is \
+             required.\nList tenants with: systemprompt cloud tenant list"
+        )
+    })?;
+
+    let tenant = store.find_tenant(tenant_id).ok_or_else(|| {
+        anyhow::anyhow!(
+            "Tenant '{}' not found.\nList available tenants with: systemprompt cloud tenant list",
+            tenant_id
+        )
+    })?;
+
+    let expected_type: TenantType = match args.tenant_type {
+        TenantTypeArg::Local => TenantType::Local,
+        TenantTypeArg::Cloud => TenantType::Cloud,
+    };
+
+    if tenant.tenant_type != expected_type {
+        bail!(
+            "Tenant '{}' is type {:?}, but --tenant-type {:?} was specified",
+            tenant_id,
+            tenant.tenant_type,
+            args.tenant_type
+        );
+    }
+
+    Ok(tenant.clone())
 }

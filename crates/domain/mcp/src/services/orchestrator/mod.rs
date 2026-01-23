@@ -45,8 +45,7 @@ impl McpOrchestrator {
         let network = NetworkManager::new();
         let process = ProcessManager::new();
         let monitoring = MonitoringManager::new();
-        let lifecycle =
-            LifecycleManager::new(process, network, database.clone(), monitoring);
+        let lifecycle = LifecycleManager::new(process, network, database.clone(), monitoring);
 
         event_bus.register_handler(Arc::new(LifecycleHandler::new(lifecycle.clone())));
 

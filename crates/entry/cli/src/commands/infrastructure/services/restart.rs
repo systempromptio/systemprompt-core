@@ -15,8 +15,7 @@ const DEFAULT_API_PORT: u16 = 8080;
 
 fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config()
-            .context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
     Ok(Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
@@ -98,7 +97,8 @@ pub async fn execute_mcp(
     };
     CliService::section(&format!("{} MCP Server: {}", action, server_name));
 
-    let manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+    let manager =
+        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     if build {
         manager

@@ -9,25 +9,6 @@ use systemprompt_models::{CliPaths, ServicesConfig};
 
 use super::tenant::find_services_config;
 
-fn extract_extension_dir(relative_path: &Path) -> Option<PathBuf> {
-    let components: Vec<_> = relative_path.components().collect();
-
-    for (i, component) in components.iter().enumerate() {
-        if let std::path::Component::Normal(name) = component {
-            if *name == "extensions" && i + 1 < components.len() {
-                let mut result = PathBuf::new();
-                result.push("extensions");
-                if let std::path::Component::Normal(ext_name) = components[i + 1] {
-                    result.push(ext_name);
-                    return Some(result);
-                }
-            }
-        }
-    }
-
-    None
-}
-
 #[derive(Debug)]
 pub struct DockerfileBuilder<'a> {
     project_root: &'a Path,
@@ -145,42 +126,38 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
     }
 
     fn extension_asset_copy_section(&self) -> String {
-        let registry = ExtensionRegistry::discover();
-        let assets = registry.all_required_assets();
+        let discovered = ExtensionLoader::discover(self.project_root);
 
-        if assets.is_empty() {
+        if discovered.is_empty() {
             return String::new();
         }
 
-        let mut ext_dirs: HashSet<PathBuf> = HashSet::new();
-
-        for (_ext_id, asset) in &assets {
-            let source = asset.source();
-            if let Ok(relative) = source.strip_prefix(self.project_root) {
-                if let Some(ext_dir) = extract_extension_dir(relative) {
-                    ext_dirs.insert(ext_dir);
-                }
-            }
-        }
+        let ext_dirs: HashSet<PathBuf> = discovered
+            .iter()
+            .filter_map(|ext| ext.path.strip_prefix(self.project_root).ok())
+            .map(|p| p.to_path_buf())
+            .collect();
 
         if ext_dirs.is_empty() {
             return String::new();
         }
 
-        let mut lines = vec!["# Copy extension assets".to_string()];
         let mut sorted_dirs: Vec<_> = ext_dirs.into_iter().collect();
         sorted_dirs.sort();
 
-        for dir in sorted_dirs {
-            lines.push(format!(
-                "COPY {} {}/{}",
-                dir.display(),
-                container::APP,
-                dir.display()
-            ));
-        }
+        let copy_lines: Vec<_> = sorted_dirs
+            .iter()
+            .map(|dir| {
+                format!(
+                    "COPY {} {}/{}",
+                    dir.display(),
+                    container::APP,
+                    dir.display()
+                )
+            })
+            .collect();
 
-        format!("\n{}\n", lines.join("\n"))
+        format!("\n# Copy extension assets\n{}\n", copy_lines.join("\n"))
     }
 
     fn mcp_copy_section(&self) -> String {

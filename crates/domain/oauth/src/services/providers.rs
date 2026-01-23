@@ -40,15 +40,14 @@ impl JwtValidationProviderImpl {
 
 impl JwtValidationProvider for JwtValidationProviderImpl {
     fn validate_token(&self, token: &str) -> JwtResult<AgentJwtClaims> {
-        let claims =
-            validate_jwt_token(token, &self.secret, &self.issuer, &self.audiences)
-                .map_err(|e| {
-                    if e.to_string().contains("expired") {
-                        JwtProviderError::TokenExpired
-                    } else {
-                        JwtProviderError::InvalidToken
-                    }
-                })?;
+        let claims = validate_jwt_token(token, &self.secret, &self.issuer, &self.audiences)
+            .map_err(|e| {
+                if e.to_string().contains("expired") {
+                    JwtProviderError::TokenExpired
+                } else {
+                    JwtProviderError::InvalidToken
+                }
+            })?;
 
         let is_admin = claims.is_admin();
         Ok(AgentJwtClaims {
@@ -64,8 +63,7 @@ impl JwtValidationProvider for JwtValidationProviderImpl {
     }
 
     fn generate_token(&self, params: GenerateTokenParams) -> JwtResult<String> {
-        let user_id = Uuid::parse_str(&params.user_id)
-            .unwrap_or_else(|_| Uuid::new_v4());
+        let user_id = Uuid::parse_str(&params.user_id).unwrap_or_else(|_| Uuid::new_v4());
 
         let user = AuthenticatedUser {
             id: user_id,

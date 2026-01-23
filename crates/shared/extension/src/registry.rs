@@ -222,7 +222,10 @@ impl ExtensionRegistry {
     }
 
     #[cfg(not(feature = "web"))]
-    pub fn validate_api_paths(&self, _ctx: &dyn crate::ExtensionContext) -> Result<(), LoaderError> {
+    pub fn validate_api_paths(
+        &self,
+        _ctx: &dyn crate::ExtensionContext,
+    ) -> Result<(), LoaderError> {
         Ok(())
     }
 

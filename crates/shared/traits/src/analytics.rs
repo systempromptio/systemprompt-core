@@ -109,8 +109,7 @@ pub trait AnalyticsProvider: Send + Sync {
 pub trait FingerprintProvider: Send + Sync {
     async fn count_active_sessions(&self, fingerprint: &str) -> AnalyticsResult<i64>;
 
-    async fn find_reusable_session(&self, fingerprint: &str)
-        -> AnalyticsResult<Option<String>>;
+    async fn find_reusable_session(&self, fingerprint: &str) -> AnalyticsResult<Option<String>>;
 
     async fn upsert_fingerprint(
         &self,

@@ -84,7 +84,11 @@ pub async fn list_tasks_by_context(
     let mut tasks = Vec::new();
 
     for row in rows {
-        tasks.push(constructor.construct_task_from_task_id(&row.task_id).await?);
+        tasks.push(
+            constructor
+                .construct_task_from_task_id(&row.task_id)
+                .await?,
+        );
     }
 
     Ok(tasks)
@@ -132,7 +136,11 @@ pub async fn get_tasks_by_user_id(
     let mut tasks = Vec::new();
 
     for row in &rows {
-        tasks.push(constructor.construct_task_from_task_id(&row.task_id).await?);
+        tasks.push(
+            constructor
+                .construct_task_from_task_id(&row.task_id)
+                .await?,
+        );
     }
 
     Ok(tasks)

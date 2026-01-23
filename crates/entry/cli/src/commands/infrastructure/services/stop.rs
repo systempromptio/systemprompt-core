@@ -116,8 +116,7 @@ pub async fn execute_individual_agent(
     CliService::section(&format!("Stopping Agent: {}", agent_id));
 
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config()
-            .context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
@@ -149,7 +148,8 @@ pub async fn execute_individual_mcp(
 ) -> Result<()> {
     CliService::section(&format!("Stopping MCP Server: {}", server_name));
 
-    let manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+    let manager =
+        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
 
     manager.stop_services(Some(server_name.to_string())).await?;
 

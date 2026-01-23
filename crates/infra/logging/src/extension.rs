@@ -30,23 +30,20 @@ impl Extension for LoggingExtension {
                     "module".into(),
                     "message".into(),
                 ]),
-            SchemaDefinition::inline(
-                "analytics_events",
-                include_str!("../schema/analytics.sql"),
-            )
-            .with_required_columns(vec![
-                "id".into(),
-                "user_id".into(),
-                "event_type".into(),
-                "event_category".into(),
-                "severity".into(),
-                "timestamp".into(),
-            ]),
+            SchemaDefinition::inline("analytics_events", include_str!("../schema/analytics.sql"))
+                .with_required_columns(vec![
+                    "id".into(),
+                    "user_id".into(),
+                    "event_type".into(),
+                    "event_category".into(),
+                    "severity".into(),
+                    "timestamp".into(),
+                ]),
         ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["database"]
+        vec!["database", "users"]
     }
 }
 

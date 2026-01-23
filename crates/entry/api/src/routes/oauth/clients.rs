@@ -1,7 +1,7 @@
 use super::client;
-use systemprompt_oauth::OAuthState;
 use axum::routing::{delete, get, post, put};
 use axum::Router;
+use systemprompt_oauth::OAuthState;
 
 pub fn router() -> Router<OAuthState> {
     Router::new()

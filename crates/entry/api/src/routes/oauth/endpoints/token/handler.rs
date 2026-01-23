@@ -6,9 +6,6 @@ use super::validation::{
     extract_required_field, validate_authorization_code, validate_client_credentials,
 };
 use super::{TokenError, TokenRequest};
-use systemprompt_oauth::GrantType;
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::OAuthState;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
@@ -16,6 +13,8 @@ use axum::Form;
 use std::sync::Arc;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::{GrantType, OAuthState};
 use tracing::instrument;
 
 #[instrument(skip(state, _req_ctx, headers, request), fields(grant_type = %request.grant_type))]

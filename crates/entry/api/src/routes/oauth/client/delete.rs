@@ -6,9 +6,9 @@ use axum::response::{IntoResponse, Response};
 use tracing::instrument;
 
 use super::super::responses::{internal_error, not_found};
+use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::OAuthState;
-use systemprompt_models::RequestContext;
 
 fn init_error(e: impl std::fmt::Display) -> Response {
     (
@@ -42,7 +42,7 @@ pub async fn delete_client(
                     "OAuth client deleted"
                 );
                 StatusCode::NO_CONTENT.into_response()
-            }
+            },
             Err(e) => {
                 tracing::error!(
                     error = %e,
@@ -51,7 +51,7 @@ pub async fn delete_client(
                     "OAuth client deletion failed"
                 );
                 internal_error(format!("Failed to delete client: {e}"))
-            }
+            },
         },
         Ok(None) => {
             tracing::info!(
@@ -61,7 +61,7 @@ pub async fn delete_client(
                 "OAuth client deletion failed"
             );
             not_found(format!("Client with ID '{client_id}' not found"))
-        }
+        },
         Err(e) => {
             tracing::error!(
                 error = %e,
@@ -70,6 +70,6 @@ pub async fn delete_client(
                 "OAuth client deletion failed"
             );
             internal_error(format!("Failed to get client: {e}"))
-        }
+        },
     }
 }

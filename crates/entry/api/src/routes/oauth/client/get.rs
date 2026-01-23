@@ -6,10 +6,10 @@ use axum::response::{IntoResponse, Response};
 use tracing::instrument;
 
 use super::super::responses::{internal_error, not_found, single_response};
+use systemprompt_models::RequestContext;
 use systemprompt_oauth::clients::api::OAuthClientResponse;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::OAuthState;
-use systemprompt_models::RequestContext;
 
 fn init_error(e: impl std::fmt::Display) -> Response {
     (
@@ -43,7 +43,7 @@ pub async fn get_client(
             );
             let response: OAuthClientResponse = client.into();
             single_response(response)
-        }
+        },
         Ok(None) => {
             tracing::info!(
                 client_id = %client_id,
@@ -52,7 +52,7 @@ pub async fn get_client(
                 "OAuth client retrieval failed"
             );
             not_found(format!("Client with ID '{client_id}' not found"))
-        }
+        },
         Err(e) => {
             tracing::error!(
                 error = %e,
@@ -61,6 +61,6 @@ pub async fn get_client(
                 "OAuth client retrieval failed"
             );
             internal_error(format!("Failed to get client: {e}"))
-        }
+        },
     }
 }

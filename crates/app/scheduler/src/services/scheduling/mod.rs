@@ -78,13 +78,10 @@ impl SchedulerService {
             return;
         }
 
-        info!(
-            count = startup_jobs.len(),
-            "Running startup jobs"
-        );
+        info!(count = startup_jobs.len(), "Running startup jobs");
 
         for (job_name, _job) in startup_jobs {
-            info!(job_name = %job_name, "Running startup job");
+            debug!(job_name = %job_name, "Running startup job");
             Self::execute_job(
                 job_name,
                 Arc::clone(&self.db_pool),
