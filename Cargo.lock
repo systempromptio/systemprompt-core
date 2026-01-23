@@ -4071,7 +4071,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "axum 0.8.8",
@@ -4112,7 +4112,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4169,7 +4169,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4207,7 +4207,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4233,7 +4233,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4293,7 +4293,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4363,7 +4363,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4380,7 +4380,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4410,7 +4410,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "regex",
@@ -4426,7 +4426,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4466,7 +4466,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4490,7 +4490,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4506,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4524,7 +4524,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4554,7 +4554,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4598,7 +4598,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4611,7 +4611,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "serde",
@@ -4626,7 +4626,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4656,7 +4656,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4696,7 +4696,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4724,7 +4724,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4764,7 +4764,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4779,7 +4779,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "axum 0.8.8",
@@ -4807,7 +4807,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4841,7 +4841,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4859,7 +4859,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-sync"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4886,7 +4886,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-template-provider"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -4896,7 +4896,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4914,7 +4914,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4934,7 +4934,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-trait",

@@ -15,27 +15,27 @@ workspace = true
 
 [dependencies]
 # Shared layer
-systemprompt-models = { path = "../../shared/models", version = "0.0.4" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.4" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
+systemprompt-identifiers = { path = "../../shared/identifiers" }
 
 # Infrastructure layer
-systemprompt-database = { path = "../../infra/database", version = "0.0.4" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.4" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.4" }
-systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.4" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-logging = { path = "../../infra/logging" }
+systemprompt-config = { path = "../../infra/config" }
+systemprompt-cloud = { path = "../../infra/cloud" }
 
 # Domain layer (read-only access for content types)
-systemprompt-content = { path = "../../domain/content", version = "0.0.4" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.4" }
-systemprompt-templates = { path = "../../domain/templates", version = "0.0.4" }
+systemprompt-content = { path = "../../domain/content" }
+systemprompt-files = { path = "../../domain/files" }
+systemprompt-templates = { path = "../../domain/templates" }
 
 # Template provider traits
-systemprompt-template-provider = { path = "../../shared/template-provider", version = "0.0.4" }
+systemprompt-template-provider = { path = "../../shared/template-provider" }
 
 # Extension system
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
+systemprompt-extension = { path = "../../shared/extension" }
 
 # Async runtime
 tokio = { workspace = true }

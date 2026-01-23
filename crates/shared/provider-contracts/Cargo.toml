@@ -22,4 +22,4 @@ serde_yaml = { workspace = true }
 thiserror = { workspace = true }
 futures = { workspace = true }
 inventory = { workspace = true }
-systemprompt-identifiers = { path = "../identifiers", version = "0.0.4" }
+systemprompt-identifiers = { path = "../identifiers" }
