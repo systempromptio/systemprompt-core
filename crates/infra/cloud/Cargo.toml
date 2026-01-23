@@ -53,10 +53,10 @@ clap = { workspace = true }
 uuid = { workspace = true }
 
 # Internal dependencies
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.5" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.5" }
-systemprompt-client = { path = "../../shared/client", version = "0.0.5" }
-systemprompt-logging = { path = "../logging", version = "0.0.5" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.6" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.6" }
+systemprompt-client = { path = "../../shared/client", version = "0.0.6" }
+systemprompt-logging = { path = "../logging", version = "0.0.6" }
 
 [dev-dependencies]
 tempfile.workspace = true

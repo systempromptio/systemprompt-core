@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.6] - 2026-01-23
+
+### Fixed
+- Fix `admin session login` failing with "No profile loaded" even when SYSTEMPROMPT_PROFILE is set
+- Session login now properly initializes profile and secrets from environment variable or --profile flag
+
+## [0.0.5] - 2026-01-23
+
+### Changed
+- Update inter-crate dependency versions
+
 ## [0.0.4] - 2026-01-23
 
 ### Added

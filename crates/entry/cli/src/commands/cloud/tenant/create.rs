@@ -311,7 +311,7 @@ pub async fn create_cloud_tenant(
     Ok(stored_tenant)
 }
 
-fn swap_to_external_host(url: &str) -> String {
+pub fn swap_to_external_host(url: &str) -> String {
     let Ok(parsed) = Url::parse(url) else {
         return url.to_string();
     };

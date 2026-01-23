@@ -9,6 +9,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::cli_settings::CliConfig;
+use crate::requirements::{CommandRequirements, HasRequirements};
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -24,6 +25,15 @@ pub enum SessionCommands {
 
     #[command(about = "Create an admin session for CLI access")]
     Login(login::LoginArgs),
+}
+
+impl HasRequirements for SessionCommands {
+    fn requirements(&self) -> CommandRequirements {
+        match self {
+            Self::Login(_) => CommandRequirements::PROFILE_AND_SECRETS,
+            Self::Show | Self::Switch { .. } | Self::List => CommandRequirements::NONE,
+        }
+    }
 }
 
 pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {

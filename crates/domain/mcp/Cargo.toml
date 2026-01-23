@@ -50,14 +50,14 @@ clap = { workspace = true }
 jsonwebtoken = { workspace = true }
 
 # systemprompt.io integration
-systemprompt-config = { path = "../../infra/config", version = "0.0.5" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.5" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.5" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.5", features = ["sqlx"] }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.5" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.5" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.5" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.5" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.6" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.6" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.6" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.6", features = ["sqlx"] }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.6" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.6" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.6" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.6" }
 
 # Process management
 uuid = { workspace = true }
