@@ -26,30 +26,30 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-agent = { path = "../../domain/agent" }
-systemprompt-mcp = { path = "../../domain/mcp" }
-systemprompt-api = { path = "../api" }
-systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-users = { path = "../../domain/users" }
-systemprompt-oauth = { path = "../../domain/oauth" }
-systemprompt-database = { path = "../../infra/database" }
-systemprompt-content = { path = "../../domain/content" }
-systemprompt-files = { path = "../../domain/files" }
-systemprompt-scheduler = { path = "../../app/scheduler" }
-systemprompt-config = { path = "../../infra/config" }
-systemprompt-analytics = { path = "../../domain/analytics" }
-systemprompt-security = { path = "../../infra/security" }
-systemprompt-ai = { path = "../../domain/ai" }
-systemprompt-sync = { path = "../../app/sync" }
-systemprompt-generator = { path = "../../app/generator" }
-systemprompt-models = { path = "../../shared/models" }
-systemprompt-loader = { path = "../../infra/loader" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
-systemprompt-traits = { path = "../../shared/traits" }
-systemprompt-extension = { path = "../../shared/extension" }
-systemprompt-cloud = { path = "../../infra/cloud" }
-systemprompt-client = { path = "../../shared/client" }
+systemprompt-runtime = { path = "../../app/runtime", version = "0.0.4" }
+systemprompt-agent = { path = "../../domain/agent", version = "0.0.4" }
+systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.4" }
+systemprompt-api = { path = "../api", version = "0.0.4" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.4" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.4" }
+systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.4" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.4" }
+systemprompt-content = { path = "../../domain/content", version = "0.0.4" }
+systemprompt-files = { path = "../../domain/files", version = "0.0.4" }
+systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.4" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.4" }
+systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.4" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.4" }
+systemprompt-ai = { path = "../../domain/ai", version = "0.0.4" }
+systemprompt-sync = { path = "../../app/sync", version = "0.0.4" }
+systemprompt-generator = { path = "../../app/generator", version = "0.0.4" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.4" }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.4" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
+systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.4" }
+systemprompt-client = { path = "../../shared/client", version = "0.0.4" }
 
 # Additional dependencies used by CLI modules
 tracing = { workspace = true }
@@ -87,8 +87,8 @@ regex = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
-systemprompt-runtime = { path = "../../app/runtime" }
-systemprompt-ai = { path = "../../domain/ai" }
+systemprompt-runtime = { path = "../../app/runtime", version = "0.0.4" }
+systemprompt-ai = { path = "../../domain/ai", version = "0.0.4" }
 uuid = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

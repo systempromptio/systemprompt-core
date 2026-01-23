@@ -31,7 +31,7 @@ serde_json = { workspace = true }
 once_cell = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-models = { path = "../../shared/models" }
-systemprompt-identifiers = { path = "../../shared/identifiers" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.4" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4" }
 
 [dev-dependencies]

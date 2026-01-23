@@ -14,14 +14,14 @@ description = "File management module for systemprompt.io"
 workspace = true
 
 [dependencies]
-systemprompt-cloud = { path = "../../infra/cloud" }
-systemprompt-database = { path = "../../infra/database" }
-systemprompt-extension = { path = "../../shared/extension" }
+systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.4" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.4" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
 systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
-systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-models = { path = "../../shared/models" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
-systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.4" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.4" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.4" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
