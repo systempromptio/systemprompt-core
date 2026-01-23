@@ -63,12 +63,12 @@ axum = { workspace = true, optional = true }
 reqwest = { workspace = true }
 
 # Core module dependencies
-systemprompt-database = { path = "../../infra/database" }
-systemprompt-extension = { path = "../../shared/extension" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.4" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
 systemprompt-identifiers = { path = "../../shared/identifiers", features = ["sqlx"] }
-systemprompt-logging = { path = "../../infra/logging" }
-systemprompt-security = { path = "../../infra/security" }
-systemprompt-traits = { path = "../../shared/traits" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.4" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.4" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
 
 
 
