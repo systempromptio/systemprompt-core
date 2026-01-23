@@ -20,7 +20,7 @@ pub async fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
         .to_path_buf();
 
     if args.has_updates() {
-        return apply_updates(args, &profile_path, &profile_dir).await;
+        return apply_updates(args, &profile_path, &profile_dir);
     }
 
     if !config.is_interactive() {
@@ -67,7 +67,7 @@ pub async fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-async fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Result<()> {
+fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Result<()> {
     CliService::section(&format!("Updating Profile: {}", profile_path.display()));
 
     let mut profile = ProfileLoader::load_from_path(profile_path)?;
@@ -113,13 +113,13 @@ async fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path)
     }
 
     if let Some(url) = &args.set_external_url {
-        profile.server.api_external_url = url.clone();
+        url.clone_into(&mut profile.server.api_external_url);
         profile_changed = true;
         CliService::success(&format!("Updated: external_url = {}", url));
     }
 
     if let Some(host) = &args.set_host {
-        profile.server.host = host.clone();
+        host.clone_into(&mut profile.server.host);
         profile_changed = true;
         CliService::success(&format!("Updated: host = {}", host));
     }

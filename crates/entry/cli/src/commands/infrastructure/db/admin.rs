@@ -196,10 +196,10 @@ pub async fn execute_migrations(
 
     match cmd {
         MigrationsCommands::Status => {
-            execute_migrations_status(db.as_ref(), &registry, config).await
+            execute_migrations_status(db.as_ref(), registry, config).await
         },
         MigrationsCommands::History { extension } => {
-            execute_migrations_history(db.as_ref(), &registry, &extension, config).await
+            execute_migrations_history(db.as_ref(), registry, &extension, config).await
         },
     }
 }

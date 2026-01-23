@@ -94,7 +94,7 @@ pub struct CreateArgs {
 }
 
 impl CreateArgs {
-    pub fn has_api_key(&self) -> bool {
+    pub const fn has_api_key(&self) -> bool {
         self.anthropic_key.is_some() || self.openai_key.is_some() || self.gemini_key.is_some()
     }
 }
@@ -135,7 +135,7 @@ pub struct EditArgs {
 }
 
 impl EditArgs {
-    pub fn has_updates(&self) -> bool {
+    pub const fn has_updates(&self) -> bool {
         self.set_anthropic_key.is_some()
             || self.set_openai_key.is_some()
             || self.set_gemini_key.is_some()

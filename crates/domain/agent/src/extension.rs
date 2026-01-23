@@ -19,7 +19,11 @@ impl Extension for AgentExtension {
     fn schemas(&self) -> Vec<SchemaDefinition> {
         vec![
             SchemaDefinition::inline("user_contexts", include_str!("../schema/user_contexts.sql"))
-                .with_required_columns(vec!["id".into(), "user_id".into(), "created_at".into()]),
+                .with_required_columns(vec![
+                    "context_id".into(),
+                    "user_id".into(),
+                    "created_at".into(),
+                ]),
             SchemaDefinition::inline("agent_tasks", include_str!("../schema/agent_tasks.sql"))
                 .with_required_columns(vec![
                     "task_id".into(),
@@ -29,7 +33,7 @@ impl Extension for AgentExtension {
                 ]),
             SchemaDefinition::inline("task_messages", include_str!("../schema/task_messages.sql"))
                 .with_required_columns(vec![
-                    "message_id".into(),
+                    "id".into(),
                     "task_id".into(),
                     "role".into(),
                     "created_at".into(),
@@ -41,9 +45,9 @@ impl Extension for AgentExtension {
                 include_str!("../schema/task_artifacts.sql"),
             )
             .with_required_columns(vec![
-                "artifact_id".into(),
+                "id".into(),
                 "task_id".into(),
-                "created_at".into(),
+                "artifact_id".into(),
             ]),
             SchemaDefinition::inline(
                 "artifact_parts",
@@ -78,19 +82,18 @@ impl Extension for AgentExtension {
             )
             .with_required_columns(vec!["id".into(), "task_id".into()]),
             SchemaDefinition::inline("agent_skills", include_str!("../schema/agent_skills.sql"))
-                .with_required_columns(vec!["id".into(), "agent_id".into(), "skill_id".into()]),
+                .with_required_columns(vec!["skill_id".into(), "name".into()]),
             SchemaDefinition::inline(
                 "task_execution_steps",
                 include_str!("../schema/task_execution_steps.sql"),
             )
             .with_required_columns(vec![
-                "id".into(),
+                "step_id".into(),
                 "task_id".into(),
                 "step_type".into(),
-                "created_at".into(),
             ]),
             SchemaDefinition::inline("services", include_str!("../schema/services.sql"))
-                .with_required_columns(vec!["id".into(), "name".into(), "service_type".into()]),
+                .with_required_columns(vec!["name".into(), "module_name".into(), "status".into()]),
             SchemaDefinition::inline(
                 "user_session_analytics",
                 include_str!("../schema/user_session_analytics.sql"),

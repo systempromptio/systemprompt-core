@@ -256,7 +256,10 @@ pub async fn run() -> Result<()> {
                 },
                 _ => {},
             }
-        } else if is_cloud && !is_fly_environment {
+        } else if is_cloud
+            && !is_fly_environment
+            && !matches!(cli.command.as_ref(), Some(Commands::Cloud(_)))
+        {
             bail!(
                 "Cloud profile '{}' selected but this command doesn't support remote \
                  execution.\nUse a local profile with --profile <name>.",

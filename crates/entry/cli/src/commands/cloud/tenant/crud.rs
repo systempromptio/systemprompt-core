@@ -320,11 +320,8 @@ fn display_readonly_cloud_fields(tenant: &StoredTenant) {
 async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
     let mut local_store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
 
-    let creds = match get_credentials() {
-        Ok(creds) => creds,
-        Err(_) => {
-            return local_store;
-        },
+    let Ok(creds) = get_credentials() else {
+        return local_store;
     };
 
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
@@ -382,26 +379,25 @@ pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> 
         bail!("No cloud tenants found. Only cloud tenants have subscriptions.");
     }
 
-    let tenant = match args.id {
-        Some(ref id) => store
+    let tenant = if let Some(ref id) = args.id {
+        store
             .tenants
             .iter()
             .find(|t| t.id == *id && t.tenant_type == TenantType::Cloud)
-            .ok_or_else(|| anyhow!("Cloud tenant not found: {}", id))?,
-        None => {
-            let options: Vec<String> = cloud_tenants
-                .iter()
-                .map(|t| format!("{} ({})", t.name, t.id))
-                .collect();
+            .ok_or_else(|| anyhow!("Cloud tenant not found: {}", id))?
+    } else {
+        let options: Vec<String> = cloud_tenants
+            .iter()
+            .map(|t| format!("{} ({})", t.name, t.id))
+            .collect();
 
-            let selection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("Select cloud tenant to cancel")
-                .items(&options)
-                .default(0)
-                .interact()?;
+        let selection = Select::with_theme(&ColorfulTheme::default())
+            .with_prompt("Select cloud tenant to cancel")
+            .items(&options)
+            .default(0)
+            .interact()?;
 
-            cloud_tenants[selection]
-        },
+        cloud_tenants[selection]
     };
 
     CliService::section("⚠️  CANCEL SUBSCRIPTION");

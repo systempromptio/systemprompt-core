@@ -28,47 +28,27 @@ impl Extension for OauthExtension {
                 "oauth_client_redirect_uris",
                 include_str!("../schema/oauth_client_redirect_uris.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "client_id".into(),
-                "redirect_uri".into(),
-            ]),
+            .with_required_columns(vec!["client_id".into(), "redirect_uri".into()]),
             SchemaDefinition::inline(
                 "oauth_client_grant_types",
                 include_str!("../schema/oauth_client_grant_types.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "client_id".into(),
-                "grant_type".into(),
-            ]),
+            .with_required_columns(vec!["client_id".into(), "grant_type".into()]),
             SchemaDefinition::inline(
                 "oauth_client_response_types",
                 include_str!("../schema/oauth_client_response_types.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "client_id".into(),
-                "response_type".into(),
-            ]),
+            .with_required_columns(vec!["client_id".into(), "response_type".into()]),
             SchemaDefinition::inline(
                 "oauth_client_scopes",
                 include_str!("../schema/oauth_client_scopes.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "client_id".into(),
-                "scope".into(),
-            ]),
+            .with_required_columns(vec!["client_id".into(), "scope".into()]),
             SchemaDefinition::inline(
                 "oauth_client_contacts",
                 include_str!("../schema/oauth_client_contacts.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "client_id".into(),
-                "contact".into(),
-            ]),
+            .with_required_columns(vec!["client_id".into(), "contact_email".into()]),
             SchemaDefinition::inline(
                 "oauth_auth_codes",
                 include_str!("../schema/oauth_auth_codes.sql"),
@@ -83,7 +63,7 @@ impl Extension for OauthExtension {
                 include_str!("../schema/oauth_refresh_tokens.sql"),
             )
             .with_required_columns(vec![
-                "token".into(),
+                "token_id".into(),
                 "client_id".into(),
                 "user_id".into(),
             ]),
@@ -100,7 +80,7 @@ impl Extension for OauthExtension {
                 "webauthn_challenges",
                 include_str!("../schema/webauthn_challenges.sql"),
             )
-            .with_required_columns(vec!["id".into(), "challenge".into()]),
+            .with_required_columns(vec!["challenge".into(), "user_id".into()]),
         ]
     }
 

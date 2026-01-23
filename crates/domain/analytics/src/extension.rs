@@ -32,7 +32,7 @@ impl Extension for AnalyticsExtension {
                 "anomaly_thresholds",
                 include_str!("../schema/anomaly_thresholds.sql"),
             )
-            .with_required_columns(vec!["id".into(), "metric_name".into()]),
+            .with_required_columns(vec!["metric_name".into()]),
             SchemaDefinition::inline(
                 "fingerprint_reputation",
                 include_str!("../schema/fingerprint_reputation.sql"),
