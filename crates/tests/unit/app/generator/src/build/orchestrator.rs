@@ -101,27 +101,6 @@ fn test_build_mode_copy() {
 // ============================================================================
 
 #[test]
-fn test_build_error_theme_generation_failed() {
-    let error = BuildError::ThemeGenerationFailed("invalid config".to_string());
-    assert_eq!(error.to_string(), "Theme generation failed: invalid config");
-}
-
-#[test]
-fn test_build_error_typescript_failed() {
-    let error = BuildError::TypeScriptFailed("syntax error on line 42".to_string());
-    assert_eq!(
-        error.to_string(),
-        "TypeScript compilation failed: syntax error on line 42"
-    );
-}
-
-#[test]
-fn test_build_error_vite_failed() {
-    let error = BuildError::ViteFailed("module not found".to_string());
-    assert_eq!(error.to_string(), "Vite build failed: module not found");
-}
-
-#[test]
 fn test_build_error_css_organization_failed() {
     let error = BuildError::CssOrganizationFailed("permission denied".to_string());
     assert_eq!(
@@ -190,7 +169,6 @@ fn test_build_mode_debug() {
 
 #[test]
 fn test_build_mode_parse_with_whitespace() {
-    // Whitespace should not be trimmed by parse
     assert_eq!(BuildMode::parse(" development"), None);
     assert_eq!(BuildMode::parse("development "), None);
     assert_eq!(BuildMode::parse(" development "), None);
@@ -205,12 +183,12 @@ fn test_build_error_empty_message() {
 #[test]
 fn test_build_error_long_message() {
     let long_message = "x".repeat(10000);
-    let error = BuildError::ThemeGenerationFailed(long_message.clone());
+    let error = BuildError::CssOrganizationFailed(long_message.clone());
     assert!(error.to_string().contains(&long_message));
 }
 
 #[test]
 fn test_build_error_special_characters_in_message() {
-    let error = BuildError::ViteFailed("error: <script> tag not allowed".to_string());
+    let error = BuildError::ProcessError("error: <script> tag not allowed".to_string());
     assert!(error.to_string().contains("<script>"));
 }

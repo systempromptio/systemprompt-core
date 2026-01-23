@@ -603,3 +603,284 @@ async fn service_get_activity() -> Result<()> {
 
     Ok(())
 }
+
+// ============================================================================
+// UserService Stats Operations
+// ============================================================================
+
+#[tokio::test]
+async fn service_get_stats() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let stats = service.get_stats().await?;
+    assert!(stats.total >= 0);
+    assert!(stats.active >= 0);
+    assert!(stats.admins >= 0);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn service_count_with_breakdown() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let breakdown = service.count_with_breakdown().await?;
+    assert!(breakdown.total >= 0);
+
+    Ok(())
+}
+
+// ============================================================================
+// UserService Update Operations (Additional)
+// ============================================================================
+
+#[tokio::test]
+async fn service_update_full_name() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let unique_email = format!("svc_fullname_{}@example.com", uuid::Uuid::new_v4());
+    let unique_name = format!("svcfullname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let created = service.create(&unique_name, &unique_email, None, None).await?;
+
+    let updated = service.update_full_name(&created.id, "New Full Name").await?;
+    assert_eq!(updated.full_name, Some("New Full Name".to_string()));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(created.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn service_update_display_name() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let unique_email = format!("svc_dispname_{}@example.com", uuid::Uuid::new_v4());
+    let unique_name = format!("svcdispname_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let created = service.create(&unique_name, &unique_email, None, None).await?;
+
+    let updated = service.update_display_name(&created.id, "New Display").await?;
+    assert_eq!(updated.display_name, Some("New Display".to_string()));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(created.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn service_update_email_verified() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let unique_email = format!("svc_verified_{}@example.com", uuid::Uuid::new_v4());
+    let unique_name = format!("svcverified_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let created = service.create(&unique_name, &unique_email, None, None).await?;
+
+    let updated = service.update_email_verified(&created.id, true).await?;
+    assert_eq!(updated.email_verified, Some(true));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(created.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+// ============================================================================
+// UserService Bulk Operations
+// ============================================================================
+
+#[tokio::test]
+async fn service_bulk_update_status() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let user1_email = format!("svc_bulk1_{}@example.com", uuid::Uuid::new_v4());
+    let user1_name = format!("svcbulk1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let user1 = service.create(&user1_name, &user1_email, None, None).await?;
+
+    let user2_email = format!("svc_bulk2_{}@example.com", uuid::Uuid::new_v4());
+    let user2_name = format!("svcbulk2_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let user2 = service.create(&user2_name, &user2_email, None, None).await?;
+
+    let updated_count = service.bulk_update_status(&[user1.id.clone(), user2.id.clone()], "suspended").await?;
+    assert_eq!(updated_count, 2);
+
+    let found1 = service.find_by_id(&user1.id).await?;
+    assert_eq!(found1.as_ref().map(|u| u.status.as_deref()), Some(Some("suspended")));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user1.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(user2.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn service_bulk_delete() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let user1_email = format!("svc_bulkdel1_{}@example.com", uuid::Uuid::new_v4());
+    let user1_name = format!("svcbulkdel1_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let user1 = service.create(&user1_name, &user1_email, None, None).await?;
+
+    let user2_email = format!("svc_bulkdel2_{}@example.com", uuid::Uuid::new_v4());
+    let user2_name = format!("svcbulkdel2_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let user2 = service.create(&user2_name, &user2_email, None, None).await?;
+
+    let deleted_count = service.bulk_delete(&[user1.id.clone(), user2.id.clone()]).await?;
+    assert_eq!(deleted_count, 2);
+
+    let found1 = service.find_by_id(&user1.id).await?;
+    assert!(found1.is_none());
+
+    let found2 = service.find_by_id(&user2.id).await?;
+    assert!(found2.is_none());
+
+    Ok(())
+}
+
+// ============================================================================
+// UserService Filter Operations
+// ============================================================================
+
+#[tokio::test]
+async fn service_list_by_filter_with_status() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let unique_email = format!("svc_filter_{}@example.com", uuid::Uuid::new_v4());
+    let unique_name = format!("svcfilter_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let created = service.create(&unique_name, &unique_email, None, None).await?;
+
+    let users = service.list_by_filter(Some("active"), None, None, 100).await?;
+    assert!(users.iter().all(|u| u.status.as_deref() == Some("active")));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(created.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn service_list_by_filter_with_role() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let unique_email = format!("svc_filterrole_{}@example.com", uuid::Uuid::new_v4());
+    let unique_name = format!("svcfilterrole_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let created = service.create(&unique_name, &unique_email, None, None).await?;
+
+    let users = service.list_by_filter(None, Some("user"), None, 100).await?;
+    assert!(users.iter().all(|u| u.roles.contains(&"user".to_string())));
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(created.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}
+
+// ============================================================================
+// UserService Merge Operations
+// ============================================================================
+
+#[tokio::test]
+async fn service_merge_users() -> Result<()> {
+    let Some(db) = get_db().await else {
+        eprintln!("Skipping test (database not available)");
+        return Ok(());
+    };
+
+    let db_pool = db.as_pool()?;
+    let service = UserService::new(&db_pool)?;
+
+    let source_email = format!("svc_merge_src_{}@example.com", uuid::Uuid::new_v4());
+    let source_name = format!("svcmergesrc_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let source = service.create(&source_name, &source_email, None, None).await?;
+
+    let target_email = format!("svc_merge_tgt_{}@example.com", uuid::Uuid::new_v4());
+    let target_name = format!("svcmergetgt_{}", &uuid::Uuid::new_v4().to_string()[..8]);
+    let target = service.create(&target_name, &target_email, None, None).await?;
+
+    let result = service.merge_users(&source.id, &target.id).await?;
+    assert!(result.sessions_transferred >= 0);
+    assert!(result.tasks_transferred >= 0);
+
+    let source_found = service.find_by_id(&source.id).await?;
+    assert!(source_found.is_none());
+
+    let target_found = service.find_by_id(&target.id).await?;
+    assert!(target_found.is_some());
+
+    let _ = sqlx::query("DELETE FROM users WHERE id = $1")
+        .bind(target.id.as_str())
+        .execute(db.pool_arc()?.as_ref())
+        .await;
+
+    Ok(())
+}

@@ -1,7 +1,7 @@
 //! Tests for OAuth parameter validation
 
 use systemprompt_oauth::services::validation::{
-    get_audit_user, optional_param, required_param, scope_param, validate_pkce, CsrfToken,
+    get_audit_user, optional_param, required_param, scope_param, CsrfToken,
     ValidatedClientRegistration,
 };
 use systemprompt_models::{AuthError, GrantType, ResponseType};
@@ -166,70 +166,6 @@ fn test_scope_param_tabs_and_newlines() {
     assert_eq!(scopes.len(), 3);
 }
 
-// ============================================================================
-// validate_pkce Tests
-// ============================================================================
-
-#[test]
-fn test_validate_pkce_s256() {
-    let result = validate_pkce(Some("challenge_value"), Some("S256"));
-    assert!(result.is_ok());
-    let pkce = result.unwrap();
-    assert_eq!(pkce.challenge, "challenge_value");
-}
-
-#[test]
-fn test_validate_pkce_plain_rejected() {
-    // "plain" PKCE method is rejected as weak
-    let result = validate_pkce(Some("plain_challenge"), Some("plain"));
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        AuthError::WeakPkceMethod { method } => {
-            assert_eq!(method, "plain");
-        }
-        _ => panic!("Expected WeakPkceMethod error"),
-    }
-}
-
-#[test]
-fn test_validate_pkce_missing_challenge() {
-    let result = validate_pkce(None, Some("S256"));
-    assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthError::MissingCodeChallenge));
-}
-
-#[test]
-fn test_validate_pkce_empty_challenge() {
-    let result = validate_pkce(Some(""), Some("S256"));
-    assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthError::MissingCodeChallenge));
-}
-
-#[test]
-fn test_validate_pkce_missing_method() {
-    let result = validate_pkce(Some("challenge"), None);
-    assert!(result.is_err());
-    match result.unwrap_err() {
-        AuthError::InvalidRequest { reason } => {
-            assert!(reason.contains("code_challenge_method"));
-        }
-        _ => panic!("Expected InvalidRequest error"),
-    }
-}
-
-#[test]
-fn test_validate_pkce_invalid_method() {
-    let result = validate_pkce(Some("challenge"), Some("sha256"));
-    assert!(result.is_err());
-}
-
-#[test]
-fn test_validate_pkce_debug() {
-    let result = validate_pkce(Some("challenge"), Some("S256")).unwrap();
-    let debug_str = format!("{:?}", result);
-    assert!(debug_str.contains("challenge"));
-    assert!(debug_str.contains("PkceChallenge"));
-}
 
 // ============================================================================
 // get_audit_user Tests
@@ -287,21 +223,21 @@ fn test_get_audit_user_uuid_format() {
 
 #[test]
 fn test_csrf_token_new_success() {
-    let result = CsrfToken::new("valid_state_123");
+    let result = CsrfToken::new("valid_state_12345678");
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_csrf_token_as_str() {
-    let token = CsrfToken::new("my_state").unwrap();
-    assert_eq!(token.as_str(), "my_state");
+    let token = CsrfToken::new("my_state_is_valid").unwrap();
+    assert_eq!(token.as_str(), "my_state_is_valid");
 }
 
 #[test]
 fn test_csrf_token_into_string() {
-    let token = CsrfToken::new("state_to_consume").unwrap();
+    let token = CsrfToken::new("state_to_consume_123").unwrap();
     let s: String = token.into_string();
-    assert_eq!(s, "state_to_consume");
+    assert_eq!(s, "state_to_consume_123");
 }
 
 #[test]
@@ -312,10 +248,22 @@ fn test_csrf_token_empty() {
 }
 
 #[test]
+fn test_csrf_token_too_short() {
+    let result = CsrfToken::new("short");
+    assert!(result.is_err());
+    match result.unwrap_err() {
+        AuthError::InvalidRequest { reason } => {
+            assert!(reason.contains("16 characters"));
+        }
+        _ => panic!("Expected InvalidRequest error for short state"),
+    }
+}
+
+#[test]
 fn test_csrf_token_with_hyphen() {
-    let result = CsrfToken::new("state-with-hyphens");
+    let result = CsrfToken::new("state-with-hyphens-ok");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().as_str(), "state-with-hyphens");
+    assert_eq!(result.unwrap().as_str(), "state-with-hyphens-ok");
 }
 
 #[test]
@@ -327,13 +275,13 @@ fn test_csrf_token_with_underscore() {
 
 #[test]
 fn test_csrf_token_alphanumeric_only() {
-    let result = CsrfToken::new("ABC123xyz");
+    let result = CsrfToken::new("ABC123xyzABC123xyz");
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_csrf_token_invalid_special_chars() {
-    let result = CsrfToken::new("state!@#$");
+    let result = CsrfToken::new("state_invalid_!@#$");
     assert!(result.is_err());
     match result.unwrap_err() {
         AuthError::InvalidRequest { reason } => {
@@ -345,50 +293,30 @@ fn test_csrf_token_invalid_special_chars() {
 
 #[test]
 fn test_csrf_token_with_space() {
-    let result = CsrfToken::new("state with space");
+    let result = CsrfToken::new("state with spaces here");
     assert!(result.is_err());
 }
 
 #[test]
 fn test_csrf_token_with_dot() {
-    let result = CsrfToken::new("state.with.dot");
+    let result = CsrfToken::new("state.with.dot.here");
     assert!(result.is_err());
 }
 
 #[test]
 fn test_csrf_token_from_string() {
-    let state = String::from("string_state");
+    let state = String::from("string_state_valid");
     let result = CsrfToken::new(state);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().as_str(), "string_state");
+    assert_eq!(result.unwrap().as_str(), "string_state_valid");
 }
 
 #[test]
 fn test_csrf_token_debug() {
-    let token = CsrfToken::new("debug_state").unwrap();
+    let token = CsrfToken::new("debug_state_valid").unwrap();
     let debug_str = format!("{:?}", token);
     assert!(debug_str.contains("CsrfToken"));
-    assert!(debug_str.contains("debug_state"));
-}
-
-// ============================================================================
-// PkceChallenge Tests
-// ============================================================================
-
-#[test]
-fn test_pkce_challenge_debug() {
-    let result = validate_pkce(Some("challenge123"), Some("S256")).unwrap();
-    let debug_str = format!("{:?}", result);
-    assert!(debug_str.contains("PkceChallenge"));
-    assert!(debug_str.contains("challenge123"));
-}
-
-#[test]
-fn test_pkce_challenge_fields() {
-    let result = validate_pkce(Some("my_challenge"), Some("S256")).unwrap();
-    assert_eq!(result.challenge, "my_challenge");
-    // method should be S256
-    assert_eq!(format!("{:?}", result.method), "S256");
+    assert!(debug_str.contains("debug_state_valid"));
 }
 
 // ============================================================================

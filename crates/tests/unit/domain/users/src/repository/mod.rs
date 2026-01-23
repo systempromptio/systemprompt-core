@@ -5,5 +5,7 @@
 //! - BanIpParams builder pattern
 //! - BanIpWithMetadataParams builder pattern
 //! - BannedIp struct
+//! - MergeResult struct
 
 mod banned_ip;
+mod user;

@@ -38,8 +38,39 @@ fn test_context_builder_with_extensions() {
 fn test_context_builder_chaining() {
     let registry = ExtensionRegistry::new();
     let builder = AppContextBuilder::new().with_extensions(registry);
-    // Should compile and chain properly
     let _ = builder;
+}
+
+#[test]
+fn test_context_builder_with_startup_warnings_true() {
+    let builder = AppContextBuilder::new().with_startup_warnings(true);
+    let debug_str = format!("{:?}", builder);
+    assert!(debug_str.contains("show_startup_warnings: true"));
+}
+
+#[test]
+fn test_context_builder_with_startup_warnings_false() {
+    let builder = AppContextBuilder::new().with_startup_warnings(false);
+    let debug_str = format!("{:?}", builder);
+    assert!(debug_str.contains("show_startup_warnings: false"));
+}
+
+#[test]
+fn test_context_builder_full_chain() {
+    let registry = ExtensionRegistry::new();
+    let builder = AppContextBuilder::new()
+        .with_extensions(registry)
+        .with_startup_warnings(true);
+    let debug_str = format!("{:?}", builder);
+    assert!(debug_str.contains("AppContextBuilder"));
+    assert!(debug_str.contains("show_startup_warnings: true"));
+}
+
+#[test]
+fn test_context_builder_default_startup_warnings() {
+    let builder = AppContextBuilder::default();
+    let debug_str = format!("{:?}", builder);
+    assert!(debug_str.contains("show_startup_warnings: false"));
 }
 
 // ============================================================================

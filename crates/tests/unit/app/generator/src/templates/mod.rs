@@ -1,10 +1,11 @@
 //! Unit tests for generator templates module
 //!
 //! Tests cover:
-//! - Read time calculation
-//! - Table of contents generation
-//! - Paper metadata parsing
+//! - RSS XML generation
+//! - RSS channel and item structures
+//! - XML escaping
 //! - Footer HTML generation
-//! - Social action bar generation
+//! - Navigation HTML generation
 
-mod paper;
+mod navigation;
+mod rss;

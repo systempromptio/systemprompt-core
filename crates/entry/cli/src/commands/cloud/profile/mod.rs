@@ -15,6 +15,7 @@ mod templates;
 
 pub use api_keys::collect_api_keys;
 pub use create::create_profile_for_tenant;
+pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 
 use crate::cli_settings::CliConfig;
 use anyhow::Result;

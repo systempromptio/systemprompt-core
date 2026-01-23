@@ -1,3 +1,14 @@
+<div align="center">
+  <a href="https://systemprompt.io">
+    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
+  </a>
+  <p><strong>Production infrastructure for AI agents</strong></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://docs.systemprompt.io">Documentation</a></p>
+</div>
+
+---
+
+
 # systemprompt-generator
 
 Static site generation and content publishing orchestrator for systemprompt.io. Coordinates domain services to generate prerendered HTML pages, sitemaps, RSS feeds, and optimized assets.
@@ -142,4 +153,4 @@ systemprompt-generator = "0.0.1"
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.

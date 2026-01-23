@@ -6,7 +6,7 @@ The missing layer between AI frameworks and production deployment. Not another S
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Documentation](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
 
 ## Table of Contents
 
@@ -291,7 +291,7 @@ Current version: **0.0.1**
 
 ## License
 
-FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
+FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
 
 ## Links
 

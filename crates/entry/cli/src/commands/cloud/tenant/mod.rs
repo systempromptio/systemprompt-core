@@ -6,7 +6,7 @@ mod select;
 mod validation;
 
 pub use create::{create_cloud_tenant, create_local_tenant};
-pub use crud::{delete_tenant, edit_tenant, list_tenants, show_tenant};
+pub use crud::{cancel_subscription, delete_tenant, edit_tenant, list_tenants, show_tenant};
 pub use docker::wait_for_postgres_healthy;
 pub use rotate::{rotate_credentials, rotate_sync_token};
 pub use select::{get_credentials, resolve_tenant_id};
@@ -50,6 +50,9 @@ pub enum TenantCommands {
 
     #[command(about = "Rotate sync token")]
     RotateSyncToken(TenantRotateArgs),
+
+    #[command(about = "Cancel subscription and destroy tenant (IRREVERSIBLE)")]
+    Cancel(TenantCancelArgs),
 }
 
 #[derive(Debug, Args)]
@@ -66,6 +69,11 @@ pub struct TenantDeleteArgs {
 
     #[arg(short = 'y', long, help = "Skip confirmation prompts")]
     pub yes: bool,
+}
+
+#[derive(Debug, Args)]
+pub struct TenantCancelArgs {
+    pub id: Option<String>,
 }
 
 pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<()> {
@@ -103,6 +111,7 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
                 .await
                 .map(|()| false)
         },
+        TenantCommands::Cancel(args) => cancel_subscription(args, config).await.map(|()| false),
     }
 }
 

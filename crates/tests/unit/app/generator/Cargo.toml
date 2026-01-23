@@ -15,10 +15,10 @@ systemprompt-generator = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-content = { workspace = true }
+chrono = { workspace = true }
+serde_yaml = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }
 serde_json = { workspace = true }
-serde_yaml = { workspace = true }
-chrono = { workspace = true }
 tempfile = { workspace = true }

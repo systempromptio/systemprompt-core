@@ -173,7 +173,7 @@ mod create_analytics_session_input_tests {
     use super::*;
     use chrono::Utc;
     use systemprompt_analytics::CreateAnalyticsSessionInput;
-    use systemprompt_identifiers::{SessionId, UserId};
+    use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 
     #[test]
     fn input_stores_session_id() {
@@ -186,6 +186,7 @@ mod create_analytics_session_input_tests {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
+            session_source: SessionSource::Web,
             is_bot: false,
             expires_at,
         };
@@ -205,6 +206,7 @@ mod create_analytics_session_input_tests {
             session_id: &session_id,
             user_id: Some(&user_id),
             analytics: &analytics,
+            session_source: SessionSource::Web,
             is_bot: true,
             expires_at,
         };
@@ -224,6 +226,7 @@ mod create_analytics_session_input_tests {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
+            session_source: SessionSource::Web,
             is_bot: true,
             expires_at,
         };
@@ -242,11 +245,31 @@ mod create_analytics_session_input_tests {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
+            session_source: SessionSource::Cli,
             is_bot: false,
             expires_at,
         };
 
         assert_eq!(input.expires_at, expires_at);
+    }
+
+    #[test]
+    fn input_stores_session_source() {
+        let session_id = SessionId::new("sess_src".to_string());
+        let headers = HeaderMap::new();
+        let analytics = SessionAnalytics::from_headers(&headers);
+        let expires_at = Utc::now();
+
+        let input = CreateAnalyticsSessionInput {
+            session_id: &session_id,
+            user_id: None,
+            analytics: &analytics,
+            session_source: SessionSource::Cli,
+            is_bot: false,
+            expires_at,
+        };
+
+        assert_eq!(input.session_source, SessionSource::Cli);
     }
 
     #[test]
@@ -260,6 +283,7 @@ mod create_analytics_session_input_tests {
             session_id: &session_id,
             user_id: None,
             analytics: &analytics,
+            session_source: SessionSource::Web,
             is_bot: false,
             expires_at,
         };

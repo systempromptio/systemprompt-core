@@ -2,6 +2,12 @@
 
 ## [0.0.3] - 2026-01-22
 
+### Fixed
+- Fix schema validation for VIEW-based schemas
+- Add migration system infrastructure
+
+## [0.0.3] - 2026-01-22
+
 ### Added
 - `Migration` struct for versioned extension migrations
 - `is_required()` trait method to mark core extensions as non-disableable

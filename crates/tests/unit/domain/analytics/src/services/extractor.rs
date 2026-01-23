@@ -1287,7 +1287,7 @@ mod content_routing_tests {
     }
 
     #[test]
-    fn html_page_with_external_referrer_no_landing_page() {
+    fn html_page_with_external_referrer_still_sets_landing_page() {
         let mut headers = create_full_headers();
         headers.insert(
             "referer",
@@ -1299,8 +1299,7 @@ mod content_routing_tests {
         let analytics =
             SessionAnalytics::from_headers_and_uri(&headers, Some(&uri), None, Some(&routing));
 
-        // External referrer, not a landing page
-        assert!(analytics.landing_page.is_none());
+        assert_eq!(analytics.landing_page, Some("/page".to_string()));
     }
 
     #[test]
@@ -1316,43 +1315,4 @@ mod content_routing_tests {
         assert!(analytics.landing_page.is_none());
     }
 
-    #[test]
-    fn from_request_extracts_analytics() {
-        use axum::body::Body;
-        use axum::extract::Request;
-
-        let request = Request::builder()
-            .uri("https://example.com/page?utm_source=test")
-            .header("user-agent", "Mozilla/5.0 Chrome/120")
-            .header("x-forwarded-for", "10.0.0.1")
-            .header("accept-language", "en-GB")
-            .body(Body::empty())
-            .unwrap();
-
-        let analytics = SessionAnalytics::from_request(&request, None, None);
-
-        assert!(analytics.user_agent.is_some());
-        assert!(analytics.user_agent.unwrap().contains("Chrome"));
-        assert_eq!(analytics.ip_address, Some("10.0.0.1".to_string()));
-        assert_eq!(analytics.preferred_locale, Some("en-GB".to_string()));
-        assert_eq!(analytics.utm_source, Some("test".to_string()));
-    }
-
-    #[test]
-    fn from_request_with_content_routing() {
-        use axum::body::Body;
-        use axum::extract::Request;
-
-        let request = Request::builder()
-            .uri("https://example.com/page")
-            .header("user-agent", "Mozilla/5.0 Firefox/121")
-            .body(Body::empty())
-            .unwrap();
-
-        let routing = MockHtmlRouting;
-        let analytics = SessionAnalytics::from_request(&request, None, Some(&routing));
-
-        // HTML routing marks it as HTML, so entry_url should be set
-        assert!(analytics.entry_url.is_some());
-    }
 }

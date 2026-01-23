@@ -1,0 +1,26 @@
+[package]
+name = "systemprompt-oauth-integration-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Integration tests for systemprompt-oauth crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-oauth = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-users = { workspace = true }
+sqlx = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
+chrono = { workspace = true }
+sha2 = { workspace = true }
+base64 = { workspace = true }

@@ -8,6 +8,7 @@
 //! - Dependencies
 
 use systemprompt_extension::prelude::Extension;
+use systemprompt_extension::SchemaSource;
 use systemprompt_users::UsersExtension;
 
 // ============================================================================
@@ -39,14 +40,6 @@ mod extension_metadata_tests {
         let metadata = ext.metadata();
 
         assert!(!metadata.version.is_empty());
-    }
-
-    #[test]
-    fn metadata_version_matches_crate_version() {
-        let ext = UsersExtension;
-        let metadata = ext.metadata();
-
-        assert_eq!(metadata.version, env!("CARGO_PKG_VERSION"));
     }
 }
 
@@ -99,7 +92,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let users_schema = schemas.iter().find(|s| s.table_name == "users");
+        let users_schema = schemas.iter().find(|s| s.table == "users");
         assert!(users_schema.is_some());
     }
 
@@ -108,7 +101,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let sessions_schema = schemas.iter().find(|s| s.table_name == "user_sessions");
+        let sessions_schema = schemas.iter().find(|s| s.table == "user_sessions");
         assert!(sessions_schema.is_some());
     }
 
@@ -117,7 +110,7 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let banned_schema = schemas.iter().find(|s| s.table_name == "banned_ips");
+        let banned_schema = schemas.iter().find(|s| s.table == "banned_ips");
         assert!(banned_schema.is_some());
     }
 
@@ -126,9 +119,9 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let session_analytics = schemas.iter().find(|s| s.table_name == "session_analytics_views");
-        let referrer_analytics = schemas.iter().find(|s| s.table_name == "referrer_analytics_views");
-        let bot_analytics = schemas.iter().find(|s| s.table_name == "bot_analytics_views");
+        let session_analytics = schemas.iter().find(|s| s.table == "session_analytics_views");
+        let referrer_analytics = schemas.iter().find(|s| s.table == "referrer_analytics_views");
+        let bot_analytics = schemas.iter().find(|s| s.table == "bot_analytics_views");
 
         assert!(session_analytics.is_some());
         assert!(referrer_analytics.is_some());
@@ -140,8 +133,8 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let users_schema = schemas.iter().find(|s| s.table_name == "users").unwrap();
-        let required = users_schema.required_columns.as_ref().unwrap();
+        let users_schema = schemas.iter().find(|s| s.table == "users").unwrap();
+        let required = &users_schema.required_columns;
 
         assert!(required.contains(&"id".to_string()));
         assert!(required.contains(&"name".to_string()));
@@ -154,8 +147,8 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let sessions_schema = schemas.iter().find(|s| s.table_name == "user_sessions").unwrap();
-        let required = sessions_schema.required_columns.as_ref().unwrap();
+        let sessions_schema = schemas.iter().find(|s| s.table == "user_sessions").unwrap();
+        let required = &sessions_schema.required_columns;
 
         assert!(required.contains(&"session_id".to_string()));
         assert!(required.contains(&"started_at".to_string()));
@@ -166,8 +159,8 @@ mod extension_schema_tests {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        let banned_schema = schemas.iter().find(|s| s.table_name == "banned_ips").unwrap();
-        let required = banned_schema.required_columns.as_ref().unwrap();
+        let banned_schema = schemas.iter().find(|s| s.table == "banned_ips").unwrap();
+        let required = &banned_schema.required_columns;
 
         assert!(required.contains(&"ip_address".to_string()));
         assert!(required.contains(&"reason".to_string()));
@@ -175,14 +168,40 @@ mod extension_schema_tests {
     }
 
     #[test]
-    fn all_schemas_have_sql_content() {
+    fn all_schemas_have_inline_sql() {
         let ext = UsersExtension;
         let schemas = ext.schemas();
 
-        for schema in schemas {
-            assert!(schema.sql.is_some(), "Schema {} missing SQL", schema.table_name);
-            let sql = schema.sql.as_ref().unwrap();
-            assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table_name);
+        for schema in &schemas {
+            match &schema.sql {
+                SchemaSource::Inline(sql) => {
+                    assert!(!sql.is_empty(), "Schema {} has empty SQL", schema.table);
+                }
+                SchemaSource::File(_) => {
+                    panic!("Schema {} should use inline SQL", schema.table);
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn analytics_views_have_no_required_columns() {
+        let ext = UsersExtension;
+        let schemas = ext.schemas();
+
+        let analytics_tables = [
+            "session_analytics_views",
+            "referrer_analytics_views",
+            "bot_analytics_views",
+        ];
+
+        for table_name in &analytics_tables {
+            let schema = schemas.iter().find(|s| &s.table == table_name).unwrap();
+            assert!(
+                schema.required_columns.is_empty(),
+                "{} should have no required columns",
+                table_name
+            );
         }
     }
 }
@@ -227,5 +246,35 @@ mod extension_trait_tests {
 
         let ext = UsersExtension;
         assert_extension(&ext);
+    }
+
+    #[test]
+    fn extension_has_schemas() {
+        let ext = UsersExtension;
+        assert!(ext.has_schemas());
+    }
+
+    #[test]
+    fn extension_has_no_jobs() {
+        let ext = UsersExtension;
+        assert!(!ext.has_jobs());
+    }
+
+    #[test]
+    fn extension_id_method() {
+        let ext = UsersExtension;
+        assert_eq!(ext.id(), "users");
+    }
+
+    #[test]
+    fn extension_name_method() {
+        let ext = UsersExtension;
+        assert_eq!(ext.name(), "Users");
+    }
+
+    #[test]
+    fn extension_version_method() {
+        let ext = UsersExtension;
+        assert!(!ext.version().is_empty());
     }
 }

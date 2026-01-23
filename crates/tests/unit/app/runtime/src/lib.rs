@@ -8,10 +8,12 @@
 //! - Module installation path resolution
 //! - Database path validation
 //! - StartupValidator domain registration and validation
+//! - DatabaseContext creation and pool management
 
 #![allow(clippy::all)]
 
 mod context;
+mod database_context;
 mod installation;
 mod registry;
 mod span;

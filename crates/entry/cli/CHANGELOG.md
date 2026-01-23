@@ -1,13 +1,22 @@
 # Changelog
 
-## [0.0.3] - 2026-01-22
+## [0.0.3] - 2026-01-23
 
 ### Added
+- `systemprompt cloud tenant cancel` command to cancel cloud subscriptions
+- Automatic profile creation during local tenant setup (matching cloud tenant behavior)
+- Cloud tenant sync on `tenant list` command - fetches tenants from API
+- Paddle customer portal link in tenant list header
 - `systemprompt infra db migrations status` command to show migration status for all extensions
 - `systemprompt infra db migrations history <extension>` command to show migration history
 
 ### Changed
 - Profile builders now include `extensions` configuration field
+- Local tenant creation now prompts for profile name and API keys
+
+### Fixed
+- Fix schema validation for VIEW-based schemas
+- Add migration system infrastructure
 
 ## [0.0.2] - 2026-01-22
 

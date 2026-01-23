@@ -13,7 +13,9 @@ use systemprompt_logging::CliService;
 use url::Url;
 
 use crate::cloud::deploy::deploy_with_secrets;
-use crate::cloud::profile::{collect_api_keys, create_profile_for_tenant};
+use crate::cloud::profile::{
+    collect_api_keys, create_profile_for_tenant, get_cloud_user, handle_local_tenant_setup,
+};
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
@@ -110,7 +112,26 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     );
 
     let id = format!("local_{}", nanoid());
-    Ok(StoredTenant::new_local(id, name, database_url))
+    let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
+
+    CliService::section("Profile Setup");
+    let profile_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Profile name")
+        .default(name.clone())
+        .interact_text()?;
+
+    CliService::section("API Keys");
+    let api_keys = collect_api_keys()?;
+
+    let profile = create_profile_for_tenant(&tenant, &api_keys, &profile_name)?;
+    CliService::success(&format!("Profile '{}' created", profile.name));
+
+    let cloud_user = get_cloud_user()?;
+    let ctx = ProjectContext::discover();
+    let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
+    handle_local_tenant_setup(&cloud_user, &database_url, &name, &profile_path).await?;
+
+    Ok(tenant)
 }
 
 pub async fn create_cloud_tenant(

@@ -11,6 +11,7 @@ use systemprompt_agent::services::shared::config::{
     AgentServiceConfig, ConfigValidation, ConnectionConfiguration, RuntimeConfiguration,
     RuntimeConfigurationBuilder, ServiceConfiguration,
 };
+use systemprompt_identifiers::AgentId;
 
 // ============================================================================
 // ServiceConfiguration Tests
@@ -125,10 +126,10 @@ fn test_service_configuration_deserialize() {
 
 #[test]
 fn test_runtime_configuration_builder_defaults() {
-    let config = RuntimeConfigurationBuilder::new("agent-1".to_string(), "Test Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-1"), "Test Agent".to_string())
         .build();
 
-    assert_eq!(config.agent_id, "agent-1");
+    assert_eq!(config.agent_id.as_str(), "agent-1");
     assert_eq!(config.name, "Test Agent");
     assert_eq!(config.port, 8080);
     assert_eq!(config.host, "localhost");
@@ -139,7 +140,7 @@ fn test_runtime_configuration_builder_defaults() {
 
 #[test]
 fn test_runtime_configuration_builder_with_port() {
-    let config = RuntimeConfigurationBuilder::new("agent-2".to_string(), "Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-2"), "Agent".to_string())
         .port(9000)
         .build();
 
@@ -148,7 +149,7 @@ fn test_runtime_configuration_builder_with_port() {
 
 #[test]
 fn test_runtime_configuration_builder_with_host() {
-    let config = RuntimeConfigurationBuilder::new("agent-3".to_string(), "Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-3"), "Agent".to_string())
         .host("0.0.0.0".to_string())
         .build();
 
@@ -157,7 +158,7 @@ fn test_runtime_configuration_builder_with_host() {
 
 #[test]
 fn test_runtime_configuration_builder_enable_ssl() {
-    let config = RuntimeConfigurationBuilder::new("agent-4".to_string(), "Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-4"), "Agent".to_string())
         .enable_ssl()
         .build();
 
@@ -166,7 +167,7 @@ fn test_runtime_configuration_builder_enable_ssl() {
 
 #[test]
 fn test_runtime_configuration_builder_require_auth() {
-    let config = RuntimeConfigurationBuilder::new("agent-5".to_string(), "Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-5"), "Agent".to_string())
         .require_auth()
         .build();
 
@@ -175,7 +176,7 @@ fn test_runtime_configuration_builder_require_auth() {
 
 #[test]
 fn test_runtime_configuration_builder_with_system_prompt() {
-    let config = RuntimeConfigurationBuilder::new("agent-6".to_string(), "Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-6"), "Agent".to_string())
         .system_prompt("You are a helpful assistant".to_string())
         .build();
 
@@ -187,7 +188,7 @@ fn test_runtime_configuration_builder_with_system_prompt() {
 
 #[test]
 fn test_runtime_configuration_builder_chained() {
-    let config = RuntimeConfigurationBuilder::new("agent-7".to_string(), "Full Agent".to_string())
+    let config = RuntimeConfigurationBuilder::new(AgentId::from("agent-7"), "Full Agent".to_string())
         .port(3000)
         .host("192.168.1.100".to_string())
         .enable_ssl()
@@ -195,7 +196,7 @@ fn test_runtime_configuration_builder_chained() {
         .system_prompt("Custom prompt".to_string())
         .build();
 
-    assert_eq!(config.agent_id, "agent-7");
+    assert_eq!(config.agent_id.as_str(), "agent-7");
     assert_eq!(config.name, "Full Agent");
     assert_eq!(config.port, 3000);
     assert_eq!(config.host, "192.168.1.100");
@@ -211,7 +212,7 @@ fn test_runtime_configuration_builder_chained() {
 #[test]
 fn test_runtime_configuration_serialize() {
     let config = RuntimeConfiguration {
-        agent_id: "rt-1".to_string(),
+        agent_id: AgentId::from("rt-1"),
         name: "Runtime Agent".to_string(),
         port: 8080,
         host: "localhost".to_string(),
@@ -239,7 +240,7 @@ fn test_runtime_configuration_deserialize() {
     }"#;
 
     let config: RuntimeConfiguration = serde_json::from_str(json).unwrap();
-    assert_eq!(config.agent_id, "rt-2");
+    assert_eq!(config.agent_id.as_str(), "rt-2");
     assert_eq!(config.name, "Deserialized Agent");
     assert_eq!(config.port, 9999);
     assert_eq!(config.host, "example.com");
@@ -256,7 +257,7 @@ fn test_runtime_configuration_deserialize() {
 fn test_agent_service_config_default() {
     let config = AgentServiceConfig::default();
 
-    assert!(!config.agent_id.is_empty());
+    assert!(!config.agent_id.as_str().is_empty());
     assert_eq!(config.name, "Default Agent");
     assert_eq!(config.description, "Default agent instance");
     assert_eq!(config.version, "0.1.0");
@@ -274,7 +275,7 @@ fn test_agent_service_config_validate_success() {
 #[test]
 fn test_agent_service_config_validate_empty_agent_id() {
     let config = AgentServiceConfig {
-        agent_id: "".to_string(),
+        agent_id: AgentId::from(""),
         name: "Test".to_string(),
         description: "Desc".to_string(),
         version: "1.0.0".to_string(),
@@ -292,7 +293,7 @@ fn test_agent_service_config_validate_empty_agent_id() {
 #[test]
 fn test_agent_service_config_validate_zero_port() {
     let config = AgentServiceConfig {
-        agent_id: "valid-id".to_string(),
+        agent_id: AgentId::from("valid-id"),
         name: "Test".to_string(),
         description: "Desc".to_string(),
         version: "1.0.0".to_string(),
@@ -310,7 +311,7 @@ fn test_agent_service_config_validate_zero_port() {
 #[test]
 fn test_agent_service_config_validate_empty_name() {
     let config = AgentServiceConfig {
-        agent_id: "valid-id".to_string(),
+        agent_id: AgentId::from("valid-id"),
         name: "".to_string(),
         description: "Desc".to_string(),
         version: "1.0.0".to_string(),

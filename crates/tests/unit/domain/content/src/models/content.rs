@@ -21,10 +21,11 @@ fn test_content_kind_as_str_article() {
 }
 
 #[test]
-fn test_content_kind_as_str_paper() {
+fn test_content_kind_copy() {
     use systemprompt_content::models::ContentKind;
-    let kind = ContentKind::Paper;
-    assert_eq!(kind.as_str(), "paper");
+    let kind = ContentKind::Article;
+    let copied = kind;
+    assert_eq!(copied, ContentKind::Article);
 }
 
 #[test]
@@ -45,7 +46,6 @@ fn test_content_kind_as_str_tutorial() {
 fn test_content_kind_display() {
     use systemprompt_content::models::ContentKind;
     assert_eq!(format!("{}", ContentKind::Article), "article");
-    assert_eq!(format!("{}", ContentKind::Paper), "paper");
     assert_eq!(format!("{}", ContentKind::Guide), "guide");
     assert_eq!(format!("{}", ContentKind::Tutorial), "tutorial");
 }
@@ -60,9 +60,9 @@ fn test_content_kind_default() {
 #[test]
 fn test_content_kind_serialization() {
     use systemprompt_content::models::ContentKind;
-    let kind = ContentKind::Paper;
+    let kind = ContentKind::Guide;
     let json = serde_json::to_string(&kind).unwrap();
-    assert_eq!(json, "\"paper\"");
+    assert_eq!(json, "\"guide\"");
 }
 
 #[test]

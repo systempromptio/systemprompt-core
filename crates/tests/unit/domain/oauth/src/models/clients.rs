@@ -1,6 +1,7 @@
 //! Tests for OAuthClient and related types
 
 use chrono::Utc;
+use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::{
     ClientRelations, CreateOAuthClientRequest, OAuthClient, OAuthClientResponse, OAuthClientRow,
     UpdateOAuthClientRequest,
@@ -12,7 +13,7 @@ use systemprompt_oauth::{
 
 fn create_test_client_row() -> OAuthClientRow {
     OAuthClientRow {
-        client_id: "client_test123".to_string(),
+        client_id: ClientId::new("client_test123"),
         client_secret_hash: Some("hashed_secret".to_string()),
         client_name: "Test Client".to_string(),
         name: Some("Display Name".to_string()),
@@ -39,7 +40,7 @@ fn create_test_relations() -> ClientRelations {
 #[test]
 fn test_oauth_client_row_creation() {
     let row = create_test_client_row();
-    assert_eq!(row.client_id, "client_test123");
+    assert_eq!(row.client_id.as_str(), "client_test123");
     assert_eq!(row.client_name, "Test Client");
     assert!(row.is_active.unwrap());
 }
@@ -47,7 +48,7 @@ fn test_oauth_client_row_creation() {
 #[test]
 fn test_oauth_client_row_with_none_values() {
     let row = OAuthClientRow {
-        client_id: "client_minimal".to_string(),
+        client_id: ClientId::new("client_minimal"),
         client_secret_hash: None,
         client_name: "Minimal Client".to_string(),
         name: None,
@@ -60,7 +61,7 @@ fn test_oauth_client_row_with_none_values() {
         last_used_at: None,
     };
 
-    assert_eq!(row.client_id, "client_minimal");
+    assert_eq!(row.client_id.as_str(), "client_minimal");
     assert!(row.client_secret_hash.is_none());
     assert!(row.is_active.is_none());
 }
@@ -106,7 +107,7 @@ fn test_oauth_client_row_deserialize() {
     }"#;
 
     let row: OAuthClientRow = serde_json::from_str(json).unwrap();
-    assert_eq!(row.client_id, "client_deser");
+    assert_eq!(row.client_id.as_str(), "client_deser");
     assert_eq!(row.client_name, "Deserialized Client");
     assert!(row.is_active.unwrap());
 }
@@ -179,7 +180,7 @@ fn test_oauth_client_from_row_with_relations() {
 
     let client = OAuthClient::from_row_with_relations(row, relations);
 
-    assert_eq!(client.client_id, "client_test123");
+    assert_eq!(client.client_id.as_str(), "client_test123");
     assert_eq!(client.client_name, "Test Client");
     assert_eq!(client.name, Some("Display Name".to_string()));
     assert_eq!(client.redirect_uris.len(), 1);
@@ -191,7 +192,7 @@ fn test_oauth_client_from_row_with_relations() {
 #[test]
 fn test_oauth_client_from_row_with_default_values() {
     let row = OAuthClientRow {
-        client_id: "client_defaults".to_string(),
+        client_id: ClientId::new("client_defaults"),
         client_secret_hash: None,
         client_name: "Default Client".to_string(),
         name: None,
@@ -224,7 +225,7 @@ fn test_oauth_client_validate_success() {
 #[test]
 fn test_oauth_client_validate_empty_client_id() {
     let mut row = create_test_client_row();
-    row.client_id = String::new();
+    row.client_id = ClientId::new("");
     let relations = create_test_relations();
     let client = OAuthClient::from_row_with_relations(row, relations);
 
@@ -339,7 +340,7 @@ fn test_create_oauth_client_request_deserialization() {
     }"#;
 
     let request: CreateOAuthClientRequest = serde_json::from_str(json).unwrap();
-    assert_eq!(request.client_id, "client_new");
+    assert_eq!(request.client_id.as_str(), "client_new");
     assert_eq!(request.name, "New Client");
     assert_eq!(request.redirect_uris.len(), 1);
     assert_eq!(request.scopes.len(), 2);
@@ -420,7 +421,7 @@ fn test_oauth_client_response_from_client() {
 
     let response: OAuthClientResponse = client.into();
 
-    assert_eq!(response.client_id, "client_test123");
+    assert_eq!(response.client_id.as_str(), "client_test123");
     assert_eq!(response.name, "Display Name");
     assert_eq!(response.redirect_uris.len(), 1);
     assert_eq!(response.scopes.len(), 2);

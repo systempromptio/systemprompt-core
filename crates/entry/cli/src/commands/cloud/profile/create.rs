@@ -209,14 +209,24 @@ pub fn create_profile_for_tenant(
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
 
-    let mut builder = CloudProfileBuilder::new(&name)
-        .with_tenant_id(TenantId::new(&tenant.id))
-        .with_external_db_access(tenant.external_db_access)
-        .with_secrets_path("./secrets.json");
-    if let Some(hostname) = &tenant.hostname {
-        builder = builder.with_external_url(format!("https://{}", hostname));
-    }
-    let built_profile = builder.build();
+    let built_profile = match tenant.tenant_type {
+        TenantType::Local => {
+            let services_path = get_services_path()?;
+            LocalProfileBuilder::new(&name, "./secrets.json", &services_path)
+                .with_tenant_id(TenantId::new(&tenant.id))
+                .build()
+        },
+        TenantType::Cloud => {
+            let mut builder = CloudProfileBuilder::new(&name)
+                .with_tenant_id(TenantId::new(&tenant.id))
+                .with_external_db_access(tenant.external_db_access)
+                .with_secrets_path("./secrets.json");
+            if let Some(hostname) = &tenant.hostname {
+                builder = builder.with_external_url(format!("https://{}", hostname));
+            }
+            builder.build()
+        },
+    };
 
     save_profile(&built_profile, &profile_path)?;
     CliService::success(&format!("Created: {}", profile_path.display()));

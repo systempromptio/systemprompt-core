@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.3] - 2026-01-22
+
+### Fixed
+- Fix schema validation for VIEW-based schemas
+- Add migration system infrastructure
+
 ## [0.0.2] - 2026-01-22
 
 ### Changed

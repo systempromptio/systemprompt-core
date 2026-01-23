@@ -891,7 +891,6 @@ mod user_stats_tests {
 // ============================================================================
 
 mod user_count_breakdown_tests {
-    use super::*;
     use std::collections::HashMap;
     use systemprompt_users::UserCountBreakdown;
 

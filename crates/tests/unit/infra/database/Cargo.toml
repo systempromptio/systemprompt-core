@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

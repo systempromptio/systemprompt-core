@@ -1,6 +1,6 @@
-//! Unit tests for DatabaseInfo, TableInfo, and ColumnInfo models
+//! Unit tests for DatabaseInfo, TableInfo, ColumnInfo, and IndexInfo models
 
-use systemprompt_database::{ColumnInfo, DatabaseInfo, TableInfo};
+use systemprompt_database::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 
 // ============================================================================
 // ColumnInfo Tests
@@ -324,4 +324,112 @@ fn test_database_info_deserialization() {
     assert_eq!(db_info.size, 512);
     assert_eq!(db_info.version, "14.0");
     assert!(db_info.tables.is_empty());
+}
+
+// ============================================================================
+// IndexInfo Tests
+// ============================================================================
+
+#[test]
+fn test_index_info_creation() {
+    let index = IndexInfo {
+        name: "idx_users_email".to_string(),
+        columns: vec!["email".to_string()],
+        unique: true,
+    };
+
+    assert_eq!(index.name, "idx_users_email");
+    assert_eq!(index.columns.len(), 1);
+    assert_eq!(index.columns[0], "email");
+    assert!(index.unique);
+}
+
+#[test]
+fn test_index_info_non_unique() {
+    let index = IndexInfo {
+        name: "idx_posts_created_at".to_string(),
+        columns: vec!["created_at".to_string()],
+        unique: false,
+    };
+
+    assert!(!index.unique);
+}
+
+#[test]
+fn test_index_info_multiple_columns() {
+    let index = IndexInfo {
+        name: "idx_composite".to_string(),
+        columns: vec![
+            "user_id".to_string(),
+            "post_id".to_string(),
+            "created_at".to_string(),
+        ],
+        unique: true,
+    };
+
+    assert_eq!(index.columns.len(), 3);
+    assert_eq!(index.columns[0], "user_id");
+    assert_eq!(index.columns[1], "post_id");
+    assert_eq!(index.columns[2], "created_at");
+}
+
+#[test]
+fn test_index_info_empty_columns() {
+    let index = IndexInfo {
+        name: "idx_empty".to_string(),
+        columns: vec![],
+        unique: false,
+    };
+
+    assert!(index.columns.is_empty());
+}
+
+#[test]
+fn test_index_info_debug() {
+    let index = IndexInfo {
+        name: "idx_test".to_string(),
+        columns: vec!["col1".to_string()],
+        unique: true,
+    };
+
+    let debug = format!("{:?}", index);
+    assert!(debug.contains("IndexInfo"));
+    assert!(debug.contains("idx_test"));
+}
+
+#[test]
+fn test_index_info_clone() {
+    let index = IndexInfo {
+        name: "idx_original".to_string(),
+        columns: vec!["a".to_string(), "b".to_string()],
+        unique: true,
+    };
+
+    let cloned = index.clone();
+    assert_eq!(index.name, cloned.name);
+    assert_eq!(index.columns, cloned.columns);
+    assert_eq!(index.unique, cloned.unique);
+}
+
+#[test]
+fn test_index_info_serialization() {
+    let index = IndexInfo {
+        name: "idx_serialize".to_string(),
+        columns: vec!["col".to_string()],
+        unique: false,
+    };
+
+    let json = serde_json::to_string(&index).expect("Should serialize");
+    assert!(json.contains("\"name\":\"idx_serialize\""));
+    assert!(json.contains("\"unique\":false"));
+}
+
+#[test]
+fn test_index_info_deserialization() {
+    let json = r#"{"name":"idx_deser","columns":["a","b"],"unique":true}"#;
+    let index: IndexInfo = serde_json::from_str(json).expect("Should deserialize");
+
+    assert_eq!(index.name, "idx_deser");
+    assert_eq!(index.columns, vec!["a", "b"]);
+    assert!(index.unique);
 }

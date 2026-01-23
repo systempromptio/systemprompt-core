@@ -11,6 +11,7 @@
 members = [
     # Integration tests
     "integration/extension",
+    "integration/oauth",
     # Unit tests - shared layer
     "unit/shared/traits",
     "unit/shared/models",
@@ -20,8 +21,10 @@ members = [
     "unit/infra/cloud",
     "unit/infra/config",
     "unit/infra/database",
+    "unit/infra/events",
     "unit/infra/loader",
     "unit/infra/logging",
+    "unit/infra/security",
     # Unit tests - domain layer
     "unit/domain/agent",
     "unit/domain/ai",
@@ -31,11 +34,13 @@ members = [
     "unit/domain/mcp",
     "unit/domain/oauth",
     "unit/domain/users",
+    "unit/domain/templates",
     # Unit tests - app layer
     "unit/app/generator",
     "unit/app/runtime",
     # Unit tests - entry layer
     "unit/entry/api",
+    "unit/entry/cli",
 ]
 resolver = "2"
 
@@ -143,6 +148,8 @@ systemprompt-content = { path = "../domain/content" }
 systemprompt-mcp = { path = "../domain/mcp" }
 systemprompt-ai = { path = "../domain/ai" }
 systemprompt-agent = { path = "../domain/agent" }
+systemprompt-templates = { path = "../domain/templates" }
+systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
 systemprompt-runtime = { path = "../app/runtime" }
 systemprompt-scheduler = { path = "../app/scheduler" }
 systemprompt-generator = { path = "../app/generator" }

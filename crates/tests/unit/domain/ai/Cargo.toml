@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-ai = { workspace = true }
+systemprompt-extension = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
