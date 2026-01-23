@@ -24,9 +24,9 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 uuid = { workspace = true }
 
-systemprompt-database = { path = "../../infra/database", version = "0.0.4" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
+systemprompt-database = { path = "../../infra/database" }
+systemprompt-extension = { path = "../../shared/extension" }
 systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4", features = ["sqlx"] }
-systemprompt-models = { path = "../../shared/models", version = "0.0.4" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.4" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
+systemprompt-models = { path = "../../shared/models" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts" }
+systemprompt-traits = { path = "../../shared/traits" }
