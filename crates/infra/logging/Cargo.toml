@@ -38,10 +38,10 @@ dialoguer = { workspace = true }
 indicatif = { workspace = true }
 
 # Core libs
-systemprompt-database = { path = "../database", version = "0.0.4" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.4" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.4" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.4" }
+systemprompt-database = { path = "../database", version = "0.0.5" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.5" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.5" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.5" }
 
 # Traits
 async-trait = { workspace = true }
