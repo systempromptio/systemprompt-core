@@ -135,7 +135,7 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
         let ext_dirs: HashSet<PathBuf> = discovered
             .iter()
             .filter_map(|ext| ext.path.strip_prefix(self.project_root).ok())
-            .map(|p| p.to_path_buf())
+            .map(Path::to_path_buf)
             .collect();
 
         if ext_dirs.is_empty() {

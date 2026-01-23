@@ -2,7 +2,7 @@ use systemprompt_files::FilesConfig;
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{ConfigProvider, ValidationReport};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct FilesConfigValidator {
     initialized: bool,
 }
