@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.3] - 2026-01-23
+## [0.0.4] - 2026-01-23
 
 ### Added
 - Export `FilesConfigValidator` from startup validation module
