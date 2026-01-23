@@ -72,9 +72,10 @@ impl<'de> Deserialize<'de> for CreateAgentRequest {
 
 impl CreateAgentRequest {
     pub fn from_raw(raw: CreateAgentRequestRaw, api_server_url: &str) -> Self {
-        let url = raw.card.url.unwrap_or_else(|| {
-            format!("{}/api/v1/agents/{}", api_server_url, raw.card.name)
-        });
+        let url = raw
+            .card
+            .url
+            .unwrap_or_else(|| format!("{}/api/v1/agents/{}", api_server_url, raw.card.name));
 
         let card = AgentCard {
             protocol_version: raw.card.protocol_version,

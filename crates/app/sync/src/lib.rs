@@ -195,11 +195,9 @@ impl SyncService {
     }
 
     pub async fn sync_database(&self) -> SyncResult<SyncOperationResult> {
-        let local_db_url = self
-            .config
-            .local_database_url
-            .as_ref()
-            .ok_or_else(|| SyncError::MissingConfig("local_database_url not configured".to_string()))?;
+        let local_db_url = self.config.local_database_url.as_ref().ok_or_else(|| {
+            SyncError::MissingConfig("local_database_url not configured".to_string())
+        })?;
 
         let cloud_db_url = self
             .api_client

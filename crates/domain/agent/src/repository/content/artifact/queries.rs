@@ -227,10 +227,7 @@ async fn row_to_artifact(
     pool: &Arc<PgPool>,
     row: ArtifactRow,
 ) -> Result<Artifact, RepositoryError> {
-    let context_id = row
-        .context_id
-        .clone()
-        .unwrap_or_else(|| ContextId::new(""));
+    let context_id = row.context_id.clone().unwrap_or_else(|| ContextId::new(""));
     let parts = get_artifact_parts(pool, row.artifact_id.as_str(), context_id.as_str()).await?;
 
     let (rendering_hints, mcp_schema, is_internal, execution_index) =

@@ -186,9 +186,7 @@ pub async fn validate_oauth_for_request(
     let provider = match jwt_provider {
         Some(p) => p,
         None => {
-            return Err(
-                unauthorized_response("JWT provider not configured", request_id).await
-            );
+            return Err(unauthorized_response("JWT provider not configured", request_id).await);
         },
     };
 
@@ -227,14 +225,11 @@ pub async fn validate_oauth_for_request(
             }
 
             let has_required_scope = required_scopes.iter().any(|required_scope| {
-                claims
-                    .permissions
-                    .iter()
-                    .any(|user_perm| {
-                        Permission::from_str(user_perm)
-                            .map(|p| p.implies(required_scope))
-                            .unwrap_or(false)
-                    })
+                claims.permissions.iter().any(|user_perm| {
+                    Permission::from_str(user_perm)
+                        .map(|p| p.implies(required_scope))
+                        .unwrap_or(false)
+                })
             });
 
             if !has_required_scope {

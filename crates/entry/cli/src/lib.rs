@@ -240,15 +240,16 @@ pub async fn run() -> Result<()> {
                 },
                 Ok(routing::ExecutionTarget::Local) if is_cloud => {
                     bail!(
-                        "Cloud profile '{}' requires remote execution but no tenant is configured.\n\
-                         Ensure cloud.tenant_id is set and run 'systemprompt infra system login'.",
+                        "Cloud profile '{}' requires remote execution but no tenant is \
+                         configured.\nEnsure cloud.tenant_id is set and run 'systemprompt infra \
+                         system login'.",
                         profile.name
                     );
                 },
                 Err(e) if is_cloud => {
                     bail!(
-                        "Cloud profile '{}' requires remote execution but routing failed: {}\n\
-                         Run 'systemprompt infra system login' to authenticate.",
+                        "Cloud profile '{}' requires remote execution but routing failed: {}\nRun \
+                         'systemprompt infra system login' to authenticate.",
                         profile.name,
                         e
                     );
@@ -257,8 +258,8 @@ pub async fn run() -> Result<()> {
             }
         } else if is_cloud && !is_fly_environment {
             bail!(
-                "Cloud profile '{}' selected but this command doesn't support remote execution.\n\
-                 Use a local profile with --profile <name>.",
+                "Cloud profile '{}' selected but this command doesn't support remote \
+                 execution.\nUse a local profile with --profile <name>.",
                 profile.name
             );
         }

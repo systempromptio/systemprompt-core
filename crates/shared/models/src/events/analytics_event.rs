@@ -45,7 +45,6 @@ impl AnalyticsEvent {
             | Self::Heartbeat { timestamp } => *timestamp,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

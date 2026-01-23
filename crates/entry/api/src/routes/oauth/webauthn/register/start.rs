@@ -1,12 +1,12 @@
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::webauthn::WebAuthnManager;
-use systemprompt_oauth::OAuthState;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderName, HeaderValue, StatusCode};
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Deserialize;
 use std::sync::Arc;
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::webauthn::WebAuthnManager;
+use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
 use super::RegisterError;

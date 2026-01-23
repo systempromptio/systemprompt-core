@@ -1,7 +1,4 @@
 use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
-use systemprompt_oauth::services::{generate_jwt, JwtConfig, JwtSigningParams};
-use systemprompt_oauth::OAuthState;
 use anyhow::Result;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
@@ -12,6 +9,9 @@ use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::services::{generate_jwt, JwtConfig, JwtSigningParams};
+use systemprompt_oauth::OAuthState;
 
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,

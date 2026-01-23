@@ -25,7 +25,7 @@ pub mod cloud_container {
     pub const SERVICES: &str = "/app/services";
     pub const LOGS: &str = "/app/logs";
     pub const STORAGE: &str = "/app/storage";
-    pub const WEB: &str = "/app/web";
+    pub const WEB: &str = "/app/services/web";
     pub const PROFILES: &str = "/app/services/profiles";
     pub const TEMPLATES: &str = "/app/services/web/templates";
     pub const ASSETS: &str = "/app/services/web/assets";

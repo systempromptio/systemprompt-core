@@ -29,12 +29,20 @@ impl Extension for AiExtension {
                 "ai_request_messages",
                 include_str!("../schema/ai_request_messages.sql"),
             )
-            .with_required_columns(vec!["id".into(), "request_id".into(), "role".into()]),
+            .with_required_columns(vec![
+                "id".into(),
+                "request_id".into(),
+                "role".into(),
+            ]),
             SchemaDefinition::inline(
                 "ai_request_tool_calls",
                 include_str!("../schema/ai_request_tool_calls.sql"),
             )
-            .with_required_columns(vec!["id".into(), "request_id".into(), "tool_name".into()]),
+            .with_required_columns(vec![
+                "id".into(),
+                "request_id".into(),
+                "tool_name".into(),
+            ]),
         ]
     }
 

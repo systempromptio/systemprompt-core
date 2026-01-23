@@ -53,7 +53,7 @@ impl AgentLifecycle {
 
             self.db_service.mark_running(agent_name).await?;
 
-            tracing::info!("Agent started: {} :{}", agent_config.name, agent_config.port);
+            tracing::debug!("Agent started: {} :{}", agent_config.name, agent_config.port);
 
             self.publish_event(AgentEvent::AgentStarted {
                 agent_id: agent_name.to_string(),

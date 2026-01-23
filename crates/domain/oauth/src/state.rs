@@ -1,6 +1,8 @@
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{AnalyticsProvider, FingerprintProvider, UserEventPublisher, UserProvider};
+use systemprompt_traits::{
+    AnalyticsProvider, FingerprintProvider, UserEventPublisher, UserProvider,
+};
 
 #[derive(Clone)]
 pub struct OAuthState {
@@ -45,10 +47,7 @@ impl OAuthState {
     }
 
     #[must_use]
-    pub fn with_fingerprint_provider(
-        mut self,
-        provider: Arc<dyn FingerprintProvider>,
-    ) -> Self {
+    pub fn with_fingerprint_provider(mut self, provider: Arc<dyn FingerprintProvider>) -> Self {
         self.fingerprint_provider = Some(provider);
         self
     }

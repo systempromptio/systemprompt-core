@@ -8,11 +8,11 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use super::super::responses::{created_response, error_response};
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_models::RequestContext;
 use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
 use systemprompt_oauth::OAuthState;
-use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::RequestContext;
 
 fn init_error(e: impl std::fmt::Display) -> Response {
     error_response(
@@ -48,7 +48,7 @@ pub async fn create_client(
                 "server_error",
                 format!("Failed to hash client secret: {e}"),
             );
-        }
+        },
     };
 
     let params = CreateClientParams {
@@ -86,14 +86,14 @@ pub async fn create_client(
                 Ok(mut response_json) => {
                     response_json["client_secret"] = serde_json::Value::String(client_secret);
                     created_response(response_json, location)
-                }
+                },
                 Err(e) => error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "server_error",
                     format!("Failed to serialize response: {e}"),
                 ),
             }
-        }
+        },
         Err(e) => {
             let error_msg = format!("Failed to create client: {e}");
             let is_duplicate = error_msg.contains("UNIQUE constraint failed");
@@ -106,10 +106,14 @@ pub async fn create_client(
             );
 
             if is_duplicate {
-                error_response(StatusCode::CONFLICT, "conflict", "Client with this ID already exists".to_string())
+                error_response(
+                    StatusCode::CONFLICT,
+                    "conflict",
+                    "Client with this ID already exists".to_string(),
+                )
             } else {
                 error_response(StatusCode::BAD_REQUEST, "bad_request", error_msg)
             }
-        }
+        },
     }
 }

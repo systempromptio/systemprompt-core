@@ -2,9 +2,8 @@ pub mod traits;
 
 pub use traits::{
     ComponentContext, ComponentRenderer, EmbeddedLoader, ExtendedData, ExtenderContext,
-    PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender,
-    TemplateDefinition, TemplateLoader, TemplateLoaderError, TemplateLoaderResult,
-    TemplateProvider, TemplateSource,
+    PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender, TemplateDefinition,
+    TemplateLoader, TemplateLoaderError, TemplateLoaderResult, TemplateProvider, TemplateSource,
 };
 
 #[cfg(feature = "tokio")]

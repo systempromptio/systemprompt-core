@@ -181,10 +181,10 @@ fn parse_content_file(
 
     let published_at = parse_date(&metadata.published_at)?;
 
-    let category_id = metadata
-        .category
-        .as_ref()
-        .map_or_else(|| source_config.category_id.clone(), |c| CategoryId::new(c.clone()));
+    let category_id = metadata.category.as_ref().map_or_else(
+        || source_config.category_id.clone(),
+        |c| CategoryId::new(c.clone()),
+    );
 
     let version_hash = compute_version_hash(&metadata.title, &body, &metadata.description);
 

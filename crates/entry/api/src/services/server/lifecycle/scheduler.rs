@@ -13,7 +13,10 @@ pub async fn initialize_scheduler(
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     if let Some(tx) = events {
-        if tx.unbounded_send(StartupEvent::SchedulerInitializing).is_err() {
+        if tx
+            .unbounded_send(StartupEvent::SchedulerInitializing)
+            .is_err()
+        {
             tracing::debug!("Startup event receiver dropped");
         }
     }
@@ -62,7 +65,10 @@ pub async fn initialize_scheduler(
 
     if let Some(tx) = events {
         let job_count = inventory::iter::<&'static dyn Job>.into_iter().count();
-        if tx.unbounded_send(StartupEvent::SchedulerReady { job_count }).is_err() {
+        if tx
+            .unbounded_send(StartupEvent::SchedulerReady { job_count })
+            .is_err()
+        {
             tracing::debug!("Startup event receiver dropped");
         }
     }

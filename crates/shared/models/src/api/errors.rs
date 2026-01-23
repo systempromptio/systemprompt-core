@@ -150,7 +150,9 @@ impl From<InternalApiError> for ApiError {
             InternalApiError::Forbidden { resource, reason } => {
                 Some(format!("Access to {resource} denied: {reason}"))
             },
-            InternalApiError::DatabaseError { message } => Some(format!("Database error: {message}")),
+            InternalApiError::DatabaseError { message } => {
+                Some(format!("Database error: {message}"))
+            },
             InternalApiError::JsonError(e) => Some(format!("JSON processing error: {e}")),
             InternalApiError::AuthenticationError { message } => {
                 Some(format!("Authentication error: {message}"))

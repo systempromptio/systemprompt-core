@@ -52,7 +52,10 @@ impl AgentState {
     }
 
     #[must_use]
-    pub fn with_session_analytics_provider(mut self, provider: DynSessionAnalyticsProvider) -> Self {
+    pub fn with_session_analytics_provider(
+        mut self,
+        provider: DynSessionAnalyticsProvider,
+    ) -> Self {
         self.session_analytics_provider = Some(provider);
         self
     }

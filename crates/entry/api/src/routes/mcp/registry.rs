@@ -51,7 +51,7 @@ pub async fn handle_mcp_registry() -> impl IntoResponse {
                 StatusCode::INTERNAL_SERVER_ERROR,
                 format!("Failed to retrieve MCP registry: {e}"),
             );
-        }
+        },
     };
 
     let servers: Vec<McpRegistryServer> = server_configs

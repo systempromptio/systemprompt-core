@@ -22,7 +22,6 @@ impl ContextEvent {
             Self::System(e) => e.timestamp(),
         }
     }
-
 }
 
 impl From<AgUiEvent> for ContextEvent {

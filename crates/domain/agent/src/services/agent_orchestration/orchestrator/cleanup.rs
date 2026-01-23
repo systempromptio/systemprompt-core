@@ -3,7 +3,7 @@ use crate::services::agent_orchestration::{AgentStatus, OrchestrationError, Orch
 
 impl AgentOrchestrator {
     pub async fn delete_agent(&self, agent_id: &str) -> OrchestrationResult<()> {
-        tracing::info!(agent_id = %agent_id, "Deleting agent");
+        tracing::debug!(agent_id = %agent_id, "Deleting agent");
 
         if let Ok(status) = self.get_status(agent_id).await {
             if let AgentStatus::Running { .. } = status {
@@ -14,7 +14,7 @@ impl AgentOrchestrator {
 
         self.db_service.remove_agent_service(agent_id).await?;
 
-        tracing::info!(agent_id = %agent_id, "Agent deleted successfully");
+        tracing::debug!(agent_id = %agent_id, "Agent deleted successfully");
         Ok(())
     }
 

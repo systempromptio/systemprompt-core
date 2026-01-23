@@ -26,8 +26,7 @@ pub fn is_valid_context_id(context_id: &str) -> bool {
 }
 
 pub fn router() -> Router<AppContext> {
-    let context_root_methods: MethodRouter<AppContext> =
-        get(list_contexts).post(create_context);
+    let context_root_methods: MethodRouter<AppContext> = get(list_contexts).post(create_context);
 
     let context_id_methods: MethodRouter<AppContext> =
         get(get_context).put(update_context).delete(delete_context);

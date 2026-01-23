@@ -1,8 +1,8 @@
 use super::{TokenError, TokenResult};
-use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
 use anyhow::Result;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
 
 pub fn extract_required_field<'a>(
     field: Option<&'a str>,

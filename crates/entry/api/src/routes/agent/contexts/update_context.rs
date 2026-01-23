@@ -4,8 +4,8 @@ use axum::Json;
 use systemprompt_identifiers::ContextId;
 use systemprompt_runtime::AppContext;
 
-use super::is_valid_context_id;
 use super::super::responses::{api_error_response, single_response};
+use super::is_valid_context_id;
 use systemprompt_agent::models::context::UpdateContextRequest;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_events::EventRouter;
@@ -58,7 +58,9 @@ pub async fn update_context(
         },
         Err(e) => {
             tracing::error!(error = %e, "Failed to update context");
-            api_error_response(ApiError::not_found(format!("Failed to update context: {e}")))
+            api_error_response(ApiError::not_found(format!(
+                "Failed to update context: {e}"
+            )))
         },
     }
 }

@@ -109,10 +109,7 @@ pub async fn serve_static_content(
         return (StatusCode::NOT_FOUND, "Homepage not found").into_response();
     }
 
-    if path == "/sitemap.xml"
-        || path == "/robots.txt"
-        || path == "/llms.txt"
-        || path == "/feed.xml"
+    if path == "/sitemap.xml" || path == "/robots.txt" || path == "/llms.txt" || path == "/feed.xml"
     {
         let trimmed_path = path.trim_start_matches('/');
         let file_path = dist_dir.join(trimmed_path);

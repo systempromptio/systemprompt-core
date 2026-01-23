@@ -27,10 +27,7 @@ pub fn tasks_router() -> Router<AppContext> {
             "/{task_id}",
             get(tasks::get_task).delete(tasks::delete_task),
         )
-        .route(
-            "/{task_id}/messages",
-            get(tasks::get_messages_by_task),
-        )
+        .route("/{task_id}/messages", get(tasks::get_messages_by_task))
         .route(
             "/{task_id}/artifacts",
             get(artifacts::list_artifacts_by_task),

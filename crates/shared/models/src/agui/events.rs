@@ -141,7 +141,6 @@ impl AgUiEvent {
             | Self::Custom { timestamp, .. } => *timestamp,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]

@@ -30,10 +30,7 @@ impl Extension for UsersExtension {
                     "created_at".into(),
                 ]),
             SchemaDefinition::inline("user_sessions", include_str!("../schema/user_sessions.sql"))
-                .with_required_columns(vec![
-                    "session_id".into(),
-                    "started_at".into(),
-                ]),
+                .with_required_columns(vec!["session_id".into(), "started_at".into()]),
             SchemaDefinition::inline("banned_ips", include_str!("../schema/banned_ips.sql"))
                 .with_required_columns(vec![
                     "ip_address".into(),

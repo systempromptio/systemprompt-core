@@ -117,7 +117,10 @@ impl AnomalyDetectionService {
         let now = Utc::now();
         let cutoff = now - Duration::hours(1);
         let key = metric_name.to_string();
-        let event = AnomalyEvent { timestamp: now, value };
+        let event = AnomalyEvent {
+            timestamp: now,
+            value,
+        };
 
         let mut events = self.recent_events.write().await;
         events.entry(key).or_default().push(event);

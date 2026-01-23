@@ -149,7 +149,9 @@ pub async fn install_extension_schemas_with_config(
                 extension = %ext.id(),
                 "Running pending migrations"
             );
-            migration_service.run_pending_migrations(ext.as_ref()).await?;
+            migration_service
+                .run_pending_migrations(ext.as_ref())
+                .await?;
         }
     }
 
@@ -180,7 +182,7 @@ async fn install_extension_schema(
         return Ok(());
     }
 
-    info!(
+    debug!(
         "Installing {} schema(s) for extension '{}' (weight: {})",
         schemas.len(),
         extension_id,
@@ -200,7 +202,7 @@ async fn install_single_schema(
     extension_id: &str,
 ) -> std::result::Result<(), LoaderError> {
     if check_table_exists_for_extension(db, &schema.table, extension_id).await? {
-        info!("  Table '{}' already exists, skipping", schema.table);
+        debug!("  Table '{}' already exists, skipping", schema.table);
         return Ok(());
     }
 
@@ -249,7 +251,7 @@ async fn execute_schema_sql(
     table: &str,
     extension_id: &str,
 ) -> std::result::Result<(), LoaderError> {
-    info!("  Creating table '{}'", table);
+    debug!("  Creating table '{}'", table);
     SqlExecutor::execute_statements_parsed(db, sql)
         .await
         .map_err(|e| LoaderError::SchemaInstallationFailed {

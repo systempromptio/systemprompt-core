@@ -43,7 +43,11 @@ impl Extension for ContentExtension {
                 "campaign_links",
                 include_str!("../schema/campaign_links.sql"),
             )
-            .with_required_columns(vec!["id".into(), "short_code".into(), "target_url".into()]),
+            .with_required_columns(vec![
+                "id".into(),
+                "short_code".into(),
+                "target_url".into(),
+            ]),
             SchemaDefinition::inline("link_clicks", include_str!("../schema/link_clicks.sql"))
                 .with_required_columns(vec!["id".into(), "link_id".into(), "clicked_at".into()]),
             SchemaDefinition::inline(

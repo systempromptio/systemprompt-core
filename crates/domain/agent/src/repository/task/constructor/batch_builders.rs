@@ -91,10 +91,7 @@ pub fn build_messages(
             parts,
             id: msg_row.message_id.clone(),
             task_id: Some(msg_row.task_id.clone()),
-            context_id: msg_row
-                .context_id
-                .clone()
-                .unwrap_or_else(ContextId::empty),
+            context_id: msg_row.context_id.clone().unwrap_or_else(ContextId::empty),
             kind: "message".to_string(),
             metadata: if final_metadata == serde_json::json!({}) {
                 None

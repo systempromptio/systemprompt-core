@@ -40,7 +40,8 @@ pub async fn execute(
         .await
         .context("Failed to initialize application context")?;
 
-    let _manager = McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
+    let _manager =
+        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
     let database = DatabaseManager::new(Arc::clone(ctx.db_pool()));
 
     let servers_to_validate: Vec<String> = if args.all {

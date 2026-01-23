@@ -88,7 +88,6 @@ impl A2AEvent {
             | Self::JsonRpcError { timestamp, .. } => *timestamp,
         }
     }
-
 }
 
 #[derive(Debug, Clone, Copy)]

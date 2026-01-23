@@ -136,7 +136,7 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
                 CliService::success(&output.message);
                 CliService::info(&format!("   Roles: {:?}", new_roles));
             }
-        }
+        },
         PromoteResult::AlreadyAdmin(u) => {
             let output = DbAssignAdminOutput {
                 user_id: u.id.clone(),
@@ -152,10 +152,10 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
             } else {
                 CliService::warning(&output.message);
             }
-        }
+        },
         PromoteResult::UserNotFound => {
             return Err(anyhow!("User '{}' not found", user));
-        }
+        },
     }
 
     Ok(())
@@ -273,18 +273,11 @@ async fn execute_migrations_status(
 
             CliService::info(&format!(
                 "  {} {}{}: {}/{} applied",
-                status_icon,
-                ext.extension_id,
-                required_tag,
-                ext.total_applied,
-                ext.total_defined
+                status_icon, ext.extension_id, required_tag, ext.total_applied, ext.total_defined
             ));
 
             if !ext.pending_versions.is_empty() {
-                CliService::info(&format!(
-                    "      Pending: {:?}",
-                    ext.pending_versions
-                ));
+                CliService::info(&format!("      Pending: {:?}", ext.pending_versions));
             }
         }
     }
@@ -337,7 +330,9 @@ async fn execute_migrations_history(
             for m in &output.migrations {
                 CliService::info(&format!(
                     "  v{:03} {} (checksum: {})",
-                    m.version, m.name, &m.checksum[..8]
+                    m.version,
+                    m.name,
+                    &m.checksum[..8]
                 ));
             }
         }

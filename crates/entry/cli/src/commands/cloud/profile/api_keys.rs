@@ -10,6 +10,26 @@ pub struct ApiKeys {
     pub openai: Option<String>,
 }
 
+impl ApiKeys {
+    pub fn from_options(
+        gemini: Option<String>,
+        anthropic: Option<String>,
+        openai: Option<String>,
+    ) -> Result<Self> {
+        if gemini.is_none() && anthropic.is_none() && openai.is_none() {
+            bail!(
+                "At least one AI provider API key is required.\nProvide: --anthropic-key, \
+                 --openai-key, or --gemini-key"
+            );
+        }
+        Ok(Self {
+            gemini,
+            anthropic,
+            openai,
+        })
+    }
+}
+
 pub fn collect_api_keys() -> Result<ApiKeys> {
     CliService::info("At least one AI provider API key is required.");
 

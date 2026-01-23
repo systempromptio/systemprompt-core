@@ -44,7 +44,11 @@ impl Extension for AnalyticsExtension {
                 "funnel_progress",
                 include_str!("../schema/funnel_progress.sql"),
             )
-            .with_required_columns(vec!["id".into(), "funnel_id".into(), "session_id".into()]),
+            .with_required_columns(vec![
+                "id".into(),
+                "funnel_id".into(),
+                "session_id".into(),
+            ]),
         ]
     }
 

@@ -186,7 +186,7 @@ impl CloudProfileBuilder {
                 bin: container::BIN.to_string(),
                 storage: Some(container::STORAGE.to_string()),
                 geoip_database: None,
-                web_path: None,
+                web_path: Some(container::WEB.to_string()),
             },
             security: SecurityConfig {
                 issuer: consts::CLOUD_ISSUER.to_string(),

@@ -266,8 +266,7 @@ fn discovery_router(ctx: &AppContext) -> Router {
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {
-    crate::routes::oauth::wellknown_routes()
-        .merge(crate::routes::wellknown_router(ctx))
+    crate::routes::oauth::wellknown_routes().merge(crate::routes::wellknown_router(ctx))
 }
 
 fn mount_extension_routes(

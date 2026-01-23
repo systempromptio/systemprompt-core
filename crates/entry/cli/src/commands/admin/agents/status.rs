@@ -28,8 +28,7 @@ pub async fn execute(
         .context("Failed to initialize application context")?;
 
     let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config()
-            .context("Failed to create JWT provider")?,
+        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
     );
     let agent_state = Arc::new(AgentState::new(
         Arc::clone(ctx.db_pool()),
