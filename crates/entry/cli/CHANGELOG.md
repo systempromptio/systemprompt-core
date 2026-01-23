@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.7] - 2026-01-23
+
+### Changed
+- `cloud tenant rotate-credentials` now displays both Internal URL and External URL on separate lines
+
 ## [0.0.6] - 2026-01-23
 
 ### Fixed

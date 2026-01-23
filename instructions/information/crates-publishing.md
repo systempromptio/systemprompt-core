@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.6` (CLI Session Fix - January 23, 2026)
+**Current Version:** `0.0.7` (Rotate Credentials Dual URLs - January 23, 2026)
 
 All **30 crates** have been published to crates.io.
 
@@ -406,6 +406,11 @@ systemprompt-identifiers = "0.0.1"
 ---
 
 ## Changelog
+
+### v0.0.7 (2026-01-23)
+
+- `RotateCredentialsResponse` returns both internal and external database URLs
+- CLI `rotate-credentials` displays both URLs on separate lines
 
 ### v0.0.6 (2026-01-23)
 

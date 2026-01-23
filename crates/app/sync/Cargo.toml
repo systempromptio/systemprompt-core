@@ -39,11 +39,11 @@ sha2 = { workspace = true }
 walkdir = { workspace = true }
 
 # Domain crates for local sync
-systemprompt-agent = { path = "../../domain/agent", version = "0.0.6" }
-systemprompt-content = { path = "../../domain/content", version = "0.0.6" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.6" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.6" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.6" }
+systemprompt-agent = { path = "../../domain/agent", version = "0.0.7" }
+systemprompt-content = { path = "../../domain/content", version = "0.0.7" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.7" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.7" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.7" }
 
 [dev-dependencies]
 tempfile = { workspace = true }
