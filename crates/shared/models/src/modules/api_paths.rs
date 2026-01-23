@@ -118,6 +118,10 @@ impl ApiPaths {
         format!("{}/{}/rotate-sync-token", Self::CLOUD_TENANTS, tenant_id)
     }
 
+    pub fn tenant_subscription_cancel(tenant_id: &str) -> String {
+        format!("{}/{}/subscription/cancel", Self::CLOUD_TENANTS, tenant_id)
+    }
+
     pub fn mcp_server_endpoint(server_name: &str) -> String {
         format!("{}/{}/mcp", Self::MCP_BASE, server_name)
     }

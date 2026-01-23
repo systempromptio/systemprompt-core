@@ -61,6 +61,16 @@ mod user_error_display_tests {
         assert!(display.contains("Validation error"));
         assert!(display.contains("Name cannot be empty"));
     }
+
+    #[test]
+    fn invalid_roles_displays_roles() {
+        let error = UserError::InvalidRoles(vec!["superuser".to_string(), "root".to_string()]);
+
+        let display = error.to_string();
+        assert!(display.contains("Invalid roles"));
+        assert!(display.contains("superuser"));
+        assert!(display.contains("root"));
+    }
 }
 
 // ============================================================================
@@ -109,6 +119,14 @@ mod user_error_debug_tests {
 
         let debug = format!("{:?}", error);
         assert!(debug.contains("Validation"));
+    }
+
+    #[test]
+    fn invalid_roles_debug() {
+        let error = UserError::InvalidRoles(vec!["bad1".to_string(), "bad2".to_string()]);
+
+        let debug = format!("{:?}", error);
+        assert!(debug.contains("InvalidRoles"));
     }
 }
 
@@ -224,6 +242,12 @@ mod error_trait_tests {
     #[test]
     fn validation_source_is_none() {
         let error = UserError::Validation("error".to_string());
+        assert!(error.source().is_none());
+    }
+
+    #[test]
+    fn invalid_roles_source_is_none() {
+        let error = UserError::InvalidRoles(vec!["bad".to_string()]);
         assert!(error.source().is_none());
     }
 }

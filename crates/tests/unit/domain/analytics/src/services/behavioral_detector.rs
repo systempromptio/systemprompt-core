@@ -5,6 +5,7 @@ use systemprompt_analytics::{
     BehavioralAnalysisInput, BehavioralBotDetector, BehavioralSignal, SignalType,
     BEHAVIORAL_BOT_THRESHOLD,
 };
+use systemprompt_identifiers::SessionId;
 
 mod behavioral_analysis_input_tests {
     use super::*;
@@ -17,7 +18,7 @@ mod behavioral_analysis_input_tests {
     ) -> BehavioralAnalysisInput {
         let now = Utc::now();
         BehavioralAnalysisInput {
-            session_id: "sess_123".to_string(),
+            session_id: SessionId::new("sess_123".to_string()),
             fingerprint_hash: Some("fp_hash".to_string()),
             user_agent: Some("Mozilla/5.0 Chrome/120.0".to_string()),
             request_count,
@@ -33,7 +34,7 @@ mod behavioral_analysis_input_tests {
     #[test]
     fn input_stores_session_id() {
         let input = create_input(10, vec![], 100, 1);
-        assert_eq!(input.session_id, "sess_123");
+        assert_eq!(input.session_id.as_str(), "sess_123");
     }
 
     #[test]
@@ -199,7 +200,7 @@ mod behavioral_bot_detector_tests {
     ) -> BehavioralAnalysisInput {
         let now = Utc::now();
         BehavioralAnalysisInput {
-            session_id: "sess_123".to_string(),
+            session_id: SessionId::new("sess_123".to_string()),
             fingerprint_hash: Some("fp_hash".to_string()),
             user_agent: Some("Mozilla/5.0 Chrome/120.0".to_string()),
             request_count,
@@ -218,7 +219,7 @@ mod behavioral_bot_detector_tests {
     ) -> BehavioralAnalysisInput {
         let now = Utc::now();
         BehavioralAnalysisInput {
-            session_id: "sess_123".to_string(),
+            session_id: SessionId::new("sess_123".to_string()),
             fingerprint_hash: Some("fp_hash".to_string()),
             user_agent: Some("Mozilla/5.0 Chrome/120.0".to_string()),
             request_count,
@@ -234,7 +235,7 @@ mod behavioral_bot_detector_tests {
     fn create_input_with_user_agent(user_agent: Option<String>) -> BehavioralAnalysisInput {
         let now = Utc::now();
         BehavioralAnalysisInput {
-            session_id: "sess_123".to_string(),
+            session_id: SessionId::new("sess_123".to_string()),
             fingerprint_hash: Some("fp_hash".to_string()),
             user_agent,
             request_count: 10,
@@ -453,12 +454,12 @@ mod behavioral_bot_detector_tests {
         let now = Utc::now();
         let pages: Vec<String> = (0..10).map(|i| format!("/page{}", i)).collect();
         let input = BehavioralAnalysisInput {
-            session_id: "sess_123".to_string(),
+            session_id: SessionId::new("sess_123".to_string()),
             fingerprint_hash: Some("fp_hash".to_string()),
             user_agent: Some("Mozilla/5.0 Chrome/120.0".to_string()),
             request_count: 10,
             started_at: now,
-            last_activity_at: now, // Same time = zero duration
+            last_activity_at: now,
             endpoints_accessed: pages,
             total_site_pages: 100,
             fingerprint_session_count: 1,
@@ -466,7 +467,6 @@ mod behavioral_bot_detector_tests {
         };
         let result = BehavioralBotDetector::analyze(&input);
 
-        // With zero duration, should skip pages per minute check
         assert!(!result.signals.iter().any(|s| s.signal_type == SignalType::HighPagesPerMinute));
     }
 

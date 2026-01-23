@@ -1,10 +1,21 @@
+<div align="center">
+  <a href="https://systemprompt.io">
+    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
+  </a>
+  <p><strong>Production infrastructure for AI agents</strong></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://docs.systemprompt.io">Documentation</a></p>
+</div>
+
+---
+
+
 # systemprompt-database
 
 Database abstraction layer for systemprompt.io supporting SQLite, PostgreSQL, and MySQL.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-database.svg)](https://crates.io/crates/systemprompt-database)
 [![Documentation](https://docs.rs/systemprompt-database/badge.svg)](https://docs.rs/systemprompt-database)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
 
 ## Overview
 
@@ -217,4 +228,4 @@ From `sqlx`: `PgPool`, `Pool`, `Postgres`, `Transaction`, `Json`
 
 ## License
 
-FSL-1.1-ALv2 - See [LICENSE](../../LICENSE) for details.
+FSL-1.1-ALv2 - See [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.

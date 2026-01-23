@@ -1,11 +1,33 @@
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use systemprompt_template_provider::{
-    ComponentContext, ComponentRenderer, ExtendedData, ExtenderContext, PageContext,
+    ComponentContext, ComponentRenderer, DynComponentRenderer, DynPageDataProvider,
+    DynTemplateDataExtender, DynTemplateLoader, DynTemplateProvider, ExtenderContext, PageContext,
     PageDataProvider, RenderedComponent, TemplateDataExtender, TemplateDefinition, TemplateLoader,
     TemplateProvider, TemplateSource,
 };
+
+pub fn provider(p: MockProvider) -> DynTemplateProvider {
+    Arc::new(p)
+}
+
+pub fn loader(l: MockLoader) -> DynTemplateLoader {
+    Arc::new(l)
+}
+
+pub fn extender(e: MockExtender) -> DynTemplateDataExtender {
+    Arc::new(e)
+}
+
+pub fn component(c: MockComponent) -> DynComponentRenderer {
+    Arc::new(c)
+}
+
+pub fn page_provider(p: MockPageProvider) -> DynPageDataProvider {
+    Arc::new(p)
+}
 
 pub struct MockProvider {
     id: &'static str,

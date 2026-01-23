@@ -1,3 +1,14 @@
+<div align="center">
+  <a href="https://systemprompt.io">
+    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
+  </a>
+  <p><strong>Production infrastructure for AI agents</strong></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://docs.systemprompt.io">Documentation</a></p>
+</div>
+
+---
+
+
 # System CLI Commands
 
 This document provides complete documentation for AI agents to use the system CLI commands. All commands support non-interactive mode for automation.

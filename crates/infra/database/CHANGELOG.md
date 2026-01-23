@@ -2,6 +2,12 @@
 
 ## [0.0.3] - 2026-01-22
 
+### Fixed
+- Fix schema validation for VIEW-based schemas
+- Add migration system infrastructure
+
+## [0.0.3] - 2026-01-22
+
 ### Added
 - `extension_migrations` table for tracking applied migrations
 - `MigrationService` for running and tracking extension migrations

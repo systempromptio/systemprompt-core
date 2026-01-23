@@ -1,4 +1,5 @@
 use anyhow::{anyhow, bail, Result};
+use chrono::Utc;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
 use systemprompt_cloud::{
@@ -8,15 +9,13 @@ use systemprompt_logging::CliService;
 
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
-use crate::cloud::tenant::TenantDeleteArgs;
+use crate::cloud::tenant::{TenantCancelArgs, TenantDeleteArgs};
 
 pub async fn list_tenants(config: &CliConfig) -> Result<()> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
-        TenantStore::default()
-    });
+
+    let store = sync_and_load_tenants(&tenants_path).await;
 
     if store.tenants.is_empty() {
         CliService::section("Tenants");
@@ -27,6 +26,8 @@ pub async fn list_tenants(config: &CliConfig) -> Result<()> {
 
     if !config.is_interactive() {
         CliService::section("Tenants");
+        CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+        CliService::info("");
         for tenant in &store.tenants {
             let type_str = match tenant.tenant_type {
                 TenantType::Local => "local",
@@ -62,6 +63,8 @@ pub async fn list_tenants(config: &CliConfig) -> Result<()> {
 
     loop {
         CliService::section("Tenants");
+        CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+        CliService::info("");
 
         let selection = Select::with_theme(&ColorfulTheme::default())
             .with_prompt("Select tenant")
@@ -312,4 +315,142 @@ fn display_readonly_cloud_fields(tenant: &StoredTenant) {
     if let Some(ref hostname) = tenant.hostname {
         CliService::info(&format!("Hostname: {} (cannot be changed)", hostname));
     }
+}
+
+async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
+    let mut local_store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
+
+    let local_tenants: Vec<StoredTenant> = local_store
+        .tenants
+        .iter()
+        .filter(|t| t.tenant_type == TenantType::Local)
+        .cloned()
+        .collect();
+
+    let creds = match get_credentials() {
+        Ok(creds) => creds,
+        Err(_) => {
+            return local_store;
+        },
+    };
+
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    let cloud_tenants = match client.get_user().await {
+        Ok(response) => response
+            .tenants
+            .iter()
+            .map(StoredTenant::from_tenant_info)
+            .collect::<Vec<_>>(),
+        Err(e) => {
+            CliService::warning(&format!("Failed to sync cloud tenants: {}", e));
+            return local_store;
+        },
+    };
+
+    let mut merged_tenants = local_tenants;
+    for cloud_tenant in cloud_tenants {
+        if !merged_tenants.iter().any(|t| t.id == cloud_tenant.id) {
+            merged_tenants.push(cloud_tenant);
+        }
+    }
+
+    local_store.tenants = merged_tenants;
+    local_store.synced_at = Utc::now();
+
+    if let Err(e) = local_store.save_to_path(tenants_path) {
+        CliService::warning(&format!("Failed to save synced tenants: {}", e));
+    }
+
+    local_store
+}
+
+pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> Result<()> {
+    if !config.is_interactive() {
+        bail!(
+            "Subscription cancellation requires interactive mode for safety.\nThis is an \
+             irreversible operation that destroys all data."
+        );
+    }
+
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+
+    let cloud_tenants: Vec<&StoredTenant> = store
+        .tenants
+        .iter()
+        .filter(|t| t.tenant_type == TenantType::Cloud)
+        .collect();
+
+    if cloud_tenants.is_empty() {
+        bail!("No cloud tenants found. Only cloud tenants have subscriptions.");
+    }
+
+    let tenant = match args.id {
+        Some(ref id) => store
+            .tenants
+            .iter()
+            .find(|t| t.id == *id && t.tenant_type == TenantType::Cloud)
+            .ok_or_else(|| anyhow!("Cloud tenant not found: {}", id))?,
+        None => {
+            let options: Vec<String> = cloud_tenants
+                .iter()
+                .map(|t| format!("{} ({})", t.name, t.id))
+                .collect();
+
+            let selection = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Select cloud tenant to cancel")
+                .items(&options)
+                .default(0)
+                .interact()?;
+
+            cloud_tenants[selection]
+        },
+    };
+
+    CliService::section("⚠️  CANCEL SUBSCRIPTION");
+    CliService::error("THIS ACTION IS IRREVERSIBLE");
+    CliService::info("");
+    CliService::info("This will:");
+    CliService::info("  • Cancel your subscription immediately");
+    CliService::info("  • Stop and destroy the Fly.io machine");
+    CliService::info("  • Delete ALL data in the database");
+    CliService::info("  • Remove all deployed code and configuration");
+    CliService::info("");
+    CliService::warning("Your data CANNOT be recovered after this operation.");
+    CliService::info("");
+
+    CliService::key_value("Tenant", &tenant.name);
+    CliService::key_value("ID", &tenant.id);
+    if let Some(ref hostname) = tenant.hostname {
+        CliService::key_value("URL", &format!("https://{}", hostname));
+    }
+    CliService::info("");
+
+    let confirmation: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt(format!("Type '{}' to confirm cancellation", tenant.name))
+        .interact_text()?;
+
+    if confirmation != tenant.name {
+        CliService::info("Cancellation aborted. Tenant name did not match.");
+        return Ok(());
+    }
+
+    let creds = get_credentials()?;
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+
+    let spinner = CliService::spinner("Cancelling subscription...");
+    client.cancel_subscription(&tenant.id).await?;
+    spinner.finish_and_clear();
+
+    CliService::success("Subscription cancelled");
+    CliService::info("Your tenant will be suspended and all data will be destroyed.");
+    CliService::info("You will not be charged for future billing periods.");
+    CliService::info("");
+    CliService::info(
+        "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
+    );
+
+    Ok(())
 }

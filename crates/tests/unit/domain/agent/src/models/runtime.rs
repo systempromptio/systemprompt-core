@@ -22,6 +22,7 @@ fn test_agent_runtime_info_serialize() {
         mcp_servers: vec!["server1".to_string(), "server2".to_string()],
         provider: Some("anthropic".to_string()),
         model: Some("claude-3-opus".to_string()),
+        max_output_tokens: Some(4096),
         skills: vec!["skill1".to_string()],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -44,6 +45,7 @@ fn test_agent_runtime_info_deserialize() {
         "mcpServers": ["mcp1"],
         "provider": "openai",
         "model": "gpt-4",
+        "maxOutputTokens": 8192,
         "skills": [],
         "toolModelOverrides": {}
     }"#;
@@ -57,6 +59,7 @@ fn test_agent_runtime_info_deserialize() {
     assert_eq!(info.mcp_servers, vec!["mcp1".to_string()]);
     assert_eq!(info.provider, Some("openai".to_string()));
     assert_eq!(info.model, Some("gpt-4".to_string()));
+    assert_eq!(info.max_output_tokens, Some(8192));
 }
 
 #[test]
@@ -79,6 +82,7 @@ fn test_agent_runtime_info_optional_fields() {
     assert!(info.system_prompt.is_none());
     assert!(info.provider.is_none());
     assert!(info.model.is_none());
+    assert!(info.max_output_tokens.is_none());
     assert!(info.mcp_servers.is_empty());
 }
 
@@ -93,6 +97,7 @@ fn test_agent_runtime_info_equality() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -106,6 +111,7 @@ fn test_agent_runtime_info_equality() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -124,6 +130,7 @@ fn test_agent_runtime_info_inequality() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -137,6 +144,7 @@ fn test_agent_runtime_info_inequality() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -155,6 +163,7 @@ fn test_agent_runtime_info_debug() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -176,6 +185,7 @@ fn test_agent_runtime_info_clone() {
         mcp_servers: vec!["server".to_string()],
         provider: Some("provider".to_string()),
         model: Some("model".to_string()),
+        max_output_tokens: Some(2048),
         skills: vec!["skill".to_string()],
         tool_model_overrides: ToolModelOverrides::default(),
     };
@@ -185,6 +195,7 @@ fn test_agent_runtime_info_clone() {
     assert_eq!(cloned.port, info.port);
     assert_eq!(cloned.system_prompt, info.system_prompt);
     assert_eq!(cloned.mcp_servers, info.mcp_servers);
+    assert_eq!(cloned.max_output_tokens, info.max_output_tokens);
 }
 
 #[test]
@@ -198,6 +209,7 @@ fn test_agent_runtime_info_with_skills() {
         mcp_servers: vec![],
         provider: None,
         model: None,
+        max_output_tokens: None,
         skills: vec![
             "code-review".to_string(),
             "documentation".to_string(),

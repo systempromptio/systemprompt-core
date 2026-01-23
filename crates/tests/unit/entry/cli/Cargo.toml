@@ -1,0 +1,26 @@
+[package]
+name = "systemprompt-cli-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-cli command-line interface"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-cli = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+serde_yaml = { workspace = true }
+tempfile = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+rand = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -7,10 +7,12 @@
 //! Tests cover:
 //! - RepositoryError construction and variants
 //! - DatabaseQuery and QueryResult operations
-//! - DatabaseInfo, TableInfo, ColumnInfo structures
+//! - DatabaseInfo, TableInfo, ColumnInfo, IndexInfo structures
 //! - QuerySelector trait implementations
 //! - EntityId trait implementations
 //! - DatabaseCliDisplay formatting
+//! - DatabaseExtension
+//! - Migration structs (AppliedMigration, MigrationResult, MigrationStatus)
 
 #[cfg(test)]
 mod error;
@@ -26,3 +28,9 @@ mod repository;
 
 #[cfg(test)]
 mod services;
+
+#[cfg(test)]
+mod lifecycle;
+
+#[cfg(test)]
+mod extension;

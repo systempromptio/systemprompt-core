@@ -126,4 +126,9 @@ impl CloudApiClient {
         self.delete(&ApiPaths::tenant_custom_domain(tenant_id))
             .await
     }
+
+    pub async fn cancel_subscription(&self, tenant_id: &str) -> Result<()> {
+        self.post_empty(&ApiPaths::tenant_subscription_cancel(tenant_id))
+            .await
+    }
 }

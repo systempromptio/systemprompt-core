@@ -13,7 +13,7 @@ pub use installation::{install_module, install_module_with_db};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleRuntime, WellKnownRoute};
 pub use span::create_request_span;
 pub use startup_validation::{
-    display_validation_report, display_validation_warnings, StartupValidator,
+    display_validation_report, display_validation_warnings, FilesConfigValidator, StartupValidator,
 };
 pub use validation::validate_system;
 pub use wellknown::{get_wellknown_metadata, WellKnownMetadata};

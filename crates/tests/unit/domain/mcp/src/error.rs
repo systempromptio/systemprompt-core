@@ -1,6 +1,6 @@
 //! Unit tests for McpError types
 
-use systemprompt_mcp::error::{McpError, McpResult};
+use systemprompt_mcp::McpError;
 
 // ============================================================================
 // McpError Display Tests
@@ -179,19 +179,11 @@ fn test_mcp_error_internal_debug() {
 // ============================================================================
 
 #[test]
-fn test_mcp_error_from_anyhow() {
-    let anyhow_error = anyhow::anyhow!("anyhow error message");
-    let mcp_error: McpError = anyhow_error.into();
-    let display = mcp_error.to_string();
-    assert!(display.contains("anyhow error message"));
-}
-
-#[test]
 fn test_mcp_error_from_serde_json() {
     let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
     let mcp_error: McpError = json_error.into();
     let display = mcp_error.to_string();
-    assert!(display.contains("Serialization") || !display.is_empty());
+    assert!(!display.is_empty());
 }
 
 // ============================================================================
@@ -200,28 +192,28 @@ fn test_mcp_error_from_serde_json() {
 
 #[test]
 fn test_mcp_result_ok() {
-    let result: McpResult<i32> = Ok(42);
+    let result: Result<i32, McpError> = Ok(42);
     assert!(result.is_ok());
     assert_eq!(result.unwrap(), 42);
 }
 
 #[test]
 fn test_mcp_result_err() {
-    let result: McpResult<i32> = Err(McpError::ServerNotFound("test".to_string()));
+    let result: Result<i32, McpError> = Err(McpError::ServerNotFound("test".to_string()));
     assert!(result.is_err());
 }
 
 #[test]
 fn test_mcp_result_map() {
-    let result: McpResult<i32> = Ok(10);
+    let result: Result<i32, McpError> = Ok(10);
     let mapped = result.map(|x| x * 2);
     assert_eq!(mapped.unwrap(), 20);
 }
 
 #[test]
 fn test_mcp_result_and_then() {
-    let result: McpResult<i32> = Ok(5);
-    let chained = result.and_then(|x| Ok(x + 1));
+    let result: Result<i32, McpError> = Ok(5);
+    let chained: Result<i32, McpError> = result.and_then(|x| Ok(x + 1));
     assert_eq!(chained.unwrap(), 6);
 }
 

@@ -1,3 +1,14 @@
+<div align="center">
+  <a href="https://systemprompt.io">
+    <img src="https://systemprompt.io/logo.svg" alt="systemprompt.io" width="150" />
+  </a>
+  <p><strong>Production infrastructure for AI agents</strong></p>
+  <p><a href="https://systemprompt.io">systemprompt.io</a> • <a href="https://github.com/systempromptio/systemprompt">GitHub</a> • <a href="https://docs.systemprompt.io">Documentation</a></p>
+</div>
+
+---
+
+
 # MCP Server Integration Tests
 
 This directory contains integration tests for MCP servers, organized by server name.

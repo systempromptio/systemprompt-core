@@ -1433,3 +1433,928 @@ fn test_database_export_roundtrip() {
     assert_eq!(original.skills.len(), restored.skills.len());
     assert_eq!(original.skills[0].name, restored.skills[0].name);
 }
+
+// ============================================================================
+// SyncError Additional Variant Tests
+// ============================================================================
+
+#[test]
+fn test_sync_error_missing_config() {
+    let error = SyncError::MissingConfig("local_database_url not configured".to_string());
+    assert_eq!(
+        error.to_string(),
+        "Missing configuration: local_database_url not configured"
+    );
+}
+
+#[test]
+fn test_sync_error_missing_config_empty() {
+    let error = SyncError::MissingConfig(String::new());
+    assert_eq!(error.to_string(), "Missing configuration: ");
+}
+
+#[test]
+fn test_sync_error_io_conversion() {
+    let io_error = std::io::Error::new(std::io::ErrorKind::NotFound, "file not found");
+    let sync_error: SyncError = io_error.into();
+    assert!(sync_error.to_string().contains("IO error"));
+}
+
+#[test]
+fn test_sync_error_json_conversion() {
+    let json_str = "{ invalid json }";
+    let json_result: Result<serde_json::Value, _> = serde_json::from_str(json_str);
+    let json_error = json_result.unwrap_err();
+    let sync_error: SyncError = json_error.into();
+    assert!(sync_error.to_string().contains("JSON error"));
+}
+
+#[test]
+fn test_sync_error_debug_format() {
+    let error = SyncError::ApiError {
+        status: 503,
+        message: "Service unavailable".to_string(),
+    };
+    let debug_str = format!("{:?}", error);
+    assert!(debug_str.contains("ApiError"));
+    assert!(debug_str.contains("503"));
+}
+
+// ============================================================================
+// SyncConfigBuilder Additional Options Tests
+// ============================================================================
+
+#[test]
+fn test_sync_config_builder_with_hostname() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_hostname(Some("app.example.com".to_string()))
+        .build();
+
+    assert_eq!(config.hostname, Some("app.example.com".to_string()));
+}
+
+#[test]
+fn test_sync_config_builder_with_hostname_none() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_hostname(None)
+        .build();
+
+    assert!(config.hostname.is_none());
+}
+
+#[test]
+fn test_sync_config_builder_with_sync_token() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_sync_token(Some("sync-secret-token".to_string()))
+        .build();
+
+    assert_eq!(config.sync_token, Some("sync-secret-token".to_string()));
+}
+
+#[test]
+fn test_sync_config_builder_with_sync_token_none() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_sync_token(None)
+        .build();
+
+    assert!(config.sync_token.is_none());
+}
+
+#[test]
+fn test_sync_config_builder_with_local_database_url() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_local_database_url("postgresql://localhost:5432/testdb")
+        .build();
+
+    assert_eq!(
+        config.local_database_url,
+        Some("postgresql://localhost:5432/testdb".to_string())
+    );
+}
+
+#[test]
+fn test_sync_config_builder_all_options() {
+    let config = SyncConfig::builder("tenant-full", "https://api.com", "api-token", "/services")
+        .with_direction(SyncDirection::Pull)
+        .with_dry_run(true)
+        .with_verbose(true)
+        .with_hostname(Some("host.example.com".to_string()))
+        .with_sync_token(Some("sync-token".to_string()))
+        .with_local_database_url("postgresql://db:5432/app")
+        .build();
+
+    assert_eq!(config.tenant_id, "tenant-full");
+    assert_eq!(config.direction, SyncDirection::Pull);
+    assert!(config.dry_run);
+    assert!(config.verbose);
+    assert_eq!(config.hostname, Some("host.example.com".to_string()));
+    assert_eq!(config.sync_token, Some("sync-token".to_string()));
+    assert_eq!(
+        config.local_database_url,
+        Some("postgresql://db:5432/app".to_string())
+    );
+}
+
+#[test]
+fn test_sync_config_clone() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_hostname(Some("host.com".to_string()))
+        .build();
+
+    let cloned = config.clone();
+    assert_eq!(config.tenant_id, cloned.tenant_id);
+    assert_eq!(config.hostname, cloned.hostname);
+}
+
+#[test]
+fn test_sync_config_debug() {
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+
+    let debug_str = format!("{:?}", config);
+    assert!(debug_str.contains("SyncConfig"));
+    assert!(debug_str.contains("tenant"));
+}
+
+// ============================================================================
+// UserExport Model Tests
+// ============================================================================
+
+#[test]
+fn test_user_export_creation() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let user = UserExport {
+        id: "user_123".to_string(),
+        name: "testuser".to_string(),
+        email: "test@example.com".to_string(),
+        full_name: Some("Test User".to_string()),
+        display_name: Some("Test".to_string()),
+        status: "active".to_string(),
+        email_verified: true,
+        roles: vec!["user".to_string(), "admin".to_string()],
+        is_bot: false,
+        is_scanner: false,
+        avatar_url: Some("https://example.com/avatar.png".to_string()),
+        created_at: now,
+        updated_at: now,
+    };
+
+    assert_eq!(user.id, "user_123");
+    assert_eq!(user.name, "testuser");
+    assert_eq!(user.email, "test@example.com");
+    assert!(user.email_verified);
+    assert_eq!(user.roles.len(), 2);
+    assert!(!user.is_bot);
+}
+
+#[test]
+fn test_user_export_minimal() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let user = UserExport {
+        id: "user_min".to_string(),
+        name: "minimal".to_string(),
+        email: "min@example.com".to_string(),
+        full_name: None,
+        display_name: None,
+        status: "pending".to_string(),
+        email_verified: false,
+        roles: vec![],
+        is_bot: true,
+        is_scanner: true,
+        avatar_url: None,
+        created_at: now,
+        updated_at: now,
+    };
+
+    assert!(user.full_name.is_none());
+    assert!(user.display_name.is_none());
+    assert!(user.avatar_url.is_none());
+    assert!(user.roles.is_empty());
+    assert!(user.is_bot);
+    assert!(user.is_scanner);
+}
+
+#[test]
+fn test_user_export_serialization() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let user = UserExport {
+        id: "user_ser".to_string(),
+        name: "seruser".to_string(),
+        email: "ser@example.com".to_string(),
+        full_name: None,
+        display_name: None,
+        status: "active".to_string(),
+        email_verified: true,
+        roles: vec!["user".to_string()],
+        is_bot: false,
+        is_scanner: false,
+        avatar_url: None,
+        created_at: now,
+        updated_at: now,
+    };
+
+    let json = serde_json::to_string(&user).unwrap();
+    assert!(json.contains("\"id\":\"user_ser\""));
+    assert!(json.contains("\"email_verified\":true"));
+}
+
+#[test]
+fn test_user_export_roundtrip() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let original = UserExport {
+        id: "user_rt".to_string(),
+        name: "roundtrip".to_string(),
+        email: "rt@example.com".to_string(),
+        full_name: Some("Round Trip".to_string()),
+        display_name: Some("RT".to_string()),
+        status: "active".to_string(),
+        email_verified: true,
+        roles: vec!["admin".to_string()],
+        is_bot: false,
+        is_scanner: false,
+        avatar_url: Some("https://example.com/rt.png".to_string()),
+        created_at: now,
+        updated_at: now,
+    };
+
+    let json = serde_json::to_string(&original).unwrap();
+    let restored: UserExport = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(original.id, restored.id);
+    assert_eq!(original.name, restored.name);
+    assert_eq!(original.full_name, restored.full_name);
+}
+
+// ============================================================================
+// ImportResult Model Tests
+// ============================================================================
+
+#[test]
+fn test_import_result_creation() {
+    use systemprompt_sync::database::ImportResult;
+
+    let result = ImportResult {
+        created: 10,
+        updated: 5,
+        skipped: 2,
+    };
+
+    assert_eq!(result.created, 10);
+    assert_eq!(result.updated, 5);
+    assert_eq!(result.skipped, 2);
+}
+
+#[test]
+fn test_import_result_zero_values() {
+    use systemprompt_sync::database::ImportResult;
+
+    let result = ImportResult {
+        created: 0,
+        updated: 0,
+        skipped: 0,
+    };
+
+    assert_eq!(result.created, 0);
+    assert_eq!(result.updated, 0);
+    assert_eq!(result.skipped, 0);
+}
+
+#[test]
+fn test_import_result_serialization() {
+    use systemprompt_sync::database::ImportResult;
+
+    let result = ImportResult {
+        created: 100,
+        updated: 50,
+        skipped: 10,
+    };
+
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(json.contains("\"created\":100"));
+    assert!(json.contains("\"updated\":50"));
+    assert!(json.contains("\"skipped\":10"));
+}
+
+#[test]
+fn test_import_result_roundtrip() {
+    use systemprompt_sync::database::ImportResult;
+
+    let original = ImportResult {
+        created: 25,
+        updated: 15,
+        skipped: 5,
+    };
+
+    let json = serde_json::to_string(&original).unwrap();
+    let restored: ImportResult = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(original.created, restored.created);
+    assert_eq!(original.updated, restored.updated);
+    assert_eq!(original.skipped, restored.skipped);
+}
+
+#[test]
+fn test_import_result_copy() {
+    use systemprompt_sync::database::ImportResult;
+
+    let result = ImportResult {
+        created: 1,
+        updated: 2,
+        skipped: 3,
+    };
+
+    let copied = result;
+    assert_eq!(result.created, copied.created);
+}
+
+// ============================================================================
+// SyncApiClient Tests
+// ============================================================================
+
+#[test]
+fn test_sync_api_client_new() {
+    use systemprompt_sync::SyncApiClient;
+
+    let client = SyncApiClient::new("https://api.example.com", "test-token");
+    let debug_str = format!("{:?}", client);
+    assert!(debug_str.contains("SyncApiClient"));
+    assert!(debug_str.contains("api.example.com"));
+}
+
+#[test]
+fn test_sync_api_client_with_direct_sync() {
+    use systemprompt_sync::SyncApiClient;
+
+    let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .with_direct_sync(Some("app.example.com".to_string()), Some("sync-token".to_string()));
+
+    let debug_str = format!("{:?}", client);
+    assert!(debug_str.contains("app.example.com"));
+}
+
+#[test]
+fn test_sync_api_client_with_direct_sync_none() {
+    use systemprompt_sync::SyncApiClient;
+
+    let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .with_direct_sync(None, None);
+
+    let debug_str = format!("{:?}", client);
+    assert!(debug_str.contains("None"));
+}
+
+#[test]
+fn test_sync_api_client_clone() {
+    use systemprompt_sync::SyncApiClient;
+
+    let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .with_direct_sync(Some("host.com".to_string()), Some("token".to_string()));
+
+    let cloned = client.clone();
+    let debug_original = format!("{:?}", client);
+    let debug_cloned = format!("{:?}", cloned);
+    assert_eq!(debug_original, debug_cloned);
+}
+
+// ============================================================================
+// RegistryToken and DeployResponse Model Tests
+// ============================================================================
+
+#[test]
+fn test_registry_token_deserialize() {
+    use systemprompt_sync::api_client::RegistryToken;
+
+    let json = r#"{"registry":"registry.fly.io","username":"testuser","token":"secret123"}"#;
+    let token: RegistryToken = serde_json::from_str(json).unwrap();
+
+    assert_eq!(token.registry, "registry.fly.io");
+    assert_eq!(token.username, "testuser");
+    assert_eq!(token.token, "secret123");
+}
+
+#[test]
+fn test_registry_token_debug() {
+    use systemprompt_sync::api_client::RegistryToken;
+
+    let json = r#"{"registry":"registry.fly.io","username":"user","token":"tok"}"#;
+    let token: RegistryToken = serde_json::from_str(json).unwrap();
+
+    let debug_str = format!("{:?}", token);
+    assert!(debug_str.contains("RegistryToken"));
+    assert!(debug_str.contains("registry.fly.io"));
+}
+
+#[test]
+fn test_deploy_response_deserialize() {
+    use systemprompt_sync::api_client::DeployResponse;
+
+    let json = r#"{"status":"success","app_url":"https://myapp.fly.dev"}"#;
+    let response: DeployResponse = serde_json::from_str(json).unwrap();
+
+    assert_eq!(response.status, "success");
+    assert_eq!(response.app_url, Some("https://myapp.fly.dev".to_string()));
+}
+
+#[test]
+fn test_deploy_response_no_url() {
+    use systemprompt_sync::api_client::DeployResponse;
+
+    let json = r#"{"status":"pending","app_url":null}"#;
+    let response: DeployResponse = serde_json::from_str(json).unwrap();
+
+    assert_eq!(response.status, "pending");
+    assert!(response.app_url.is_none());
+}
+
+#[test]
+fn test_deploy_response_debug() {
+    use systemprompt_sync::api_client::DeployResponse;
+
+    let json = r#"{"status":"deployed","app_url":"https://app.fly.dev"}"#;
+    let response: DeployResponse = serde_json::from_str(json).unwrap();
+
+    let debug_str = format!("{:?}", response);
+    assert!(debug_str.contains("DeployResponse"));
+    assert!(debug_str.contains("deployed"));
+}
+
+// ============================================================================
+// SyncService Tests
+// ============================================================================
+
+#[test]
+fn test_sync_service_creation() {
+    use systemprompt_sync::SyncService;
+
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+
+    let service = SyncService::new(config);
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("SyncService"));
+}
+
+#[test]
+fn test_sync_service_with_full_config() {
+    use systemprompt_sync::SyncService;
+
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services")
+        .with_direction(SyncDirection::Pull)
+        .with_dry_run(true)
+        .with_verbose(true)
+        .with_hostname(Some("host.com".to_string()))
+        .with_sync_token(Some("sync-tok".to_string()))
+        .with_local_database_url("postgresql://db:5432/app")
+        .build();
+
+    let service = SyncService::new(config);
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("SyncService"));
+}
+
+// ============================================================================
+// DatabaseSyncService Tests
+// ============================================================================
+
+#[test]
+fn test_database_sync_service_creation() {
+    use systemprompt_sync::DatabaseSyncService;
+
+    let service = DatabaseSyncService::new(
+        SyncDirection::Push,
+        false,
+        "postgresql://local:5432/db",
+        "postgresql://cloud:5432/db",
+    );
+
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("DatabaseSyncService"));
+}
+
+#[test]
+fn test_database_sync_service_dry_run() {
+    use systemprompt_sync::DatabaseSyncService;
+
+    let service = DatabaseSyncService::new(
+        SyncDirection::Pull,
+        true,
+        "postgresql://local:5432/db",
+        "postgresql://cloud:5432/db",
+    );
+
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("dry_run: true"));
+}
+
+#[test]
+fn test_database_sync_service_direction_push() {
+    use systemprompt_sync::DatabaseSyncService;
+
+    let service = DatabaseSyncService::new(
+        SyncDirection::Push,
+        false,
+        "postgresql://local:5432/db",
+        "postgresql://cloud:5432/db",
+    );
+
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("Push"));
+}
+
+#[test]
+fn test_database_sync_service_direction_pull() {
+    use systemprompt_sync::DatabaseSyncService;
+
+    let service = DatabaseSyncService::new(
+        SyncDirection::Pull,
+        false,
+        "postgresql://local:5432/db",
+        "postgresql://cloud:5432/db",
+    );
+
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("Pull"));
+}
+
+// ============================================================================
+// FileSyncService Tests
+// ============================================================================
+
+#[test]
+fn test_file_sync_service_creation() {
+    use systemprompt_sync::FileSyncService;
+    use systemprompt_sync::SyncApiClient;
+
+    let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
+
+    let api_client = SyncApiClient::new("https://api.com", "token");
+    let service = FileSyncService::new(config, api_client);
+
+    let debug_str = format!("{:?}", service);
+    assert!(debug_str.contains("FileSyncService"));
+}
+
+// ============================================================================
+// File Collection Tests (using tempfile)
+// ============================================================================
+
+#[test]
+fn test_file_bundle_manifest_serialization() {
+    let now = Utc::now();
+    let bundle = FileBundle {
+        manifest: FileManifest {
+            files: vec![
+                FileEntry {
+                    path: "agents/default/config.yaml".to_string(),
+                    checksum: "abc123".to_string(),
+                    size: 512,
+                },
+                FileEntry {
+                    path: "skills/test-skill/index.md".to_string(),
+                    checksum: "def456".to_string(),
+                    size: 1024,
+                },
+            ],
+            timestamp: now,
+            checksum: "manifest_checksum".to_string(),
+        },
+        data: vec![],
+    };
+
+    let json = serde_json::to_string(&bundle.manifest).unwrap();
+    assert!(json.contains("agents/default/config.yaml"));
+    assert!(json.contains("skills/test-skill/index.md"));
+    assert!(json.contains("manifest_checksum"));
+}
+
+#[test]
+fn test_file_entry_equality() {
+    let entry1 = FileEntry {
+        path: "test.txt".to_string(),
+        checksum: "abc123".to_string(),
+        size: 100,
+    };
+
+    let entry2 = FileEntry {
+        path: "test.txt".to_string(),
+        checksum: "abc123".to_string(),
+        size: 100,
+    };
+
+    assert_eq!(entry1.path, entry2.path);
+    assert_eq!(entry1.checksum, entry2.checksum);
+    assert_eq!(entry1.size, entry2.size);
+}
+
+#[test]
+fn test_file_manifest_with_many_files() {
+    let files: Vec<FileEntry> = (0..1000)
+        .map(|i| FileEntry {
+            path: format!("file_{}.txt", i),
+            checksum: format!("hash_{}", i),
+            size: i as u64,
+        })
+        .collect();
+
+    let manifest = FileManifest {
+        files,
+        timestamp: Utc::now(),
+        checksum: "large_manifest".to_string(),
+    };
+
+    assert_eq!(manifest.files.len(), 1000);
+    assert_eq!(manifest.files[500].path, "file_500.txt");
+}
+
+// ============================================================================
+// DatabaseExport with Users Tests
+// ============================================================================
+
+#[test]
+fn test_database_export_with_users() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let export = DatabaseExport {
+        users: vec![
+            UserExport {
+                id: "user_1".to_string(),
+                name: "user1".to_string(),
+                email: "user1@example.com".to_string(),
+                full_name: Some("User One".to_string()),
+                display_name: None,
+                status: "active".to_string(),
+                email_verified: true,
+                roles: vec!["admin".to_string()],
+                is_bot: false,
+                is_scanner: false,
+                avatar_url: None,
+                created_at: now,
+                updated_at: now,
+            },
+            UserExport {
+                id: "user_2".to_string(),
+                name: "user2".to_string(),
+                email: "user2@example.com".to_string(),
+                full_name: None,
+                display_name: Some("U2".to_string()),
+                status: "pending".to_string(),
+                email_verified: false,
+                roles: vec![],
+                is_bot: true,
+                is_scanner: false,
+                avatar_url: Some("https://example.com/u2.png".to_string()),
+                created_at: now,
+                updated_at: now,
+            },
+        ],
+        skills: vec![],
+        contexts: vec![],
+        timestamp: now,
+    };
+
+    assert_eq!(export.users.len(), 2);
+    assert_eq!(export.users[0].name, "user1");
+    assert_eq!(export.users[1].name, "user2");
+}
+
+#[test]
+fn test_database_export_full_roundtrip() {
+    use systemprompt_sync::database::UserExport;
+
+    let now = Utc::now();
+    let original = DatabaseExport {
+        users: vec![UserExport {
+            id: "u1".to_string(),
+            name: "name".to_string(),
+            email: "email@test.com".to_string(),
+            full_name: Some("Full Name".to_string()),
+            display_name: Some("Display".to_string()),
+            status: "active".to_string(),
+            email_verified: true,
+            roles: vec!["role1".to_string(), "role2".to_string()],
+            is_bot: false,
+            is_scanner: true,
+            avatar_url: Some("https://avatar.url".to_string()),
+            created_at: now,
+            updated_at: now,
+        }],
+        skills: vec![SkillExport {
+            skill_id: "sk1".to_string(),
+            file_path: "/skills/sk1/index.md".to_string(),
+            name: "Skill".to_string(),
+            description: "Desc".to_string(),
+            instructions: "Instr".to_string(),
+            enabled: true,
+            tags: Some(vec!["t1".to_string()]),
+            category_id: Some("cat".to_string()),
+            source_id: "skills".to_string(),
+            created_at: now,
+            updated_at: now,
+        }],
+        contexts: vec![ContextExport {
+            context_id: "ctx1".to_string(),
+            user_id: "u1".to_string(),
+            session_id: Some("sess1".to_string()),
+            name: "Context".to_string(),
+            created_at: now,
+            updated_at: now,
+        }],
+        timestamp: now,
+    };
+
+    let json = serde_json::to_string(&original).unwrap();
+    let restored: DatabaseExport = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(original.users.len(), restored.users.len());
+    assert_eq!(original.skills.len(), restored.skills.len());
+    assert_eq!(original.contexts.len(), restored.contexts.len());
+    assert_eq!(original.users[0].id, restored.users[0].id);
+    assert_eq!(original.skills[0].skill_id, restored.skills[0].skill_id);
+    assert_eq!(
+        original.contexts[0].context_id,
+        restored.contexts[0].context_id
+    );
+}
+
+// ============================================================================
+// ContentDiffEntry Tests
+// ============================================================================
+
+#[test]
+fn test_content_diff_entry_creation() {
+    use std::path::PathBuf;
+    use systemprompt_sync::ContentDiffEntry;
+
+    let diff = ContentDiffResult {
+        source_id: "blog".to_string(),
+        added: vec![],
+        removed: vec![],
+        modified: vec![],
+        unchanged: 5,
+    };
+
+    let entry = ContentDiffEntry {
+        name: "blog".to_string(),
+        source_id: "content_blog".to_string(),
+        category_id: "blog_category".to_string(),
+        path: PathBuf::from("/content/blog"),
+        allowed_content_types: vec!["article".to_string(), "post".to_string()],
+        diff,
+    };
+
+    assert_eq!(entry.name, "blog");
+    assert_eq!(entry.source_id, "content_blog");
+    assert_eq!(entry.allowed_content_types.len(), 2);
+}
+
+#[test]
+fn test_content_diff_entry_debug() {
+    use std::path::PathBuf;
+    use systemprompt_sync::ContentDiffEntry;
+
+    let entry = ContentDiffEntry {
+        name: "docs".to_string(),
+        source_id: "docs_source".to_string(),
+        category_id: "docs_cat".to_string(),
+        path: PathBuf::from("/content/docs"),
+        allowed_content_types: vec!["doc".to_string()],
+        diff: ContentDiffResult::default(),
+    };
+
+    let debug_str = format!("{:?}", entry);
+    assert!(debug_str.contains("ContentDiffEntry"));
+    assert!(debug_str.contains("docs"));
+}
+
+// ============================================================================
+// LocalSyncDirection Tests
+// ============================================================================
+
+#[test]
+fn test_local_sync_direction_debug() {
+    let to_disk = LocalSyncDirection::ToDisk;
+    let to_db = LocalSyncDirection::ToDatabase;
+
+    let debug_disk = format!("{:?}", to_disk);
+    let debug_db = format!("{:?}", to_db);
+
+    assert!(debug_disk.contains("ToDisk"));
+    assert!(debug_db.contains("ToDatabase"));
+}
+
+#[test]
+fn test_local_sync_direction_copy() {
+    let direction = LocalSyncDirection::ToDisk;
+    let copied = direction;
+
+    assert_eq!(direction, copied);
+}
+
+// ============================================================================
+// SkillsDiffResult Additional Tests
+// ============================================================================
+
+#[test]
+fn test_skills_diff_result_serialization() {
+    let result = SkillsDiffResult {
+        added: vec![SkillDiffItem {
+            skill_id: "new_skill".to_string(),
+            file_path: "/skills/new/index.md".to_string(),
+            status: DiffStatus::Added,
+            disk_hash: Some("hash".to_string()),
+            db_hash: None,
+            name: Some("New Skill".to_string()),
+        }],
+        removed: vec![],
+        modified: vec![],
+        unchanged: 10,
+    };
+
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(json.contains("new_skill"));
+    assert!(json.contains("\"unchanged\":10"));
+}
+
+#[test]
+fn test_skills_diff_result_all_types() {
+    let result = SkillsDiffResult {
+        added: vec![SkillDiffItem {
+            skill_id: "added_skill".to_string(),
+            file_path: "/skills/added/index.md".to_string(),
+            status: DiffStatus::Added,
+            disk_hash: Some("h1".to_string()),
+            db_hash: None,
+            name: Some("Added".to_string()),
+        }],
+        removed: vec![SkillDiffItem {
+            skill_id: "removed_skill".to_string(),
+            file_path: "/skills/removed/index.md".to_string(),
+            status: DiffStatus::Removed,
+            disk_hash: None,
+            db_hash: Some("h2".to_string()),
+            name: Some("Removed".to_string()),
+        }],
+        modified: vec![SkillDiffItem {
+            skill_id: "modified_skill".to_string(),
+            file_path: "/skills/modified/index.md".to_string(),
+            status: DiffStatus::Modified,
+            disk_hash: Some("h3".to_string()),
+            db_hash: Some("h4".to_string()),
+            name: Some("Modified".to_string()),
+        }],
+        unchanged: 5,
+    };
+
+    assert!(result.has_changes());
+    assert_eq!(result.added.len(), 1);
+    assert_eq!(result.removed.len(), 1);
+    assert_eq!(result.modified.len(), 1);
+}
+
+// ============================================================================
+// ContentDiffResult Serialization Tests
+// ============================================================================
+
+#[test]
+fn test_content_diff_result_serialization() {
+    let result = ContentDiffResult {
+        source_id: "blog".to_string(),
+        added: vec![ContentDiffItem {
+            slug: "new-post".to_string(),
+            source_id: "blog".to_string(),
+            status: DiffStatus::Added,
+            disk_hash: Some("hash1".to_string()),
+            db_hash: None,
+            disk_updated_at: None,
+            db_updated_at: None,
+            title: Some("New Post".to_string()),
+        }],
+        removed: vec![],
+        modified: vec![],
+        unchanged: 3,
+    };
+
+    let json = serde_json::to_string(&result).unwrap();
+    assert!(json.contains("blog"));
+    assert!(json.contains("new-post"));
+    assert!(json.contains("\"unchanged\":3"));
+}
+
+#[test]
+fn test_content_diff_result_default() {
+    let result = ContentDiffResult::default();
+
+    assert!(result.source_id.is_empty());
+    assert!(result.added.is_empty());
+    assert!(result.removed.is_empty());
+    assert!(result.modified.is_empty());
+    assert_eq!(result.unchanged, 0);
+    assert!(!result.has_changes());
+}

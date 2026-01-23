@@ -8,6 +8,7 @@
 
 use systemprompt_agent::models::agent_info::AgentInfo;
 use systemprompt_agent::models::a2a::AgentCard;
+use systemprompt_identifiers::AgentId;
 
 fn create_test_card() -> AgentCard {
     AgentCard {
@@ -39,9 +40,9 @@ fn create_test_card() -> AgentCard {
 #[test]
 fn test_agent_info_from_repository_data() {
     let card = create_test_card();
-    let info = AgentInfo::from_repository_data("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_repository_data(AgentId::from("agent-1"), card, true);
 
-    assert_eq!(info.agent_id, "agent-1");
+    assert_eq!(info.agent_id.as_str(), "agent-1");
     assert!(info.enabled);
     assert!(info.skills.is_none());
     assert!(info.mcp_servers.is_none());
@@ -50,9 +51,9 @@ fn test_agent_info_from_repository_data() {
 #[test]
 fn test_agent_info_from_card() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-2".to_string(), card, false);
+    let info = AgentInfo::from_card(AgentId::from("agent-2"), card, false);
 
-    assert_eq!(info.agent_id, "agent-2");
+    assert_eq!(info.agent_id.as_str(), "agent-2");
     assert!(!info.enabled);
     assert!(info.skills.is_none());
     assert!(info.mcp_servers.is_none());
@@ -65,7 +66,7 @@ fn test_agent_info_from_card() {
 #[test]
 fn test_agent_info_id() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("test-id".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("test-id"), card, true);
 
     assert_eq!(info.id(), "test-id");
 }
@@ -73,7 +74,7 @@ fn test_agent_info_id() {
 #[test]
 fn test_agent_info_name() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     assert_eq!(info.name(), "Test Agent");
 }
@@ -81,7 +82,7 @@ fn test_agent_info_name() {
 #[test]
 fn test_agent_info_endpoint() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     assert_eq!(info.endpoint(), "/api/v1/agents/test");
 }
@@ -89,7 +90,7 @@ fn test_agent_info_endpoint() {
 #[test]
 fn test_agent_info_version() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     assert_eq!(info.version(), "1.0.0");
 }
@@ -126,7 +127,7 @@ fn test_agent_info_with_skills() {
         },
     ];
 
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true).with_skills(skills);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_skills(skills);
 
     assert!(info.skills.is_some());
     assert_eq!(info.skills.as_ref().unwrap().len(), 2);
@@ -137,7 +138,7 @@ fn test_agent_info_with_mcp_servers() {
     let card = create_test_card();
     let servers = vec!["brave".to_string(), "postgres".to_string()];
 
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true).with_mcp_servers(servers);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_mcp_servers(servers);
 
     assert!(info.mcp_servers.is_some());
     assert_eq!(info.mcp_servers.as_ref().unwrap().len(), 2);
@@ -160,7 +161,7 @@ fn test_agent_info_builder_chain() {
     }];
     let servers = vec!["brave".to_string()];
 
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true)
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true)
         .with_skills(skills)
         .with_mcp_servers(servers);
 
@@ -175,7 +176,7 @@ fn test_agent_info_builder_chain() {
 #[test]
 fn test_agent_info_skills_count_none() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     assert_eq!(info.skills_count(), 0);
 }
@@ -218,7 +219,7 @@ fn test_agent_info_skills_count_with_skills() {
         },
     ];
 
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true).with_skills(skills);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_skills(skills);
 
     assert_eq!(info.skills_count(), 3);
 }
@@ -226,7 +227,7 @@ fn test_agent_info_skills_count_with_skills() {
 #[test]
 fn test_agent_info_mcp_count_none() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     assert_eq!(info.mcp_count(), 0);
 }
@@ -240,7 +241,7 @@ fn test_agent_info_mcp_count_with_servers() {
         "filesystem".to_string(),
     ];
 
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true).with_mcp_servers(servers);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true).with_mcp_servers(servers);
 
     assert_eq!(info.mcp_count(), 3);
 }
@@ -252,7 +253,7 @@ fn test_agent_info_mcp_count_with_servers() {
 #[test]
 fn test_agent_info_serialize() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     let json = serde_json::to_string(&info).unwrap();
     assert!(json.contains("agent-1"));
@@ -279,7 +280,7 @@ fn test_agent_info_deserialize() {
     }"#;
 
     let info: AgentInfo = serde_json::from_str(json).unwrap();
-    assert_eq!(info.agent_id, "agent-test");
+    assert_eq!(info.agent_id.as_str(), "agent-test");
     assert_eq!(info.name(), "Deserialized Agent");
     assert!(info.enabled);
 }
@@ -287,7 +288,7 @@ fn test_agent_info_deserialize() {
 #[test]
 fn test_agent_info_debug() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
 
     let debug = format!("{:?}", info);
     assert!(debug.contains("AgentInfo"));
@@ -297,9 +298,9 @@ fn test_agent_info_debug() {
 #[test]
 fn test_agent_info_clone() {
     let card = create_test_card();
-    let info = AgentInfo::from_card("agent-1".to_string(), card, true);
+    let info = AgentInfo::from_card(AgentId::from("agent-1"), card, true);
     let cloned = info.clone();
 
-    assert_eq!(info.agent_id, cloned.agent_id);
+    assert_eq!(info.agent_id.as_str(), cloned.agent_id.as_str());
     assert_eq!(info.enabled, cloned.enabled);
 }
