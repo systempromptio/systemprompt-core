@@ -13,7 +13,7 @@ impl Extension for LoggingExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        5
+        15
     }
 
     fn is_required(&self) -> bool {

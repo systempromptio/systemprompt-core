@@ -13,7 +13,7 @@ impl Extension for McpExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        20
+        25
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {

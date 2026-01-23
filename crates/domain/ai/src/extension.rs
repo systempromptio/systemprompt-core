@@ -13,7 +13,7 @@ impl Extension for AiExtension {
     }
 
     fn migration_weight(&self) -> u32 {
-        20
+        35
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
@@ -47,7 +47,7 @@ impl Extension for AiExtension {
     }
 
     fn dependencies(&self) -> Vec<&'static str> {
-        vec!["users"]
+        vec!["users", "mcp"]
     }
 }
 
