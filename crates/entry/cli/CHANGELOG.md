@@ -1,6 +1,6 @@
 # Changelog
 
-## [0.0.3] - 2026-01-23
+## [0.0.4] - 2026-01-23
 
 ### Added
 - `systemprompt cloud tenant cancel` command to cancel cloud subscriptions
