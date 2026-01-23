@@ -157,6 +157,14 @@ impl StoredTenant {
     pub const fn is_local(&self) -> bool {
         matches!(self.tenant_type, TenantType::Local)
     }
+
+    pub fn update_from_tenant_info(&mut self, info: &TenantInfo) {
+        self.name.clone_from(&info.name);
+        self.app_id.clone_from(&info.app_id);
+        self.hostname.clone_from(&info.hostname);
+        self.region.clone_from(&info.region);
+        self.external_db_access = info.external_db_access;
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

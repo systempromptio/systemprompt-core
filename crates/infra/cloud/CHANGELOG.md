@@ -4,6 +4,7 @@
 
 ### Added
 - `cancel_subscription` method to CloudApiClient for subscription cancellation
+- `update_from_tenant_info` method to preserve credentials during tenant sync
 
 ### Fixed
 - Fix schema validation for VIEW-based schemas
