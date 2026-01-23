@@ -151,7 +151,8 @@ pub struct ExternalDbAccessResponse {
 pub struct RotateCredentialsResponse {
     pub status: String,
     pub message: String,
-    pub database_url: String,
+    pub internal_database_url: String,
+    pub external_database_url: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
