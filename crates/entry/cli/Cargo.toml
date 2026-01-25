@@ -26,30 +26,30 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-runtime = { path = "../../app/runtime", version = "0.0.9" }
-systemprompt-agent = { path = "../../domain/agent", version = "0.0.9" }
-systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.9" }
-systemprompt-api = { path = "../api", version = "0.0.9" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.9" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.9" }
-systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.9" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.9" }
-systemprompt-content = { path = "../../domain/content", version = "0.0.9" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.9" }
-systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.9" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.9" }
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.9" }
-systemprompt-security = { path = "../../infra/security", version = "0.0.9" }
-systemprompt-ai = { path = "../../domain/ai", version = "0.0.9" }
-systemprompt-sync = { path = "../../app/sync", version = "0.0.9" }
-systemprompt-generator = { path = "../../app/generator", version = "0.0.9" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.9" }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.9" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.9" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.9" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.9" }
-systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.9" }
-systemprompt-client = { path = "../../shared/client", version = "0.0.9" }
+systemprompt-runtime = { path = "../../app/runtime", version = "0.0.10" }
+systemprompt-agent = { path = "../../domain/agent", version = "0.0.10" }
+systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.10" }
+systemprompt-api = { path = "../api", version = "0.0.10" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.10" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.10" }
+systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.10" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.10" }
+systemprompt-content = { path = "../../domain/content", version = "0.0.10" }
+systemprompt-files = { path = "../../domain/files", version = "0.0.10" }
+systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.10" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.10" }
+systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.10" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.10" }
+systemprompt-ai = { path = "../../domain/ai", version = "0.0.10" }
+systemprompt-sync = { path = "../../app/sync", version = "0.0.10" }
+systemprompt-generator = { path = "../../app/generator", version = "0.0.10" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.10" }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.10" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.10" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.10" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.10" }
+systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.10" }
+systemprompt-client = { path = "../../shared/client", version = "0.0.10" }
 
 # Additional dependencies used by CLI modules
 tracing = { workspace = true }
@@ -87,8 +87,8 @@ regex = { workspace = true }
 
 [dev-dependencies]
 reqwest = { workspace = true }
-systemprompt-runtime = { path = "../../app/runtime", version = "0.0.9" }
-systemprompt-ai = { path = "../../domain/ai", version = "0.0.9" }
+systemprompt-runtime = { path = "../../app/runtime", version = "0.0.10" }
+systemprompt-ai = { path = "../../domain/ai", version = "0.0.10" }
 uuid = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

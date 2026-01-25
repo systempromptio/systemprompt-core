@@ -15,27 +15,27 @@ workspace = true
 
 [dependencies]
 # Shared layer
-systemprompt-models = { path = "../../shared/models", version = "0.0.9" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.9" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.9" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.9" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.10" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.10" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.10" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.10" }
 
 # Infrastructure layer
-systemprompt-database = { path = "../../infra/database", version = "0.0.9" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.9" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.9" }
-systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.9" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.10" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.10" }
+systemprompt-config = { path = "../../infra/config", version = "0.0.10" }
+systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.10" }
 
 # Domain layer (read-only access for content types)
-systemprompt-content = { path = "../../domain/content", version = "0.0.9" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.9" }
-systemprompt-templates = { path = "../../domain/templates", version = "0.0.9" }
+systemprompt-content = { path = "../../domain/content", version = "0.0.10" }
+systemprompt-files = { path = "../../domain/files", version = "0.0.10" }
+systemprompt-templates = { path = "../../domain/templates", version = "0.0.10" }
 
 # Template provider traits
-systemprompt-template-provider = { path = "../../shared/template-provider", version = "0.0.9" }
+systemprompt-template-provider = { path = "../../shared/template-provider", version = "0.0.10" }
 
 # Extension system
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.9" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.10" }
 
 # Async runtime
 tokio = { workspace = true }
