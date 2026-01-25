@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.8` (Cloud Profile Session Support - January 25, 2026)
+**Current Version:** `0.0.10` (CLI Session Auth Fixes - January 25, 2026)
 
 All **30 crates** have been published to crates.io.
 
