@@ -35,16 +35,16 @@ url = { workspace = true }
 urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.8" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.8" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.8" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.8" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.8" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.8" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.8" }
-systemprompt-runtime = { path = "../runtime", version = "0.0.8" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.8" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.8" }
+systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.9" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.9" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.9" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.9" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.9" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.9" }
+systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.9" }
+systemprompt-runtime = { path = "../runtime", version = "0.0.9" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.9" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.9" }
 
 # Job registration and discovery
 inventory = { workspace = true }

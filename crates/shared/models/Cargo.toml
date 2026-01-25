@@ -52,9 +52,9 @@ futures = { workspace = true }
 axum = { workspace = true, optional = true }
 
 # Shared traits, identifiers, and extension framework
-systemprompt-traits = { path = "../traits", version = "0.0.8" }
-systemprompt-identifiers = { path = "../identifiers", version = "0.0.8" }
-systemprompt-extension = { path = "../extension", version = "0.0.8" }
+systemprompt-traits = { path = "../traits", version = "0.0.9" }
+systemprompt-identifiers = { path = "../identifiers", version = "0.0.9" }
+systemprompt-extension = { path = "../extension", version = "0.0.9" }
 
 # MCP protocol
 rmcp = { workspace = true }
