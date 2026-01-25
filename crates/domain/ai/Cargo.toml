@@ -43,11 +43,11 @@ dotenvy = { workspace = true }
 inventory = { workspace = true }
 
 # Internal dependencies
-systemprompt-database = { path = "../../infra/database", version = "0.0.9" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.9" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.9", features = ["sqlx"] }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.9" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.9" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.9" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.9" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.10" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.10" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.10", features = ["sqlx"] }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.10" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.10" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.10" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.10" }
 
