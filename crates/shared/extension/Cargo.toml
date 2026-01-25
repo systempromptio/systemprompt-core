@@ -28,8 +28,8 @@ serde_json = { workspace = true }
 tracing = { workspace = true }
 axum = { workspace = true, optional = true }
 reqwest = { workspace = true, optional = true }
-systemprompt-provider-contracts = { path = "../provider-contracts", version = "0.0.10" }
-systemprompt-traits = { path = "../traits", version = "0.0.10" }
+systemprompt-provider-contracts = { path = "../provider-contracts", version = "0.0.11" }
+systemprompt-traits = { path = "../traits", version = "0.0.11" }
 
 [dev-dependencies]
 tokio = { workspace = true }

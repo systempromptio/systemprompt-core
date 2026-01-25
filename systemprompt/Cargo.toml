@@ -84,40 +84,40 @@ full = [
 
 [dependencies]
 # Core shared crates
-systemprompt-traits = { version = "0.0.10", path = "../crates/shared/traits", optional = true }
-systemprompt-models = { version = "0.0.10", path = "../crates/shared/models", optional = true }
-systemprompt-identifiers = { version = "0.0.10", path = "../crates/shared/identifiers", optional = true }
-systemprompt-extension = { version = "0.0.10", path = "../crates/shared/extension", optional = true }
-systemprompt-template-provider = { version = "0.0.10", path = "../crates/shared/template-provider", optional = true }
+systemprompt-traits = { version = "0.0.11", path = "../crates/shared/traits", optional = true }
+systemprompt-models = { version = "0.0.11", path = "../crates/shared/models", optional = true }
+systemprompt-identifiers = { version = "0.0.11", path = "../crates/shared/identifiers", optional = true }
+systemprompt-extension = { version = "0.0.11", path = "../crates/shared/extension", optional = true }
+systemprompt-template-provider = { version = "0.0.11", path = "../crates/shared/template-provider", optional = true }
 
 # Infrastructure
-systemprompt-database = { version = "0.0.10", path = "../crates/infra/database", optional = true }
-systemprompt-logging = { version = "0.0.10", path = "../crates/infra/logging", optional = true }
-systemprompt-config = { version = "0.0.10", path = "../crates/infra/config", optional = true }
-systemprompt-cloud = { version = "0.0.10", path = "../crates/infra/cloud", optional = true }
-systemprompt-loader = { version = "0.0.10", path = "../crates/infra/loader", optional = true }
-systemprompt-events = { version = "0.0.10", path = "../crates/infra/events", optional = true }
-systemprompt-client = { version = "0.0.10", path = "../crates/shared/client", optional = true }
-systemprompt-security = { version = "0.0.10", path = "../crates/infra/security", optional = true }
+systemprompt-database = { version = "0.0.11", path = "../crates/infra/database", optional = true }
+systemprompt-logging = { version = "0.0.11", path = "../crates/infra/logging", optional = true }
+systemprompt-config = { version = "0.0.11", path = "../crates/infra/config", optional = true }
+systemprompt-cloud = { version = "0.0.11", path = "../crates/infra/cloud", optional = true }
+systemprompt-loader = { version = "0.0.11", path = "../crates/infra/loader", optional = true }
+systemprompt-events = { version = "0.0.11", path = "../crates/infra/events", optional = true }
+systemprompt-client = { version = "0.0.11", path = "../crates/shared/client", optional = true }
+systemprompt-security = { version = "0.0.11", path = "../crates/infra/security", optional = true }
 
 # Application
-systemprompt-sync = { version = "0.0.10", path = "../crates/app/sync", optional = true }
-systemprompt-runtime = { version = "0.0.10", path = "../crates/app/runtime", optional = true }
+systemprompt-sync = { version = "0.0.11", path = "../crates/app/sync", optional = true }
+systemprompt-runtime = { version = "0.0.11", path = "../crates/app/runtime", optional = true }
 
 # Entry points
-systemprompt-api = { version = "0.0.10", path = "../crates/entry/api", optional = true }
-systemprompt-cli = { version = "0.0.10", path = "../crates/entry/cli", optional = true }
+systemprompt-api = { version = "0.0.11", path = "../crates/entry/api", optional = true }
+systemprompt-cli = { version = "0.0.11", path = "../crates/entry/cli", optional = true }
 
 # Domain crates
-systemprompt-agent = { version = "0.0.10", path = "../crates/domain/agent", optional = true }
-systemprompt-ai = { version = "0.0.10", path = "../crates/domain/ai", optional = true }
-systemprompt-mcp = { version = "0.0.10", path = "../crates/domain/mcp", optional = true }
-systemprompt-oauth = { version = "0.0.10", path = "../crates/domain/oauth", optional = true }
-systemprompt-users = { version = "0.0.10", path = "../crates/domain/users", optional = true }
-systemprompt-content = { version = "0.0.10", path = "../crates/domain/content", optional = true }
-systemprompt-analytics = { version = "0.0.10", path = "../crates/domain/analytics", optional = true }
-systemprompt-scheduler = { version = "0.0.10", path = "../crates/app/scheduler", optional = true }
-systemprompt-files = { version = "0.0.10", path = "../crates/domain/files", optional = true }
+systemprompt-agent = { version = "0.0.11", path = "../crates/domain/agent", optional = true }
+systemprompt-ai = { version = "0.0.11", path = "../crates/domain/ai", optional = true }
+systemprompt-mcp = { version = "0.0.11", path = "../crates/domain/mcp", optional = true }
+systemprompt-oauth = { version = "0.0.11", path = "../crates/domain/oauth", optional = true }
+systemprompt-users = { version = "0.0.11", path = "../crates/domain/users", optional = true }
+systemprompt-content = { version = "0.0.11", path = "../crates/domain/content", optional = true }
+systemprompt-analytics = { version = "0.0.11", path = "../crates/domain/analytics", optional = true }
+systemprompt-scheduler = { version = "0.0.11", path = "../crates/app/scheduler", optional = true }
+systemprompt-files = { version = "0.0.11", path = "../crates/domain/files", optional = true }
 
 # External dependencies for prelude re-exports
 axum = { workspace = true, optional = true }
