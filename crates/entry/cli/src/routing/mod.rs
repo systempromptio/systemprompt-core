@@ -37,7 +37,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 
     Ok(ExecutionTarget::Remote {
         hostname,
-        token: session.session_token.to_string(),
+        token: session.session_token.as_str().to_string(),
         context_id: session.context_id.to_string(),
     })
 }
