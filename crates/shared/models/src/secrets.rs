@@ -211,10 +211,21 @@ impl SecretsBootstrap {
             .as_ref()
             .ok_or(SecretsBootstrapError::NoSecretsConfigured)?;
 
+        let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+
         match secrets_config.source {
-            SecretsSource::Env => {
-                tracing::debug!("Loading secrets from environment (profile source: env)");
+            SecretsSource::Env if is_fly_environment => {
+                tracing::debug!("Loading secrets from environment (Fly.io container)");
                 Self::load_from_env()
+            },
+            SecretsSource::Env => {
+                tracing::debug!(
+                    "Profile source is 'env' but running locally, trying file first..."
+                );
+                Self::resolve_and_load_file(&secrets_config.secrets_path).or_else(|_| {
+                    tracing::debug!("File load failed, falling back to environment");
+                    Self::load_from_env()
+                })
             },
             SecretsSource::File => {
                 tracing::debug!("Loading secrets from file (profile source: file)");
