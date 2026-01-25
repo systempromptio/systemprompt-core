@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.9] - 2026-01-25
+
+### Added
+- Auto-create admin user for cloud profiles if user doesn't exist in database
+
+### Fixed
+- Updated all error messages to reference `admin session login` instead of deleted `infra system login`
+- Cloud profiles now try secrets file first when running locally, even if `source: env`
+
 ## [0.0.8] - 2026-01-25
 
 ### Changed

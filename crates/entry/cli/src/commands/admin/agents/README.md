@@ -591,7 +591,7 @@ This flow demonstrates interacting with running agents with authentication:
 cd /var/www/html/tyingshoelaces && just start
 
 # Step 2: Get authentication token
-TOKEN=$(sp infra system login --email your-admin@email.com --token-only)
+TOKEN=$(sp admin session login --email your-admin@email.com --token-only)
 # Verify token was captured
 echo "Token length: ${#TOKEN}"
 
@@ -622,14 +622,14 @@ sp admin agents task admin --task-id "$TASK_ID" --token "$TOKEN"
 
 ### Authentication
 
-A2A protocol commands require authentication. Use `infra system login` to get a token:
+A2A protocol commands require authentication. Use `admin session login` to get a token:
 
 ```bash
 # Get token interactively
-sp infra system login --email admin@example.com
+sp admin session login --email admin@example.com
 
 # Get token for scripting (outputs only the token)
-TOKEN=$(sp infra system login --email admin@example.com --token-only)
+TOKEN=$(sp admin session login --email admin@example.com --token-only)
 
 # Use token with message command
 sp admin agents message admin -m "Hello" --token "$TOKEN"

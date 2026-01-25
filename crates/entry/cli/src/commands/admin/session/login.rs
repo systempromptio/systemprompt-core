@@ -89,10 +89,12 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
+    let is_cloud_profile = profile.target.is_cloud();
+
     if !args.token_only {
         CliService::info(&format!("Fetching admin user: {}", email));
     }
-    let admin_user = fetch_admin_user(&db_pool, &email).await?;
+    let admin_user = fetch_admin_user(&db_pool, &email, is_cloud_profile).await?;
 
     if !args.token_only {
         CliService::info("Creating session...");
@@ -204,27 +206,46 @@ fn try_use_existing_session(
     ))
 }
 
-async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<User> {
+async fn fetch_admin_user(db_pool: &DbPool, email: &str, is_cloud_profile: bool) -> Result<User> {
     let user_service = UserService::new(db_pool)?;
-    let user = user_service
+
+    if let Some(user) = user_service
         .find_by_email(email)
         .await
         .context("Failed to fetch user")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "User '{}' not found in database.\nRun 'systemprompt cloud login' to sync your \
-                 user.",
+    {
+        if !user.is_admin() {
+            anyhow::bail!(
+                "User '{}' exists but is not an admin. Contact your administrator.",
                 email
-            )
-        })?;
+            );
+        }
+        return Ok(user);
+    }
 
-    if !user.is_admin() {
+    if !is_cloud_profile {
         anyhow::bail!(
-            "User '{}' is not an admin.\nRun 'systemprompt cloud login' to sync admin role.",
+            "User '{}' not found in database.\nFor local profiles, create the user first.",
             email
         );
     }
 
+    CliService::info(&format!(
+        "User '{}' not found, creating admin user for cloud profile...",
+        email
+    ));
+
+    let user = user_service
+        .create(email, email, None, None)
+        .await
+        .context("Failed to create user")?;
+
+    let user = user_service
+        .assign_roles(&user.id, &["admin".to_string()])
+        .await
+        .context("Failed to assign admin role")?;
+
+    CliService::success(&format!("Created admin user: {}", email));
     Ok(user)
 }
 

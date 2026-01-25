@@ -409,7 +409,7 @@ System-level authentication and session operations.
 | `login` | Create a session and get an authentication token |
 
 ```bash
-systemprompt infra system login
+systemprompt admin session login
 ```
 
 ---

@@ -624,7 +624,7 @@ sp infra logs request stats --since 1h
 
 ```bash
 # Phase 1: Send message to agent
-TOKEN=$(sp infra system login --email admin@example.com --token-only)
+TOKEN=$(sp admin session login --email admin@example.com --token-only)
 RESPONSE=$(sp --json agents message admin -m "Show me traffic stats" --token "$TOKEN" --blocking)
 TASK_ID=$(echo "$RESPONSE" | jq -r '.data.task.task_id')
 

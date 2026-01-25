@@ -37,7 +37,7 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     let has_session = store.get_valid_session(&session_key).is_some();
     if !has_session && new_tenant_id.is_some() {
         CliService::warning(
-            "No session for this tenant. Run 'systemprompt infra system login' to authenticate.",
+            "No session for this tenant. Run 'systemprompt admin session login' to authenticate.",
         );
     }
 
