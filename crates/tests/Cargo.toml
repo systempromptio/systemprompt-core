@@ -48,7 +48,7 @@ resolver = "2"
 edition = "2021"
 authors = ["Edward Burton"]
 license = "BSL-1.0"
-version = "0.0.7"
+version = "0.0.8"
 publish = false
 
 # Relaxed linting for tests
@@ -128,35 +128,35 @@ sha2 = "0.10"
 wiremock = "0.6"
 
 # Path dependencies to main crates (relative to crates/tests/)
-systemprompt-traits = { path = "../shared/traits", version = "0.0.7" }
-systemprompt-models = { path = "../shared/models", version = "0.0.7" }
-systemprompt-client = { path = "../shared/client", version = "0.0.7" }
-systemprompt-identifiers = { path = "../shared/identifiers", version = "0.0.7" }
-systemprompt-extension = { path = "../shared/extension", version = "0.0.7" }
-systemprompt-database = { path = "../infra/database", version = "0.0.7" }
-systemprompt-logging = { path = "../infra/logging", version = "0.0.7" }
-systemprompt-config = { path = "../infra/config", version = "0.0.7" }
-systemprompt-events = { path = "../infra/events", version = "0.0.7" }
-systemprompt-security = { path = "../infra/security", version = "0.0.7" }
-systemprompt-cloud = { path = "../infra/cloud", version = "0.0.7" }
-systemprompt-loader = { path = "../infra/loader", version = "0.0.7" }
-systemprompt-users = { path = "../domain/users", version = "0.0.7" }
-systemprompt-oauth = { path = "../domain/oauth", version = "0.0.7" }
-systemprompt-files = { path = "../domain/files", version = "0.0.7" }
-systemprompt-analytics = { path = "../domain/analytics", version = "0.0.7" }
-systemprompt-content = { path = "../domain/content", version = "0.0.7" }
-systemprompt-mcp = { path = "../domain/mcp", version = "0.0.7" }
-systemprompt-ai = { path = "../domain/ai", version = "0.0.7" }
-systemprompt-agent = { path = "../domain/agent", version = "0.0.7" }
-systemprompt-templates = { path = "../domain/templates", version = "0.0.7" }
+systemprompt-traits = { path = "../shared/traits", version = "0.0.8" }
+systemprompt-models = { path = "../shared/models", version = "0.0.8" }
+systemprompt-client = { path = "../shared/client", version = "0.0.8" }
+systemprompt-identifiers = { path = "../shared/identifiers", version = "0.0.8" }
+systemprompt-extension = { path = "../shared/extension", version = "0.0.8" }
+systemprompt-database = { path = "../infra/database", version = "0.0.8" }
+systemprompt-logging = { path = "../infra/logging", version = "0.0.8" }
+systemprompt-config = { path = "../infra/config", version = "0.0.8" }
+systemprompt-events = { path = "../infra/events", version = "0.0.8" }
+systemprompt-security = { path = "../infra/security", version = "0.0.8" }
+systemprompt-cloud = { path = "../infra/cloud", version = "0.0.8" }
+systemprompt-loader = { path = "../infra/loader", version = "0.0.8" }
+systemprompt-users = { path = "../domain/users", version = "0.0.8" }
+systemprompt-oauth = { path = "../domain/oauth", version = "0.0.8" }
+systemprompt-files = { path = "../domain/files", version = "0.0.8" }
+systemprompt-analytics = { path = "../domain/analytics", version = "0.0.8" }
+systemprompt-content = { path = "../domain/content", version = "0.0.8" }
+systemprompt-mcp = { path = "../domain/mcp", version = "0.0.8" }
+systemprompt-ai = { path = "../domain/ai", version = "0.0.8" }
+systemprompt-agent = { path = "../domain/agent", version = "0.0.8" }
+systemprompt-templates = { path = "../domain/templates", version = "0.0.8" }
 systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
-systemprompt-runtime = { path = "../app/runtime", version = "0.0.7" }
-systemprompt-scheduler = { path = "../app/scheduler", version = "0.0.7" }
-systemprompt-generator = { path = "../app/generator", version = "0.0.7" }
-systemprompt-sync = { path = "../app/sync", version = "0.0.7" }
-systemprompt-api = { path = "../entry/api", version = "0.0.7" }
-systemprompt-tui = { path = "../entry/tui", version = "0.0.7" }
-systemprompt-cli = { path = "../entry/cli", version = "0.0.7" }
+systemprompt-runtime = { path = "../app/runtime", version = "0.0.8" }
+systemprompt-scheduler = { path = "../app/scheduler", version = "0.0.8" }
+systemprompt-generator = { path = "../app/generator", version = "0.0.8" }
+systemprompt-sync = { path = "../app/sync", version = "0.0.8" }
+systemprompt-api = { path = "../entry/api", version = "0.0.8" }
+systemprompt-tui = { path = "../entry/tui", version = "0.0.8" }
+systemprompt-cli = { path = "../entry/cli", version = "0.0.8" }
 
 # Testing utility
 trybuild = "1.0"
