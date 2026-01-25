@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.0.8] - 2026-01-25
+
+### Changed
+- `admin session login` now supports cloud profiles with direct database access
+- Session key derived from profile's `tenant_id` instead of hardcoded local
+
+### Removed
+- Removed `infra system login` command (use `admin session login` instead)
+- Removed `infra system` subcommand group
+
+### Fixed
+- Cloud profile guard now allows `Admin::Session` commands
+
 ## [0.0.7] - 2026-01-23
 
 ### Changed

@@ -132,147 +132,65 @@ cargo publish -p <crate-name> --dry-run --allow-dirty
 
 ---
 
-## Version Bumping
+## Publishing with cargo-workspaces (Recommended)
 
-### Bump All Crates
+We use `cargo-workspaces` for lock-step versioning and publishing all crates together.
+
+### Install
 
 ```bash
-# 1. Update workspace version in root Cargo.toml
-sed -i 's/version = "0.0.1"/version = "0.0.2"/' Cargo.toml
+cargo install cargo-workspaces
+```
 
-# 2. Update all inter-crate dependency versions
-find crates -name "Cargo.toml" -exec sed -i 's/version = "0.0.1"/version = "0.0.2"/g' {} \;
-find systemprompt -name "Cargo.toml" -exec sed -i 's/version = "0.0.1"/version = "0.0.2"/g' {} \;
+### Publish Workflow
 
-# 3. Verify changes
-git diff --stat
+```bash
+# 1. Make code changes and update CHANGELOG.md in affected crates
 
-# 4. Test build
-cargo build --workspace
-
-# 5. Commit
+# 2. Commit code changes first
 git add -A
-git commit -m "chore: bump version to 0.0.2"
+git commit -m "feat: description of changes"
+
+# 3. Bump version and publish all crates
+cargo ws version patch --no-git-push --yes  # or minor/major
+cargo ws publish --no-verify --publish-as-is --yes
+
+# 4. Push version bump commit and tags
+git push && git push --tags
 ```
 
-### Bump Single Crate
+### Version Types
 
-Not recommended - all crates share workspace version. If needed for hotfix:
+- `patch`: 0.0.7 → 0.0.8 (bug fixes, small changes)
+- `minor`: 0.0.7 → 0.1.0 (new features, backward compatible)
+- `major`: 0.0.7 → 1.0.0 (breaking changes)
 
-```bash
-# Override workspace version in specific crate
-# In crates/domain/agent/Cargo.toml:
-[package]
-version = "0.0.2"  # Remove version.workspace = true
-```
+### What cargo-ws Does
+
+1. Bumps version in root `Cargo.toml`
+2. Updates all inter-crate dependency versions automatically
+3. Creates a git commit with version bump
+4. Creates git tags for each crate
+5. Publishes all crates in correct dependency order
+6. Handles crates.io rate limits with retries
 
 ---
 
-## Publishing Commands
+## Manual Publishing (Fallback)
+
+If cargo-workspaces fails, use manual approach:
 
 ### Prerequisites
 
 ```bash
-# Login to crates.io (one-time)
 cargo login <your-api-token>
-
-# Verify credentials
 cargo owner --list systemprompt
 ```
 
 ### Publish Single Crate
 
 ```bash
-# Dry run first
-cargo publish -p systemprompt-agent --dry-run
-
-# Publish (requires --allow-dirty if uncommitted changes)
-cargo publish -p systemprompt-agent --no-verify --allow-dirty
-
-# With explicit token
-CARGO_REGISTRY_TOKEN=<token> cargo publish -p systemprompt-agent --no-verify --allow-dirty
-```
-
-### Publish All Crates (In Order)
-
-```bash
-#!/bin/bash
-set -e
-
-echo "=== Pre-publish verification ==="
-
-# 1. Verify all packages compile standalone
-echo "Verifying packages compile..."
-for crate in systemprompt-{identifiers,provider-contracts,traits,extension,models,client,template-provider,database,logging,events,security,loader,config,cloud,analytics,users,files,templates,content,ai,runtime,scheduler,oauth,mcp,agent,generator,sync,api,cli} systemprompt; do
-  echo "  Checking $crate..."
-  if ! cargo package -p "$crate" --allow-dirty >/dev/null 2>&1; then
-    echo "ERROR: $crate failed to package!"
-    exit 1
-  fi
-done
-echo "All packages verified."
-
-# 2. Run tests
-echo "Running tests..."
-cargo test --workspace || exit 1
-
-# 3. Check clippy
-echo "Running clippy..."
-cargo clippy --workspace -- -D warnings || exit 1
-
-echo "=== All checks passed, starting publish ==="
-
-export CARGO_REGISTRY_TOKEN="<your-token>"
-
-CRATES=(
-    # Shared Layer
-    "systemprompt-identifiers"
-    "systemprompt-provider-contracts"
-    "systemprompt-traits"
-    "systemprompt-extension"
-    "systemprompt-models"
-    "systemprompt-client"
-    "systemprompt-template-provider"
-    # Infrastructure Layer
-    "systemprompt-database"
-    "systemprompt-logging"
-    "systemprompt-events"
-    "systemprompt-security"
-    "systemprompt-loader"
-    "systemprompt-config"
-    "systemprompt-cloud"
-    # Domain Layer
-    "systemprompt-analytics"
-    "systemprompt-users"
-    "systemprompt-files"
-    "systemprompt-templates"
-    "systemprompt-content"
-    "systemprompt-ai"
-    # App Layer
-    "systemprompt-runtime"
-    "systemprompt-scheduler"
-    # Domain Layer (depends on app)
-    "systemprompt-oauth"
-    "systemprompt-mcp"
-    "systemprompt-agent"
-    # App Layer (depends on domain)
-    "systemprompt-generator"
-    "systemprompt-sync"
-    # Entry Layer
-    "systemprompt-api"
-    "systemprompt-cli"
-    # Facade
-    "systemprompt"
-)
-
-for crate in "${CRATES[@]}"; do
-    echo "Publishing $crate..."
-    cargo publish -p "$crate" --no-verify --allow-dirty
-    echo "Waiting for crates.io index..."
-    sleep 30
-done
-
-echo "All crates published!"
+cargo publish -p systemprompt-cli --no-verify --allow-dirty
 ```
 
 ### Rate Limits
@@ -403,28 +321,3 @@ systemprompt-extension = "0.0.1"
 systemprompt-identifiers = "0.0.1"
 ```
 
----
-
-## Changelog
-
-### v0.0.7 (2026-01-23)
-
-- `RotateCredentialsResponse` returns both internal and external database URLs
-- CLI `rotate-credentials` displays both URLs on separate lines
-
-### v0.0.6 (2026-01-23)
-
-- Fix `admin session login` profile initialization error
-- Session login now properly reads SYSTEMPROMPT_PROFILE env var
-
-### v0.0.5 (2026-01-23)
-
-- Update inter-crate dependency versions
-
-### v0.0.4 (2026-01-23)
-
-- CLI features: tenant cancel, profile auto-creation, migration commands
-
-### v0.0.1 (2026-01-21)
-
-- Initial publication of all 30 crates to crates.io
