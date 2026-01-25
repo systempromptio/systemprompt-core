@@ -268,20 +268,22 @@ fn test_env_vars_cli_synced_contains_api_token() {
 }
 
 #[test]
-fn test_env_vars_is_system_managed_true_for_database_url() {
-    assert!(env_vars::is_system_managed("DATABASE_URL"));
-}
-
-#[test]
-fn test_env_vars_is_system_managed_true_for_jwt_secret() {
-    assert!(env_vars::is_system_managed("JWT_SECRET"));
+fn test_env_vars_is_system_managed_true_for_fly_vars() {
+    assert!(env_vars::is_system_managed("FLY_APP_NAME"));
+    assert!(env_vars::is_system_managed("FLY_MACHINE_ID"));
 }
 
 #[test]
 fn test_env_vars_is_system_managed_case_insensitive() {
-    assert!(env_vars::is_system_managed("database_url"));
-    assert!(env_vars::is_system_managed("Database_Url"));
-    assert!(env_vars::is_system_managed("DATABASE_url"));
+    assert!(env_vars::is_system_managed("fly_app_name"));
+    assert!(env_vars::is_system_managed("Fly_App_Name"));
+    assert!(env_vars::is_system_managed("FLY_app_name"));
+}
+
+#[test]
+fn test_env_vars_is_system_managed_false_for_user_secrets() {
+    assert!(!env_vars::is_system_managed("DATABASE_URL"));
+    assert!(!env_vars::is_system_managed("JWT_SECRET"));
 }
 
 #[test]

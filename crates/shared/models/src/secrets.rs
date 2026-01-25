@@ -196,10 +196,15 @@ impl SecretsBootstrap {
     }
 
     fn load_from_profile_config() -> Result<Secrets> {
-        if let Ok(jwt_secret) = std::env::var("JWT_SECRET") {
-            if jwt_secret.len() >= JWT_SECRET_MIN_LENGTH {
-                tracing::debug!("Using JWT_SECRET from environment (subprocess mode)");
-                return Self::load_from_env();
+        let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+        let is_subprocess = std::env::var("SYSTEMPROMPT_SUBPROCESS").is_ok();
+
+        if is_subprocess || is_fly_environment {
+            if let Ok(jwt_secret) = std::env::var("JWT_SECRET") {
+                if jwt_secret.len() >= JWT_SECRET_MIN_LENGTH {
+                    tracing::debug!("Using JWT_SECRET from environment (subprocess/container mode)");
+                    return Self::load_from_env();
+                }
             }
         }
 
