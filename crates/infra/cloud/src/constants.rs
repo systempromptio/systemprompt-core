@@ -111,15 +111,7 @@ pub mod profile {
 }
 
 pub mod env_vars {
-    pub const SYSTEM_MANAGED: &[&str] = &[
-        "DATABASE_URL",
-        "JWT_SECRET",
-        "SYSTEMPROMPT_API_URL",
-        "FLY_APP_NAME",
-        "FLY_MACHINE_ID",
-        "APP_URL",
-        "API_EXTERNAL_URL",
-    ];
+    pub const SYSTEM_MANAGED: &[&str] = &["FLY_APP_NAME", "FLY_MACHINE_ID"];
 
     pub const CLI_SYNCED: &[&str] = &[
         "SYSTEMPROMPT_API_TOKEN",
