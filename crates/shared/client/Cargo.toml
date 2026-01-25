@@ -34,5 +34,5 @@ thiserror = { workspace = true }
 tracing = { workspace = true }
 
 # Shared types (no business logic dependencies)
-systemprompt-models = { path = "../models", version = "0.0.7" }
-systemprompt-identifiers = { path = "../identifiers", version = "0.0.7" }
+systemprompt-models = { path = "../models", version = "0.0.8" }
+systemprompt-identifiers = { path = "../identifiers", version = "0.0.8" }
