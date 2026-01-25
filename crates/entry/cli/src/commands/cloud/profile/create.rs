@@ -2,7 +2,8 @@ use anyhow::{bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
+    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, StoredTenant,
+    TenantStore, TenantType,
 };
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;

@@ -41,9 +41,11 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
         );
     }
 
+    CliService::success(&format!("Switched to profile '{}'", profile_name));
+
     if config.is_interactive() {
-        CliService::success(&format!("Switched to profile '{}'", profile_name));
         CliService::key_value("Profile path", &profile_config_path.display().to_string());
+        CliService::key_value("Session key", &session_key.as_storage_key());
         if let Some(tid) = &new_tenant_id {
             CliService::key_value("Tenant", tid);
         }

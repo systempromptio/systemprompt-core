@@ -213,7 +213,6 @@ pub async fn run() -> Result<()> {
     if reqs.profile {
         let profile_path = bootstrap::resolve_profile(cli_config.profile_override.as_deref())?;
         bootstrap::init_profile(&profile_path)?;
-        bootstrap::init_credentials().await?;
 
         let profile = ProfileBootstrap::get()?;
         let is_cloud = profile.target.is_cloud();
@@ -256,7 +255,7 @@ pub async fn run() -> Result<()> {
             && !is_fly_environment
             && !matches!(
                 cli.command.as_ref(),
-                Some(Commands::Cloud(_)) | Some(Commands::Admin(admin::AdminCommands::Session(_)))
+                Some(Commands::Cloud(_) | Commands::Admin(admin::AdminCommands::Session(_)))
             )
         {
             bail!(
@@ -264,6 +263,10 @@ pub async fn run() -> Result<()> {
                  execution.\nUse a local profile with --profile <name>.",
                 profile.name
             );
+        }
+
+        if !is_cloud {
+            let _ = bootstrap::init_credentials().await;
         }
 
         if reqs.secrets {
@@ -277,7 +280,9 @@ pub async fn run() -> Result<()> {
             }
         }
 
-        bootstrap::validate_cloud_credentials();
+        if !is_cloud {
+            bootstrap::validate_cloud_credentials();
+        }
     }
 
     match cli.command {
