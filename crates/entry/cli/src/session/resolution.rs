@@ -13,7 +13,6 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
 
 use super::context::CliSessionContext;
-use super::creation::create_session_for_tenant;
 use crate::CliConfig;
 
 pub(super) struct ProfileContext<'a> {
@@ -135,27 +134,37 @@ async fn get_session_for_loaded_profile(
         });
     }
 
-    CredentialsBootstrap::try_init()
-        .await
-        .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
-
-    let creds = CredentialsBootstrap::require()
-        .map_err(|_| {
-            anyhow::anyhow!(
-                "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
-                 authenticate."
-            )
-        })?
-        .clone();
-
     let profile_ctx = ProfileContext {
         dir: profile_dir,
         name: &profile_name,
         path: profile_path.to_path_buf(),
     };
 
-    let session =
-        create_session_for_tenant(&creds, profile, &profile_ctx, &session_key, config).await?;
+    let session = if session_key.is_local() {
+        super::creation::create_local_session(profile, &profile_ctx, &session_key, config).await?
+    } else {
+        CredentialsBootstrap::try_init()
+            .await
+            .context("Failed to initialize credentials. Run 'systemprompt cloud auth login'.")?;
+
+        let creds = CredentialsBootstrap::require()
+            .map_err(|_| {
+                anyhow::anyhow!(
+                    "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
+                     authenticate."
+                )
+            })?
+            .clone();
+
+        super::creation::create_session_for_tenant(
+            &creds,
+            profile,
+            &profile_ctx,
+            &session_key,
+            config,
+        )
+        .await?
+    };
 
     store.upsert_session(&session_key, session.clone());
     store.set_active(&session_key);

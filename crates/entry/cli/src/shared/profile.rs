@@ -16,6 +16,11 @@ pub enum ProfileResolutionError {
     )]
     NoProfilesFound,
 
+    #[error(
+        "Profile '{0}' not found.\n\nRun 'systemprompt cloud profile list' to see available profiles."
+    )]
+    ProfileNotFound(String),
+
     #[error("Profile selection cancelled")]
     SelectionCancelled,
 
@@ -28,17 +33,23 @@ pub fn resolve_profile_path(
     from_session: Option<PathBuf>,
 ) -> Result<PathBuf, ProfileResolutionError> {
     if let Some(profile_name) = cli_override {
-        if let Some(path) = resolve_profile_by_name(profile_name)? {
-            return Ok(path);
-        }
+        tracing::debug!(profile_name = %profile_name, "Resolving profile from CLI override");
+        return resolve_profile_by_name(profile_name)?
+            .ok_or_else(|| ProfileResolutionError::ProfileNotFound(profile_name.to_string()));
     }
 
     if let Ok(path_str) = std::env::var("SYSTEMPROMPT_PROFILE") {
-        return Ok(PathBuf::from(path_str));
+        let path = PathBuf::from(&path_str);
+        if path.exists() {
+            tracing::debug!(path = %path.display(), "Resolved profile from SYSTEMPROMPT_PROFILE env var");
+            return Ok(path);
+        }
+        return Err(ProfileResolutionError::ProfileNotFound(path_str));
     }
 
     if let Some(path) = from_session {
         if path.exists() {
+            tracing::debug!(path = %path.display(), "Resolved profile from session");
             return Ok(path);
         }
     }
@@ -46,7 +57,10 @@ pub fn resolve_profile_path(
     let mut profiles = discover_profiles()?;
     match profiles.len() {
         0 => Err(ProfileResolutionError::NoProfilesFound),
-        1 => Ok(profiles.swap_remove(0).path),
+        1 => {
+            tracing::debug!(path = %profiles[0].path.display(), "Auto-discovered single profile");
+            Ok(profiles.swap_remove(0).path)
+        },
         _ => prompt_profile_selection_for_cli(&profiles),
     }
 }
