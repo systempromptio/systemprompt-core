@@ -57,6 +57,7 @@ impl ServiceTarget {
 
 pub struct StartupOptions {
     pub skip_migrate: bool,
+    pub kill_port_process: bool,
 }
 
 pub async fn execute(
@@ -119,7 +120,9 @@ async fn run_startup(
     }
 
     if target.api {
-        let api_url = super::serve::execute_with_events(true, false, config, Some(events)).await?;
+        let api_url =
+            super::serve::execute_with_events(true, options.kill_port_process, config, Some(events))
+                .await?;
         return Ok(api_url);
     }
 

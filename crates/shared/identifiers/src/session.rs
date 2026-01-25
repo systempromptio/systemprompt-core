@@ -16,6 +16,10 @@ impl SessionId {
         Self(id.into())
     }
 
+    pub fn generate() -> Self {
+        Self(format!("sess_{}", uuid::Uuid::new_v4()))
+    }
+
     pub fn system() -> Self {
         Self("system".to_string())
     }

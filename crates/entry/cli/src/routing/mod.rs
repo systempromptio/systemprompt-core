@@ -18,12 +18,31 @@ pub enum ExecutionTarget {
 
 pub fn determine_execution_target() -> Result<ExecutionTarget> {
     let Ok(profile) = ProfileBootstrap::get() else {
+        tracing::debug!("No profile loaded, routing to local execution");
         return Ok(ExecutionTarget::Local);
     };
 
+    if profile.target.is_local() {
+        tracing::debug!(
+            profile_name = %profile.name,
+            "Profile target is local, routing to local execution"
+        );
+        return Ok(ExecutionTarget::Local);
+    }
+
     let Some(tenant_id) = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref()) else {
+        tracing::debug!(
+            profile_name = %profile.name,
+            "Profile has no tenant_id, routing to local execution"
+        );
         return Ok(ExecutionTarget::Local);
     };
+
+    tracing::debug!(
+        profile_name = %profile.name,
+        tenant_id = %tenant_id,
+        "Profile has tenant_id, resolving remote execution target"
+    );
 
     let tenant = resolve_tenant(tenant_id)?;
     let hostname = tenant
@@ -34,6 +53,12 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 
     let session_key = SessionKey::Tenant(TenantId::new(tenant_id.clone()));
     let session = load_session_for_key(&session_key)?;
+
+    tracing::info!(
+        hostname = %hostname,
+        tenant_id = %tenant_id,
+        "Routing to remote execution"
+    );
 
     Ok(ExecutionTarget::Remote {
         hostname,

@@ -60,6 +60,9 @@ pub enum ServicesCommands {
 
         #[arg(long, help = "Skip database migrations")]
         skip_migrate: bool,
+
+        #[arg(long, help = "Kill process using the port if occupied")]
+        kill_port_process: bool,
     },
 
     #[command(
@@ -157,6 +160,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
             mcp,
             foreground: _,
             skip_migrate,
+            kill_port_process,
         } => {
             if let Some(individual) = target {
                 let ctx = Arc::new(
@@ -179,7 +183,10 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
             let service_target = start::ServiceTarget::from_flags(flags);
-            let options = start::StartupOptions { skip_migrate };
+            let options = start::StartupOptions {
+                skip_migrate,
+                kill_port_process,
+            };
             start::execute(service_target, options, config).await
         },
 
