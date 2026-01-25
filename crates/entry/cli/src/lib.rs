@@ -266,7 +266,9 @@ pub async fn run() -> Result<()> {
         }
 
         if !is_cloud {
-            let _ = bootstrap::init_credentials().await;
+            if let Err(e) = bootstrap::init_credentials().await {
+                tracing::debug!(error = %e, "Cloud credentials not available, continuing in local-only mode");
+            }
         }
 
         if reqs.secrets {

@@ -5,9 +5,16 @@
 ### Added
 - Auto-create admin user for cloud profiles if user doesn't exist in database
 
+### Changed
+- `admin session switch` now always outputs confirmation message regardless of interactive mode
+- `infra services start` no longer requires cloud credentials for local profiles
+
 ### Fixed
 - Updated all error messages to reference `admin session login` instead of deleted `infra system login`
 - Cloud profiles now try secrets file first when running locally, even if `source: env`
+- Cloud profiles now use session token from `sessions/index.json` instead of requiring separate cloud login
+- Local profiles no longer fail with 401 when cloud credentials are expired or missing
+- Session switch now properly displays session key for debugging
 
 ## [0.0.8] - 2026-01-25
 
