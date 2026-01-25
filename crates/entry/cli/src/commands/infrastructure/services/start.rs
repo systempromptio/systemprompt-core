@@ -103,15 +103,10 @@ async fn run_startup(
 
     match CredentialsBootstrap::get() {
         Ok(Some(_)) => {
-            events.info("Cloud credentials valid");
+            events.info("Cloud credentials available");
         },
-        Ok(None) => {
-            anyhow::bail!(
-                "Cloud credentials not found. Run 'systemprompt cloud login' to register."
-            );
-        },
-        Err(e) => {
-            anyhow::bail!("{}", e);
+        Ok(None) | Err(_) => {
+            events.info("Running in local-only mode (no cloud sync)");
         },
     }
 
