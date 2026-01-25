@@ -65,7 +65,8 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let project_ctx = ProjectContext::discover();
     let sessions_dir = project_ctx.sessions_dir();
 
-    let session_key = SessionKey::Local;
+    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+    let session_key = SessionKey::from_tenant_id(tenant_id);
 
     if !args.force_new {
         if let Some(output) = try_use_existing_session(&sessions_dir, &session_key, &args)? {

@@ -2,7 +2,6 @@ pub mod db;
 pub mod jobs;
 pub mod logs;
 pub mod services;
-pub mod system;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -26,9 +25,6 @@ pub enum InfraCommands {
 
     #[command(subcommand, about = "Log streaming and tracing")]
     Logs(logs::LogsCommands),
-
-    #[command(subcommand, about = "System authentication and session management")]
-    System(system::SystemCommands),
 }
 
 pub async fn execute(cmd: InfraCommands, config: &CliConfig) -> Result<()> {
@@ -37,7 +33,6 @@ pub async fn execute(cmd: InfraCommands, config: &CliConfig) -> Result<()> {
         InfraCommands::Db(cmd) => db::execute(cmd, config).await,
         InfraCommands::Jobs(cmd) => jobs::execute(cmd, config).await,
         InfraCommands::Logs(cmd) => logs::execute(cmd, config).await,
-        InfraCommands::System(cmd) => system::execute(cmd).await,
     }
 }
 

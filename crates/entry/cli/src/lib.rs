@@ -171,9 +171,6 @@ impl HasRequirements for Commands {
             Self::Admin(admin::AdminCommands::Setup(_)) => CommandRequirements::NONE,
             Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.requirements(),
             Self::Build(_) => CommandRequirements::PROFILE_ONLY,
-            Self::Infra(infrastructure::InfraCommands::System(_)) => {
-                CommandRequirements::PROFILE_AND_SECRETS
-            },
             _ => CommandRequirements::FULL,
         }
     }
@@ -257,7 +254,10 @@ pub async fn run() -> Result<()> {
             }
         } else if is_cloud
             && !is_fly_environment
-            && !matches!(cli.command.as_ref(), Some(Commands::Cloud(_)))
+            && !matches!(
+                cli.command.as_ref(),
+                Some(Commands::Cloud(_)) | Some(Commands::Admin(admin::AdminCommands::Session(_)))
+            )
         {
             bail!(
                 "Cloud profile '{}' selected but this command doesn't support remote \
@@ -357,8 +357,7 @@ const fn should_check_remote_routing(command: Option<&Commands>) -> bool {
         Some(
             Commands::Admin(admin::AdminCommands::Session(_) | admin::AdminCommands::Setup(_))
             | Commands::Cloud(_)
-            | Commands::Build(_)
-            | Commands::Infra(infrastructure::InfraCommands::System(_)),
+            | Commands::Build(_),
         )
         | None => false,
         Some(_) => true,
