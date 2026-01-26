@@ -174,24 +174,17 @@ impl SessionAnalytics {
         let reader = geoip_reader?;
         let ip: std::net::IpAddr = ip_str.parse().ok()?;
 
-        let city_data: maxminddb::geoip2::City = reader.lookup(ip).ok()?;
+        let city_data: maxminddb::geoip2::City = reader.lookup(ip).ok()?.decode().ok()??;
 
-        let country = city_data
-            .country
-            .and_then(|c| c.iso_code)
-            .map(ToString::to_string);
+        let country = city_data.country.iso_code.map(ToString::to_string);
 
         let region = city_data
             .subdivisions
-            .and_then(|subdivisions| subdivisions.first().cloned())
+            .first()
             .and_then(|s| s.iso_code)
             .map(ToString::to_string);
 
-        let city_name = city_data
-            .city
-            .and_then(|c| c.names)
-            .and_then(|names| names.get("en").copied())
-            .map(ToString::to_string);
+        let city_name = city_data.city.names.english.map(ToString::to_string);
 
         Some((country, region, city_name))
     }

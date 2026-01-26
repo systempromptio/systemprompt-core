@@ -94,6 +94,7 @@ impl McpClient {
         };
 
         let client_info = ClientInfo {
+            meta: None,
             protocol_version: ProtocolVersion::default(),
             capabilities: ClientCapabilities::default(),
             client_info: Implementation {
@@ -199,6 +200,7 @@ async fn execute_tool_call(
     arguments: Option<serde_json::Value>,
 ) -> Result<systemprompt_models::CallToolResult, anyhow::Error> {
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {
@@ -222,9 +224,11 @@ async fn execute_tool_call(
         },
     };
 
-    let params = rmcp::model::CallToolRequestParam {
+    let params = rmcp::model::CallToolRequestParams {
+        meta: None,
         name: name.to_string().into(),
         arguments: arguments.and_then(|v| v.as_object().cloned()),
+        task: None,
     };
 
     let result = client_service

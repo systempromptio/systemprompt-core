@@ -71,6 +71,7 @@ where
     let config = StreamableHttpServerConfig {
         stateful_mode: true,
         sse_keep_alive: Some(Duration::from_secs(30)),
+        sse_retry: Some(Duration::from_secs(3)),
         cancellation_token: CancellationToken::new(),
     };
 

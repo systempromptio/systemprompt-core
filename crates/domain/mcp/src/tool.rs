@@ -2,7 +2,7 @@ use crate::error::McpError;
 use crate::response::McpResponseBuilder;
 use crate::schema::McpOutputSchema;
 use async_trait::async_trait;
-use rmcp::model::{CallToolRequestParam, CallToolResult};
+use rmcp::model::{CallToolRequestParams, CallToolResult};
 use schemars::JsonSchema;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
@@ -40,7 +40,7 @@ pub trait McpToolHandler: Send + Sync {
 
 pub async fn call_tool<H: McpToolHandler>(
     handler: &H,
-    request: &CallToolRequestParam,
+    request: &CallToolRequestParams,
     ctx: &RequestContext,
 ) -> Result<CallToolResult, McpError> {
     let exec_id = McpExecutionId::generate();
@@ -52,12 +52,13 @@ pub async fn call_tool<H: McpToolHandler>(
     McpResponseBuilder::new(output, handler.tool_name(), ctx, &exec_id).build(summary)
 }
 
-fn parse_input<T: DeserializeOwned>(request: &CallToolRequestParam) -> Result<T, McpError> {
+fn parse_input<T: DeserializeOwned>(request: &CallToolRequestParams) -> Result<T, McpError> {
     let args_value = request
         .arguments
         .as_ref()
-        .map(|m| JsonValue::Object(m.clone()))
-        .unwrap_or(JsonValue::Object(serde_json::Map::new()));
+        .map_or(JsonValue::Object(serde_json::Map::new()), |m| {
+            JsonValue::Object(m.clone())
+        });
 
     serde_json::from_value(args_value).map_err(|e| {
         tracing::warn!(
