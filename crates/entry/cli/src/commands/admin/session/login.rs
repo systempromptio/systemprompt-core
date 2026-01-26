@@ -8,9 +8,10 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::cli_settings::CliConfig;
+use crate::paths::ResolvedPaths;
 use crate::shared::{resolve_input, CommandResult};
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CliSession, ProjectContext, SessionKey, SessionStore};
+use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_logging::CliService;
@@ -62,8 +63,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
 
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = project_ctx.sessions_dir();
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let session_key = if profile.target.is_local() {
         SessionKey::Local

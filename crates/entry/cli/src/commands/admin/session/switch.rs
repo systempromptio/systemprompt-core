@@ -1,17 +1,16 @@
 #![allow(clippy::single_match_else)]
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProfilePath, ProjectContext, SessionKey, SessionStore,
-};
+use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
+use crate::paths::ResolvedPaths;
 
 pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
-    let project_ctx = ProjectContext::discover();
-    let profiles_dir = project_ctx.profiles_dir();
+    let paths = ResolvedPaths::discover();
+    let profiles_dir = paths.profiles_dir();
 
     let target_dir = profiles_dir.join(profile_name);
     let profile_config_path = ProfilePath::Config.resolve(&target_dir);
@@ -28,7 +27,7 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_deref());
 
-    let sessions_dir = resolve_sessions_dir(&project_ctx)?;
+    let sessions_dir = paths.sessions_dir()?;
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     store.set_active(&session_key);
@@ -55,15 +54,6 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     }
 
     Ok(())
-}
-
-fn resolve_sessions_dir(project_ctx: &ProjectContext) -> Result<std::path::PathBuf> {
-    if project_ctx.systemprompt_dir().exists() {
-        Ok(project_ctx.sessions_dir())
-    } else {
-        let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
-        Ok(cloud_paths.resolve(CloudPath::SessionsDir))
-    }
 }
 
 fn load_profile(path: &std::path::Path) -> Result<Profile> {

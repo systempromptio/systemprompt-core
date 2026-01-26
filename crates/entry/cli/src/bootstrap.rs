@@ -1,9 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, CredentialsBootstrap, ProjectContext, SessionStore,
-};
+use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
@@ -11,6 +9,7 @@ use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
 
+use crate::paths::ResolvedPaths;
 use crate::requirements::CommandRequirements;
 use crate::shared::resolve_profile_path;
 
@@ -53,17 +52,7 @@ pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
 }
 
 fn get_active_session_profile_path() -> Option<PathBuf> {
-    let project_ctx = ProjectContext::discover();
-
-    let sessions_dir = project_ctx
-        .systemprompt_dir()
-        .exists()
-        .then(|| project_ctx.sessions_dir())
-        .or_else(|| {
-            get_cloud_paths()
-                .ok()
-                .map(|p| p.resolve(CloudPath::SessionsDir))
-        })?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir().ok()?;
 
     SessionStore::load(&sessions_dir)?
         .active_session()
