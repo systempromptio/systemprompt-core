@@ -58,24 +58,24 @@ tracing = { workspace = true }
 dotenvy = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-models = { path = "../../shared/models", version = "0.0.11", features = ["web"] }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.11" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.11" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.11" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.11" }
-systemprompt-runtime = { path = "../../app/runtime", version = "0.0.11" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.11" }
-systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.11" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.11" }
-systemprompt-agent = { path = "../../domain/agent", version = "0.0.11" }
-systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.11" }
-systemprompt-content = { path = "../../domain/content", version = "0.0.11" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.11" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.11" }
-systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.11" }
-systemprompt-events = { path = "../../infra/events", version = "0.0.11" }
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.11" }
-systemprompt-security = { path = "../../infra/security", version = "0.0.11" }
+systemprompt-models = { path = "../../shared/models", version = "0.0.12", features = ["web"] }
+systemprompt-loader = { path = "../../infra/loader", version = "0.0.12" }
+systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.12" }
+systemprompt-traits = { path = "../../shared/traits", version = "0.0.12" }
+systemprompt-extension = { path = "../../shared/extension", version = "0.0.12" }
+systemprompt-runtime = { path = "../../app/runtime", version = "0.0.12" }
+systemprompt-users = { path = "../../domain/users", version = "0.0.12" }
+systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.12" }
+systemprompt-logging = { path = "../../infra/logging", version = "0.0.12" }
+systemprompt-agent = { path = "../../domain/agent", version = "0.0.12" }
+systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.12" }
+systemprompt-content = { path = "../../domain/content", version = "0.0.12" }
+systemprompt-files = { path = "../../domain/files", version = "0.0.12" }
+systemprompt-database = { path = "../../infra/database", version = "0.0.12" }
+systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.12" }
+systemprompt-events = { path = "../../infra/events", version = "0.0.12" }
+systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.12" }
+systemprompt-security = { path = "../../infra/security", version = "0.0.12" }
 
 # API registry
 inventory = { workspace = true }

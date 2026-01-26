@@ -15,7 +15,7 @@ workspace = true
 
 [dependencies]
 # Template provider traits
-systemprompt-template-provider = { path = "../../shared/template-provider", version = "0.0.11", features = ["tokio"] }
+systemprompt-template-provider = { path = "../../shared/template-provider", version = "0.0.12", features = ["tokio"] }
 
 # Core async
 async-trait = { workspace = true }
