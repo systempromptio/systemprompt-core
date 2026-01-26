@@ -200,21 +200,7 @@ impl<T: Serialize + JsonSchema> ToolResponse<T> {
         }
     }
 
-    pub fn to_json(&self) -> JsonValue {
-        match serde_json::to_value(self) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!(
-                    error = %e,
-                    artifact_id = %self.artifact_id,
-                    "ToolResponse serialization failed"
-                );
-                JsonValue::Null
-            },
-        }
-    }
-
-    pub fn try_to_json(&self) -> Result<JsonValue, serde_json::Error> {
+    pub fn to_json(&self) -> Result<JsonValue, serde_json::Error> {
         serde_json::to_value(self)
     }
 }

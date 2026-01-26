@@ -43,7 +43,11 @@ pub fn execute(
         return Err(anyhow!("Content type '{}' not found", name));
     }
 
-    require_confirmation(&format!("Delete content type '{}'?", name), args.yes, config)?;
+    require_confirmation(
+        &format!("Delete content type '{}'?", name),
+        args.yes,
+        config,
+    )?;
 
     let web_config_path = profile.paths.web_config();
     if let Ok(web_content) = fs::read_to_string(&web_config_path) {

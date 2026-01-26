@@ -3,7 +3,11 @@ use anyhow::{anyhow, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Select};
 
-pub fn require_confirmation(message: &str, skip_confirmation: bool, config: &CliConfig) -> Result<()> {
+pub fn require_confirmation(
+    message: &str,
+    skip_confirmation: bool,
+    config: &CliConfig,
+) -> Result<()> {
     if skip_confirmation {
         return Ok(());
     }
@@ -61,7 +65,10 @@ where
     match value {
         Some(v) => Ok(v),
         None if config.is_interactive() => prompt_fn(),
-        None => Err(anyhow!("--{} is required in non-interactive mode", flag_name)),
+        None => Err(anyhow!(
+            "--{} is required in non-interactive mode",
+            flag_name
+        )),
     }
 }
 

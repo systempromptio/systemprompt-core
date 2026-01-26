@@ -122,8 +122,8 @@ async fn handle_port_conflict(
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
 
-    let should_kill =
-        kill_port_process || confirm_optional(&format!("Kill process {} and restart?", pid), false, config)?;
+    let should_kill = kill_port_process
+        || confirm_optional(&format!("Kill process {} and restart?", pid), false, config)?;
 
     if should_kill {
         if events.is_none() {

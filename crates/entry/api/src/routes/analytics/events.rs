@@ -90,8 +90,7 @@ pub async fn record_events_batch(
     for event in &mut input.events {
         if event.content_id.is_none() {
             event.content_id =
-                resolve_content_id(&state.content, &event.page_url, event.slug.as_deref())
-                    .await;
+                resolve_content_id(&state.content, &event.page_url, event.slug.as_deref()).await;
         }
     }
 

@@ -40,6 +40,7 @@ pub async fn fetch_mcp_execution_events(
             server_name,
             execution_time_ms,
             status,
+            error_message,
             user_id,
             session_id,
             task_id,
@@ -56,7 +57,7 @@ pub async fn fetch_mcp_execution_events(
     Ok(rows
         .into_iter()
         .map(|row| {
-            let details = format!(
+            let base_details = format!(
                 "{}/{}: {} ({}ms)",
                 row.server_name,
                 row.tool_name,
@@ -64,10 +65,26 @@ pub async fn fetch_mcp_execution_events(
                 row.execution_time_ms.unwrap_or(0)
             );
 
+            let details = if row.status == "failed" {
+                if let Some(ref error) = row.error_message {
+                    let truncated_error = if error.len() > 80 {
+                        format!("{}...", &error[..80])
+                    } else {
+                        error.clone()
+                    };
+                    format!("{} | {}", base_details, truncated_error)
+                } else {
+                    base_details
+                }
+            } else {
+                base_details
+            };
+
             let metadata = json!({
                 "execution_time_ms": row.execution_time_ms,
                 "tool_name": row.tool_name,
-                "server_name": row.server_name
+                "server_name": row.server_name,
+                "error_message": row.error_message
             });
 
             TraceEvent {

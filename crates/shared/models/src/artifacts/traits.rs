@@ -6,8 +6,9 @@ use super::types::ArtifactType;
 pub trait Artifact: Serialize {
     fn artifact_type(&self) -> ArtifactType;
     fn to_schema(&self) -> JsonValue;
-    fn to_json_value(&self) -> JsonValue {
-        serde_json::to_value(self).unwrap_or(JsonValue::Null)
+
+    fn to_json_value(&self) -> Result<JsonValue, serde_json::Error> {
+        serde_json::to_value(self)
     }
 }
 

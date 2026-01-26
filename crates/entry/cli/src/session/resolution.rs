@@ -207,9 +207,9 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
         } else {
             let profile_hint = active_profile.unwrap_or("unknown");
             anyhow::bail!(
-                "No session for active profile '{}'.\n\nRun 'systemprompt admin session \
-                 login' to authenticate, or 'systemprompt admin session switch <profile>' to \
-                 change profiles.",
+                "No session for active profile '{}'.\n\nRun 'systemprompt admin session login' to \
+                 authenticate, or 'systemprompt admin session switch <profile>' to change \
+                 profiles.",
                 profile_hint
             );
         }
