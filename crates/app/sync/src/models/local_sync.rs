@@ -89,3 +89,40 @@ pub struct DiskSkill {
     pub instructions: String,
     pub file_path: String,
 }
+
+#[derive(Clone, Debug, Serialize)]
+pub struct PlaybookDiffItem {
+    pub playbook_id: String,
+    pub file_path: String,
+    pub category: String,
+    pub domain: String,
+    pub status: DiffStatus,
+    pub disk_hash: Option<String>,
+    pub db_hash: Option<String>,
+    pub name: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct PlaybooksDiffResult {
+    pub added: Vec<PlaybookDiffItem>,
+    pub removed: Vec<PlaybookDiffItem>,
+    pub modified: Vec<PlaybookDiffItem>,
+    pub unchanged: usize,
+}
+
+impl PlaybooksDiffResult {
+    pub fn has_changes(&self) -> bool {
+        !self.added.is_empty() || !self.removed.is_empty() || !self.modified.is_empty()
+    }
+}
+
+#[derive(Debug)]
+pub struct DiskPlaybook {
+    pub playbook_id: String,
+    pub name: String,
+    pub description: String,
+    pub instructions: String,
+    pub category: String,
+    pub domain: String,
+    pub file_path: String,
+}

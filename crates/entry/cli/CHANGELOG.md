@@ -2,6 +2,9 @@
 
 ## [0.1.0] - 2026-01-26
 
+### Added
+- Display active profile banner on each command showing profile name, target type (local/cloud), and tenant ID
+
 ### Fixed
 - `--profile` flag now accepts direct file paths (e.g., `--profile ./my-profile.yaml` or `--profile /absolute/path/to/profile.yaml`)
 

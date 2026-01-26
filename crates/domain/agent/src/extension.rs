@@ -84,6 +84,11 @@ impl Extension for AgentExtension {
             SchemaDefinition::inline("agent_skills", include_str!("../schema/agent_skills.sql"))
                 .with_required_columns(vec!["skill_id".into(), "name".into()]),
             SchemaDefinition::inline(
+                "agent_playbooks",
+                include_str!("../schema/agent_playbooks.sql"),
+            )
+            .with_required_columns(vec!["playbook_id".into(), "name".into()]),
+            SchemaDefinition::inline(
                 "task_execution_steps",
                 include_str!("../schema/task_execution_steps.sql"),
             )

@@ -62,19 +62,27 @@ fn build_tool_request(
         thinking_config,
     );
 
-    let tool_config = GeminiToolConfig {
-        function_calling_config: GeminiFunctionCallingConfig {
-            mode: params.function_calling_mode,
-            allowed_function_names: params.allowed_function_names.clone(),
-        },
+    let has_function_declarations = gemini_tools
+        .iter()
+        .any(|t| t.function_declarations.as_ref().is_some_and(|f| !f.is_empty()));
+
+    let tool_config = if has_function_declarations {
+        Some(GeminiToolConfig {
+            function_calling_config: GeminiFunctionCallingConfig {
+                mode: params.function_calling_mode,
+                allowed_function_names: params.allowed_function_names.clone(),
+            },
+        })
+    } else {
+        None
     };
 
     Ok(GeminiRequest {
         contents,
         generation_config: Some(generation_config),
         safety_settings: None,
-        tools: Some(gemini_tools),
-        tool_config: Some(tool_config),
+        tools: if gemini_tools.is_empty() { None } else { Some(gemini_tools) },
+        tool_config,
     })
 }
 

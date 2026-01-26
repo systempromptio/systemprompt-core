@@ -70,5 +70,5 @@ pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, TaskErro
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
-    ContextService, SkillIngestionService, SkillService,
+    ContextService, PlaybookIngestionService, PlaybookService, SkillIngestionService, SkillService,
 };

@@ -16,7 +16,7 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use systemprompt_logging::set_startup_mode;
+use systemprompt_logging::{set_startup_mode, CliService};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::DatabaseContext;
 
@@ -63,6 +63,14 @@ async fn init_profile_and_route(
     bootstrap::init_profile(&profile_path)?;
 
     let profile = ProfileBootstrap::get()?;
+
+    if cli_config.output_format == OutputFormat::Table
+        && cli_config.verbosity != VerbosityLevel::Quiet
+    {
+        let tenant = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        CliService::profile_banner(&profile.name, profile.target.is_cloud(), tenant);
+    }
+
     let is_cloud = profile.target.is_cloud();
     let env = environment::ExecutionEnvironment::detect();
 

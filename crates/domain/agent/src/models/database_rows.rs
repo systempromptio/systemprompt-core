@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{
     AgentName, ArtifactId, CategoryId, ContextId, ExecutionStepId, McpExecutionId, MessageId,
-    SessionId, SkillId, SourceId, TaskId, TraceId, UserId,
+    PlaybookId, SessionId, SkillId, SourceId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::{UserContext, UserContextWithStats};
 
@@ -118,6 +118,22 @@ pub struct SkillRow {
     pub enabled: bool,
     pub tags: Option<Vec<String>>,
     pub category_id: Option<CategoryId>,
+    pub source_id: SourceId,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct PlaybookRow {
+    pub playbook_id: PlaybookId,
+    pub file_path: String,
+    pub name: String,
+    pub description: String,
+    pub instructions: String,
+    pub enabled: bool,
+    pub tags: Option<Vec<String>>,
+    pub category: String,
+    pub domain: String,
     pub source_id: SourceId,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
