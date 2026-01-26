@@ -7,6 +7,15 @@ pub struct PlaybookListOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PlaybookContentOutput {
+    pub playbook_id: String,
+    pub name: String,
+    pub description: String,
+    pub content: String,
+    pub file_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct PlaybookSummary {
     pub playbook_id: String,
     pub name: String,

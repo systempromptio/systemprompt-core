@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.15] - 2026-01-26
+
+### Added
+- Add `systemprompt core playbooks show <id>` command to display full playbook content
+- Add `--raw` flag to output playbook content without formatting
+
 ## [0.0.14] - 2026-01-26
 
 ### Changed
