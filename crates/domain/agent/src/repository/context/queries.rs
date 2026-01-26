@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use super::ContextRepository;
 use crate::models::context::{ContextStateEvent, UserContext, UserContextWithStats};
 use crate::repository::task::constructor::TaskConstructor;
-use systemprompt_identifiers::{ContextId, TaskId, UserId};
+use systemprompt_identifiers::{ContextId, SessionId, TaskId, UserId};
 use systemprompt_traits::RepositoryError;
 
 impl ContextRepository {
@@ -117,6 +117,36 @@ impl ContextRepository {
                 last_message_at: r.last_message_at,
             })
             .collect())
+    }
+
+    pub async fn find_by_session_id(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<Option<UserContext>, RepositoryError> {
+        let pool = self.get_pg_pool()?;
+
+        let row = sqlx::query!(
+            r#"SELECT
+                context_id as "context_id!",
+                user_id as "user_id!",
+                name as "name!",
+                created_at as "created_at!",
+                updated_at as "updated_at!"
+            FROM user_contexts WHERE session_id = $1
+            ORDER BY created_at DESC LIMIT 1"#,
+            session_id.as_str()
+        )
+        .fetch_optional(pool.as_ref())
+        .await
+        .map_err(RepositoryError::database)?;
+
+        Ok(row.map(|r| UserContext {
+            context_id: r.context_id.into(),
+            user_id: r.user_id.into(),
+            name: r.name,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+        }))
     }
 
     pub async fn get_context_events_since(
