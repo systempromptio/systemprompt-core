@@ -2,23 +2,28 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
-use serde::{Deserialize, Serialize};
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
 use systemprompt_database::{Database, DbPool};
-use systemprompt_identifiers::{Email, ProfileName, SessionId};
+use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::{Profile, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::UserService;
 
+use super::api::request_session_id;
 use super::resolution::ProfileContext;
 use crate::CliConfig;
 
 struct ResolvedSecrets {
     database_url: String,
     jwt_secret: String,
+}
+
+enum AdminLookupContext {
+    Local,
+    Tenant,
 }
 
 fn load_secrets() -> Result<ResolvedSecrets> {
@@ -34,6 +39,95 @@ fn load_secrets() -> Result<ResolvedSecrets> {
         database_url: secrets.database_url.clone(),
         jwt_secret: secrets.jwt_secret.clone(),
     })
+}
+
+async fn connect_database(url: &str) -> Result<DbPool> {
+    let db = Database::new_postgres(url)
+        .await
+        .context("Failed to connect to database")?;
+    Ok(DbPool::from(Arc::new(db)))
+}
+
+async fn fetch_admin(
+    db_pool: &DbPool,
+    email: &str,
+    ctx: AdminLookupContext,
+) -> Result<systemprompt_users::User> {
+    let user_service = UserService::new(db_pool)?;
+
+    let user = user_service
+        .find_by_email(email)
+        .await
+        .context("Failed to query user by email")?
+        .ok_or_else(|| match ctx {
+            AdminLookupContext::Local => anyhow::anyhow!(
+                "User '{}' not found in local database.\n\nEnsure this user exists, or run \
+                 'systemprompt admin users create --email {} --admin'.",
+                email,
+                email
+            ),
+            AdminLookupContext::Tenant => anyhow::anyhow!(
+                "User '{}' not found in database.\n\nRun 'systemprompt cloud auth login' to sync \
+                 your user.",
+                email
+            ),
+        })?;
+
+    if !user.is_admin() {
+        match ctx {
+            AdminLookupContext::Local => anyhow::bail!(
+                "User '{}' is not an admin.\n\nGrant admin role with 'systemprompt admin users \
+                 set-role {} admin'.",
+                email,
+                email
+            ),
+            AdminLookupContext::Tenant => anyhow::bail!(
+                "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your \
+                 admin role.",
+                email
+            ),
+        }
+    }
+
+    Ok(user)
+}
+
+fn generate_admin_token(
+    jwt_secret: &str,
+    issuer: &str,
+    user: &systemprompt_users::User,
+    session_id: &SessionId,
+) -> Result<SessionToken> {
+    let generator = SessionGenerator::new(jwt_secret, issuer);
+    generator
+        .generate(&SessionParams {
+            user_id: &user.id,
+            session_id,
+            email: &user.email,
+            duration: ChronoDuration::hours(24),
+            user_type: UserType::Admin,
+            permissions: vec![Permission::Admin],
+            roles: vec!["admin".to_string()],
+            rate_limit_tier: RateLimitTier::Admin,
+        })
+        .context("Failed to generate session token")
+}
+
+async fn create_cli_context(
+    db_pool: DbPool,
+    user: &systemprompt_users::User,
+    session_id: &SessionId,
+    profile_name: &str,
+) -> Result<ContextId> {
+    let context_repo = ContextRepository::new(db_pool);
+    context_repo
+        .create_context(
+            &user.id,
+            Some(session_id),
+            &format!("CLI Session - {}", profile_name),
+        )
+        .await
+        .context("Failed to create CLI context")
 }
 
 pub(super) async fn create_local_session(
@@ -70,42 +164,18 @@ pub(super) async fn create_local_session(
         CliService::key_value("Profile", profile_ctx.name);
     }
 
-    let db = Database::new_postgres(&secrets.database_url)
-        .await
-        .context("Failed to connect to local database")?;
-    let db_arc = Arc::new(db);
-    let db_pool = DbPool::from(db_arc);
-
-    let admin_user = fetch_local_admin(&db_pool, user_email).await?;
+    let db_pool = connect_database(&secrets.database_url).await?;
+    let admin_user = fetch_admin(&db_pool, user_email, AdminLookupContext::Local).await?;
 
     if config.is_interactive() {
         CliService::key_value("User", &admin_user.email);
     }
 
     let session_id = SessionId::generate();
-    let context_repo = ContextRepository::new(db_pool);
-    let context_id = context_repo
-        .create_context(
-            &admin_user.id,
-            Some(&session_id),
-            &format!("CLI Session - {}", profile_ctx.name),
-        )
-        .await
-        .context("Failed to create CLI context")?;
-
-    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
-    let session_token = session_generator
-        .generate(&SessionParams {
-            user_id: &admin_user.id,
-            session_id: &session_id,
-            email: &admin_user.email,
-            duration: ChronoDuration::hours(24),
-            user_type: UserType::Admin,
-            permissions: vec![Permission::Admin],
-            roles: vec!["admin".to_string()],
-            rate_limit_tier: RateLimitTier::Admin,
-        })
-        .context("Failed to generate session token")?;
+    let context_id =
+        create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
+    let session_token =
+        generate_admin_token(&secrets.jwt_secret, &profile.security.issuer, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
@@ -126,34 +196,6 @@ pub(super) async fn create_local_session(
             .with_user_type(UserType::Admin)
             .build(),
     )
-}
-
-async fn fetch_local_admin(db_pool: &DbPool, email: &str) -> Result<systemprompt_users::User> {
-    let user_service = UserService::new(db_pool)?;
-
-    let user = user_service
-        .find_by_email(email)
-        .await
-        .context("Failed to query user by email")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "User '{}' not found in local database.\n\nEnsure this user exists, or run \
-                 'systemprompt admin users create --email {} --admin'.",
-                email,
-                email
-            )
-        })?;
-
-    if !user.is_admin() {
-        anyhow::bail!(
-            "User '{}' is not an admin.\n\nGrant admin role with 'systemprompt admin users \
-             set-role {} admin'.",
-            email,
-            email
-        );
-    }
-
-    Ok(user)
 }
 
 pub(super) async fn create_session_for_tenant(
@@ -179,15 +221,10 @@ pub(super) async fn create_session_for_tenant(
         CliService::key_value("User", cloud_email);
     }
 
-    let db = Database::new_postgres(&secrets.database_url)
-        .await
-        .context("Failed to connect to database")?;
-    let db_arc = Arc::new(db);
-    let db_pool = DbPool::from(db_arc);
+    let db_pool = connect_database(&secrets.database_url).await?;
+    let admin_user = fetch_admin(&db_pool, cloud_email, AdminLookupContext::Tenant).await?;
 
-    let admin_user = fetch_admin_user(&db_pool, cloud_email).await?;
-
-    let session_id = create_cli_session(
+    let session_id = request_session_id(
         &profile.server.api_external_url,
         admin_user.id.as_str(),
         &admin_user.email,
@@ -195,29 +232,10 @@ pub(super) async fn create_session_for_tenant(
     .await
     .context("Failed to create CLI session via API")?;
 
-    let context_repo = ContextRepository::new(db_pool);
-    let context_id = context_repo
-        .create_context(
-            &admin_user.id,
-            Some(&session_id),
-            &format!("CLI Session - {}", profile_ctx.name),
-        )
-        .await
-        .context("Failed to create CLI context")?;
-
-    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
-    let session_token = session_generator
-        .generate(&SessionParams {
-            user_id: &admin_user.id,
-            session_id: &session_id,
-            email: &admin_user.email,
-            duration: ChronoDuration::hours(24),
-            user_type: UserType::Admin,
-            permissions: vec![Permission::Admin],
-            roles: vec!["admin".to_string()],
-            rate_limit_tier: RateLimitTier::Admin,
-        })
-        .context("Failed to generate session token")?;
+    let context_id =
+        create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
+    let session_token =
+        generate_admin_token(&secrets.jwt_secret, &profile.security.issuer, &admin_user, &session_id)?;
 
     if config.is_interactive() {
         CliService::success("Session created");
@@ -238,82 +256,4 @@ pub(super) async fn create_session_for_tenant(
             .with_user_type(UserType::Admin)
             .build(),
     )
-}
-
-async fn fetch_admin_user(db_pool: &DbPool, email: &str) -> Result<systemprompt_users::User> {
-    let user_service = UserService::new(db_pool)?;
-    let user = user_service
-        .find_by_email(email)
-        .await
-        .context("Failed to fetch user")?
-        .ok_or_else(|| {
-            anyhow::anyhow!(
-                "User '{}' not found in database.\n\nRun 'systemprompt cloud auth login' to sync \
-                 your user.",
-                email
-            )
-        })?;
-
-    if !user.is_admin() {
-        anyhow::bail!(
-            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your admin \
-             role.",
-            email
-        );
-    }
-
-    Ok(user)
-}
-
-#[derive(Debug, Serialize)]
-struct CliSessionRequest {
-    client_id: String,
-    user_id: String,
-    email: String,
-}
-
-#[derive(Debug, Deserialize)]
-struct CliSessionResponse {
-    session_id: String,
-}
-
-async fn create_cli_session(api_url: &str, user_id: &str, email: &str) -> Result<SessionId> {
-    let client = reqwest::Client::builder()
-        .timeout(std::time::Duration::from_secs(10))
-        .build()
-        .context("Failed to create HTTP client")?;
-
-    let url = format!(
-        "{}/api/v1/core/oauth/session",
-        api_url.trim_end_matches('/')
-    );
-
-    let request = CliSessionRequest {
-        client_id: "sp_cli".to_string(),
-        user_id: user_id.to_string(),
-        email: email.to_string(),
-    };
-
-    let response = client
-        .post(&url)
-        .json(&request)
-        .send()
-        .await
-        .context("Failed to send session creation request")?;
-
-    if !response.status().is_success() {
-        let status = response.status();
-        let body = response
-            .text()
-            .await
-            .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        anyhow::bail!("Session creation failed with status {}: {}", status, body);
-    }
-
-    let session_response: CliSessionResponse = response
-        .json()
-        .await
-        .context("Failed to parse session response")?;
-
-    Ok(SessionId::new(session_response.session_id))
 }
