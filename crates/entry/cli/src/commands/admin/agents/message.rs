@@ -10,6 +10,7 @@ use systemprompt_agent::models::a2a::protocol::{
     MessageSendConfiguration, MessageSendParams, TaskStatusUpdateEvent,
 };
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
 use super::types::MessageOutput;
@@ -34,7 +35,7 @@ pub struct MessageArgs {
     #[arg(long, help = "Task ID to continue an existing task")]
     pub task_id: Option<String>,
 
-    #[arg(long, help = "Gateway URL (default: http://localhost:8080)")]
+    #[arg(long, help = "Gateway URL (overrides profile's api_external_url)")]
     pub url: Option<String>,
 
     #[arg(long, help = "Use streaming mode")]
@@ -49,6 +50,9 @@ pub struct MessageArgs {
         help = "Timeout in seconds for blocking mode"
     )]
     pub timeout: u64,
+
+    #[arg(long, help = "Output full task JSON instead of response text")]
+    pub json: bool,
 }
 
 fn extract_text_from_parts(parts: &[Part]) -> String {
@@ -126,8 +130,10 @@ pub async fn execute(
         id: request_id,
     };
 
-    if args.stream {
-        execute_streaming(&agent, &agent_url, auth_token, &request, &message_text).await
+    let use_json = args.json;
+
+    let result = if args.stream {
+        execute_streaming(&agent, &agent_url, auth_token, &request, &message_text).await?
     } else {
         execute_non_streaming(
             &agent,
@@ -137,8 +143,16 @@ pub async fn execute(
             &message_text,
             args.timeout,
         )
-        .await
+        .await?
+    };
+
+    if use_json {
+        return Ok(result);
     }
+
+    let output = result.data;
+    CliService::output(output.response.as_deref().unwrap_or("No response"));
+    Ok(CommandResult::text(output).with_skip_render())
 }
 
 #[allow(clippy::print_stdout)]

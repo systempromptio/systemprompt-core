@@ -78,7 +78,7 @@ pub struct AnalyticsEventBatchResponse {
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct EngagementEventData {
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub scroll_depth: Option<i32>,
+    pub max_scroll_depth: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub time_on_page_ms: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -88,11 +88,21 @@ pub struct EngagementEventData {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub click_count: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub scroll_velocity_avg: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub scroll_direction_changes: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub mouse_move_distance_px: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub keyboard_events: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub copy_events: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub focus_time_ms: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub blur_count: Option<i32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tab_switches: Option<i32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub visible_time_ms: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]

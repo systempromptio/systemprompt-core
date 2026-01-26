@@ -156,14 +156,19 @@ mod engagement_event_data_tests {
     fn default_creates_all_none() {
         let data = EngagementEventData::default();
 
-        assert!(data.scroll_depth.is_none());
+        assert!(data.max_scroll_depth.is_none());
         assert!(data.time_on_page_ms.is_none());
         assert!(data.time_to_first_interaction_ms.is_none());
         assert!(data.time_to_first_scroll_ms.is_none());
         assert!(data.click_count.is_none());
+        assert!(data.scroll_velocity_avg.is_none());
+        assert!(data.scroll_direction_changes.is_none());
         assert!(data.mouse_move_distance_px.is_none());
         assert!(data.keyboard_events.is_none());
         assert!(data.copy_events.is_none());
+        assert!(data.focus_time_ms.is_none());
+        assert!(data.blur_count.is_none());
+        assert!(data.tab_switches.is_none());
         assert!(data.visible_time_ms.is_none());
         assert!(data.hidden_time_ms.is_none());
         assert!(data.is_rage_click.is_none());
@@ -174,7 +179,7 @@ mod engagement_event_data_tests {
     #[test]
     fn data_with_values() {
         let data = EngagementEventData {
-            scroll_depth: Some(75),
+            max_scroll_depth: Some(75),
             time_on_page_ms: Some(30000),
             click_count: Some(5),
             is_rage_click: Some(true),
@@ -182,7 +187,7 @@ mod engagement_event_data_tests {
             ..Default::default()
         };
 
-        assert_eq!(data.scroll_depth, Some(75));
+        assert_eq!(data.max_scroll_depth, Some(75));
         assert_eq!(data.time_on_page_ms, Some(30000));
         assert_eq!(data.click_count, Some(5));
         assert_eq!(data.is_rage_click, Some(true));
@@ -192,22 +197,22 @@ mod engagement_event_data_tests {
     #[test]
     fn data_serializes_skipping_none() {
         let data = EngagementEventData {
-            scroll_depth: Some(50),
+            max_scroll_depth: Some(50),
             ..Default::default()
         };
 
         let json = serde_json::to_string(&data).unwrap();
-        assert!(json.contains("scroll_depth"));
+        assert!(json.contains("max_scroll_depth"));
         assert!(!json.contains("time_on_page_ms"));
         assert!(!json.contains("is_rage_click"));
     }
 
     #[test]
     fn data_deserializes() {
-        let json = r#"{"scroll_depth": 100, "is_dead_click": false}"#;
+        let json = r#"{"max_scroll_depth": 100, "is_dead_click": false}"#;
         let data: EngagementEventData = serde_json::from_str(json).unwrap();
 
-        assert_eq!(data.scroll_depth, Some(100));
+        assert_eq!(data.max_scroll_depth, Some(100));
         assert_eq!(data.is_dead_click, Some(false));
         assert!(data.click_count.is_none());
     }
@@ -215,11 +220,11 @@ mod engagement_event_data_tests {
     #[test]
     fn data_is_clone() {
         let data = EngagementEventData {
-            scroll_depth: Some(25),
+            max_scroll_depth: Some(25),
             ..Default::default()
         };
         let cloned = data.clone();
-        assert_eq!(data.scroll_depth, cloned.scroll_depth);
+        assert_eq!(data.max_scroll_depth, cloned.max_scroll_depth);
     }
 
     #[test]

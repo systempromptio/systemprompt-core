@@ -1,7 +1,6 @@
 use anyhow::Result;
-use systemprompt_cloud::{SessionStore, TenantStore, LOCAL_SESSION_KEY};
+use systemprompt_cloud::{SessionKey, SessionStore, TenantStore, LOCAL_SESSION_KEY};
 use systemprompt_logging::CliService;
-use systemprompt_models::ProfileBootstrap;
 
 use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
@@ -14,7 +13,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
         CliService::section("Sessions");
     }
 
-    display_all_sessions(&paths);
+    display_all_sessions(&paths, config.profile_override.as_deref());
 
     CliService::output("");
 
@@ -31,7 +30,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn display_all_sessions(paths: &ResolvedPaths) {
+fn display_all_sessions(paths: &ResolvedPaths, profile_filter: Option<&str>) {
     let Ok(sessions_dir) = paths.sessions_dir() else {
         CliService::warning("No sessions found");
         return;
@@ -42,15 +41,26 @@ fn display_all_sessions(paths: &ResolvedPaths) {
         return;
     };
 
-    if store.is_empty() {
+    let active_key = store.active_key.clone();
+
+    if store.is_empty() && active_key.is_none() {
         CliService::warning("No sessions found");
         return;
     }
 
-    let active_key = store.active_key.clone();
+    let mut displayed_active = false;
 
     for (key, session) in store.all_sessions() {
+        if let Some(filter) = profile_filter {
+            if session.profile_name.as_str() != filter {
+                continue;
+            }
+        }
+
         let is_active = active_key.as_ref() == Some(key);
+        if is_active {
+            displayed_active = true;
+        }
         let status_marker = if is_active { " (active)" } else { "" };
         let expired_marker = if session.is_expired() {
             " [expired]"
@@ -82,24 +92,58 @@ fn display_all_sessions(paths: &ResolvedPaths) {
             let minutes = expires_in.num_minutes() % 60;
             CliService::key_value("    Expires in", &format!("{}h {}m", hours, minutes));
         }
+
+        let context_age = chrono::Utc::now() - session.last_used;
+        if context_age.num_hours() > 24 {
+            CliService::warning(&format!(
+                "    Context may be stale (last used {}h ago). Re-login with --force-new if \
+                 commands fail.",
+                context_age.num_hours()
+            ));
+        }
+    }
+
+    if !displayed_active {
+        if let Some(ref key_str) = active_key {
+            let display_key = if key_str == LOCAL_SESSION_KEY {
+                "local".to_string()
+            } else {
+                key_str
+                    .strip_prefix("tenant_")
+                    .map_or_else(|| key_str.clone(), String::from)
+            };
+            CliService::output(&format!("\n  {} (active) - no session", display_key));
+            CliService::warning(
+                "    Run 'systemprompt admin session login' to create a session for this profile.",
+            );
+        }
     }
 }
 
 fn display_routing_info(paths: &ResolvedPaths) -> Option<(String, &'static str)> {
-    let Ok(profile) = ProfileBootstrap::get() else {
-        CliService::warning("No profile loaded");
-        return None;
-    };
+    let sessions_dir = paths.sessions_dir().ok()?;
+    let store = SessionStore::load_or_create(&sessions_dir).ok()?;
+    let active_key = store.active_session_key()?;
 
-    CliService::key_value("Profile name", &profile.name);
+    let session = store.sessions.get(&active_key.as_storage_key());
 
-    let Some(tenant_id) = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_ref()) else {
-        CliService::key_value("Target", "Local");
-        return None;
-    };
+    let profile_name = session.map_or_else(
+        || "unknown".to_string(),
+        |s| s.profile_name.as_str().to_string(),
+    );
 
-    CliService::key_value("Tenant ID", tenant_id);
-    resolve_remote_target(paths, tenant_id)
+    CliService::key_value("Profile name", &profile_name);
+
+    match &active_key {
+        SessionKey::Local => {
+            CliService::key_value("Target", "Local");
+            None
+        },
+        SessionKey::Tenant(tenant_id) => {
+            CliService::key_value("Tenant ID", tenant_id.as_str());
+            resolve_remote_target(paths, tenant_id.as_str())
+        },
+    }
 }
 
 fn resolve_remote_target(paths: &ResolvedPaths, tenant_id: &str) -> Option<(String, &'static str)> {

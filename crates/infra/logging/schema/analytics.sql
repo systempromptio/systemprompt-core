@@ -32,11 +32,3 @@ ALTER TABLE analytics_events
 
 CREATE INDEX IF NOT EXISTS idx_analytics_events_event_data
     ON analytics_events USING GIN (event_data);
-
-CREATE INDEX IF NOT EXISTS idx_analytics_events_scroll_depth
-    ON analytics_events (CAST(event_data->>'scroll_depth' AS INTEGER))
-    WHERE event_type = 'page_engagement';
-
-CREATE INDEX IF NOT EXISTS idx_analytics_events_time_on_page
-    ON analytics_events (CAST(event_data->>'time_on_page_ms' AS INTEGER))
-    WHERE event_type = 'page_engagement';

@@ -18,7 +18,7 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     if !profile_config_path.exists() {
         anyhow::bail!(
             "Profile '{}' not found.\n\nAvailable profiles can be listed with: systemprompt \
-             session list",
+             admin session list",
             profile_name
         );
     }
@@ -34,9 +34,10 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     store.save(&sessions_dir)?;
 
     let has_session = store.get_valid_session(&session_key).is_some();
-    if !has_session && new_tenant_id.is_some() {
+    if !has_session {
         CliService::warning(
-            "No session for this tenant. Run 'systemprompt admin session login' to authenticate.",
+            "No active session for this profile. Run 'systemprompt admin session login' to \
+             authenticate.",
         );
     }
 

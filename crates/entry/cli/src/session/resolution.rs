@@ -1,7 +1,10 @@
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
@@ -94,6 +97,11 @@ async fn get_session_for_loaded_profile(
 
     if let Some(mut session) = store.get_valid_session(&session_key).cloned() {
         session.touch();
+
+        if let Some(refreshed) = try_validate_context(&mut session, &profile_name).await {
+            session = refreshed;
+        }
+
         store.upsert_session(&session_key, session.clone());
         store.save(&sessions_dir)?;
         return Ok(CliSessionContext {
@@ -151,16 +159,34 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
     let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
     let store = SessionStore::load_or_create(&sessions_dir)?;
 
-    let Some(active_session) = store.active_session() else {
+    let Some(ref active_key_str) = store.active_key else {
         return Ok(None);
     };
 
-    let profile_path = match &active_session.profile_path {
-        Some(path) if path.exists() => path,
-        _ => return Ok(None),
+    let active_key = store.active_session_key().ok_or_else(|| {
+        anyhow::anyhow!("Invalid active session key: {}", active_key_str)
+    })?;
+
+    let profile_path = if let Some(session) = store.active_session() {
+        match &session.profile_path {
+            Some(path) if path.exists() => path.clone(),
+            _ => return Ok(None),
+        }
+    } else {
+        let raw_session = store.get_session(&active_key);
+        match raw_session.and_then(|s| s.profile_path.as_ref()).filter(|p| p.exists()) {
+            Some(path) => path.clone(),
+            None => {
+                anyhow::bail!(
+                    "Active profile has no session.\n\nRun 'systemprompt admin session login' to \
+                     authenticate, or 'systemprompt admin session switch <profile>' to change \
+                     profiles."
+                );
+            },
+        }
     };
 
-    let profile = ProfileLoader::load_from_path(profile_path).with_context(|| {
+    let profile = ProfileLoader::load_from_path(&profile_path).with_context(|| {
         format!(
             "Failed to load profile from stored path: {}",
             profile_path.display()
@@ -168,7 +194,7 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
     })?;
 
     if !ProfileBootstrap::is_initialized() {
-        ProfileBootstrap::init_from_path(profile_path).with_context(|| {
+        ProfileBootstrap::init_from_path(&profile_path).with_context(|| {
             format!(
                 "Failed to initialize profile from {}",
                 profile_path.display()
@@ -180,7 +206,7 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
         SecretsBootstrap::try_init().with_context(|| "Failed to initialize secrets for session")?;
     }
 
-    let ctx = get_session_for_loaded_profile(&profile, profile_path, config).await?;
+    let ctx = get_session_for_loaded_profile(&profile, &profile_path, config).await?;
     Ok(Some(ctx))
 }
 
@@ -234,4 +260,37 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
 
     let profile_path = Path::new(profile_path_str);
     get_session_for_loaded_profile(&profile, profile_path, config).await
+}
+
+async fn try_validate_context(
+    session: &mut CliSession,
+    profile_name: &str,
+) -> Option<CliSession> {
+    let secrets = SecretsBootstrap::get().ok()?;
+    let db = Database::new_postgres(&secrets.database_url).await.ok()?;
+    let db_pool = DbPool::from(Arc::new(db));
+    let context_repo = ContextRepository::new(db_pool);
+
+    let is_valid = context_repo
+        .validate_context_ownership(&session.context_id, &session.user_id)
+        .await
+        .is_ok();
+
+    if is_valid {
+        return None;
+    }
+
+    CliService::warning("Session context is stale, creating new context...");
+
+    let new_context_id = context_repo
+        .create_context(
+            &session.user_id,
+            Some(&session.session_id),
+            &format!("CLI Session - {}", profile_name),
+        )
+        .await
+        .ok()?;
+
+    session.set_context_id(new_context_id);
+    Some(session.clone())
 }

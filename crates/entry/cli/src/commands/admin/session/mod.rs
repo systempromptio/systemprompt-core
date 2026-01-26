@@ -2,6 +2,7 @@
 
 mod list;
 mod login;
+mod logout;
 mod show;
 mod switch;
 
@@ -25,13 +26,18 @@ pub enum SessionCommands {
 
     #[command(about = "Create an admin session for CLI access")]
     Login(login::LoginArgs),
+
+    #[command(about = "Remove a session")]
+    Logout(logout::LogoutArgs),
 }
 
 impl DescribeCommand for SessionCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Login(_) => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Show | Self::Switch { .. } | Self::List => CommandDescriptor::NONE,
+            Self::Show | Self::Switch { .. } | Self::List | Self::Logout(_) => {
+                CommandDescriptor::NONE
+            },
         }
     }
 }
@@ -49,5 +55,6 @@ pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
             render_result(&result);
             Ok(())
         },
+        SessionCommands::Logout(ref args) => logout::execute(args, config),
     }
 }
