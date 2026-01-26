@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.0] - 2026-01-26
+
+### Fixed
+- Auto-create replacement context when MCP tool call has invalid/stale context_id instead of failing with "Context validation failed"
+
 ## [0.0.11] - 2026-01-26
 
 ### Changed

@@ -67,22 +67,41 @@ pub async fn ensure_task_exists(
             },
         }
     } else {
-        context_repo
-            .validate_context_ownership(context_id, request_context.user_id())
+        let old_context_id = context_id.clone();
+        match context_repo
+            .validate_context_ownership(&old_context_id, request_context.user_id())
             .await
-            .map_err(|e| {
-                tracing::error!(
-                    context_id = %context_id,
+        {
+            Ok(()) => old_context_id,
+            Err(e) => {
+                tracing::warn!(
+                    context_id = %old_context_id,
                     user_id = %request_context.user_id(),
                     error = %e,
-                    "Context validation failed"
+                    "Context validation failed, auto-creating new context"
                 );
-                McpError::invalid_params(
-                    format!("Invalid contextId: {e}. Ensure context exists and belongs to user."),
-                    None,
-                )
-            })?;
-        context_id.clone()
+                let new_context_id = context_repo
+                    .create_context(
+                        request_context.user_id(),
+                        Some(request_context.session_id()),
+                        &format!("MCP Session: {}", request_context.session_id()),
+                    )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(error = %e, "Failed to auto-create replacement context");
+                        McpError::internal_error(format!("Failed to create context: {e}"), None)
+                    })?;
+
+                request_context.execution.context_id = new_context_id.clone();
+                tracing::info!(
+                    old_context_id = %old_context_id,
+                    new_context_id = %new_context_id,
+                    session_id = %request_context.session_id(),
+                    "Auto-created replacement context for invalid context_id"
+                );
+                new_context_id
+            }
+        }
     };
 
     let task_repo = TaskRepository::new(db_pool.clone());
