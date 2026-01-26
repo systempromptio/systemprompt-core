@@ -75,6 +75,10 @@ pub async fn record_event(
             ApiError::internal_error("Failed to record analytics event")
         })?;
 
+    if input.event_type == AnalyticsEventType::PageExit {
+        fan_out_engagement(&state, &req_ctx, &input).await;
+    }
+
     Ok((StatusCode::CREATED, Json(created)))
 }
 
