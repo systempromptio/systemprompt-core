@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Improve `SessionStore` management and key handling
+- Refactor CLI session store for better reliability
+
 ## [0.0.4] - 2026-01-23
 
 ### Added

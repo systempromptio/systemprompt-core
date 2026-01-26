@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Added
+- Add `fingerprint_hash` field to `AnonymousSessionInfo` for session tracking
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

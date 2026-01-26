@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Rename `AnalyticsState` fields to remove redundant `_repo` postfix
+- Improve session middleware handling
+
+### Added
+- Fan out engagement metrics from `PageExit` events in analytics routes
+- Batch analytics event processing with engagement fan-out
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

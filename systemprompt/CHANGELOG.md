@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Update all workspace crate dependencies to 0.0.11
+- Improve CLI session management and path resolution
+- Add engagement fan-out for analytics events
+- Fix clippy errors across workspace
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

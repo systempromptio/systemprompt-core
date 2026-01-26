@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Added
+- Fan out engagement metrics on `PageExit` analytics events
+- `fan_out_engagement` for batch analytics processing
+
+### Fixed
+- Fix clippy errors in repository modules
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

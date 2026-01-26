@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Pass JWT provider to OAuth validation in A2A request handler
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed
