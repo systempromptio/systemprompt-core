@@ -85,7 +85,7 @@ pub struct ProfileOpts {
 #[command(after_help = "\
 GETTING STARTED:
   systemprompt core playbooks list              List all workflow playbooks
-  systemprompt core playbooks list info_info    Show the CLI usage guide
+  systemprompt core playbooks show info_start   View the getting started guide
 
 GLOBAL OPTIONS (apply to all commands):
   -v, --verbose         Increase verbosity

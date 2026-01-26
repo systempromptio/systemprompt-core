@@ -1,4 +1,5 @@
 pub mod list;
+pub mod show;
 pub mod sync;
 pub mod types;
 
@@ -13,6 +14,9 @@ pub enum PlaybooksCommands {
     #[command(about = "List playbooks")]
     List(list::ListArgs),
 
+    #[command(about = "Show full playbook content")]
+    Show(show::ShowArgs),
+
     #[command(about = "Sync playbooks between disk and database")]
     Sync(sync::SyncArgs),
 }
@@ -21,6 +25,11 @@ pub async fn execute(cmd: PlaybooksCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         PlaybooksCommands::List(args) => {
             let result = list::execute(args).context("Failed to list playbooks")?;
+            render_result(&result);
+            Ok(())
+        },
+        PlaybooksCommands::Show(args) => {
+            let result = show::execute(args).context("Failed to show playbook")?;
             render_result(&result);
             Ok(())
         },
