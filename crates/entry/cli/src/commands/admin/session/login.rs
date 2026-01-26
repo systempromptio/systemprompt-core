@@ -40,10 +40,11 @@ pub struct LoginArgs {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LoginOutput {
+    pub status: String,
     pub user_id: systemprompt_identifiers::UserId,
     pub email: String,
     pub session_id: SessionId,
-    pub token: systemprompt_identifiers::SessionToken,
+    pub token: String,
     pub expires_in_hours: i64,
 }
 
@@ -158,10 +159,11 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     )?;
 
     let output = LoginOutput {
+        status: "created".to_string(),
         user_id: admin_user.id.clone(),
         email: admin_user.email.clone(),
         session_id,
-        token: session_token.clone(),
+        token: session_token.redacted(),
         expires_in_hours: args.duration_hours,
     };
 
@@ -174,7 +176,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         "Session saved to {}/index.json",
         sessions_dir.display()
     ));
-    Ok(CommandResult::card(output).with_title("Session Created"))
+    Ok(CommandResult::card(output).with_title("Admin Session"))
 }
 
 fn try_use_existing_session(
@@ -192,10 +194,11 @@ fn try_use_existing_session(
     };
 
     let output = LoginOutput {
+        status: "existing".to_string(),
         user_id: session.user_id.clone(),
         email: session.user_email.to_string(),
         session_id: session.session_id.clone(),
-        token: session.session_token.clone(),
+        token: session.session_token.redacted(),
         expires_in_hours: 24,
     };
 
@@ -206,7 +209,7 @@ fn try_use_existing_session(
 
     CliService::success("Using existing valid session");
     Ok(Some(
-        CommandResult::card(output).with_title("Existing Session"),
+        CommandResult::card(output).with_title("Admin Session"),
     ))
 }
 

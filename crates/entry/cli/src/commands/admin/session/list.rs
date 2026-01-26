@@ -1,10 +1,11 @@
-//! List available profiles.
+//! List available profiles with session status.
 
-use systemprompt_cloud::{ProfilePath, ProjectContext};
+use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
+use crate::paths::ResolvedPaths;
 
 pub fn execute(config: &CliConfig) {
     let project_ctx = ProjectContext::discover();
@@ -24,12 +25,17 @@ pub fn execute(config: &CliConfig) {
         return;
     }
 
+    let store = ResolvedPaths::discover()
+        .sessions_dir()
+        .ok()
+        .and_then(|dir| SessionStore::load_or_create(&dir).ok());
+
     if config.is_interactive() {
         CliService::section("Available Profiles");
     }
 
     for profile_info in profiles {
-        print_profile_info(&profile_info, config);
+        print_profile_info(&profile_info, store.as_ref(), config);
     }
 }
 
@@ -79,7 +85,7 @@ fn load_profile_info(config_path: &std::path::Path) -> Option<Profile> {
     Profile::parse(&content, config_path).ok()
 }
 
-fn print_profile_info(info: &ProfileInfo, config: &CliConfig) {
+fn print_profile_info(info: &ProfileInfo, store: Option<&SessionStore>, config: &CliConfig) {
     if config.is_interactive() {
         let display = info
             .display_name
@@ -91,7 +97,22 @@ fn print_profile_info(info: &ProfileInfo, config: &CliConfig) {
             .as_ref()
             .map_or_else(|| "Local".to_string(), |tid| format!("Remote -> {}", tid));
 
-        CliService::output(&format!("  {}{} [{}]", info.name, display, routing));
+        let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
+        let (active_marker, session_status) = store.map_or(("", ""), |s| {
+            let is_active = s.active_key.as_ref() == Some(&session_key.as_storage_key());
+            let marker = if is_active { " *" } else { "" };
+            let status = match s.get_session(&session_key) {
+                Some(session) if session.is_expired() => " [expired]",
+                Some(_) => " [session]",
+                None => "",
+            };
+            (marker, status)
+        });
+
+        CliService::output(&format!(
+            "  {}{}{} [{}]{}",
+            info.name, display, active_marker, routing, session_status
+        ));
     } else {
         CliService::output(&info.name);
     }
