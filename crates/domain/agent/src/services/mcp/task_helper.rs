@@ -28,30 +28,62 @@ pub async fn ensure_task_exists(
     }
 
     let context_id = request_context.context_id();
-    if context_id.is_empty() {
-        tracing::error!("contextId is required for tool execution");
-        return Err(McpError::invalid_params(
-            "contextId is required. Create a context first via POST /api/v1/core/contexts",
-            None,
-        ));
-    }
-
     let context_repo = ContextRepository::new(db_pool.clone());
-    context_repo
-        .validate_context_ownership(context_id, request_context.user_id())
-        .await
-        .map_err(|e| {
-            tracing::error!(
-                context_id = %context_id,
-                user_id = %request_context.user_id(),
-                error = %e,
-                "Context validation failed"
-            );
-            McpError::invalid_params(
-                format!("Invalid contextId: {e}. Ensure context exists and belongs to user."),
-                None,
-            )
-        })?;
+
+    let context_id = if context_id.is_empty() {
+        match context_repo
+            .find_by_session_id(request_context.session_id())
+            .await
+        {
+            Ok(Some(existing)) => {
+                tracing::debug!(
+                    context_id = %existing.context_id,
+                    session_id = %request_context.session_id(),
+                    "Reusing existing context for MCP session"
+                );
+                request_context.execution.context_id = existing.context_id.clone();
+                existing.context_id
+            },
+            _ => {
+                let new_context_id = context_repo
+                    .create_context(
+                        request_context.user_id(),
+                        Some(request_context.session_id()),
+                        &format!("MCP Session: {}", request_context.session_id()),
+                    )
+                    .await
+                    .map_err(|e| {
+                        tracing::error!(error = %e, "Failed to auto-create context for MCP session");
+                        McpError::internal_error(format!("Failed to create context: {e}"), None)
+                    })?;
+
+                request_context.execution.context_id = new_context_id.clone();
+                tracing::info!(
+                    context_id = %new_context_id,
+                    session_id = %request_context.session_id(),
+                    "Auto-created context for MCP session"
+                );
+                new_context_id
+            },
+        }
+    } else {
+        context_repo
+            .validate_context_ownership(context_id, request_context.user_id())
+            .await
+            .map_err(|e| {
+                tracing::error!(
+                    context_id = %context_id,
+                    user_id = %request_context.user_id(),
+                    error = %e,
+                    "Context validation failed"
+                );
+                McpError::invalid_params(
+                    format!("Invalid contextId: {e}. Ensure context exists and belongs to user."),
+                    None,
+                )
+            })?;
+        context_id.clone()
+    };
 
     let task_repo = TaskRepository::new(db_pool.clone());
 
@@ -67,7 +99,7 @@ pub async fn ensure_task_exists(
 
     let task = Task {
         id: task_id.clone(),
-        context_id: request_context.context_id().clone(),
+        context_id: context_id.clone(),
         status: TaskStatus {
             state: TaskState::Submitted,
             message: None,
