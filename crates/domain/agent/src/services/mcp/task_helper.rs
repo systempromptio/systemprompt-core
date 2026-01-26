@@ -48,7 +48,7 @@ pub async fn ensure_task_exists(
                 let new_context_id = context_repo
                     .create_context(
                         request_context.user_id(),
-                        None,
+                        Some(request_context.session_id()),
                         &format!("MCP Session: {}", request_context.session_id()),
                     )
                     .await
