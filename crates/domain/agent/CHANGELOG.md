@@ -5,6 +5,9 @@
 ### Changed
 - Pass JWT provider to OAuth validation in A2A request handler
 
+### Fixed
+- Filter null JSON values in `ArtifactBuilder::build_artifacts()` to prevent errors when tools return `Some(Value::Null)`
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed
