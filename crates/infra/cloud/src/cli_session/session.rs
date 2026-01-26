@@ -128,37 +128,7 @@ impl CliSessionBuilder {
     }
 }
 
-#[derive(Debug, Deserialize)]
-struct PartialSession {
-    #[serde(default)]
-    profile_path: Option<PathBuf>,
-}
-
 impl CliSession {
-    pub fn try_load_profile_path(path: &Path) -> Option<PathBuf> {
-        if !path.exists() {
-            return None;
-        }
-
-        let content = match fs::read_to_string(path) {
-            Ok(c) => c,
-            Err(e) => {
-                tracing::debug!(error = %e, path = %path.display(), "Failed to read session file for profile path");
-                return None;
-            },
-        };
-
-        let partial: PartialSession = match serde_json::from_str(&content) {
-            Ok(p) => p,
-            Err(e) => {
-                tracing::debug!(error = %e, "Failed to parse session file for profile path");
-                return None;
-            },
-        };
-
-        partial.profile_path.filter(|p| p.exists())
-    }
-
     pub fn builder(
         profile_name: ProfileName,
         session_token: SessionToken,

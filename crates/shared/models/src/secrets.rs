@@ -202,7 +202,9 @@ impl SecretsBootstrap {
         if is_subprocess || is_fly_environment {
             if let Ok(jwt_secret) = std::env::var("JWT_SECRET") {
                 if jwt_secret.len() >= JWT_SECRET_MIN_LENGTH {
-                    tracing::debug!("Using JWT_SECRET from environment (subprocess/container mode)");
+                    tracing::debug!(
+                        "Using JWT_SECRET from environment (subprocess/container mode)"
+                    );
                     return Self::load_from_env();
                 }
             }

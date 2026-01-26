@@ -90,20 +90,14 @@ fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
 fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::CliSession> {
     let project_ctx = ProjectContext::discover();
 
-    let (sessions_dir, legacy_path) = if project_ctx.systemprompt_dir().exists() {
-        (
-            project_ctx.sessions_dir(),
-            Some(project_ctx.local_session()),
-        )
+    let sessions_dir = if project_ctx.systemprompt_dir().exists() {
+        project_ctx.sessions_dir()
     } else {
         let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
-        (
-            cloud_paths.resolve(CloudPath::SessionsDir),
-            Some(cloud_paths.resolve(CloudPath::CliSession)),
-        )
+        cloud_paths.resolve(CloudPath::SessionsDir)
     };
 
-    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let store = SessionStore::load_or_create(&sessions_dir)?;
 
     store
         .get_valid_session(session_key)

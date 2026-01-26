@@ -4,9 +4,10 @@ use std::sync::Arc;
 
 use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::AgentState;
-use systemprompt_ai::{AiService, NoopToolProvider};
+use systemprompt_ai::AiService;
 use systemprompt_database::Database;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::Config;
 use systemprompt_oauth::JwtValidationProviderImpl;
 
@@ -39,7 +40,7 @@ pub async fn execute(args: RunArgs) -> Result<()> {
         jwt_provider,
     ));
 
-    let tool_provider = Arc::new(NoopToolProvider::new());
+    let tool_provider = Arc::new(McpToolProvider::new(db_pool.clone()));
     let ai_service = Arc::new(
         AiService::new(db_pool, &services_config.ai, tool_provider, None)
             .context("Failed to create AI service")?,

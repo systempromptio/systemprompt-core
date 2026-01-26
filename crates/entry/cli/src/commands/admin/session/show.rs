@@ -33,9 +33,9 @@ pub fn execute(config: &CliConfig) -> Result<()> {
 }
 
 fn display_all_sessions(project_ctx: &ProjectContext) {
-    let (sessions_dir, legacy_path) = resolve_session_paths(project_ctx);
+    let sessions_dir = resolve_sessions_dir(project_ctx);
 
-    let Ok(store) = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref()) else {
+    let Ok(store) = SessionStore::load_or_create(&sessions_dir) else {
         CliService::warning("No sessions found");
         return;
     };
@@ -83,23 +83,13 @@ fn display_all_sessions(project_ctx: &ProjectContext) {
     }
 }
 
-fn resolve_session_paths(
-    project_ctx: &ProjectContext,
-) -> (std::path::PathBuf, Option<std::path::PathBuf>) {
+fn resolve_sessions_dir(project_ctx: &ProjectContext) -> std::path::PathBuf {
     if project_ctx.systemprompt_dir().exists() {
-        (
-            project_ctx.sessions_dir(),
-            Some(project_ctx.local_session()),
-        )
+        project_ctx.sessions_dir()
     } else {
         get_cloud_paths().map_or_else(
-            |_| (project_ctx.sessions_dir(), None),
-            |paths| {
-                (
-                    paths.resolve(CloudPath::SessionsDir),
-                    Some(paths.resolve(CloudPath::CliSession)),
-                )
-            },
+            |_| project_ctx.sessions_dir(),
+            |paths| paths.resolve(CloudPath::SessionsDir),
         )
     }
 }

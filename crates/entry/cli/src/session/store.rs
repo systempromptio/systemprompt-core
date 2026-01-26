@@ -13,9 +13,9 @@ pub fn clear_session() -> Result<()> {
     let session_key = SessionKey::from_tenant_id(tenant_id);
 
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
 
-    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let mut store = SessionStore::load_or_create(&sessions_dir)?;
     store.remove_session(&session_key);
     store.save(&sessions_dir)?;
 
@@ -24,30 +24,24 @@ pub fn clear_session() -> Result<()> {
 
 pub fn clear_all_sessions() -> Result<()> {
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
 
     let store = SessionStore::new();
     store.save(&sessions_dir)?;
-
-    if let Some(legacy) = legacy_path {
-        if legacy.exists() {
-            std::fs::remove_file(legacy).ok();
-        }
-    }
 
     Ok(())
 }
 
 pub fn get_session_for_key(session_key: &SessionKey) -> Result<Option<CliSession>> {
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
 
-    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let store = SessionStore::load_or_create(&sessions_dir)?;
     Ok(store.get_valid_session(session_key).cloned())
 }
 
 pub fn load_session_store() -> Result<SessionStore> {
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
-    SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    SessionStore::load_or_create(&sessions_dir)
 }

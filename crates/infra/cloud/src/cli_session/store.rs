@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -131,31 +131,19 @@ impl SessionStore {
         self.sessions.is_empty()
     }
 
-    pub fn load_or_create(sessions_dir: &Path, legacy_session_path: Option<&Path>) -> Result<Self> {
+    #[must_use]
+    pub fn load(sessions_dir: &Path) -> Option<Self> {
         let index_path = sessions_dir.join("index.json");
+        let content = fs::read_to_string(&index_path)
+            .map_err(|e| tracing::debug!(error = %e, "No session store found"))
+            .ok()?;
+        serde_json::from_str(&content)
+            .map_err(|e| tracing::warn!(error = %e, "Failed to parse session store"))
+            .ok()
+    }
 
-        if index_path.exists() {
-            let content = fs::read_to_string(&index_path)
-                .with_context(|| format!("Failed to read {}", index_path.display()))?;
-            return serde_json::from_str(&content)
-                .with_context(|| "Failed to parse session store index");
-        }
-
-        let mut store = Self::new();
-
-        if let Some(legacy_path) = legacy_session_path.filter(|p| p.exists()) {
-            if let Ok(legacy_session) = CliSession::load_from_path(legacy_path) {
-                let key = legacy_session.session_key();
-                store.upsert_session(&key, legacy_session);
-                store.set_active(&key);
-                store.save(sessions_dir)?;
-                if let Err(e) = fs::remove_file(legacy_path) {
-                    tracing::warn!(error = %e, path = %legacy_path.display(), "Failed to remove legacy session file");
-                }
-            }
-        }
-
-        Ok(store)
+    pub fn load_or_create(sessions_dir: &Path) -> Result<Self> {
+        Self::load(sessions_dir).map_or_else(|| Ok(Self::new()), Ok)
     }
 
     pub fn save(&self, sessions_dir: &Path) -> Result<()> {

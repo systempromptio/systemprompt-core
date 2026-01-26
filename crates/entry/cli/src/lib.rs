@@ -234,25 +234,41 @@ pub async fn run() -> Result<()> {
                     std::process::exit(exit_code);
                 },
                 Ok(routing::ExecutionTarget::Local) if is_cloud => {
-                    bail!(
-                        "Cloud profile '{}' requires remote execution but no tenant is \
-                         configured.\nEnsure cloud.tenant_id is set and run 'systemprompt admin \
-                         session login'.",
-                        profile.name
-                    );
+                    if profile.database.external_db_access {
+                        tracing::debug!(
+                            profile_name = %profile.name,
+                            "Cloud profile with external_db_access enabled, allowing local execution"
+                        );
+                    } else {
+                        bail!(
+                            "Cloud profile '{}' requires remote execution but no tenant is \
+                             configured.\nEnsure cloud.tenant_id is set and run 'systemprompt admin \
+                             session login'.",
+                            profile.name
+                        );
+                    }
                 },
                 Err(e) if is_cloud => {
-                    bail!(
-                        "Cloud profile '{}' requires remote execution but routing failed: {}\nRun \
-                         'systemprompt admin session login' to authenticate.",
-                        profile.name,
-                        e
-                    );
+                    if profile.database.external_db_access {
+                        tracing::debug!(
+                            profile_name = %profile.name,
+                            error = %e,
+                            "Routing failed but external_db_access enabled, allowing local execution"
+                        );
+                    } else {
+                        bail!(
+                            "Cloud profile '{}' requires remote execution but routing failed: \
+                             {}\nRun 'systemprompt admin session login' to authenticate.",
+                            profile.name,
+                            e
+                        );
+                    }
                 },
                 _ => {},
             }
         } else if is_cloud
             && !is_fly_environment
+            && !profile.database.external_db_access
             && !matches!(
                 cli.command.as_ref(),
                 Some(Commands::Cloud(_) | Commands::Admin(admin::AdminCommands::Session(_)))
@@ -260,12 +276,13 @@ pub async fn run() -> Result<()> {
         {
             bail!(
                 "Cloud profile '{}' selected but this command doesn't support remote \
-                 execution.\nUse a local profile with --profile <name>.",
+                 execution.\nUse a local profile with --profile <name> or enable external \
+                 database access.",
                 profile.name
             );
         }
 
-        if !is_cloud {
+        if !is_cloud || profile.database.external_db_access {
             if let Err(e) = bootstrap::init_credentials().await {
                 tracing::debug!(error = %e, "Cloud credentials not available, continuing in local-only mode");
             }

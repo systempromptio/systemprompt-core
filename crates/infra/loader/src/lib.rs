@@ -7,7 +7,6 @@ mod include_resolver;
 mod module_loader;
 mod modules;
 mod profile_loader;
-mod secrets_loader;
 
 pub use config_loader::ConfigLoader;
 pub use config_writer::ConfigWriter;
@@ -17,4 +16,3 @@ pub use extension_registry::ExtensionRegistry;
 pub use include_resolver::IncludeResolver;
 pub use module_loader::ModuleLoader;
 pub use profile_loader::ProfileLoader;
-pub use secrets_loader::SecretsLoader;

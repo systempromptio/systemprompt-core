@@ -1,7 +1,5 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use std::collections::HashMap;
-use std::path::PathBuf;
-use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::EnhancedConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
@@ -10,6 +8,7 @@ use super::show_display::print_formatted_config;
 use super::show_types::{build_env_config, FullConfig, SettingsOutput};
 use super::ShowFilter;
 use crate::cli_settings::CliConfig;
+use crate::shared::resolve_profile_path;
 
 pub fn execute(
     name: Option<&str>,
@@ -18,7 +17,7 @@ pub fn execute(
     yaml_output: bool,
     _cli_config: &CliConfig,
 ) -> Result<()> {
-    let profile_path = resolve_profile_path(name)?;
+    let profile_path = resolve_profile_path(name, None)?;
 
     CliService::section(&format!("Profile: {}", profile_path.display()));
 
@@ -49,36 +48,6 @@ fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> 
     AppPaths::init(&profile.paths)?;
     Config::try_init()?;
     Ok(())
-}
-
-fn resolve_profile_path(name: Option<&str>) -> Result<PathBuf> {
-    if let Some(profile_name) = name {
-        let ctx = ProjectContext::discover();
-        let profile_path = ctx.profile_path(profile_name, ProfilePath::Config);
-
-        if !profile_path.exists() {
-            bail!(
-                "Profile '{}' not found at {}",
-                profile_name,
-                profile_path.display()
-            );
-        }
-
-        return Ok(profile_path);
-    }
-
-    if let Ok(path) = std::env::var("SYSTEMPROMPT_PROFILE") {
-        let profile_path = PathBuf::from(&path);
-        if profile_path.exists() {
-            return Ok(profile_path);
-        }
-        bail!("Profile from SYSTEMPROMPT_PROFILE not found: {}", path);
-    }
-
-    bail!(
-        "No profile specified and SYSTEMPROMPT_PROFILE not set.\nUsage: systemprompt cloud \
-         profile show <name>"
-    );
 }
 
 fn build_config_for_filter(

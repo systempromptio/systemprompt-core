@@ -4,17 +4,37 @@ use anyhow::{Context, Result};
 use chrono::Duration as ChronoDuration;
 use serde::{Deserialize, Serialize};
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, ProfilePath, SessionKey};
+use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{Email, ProfileName, SessionId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
-use systemprompt_models::Profile;
+use systemprompt_models::{Profile, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::UserService;
 
 use super::resolution::ProfileContext;
 use crate::CliConfig;
+
+struct ResolvedSecrets {
+    database_url: String,
+    jwt_secret: String,
+}
+
+fn load_secrets() -> Result<ResolvedSecrets> {
+    let secrets = SecretsBootstrap::get().map_err(|e| {
+        anyhow::anyhow!(
+            "Secrets not initialized: {}\n\nEnsure your profile has a valid secrets \
+             configuration.\nCheck that secrets.json exists or environment variables are set.",
+            e
+        )
+    })?;
+
+    Ok(ResolvedSecrets {
+        database_url: secrets.database_url.clone(),
+        jwt_secret: secrets.jwt_secret.clone(),
+    })
+}
 
 pub(super) async fn create_local_session(
     profile: &Profile,
@@ -32,7 +52,8 @@ pub(super) async fn create_local_session(
 
     let creds = CredentialsBootstrap::require().map_err(|_| {
         anyhow::anyhow!(
-            "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to authenticate."
+            "Cloud authentication required.\n\nRun 'systemprompt cloud auth login' to \
+             authenticate."
         )
     })?;
 
@@ -42,27 +63,14 @@ pub(super) async fn create_local_session(
         )
     })?;
 
-    let secrets_path = ProfilePath::Secrets.resolve(profile_ctx.dir);
-    let secrets_content = std::fs::read_to_string(&secrets_path)
-        .with_context(|| format!("Failed to read secrets from {}", secrets_path.display()))?;
-    let secrets: serde_json::Value =
-        serde_json::from_str(&secrets_content).context("Failed to parse profile secrets.json")?;
-
-    let database_url = secrets
-        .get("database_url")
-        .and_then(|v| v.as_str())
-        .context("No database_url in profile secrets.json")?;
-    let jwt_secret = secrets
-        .get("jwt_secret")
-        .and_then(|v| v.as_str())
-        .context("No jwt_secret in profile secrets.json")?;
+    let secrets = load_secrets().context("Failed to load secrets")?;
 
     if config.is_interactive() {
         CliService::info("Creating local CLI session...");
         CliService::key_value("Profile", profile_ctx.name);
     }
 
-    let db = Database::new_postgres(database_url)
+    let db = Database::new_postgres(&secrets.database_url)
         .await
         .context("Failed to connect to local database")?;
     let db_arc = Arc::new(db);
@@ -85,7 +93,7 @@ pub(super) async fn create_local_session(
         .await
         .context("Failed to create CLI context")?;
 
-    let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
+    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
     let session_token = session_generator
         .generate(&SessionParams {
             user_id: &admin_user.id,
@@ -163,20 +171,7 @@ pub(super) async fn create_session_for_tenant(
         anyhow::anyhow!("No email in cloud credentials. Run 'systemprompt cloud auth login'.")
     })?;
 
-    let secrets_path = ProfilePath::Secrets.resolve(profile_ctx.dir);
-    let secrets_content = std::fs::read_to_string(&secrets_path)
-        .with_context(|| format!("Failed to read secrets from {}", secrets_path.display()))?;
-    let secrets: serde_json::Value =
-        serde_json::from_str(&secrets_content).context("Failed to parse profile secrets.json")?;
-
-    let database_url = secrets
-        .get("database_url")
-        .and_then(|v| v.as_str())
-        .context("No database_url in profile secrets.json")?;
-    let jwt_secret = secrets
-        .get("jwt_secret")
-        .and_then(|v| v.as_str())
-        .context("No jwt_secret in profile secrets.json")?;
+    let secrets = load_secrets().context("Failed to load secrets")?;
 
     if config.is_interactive() {
         CliService::info("Creating CLI session...");
@@ -184,7 +179,7 @@ pub(super) async fn create_session_for_tenant(
         CliService::key_value("User", cloud_email);
     }
 
-    let db = Database::new_postgres(database_url)
+    let db = Database::new_postgres(&secrets.database_url)
         .await
         .context("Failed to connect to database")?;
     let db_arc = Arc::new(db);
@@ -210,7 +205,7 @@ pub(super) async fn create_session_for_tenant(
         .await
         .context("Failed to create CLI context")?;
 
-    let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
+    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
     let session_token = session_generator
         .generate(&SessionParams {
             user_id: &admin_user.id,
