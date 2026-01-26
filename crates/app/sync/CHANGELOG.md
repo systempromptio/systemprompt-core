@@ -1,15 +1,18 @@
 # Changelog
 
-## [0.0.11] - 2026-01-26
+## [0.0.13] - 2026-01-26
 
 ### Added
-- Playbooks diff calculator and sync support
+- Add `PlaybooksDiffCalculator` for comparing disk and database playbooks
+- Add `PlaybooksLocalSync` with bidirectional sync support (disk ↔ database)
+- Add `export_playbook_to_disk()` and `generate_playbook_markdown()` functions
+- Add playbook diff models: `DiskPlaybook`, `PlaybookDiffItem`, `PlaybooksDiffResult`
+- Support playbook directory structure: `services/playbook/{category}/{domain}.md`
+
+## [0.0.11] - 2026-01-26
 
 ### Changed
 - Update content sync to use simplified ingestion API without content type filtering
-
-### Fixed
-- Export missing playbook model types (`DiskPlaybook`, `PlaybookDiffItem`, `PlaybooksDiffResult`)
 
 ## [0.0.3] - 2026-01-22
 

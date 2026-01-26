@@ -1,6 +1,14 @@
 # Changelog
 
-## [0.1.0] - 2026-01-26
+## [0.0.13] - 2026-01-26
+
+### Added
+- Add `systemprompt playbooks list` command to list playbooks from disk with category filtering
+- Add `systemprompt playbooks list <id>` to show playbook details
+- Add `systemprompt playbooks sync` command for bidirectional disk/database synchronization
+- Support playbook directory structure: `services/playbook/{category}/{domain}.md`
+
+## [0.0.12] - 2026-01-26
 
 ### Added
 - Display active profile banner on each command showing profile name, target type (local/cloud), and tenant ID

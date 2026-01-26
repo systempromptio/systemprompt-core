@@ -309,7 +309,10 @@ impl CliService {
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
         let target_label = if is_cloud { "cloud" } else { "local" };
         let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
-        let banner = format!("[profile: {} ({}){}]", profile_name, target_label, tenant_info);
-        eprintln!("{}", Theme::color(&banner, EmphasisType::Dim));
+        let banner = format!(
+            "[profile: {} ({}){}]",
+            profile_name, target_label, tenant_info
+        );
+        println!("{}", Theme::color(&banner, EmphasisType::Dim));
     }
 }

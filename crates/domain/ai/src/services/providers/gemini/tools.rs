@@ -62,9 +62,11 @@ fn build_tool_request(
         thinking_config,
     );
 
-    let has_function_declarations = gemini_tools
-        .iter()
-        .any(|t| t.function_declarations.as_ref().is_some_and(|f| !f.is_empty()));
+    let has_function_declarations = gemini_tools.iter().any(|t| {
+        t.function_declarations
+            .as_ref()
+            .is_some_and(|f| !f.is_empty())
+    });
 
     let tool_config = if has_function_declarations {
         Some(GeminiToolConfig {
@@ -81,7 +83,11 @@ fn build_tool_request(
         contents,
         generation_config: Some(generation_config),
         safety_settings: None,
-        tools: if gemini_tools.is_empty() { None } else { Some(gemini_tools) },
+        tools: if gemini_tools.is_empty() {
+            None
+        } else {
+            Some(gemini_tools)
+        },
         tool_config,
     })
 }

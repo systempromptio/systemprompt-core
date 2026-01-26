@@ -2,10 +2,10 @@ pub mod list;
 pub mod sync;
 pub mod types;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::shared::CommandResult;
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -20,13 +20,15 @@ pub enum PlaybooksCommands {
 pub async fn execute(cmd: PlaybooksCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         PlaybooksCommands::List(args) => {
-            let result = list::execute(args).await?;
-            result.print(config.output_format());
+            let result = list::execute(args).context("Failed to list playbooks")?;
+            render_result(&result);
             Ok(())
         },
         PlaybooksCommands::Sync(args) => {
-            let result = sync::execute(args, config).await?;
-            result.print(config.output_format());
+            let result = sync::execute(args, config)
+                .await
+                .context("Failed to sync playbooks")?;
+            render_result(&result);
             Ok(())
         },
     }
