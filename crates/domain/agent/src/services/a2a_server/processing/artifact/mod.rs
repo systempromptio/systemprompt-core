@@ -84,7 +84,9 @@ impl ArtifactBuilder {
         let mut artifacts = Vec::new();
 
         for (index, result) in self.tool_results.iter().enumerate() {
-            if let Some(structured_content) = &result.structured_content {
+            if let Some(structured_content) =
+                result.structured_content.as_ref().filter(|v| !v.is_null())
+            {
                 if let Some(tool_call) = self.tool_calls.get(index) {
                     let output_schema = self.get_output_schema(&tool_call.name);
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Fixed
+- Force Gemini to use Google Search grounding by setting `tool_config` with `mode: Any` instead of relying on AUTO mode
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed
