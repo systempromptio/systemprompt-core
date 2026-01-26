@@ -7,6 +7,7 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
+use systemprompt_traits::{CreateSessionInput, SessionAnalytics};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
@@ -109,6 +110,7 @@ pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
     scope: Option<&str>,
+    state: &OAuthState,
 ) -> Result<TokenResponse> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
 
@@ -154,6 +156,7 @@ pub async fn generate_client_tokens(
     let mut uuid_bytes = [0u8; 16];
     uuid_bytes.copy_from_slice(&hash[..16]);
     let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
+    let user_id = UserId::new(client_uuid.to_string());
 
     let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
     let client_user = AuthenticatedUser::new_with_roles(
@@ -171,6 +174,22 @@ pub async fn generate_client_tokens(
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
+    let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
+    let analytics = SessionAnalytics::default();
+
+    state
+        .analytics_provider()
+        .create_session(CreateSessionInput {
+            session_id: &session_id,
+            user_id: Some(&user_id),
+            analytics: &analytics,
+            session_source: SessionSource::Oauth,
+            is_bot: false,
+            expires_at,
+        })
+        .await
+        .map_err(|e| anyhow::anyhow!("Failed to create session: {e}"))?;
+
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
