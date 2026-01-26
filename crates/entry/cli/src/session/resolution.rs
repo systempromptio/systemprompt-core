@@ -142,7 +142,7 @@ async fn get_session_for_loaded_profile(
     };
 
     store.upsert_session(&session_key, session.clone());
-    store.set_active(&session_key);
+    store.set_active_with_profile(&session_key, &profile_name);
     store.save(&sessions_dir)?;
 
     if session.session_token.as_str().is_empty() {
@@ -156,33 +156,62 @@ async fn get_session_for_loaded_profile(
 }
 
 async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
-    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
+    let paths = ResolvedPaths::discover();
+    let sessions_dir = paths.sessions_dir()?;
     let store = SessionStore::load_or_create(&sessions_dir)?;
 
     let Some(ref active_key_str) = store.active_key else {
         return Ok(None);
     };
 
-    let active_key = store.active_session_key().ok_or_else(|| {
-        anyhow::anyhow!("Invalid active session key: {}", active_key_str)
-    })?;
+    let active_key = store
+        .active_session_key()
+        .ok_or_else(|| anyhow::anyhow!("Invalid active session key: {}", active_key_str))?;
+
+    let active_profile = store.active_profile_name.as_deref();
 
     let profile_path = if let Some(session) = store.active_session() {
+        if let Some(expected) = active_profile {
+            if session.profile_name.as_str() != expected {
+                anyhow::bail!(
+                    "No session for active profile '{}'.\n\nRun 'systemprompt admin session \
+                     login' to authenticate.",
+                    expected
+                );
+            }
+        }
         match &session.profile_path {
             Some(path) if path.exists() => path.clone(),
             _ => return Ok(None),
         }
     } else {
-        let raw_session = store.get_session(&active_key);
-        match raw_session.and_then(|s| s.profile_path.as_ref()).filter(|p| p.exists()) {
-            Some(path) => path.clone(),
-            None => {
+        if let Some(profile_name) = active_profile {
+            let profile_dir = paths.profiles_dir().join(profile_name);
+            let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
+            if config_path.exists() {
                 anyhow::bail!(
-                    "Active profile has no session.\n\nRun 'systemprompt admin session login' to \
-                     authenticate, or 'systemprompt admin session switch <profile>' to change \
-                     profiles."
+                    "No session for active profile '{}'.\n\nRun 'systemprompt admin session \
+                     login' to authenticate, or 'systemprompt admin session switch <profile>' to \
+                     change profiles.",
+                    profile_name
                 );
-            },
+            }
+        }
+
+        let raw_session = store.get_session(&active_key);
+        if let Some(path) = raw_session
+            .and_then(|s| s.profile_path.as_ref())
+            .filter(|p| p.exists())
+        {
+            path.clone()
+        } else {
+            let profile_hint = active_profile.unwrap_or("unknown");
+            anyhow::bail!(
+                "No session for active profile '{}'.\n\nRun 'systemprompt admin session \
+                 login' to authenticate, or 'systemprompt admin session switch <profile>' to \
+                 change profiles.",
+                profile_hint
+            );
         }
     };
 
@@ -219,10 +248,11 @@ pub async fn get_or_create_session(config: &CliConfig) -> Result<CliSessionConte
             .tenant_key
             .as_ref()
             .map_or("local", systemprompt_identifiers::TenantId::as_str);
-        CliService::session_context(
+        CliService::session_context_with_url(
             ctx.session.profile_name.as_str(),
             &ctx.session.session_id,
             Some(tenant),
+            Some(&ctx.profile.server.api_external_url),
         );
     }
 
@@ -262,10 +292,7 @@ async fn resolve_session(config: &CliConfig) -> Result<CliSessionContext> {
     get_session_for_loaded_profile(&profile, profile_path, config).await
 }
 
-async fn try_validate_context(
-    session: &mut CliSession,
-    profile_name: &str,
-) -> Option<CliSession> {
+async fn try_validate_context(session: &mut CliSession, profile_name: &str) -> Option<CliSession> {
     let secrets = SecretsBootstrap::get().ok()?;
     let db = Database::new_postgres(&secrets.database_url).await.ok()?;
     let db_pool = DbPool::from(Arc::new(db));

@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::fs;
 
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
@@ -34,7 +35,7 @@ pub fn execute(
     let mut content_config: ContentConfigRaw = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
-    let name = resolve_input(args.name, "name", config, || {
+    let name = resolve_required(args.name, "name", config, || {
         prompt_content_type_selection(&content_config)
     })?;
 

@@ -15,7 +15,8 @@ use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
 use super::types::MessageOutput;
 use crate::session::get_or_create_session;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -72,11 +73,11 @@ pub async fn execute(
 ) -> Result<CommandResult<MessageOutput>> {
     let session_ctx = get_or_create_session(config).await?;
 
-    let agent = resolve_input(args.agent, "agent", config, || {
+    let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
 
-    let message_text = resolve_input(args.message, "message", config, || {
+    let message_text = resolve_required(args.message, "message", config, || {
         Err(anyhow!("Message text is required. Use -m or --message"))
     })?;
 

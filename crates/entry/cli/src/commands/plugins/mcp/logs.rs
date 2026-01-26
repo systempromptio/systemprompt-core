@@ -8,7 +8,8 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 
 use super::types::McpLogsOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
@@ -198,7 +199,7 @@ fn execute_disk_mode(
         .with_title("Available MCP Log Files"));
     }
 
-    let service = resolve_input(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.service.clone(), "service", config, || {
         prompt_log_selection(logs_path)
     })?;
 
@@ -230,7 +231,7 @@ fn execute_follow_mode(
         ));
     }
 
-    let service = resolve_input(args.service.clone(), "service", config, || {
+    let service = resolve_required(args.service.clone(), "service", config, || {
         prompt_log_selection(logs_path)
     })?;
 

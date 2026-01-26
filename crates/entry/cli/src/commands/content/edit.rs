@@ -1,6 +1,7 @@
 use super::types::UpdateOutput;
 use crate::cli_settings::CliConfig;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
@@ -54,7 +55,7 @@ pub async fn execute_with_pool(
 ) -> Result<CommandResult<UpdateOutput>> {
     let repo = ContentRepository::new(pool)?;
 
-    let identifier = resolve_input(args.identifier.clone(), "identifier", config, || {
+    let identifier = resolve_required(args.identifier.clone(), "identifier", config, || {
         prompt_content_selection(&repo, args.source.as_deref(), config)
     })?;
 

@@ -6,7 +6,8 @@ use std::fs;
 use std::io::{BufRead, BufReader};
 use std::path::Path;
 
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
@@ -43,7 +44,7 @@ pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<Templ
         )
     })?;
 
-    let name = resolve_input(args.name, "name", config, || {
+    let name = resolve_required(args.name, "name", config, || {
         prompt_template_selection(&templates_config)
     })?;
 

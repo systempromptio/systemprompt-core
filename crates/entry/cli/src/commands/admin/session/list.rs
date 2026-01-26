@@ -41,7 +41,6 @@ pub fn execute(config: &CliConfig) {
 
 struct ProfileInfo {
     name: String,
-    display_name: Option<String>,
     tenant_id: Option<String>,
 }
 
@@ -70,7 +69,6 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<ProfileInfo> {
 
             Some(ProfileInfo {
                 name,
-                display_name: profile.as_ref().map(|p| p.display_name.clone()),
                 tenant_id: profile
                     .as_ref()
                     .and_then(|p| p.cloud.as_ref())
@@ -87,31 +85,35 @@ fn load_profile_info(config_path: &std::path::Path) -> Option<Profile> {
 
 fn print_profile_info(info: &ProfileInfo, store: Option<&SessionStore>, config: &CliConfig) {
     if config.is_interactive() {
-        let display = info
-            .display_name
-            .as_ref()
-            .map_or_else(String::new, |d| format!(" ({})", d));
+        let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
+
+        let is_active = store.is_some_and(|s| {
+            s.active_profile_name.as_deref() == Some(info.name.as_str())
+                || (s.active_profile_name.is_none()
+                    && s.active_key.as_ref() == Some(&session_key.as_storage_key()))
+        });
+
+        let active_marker = if is_active { " (active)" } else { "" };
+
+        let session_info = store.map_or_else(String::new, |s| match s.get_session(&session_key) {
+            Some(session) if session.is_expired() => "  [expired]".to_string(),
+            Some(session) => {
+                let remaining = session.expires_at - chrono::Utc::now();
+                let hours = remaining.num_hours();
+                let minutes = remaining.num_minutes() % 60;
+                format!("  [session: {}h {}m remaining]", hours, minutes)
+            },
+            None => "  [no session]".to_string(),
+        });
 
         let routing = info
             .tenant_id
             .as_ref()
-            .map_or_else(|| "Local".to_string(), |tid| format!("Remote -> {}", tid));
-
-        let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
-        let (active_marker, session_status) = store.map_or(("", ""), |s| {
-            let is_active = s.active_key.as_ref() == Some(&session_key.as_storage_key());
-            let marker = if is_active { " *" } else { "" };
-            let status = match s.get_session(&session_key) {
-                Some(session) if session.is_expired() => " [expired]",
-                Some(_) => " [session]",
-                None => "",
-            };
-            (marker, status)
-        });
+            .map_or_else(|| "local".to_string(), |_| "remote".to_string());
 
         CliService::output(&format!(
-            "  {}{}{} [{}]{}",
-            info.name, display, active_marker, routing, session_status
+            "  {:<16} {:<8}{}{}",
+            info.name, routing, active_marker, session_info
         ));
     } else {
         CliService::output(&info.name);

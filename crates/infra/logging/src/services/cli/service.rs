@@ -280,6 +280,15 @@ impl CliService {
         session_id: &systemprompt_identifiers::SessionId,
         tenant: Option<&str>,
     ) {
+        Self::session_context_with_url(profile, session_id, tenant, None);
+    }
+
+    pub fn session_context_with_url(
+        profile: &str,
+        session_id: &systemprompt_identifiers::SessionId,
+        tenant: Option<&str>,
+        api_url: Option<&str>,
+    ) {
         let session_str = session_id.as_str();
         let truncated_session = session_str
             .get(..12)
@@ -287,9 +296,11 @@ impl CliService {
 
         let tenant_info = tenant.map_or_else(String::new, |t| format!(" | tenant: {}", t));
 
+        let url_info = api_url.map_or_else(String::new, |u| format!(" | {}", u));
+
         let banner = format!(
-            "[profile: {} | session: {}{}]",
-            profile, truncated_session, tenant_info
+            "[profile: {} | session: {}{}{}]",
+            profile, truncated_session, tenant_info, url_info
         );
 
         println!("{}", Theme::color(&banner, EmphasisType::Dim));

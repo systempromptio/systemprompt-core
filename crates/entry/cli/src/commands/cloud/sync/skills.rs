@@ -1,4 +1,5 @@
 use super::SkillsSyncArgs;
+use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use dialoguer::{Confirm, Select};
 use std::sync::Arc;
@@ -25,7 +26,7 @@ async fn create_db_provider(database_url: Option<&str>) -> Result<Arc<dyn Databa
     Ok(Arc::new(database))
 }
 
-pub async fn execute(args: SkillsSyncArgs) -> Result<()> {
+pub async fn execute(args: SkillsSyncArgs, config: &CliConfig) -> Result<()> {
     CliService::section("Skills Sync");
 
     let spinner = CliService::spinner("Connecting to database...");
@@ -61,6 +62,9 @@ pub async fn execute(args: SkillsSyncArgs) -> Result<()> {
         Some(crate::cloud::sync::CliLocalSyncDirection::ToDisk) => LocalSyncDirection::ToDisk,
         Some(crate::cloud::sync::CliLocalSyncDirection::ToDb) => LocalSyncDirection::ToDatabase,
         None => {
+            if !config.is_interactive() {
+                anyhow::bail!("--direction is required in non-interactive mode");
+            }
             if let Some(dir) = prompt_sync_direction()? {
                 dir
             } else {
@@ -75,7 +79,7 @@ pub async fn execute(args: SkillsSyncArgs) -> Result<()> {
         return Ok(());
     }
 
-    if args.direction.is_none() {
+    if !args.yes && config.is_interactive() {
         let confirmed = Confirm::new()
             .with_prompt("Proceed with sync?")
             .default(false)

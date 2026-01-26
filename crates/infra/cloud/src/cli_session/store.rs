@@ -15,6 +15,8 @@ pub struct SessionStore {
     pub version: u32,
     pub sessions: HashMap<String, CliSession>,
     pub active_key: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub active_profile_name: Option<String>,
     pub updated_at: DateTime<Utc>,
 }
 
@@ -31,6 +33,7 @@ impl SessionStore {
             version: STORE_VERSION,
             sessions: HashMap::new(),
             active_key: None,
+            active_profile_name: None,
             updated_at: Utc::now(),
         }
     }
@@ -63,15 +66,18 @@ impl SessionStore {
         let removed = self.sessions.remove(&storage_key);
         if removed.is_some() {
             self.updated_at = Utc::now();
-            if self.active_key.as_ref() == Some(&storage_key) {
-                self.active_key = None;
-            }
         }
         removed
     }
 
     pub fn set_active(&mut self, key: &SessionKey) {
         self.active_key = Some(key.as_storage_key());
+        self.updated_at = Utc::now();
+    }
+
+    pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &str) {
+        self.active_key = Some(key.as_storage_key());
+        self.active_profile_name = Some(profile_name.to_string());
         self.updated_at = Utc::now();
     }
 
@@ -105,9 +111,6 @@ impl SessionStore {
         let count = expired_keys.len();
         for key in &expired_keys {
             self.sessions.remove(key);
-            if self.active_key.as_ref() == Some(key) {
-                self.active_key = None;
-            }
         }
 
         if count > 0 {

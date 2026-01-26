@@ -12,26 +12,3 @@ pub use command_result::{
 };
 pub use parsers::{parse_email, parse_profile_name};
 pub use profile::{resolve_profile_path, resolve_profile_with_data, ProfileResolutionError};
-
-use anyhow::{anyhow, Result};
-
-use crate::CliConfig;
-
-pub fn resolve_input<T, F>(
-    value: Option<T>,
-    flag_name: &str,
-    config: &CliConfig,
-    prompt_fn: F,
-) -> Result<T>
-where
-    F: FnOnce() -> Result<T>,
-{
-    match value {
-        Some(v) => Ok(v),
-        None if config.is_interactive() => prompt_fn(),
-        None => Err(anyhow!(
-            "--{} is required in non-interactive mode",
-            flag_name
-        )),
-    }
-}

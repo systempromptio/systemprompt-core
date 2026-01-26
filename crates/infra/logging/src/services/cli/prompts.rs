@@ -11,15 +11,6 @@ pub struct Prompts;
 
 impl Prompts {
     pub fn confirm(message: &str, default: bool) -> Result<bool> {
-        if std::env::var("SYSTEMPROMPT_NON_INTERACTIVE").is_ok() {
-            println!(
-                "{} (non-interactive: {})",
-                message,
-                if default { "yes" } else { "no" }
-            );
-            return Ok(default);
-        }
-
         let confirmation = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt(message)
             .default(default)

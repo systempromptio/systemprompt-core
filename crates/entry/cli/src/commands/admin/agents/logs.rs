@@ -8,7 +8,8 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 
 use super::types::AgentLogsOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
@@ -156,7 +157,7 @@ fn execute_disk_mode(
         .with_title("Available Agent Log Files"));
     }
 
-    let agent = resolve_input(args.agent.clone(), "agent", config, || {
+    let agent = resolve_required(args.agent.clone(), "agent", config, || {
         prompt_log_selection(logs_path)
     })?;
 
@@ -184,7 +185,7 @@ fn execute_follow_mode(
         ));
     }
 
-    let agent = resolve_input(args.agent.clone(), "agent", config, || {
+    let agent = resolve_required(args.agent.clone(), "agent", config, || {
         prompt_log_selection(logs_path)
     })?;
 

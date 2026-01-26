@@ -17,8 +17,8 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
 
     if !profile_config_path.exists() {
         anyhow::bail!(
-            "Profile '{}' not found.\n\nAvailable profiles can be listed with: systemprompt \
-             admin session list",
+            "Profile '{}' not found.\n\nAvailable profiles can be listed with: systemprompt admin \
+             session list",
             profile_name
         );
     }
@@ -30,7 +30,7 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     let sessions_dir = paths.sessions_dir()?;
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
-    store.set_active(&session_key);
+    store.set_active_with_profile(&session_key, profile_name);
     store.save(&sessions_dir)?;
 
     let has_session = store.get_valid_session(&session_key).is_some();

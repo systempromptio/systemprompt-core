@@ -13,9 +13,9 @@ pub use events::AnalyticsState;
 
 pub fn router(ctx: &AppContext) -> Result<Router> {
     let state = AnalyticsState {
-        events_repo: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
-        content_repo: Arc::new(ContentRepository::new(ctx.db_pool())?),
-        engagement_repo: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+        events: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
+        content: Arc::new(ContentRepository::new(ctx.db_pool())?),
+        engagement: Arc::new(EngagementRepository::new(ctx.db_pool())?),
     };
 
     Ok(Router::new()

@@ -4,7 +4,8 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 
 use super::types::AgentDetailOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 
@@ -17,7 +18,7 @@ pub struct ShowArgs {
 pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<AgentDetailOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let name = resolve_input(args.name, "name", config, || {
+    let name = resolve_required(args.name, "name", config, || {
         prompt_agent_selection(&services_config)
     })?;
 

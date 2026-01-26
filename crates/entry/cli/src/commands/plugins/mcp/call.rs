@@ -22,7 +22,8 @@ use tokio::time::timeout;
 
 use super::types::{McpCallOutput, McpToolContent};
 use crate::session::{get_or_create_session, CliSessionContext};
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -48,7 +49,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
     let tool_arg = args.tool.clone();
     let timeout_secs = args.timeout;
 
-    let server_name = resolve_input(server_arg, "server", config, || {
+    let server_name = resolve_required(server_arg, "server", config, || {
         prompt_server_selection(&services_config)
     })?;
 
@@ -73,7 +74,7 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
         .find(|s| s.name == server_name)
         .ok_or_else(|| anyhow!("MCP server '{}' is not running", server_name))?;
 
-    let tool_name = resolve_input(tool_arg, "tool", config, || {
+    let tool_name = resolve_required(tool_arg, "tool", config, || {
         prompt_tool_selection(
             &server_name,
             running_server.port,

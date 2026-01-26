@@ -65,6 +65,9 @@ pub struct ContentSyncArgs {
 
     #[arg(long)]
     pub delete_orphans: bool,
+
+    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+    pub yes: bool,
 }
 
 #[derive(Debug, Args)]
@@ -83,28 +86,31 @@ pub struct SkillsSyncArgs {
 
     #[arg(long)]
     pub delete_orphans: bool,
+
+    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+    pub yes: bool,
 }
 
 pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()> {
     match cmd {
         Some(SyncCommands::Push(args)) => execute_cloud_sync(SyncDirection::Push, args).await,
         Some(SyncCommands::Pull(args)) => execute_cloud_sync(SyncDirection::Pull, args).await,
-        Some(SyncCommands::Local(cmd)) => execute_local_sync(cmd).await,
+        Some(SyncCommands::Local(cmd)) => execute_local_sync(cmd, config).await,
         None => {
             if !config.is_interactive() {
                 return Err(anyhow!(
                     "Sync subcommand required in non-interactive mode. Use push, pull, or local."
                 ));
             }
-            interactive::execute().await
+            interactive::execute(config).await
         },
     }
 }
 
-async fn execute_local_sync(cmd: LocalSyncCommands) -> Result<()> {
+async fn execute_local_sync(cmd: LocalSyncCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        LocalSyncCommands::Content(args) => content::execute(args).await,
-        LocalSyncCommands::Skills(args) => skills::execute(args).await,
+        LocalSyncCommands::Content(args) => content::execute(args, config).await,
+        LocalSyncCommands::Skills(args) => skills::execute(args, config).await,
     }
 }
 

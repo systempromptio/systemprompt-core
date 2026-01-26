@@ -6,7 +6,8 @@ use std::fs;
 use std::path::Path;
 
 use super::types::SkillDeleteOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::{require_confirmation, resolve_required};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
@@ -29,7 +30,7 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Ski
     let skills_to_delete: Vec<String> = if args.all {
         list_all_skills(&skills_path)?
     } else {
-        let name = resolve_input(args.name, "name", config, || {
+        let name = resolve_required(args.name, "name", config, || {
             prompt_skill_selection(&skills_path)
         })?;
 
@@ -49,28 +50,13 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Ski
         .with_title("Delete Skill"));
     }
 
-    if !args.yes {
-        if !config.is_interactive() {
-            return Err(anyhow!(
-                "--yes is required to delete skills in non-interactive mode"
-            ));
-        }
+    let confirm_message = if args.all {
+        format!("Delete ALL {} skills?", skills_to_delete.len())
+    } else {
+        format!("Delete skill '{}'?", skills_to_delete[0])
+    };
 
-        let confirm_message = if args.all {
-            format!("Delete ALL {} skills?", skills_to_delete.len())
-        } else {
-            format!("Delete skill '{}'?", skills_to_delete[0])
-        };
-
-        if !CliService::confirm(&confirm_message)? {
-            CliService::info("Cancelled");
-            return Ok(CommandResult::text(SkillDeleteOutput {
-                deleted: vec![],
-                message: "Operation cancelled".to_string(),
-            })
-            .with_title("Delete Cancelled"));
-        }
-    }
+    require_confirmation(&confirm_message, args.yes, config)?;
 
     let mut deleted = Vec::new();
 

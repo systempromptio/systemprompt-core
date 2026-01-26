@@ -22,11 +22,31 @@ pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
 }
 
 fn get_active_session_profile_path() -> Option<PathBuf> {
-    let sessions_dir = ResolvedPaths::discover().sessions_dir().ok()?;
+    let paths = ResolvedPaths::discover();
+    let sessions_dir = paths.sessions_dir().ok()?;
 
-    SessionStore::load(&sessions_dir)?
-        .active_session()
-        .and_then(|s| s.profile_path.clone())
+    let store = SessionStore::load(&sessions_dir)?;
+
+    if let Some(session) = store.active_session() {
+        if let Some(expected) = store.active_profile_name.as_deref() {
+            if session.profile_name.as_str() != expected {
+                return resolve_profile_path_by_name(&paths, expected);
+            }
+        }
+        return session.profile_path.clone();
+    }
+
+    if let Some(profile_name) = store.active_profile_name.as_deref() {
+        return resolve_profile_path_by_name(&paths, profile_name);
+    }
+
+    None
+}
+
+fn resolve_profile_path_by_name(paths: &ResolvedPaths, name: &str) -> Option<PathBuf> {
+    let profile_dir = paths.profiles_dir().join(name);
+    let config_path = systemprompt_cloud::ProfilePath::Config.resolve(&profile_dir);
+    config_path.exists().then_some(config_path)
 }
 
 pub fn init_profile(path: &Path) -> Result<()> {

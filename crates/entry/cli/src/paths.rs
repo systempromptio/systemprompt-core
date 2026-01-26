@@ -24,8 +24,8 @@ impl ResolvedPaths {
         if self.has_local_dir {
             Ok(self.project_ctx.sessions_dir())
         } else {
-            let cloud_paths =
-                get_cloud_paths().context("Failed to resolve cloud paths from profile configuration")?;
+            let cloud_paths = get_cloud_paths()
+                .context("Failed to resolve cloud paths from profile configuration")?;
             Ok(cloud_paths.resolve(CloudPath::SessionsDir))
         }
     }

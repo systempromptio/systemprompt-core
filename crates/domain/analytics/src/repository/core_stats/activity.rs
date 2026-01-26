@@ -20,7 +20,7 @@ impl CoreStatsRepository {
             FROM generate_series($1::timestamptz, NOW(), '1 day') gs(date)
             LEFT JOIN (
                 SELECT date_trunc('day', started_at) as day, COUNT(*) as sessions
-                FROM user_sessions WHERE started_at > $1
+                FROM user_sessions WHERE started_at > $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
                 GROUP BY 1
             ) s ON s.day = date_trunc('day', gs.date)
             LEFT JOIN (

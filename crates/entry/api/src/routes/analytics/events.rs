@@ -16,9 +16,9 @@ use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Clone, Debug)]
 pub struct AnalyticsState {
-    pub events_repo: Arc<AnalyticsEventsRepository>,
-    pub content_repo: Arc<ContentRepository>,
-    pub engagement_repo: Arc<EngagementRepository>,
+    pub events: Arc<AnalyticsEventsRepository>,
+    pub content: Arc<ContentRepository>,
+    pub engagement: Arc<EngagementRepository>,
 }
 
 fn extract_slug_from_url(page_url: &str) -> Option<&str> {
@@ -59,11 +59,11 @@ pub async fn record_event(
 ) -> Result<impl IntoResponse, ApiError> {
     if input.content_id.is_none() {
         input.content_id =
-            resolve_content_id(&state.content_repo, &input.page_url, input.slug.as_deref()).await;
+            resolve_content_id(&state.content, &input.page_url, input.slug.as_deref()).await;
     }
 
     let created = state
-        .events_repo
+        .events
         .create_event(
             req_ctx.session_id().as_str(),
             req_ctx.user_id().as_str(),
@@ -90,13 +90,13 @@ pub async fn record_events_batch(
     for event in &mut input.events {
         if event.content_id.is_none() {
             event.content_id =
-                resolve_content_id(&state.content_repo, &event.page_url, event.slug.as_deref())
+                resolve_content_id(&state.content, &event.page_url, event.slug.as_deref())
                     .await;
         }
     }
 
     let created = state
-        .events_repo
+        .events
         .create_events_batch(
             req_ctx.session_id().as_str(),
             req_ctx.user_id().as_str(),
@@ -130,18 +130,13 @@ async fn fan_out_engagement(
 ) {
     let Some(ref data) = input.data else { return };
 
-    let get_i32 = |key: &str| -> Option<i32> {
-        data.get(key).and_then(|v| v.as_i64()).map(|v| v as i32)
-    };
-    let get_f32 = |key: &str| -> Option<f32> {
-        data.get(key).and_then(|v| v.as_f64()).map(|v| v as f32)
-    };
-    let get_bool = |key: &str| -> Option<bool> {
-        data.get(key).and_then(|v| v.as_bool())
-    };
-    let get_string = |key: &str| -> Option<String> {
-        data.get(key).and_then(|v| v.as_str()).map(String::from)
-    };
+    let get_i32 =
+        |key: &str| -> Option<i32> { data.get(key).and_then(|v| v.as_i64()).map(|v| v as i32) };
+    let get_f32 =
+        |key: &str| -> Option<f32> { data.get(key).and_then(|v| v.as_f64()).map(|v| v as f32) };
+    let get_bool = |key: &str| -> Option<bool> { data.get(key).and_then(|v| v.as_bool()) };
+    let get_string =
+        |key: &str| -> Option<String> { data.get(key).and_then(|v| v.as_str()).map(String::from) };
 
     let engagement_input = CreateEngagementEventInput {
         page_url: input.page_url.clone(),
@@ -166,15 +161,11 @@ async fn fan_out_engagement(
         },
     };
 
-    let content_id = resolve_content_id(
-        &state.content_repo,
-        &input.page_url,
-        input.slug.as_deref(),
-    )
-    .await;
+    let content_id =
+        resolve_content_id(&state.content, &input.page_url, input.slug.as_deref()).await;
 
     if let Err(e) = state
-        .engagement_repo
+        .engagement
         .create_engagement(
             req_ctx.session_id().as_str(),
             req_ctx.user_id().as_str(),

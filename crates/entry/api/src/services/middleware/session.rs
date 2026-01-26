@@ -84,7 +84,13 @@ impl SessionMiddleware {
                 let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
                     if let Some(token) = token_result {
                         if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
-                            (jwt_context.session_id, jwt_context.user_id, token, None, None)
+                            (
+                                jwt_context.session_id,
+                                jwt_context.user_id,
+                                token,
+                                None,
+                                None,
+                            )
                         } else {
                             let (sid, uid, token, is_new, fp) =
                                 self.create_new_session(headers, &uri, &method).await?;
