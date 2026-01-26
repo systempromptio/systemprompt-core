@@ -5,11 +5,18 @@ pub mod middleware;
 pub mod models;
 pub mod orchestration;
 pub mod repository;
+pub mod response;
+pub mod schema;
 pub mod services;
+pub mod tool;
 
 pub use extension::McpExtension;
 
 pub use error::{McpError, McpResult};
+
+pub use response::McpResponseBuilder;
+pub use schema::McpOutputSchema;
+pub use tool::{call_tool, McpToolHandler};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings, ERROR,
