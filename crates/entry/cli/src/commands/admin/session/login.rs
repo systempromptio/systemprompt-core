@@ -65,8 +65,12 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
     let project_ctx = ProjectContext::discover();
     let sessions_dir = project_ctx.sessions_dir();
 
-    let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
-    let session_key = SessionKey::from_tenant_id(tenant_id);
+    let session_key = if profile.target.is_local() {
+        SessionKey::Local
+    } else {
+        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        SessionKey::from_tenant_id(tenant_id)
+    };
 
     if !args.force_new {
         if let Some(output) = try_use_existing_session(&sessions_dir, &session_key, &args)? {
@@ -178,7 +182,7 @@ fn try_use_existing_session(
     session_key: &SessionKey,
     args: &LoginArgs,
 ) -> Result<Option<CommandResult<LoginOutput>>> {
-    let store = SessionStore::load_or_create(sessions_dir, None)?;
+    let store = SessionStore::load_or_create(sessions_dir)?;
 
     let Some(session) = store.get_valid_session(session_key) else {
         if !args.token_only {
@@ -298,7 +302,7 @@ fn save_session_to_store(
     user_id: systemprompt_identifiers::UserId,
     user_email: &str,
 ) -> Result<()> {
-    let mut store = SessionStore::load_or_create(sessions_dir, None)?;
+    let mut store = SessionStore::load_or_create(sessions_dir)?;
 
     let profile_dir = Path::new(profile_path).parent();
     let profile_name_str = profile_dir

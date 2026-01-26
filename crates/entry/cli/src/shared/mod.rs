@@ -11,7 +11,7 @@ pub use command_result::{
     RenderingHints, SuccessOutput, TableOutput, TextOutput,
 };
 pub use parsers::{parse_email, parse_profile_name};
-pub use profile::{resolve_profile_path, ProfileResolutionError};
+pub use profile::{resolve_profile_path, resolve_profile_with_data, ProfileResolutionError};
 
 use anyhow::{anyhow, Result};
 

@@ -1,12 +1,9 @@
-//! CLI bootstrap and initialization logic.
-//!
-//! This module handles the initialization sequence for CLI commands,
-//! including profile resolution, credentials, secrets, paths, and validation.
-
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{CliSession, CredentialsBootstrap, ProjectContext};
+use systemprompt_cloud::{
+    get_cloud_paths, CloudPath, CredentialsBootstrap, ProjectContext, SessionStore,
+};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
@@ -17,7 +14,6 @@ use systemprompt_runtime::{
 use crate::requirements::CommandRequirements;
 use crate::shared::resolve_profile_path;
 
-/// Performs the bootstrap sequence based on command requirements.
 #[allow(dead_code)]
 pub async fn initialize(
     reqs: &CommandRequirements,
@@ -48,24 +44,38 @@ pub async fn initialize(
 }
 
 pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
-    let project_ctx = ProjectContext::discover();
-    let session_path = project_ctx.local_session();
-    let session_profile_path = CliSession::try_load_profile_path(&session_path);
+    let session_profile_path = get_active_session_profile_path();
 
     resolve_profile_path(cli_profile_override, session_profile_path).context(
-        "Profile resolution failed. Set SYSTEMPROMPT_PROFILE environment variable or create a \
-         profile with 'systemprompt cloud profile create'",
+        "Profile resolution failed. Use --profile <name> or 'systemprompt admin session switch \
+         <profile>'",
     )
 }
 
-/// Initializes the profile from a path.
+fn get_active_session_profile_path() -> Option<PathBuf> {
+    let project_ctx = ProjectContext::discover();
+
+    let sessions_dir = project_ctx
+        .systemprompt_dir()
+        .exists()
+        .then(|| project_ctx.sessions_dir())
+        .or_else(|| {
+            get_cloud_paths()
+                .ok()
+                .map(|p| p.resolve(CloudPath::SessionsDir))
+        })?;
+
+    SessionStore::load(&sessions_dir)?
+        .active_session()
+        .and_then(|s| s.profile_path.clone())
+}
+
 pub fn init_profile(path: &Path) -> Result<()> {
     ProfileBootstrap::init_from_path(path)
         .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
     Ok(())
 }
 
-/// Initializes cloud credentials.
 pub async fn init_credentials() -> Result<()> {
     CredentialsBootstrap::init()
         .await
@@ -73,13 +83,11 @@ pub async fn init_credentials() -> Result<()> {
     Ok(())
 }
 
-/// Initializes secrets from the loaded profile.
 pub fn init_secrets() -> Result<()> {
     SecretsBootstrap::init().context("Secrets initialization failed")?;
     Ok(())
 }
 
-/// Initializes application paths and configuration.
 pub fn init_paths() -> Result<()> {
     let profile = ProfileBootstrap::get()?;
     AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
@@ -88,7 +96,6 @@ pub fn init_paths() -> Result<()> {
     Ok(())
 }
 
-/// Runs startup validation.
 pub fn run_validation() -> Result<()> {
     let mut validator = StartupValidator::new();
     let report = validator.validate(Config::get()?);
@@ -106,7 +113,6 @@ pub fn run_validation() -> Result<()> {
     Ok(())
 }
 
-/// Validates and warns about cloud credential status.
 pub fn validate_cloud_credentials() {
     if std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_ok() {
         return;

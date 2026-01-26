@@ -1,9 +1,0 @@
-event: cli
-data: {"type":"started","pid":706}
-
-event: cli
-data: {"type":"stdout","data":"systemprompt 0.1.0\n"}
-
-event: cli
-data: {"type":"exit_code","code":0}
-

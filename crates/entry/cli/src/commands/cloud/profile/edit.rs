@@ -1,8 +1,8 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use std::path::{Path, PathBuf};
-use systemprompt_cloud::{ProfilePath, ProjectContext};
+use std::path::Path;
+use systemprompt_cloud::ProfilePath;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 
@@ -11,9 +11,10 @@ use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_s
 use super::templates::save_profile;
 use super::EditArgs;
 use crate::cli_settings::CliConfig;
+use crate::shared::resolve_profile_path;
 
 pub async fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
-    let profile_path = resolve_profile_path(args.name.as_deref(), config)?;
+    let profile_path = resolve_profile_path(args.name.as_deref(), None)?;
     let profile_dir = profile_path
         .parent()
         .context("Invalid profile path")?
@@ -146,72 +147,4 @@ fn apply_updates(args: &EditArgs, profile_path: &Path, profile_dir: &Path) -> Re
 
     CliService::success(&format!("Profile saved: {}", profile_path.display()));
     Ok(())
-}
-
-fn resolve_profile_path(name: Option<&str>, config: &CliConfig) -> Result<PathBuf> {
-    if let Some(profile_name) = name {
-        let ctx = ProjectContext::discover();
-        let profile_path = ctx.profile_path(profile_name, ProfilePath::Config);
-
-        if !profile_path.exists() {
-            bail!(
-                "Profile '{}' not found at {}",
-                profile_name,
-                profile_path.display()
-            );
-        }
-
-        return Ok(profile_path);
-    }
-
-    if let Ok(path) = std::env::var("SYSTEMPROMPT_PROFILE") {
-        let profile_path = PathBuf::from(&path);
-        if profile_path.exists() {
-            return Ok(profile_path);
-        }
-        bail!("Profile from SYSTEMPROMPT_PROFILE not found: {}", path);
-    }
-
-    if !config.is_interactive() {
-        bail!(
-            "Profile name required in non-interactive mode.\nProvide profile name as argument or \
-             set SYSTEMPROMPT_PROFILE environment variable."
-        );
-    }
-
-    select_profile_interactively()
-}
-
-fn select_profile_interactively() -> Result<PathBuf> {
-    let ctx = ProjectContext::discover();
-    let profiles_dir = ctx.profiles_dir();
-
-    if !profiles_dir.exists() {
-        bail!("No profiles directory found. Run 'systemprompt cloud profile create' first.");
-    }
-
-    let profiles: Vec<String> = std::fs::read_dir(&profiles_dir)?
-        .filter_map(|e| {
-            e.map_err(|err| {
-                tracing::debug!(error = %err, "Failed to read profile directory entry");
-                err
-            })
-            .ok()
-        })
-        .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
-        .filter_map(|e| e.file_name().to_str().map(String::from))
-        .collect();
-
-    if profiles.is_empty() {
-        bail!("No profiles found. Run 'systemprompt cloud profile create' first.");
-    }
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select profile to edit")
-        .items(&profiles)
-        .default(0)
-        .interact()?;
-
-    let selected = &profiles[selection];
-    Ok(ctx.profile_path(selected, ProfilePath::Config))
 }

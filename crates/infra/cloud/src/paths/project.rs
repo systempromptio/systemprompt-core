@@ -211,11 +211,6 @@ impl ProjectContext {
     }
 
     #[must_use]
-    pub fn local_session(&self) -> PathBuf {
-        self.resolve(ProjectPath::LocalSession)
-    }
-
-    #[must_use]
     pub fn sessions_dir(&self) -> PathBuf {
         self.resolve(ProjectPath::SessionsDir)
     }

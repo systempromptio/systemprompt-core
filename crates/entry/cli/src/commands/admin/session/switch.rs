@@ -28,8 +28,8 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_deref());
 
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
-    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let sessions_dir = resolve_sessions_dir(&project_ctx)?;
+    let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     store.set_active(&session_key);
     store.save(&sessions_dir)?;
@@ -57,20 +57,12 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn resolve_session_paths(
-    project_ctx: &ProjectContext,
-) -> Result<(std::path::PathBuf, Option<std::path::PathBuf>)> {
+fn resolve_sessions_dir(project_ctx: &ProjectContext) -> Result<std::path::PathBuf> {
     if project_ctx.systemprompt_dir().exists() {
-        Ok((
-            project_ctx.sessions_dir(),
-            Some(project_ctx.local_session()),
-        ))
+        Ok(project_ctx.sessions_dir())
     } else {
         let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
-        Ok((
-            cloud_paths.resolve(CloudPath::SessionsDir),
-            Some(cloud_paths.resolve(CloudPath::CliSession)),
-        ))
+        Ok(cloud_paths.resolve(CloudPath::SessionsDir))
     }
 }
 

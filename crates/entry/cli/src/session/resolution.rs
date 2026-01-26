@@ -3,20 +3,19 @@ use std::path::{Path, PathBuf};
 use anyhow::{Context, Result};
 use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, ProfilePath, ProjectContext, SessionKey, SessionStore,
+    CliSession, CredentialsBootstrap, ProjectContext, SessionKey, SessionStore,
 };
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-use systemprompt_models::Profile;
+use systemprompt_models::{Profile, SecretsBootstrap};
 
 use super::context::CliSessionContext;
 use crate::CliConfig;
 
 pub(super) struct ProfileContext<'a> {
-    pub dir: &'a Path,
     pub name: &'a str,
     pub path: PathBuf,
 }
@@ -49,50 +48,32 @@ fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
     })
 }
 
-pub(super) fn resolve_session_paths(
-    project_ctx: &ProjectContext,
-) -> Result<(PathBuf, Option<PathBuf>)> {
+pub(super) fn resolve_session_paths(project_ctx: &ProjectContext) -> Result<PathBuf> {
     if project_ctx.systemprompt_dir().exists() {
-        let sessions_dir = project_ctx.sessions_dir();
-        let legacy_path = project_ctx.local_session();
-        Ok((sessions_dir, Some(legacy_path)))
+        Ok(project_ctx.sessions_dir())
     } else {
         let cloud_paths = get_cloud_paths()
             .context("Failed to resolve cloud paths from profile configuration")?;
-        let sessions_dir = cloud_paths.resolve(CloudPath::SessionsDir);
-        let legacy_path = cloud_paths.resolve(CloudPath::CliSession);
-        Ok((sessions_dir, Some(legacy_path)))
+        Ok(cloud_paths.resolve(CloudPath::SessionsDir))
     }
-}
-
-fn resolve_profile_by_name(profile_name: &str) -> Result<(PathBuf, Profile)> {
-    let project_ctx = ProjectContext::discover();
-    let profile_dir = project_ctx.profile_dir(profile_name);
-    let profile_config_path = ProfilePath::Config.resolve(&profile_dir);
-
-    if !profile_config_path.exists() {
-        anyhow::bail!(
-            "Profile '{}' not found.\n\nAvailable profiles can be listed with: systemprompt admin \
-             session list",
-            profile_name
-        );
-    }
-
-    let profile = ProfileLoader::load_from_path(&profile_config_path)
-        .with_context(|| format!("Failed to load profile '{}'", profile_name))?;
-
-    Ok((profile_config_path, profile))
 }
 
 async fn get_session_for_profile(
-    profile_name: &str,
+    profile_input: &str,
     config: &CliConfig,
 ) -> Result<CliSessionContext> {
-    let (profile_path, profile) = resolve_profile_by_name(profile_name)?;
+    let (profile_path, profile) = crate::shared::resolve_profile_with_data(profile_input)
+        .map_err(|e| anyhow::anyhow!("{}", e))?;
 
     if !ProfileBootstrap::is_initialized() {
         ProfileBootstrap::init_from_path(&profile_path)
-            .with_context(|| format!("Failed to initialize profile '{}'", profile_name))?;
+            .with_context(|| format!("Failed to initialize profile '{}'", profile_input))?;
+    }
+
+    if !SecretsBootstrap::is_initialized() {
+        SecretsBootstrap::try_init().with_context(|| {
+            "Failed to initialize secrets. Check your profile's secrets configuration."
+        })?;
     }
 
     get_session_for_loaded_profile(&profile, &profile_path, config).await
@@ -120,9 +101,9 @@ async fn get_session_for_loaded_profile(
     let session_key = SessionKey::from_tenant_id(tenant_id);
 
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
 
-    let mut store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     if let Some(mut session) = store.get_valid_session(&session_key).cloned() {
         session.touch();
@@ -135,7 +116,6 @@ async fn get_session_for_loaded_profile(
     }
 
     let profile_ctx = ProfileContext {
-        dir: profile_dir,
         name: &profile_name,
         path: profile_path.to_path_buf(),
     };
@@ -182,8 +162,8 @@ async fn get_session_for_loaded_profile(
 
 async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
     let project_ctx = ProjectContext::discover();
-    let (sessions_dir, legacy_path) = resolve_session_paths(&project_ctx)?;
-    let store = SessionStore::load_or_create(&sessions_dir, legacy_path.as_deref())?;
+    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let store = SessionStore::load_or_create(&sessions_dir)?;
 
     let Some(active_session) = store.active_session() else {
         return Ok(None);
@@ -208,6 +188,10 @@ async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSes
                 profile_path.display()
             )
         })?;
+    }
+
+    if !SecretsBootstrap::is_initialized() {
+        SecretsBootstrap::try_init().with_context(|| "Failed to initialize secrets for session")?;
     }
 
     let ctx = get_session_for_loaded_profile(&profile, profile_path, config).await?;

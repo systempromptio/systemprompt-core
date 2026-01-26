@@ -1,8 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use dialoguer::theme::ColorfulTheme;
-use dialoguer::Select;
 use rand::distr::Alphanumeric;
 use rand::{rng, Rng};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
@@ -17,52 +15,105 @@ pub enum ProfileResolutionError {
     NoProfilesFound,
 
     #[error(
-        "Profile '{0}' not found.\n\nRun 'systemprompt cloud profile list' to see available profiles."
+        "Profile '{0}' not found.\n\nRun 'systemprompt cloud profile list' to see available \
+         profiles."
     )]
     ProfileNotFound(String),
 
-    #[error("Profile selection cancelled")]
-    SelectionCancelled,
-
     #[error("Profile discovery failed: {0}")]
     DiscoveryFailed(#[from] anyhow::Error),
+
+    #[error(
+        "Multiple profiles found: {profiles:?}\n\nUse --profile <name> or 'systemprompt admin \
+         session switch <profile>'"
+    )]
+    MultipleProfilesFound { profiles: Vec<String> },
 }
 
 pub fn resolve_profile_path(
     cli_override: Option<&str>,
     from_session: Option<PathBuf>,
 ) -> Result<PathBuf, ProfileResolutionError> {
-    if let Some(profile_name) = cli_override {
-        tracing::debug!(profile_name = %profile_name, "Resolving profile from CLI override");
-        return resolve_profile_by_name(profile_name)?
-            .ok_or_else(|| ProfileResolutionError::ProfileNotFound(profile_name.to_string()));
+    if let Some(profile_input) = cli_override {
+        return resolve_profile_input(profile_input);
     }
 
     if let Ok(path_str) = std::env::var("SYSTEMPROMPT_PROFILE") {
-        let path = PathBuf::from(&path_str);
-        if path.exists() {
-            tracing::debug!(path = %path.display(), "Resolved profile from SYSTEMPROMPT_PROFILE env var");
-            return Ok(path);
-        }
-        return Err(ProfileResolutionError::ProfileNotFound(path_str));
+        return resolve_profile_input(&path_str);
     }
 
-    if let Some(path) = from_session {
-        if path.exists() {
-            tracing::debug!(path = %path.display(), "Resolved profile from session");
-            return Ok(path);
-        }
+    if let Some(path) = from_session.filter(|p| p.exists()) {
+        return Ok(path);
     }
 
     let mut profiles = discover_profiles()?;
     match profiles.len() {
         0 => Err(ProfileResolutionError::NoProfilesFound),
-        1 => {
-            tracing::debug!(path = %profiles[0].path.display(), "Auto-discovered single profile");
-            Ok(profiles.swap_remove(0).path)
-        },
-        _ => prompt_profile_selection_for_cli(&profiles),
+        1 => Ok(profiles.swap_remove(0).path),
+        _ => Err(ProfileResolutionError::MultipleProfilesFound {
+            profiles: profiles.iter().map(|p| p.name.clone()).collect(),
+        }),
     }
+}
+
+fn is_path_input(input: &str) -> bool {
+    let path = Path::new(input);
+    let has_yaml_extension = path
+        .extension()
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("yaml") || ext.eq_ignore_ascii_case("yml"));
+
+    input.contains(std::path::MAIN_SEPARATOR)
+        || input.contains('/')
+        || has_yaml_extension
+        || input.starts_with('.')
+        || input.starts_with('~')
+}
+
+fn resolve_profile_input(input: &str) -> Result<PathBuf, ProfileResolutionError> {
+    if is_path_input(input) {
+        return resolve_profile_from_path(input);
+    }
+    resolve_profile_by_name(input)?
+        .ok_or_else(|| ProfileResolutionError::ProfileNotFound(input.to_string()))
+}
+
+fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {
+    let path = expand_path(path_str);
+
+    if path.exists() {
+        return Ok(path);
+    }
+
+    let profile_yaml = path.join("profile.yaml");
+    if profile_yaml.exists() {
+        return Ok(profile_yaml);
+    }
+
+    Err(ProfileResolutionError::ProfileNotFound(
+        path_str.to_string(),
+    ))
+}
+
+fn expand_path(path_str: &str) -> PathBuf {
+    if path_str.starts_with('~') {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(
+                path_str
+                    .strip_prefix("~/")
+                    .unwrap_or_else(|| &path_str[1..]),
+            );
+        }
+    }
+    PathBuf::from(path_str)
+}
+
+pub fn resolve_profile_with_data(
+    profile_input: &str,
+) -> Result<(PathBuf, Profile), ProfileResolutionError> {
+    let path = resolve_profile_input(profile_input)?;
+    let profile =
+        ProfileLoader::load_from_path(&path).map_err(ProfileResolutionError::DiscoveryFailed)?;
+    Ok((path, profile))
 }
 
 fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolutionError> {
@@ -71,23 +122,6 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
         .into_iter()
         .find(|p| p.name == name)
         .map(|p| p.path))
-}
-
-fn prompt_profile_selection_for_cli(
-    profiles: &[DiscoveredProfile],
-) -> Result<PathBuf, ProfileResolutionError> {
-    let options: Vec<&str> = profiles.iter().map(|p| p.name.as_str()).collect();
-
-    let selection = Select::with_theme(&ColorfulTheme::default())
-        .with_prompt("Select a profile")
-        .items(&options)
-        .default(0)
-        .interact_opt()
-        .map_err(|e| ProfileResolutionError::DiscoveryFailed(e.into()))?;
-
-    selection.map_or(Err(ProfileResolutionError::SelectionCancelled), |idx| {
-        Ok(profiles[idx].path.clone())
-    })
 }
 
 #[derive(Debug)]

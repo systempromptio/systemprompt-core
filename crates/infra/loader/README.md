@@ -44,7 +44,6 @@ src/
 ├── include_resolver.rs          # YAML !include directive resolver
 ├── module_loader.rs             # Module definition aggregator
 ├── profile_loader.rs            # Profile YAML loader with validation
-├── secrets_loader.rs            # Secrets file loader with path resolution
 └── modules/
     ├── mod.rs                   # Module collection aggregator
     ├── agent.rs                 # Agent module definition
@@ -68,7 +67,6 @@ src/
 | Module | Purpose |
 |--------|---------|
 | `ProfileLoader` | Loads and validates profile YAML files from the profiles directory |
-| `SecretsLoader` | Loads secrets files with support for `~/` home directory expansion |
 | `ConfigLoader` | Loads services configuration with include file merging |
 | `EnhancedConfigLoader` | Extended config loader with agent discovery and include resolution |
 | `ModuleLoader` | Aggregates all module definitions for database schema management |
@@ -96,15 +94,13 @@ The `modules/` directory contains definitions for each systemprompt.io module. E
 
 ```rust
 use systemprompt_loader::{
-    ConfigLoader, ProfileLoader, SecretsLoader,
+    ConfigLoader, ProfileLoader,
     ExtensionLoader, ExtensionRegistry, ModuleLoader,
 };
 
 let config = ConfigLoader::load()?;
 
 let profile = ProfileLoader::load_and_validate(services_path, "development")?;
-
-let secrets = SecretsLoader::resolve_and_load("~/.config/secrets.yaml", None)?;
 
 let modules = ModuleLoader::all();
 

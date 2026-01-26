@@ -106,8 +106,13 @@ pub async fn handle_agent_request(
             config.oauth.scopes.clone()
         };
 
-        if let Err((status, error_response)) =
-            validate_oauth_for_request(&headers, &request_id, &required_scopes, None).await
+        if let Err((status, error_response)) = validate_oauth_for_request(
+            &headers,
+            &request_id,
+            &required_scopes,
+            state.oauth_state.jwt_provider.as_ref(),
+        )
+        .await
         {
             return (status, Json(error_response)).into_response();
         }
