@@ -10,37 +10,7 @@ use systemprompt_runtime::{
 };
 
 use crate::paths::ResolvedPaths;
-use crate::requirements::CommandRequirements;
 use crate::shared::resolve_profile_path;
-
-#[allow(dead_code)]
-pub async fn initialize(
-    reqs: &CommandRequirements,
-    skip_validation: bool,
-    cli_profile_override: Option<&str>,
-) -> Result<()> {
-    if !reqs.profile {
-        return Ok(());
-    }
-
-    let profile_path = resolve_profile(cli_profile_override)?;
-    init_profile(&profile_path)?;
-    init_credentials().await?;
-
-    if reqs.secrets {
-        init_secrets()?;
-    }
-
-    if reqs.paths {
-        init_paths()?;
-        if !skip_validation {
-            run_validation()?;
-        }
-    }
-
-    validate_cloud_credentials();
-    Ok(())
-}
 
 pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
     let session_profile_path = get_active_session_profile_path();
@@ -102,8 +72,8 @@ pub fn run_validation() -> Result<()> {
     Ok(())
 }
 
-pub fn validate_cloud_credentials() {
-    if std::env::var("SYSTEMPROMPT_CLI_REMOTE").is_ok() {
+pub fn validate_cloud_credentials(env: &crate::environment::ExecutionEnvironment) {
+    if env.is_remote_cli {
         return;
     }
 
