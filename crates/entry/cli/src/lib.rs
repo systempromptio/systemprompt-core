@@ -4,7 +4,7 @@ mod commands;
 pub mod environment;
 pub mod paths;
 mod presentation;
-pub mod requirements;
+pub mod descriptor;
 mod routing;
 pub mod session;
 pub mod shared;
@@ -18,7 +18,7 @@ use systemprompt_logging::set_startup_mode;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::requirements::{CommandRequirements, HasRequirements};
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
 #[derive(clap::Args)]
 struct VerbosityOpts {
@@ -165,26 +165,20 @@ enum Commands {
     Build(build::BuildCommands),
 }
 
-impl HasRequirements for Commands {
-    fn requirements(&self) -> CommandRequirements {
+impl DescribeCommand for Commands {
+    fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Cloud(cmd) => cmd.requirements(),
-            Self::Plugins(cmd) => cmd.requirements(),
-            Self::Admin(admin::AdminCommands::Setup(_)) => CommandRequirements::NONE,
-            Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.requirements(),
-            Self::Build(_) => CommandRequirements::PROFILE_ONLY,
-            _ => CommandRequirements::FULL,
+            Self::Cloud(cmd) => cmd.descriptor(),
+            Self::Plugins(cmd) => cmd.descriptor(),
+            Self::Admin(admin::AdminCommands::Setup(_)) => CommandDescriptor::NONE,
+            Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
+            Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
+            Self::Core(core::CoreCommands::Skills(core::skills::SkillsCommands::Create(_))) => {
+                CommandDescriptor::FULL.with_skip_validation()
+            },
+            _ => CommandDescriptor::FULL,
         }
     }
-}
-
-const fn should_skip_validation(command: Option<&Commands>) -> bool {
-    matches!(
-        command,
-        Some(Commands::Core(core::CoreCommands::Skills(
-            core::skills::SkillsCommands::Create(_)
-        )))
-    )
 }
 
 pub async fn run() -> Result<()> {
@@ -203,16 +197,16 @@ pub async fn run() -> Result<()> {
         return run_with_database_url(cli.command, &cli_config, &database_url).await;
     }
 
-    let reqs = cli
+    let desc = cli
         .command
         .as_ref()
-        .map_or(CommandRequirements::FULL, HasRequirements::requirements);
+        .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
 
-    if !reqs.database {
+    if !desc.database {
         systemprompt_logging::init_console_logging();
     }
 
-    if reqs.profile {
+    if desc.profile {
         let profile_path = bootstrap::resolve_profile(cli_config.profile_override.as_deref())?;
         bootstrap::init_profile(&profile_path)?;
 
@@ -221,7 +215,7 @@ pub async fn run() -> Result<()> {
 
         let env = environment::ExecutionEnvironment::detect();
 
-        if !env.is_fly && should_check_remote_routing(cli.command.as_ref()) {
+        if !env.is_fly && desc.remote_eligible {
             match routing::determine_execution_target() {
                 Ok(routing::ExecutionTarget::Remote {
                     hostname,
@@ -290,13 +284,13 @@ pub async fn run() -> Result<()> {
             }
         }
 
-        if reqs.secrets {
+        if desc.secrets {
             bootstrap::init_secrets()?;
         }
 
-        if reqs.paths {
+        if desc.paths {
             bootstrap::init_paths()?;
-            if !should_skip_validation(cli.command.as_ref()) {
+            if !desc.skip_validation {
                 bootstrap::run_validation()?;
             }
         }
@@ -376,18 +370,6 @@ fn build_cli_config(cli: &Cli) -> CliConfig {
     cfg = cfg.with_profile_override(cli.profile_opts.profile.clone());
 
     cfg
-}
-
-const fn should_check_remote_routing(command: Option<&Commands>) -> bool {
-    match command {
-        Some(
-            Commands::Admin(admin::AdminCommands::Session(_) | admin::AdminCommands::Setup(_))
-            | Commands::Cloud(_)
-            | Commands::Build(_),
-        )
-        | None => false,
-        Some(_) => true,
-    }
 }
 
 fn reconstruct_args(cli: &Cli) -> Vec<String> {

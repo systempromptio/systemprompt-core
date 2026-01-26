@@ -9,7 +9,7 @@ use anyhow::Result;
 use clap::Subcommand;
 
 use crate::cli_settings::CliConfig;
-use crate::requirements::{CommandRequirements, HasRequirements};
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
@@ -27,11 +27,11 @@ pub enum SessionCommands {
     Login(login::LoginArgs),
 }
 
-impl HasRequirements for SessionCommands {
-    fn requirements(&self) -> CommandRequirements {
+impl DescribeCommand for SessionCommands {
+    fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Login(_) => CommandRequirements::PROFILE_AND_SECRETS,
-            Self::Show | Self::Switch { .. } | Self::List => CommandRequirements::NONE,
+            Self::Login(_) => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Show | Self::Switch { .. } | Self::List => CommandDescriptor::NONE,
         }
     }
 }

@@ -12,7 +12,7 @@ pub mod mcp;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::requirements::{CommandRequirements, HasRequirements};
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use crate::shared::render_result;
 use crate::CliConfig;
 
@@ -40,11 +40,11 @@ pub enum PluginsCommands {
     Mcp(mcp::McpCommands),
 }
 
-impl HasRequirements for PluginsCommands {
-    fn requirements(&self) -> CommandRequirements {
+impl DescribeCommand for PluginsCommands {
+    fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Mcp(_) | Self::Run(_) => CommandRequirements::FULL,
-            _ => CommandRequirements::PROFILE_ONLY,
+            Self::Mcp(_) | Self::Run(_) => CommandDescriptor::FULL,
+            _ => CommandDescriptor::PROFILE_ONLY.with_remote_eligible(),
         }
     }
 }
