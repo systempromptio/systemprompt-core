@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.0.14] - 2026-01-26
+
+### Changed
+- Prominently feature playbooks in CLI help output with "GETTING STARTED" section
+- Update main CLI description to reference playbooks for workflow guides
+- Update core command description to list playbooks first
+
 ## [0.0.13] - 2026-01-26
 
 ### Added

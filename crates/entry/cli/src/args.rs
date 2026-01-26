@@ -76,13 +76,17 @@ pub struct ProfileOpts {
 
 #[derive(Parser)]
 #[command(name = "systemprompt")]
-#[command(about = "Agent orchestration and AI operations")]
+#[command(about = "Agent orchestration and AI operations. Run 'systemprompt core playbooks list' for workflow guides.")]
 #[command(version = "0.1.0")]
 #[command(
     before_help = "\x1b[38;5;208m</\x1b[1;37mSYSTEMPROMPT\x1b[38;5;208m.\x1b[0;37mio\x1b[38;5;\
                    208m>\x1b[0m"
 )]
 #[command(after_help = "\
+GETTING STARTED:
+  systemprompt core playbooks list              List all workflow playbooks
+  systemprompt core playbooks list info_info    Show the CLI usage guide
+
 GLOBAL OPTIONS (apply to all commands):
   -v, --verbose         Increase verbosity
   -q, --quiet           Suppress output
@@ -117,7 +121,7 @@ pub struct Cli {
 pub enum Commands {
     #[command(
         subcommand,
-        about = "Core platform operations (content, files, contexts, skills)"
+        about = "Core operations: playbooks, skills, content, files, contexts"
     )]
     Core(core::CoreCommands),
 
