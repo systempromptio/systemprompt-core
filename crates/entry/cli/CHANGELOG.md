@@ -8,6 +8,9 @@
 - Unify `CommandDescriptor` trait replacing `HasRequirements`
 - Deduplicate session creation with shared helpers
 - Flatten `run()` pipeline and extract CLI args module
+- Standardize non-interactive mode with centralized `interactive` module
+- Add `confirm_optional()` for optional confirmations with defaults
+- Migrate all confirmation patterns to `require_confirmation()` or `confirm_optional()`
 
 ### Fixed
 - Eliminate legacy session system, unify on `SessionStore`
