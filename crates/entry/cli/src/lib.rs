@@ -1,6 +1,7 @@
 mod bootstrap;
 pub mod cli_settings;
 mod commands;
+pub mod paths;
 mod presentation;
 pub mod requirements;
 mod routing;

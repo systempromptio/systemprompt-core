@@ -1,8 +1,8 @@
 use anyhow::Result;
-use systemprompt_cloud::{CliSession, ProjectContext, SessionKey, SessionStore};
+use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
-use super::resolution::resolve_session_paths;
+use crate::paths::ResolvedPaths;
 
 pub fn clear_session() -> Result<()> {
     let profile = ProfileBootstrap::get().ok();
@@ -12,8 +12,7 @@ pub fn clear_session() -> Result<()> {
         .and_then(|c| c.tenant_id.as_deref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
 
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
     store.remove_session(&session_key);
@@ -23,8 +22,7 @@ pub fn clear_session() -> Result<()> {
 }
 
 pub fn clear_all_sessions() -> Result<()> {
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let store = SessionStore::new();
     store.save(&sessions_dir)?;
@@ -33,15 +31,13 @@ pub fn clear_all_sessions() -> Result<()> {
 }
 
 pub fn get_session_for_key(session_key: &SessionKey) -> Result<Option<CliSession>> {
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
     Ok(store.get_valid_session(session_key).cloned())
 }
 
 pub fn load_session_store() -> Result<SessionStore> {
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
     SessionStore::load_or_create(&sessions_dir)
 }

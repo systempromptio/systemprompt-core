@@ -1,11 +1,11 @@
 pub mod remote;
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProjectContext, SessionKey, SessionStore, StoredTenant, TenantStore,
-};
+use systemprompt_cloud::{SessionKey, SessionStore, StoredTenant, TenantStore};
 use systemprompt_identifiers::TenantId;
 use systemprompt_models::ProfileBootstrap;
+
+use crate::paths::ResolvedPaths;
 
 pub enum ExecutionTarget {
     Local,
@@ -68,15 +68,7 @@ pub fn determine_execution_target() -> Result<ExecutionTarget> {
 }
 
 fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
-    let project_ctx = ProjectContext::discover();
-
-    let tenants_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_tenants()
-    } else {
-        get_cloud_paths()
-            .context("Failed to resolve cloud paths")?
-            .resolve(CloudPath::Tenants)
-    };
+    let tenants_path = ResolvedPaths::discover().tenants_path()?;
 
     let store = TenantStore::load_from_path(&tenants_path)
         .context("Failed to load tenants. Run 'systemprompt cloud tenant list' to sync.")?;
@@ -88,14 +80,7 @@ fn resolve_tenant(tenant_id: &str) -> Result<StoredTenant> {
 }
 
 fn load_session_for_key(session_key: &SessionKey) -> Result<systemprompt_cloud::CliSession> {
-    let project_ctx = ProjectContext::discover();
-
-    let sessions_dir = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.sessions_dir()
-    } else {
-        let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
-        cloud_paths.resolve(CloudPath::SessionsDir)
-    };
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let store = SessionStore::load_or_create(&sessions_dir)?;
 

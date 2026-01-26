@@ -1,21 +1,20 @@
 use anyhow::Result;
-use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProjectContext, SessionStore, TenantStore, LOCAL_SESSION_KEY,
-};
+use systemprompt_cloud::{SessionStore, TenantStore, LOCAL_SESSION_KEY};
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use crate::cli_settings::CliConfig;
+use crate::paths::ResolvedPaths;
 
 #[allow(clippy::unnecessary_wraps)]
 pub fn execute(config: &CliConfig) -> Result<()> {
-    let project_ctx = ProjectContext::discover();
+    let paths = ResolvedPaths::discover();
 
     if config.is_interactive() {
         CliService::section("Sessions");
     }
 
-    display_all_sessions(&project_ctx);
+    display_all_sessions(&paths);
 
     CliService::output("");
 
@@ -23,7 +22,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
         CliService::section("Routing Info");
     }
 
-    if let Some((hostname, target_type)) = display_routing_info(&project_ctx) {
+    if let Some((hostname, target_type)) = display_routing_info(&paths) {
         CliService::key_value("Target", target_type);
         CliService::key_value("Hostname", &hostname);
         CliService::info("Commands will be forwarded to the remote tenant");
@@ -32,8 +31,11 @@ pub fn execute(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn display_all_sessions(project_ctx: &ProjectContext) {
-    let sessions_dir = resolve_sessions_dir(project_ctx);
+fn display_all_sessions(paths: &ResolvedPaths) {
+    let Ok(sessions_dir) = paths.sessions_dir() else {
+        CliService::warning("No sessions found");
+        return;
+    };
 
     let Ok(store) = SessionStore::load_or_create(&sessions_dir) else {
         CliService::warning("No sessions found");
@@ -83,18 +85,7 @@ fn display_all_sessions(project_ctx: &ProjectContext) {
     }
 }
 
-fn resolve_sessions_dir(project_ctx: &ProjectContext) -> std::path::PathBuf {
-    if project_ctx.systemprompt_dir().exists() {
-        project_ctx.sessions_dir()
-    } else {
-        get_cloud_paths().map_or_else(
-            |_| project_ctx.sessions_dir(),
-            |paths| paths.resolve(CloudPath::SessionsDir),
-        )
-    }
-}
-
-fn display_routing_info(project_ctx: &ProjectContext) -> Option<(String, &'static str)> {
+fn display_routing_info(paths: &ResolvedPaths) -> Option<(String, &'static str)> {
     let Ok(profile) = ProfileBootstrap::get() else {
         CliService::warning("No profile loaded");
         return None;
@@ -108,18 +99,11 @@ fn display_routing_info(project_ctx: &ProjectContext) -> Option<(String, &'stati
     };
 
     CliService::key_value("Tenant ID", tenant_id);
-    resolve_remote_target(project_ctx, tenant_id)
+    resolve_remote_target(paths, tenant_id)
 }
 
-fn resolve_remote_target(
-    project_ctx: &ProjectContext,
-    tenant_id: &str,
-) -> Option<(String, &'static str)> {
-    let tenants_path = if project_ctx.systemprompt_dir().exists() {
-        project_ctx.local_tenants()
-    } else {
-        get_cloud_paths().ok()?.resolve(CloudPath::Tenants)
-    };
+fn resolve_remote_target(paths: &ResolvedPaths, tenant_id: &str) -> Option<(String, &'static str)> {
+    let tenants_path = paths.tenants_path().ok()?;
 
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
     let tenant = store.find_tenant(tenant_id)?;

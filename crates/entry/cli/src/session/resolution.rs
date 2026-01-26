@@ -1,10 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
-use systemprompt_cloud::{
-    CliSession, CredentialsBootstrap, ProjectContext, SessionKey, SessionStore,
-};
+use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken, UserId};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
@@ -13,6 +10,7 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::{Profile, SecretsBootstrap};
 
 use super::context::CliSessionContext;
+use crate::paths::ResolvedPaths;
 use crate::CliConfig;
 
 pub(super) struct ProfileContext<'a> {
@@ -46,16 +44,6 @@ fn try_session_from_env(profile: &Profile) -> Option<CliSessionContext> {
         session,
         profile: profile.clone(),
     })
-}
-
-pub(super) fn resolve_session_paths(project_ctx: &ProjectContext) -> Result<PathBuf> {
-    if project_ctx.systemprompt_dir().exists() {
-        Ok(project_ctx.sessions_dir())
-    } else {
-        let cloud_paths = get_cloud_paths()
-            .context("Failed to resolve cloud paths from profile configuration")?;
-        Ok(cloud_paths.resolve(CloudPath::SessionsDir))
-    }
 }
 
 async fn get_session_for_profile(
@@ -100,8 +88,7 @@ async fn get_session_for_loaded_profile(
     let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
 
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
 
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
@@ -161,8 +148,7 @@ async fn get_session_for_loaded_profile(
 }
 
 async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
-    let project_ctx = ProjectContext::discover();
-    let sessions_dir = resolve_session_paths(&project_ctx)?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
     let store = SessionStore::load_or_create(&sessions_dir)?;
 
     let Some(active_session) = store.active_session() else {
