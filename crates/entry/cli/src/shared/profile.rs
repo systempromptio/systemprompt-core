@@ -56,7 +56,7 @@ pub fn resolve_profile_path(
     }
 }
 
-fn is_path_input(input: &str) -> bool {
+pub fn is_path_input(input: &str) -> bool {
     let path = Path::new(input);
     let has_yaml_extension = path
         .extension()
@@ -77,7 +77,7 @@ fn resolve_profile_input(input: &str) -> Result<PathBuf, ProfileResolutionError>
         .ok_or_else(|| ProfileResolutionError::ProfileNotFound(input.to_string()))
 }
 
-fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {
+pub fn resolve_profile_from_path(path_str: &str) -> Result<PathBuf, ProfileResolutionError> {
     let path = expand_path(path_str);
 
     if path.exists() {

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.0] - 2026-01-26
+
+### Fixed
+- `--profile` flag now accepts direct file paths (e.g., `--profile ./my-profile.yaml` or `--profile /absolute/path/to/profile.yaml`)
+
 ## [0.0.11] - 2026-01-26
 
 ### Added
