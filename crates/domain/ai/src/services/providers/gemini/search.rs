@@ -3,8 +3,7 @@ use std::time::Instant;
 
 use crate::models::ai::{AiMessage, SamplingParams, SearchGroundedResponse, WebSource};
 use crate::models::providers::gemini::{
-    GeminiFunctionCallingConfig, GeminiFunctionCallingMode, GeminiPart, GeminiRequest,
-    GeminiResponse, GeminiTool, GeminiToolConfig, GoogleSearch, UrlContext,
+    GeminiPart, GeminiRequest, GeminiResponse, GeminiTool, GoogleSearch, UrlContext,
 };
 
 use super::constants::defaults;
@@ -90,12 +89,7 @@ pub async fn generate_with_google_search(
         generation_config: Some(generation_config),
         safety_settings: None,
         tools: Some(gemini_tools),
-        tool_config: Some(GeminiToolConfig {
-            function_calling_config: GeminiFunctionCallingConfig {
-                mode: GeminiFunctionCallingMode::Any,
-                allowed_function_names: None,
-            },
-        }),
+        tool_config: None,
     };
 
     let response_text =

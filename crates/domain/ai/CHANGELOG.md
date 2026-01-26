@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.0] - 2026-01-26
+
+### Fixed
+- Fix Gemini Google Search grounding API error "Function calling config is set without function_declarations" by removing `tool_config` from search requests (only needed for function calling, not for Google Search grounding)
+
 ## [0.0.11] - 2026-01-26
 
 ### Fixed

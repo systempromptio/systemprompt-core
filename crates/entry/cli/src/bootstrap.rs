@@ -13,6 +13,13 @@ use crate::paths::ResolvedPaths;
 use crate::shared::resolve_profile_path;
 
 pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
+    if let Some(profile_input) = cli_profile_override {
+        if crate::shared::is_path_input(profile_input) {
+            return crate::shared::resolve_profile_from_path(profile_input)
+                .map_err(|e| anyhow::anyhow!("{}", e));
+        }
+    }
+
     let session_profile_path = get_active_session_profile_path();
 
     resolve_profile_path(cli_profile_override, session_profile_path).context(
