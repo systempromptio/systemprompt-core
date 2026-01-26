@@ -1,5 +1,6 @@
 //! Tests for startup_events extension traits.
 
+use futures::stream::StreamExt;
 use std::time::Duration;
 use systemprompt_traits::{
     startup_channel, ModuleInfo, OptionalStartupEventExt, Phase, ServiceInfo, ServiceState,
@@ -15,7 +16,7 @@ mod startup_event_ext_tests {
 
         tx.phase_started(Phase::PreFlight);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
             StartupEvent::PhaseStarted { phase: Phase::PreFlight }
@@ -28,7 +29,7 @@ mod startup_event_ext_tests {
 
         tx.phase_completed(Phase::Database);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
             StartupEvent::PhaseCompleted { phase: Phase::Database }
@@ -41,7 +42,7 @@ mod startup_event_ext_tests {
 
         tx.phase_failed(Phase::McpServers, "Connection refused");
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::PhaseFailed { phase, error } => {
                 assert_eq!(phase, Phase::McpServers);
@@ -57,7 +58,7 @@ mod startup_event_ext_tests {
 
         tx.port_available(8080);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         assert!(matches!(event, StartupEvent::PortAvailable { port: 8080 }));
     }
 
@@ -67,7 +68,7 @@ mod startup_event_ext_tests {
 
         tx.port_conflict(3000, 12345);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::PortConflict { port, pid } => {
                 assert_eq!(port, 3000);
@@ -94,7 +95,7 @@ mod startup_event_ext_tests {
 
         tx.modules_loaded(2, modules);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::ModulesLoaded { count, modules } => {
                 assert_eq!(count, 2);
@@ -110,7 +111,7 @@ mod startup_event_ext_tests {
 
         tx.mcp_starting("test-mcp", 5000);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::McpServerStarting { name, port } => {
                 assert_eq!(name, "test-mcp");
@@ -126,7 +127,7 @@ mod startup_event_ext_tests {
 
         tx.mcp_health_check("test-mcp", 2, 5);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::McpServerHealthCheck {
                 name,
@@ -147,7 +148,7 @@ mod startup_event_ext_tests {
 
         tx.mcp_ready("test-mcp", 5000, Duration::from_millis(500), 10);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::McpServerReady {
                 name,
@@ -170,7 +171,7 @@ mod startup_event_ext_tests {
 
         tx.mcp_failed("test-mcp", "Failed to start");
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::McpServerFailed { name, error } => {
                 assert_eq!(name, "test-mcp");
@@ -186,7 +187,7 @@ mod startup_event_ext_tests {
 
         tx.agent_starting("test-agent", 6000);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::AgentStarting { name, port } => {
                 assert_eq!(name, "test-agent");
@@ -202,7 +203,7 @@ mod startup_event_ext_tests {
 
         tx.agent_ready("test-agent", 6000, Duration::from_secs(1));
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::AgentReady {
                 name,
@@ -223,7 +224,7 @@ mod startup_event_ext_tests {
 
         tx.agent_failed("test-agent", "Initialization error");
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::AgentFailed { name, error } => {
                 assert_eq!(name, "test-agent");
@@ -239,7 +240,7 @@ mod startup_event_ext_tests {
 
         tx.server_listening("0.0.0.0:8080", 54321);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::ServerListening { address, pid } => {
                 assert_eq!(address, "0.0.0.0:8080");
@@ -255,7 +256,7 @@ mod startup_event_ext_tests {
 
         tx.warning("Deprecated configuration");
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::Warning { message, context } => {
                 assert_eq!(message, "Deprecated configuration");
@@ -271,7 +272,7 @@ mod startup_event_ext_tests {
 
         tx.info("Loading configuration");
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::Info { message } => {
                 assert_eq!(message, "Loading configuration");
@@ -294,7 +295,7 @@ mod startup_event_ext_tests {
 
         tx.startup_complete(Duration::from_secs(5), "http://localhost:8080", services);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::StartupComplete {
                 duration,
@@ -320,7 +321,7 @@ mod optional_startup_event_ext_tests {
 
         optional.phase_started(Phase::Database);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         assert!(matches!(
             event,
             StartupEvent::PhaseStarted { phase: Phase::Database }
@@ -342,7 +343,7 @@ mod optional_startup_event_ext_tests {
 
         optional.mcp_starting("test", 5000);
 
-        let event = rx.recv().await.unwrap();
+        let event = rx.next().await.unwrap();
         match event {
             StartupEvent::McpServerStarting { name, port } => {
                 assert_eq!(name, "test");
@@ -381,9 +382,9 @@ mod startup_channel_tests {
         tx.phase_completed(Phase::PreFlight);
         tx.phase_started(Phase::Database);
 
-        let e1 = rx.recv().await.unwrap();
-        let e2 = rx.recv().await.unwrap();
-        let e3 = rx.recv().await.unwrap();
+        let e1 = rx.next().await.unwrap();
+        let e2 = rx.next().await.unwrap();
+        let e3 = rx.next().await.unwrap();
 
         assert!(matches!(
             e1,

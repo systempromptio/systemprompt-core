@@ -18,7 +18,7 @@ fn test_jwt_token_new_from_string() {
 #[test]
 fn test_jwt_token_display() {
     let token = JwtToken::new("display-token");
-    assert_eq!(format!("{}", token), "display-token");
+    assert_eq!(format!("{}", token), "********");
 }
 
 #[test]

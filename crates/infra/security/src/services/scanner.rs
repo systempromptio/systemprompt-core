@@ -26,8 +26,8 @@ const SCANNER_PATHS: &[&str] = &[
 ];
 
 const MIN_USER_AGENT_LENGTH: usize = 10;
-const MIN_CHROME_VERSION: i32 = 90;
-const MIN_FIREFOX_VERSION: i32 = 88;
+const MIN_CHROME_VERSION: i32 = 120;
+const MIN_FIREFOX_VERSION: i32 = 120;
 const MAX_REQUESTS_PER_MINUTE: f64 = 30.0;
 const MAX_CURL_UA_LENGTH: usize = 20;
 const MAX_WGET_UA_LENGTH: usize = 20;

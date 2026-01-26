@@ -172,4 +172,15 @@ impl SessionRepository {
     ) -> Result<Option<SessionBehavioralData>> {
         queries::get_session_for_behavioral_analysis(&self.pool, session_id).await
     }
+
+    pub async fn has_analytics_events(&self, session_id: &SessionId) -> Result<bool> {
+        queries::has_analytics_events(&self.pool, session_id).await
+    }
+
+    pub async fn get_session_velocity(
+        &self,
+        session_id: &SessionId,
+    ) -> Result<(Option<i64>, Option<i64>)> {
+        queries::get_session_velocity(&self.pool, session_id).await
+    }
 }

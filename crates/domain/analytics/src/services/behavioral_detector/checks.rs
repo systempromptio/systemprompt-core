@@ -158,6 +158,24 @@ impl BehavioralBotDetector {
             }
         }
     }
+
+    pub(super) fn check_no_javascript_events(
+        input: &BehavioralAnalysisInput,
+        score: &mut i32,
+        signals: &mut Vec<BehavioralSignal>,
+    ) {
+        if input.request_count >= thresholds::NO_JS_MIN_REQUESTS && !input.has_javascript_events {
+            *score += scoring::NO_JAVASCRIPT_EVENTS;
+            signals.push(BehavioralSignal {
+                signal_type: SignalType::NoJavaScriptEvents,
+                points: scoring::NO_JAVASCRIPT_EVENTS,
+                details: format!(
+                    "Session has {} requests but no JavaScript analytics events",
+                    input.request_count
+                ),
+            });
+        }
+    }
 }
 
 fn is_sequential_crawl(endpoints: &[String]) -> bool {

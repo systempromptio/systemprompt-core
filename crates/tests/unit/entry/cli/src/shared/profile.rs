@@ -29,10 +29,12 @@ fn test_profile_resolution_error_no_profiles_found_display() {
 }
 
 #[test]
-fn test_profile_resolution_error_selection_cancelled_display() {
-    let error = ProfileResolutionError::SelectionCancelled;
+fn test_profile_resolution_error_multiple_profiles_display() {
+    let error = ProfileResolutionError::MultipleProfilesFound {
+        profiles: vec!["dev".to_string(), "prod".to_string()],
+    };
     let msg = error.to_string();
-    assert!(msg.contains("cancelled"));
+    assert!(msg.contains("Multiple profiles found"));
 }
 
 #[test]
@@ -43,10 +45,12 @@ fn test_profile_resolution_error_no_profiles_debug() {
 }
 
 #[test]
-fn test_profile_resolution_error_selection_cancelled_debug() {
-    let error = ProfileResolutionError::SelectionCancelled;
+fn test_profile_resolution_error_multiple_profiles_debug() {
+    let error = ProfileResolutionError::MultipleProfilesFound {
+        profiles: vec!["dev".to_string()],
+    };
     let debug = format!("{:?}", error);
-    assert!(debug.contains("SelectionCancelled"));
+    assert!(debug.contains("MultipleProfilesFound"));
 }
 
 #[test]
@@ -264,9 +268,11 @@ fn test_profile_resolution_error_source_none_for_no_profiles() {
 }
 
 #[test]
-fn test_profile_resolution_error_source_none_for_cancelled() {
+fn test_profile_resolution_error_source_none_for_multiple_profiles() {
     use std::error::Error;
 
-    let error = ProfileResolutionError::SelectionCancelled;
+    let error = ProfileResolutionError::MultipleProfilesFound {
+        profiles: vec!["dev".to_string()],
+    };
     assert!(error.source().is_none());
 }

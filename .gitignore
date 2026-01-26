@@ -6,6 +6,14 @@ target/
 # Dependencies
 node_modules/
 **/node_modules/
+package.json
+package-lock.json
+
+# TypeScript
+*.ts
+*.tsx
+tsconfig.json
+tsconfig.*.json
 
 # Database files
 /database/*.db

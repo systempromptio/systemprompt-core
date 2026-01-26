@@ -199,13 +199,13 @@ fn test_mcp_server_id_display() {
 
 #[test]
 fn test_mcp_server_id_from_string() {
-    let id: McpServerId = String::from("from-string-server").into();
+    let id: McpServerId = String::from("from-string-server").try_into().unwrap();
     assert_eq!(id.as_str(), "from-string-server");
 }
 
 #[test]
 fn test_mcp_server_id_from_str() {
-    let id: McpServerId = "from-str-server".into();
+    let id: McpServerId = "from-str-server".try_into().unwrap();
     assert_eq!(id.as_str(), "from-str-server");
 }
 
@@ -272,7 +272,7 @@ fn test_mcp_server_id_from_env_missing() {
     std::env::remove_var("MCP_SERVICE_ID");
     let result = McpServerId::from_env();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("not set"));
+    assert!(result.unwrap_err().to_string().contains("not set"));
 }
 
 #[test]
@@ -280,7 +280,7 @@ fn test_mcp_server_id_from_env_empty() {
     std::env::set_var("MCP_SERVICE_ID", "");
     let result = McpServerId::from_env();
     assert!(result.is_err());
-    assert!(result.unwrap_err().contains("empty"));
+    assert!(result.unwrap_err().to_string().contains("empty"));
     std::env::remove_var("MCP_SERVICE_ID");
 }
 

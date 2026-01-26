@@ -26,9 +26,9 @@ mod ai_extension_tests {
     }
 
     #[test]
-    fn migration_weight_is_20() {
+    fn migration_weight_is_35() {
         let ext = AiExtension;
-        assert_eq!(Extension::migration_weight(&ext), 20);
+        assert_eq!(Extension::migration_weight(&ext), 35);
     }
 
     #[test]
@@ -67,10 +67,10 @@ mod ai_extension_tests {
     }
 
     #[test]
-    fn dependencies_has_one_item() {
+    fn dependencies_has_two_items() {
         let ext = AiExtension;
         let deps = Extension::dependencies(&ext);
-        assert_eq!(deps.len(), 1);
+        assert_eq!(deps.len(), 2);
     }
 
     #[test]

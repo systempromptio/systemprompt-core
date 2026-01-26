@@ -60,6 +60,7 @@ impl SessionCreationService {
             user_id,
             is_new: true,
             jwt_token: token,
+            fingerprint_hash: params.fingerprint.clone(),
         })
     }
 }

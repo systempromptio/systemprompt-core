@@ -7,6 +7,7 @@
 //! - ParsedContent structure
 
 use systemprompt_content::{LoadStats, ParsedContent};
+use systemprompt_identifiers::{CategoryId, SourceId};
 
 // ============================================================================
 // LoadStats Tests
@@ -74,8 +75,8 @@ fn test_parsed_content_creation() {
         keywords: "test, article".to_string(),
         kind: "article".to_string(),
         image: Some("/images/test.png".to_string()),
-        category_id: "tech".to_string(),
-        source_id: "blog".to_string(),
+        category_id: CategoryId::new("tech"),
+        source_id: SourceId::new("blog"),
         version_hash: "abc123hash".to_string(),
         file_path: PathBuf::from("/content/articles/test.md"),
     };
@@ -84,8 +85,8 @@ fn test_parsed_content_creation() {
     assert_eq!(content.title, "Test Article");
     assert_eq!(content.author, "John Doe");
     assert_eq!(content.kind, "article");
-    assert_eq!(content.source_id, "blog");
-    assert_eq!(content.category_id, "tech");
+    assert_eq!(content.source_id.as_str(), "blog");
+    assert_eq!(content.category_id.as_str(), "tech");
     assert_eq!(content.file_path, PathBuf::from("/content/articles/test.md"));
 }
 
@@ -104,8 +105,8 @@ fn test_parsed_content_without_image() {
         keywords: "".to_string(),
         kind: "article".to_string(),
         image: None,
-        category_id: "cat".to_string(),
-        source_id: "src".to_string(),
+        category_id: CategoryId::new("cat"),
+        source_id: SourceId::new("src"),
         version_hash: "hash".to_string(),
         file_path: PathBuf::from("/path/to/file.md"),
     };
@@ -128,8 +129,8 @@ fn test_parsed_content_clone() {
         keywords: "key".to_string(),
         kind: "guide".to_string(),
         image: Some("/img.png".to_string()),
-        category_id: "cat".to_string(),
-        source_id: "src".to_string(),
+        category_id: CategoryId::new("cat"),
+        source_id: SourceId::new("src"),
         version_hash: "hash".to_string(),
         file_path: PathBuf::from("/path.md"),
     };

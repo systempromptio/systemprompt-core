@@ -363,23 +363,23 @@ fn test_cli_session_delete_nonexistent() {
 }
 
 #[test]
-fn test_cli_session_try_load_profile_path_nonexistent() {
+fn test_cli_session_load_from_path_nonexistent() {
     let temp_dir = TempDir::new().unwrap();
     let session_path = temp_dir.path().join("nonexistent.json");
 
-    let result = CliSession::try_load_profile_path(&session_path);
-    assert!(result.is_none());
+    let result = CliSession::load_from_path(&session_path);
+    assert!(result.is_err());
 }
 
 #[test]
-fn test_cli_session_try_load_profile_path_invalid_json() {
+fn test_cli_session_load_from_path_invalid_json() {
     let temp_dir = TempDir::new().unwrap();
     let session_path = temp_dir.path().join("session.json");
 
     std::fs::write(&session_path, "invalid json").unwrap();
 
-    let result = CliSession::try_load_profile_path(&session_path);
-    assert!(result.is_none());
+    let result = CliSession::load_from_path(&session_path);
+    assert!(result.is_err());
 }
 
 #[test]

@@ -209,6 +209,10 @@ fn test_loader_error_variant_matching() {
         LoaderError::CircularDependency {
             chain: "x -> y -> x".to_string(),
         },
+        LoaderError::MigrationFailed {
+            extension: "i".to_string(),
+            message: "migration failed".to_string(),
+        },
     ];
 
     for err in errors {
@@ -225,6 +229,10 @@ fn test_loader_error_variant_matching() {
                 assert!(!message.is_empty());
             }
             LoaderError::SchemaInstallationFailed { extension, message } => {
+                assert!(!extension.is_empty());
+                assert!(!message.is_empty());
+            }
+            LoaderError::MigrationFailed { extension, message } => {
                 assert!(!extension.is_empty());
                 assert!(!message.is_empty());
             }
