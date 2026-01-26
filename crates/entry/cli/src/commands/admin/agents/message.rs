@@ -14,8 +14,8 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
 use super::types::MessageOutput;
-use crate::session::get_or_create_session;
 use crate::interactive::resolve_required;
+use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 

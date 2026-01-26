@@ -75,7 +75,10 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
     }
 
     require_confirmation(
-        &format!("Delete logs older than {}? This cannot be undone.", cutoff_str),
+        &format!(
+            "Delete logs older than {}? This cannot be undone.",
+            cutoff_str
+        ),
         args.yes,
         config,
     )?;

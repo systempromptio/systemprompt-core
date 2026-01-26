@@ -2,6 +2,11 @@
 
 ## [0.0.11] - 2026-01-26
 
+### Added
+- `systemprompt core artifacts list` command to list artifacts with optional context filtering
+- `systemprompt core artifacts show` command to inspect artifact details and content
+- `--schema` flag for `systemprompt plugins mcp tools` to display parameter schemas in readable format
+
 ### Changed
 - Centralize path resolution with `ResolvedPaths` struct
 - Extract `ExecutionEnvironment` for deployment detection

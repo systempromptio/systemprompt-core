@@ -7,8 +7,8 @@ use systemprompt_agent::models::a2a::jsonrpc::{
 use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
 use systemprompt_models::a2a::Task;
 
-use crate::session::get_or_create_session;
 use crate::interactive::resolve_required;
+use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 

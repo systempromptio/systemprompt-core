@@ -8,8 +8,8 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::cli_settings::CliConfig;
-use crate::paths::ResolvedPaths;
 use crate::interactive::resolve_required;
+use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, SessionKey, SessionStore};

@@ -2,6 +2,9 @@
 
 ## [0.0.11] - 2026-01-26
 
+### Added
+- Include error message in MCP execution trace events for failed tool calls
+
 ### Changed
 - Improve CLI service output and prompts handling
 

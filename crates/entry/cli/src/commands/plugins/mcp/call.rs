@@ -21,8 +21,8 @@ use systemprompt_runtime::AppContext;
 use tokio::time::timeout;
 
 use super::types::{McpCallOutput, McpToolContent};
-use crate::session::{get_or_create_session, CliSessionContext};
 use crate::interactive::resolve_required;
+use crate::session::{get_or_create_session, CliSessionContext};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 

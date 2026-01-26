@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- `ToolResponse::to_json()` now returns `Result<JsonValue, serde_json::Error>` instead of silently returning `Null` on error
+- `Artifact::to_json_value()` trait method now returns `Result<JsonValue, serde_json::Error>` instead of silently returning `Null` on error
+
 ## [0.0.7] - 2026-01-23
 
 ### Changed

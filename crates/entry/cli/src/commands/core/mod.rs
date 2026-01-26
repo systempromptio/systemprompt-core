@@ -1,3 +1,4 @@
+pub mod artifacts;
 pub mod content;
 pub mod contexts;
 pub mod files;
@@ -11,6 +12,9 @@ use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum CoreCommands {
+    #[command(subcommand, about = "Artifact inspection and debugging")]
+    Artifacts(artifacts::ArtifactsCommands),
+
     #[command(subcommand, about = "Content management and analytics")]
     Content(content::ContentCommands),
 
@@ -26,6 +30,7 @@ pub enum CoreCommands {
 
 pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
     match cmd {
+        CoreCommands::Artifacts(cmd) => artifacts::execute(cmd, config).await,
         CoreCommands::Content(cmd) => content::execute(cmd).await,
         CoreCommands::Files(cmd) => files::execute(cmd, config).await,
         CoreCommands::Contexts(cmd) => contexts::execute(cmd, config).await,
@@ -41,7 +46,7 @@ pub async fn execute_with_db(
     match cmd {
         CoreCommands::Content(cmd) => content::execute_with_db(cmd, db_ctx, config).await,
         CoreCommands::Files(cmd) => files::execute_with_db(cmd, db_ctx, config).await,
-        CoreCommands::Contexts(_) | CoreCommands::Skills(_) => {
+        CoreCommands::Artifacts(_) | CoreCommands::Contexts(_) | CoreCommands::Skills(_) => {
             anyhow::bail!("This command requires full profile context")
         },
     }
