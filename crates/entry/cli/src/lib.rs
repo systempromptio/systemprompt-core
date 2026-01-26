@@ -66,7 +66,7 @@ async fn init_profile_and_route(
     let env = environment::ExecutionEnvironment::detect();
 
     if !env.is_fly && desc.remote_eligible {
-        try_remote_routing(cli, &profile).await?;
+        try_remote_routing(cli, profile).await?;
     } else if is_cloud
         && !env.is_fly
         && !profile.database.external_db_access
