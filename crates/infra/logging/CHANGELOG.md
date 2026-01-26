@@ -4,6 +4,7 @@
 
 ### Added
 - Include error message in MCP execution trace events for failed tool calls
+- `CliService::profile_banner()` method for displaying active profile information to stderr
 
 ### Changed
 - Improve CLI service output and prompts handling

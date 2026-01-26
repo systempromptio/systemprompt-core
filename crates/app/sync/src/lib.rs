@@ -12,17 +12,19 @@ use serde::{Deserialize, Serialize};
 
 pub use api_client::SyncApiClient;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
-pub use diff::{compute_content_hash, ContentDiffCalculator, SkillsDiffCalculator};
+pub use diff::{compute_content_hash, ContentDiffCalculator, PlaybooksDiffCalculator, SkillsDiffCalculator};
 pub use error::{SyncError, SyncResult};
 pub use export::{
-    escape_yaml, export_content_to_file, export_skill_to_disk, generate_content_markdown,
-    generate_skill_config, generate_skill_markdown,
+    escape_yaml, export_content_to_file, export_playbook_to_disk, export_skill_to_disk,
+    generate_content_markdown, generate_playbook_markdown, generate_skill_config,
+    generate_skill_markdown,
 };
 pub use files::{FileBundle, FileEntry, FileManifest, FileSyncService};
-pub use local::{ContentDiffEntry, ContentLocalSync, SkillsLocalSync};
+pub use local::{ContentDiffEntry, ContentLocalSync, PlaybooksLocalSync, SkillsLocalSync};
 pub use models::{
-    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, DiskSkill, LocalSyncDirection,
-    LocalSyncResult, SkillDiffItem, SkillsDiffResult,
+    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, DiskPlaybook, DiskSkill,
+    LocalSyncDirection, LocalSyncResult, PlaybookDiffItem, PlaybooksDiffResult, SkillDiffItem,
+    SkillsDiffResult,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

@@ -2,8 +2,14 @@
 
 ## [0.0.11] - 2026-01-26
 
+### Added
+- Playbooks diff calculator and sync support
+
 ### Changed
 - Update content sync to use simplified ingestion API without content type filtering
+
+### Fixed
+- Export missing playbook model types (`DiskPlaybook`, `PlaybookDiffItem`, `PlaybooksDiffResult`)
 
 ## [0.0.3] - 2026-01-22
 

@@ -33,7 +33,7 @@ pub use agent::{AgentId, AgentName};
 pub use ai::{AiRequestId, ConfigId, MessageId};
 pub use auth::{CloudAuthToken, JwtToken, SessionToken};
 pub use client::{ClientId, ClientType};
-pub use content::{CategoryId, ContentId, FileId, SkillId, SourceId, TagId};
+pub use content::{CategoryId, ContentId, FileId, PlaybookId, SkillId, SourceId, TagId};
 pub use context::ContextId;
 pub use email::Email;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
