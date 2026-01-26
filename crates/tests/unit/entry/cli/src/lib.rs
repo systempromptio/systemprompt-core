@@ -14,5 +14,5 @@
 #![allow(clippy::all)]
 
 mod cli_settings;
-mod requirements;
+mod descriptor;
 mod shared;

@@ -15,7 +15,7 @@ pub mod tenant;
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
 use crate::cli_settings::CliConfig;
-use crate::requirements::{CommandRequirements, HasRequirements};
+use crate::descriptor::{CommandDescriptor, DescribeCommand};
 use anyhow::Result;
 use clap::Subcommand;
 
@@ -85,19 +85,19 @@ pub enum CloudCommands {
     Domain(domain::DomainCommands),
 }
 
-impl HasRequirements for CloudCommands {
-    fn requirements(&self) -> CommandRequirements {
+impl DescribeCommand for CloudCommands {
+    fn descriptor(&self) -> CommandDescriptor {
         match self {
             Self::Sync {
                 command: Some(sync::SyncCommands::Local(_)),
-            } => CommandRequirements::PROFILE_SECRETS_AND_PATHS,
+            } => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
-                CommandRequirements::PROFILE_AND_SECRETS
+                CommandDescriptor::PROFILE_AND_SECRETS
             },
             Self::Status | Self::Restart { .. } | Self::Domain { .. } => {
-                CommandRequirements::PROFILE_ONLY
+                CommandDescriptor::PROFILE_ONLY
             },
-            _ => CommandRequirements::NONE,
+            _ => CommandDescriptor::NONE,
         }
     }
 }
