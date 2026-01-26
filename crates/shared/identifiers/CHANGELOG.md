@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.13] - 2026-01-26
+
+### Added
+- Add `PlaybookId` typed identifier for playbook domain type
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

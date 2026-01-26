@@ -100,7 +100,7 @@ pub async fn ensure_task_exists(
                     "Auto-created replacement context for invalid context_id"
                 );
                 new_context_id
-            }
+            },
         }
     };
 

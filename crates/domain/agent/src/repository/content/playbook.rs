@@ -198,7 +198,8 @@ impl PlaybookRepository {
         let playbook_id_str = playbook_id.as_str();
 
         sqlx::query!(
-            "UPDATE agent_playbooks SET name = $1, description = $2, instructions = $3, enabled = $4,
+            "UPDATE agent_playbooks SET name = $1, description = $2, instructions = $3, enabled = \
+             $4,
              tags = $5, updated_at = CURRENT_TIMESTAMP
              WHERE playbook_id = $6",
             playbook.name,

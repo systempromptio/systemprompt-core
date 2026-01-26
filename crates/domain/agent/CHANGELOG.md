@@ -1,6 +1,16 @@
 # Changelog
 
-## [0.1.0] - 2026-01-26
+## [0.0.13] - 2026-01-26
+
+### Added
+- Add Playbook domain type with `Playbook` model, `PlaybookRow`, and `PlaybookMetadata`
+- Add `PlaybookRepository` with full CRUD operations and category filtering
+- Add `PlaybookIngestionService` for parsing markdown files with YAML frontmatter
+- Add `PlaybookService` for loading playbooks and listing metadata
+- Add `agent_playbooks` database schema with category/domain organization
+- Register playbook schema in `AgentExtension`
+
+## [0.0.12] - 2026-01-26
 
 ### Fixed
 - Auto-create replacement context when MCP tool call has invalid/stale context_id instead of failing with "Context validation failed"

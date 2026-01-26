@@ -32,7 +32,13 @@ impl PlaybookIngestionService {
 
         for (file_path, category, domain) in playbook_files {
             match self
-                .ingest_playbook(&file_path, &category, &domain, source_id.clone(), override_existing)
+                .ingest_playbook(
+                    &file_path,
+                    &category,
+                    &domain,
+                    source_id.clone(),
+                    override_existing,
+                )
                 .await
             {
                 Ok(_) => {
@@ -112,7 +118,9 @@ impl PlaybookIngestionService {
             .is_some()
         {
             if override_existing {
-                self.playbook_repo.update(&playbook.playbook_id, &playbook).await?;
+                self.playbook_repo
+                    .update(&playbook.playbook_id, &playbook)
+                    .await?;
             }
         } else {
             self.playbook_repo.create(&playbook).await?;
@@ -126,19 +134,26 @@ impl PlaybookIngestionService {
 
         let mut playbook_files = Vec::new();
 
-        for entry in WalkDir::new(dir).min_depth(2).max_depth(2).into_iter().filter_map(|e| {
-            e.map_err(|err| {
-                tracing::debug!(error = %err, "Failed to read directory entry, skipping");
-                err
+        for entry in WalkDir::new(dir)
+            .min_depth(2)
+            .max_depth(2)
+            .into_iter()
+            .filter_map(|e| {
+                e.map_err(|err| {
+                    tracing::debug!(error = %err, "Failed to read directory entry, skipping");
+                    err
+                })
+                .ok()
             })
-            .ok()
-        }) {
+        {
             if entry.file_type().is_file() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "md" {
                         if let (Some(category_dir), Some(file_stem)) = (
-                            path.parent().and_then(|p| p.file_name()).and_then(|n| n.to_str()),
+                            path.parent()
+                                .and_then(|p| p.file_name())
+                                .and_then(|n| n.to_str()),
                             path.file_stem().and_then(|n| n.to_str()),
                         ) {
                             playbook_files.push((

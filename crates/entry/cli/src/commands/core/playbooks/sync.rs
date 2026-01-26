@@ -33,7 +33,10 @@ pub struct SyncArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult<PlaybookSyncOutput>> {
+pub async fn execute(
+    args: SyncArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<PlaybookSyncOutput>> {
     CliService::section("Playbooks Sync");
 
     let spinner = CliService::spinner("Connecting to database...");

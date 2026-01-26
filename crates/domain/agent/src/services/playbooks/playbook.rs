@@ -55,7 +55,10 @@ impl PlaybookService {
 
     pub async fn list_playbook_ids(&self) -> Result<Vec<String>> {
         let playbooks = self.playbook_repo.list_enabled().await?;
-        Ok(playbooks.into_iter().map(|p| p.playbook_id.to_string()).collect())
+        Ok(playbooks
+            .into_iter()
+            .map(|p| p.playbook_id.to_string())
+            .collect())
     }
 
     pub async fn load_playbook_metadata(&self, playbook_id: &str) -> Result<PlaybookMetadata> {
