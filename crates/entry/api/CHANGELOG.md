@@ -9,6 +9,7 @@
 ### Added
 - Fan out engagement metrics from `PageExit` events in analytics routes
 - Batch analytics event processing with engagement fan-out
+- Session validation in `JwtContextExtractor` to auto-create missing sessions for OAuth tokens issued before session persistence fix
 
 ## [0.0.3] - 2026-01-22
 

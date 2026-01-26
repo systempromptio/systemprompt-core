@@ -5,6 +5,7 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, SessionSource, UserId};
+use systemprompt_traits::AnalyticsProvider;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -84,13 +85,37 @@ impl SessionMiddleware {
                 let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
                     if let Some(token) = token_result {
                         if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
-                            (
-                                jwt_context.session_id,
-                                jwt_context.user_id,
-                                token,
-                                None,
-                                None,
-                            )
+                            let session_exists = self
+                                .analytics_service
+                                .find_session_by_id(&jwt_context.session_id)
+                                .await
+                                .ok()
+                                .flatten()
+                                .is_some();
+
+                            if session_exists {
+                                (
+                                    jwt_context.session_id,
+                                    jwt_context.user_id,
+                                    token,
+                                    None,
+                                    None,
+                                )
+                            } else {
+                                tracing::info!(
+                                    old_session_id = %jwt_context.session_id,
+                                    user_id = %jwt_context.user_id,
+                                    "JWT valid but session missing, refreshing with new session"
+                                );
+                                let (sid, uid, new_token, _, fp) = self
+                                    .refresh_session_for_user(
+                                        &jwt_context.user_id,
+                                        headers,
+                                        &uri,
+                                    )
+                                    .await?;
+                                (sid, uid, new_token.clone(), Some(new_token), Some(fp))
+                            }
                         } else {
                             let (sid, uid, token, is_new, fp) =
                                 self.create_new_session(headers, &uri, &method).await?;
@@ -173,6 +198,51 @@ impl SessionMiddleware {
                 tracing::error!(error = %e, "Failed to create anonymous session");
                 ApiError::internal_error("Service temporarily unavailable")
             })
+    }
+
+    async fn refresh_session_for_user(
+        &self,
+        user_id: &UserId,
+        headers: &http::HeaderMap,
+        uri: &http::Uri,
+    ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
+        let session_id = self
+            .session_creation_service
+            .create_authenticated_session(user_id, headers, SessionSource::Web)
+            .await
+            .map_err(|e| {
+                tracing::error!(error = %e, user_id = %user_id, "Failed to create session for user");
+                ApiError::internal_error("Failed to refresh session")
+            })?;
+
+        let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+            tracing::error!(error = %e, "Failed to get JWT secret during session refresh");
+            ApiError::internal_error("Failed to refresh session")
+        })?;
+
+        let config = systemprompt_models::Config::get().map_err(|e| {
+            tracing::error!(error = %e, "Failed to get config during session refresh");
+            ApiError::internal_error("Failed to refresh session")
+        })?;
+
+        let token = systemprompt_oauth::services::generation::generate_anonymous_jwt(
+            user_id.as_str(),
+            session_id.as_str(),
+            &ClientId::new("sp_web".to_string()),
+            &systemprompt_oauth::services::JwtSigningParams {
+                secret: jwt_secret,
+                issuer: &config.jwt_issuer,
+            },
+        )
+        .map_err(|e| {
+            tracing::error!(error = %e, "Failed to generate JWT during session refresh");
+            ApiError::internal_error("Failed to refresh session")
+        })?;
+
+        let analytics = self.analytics_service.extract_analytics(headers, Some(uri));
+        let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
+
+        Ok((session_id, user_id.clone(), token, true, fingerprint))
     }
 
     fn should_skip_session_tracking(path: &str) -> bool {

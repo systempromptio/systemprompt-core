@@ -4,7 +4,7 @@ use crate::repository::task::TaskRepository;
 use crate::services::MessageService;
 use rmcp::ErrorData as McpError;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, MessageId, TaskId};
+use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{Config, TaskMetadata};
 
 #[derive(Debug)]
@@ -230,9 +230,9 @@ pub async fn save_messages_for_tool_execution(
     tool_name: &str,
     tool_result: &str,
     artifact: Option<&Artifact>,
-    user_id: &systemprompt_identifiers::UserId,
-    session_id: &systemprompt_identifiers::SessionId,
-    trace_id: &systemprompt_identifiers::TraceId,
+    user_id: &UserId,
+    session_id: &SessionId,
+    trace_id: &TraceId,
 ) -> Result<(), McpError> {
     let message_service = MessageService::new(db_pool.clone());
 
