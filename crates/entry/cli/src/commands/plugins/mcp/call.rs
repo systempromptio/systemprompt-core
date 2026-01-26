@@ -5,7 +5,7 @@ use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use rmcp::model::{
-    CallToolRequestParam, ClientCapabilities, ClientInfo, Implementation, ProtocolVersion,
+    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, ProtocolVersion,
     RawContent,
 };
 use rmcp::transport::streamable_http_client::{
@@ -187,6 +187,7 @@ async fn execute_tool_call(
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {
@@ -206,9 +207,11 @@ async fn execute_tool_call(
     .context("Connection timeout")?
     .context("Failed to connect to MCP server")?;
 
-    let params = CallToolRequestParam {
+    let params = CallToolRequestParams {
+        meta: None,
         name: tool_name.to_string().into(),
         arguments: arguments.and_then(|v| v.as_object().cloned()),
+        task: None,
     };
 
     let result = client
@@ -280,6 +283,7 @@ async fn list_available_tools(
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {

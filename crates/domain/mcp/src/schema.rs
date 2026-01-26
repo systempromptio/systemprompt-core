@@ -12,7 +12,7 @@ pub trait McpOutputSchema: JsonSchema {
             Err(e) => {
                 tracing::error!(error = %e, "Failed to serialize schema");
                 return JsonValue::Null;
-            }
+            },
         };
 
         if let Some(obj) = schema.as_object_mut() {

@@ -227,6 +227,7 @@ async fn list_tools_unauthenticated(
     let transport = StreamableHttpClientTransport::from_uri(url.as_str());
 
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {
@@ -296,6 +297,7 @@ async fn list_tools_authenticated(
     let transport = StreamableHttpClientTransport::from_config(config);
 
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {

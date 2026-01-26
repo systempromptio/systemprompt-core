@@ -65,7 +65,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
         })
     }
 
-    pub fn build_error(self, error_message: impl Into<String>) -> CallToolResult {
+    pub fn build_error(error_message: impl Into<String>) -> CallToolResult {
         let error_text = error_message.into();
 
         CallToolResult {

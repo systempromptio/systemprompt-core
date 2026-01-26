@@ -106,6 +106,7 @@ async fn connect_and_validate(
     let transport = StreamableHttpClientTransport::from_uri(url);
 
     let client_info = ClientInfo {
+        meta: None,
         protocol_version: ProtocolVersion::default(),
         capabilities: ClientCapabilities::default(),
         client_info: Implementation {
