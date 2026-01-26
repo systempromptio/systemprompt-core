@@ -5,7 +5,6 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_analytics::AnalyticsService;
 use systemprompt_identifiers::{AgentName, ClientId, ContextId, SessionId, SessionSource, UserId};
-use systemprompt_traits::AnalyticsProvider;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
@@ -13,6 +12,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::{HeaderExtractor, TokenExtractor};
+use systemprompt_traits::AnalyticsProvider;
 use systemprompt_users::{UserProviderImpl, UserService};
 use uuid::Uuid;
 
@@ -108,11 +108,7 @@ impl SessionMiddleware {
                                     "JWT valid but session missing, refreshing with new session"
                                 );
                                 let (sid, uid, new_token, _, fp) = self
-                                    .refresh_session_for_user(
-                                        &jwt_context.user_id,
-                                        headers,
-                                        &uri,
-                                    )
+                                    .refresh_session_for_user(&jwt_context.user_id, headers, &uri)
                                     .await?;
                                 (sid, uid, new_token.clone(), Some(new_token), Some(fp))
                             }

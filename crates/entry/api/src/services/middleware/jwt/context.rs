@@ -6,7 +6,9 @@ use std::sync::Arc;
 
 use crate::services::middleware::context::ContextExtractor;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{AgentName, ContextId, SessionId, SessionSource, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{
+    AgentName, ContextId, SessionId, SessionSource, TaskId, TraceId, UserId,
+};
 use systemprompt_models::execution::context::{ContextExtractionError, RequestContext};
 use systemprompt_security::{HeaderExtractor, TokenExtractor};
 use systemprompt_traits::{AnalyticsProvider, CreateSessionInput};
@@ -215,7 +217,8 @@ impl JwtContextExtractor {
         }
 
         self.validate_user_exists(&jwt_context, "").await?;
-        self.validate_session_exists(&jwt_context, headers, "").await?;
+        self.validate_session_exists(&jwt_context, headers, "")
+            .await?;
 
         let session_id = headers
             .get("x-session-id")

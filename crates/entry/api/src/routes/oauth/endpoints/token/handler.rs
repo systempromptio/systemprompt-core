@@ -254,11 +254,12 @@ async fn handle_client_credentials_grant(
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let token_response = generate_client_tokens(&repo, &client_id, request.scope.as_deref(), state)
-            .await
-            .map_err(|e| TokenError::ServerError {
-                message: e.to_string(),
-            })?;
+        let token_response =
+            generate_client_tokens(&repo, &client_id, request.scope.as_deref(), state)
+                .await
+                .map_err(|e| TokenError::ServerError {
+                    message: e.to_string(),
+                })?;
 
         tracing::info!(
             grant_type = "client_credentials",

@@ -7,12 +7,12 @@ use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
-use systemprompt_traits::{CreateSessionInput, SessionAnalytics};
 use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{generate_jwt, JwtConfig, JwtSigningParams};
 use systemprompt_oauth::OAuthState;
+use systemprompt_traits::{CreateSessionInput, SessionAnalytics};
 
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,
