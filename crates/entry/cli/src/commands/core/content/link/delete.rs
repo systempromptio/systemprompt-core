@@ -1,5 +1,6 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDeleteOutput;
+use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -23,19 +24,14 @@ pub async fn execute(
 ) -> Result<CommandResult<LinkDeleteOutput>> {
     let link_id = LinkId::new(args.link_id.clone());
 
-    if !args.yes && config.is_interactive() {
+    if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete link: {}",
             args.link_id
         ));
-        if !CliService::confirm("Are you sure you want to continue?")? {
-            return Err(anyhow!("Operation cancelled"));
-        }
-    } else if !args.yes {
-        return Err(anyhow!(
-            "Use --yes to confirm deletion in non-interactive mode"
-        ));
     }
+
+    require_confirmation("Are you sure you want to continue?", args.yes, config)?;
 
     let ctx = AppContext::new().await?;
     let service = LinkGenerationService::new(ctx.db_pool())?;

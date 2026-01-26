@@ -8,6 +8,7 @@ use systemprompt_models::ProfileBootstrap;
 use super::helpers::{load_profile_for_edit, save_profile};
 use super::{ExportArgs, ImportArgs};
 use crate::cli_settings::OutputFormat;
+use crate::interactive::require_confirmation;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -45,10 +46,6 @@ pub fn execute_export(args: &ExportArgs, config: &CliConfig) -> Result<()> {
 }
 
 pub fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<()> {
-    if !args.yes && !config.is_interactive() {
-        bail!("--yes is required in non-interactive mode");
-    }
-
     let path = Path::new(&args.file);
     if !path.exists() {
         bail!("File not found: {}", args.file);
@@ -69,13 +66,10 @@ pub fn execute_import(args: &ImportArgs, config: &CliConfig) -> Result<()> {
             .with_context(|| format!("Failed to parse YAML from: {}", args.file))?
     };
 
-    if !args.yes && config.is_interactive() {
+    if config.is_interactive() && !args.yes {
         CliService::warning(&format!("This will import rate limits from {}", args.file));
-        if !CliService::confirm("Proceed with import?")? {
-            CliService::info("Import cancelled");
-            return Ok(());
-        }
     }
+    require_confirmation("Proceed with import?", args.yes, config)?;
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;

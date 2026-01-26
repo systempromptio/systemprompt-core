@@ -2,11 +2,12 @@ use anyhow::{anyhow, Result};
 use chrono::Utc;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
 use super::duration::parse_duration;
 use super::LogCleanupOutput;
+use crate::interactive::require_confirmation;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -73,20 +74,11 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
         return Ok(());
     }
 
-    if !args.yes {
-        if config.is_interactive() {
-            let msg = format!(
-                "Delete logs older than {}? This cannot be undone.",
-                cutoff_str
-            );
-            if !CliService::confirm(&msg)? {
-                CliService::info("Cancelled");
-                return Ok(());
-            }
-        } else {
-            return Err(anyhow!("--yes is required in non-interactive mode"));
-        }
-    }
+    require_confirmation(
+        &format!("Delete logs older than {}? This cannot be undone.", cutoff_str),
+        args.yes,
+        config,
+    )?;
 
     let deleted_count = service
         .cleanup_old_logs(cutoff_date)

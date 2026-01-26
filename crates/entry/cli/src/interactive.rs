@@ -138,3 +138,16 @@ pub fn prompt_input_with_default(
 
     Ok(input)
 }
+
+pub fn confirm_optional(message: &str, default: bool, config: &CliConfig) -> Result<bool> {
+    if !config.is_interactive() {
+        return Ok(default);
+    }
+
+    let confirmed = Confirm::with_theme(&ColorfulTheme::default())
+        .with_prompt(message)
+        .default(default)
+        .interact()?;
+
+    Ok(confirmed)
+}

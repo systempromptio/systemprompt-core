@@ -8,6 +8,7 @@ use super::helpers::{
 };
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
 use crate::cli_settings::OutputFormat;
+use crate::interactive::require_confirmation;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -100,22 +101,15 @@ fn get_preset_description(name: &str) -> Result<String> {
 }
 
 fn execute_preset_apply(args: &PresetApplyArgs, config: &CliConfig) -> Result<()> {
-    if !args.yes && !config.is_interactive() {
-        bail!("--yes is required in non-interactive mode");
-    }
-
     let preset_config = get_preset_config(&args.name)?;
 
-    if !args.yes && config.is_interactive() {
+    if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will apply the '{}' preset to rate limits",
             args.name
         ));
-        if !CliService::confirm("Proceed with preset application?")? {
-            CliService::info("Preset application cancelled");
-            return Ok(());
-        }
     }
+    require_confirmation("Proceed with preset application?", args.yes, config)?;
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;

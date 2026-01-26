@@ -1,5 +1,6 @@
 use super::types::DeleteOutput;
 use crate::cli_settings::CliConfig;
+use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
 use anyhow::{anyhow, Result};
 use clap::Args;
@@ -63,19 +64,14 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResu
         return Ok(CommandResult::card(output).with_title("Content Delete (Dry Run)"));
     }
 
-    if !args.yes && config.is_interactive() {
+    if config.is_interactive() && !args.yes {
         CliService::warning(&format!(
             "This will permanently delete content: {}",
             args.identifier
         ));
-        if !CliService::confirm("Are you sure you want to continue?")? {
-            return Err(anyhow!("Operation cancelled"));
-        }
-    } else if !args.yes {
-        return Err(anyhow!(
-            "Use --yes to confirm deletion in non-interactive mode"
-        ));
     }
+
+    require_confirmation("Are you sure you want to continue?", args.yes, config)?;
 
     repo.delete(&content.id).await?;
 

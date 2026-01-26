@@ -1,4 +1,5 @@
 use crate::cli_settings::CliConfig;
+use crate::interactive::confirm_optional;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use systemprompt_database::install_extension_schemas;
@@ -121,9 +122,8 @@ async fn handle_port_conflict(
         CliService::warning(&format!("Port {} is already in use by PID {}", port, pid));
     }
 
-    let should_kill = kill_port_process
-        || (config.is_interactive()
-            && CliService::confirm(&format!("Kill process {} and restart?", pid)).unwrap_or(false));
+    let should_kill =
+        kill_port_process || confirm_optional(&format!("Kill process {} and restart?", pid), false, config)?;
 
     if should_kill {
         if events.is_none() {

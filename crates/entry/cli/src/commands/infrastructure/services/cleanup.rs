@@ -1,4 +1,5 @@
 use crate::cli_settings::CliConfig;
+use crate::interactive::require_confirmation;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
@@ -60,20 +61,12 @@ pub async fn execute(yes: bool, dry_run: bool, config: &CliConfig) -> Result<()>
         return Ok(());
     }
 
-    if !yes && config.is_interactive() {
-        let service_count = running_services.len() + usize::from(api_pid.is_some());
-        if !CliService::confirm(&format!(
-            "This will stop {} service(s). Continue?",
-            service_count
-        ))? {
-            CliService::info("Cleanup cancelled");
-            return Ok(());
-        }
-    } else if !yes && !config.is_interactive() {
-        return Err(anyhow::anyhow!(
-            "Cleanup requires --yes flag in non-interactive mode"
-        ));
-    }
+    let service_count = running_services.len() + usize::from(api_pid.is_some());
+    require_confirmation(
+        &format!("This will stop {} service(s). Continue?", service_count),
+        yes,
+        config,
+    )?;
 
     let mut cleaned = 0;
 
