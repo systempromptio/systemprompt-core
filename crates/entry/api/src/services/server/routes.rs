@@ -30,15 +30,21 @@ pub fn configure_routes(
 
     let rate_config = &ctx.config().rate_limits;
 
-    let jwt_extractor = JwtContextExtractor::new(
-        systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
-            LoaderError::InitializationFailed {
-                extension: "jwt".to_string(),
-                message: e.to_string(),
-            }
-        })?,
-        ctx.db_pool(),
-    );
+    let jwt_extractor = {
+        let extractor = JwtContextExtractor::new(
+            systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
+                LoaderError::InitializationFailed {
+                    extension: "jwt".to_string(),
+                    message: e.to_string(),
+                }
+            })?,
+            ctx.db_pool(),
+        );
+        match ctx.analytics_provider() {
+            Some(analytics) => extractor.with_analytics_provider(analytics),
+            None => extractor,
+        }
+    };
 
     let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
     let user_middleware = ContextMiddleware::user_only(jwt_extractor.clone());

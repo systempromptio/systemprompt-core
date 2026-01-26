@@ -4,6 +4,7 @@
 
 ### Changed
 - Pass JWT provider to OAuth validation in A2A request handler
+- Use short-form type imports in `task_helper.rs`
 
 ### Fixed
 - Filter null JSON values in `ArtifactBuilder::build_artifacts()` to prevent errors when tools return `Some(Value::Null)`
