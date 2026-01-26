@@ -2,10 +2,11 @@ mod args;
 mod bootstrap;
 pub mod cli_settings;
 mod commands;
+pub mod descriptor;
 pub mod environment;
+pub mod interactive;
 pub mod paths;
 mod presentation;
-pub mod descriptor;
 mod routing;
 pub mod session;
 pub mod shared;
@@ -72,13 +73,14 @@ async fn init_profile_and_route(
         && !profile.database.external_db_access
         && !matches!(
             cli.command.as_ref(),
-            Some(args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_)))
+            Some(
+                args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_))
+            )
         )
     {
         bail!(
-            "Cloud profile '{}' selected but this command doesn't support remote \
-             execution.\nUse a local profile with --profile <name> or enable external \
-             database access.",
+            "Cloud profile '{}' selected but this command doesn't support remote execution.\nUse \
+             a local profile with --profile <name> or enable external database access.",
             profile.name
         );
     }
@@ -107,10 +109,7 @@ async fn init_profile_and_route(
     Ok(())
 }
 
-async fn try_remote_routing(
-    cli: &args::Cli,
-    profile: &systemprompt_models::Profile,
-) -> Result<()> {
+async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Profile) -> Result<()> {
     let is_cloud = profile.target.is_cloud();
 
     match routing::determine_execution_target() {
@@ -121,8 +120,7 @@ async fn try_remote_routing(
         }) => {
             let args = args::reconstruct_args(cli);
             let exit_code =
-                routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300)
-                    .await?;
+                routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300).await?;
             #[allow(clippy::exit)]
             std::process::exit(exit_code);
         },
@@ -138,10 +136,7 @@ async fn try_remote_routing(
     Ok(())
 }
 
-fn require_external_db_access(
-    profile: &systemprompt_models::Profile,
-    reason: &str,
-) -> Result<()> {
+fn require_external_db_access(profile: &systemprompt_models::Profile, reason: &str) -> Result<()> {
     if profile.database.external_db_access {
         tracing::debug!(
             profile_name = %profile.name,
@@ -151,18 +146,15 @@ fn require_external_db_access(
         Ok(())
     } else {
         bail!(
-            "Cloud profile '{}' requires remote execution but {}.\n\
-             Run 'systemprompt admin session login' to authenticate.",
+            "Cloud profile '{}' requires remote execution but {}.\nRun 'systemprompt admin \
+             session login' to authenticate.",
             profile.name,
             reason
         )
     }
 }
 
-async fn dispatch_command(
-    command: Option<args::Commands>,
-    config: &CliConfig,
-) -> Result<()> {
+async fn dispatch_command(command: Option<args::Commands>, config: &CliConfig) -> Result<()> {
     match command {
         Some(args::Commands::Core(cmd)) => core::execute(cmd, config).await?,
         Some(args::Commands::Infra(cmd)) => infrastructure::execute(cmd, config).await?,
@@ -195,9 +187,13 @@ async fn run_with_database_url(
 
     match command {
         Some(args::Commands::Core(cmd)) => core::execute_with_db(cmd, &db_ctx, config).await,
-        Some(args::Commands::Infra(cmd)) => infrastructure::execute_with_db(cmd, &db_ctx, config).await,
+        Some(args::Commands::Infra(cmd)) => {
+            infrastructure::execute_with_db(cmd, &db_ctx, config).await
+        },
         Some(args::Commands::Admin(cmd)) => admin::execute_with_db(cmd, &db_ctx, config).await,
-        Some(args::Commands::Analytics(cmd)) => analytics::execute_with_db(cmd, &db_ctx, config).await,
+        Some(args::Commands::Analytics(cmd)) => {
+            analytics::execute_with_db(cmd, &db_ctx, config).await
+        },
         Some(_) => {
             bail!("This command requires full profile initialization. Remove --database-url flag.")
         },

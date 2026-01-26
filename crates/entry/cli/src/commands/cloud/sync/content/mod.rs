@@ -1,5 +1,6 @@
 mod display;
 
+use crate::cli_settings::CliConfig;
 use crate::cloud::sync::ContentSyncArgs;
 use anyhow::{Context, Result};
 use dialoguer::{Confirm, Select};
@@ -54,16 +55,16 @@ async fn create_db_pool(database_url: Option<&str>) -> Result<DbPool> {
     Ok(Arc::new(database))
 }
 
-pub async fn execute(args: ContentSyncArgs) -> Result<()> {
+pub async fn execute(args: ContentSyncArgs, config: &CliConfig) -> Result<()> {
     CliService::section("Content Sync");
 
     let spinner = CliService::spinner("Connecting to database...");
     let db = create_db_pool(args.database_url.as_deref()).await?;
     spinner.finish_and_clear();
 
-    let config = load_content_config()?;
+    let content_config = load_content_config()?;
 
-    let sources: Vec<(String, ContentSourceConfigRaw)> = config
+    let sources: Vec<(String, ContentSourceConfigRaw)> = content_config
         .content_sources
         .into_iter()
         .filter(|(_, source)| source.enabled)
@@ -126,6 +127,9 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         Some(crate::cloud::sync::CliLocalSyncDirection::ToDisk) => LocalSyncDirection::ToDisk,
         Some(crate::cloud::sync::CliLocalSyncDirection::ToDb) => LocalSyncDirection::ToDatabase,
         None => {
+            if !config.is_interactive() {
+                anyhow::bail!("--direction is required in non-interactive mode");
+            }
             if let Some(dir) = prompt_sync_direction()? {
                 dir
             } else {
@@ -140,7 +144,7 @@ pub async fn execute(args: ContentSyncArgs) -> Result<()> {
         return Ok(());
     }
 
-    if args.direction.is_none() {
+    if !args.yes && config.is_interactive() {
         let confirmed = Confirm::new()
             .with_prompt("Proceed with sync?")
             .default(false)

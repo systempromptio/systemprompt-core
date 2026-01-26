@@ -4,7 +4,8 @@ use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
 
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
@@ -49,7 +50,7 @@ pub fn execute(
             )
         })?;
 
-    let name = resolve_input(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, prompt_name)?;
 
     if templates_config.templates.contains_key(&name) {
         return Err(anyhow!("Template '{}' already exists", name));

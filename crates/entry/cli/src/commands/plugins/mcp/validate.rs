@@ -6,7 +6,8 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
@@ -47,7 +48,7 @@ pub async fn execute(
     let servers_to_validate: Vec<String> = if args.all {
         services_config.mcp_servers.keys().cloned().collect()
     } else {
-        let service = resolve_input(args.service, "service", config, || {
+        let service = resolve_required(args.service, "service", config, || {
             prompt_server_selection(&services_config)
         })?;
 

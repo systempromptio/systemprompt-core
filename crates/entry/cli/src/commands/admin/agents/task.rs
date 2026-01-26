@@ -8,7 +8,8 @@ use systemprompt_agent::models::a2a::protocol::TaskQueryParams;
 use systemprompt_models::a2a::Task;
 
 use crate::session::get_or_create_session;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -39,11 +40,11 @@ pub struct TaskArgs {
 pub async fn execute(args: TaskArgs, config: &CliConfig) -> Result<CommandResult<Task>> {
     let session_ctx = get_or_create_session(config).await?;
 
-    let agent = resolve_input(args.agent, "agent", config, || {
+    let agent = resolve_required(args.agent, "agent", config, || {
         Err(anyhow!("Agent name is required"))
     })?;
 
-    let task_id = resolve_input(args.task_id, "task-id", config, || {
+    let task_id = resolve_required(args.task_id, "task-id", config, || {
         Err(anyhow!("Task ID is required. Use --task-id"))
     })?;
 

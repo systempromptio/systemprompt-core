@@ -117,6 +117,15 @@ pub fn resolve_profile_with_data(
 }
 
 fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolutionError> {
+    let ctx = ProjectContext::discover();
+    let profiles_dir = ctx.profiles_dir();
+    let target_dir = profiles_dir.join(name);
+    let config_path = ProfilePath::Config.resolve(&target_dir);
+
+    if config_path.exists() {
+        return Ok(Some(config_path));
+    }
+
     let profiles = discover_profiles()?;
     Ok(profiles
         .into_iter()

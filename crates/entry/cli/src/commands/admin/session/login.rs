@@ -9,7 +9,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
 use systemprompt_database::{Database, DbPool};
@@ -44,7 +45,6 @@ pub struct LoginOutput {
     pub user_id: systemprompt_identifiers::UserId,
     pub email: String,
     pub session_id: SessionId,
-    pub token: String,
     pub expires_in_hours: i64,
 }
 
@@ -79,7 +79,7 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         }
     }
 
-    let email = resolve_input(args.email, "email", config, || {
+    let email = resolve_required(args.email, "email", config, || {
         Err(anyhow::anyhow!(
             "Admin email is required. Use --email or set SYSTEMPROMPT_ADMIN_EMAIL"
         ))
@@ -163,7 +163,6 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         user_id: admin_user.id.clone(),
         email: admin_user.email.clone(),
         session_id,
-        token: session_token.redacted(),
         expires_in_hours: args.duration_hours,
     };
 
@@ -198,7 +197,6 @@ fn try_use_existing_session(
         user_id: session.user_id.clone(),
         email: session.user_email.to_string(),
         session_id: session.session_id.clone(),
-        token: session.session_token.redacted(),
         expires_in_hours: 24,
     };
 
@@ -326,7 +324,7 @@ fn save_session_to_store(
         .build();
 
     store.upsert_session(session_key, cli_session);
-    store.set_active(session_key);
+    store.set_active_with_profile(session_key, profile_name_str);
     store.save(sessions_dir)?;
 
     tracing::debug!("Session saved to {}/index.json", sessions_dir.display());

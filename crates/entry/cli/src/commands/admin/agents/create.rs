@@ -7,7 +7,8 @@ use std::path::Path;
 
 use super::shared::AgentArgs;
 use super::types::AgentCreateOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
@@ -29,11 +30,11 @@ pub struct CreateArgs {
 }
 
 pub fn execute(args: CreateArgs, config: &CliConfig) -> Result<CommandResult<AgentCreateOutput>> {
-    let name = resolve_input(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, prompt_name)?;
 
     validate_agent_name(&name)?;
 
-    let port = resolve_input(args.agent.port, "port", config, prompt_port)?;
+    let port = resolve_required(args.agent.port, "port", config, prompt_port)?;
 
     validate_port(port)?;
 

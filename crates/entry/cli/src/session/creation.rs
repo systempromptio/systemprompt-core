@@ -171,11 +171,24 @@ pub(super) async fn create_local_session(
         CliService::key_value("User", &admin_user.email);
     }
 
-    let session_id = SessionId::generate();
+    let session_id = request_session_id(
+        &profile.server.api_external_url,
+        admin_user.id.as_str(),
+        &admin_user.email,
+    )
+    .await
+    .context(
+        "Failed to create session via API.\n\nEnsure the API server is running, or use \
+         'systemprompt admin session login' to create a session manually.",
+    )?;
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token =
-        generate_admin_token(&secrets.jwt_secret, &profile.security.issuer, &admin_user, &session_id)?;
+    let session_token = generate_admin_token(
+        &secrets.jwt_secret,
+        &profile.security.issuer,
+        &admin_user,
+        &session_id,
+    )?;
 
     if config.is_interactive() {
         CliService::success("Local session created");
@@ -234,8 +247,12 @@ pub(super) async fn create_session_for_tenant(
 
     let context_id =
         create_cli_context(db_pool, &admin_user, &session_id, profile_ctx.name).await?;
-    let session_token =
-        generate_admin_token(&secrets.jwt_secret, &profile.security.issuer, &admin_user, &session_id)?;
+    let session_token = generate_admin_token(
+        &secrets.jwt_secret,
+        &profile.security.issuer,
+        &admin_user,
+        &session_id,
+    )?;
 
     if config.is_interactive() {
         CliService::success("Session created");

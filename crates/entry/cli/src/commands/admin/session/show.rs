@@ -13,7 +13,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
         CliService::section("Sessions");
     }
 
-    display_all_sessions(&paths, config.profile_override.as_deref());
+    display_all_sessions(&paths);
 
     CliService::output("");
 
@@ -30,7 +30,7 @@ pub fn execute(config: &CliConfig) -> Result<()> {
     Ok(())
 }
 
-fn display_all_sessions(paths: &ResolvedPaths, profile_filter: Option<&str>) {
+fn display_all_sessions(paths: &ResolvedPaths) {
     let Ok(sessions_dir) = paths.sessions_dir() else {
         CliService::warning("No sessions found");
         return;
@@ -42,6 +42,7 @@ fn display_all_sessions(paths: &ResolvedPaths, profile_filter: Option<&str>) {
     };
 
     let active_key = store.active_key.clone();
+    let active_profile = store.active_profile_name.clone();
 
     if store.is_empty() && active_key.is_none() {
         CliService::warning("No sessions found");
@@ -51,12 +52,6 @@ fn display_all_sessions(paths: &ResolvedPaths, profile_filter: Option<&str>) {
     let mut displayed_active = false;
 
     for (key, session) in store.all_sessions() {
-        if let Some(filter) = profile_filter {
-            if session.profile_name.as_str() != filter {
-                continue;
-            }
-        }
-
         let is_active = active_key.as_ref() == Some(key);
         if is_active {
             displayed_active = true;
@@ -103,20 +98,20 @@ fn display_all_sessions(paths: &ResolvedPaths, profile_filter: Option<&str>) {
         }
     }
 
-    if !displayed_active {
-        if let Some(ref key_str) = active_key {
-            let display_key = if key_str == LOCAL_SESSION_KEY {
-                "local".to_string()
-            } else {
-                key_str
-                    .strip_prefix("tenant_")
-                    .map_or_else(|| key_str.clone(), String::from)
-            };
-            CliService::output(&format!("\n  {} (active) - no session", display_key));
-            CliService::warning(
-                "    Run 'systemprompt admin session login' to create a session for this profile.",
-            );
-        }
+    if !displayed_active && (active_key.is_some() || active_profile.is_some()) {
+        let display_name = active_profile.as_deref().unwrap_or_else(|| {
+            active_key.as_deref().map_or("unknown", |k| {
+                if k == LOCAL_SESSION_KEY {
+                    "local"
+                } else {
+                    k.strip_prefix("tenant_").unwrap_or(k)
+                }
+            })
+        });
+        CliService::output(&format!("\n  {} (active) - no session", display_name));
+        CliService::warning(
+            "    Run 'systemprompt admin session login' to create a session for this profile.",
+        );
     }
 }
 
@@ -127,10 +122,10 @@ fn display_routing_info(paths: &ResolvedPaths) -> Option<(String, &'static str)>
 
     let session = store.sessions.get(&active_key.as_storage_key());
 
-    let profile_name = session.map_or_else(
-        || "unknown".to_string(),
-        |s| s.profile_name.as_str().to_string(),
-    );
+    let profile_name = session
+        .map(|s| s.profile_name.as_str().to_string())
+        .or_else(|| store.active_profile_name.clone())
+        .unwrap_or_else(|| "unknown".to_string());
 
     CliService::key_value("Profile name", &profile_name);
 

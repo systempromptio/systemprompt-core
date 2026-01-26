@@ -14,6 +14,7 @@ impl CoreStatsRepository {
                     COUNT(*) as count
                 FROM user_sessions
                 WHERE started_at >= NOW() - INTERVAL '7 days'
+                  AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
                 GROUP BY browser
             ),
             total AS (
@@ -47,6 +48,7 @@ impl CoreStatsRepository {
                     COUNT(*) as count
                 FROM user_sessions
                 WHERE started_at >= NOW() - INTERVAL '7 days'
+                  AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
                 GROUP BY device_type
             ),
             total AS (
@@ -80,6 +82,7 @@ impl CoreStatsRepository {
                     COUNT(*) as count
                 FROM user_sessions
                 WHERE started_at >= NOW() - INTERVAL '7 days'
+                  AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
                 GROUP BY country
             ),
             total AS (
@@ -109,10 +112,10 @@ impl CoreStatsRepository {
             r#"
             SELECT
                 COUNT(*) as "total_requests!",
-                COUNT(*) FILTER (WHERE is_bot = true OR is_behavioral_bot = true) as "bot_requests!",
+                COUNT(*) FILTER (WHERE is_bot = true OR is_behavioral_bot = true OR is_scanner = true) as "bot_requests!",
                 COUNT(*) FILTER (WHERE is_bot = false AND is_scanner = false AND is_behavioral_bot = false) as "human_requests!",
                 CASE WHEN COUNT(*) > 0
-                    THEN (COUNT(*) FILTER (WHERE is_bot = true OR is_behavioral_bot = true)::float / COUNT(*)::float * 100.0)
+                    THEN (COUNT(*) FILTER (WHERE is_bot = true OR is_behavioral_bot = true OR is_scanner = true)::float / COUNT(*)::float * 100.0)
                     ELSE 0.0
                 END as "bot_percentage!"
             FROM user_sessions

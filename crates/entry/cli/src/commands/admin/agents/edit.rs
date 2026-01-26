@@ -7,7 +7,8 @@ use std::path::Path;
 
 use super::shared::{apply_set_value, AgentArgs};
 use super::types::AgentEditOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
@@ -44,7 +45,7 @@ pub struct EditArgs {
 pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<AgentEditOutput>> {
     let services_config = ConfigLoader::load().context("Failed to load services configuration")?;
 
-    let name = resolve_input(args.name, "name", config, || {
+    let name = resolve_required(args.name, "name", config, || {
         prompt_agent_selection(&services_config)
     })?;
 

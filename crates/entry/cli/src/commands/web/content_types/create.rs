@@ -2,7 +2,8 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::fs;
 
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
@@ -58,17 +59,17 @@ pub fn execute(
     let mut content_config: ContentConfigRaw = serde_yaml::from_str(&content)
         .with_context(|| format!("Failed to parse content config at {}", content_config_path))?;
 
-    let name = resolve_input(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, prompt_name)?;
 
     if content_config.content_sources.contains_key(&name) {
         return Err(anyhow!("Content type '{}' already exists", name));
     }
 
-    let path = resolve_input(args.path, "path", config, || prompt_path(&name))?;
-    let source_id = resolve_input(args.source_id, "source-id", config, || {
+    let path = resolve_required(args.path, "path", config, || prompt_path(&name))?;
+    let source_id = resolve_required(args.source_id, "source-id", config, || {
         prompt_source_id(&name)
     })?;
-    let category_id = resolve_input(args.category_id, "category-id", config, || {
+    let category_id = resolve_required(args.category_id, "category-id", config, || {
         prompt_category_id(&content_config)
     })?;
 

@@ -8,6 +8,8 @@ use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
+use crate::cli_settings::CliConfig;
+
 use super::{content, skills, ContentSyncArgs, SkillsSyncArgs};
 
 #[derive(Debug, Clone, Copy)]
@@ -24,7 +26,7 @@ pub struct ProfileSelection {
     pub profile: Profile,
 }
 
-pub async fn execute() -> Result<()> {
+pub async fn execute(config: &CliConfig) -> Result<()> {
     CliService::section("Sync Menu");
 
     let sync_type = select_sync_type()?;
@@ -33,8 +35,8 @@ pub async fn execute() -> Result<()> {
 
     match sync_type {
         SyncType::Push | SyncType::Pull => execute_cloud_sync(sync_type, &source).await,
-        SyncType::LocalContent => execute_local_content_sync(&source).await,
-        SyncType::LocalSkills => execute_local_skills_sync(&source).await,
+        SyncType::LocalContent => execute_local_content_sync(&source, config).await,
+        SyncType::LocalSkills => execute_local_skills_sync(&source, config).await,
     }
 }
 
@@ -214,7 +216,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     Ok(())
 }
 
-async fn execute_local_content_sync(source: &ProfileSelection) -> Result<()> {
+async fn execute_local_content_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
     std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
 
     let args = ContentSyncArgs {
@@ -223,12 +225,13 @@ async fn execute_local_content_sync(source: &ProfileSelection) -> Result<()> {
         source: None,
         dry_run: false,
         delete_orphans: false,
+        yes: false,
     };
 
-    content::execute(args).await
+    content::execute(args, config).await
 }
 
-async fn execute_local_skills_sync(source: &ProfileSelection) -> Result<()> {
+async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
     std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
 
     let args = SkillsSyncArgs {
@@ -237,7 +240,8 @@ async fn execute_local_skills_sync(source: &ProfileSelection) -> Result<()> {
         skill: None,
         dry_run: false,
         delete_orphans: false,
+        yes: false,
     };
 
-    skills::execute(args).await
+    skills::execute(args, config).await
 }

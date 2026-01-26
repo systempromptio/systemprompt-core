@@ -31,6 +31,7 @@ impl TrafficAnalyticsRepository {
                 COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
+              AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
             GROUP BY referrer_source
             ORDER BY COUNT(*) DESC
             LIMIT $3
@@ -58,6 +59,7 @@ impl TrafficAnalyticsRepository {
                 COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
+              AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
             GROUP BY country
             ORDER BY COUNT(*) DESC
             LIMIT $3
@@ -86,6 +88,7 @@ impl TrafficAnalyticsRepository {
                 COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
+              AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
             GROUP BY device_type, browser
             ORDER BY COUNT(*) DESC
             LIMIT $3
@@ -108,8 +111,8 @@ impl TrafficAnalyticsRepository {
             BotTotalsRow,
             r#"
             SELECT
-                COUNT(*) FILTER (WHERE is_bot = false OR is_bot IS NULL)::bigint as "human!",
-                COUNT(*) FILTER (WHERE is_bot = true)::bigint as "bot!"
+                COUNT(*) FILTER (WHERE is_bot = false AND is_behavioral_bot = false AND is_scanner = false)::bigint as "human!",
+                COUNT(*) FILTER (WHERE is_bot = true OR is_behavioral_bot = true OR is_scanner = true)::bigint as "bot!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
             "#,
@@ -144,7 +147,7 @@ impl TrafficAnalyticsRepository {
                 COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
-              AND is_bot = true
+              AND (is_bot = true OR is_behavioral_bot = true OR is_scanner = true)
             GROUP BY 1
             ORDER BY COUNT(*) DESC
             "#,

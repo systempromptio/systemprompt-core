@@ -8,7 +8,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::types::SkillCreateOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_agent::services::skills::SkillIngestionService;
 use systemprompt_database::Database;
@@ -56,7 +57,7 @@ pub async fn execute(
     args: CreateArgs,
     config: &CliConfig,
 ) -> Result<CommandResult<SkillCreateOutput>> {
-    let name = resolve_input(args.name, "name", config, prompt_name)?;
+    let name = resolve_required(args.name, "name", config, prompt_name)?;
     validate_skill_name(&name)?;
 
     let display_name = args.display_name.unwrap_or_else(|| {

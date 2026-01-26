@@ -6,7 +6,8 @@ use std::fs;
 use std::path::Path;
 
 use super::types::SkillEditOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::resolve_required;
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
@@ -39,7 +40,7 @@ pub struct EditArgs {
 pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<SkillEditOutput>> {
     let skills_path = get_skills_path()?;
 
-    let name = resolve_input(args.name.clone(), "name", config, || {
+    let name = resolve_required(args.name.clone(), "name", config, || {
         prompt_skill_selection(&skills_path)
     })?;
 

@@ -6,7 +6,8 @@ use std::path::Path;
 use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
-use crate::shared::{resolve_input, CommandResult};
+use crate::interactive::{require_confirmation, resolve_required};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::AgentState;
@@ -41,7 +42,7 @@ pub async fn execute(
     let agents_to_delete: Vec<String> = if args.all {
         services_config.agents.keys().cloned().collect()
     } else {
-        let name = resolve_input(args.name, "name", config, || {
+        let name = resolve_required(args.name, "name", config, || {
             prompt_agent_selection(&services_config)
         })?;
 
@@ -56,28 +57,13 @@ pub async fn execute(
         return Err(anyhow!("No agents to delete"));
     }
 
-    if !args.yes {
-        if !config.is_interactive() {
-            return Err(anyhow!(
-                "--yes is required to delete agents in non-interactive mode"
-            ));
-        }
+    let confirm_message = if args.all {
+        format!("Delete ALL {} agents?", agents_to_delete.len())
+    } else {
+        format!("Delete agent '{}'?", agents_to_delete[0])
+    };
 
-        let confirm_message = if args.all {
-            format!("Delete ALL {} agents?", agents_to_delete.len())
-        } else {
-            format!("Delete agent '{}'?", agents_to_delete[0])
-        };
-
-        if !CliService::confirm(&confirm_message)? {
-            CliService::info("Cancelled");
-            return Ok(CommandResult::text(AgentDeleteOutput {
-                deleted: vec![],
-                message: "Operation cancelled".to_string(),
-            })
-            .with_title("Delete Cancelled"));
-        }
-    }
+    require_confirmation(&confirm_message, args.yes, config)?;
 
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
     let services_dir = Path::new(&profile.paths.services);
