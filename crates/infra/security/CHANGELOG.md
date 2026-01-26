@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Fixed
+- Fix clippy warnings in security scanner module
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

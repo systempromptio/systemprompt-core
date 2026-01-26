@@ -1,10 +1,9 @@
 # Changelog
 
-## [0.0.3] - 2026-01-22
+## [0.0.11] - 2026-01-26
 
-### Fixed
-- Fix schema validation for VIEW-based schemas
-- Add migration system infrastructure
+### Changed
+- Improve CLI service output and prompts handling
 
 ## [0.0.3] - 2026-01-22
 

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Removed
+- Remove standalone secrets loader (now integrated into config system)
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

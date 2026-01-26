@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Centralize path resolution with `ResolvedPaths` struct
+- Extract `ExecutionEnvironment` for deployment detection
+- Unify `CommandDescriptor` trait replacing `HasRequirements`
+- Deduplicate session creation with shared helpers
+- Flatten `run()` pipeline and extract CLI args module
+
+### Fixed
+- Eliminate legacy session system, unify on `SessionStore`
+- `--profile` flag now properly overrides active session
+- Use `as_str()` instead of `to_string()` for session token in routing
+- Allow `JWT_SECRET` and `DATABASE_URL` to sync during deploy
+- Resolve session management bugs and improve CLI session UX
+- Fix clippy errors across workspace
+
+## [0.0.10] - 2026-01-25
+
+### Fixed
+- CLI session authentication bugs
+- Clippy nested or-patterns and formatting
+
 ## [0.0.9] - 2026-01-25
 
 ### Added
