@@ -41,8 +41,7 @@ impl IngestionService {
     ) -> Result<IngestionReport, ContentError> {
         let mut report = IngestionReport::new();
 
-        let scan_result =
-            scanner::scan_markdown_files(path, source.allowed_content_types, options.recursive);
+        let scan_result = scanner::scan_markdown_files(path, options.recursive);
         report.files_found = scan_result.files.len() + scan_result.errors.len();
         report.errors.extend(scan_result.errors);
         report.warnings.extend(scan_result.warnings);
@@ -87,8 +86,7 @@ impl IngestionService {
         dry_run: bool,
     ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = std::fs::read_to_string(path)?;
-        let (metadata, content_text) =
-            scanner::parse_frontmatter(&markdown_text, source.allowed_content_types)?;
+        let (metadata, content_text) = scanner::parse_frontmatter(&markdown_text)?;
 
         let resolved_category_id = metadata
             .category

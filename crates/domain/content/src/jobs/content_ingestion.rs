@@ -101,7 +101,7 @@ async fn process_single_source(
 
     let content_path = resolve_content_path(&config.path)?;
 
-    if let Some(err) = validate_source(name, &content_path, config) {
+    if let Some(err) = validate_source(name, &content_path) {
         stats.errors += 1;
         log_validation_error(&err);
         return Ok(());
@@ -124,31 +124,19 @@ fn resolve_content_path(path: &str) -> Result<PathBuf> {
 
 enum ValidationError {
     PathNotFound(PathBuf),
-    NoContentTypes(String),
 }
 
-fn validate_source(
-    name: &str,
-    path: &Path,
-    config: &ContentSourceConfigRaw,
-) -> Option<ValidationError> {
+fn validate_source(_name: &str, path: &Path) -> Option<ValidationError> {
     if !path.exists() {
         return Some(ValidationError::PathNotFound(path.to_path_buf()));
-    }
-    if config.allowed_content_types.is_empty() {
-        return Some(ValidationError::NoContentTypes(name.to_string()));
     }
     None
 }
 
-#[allow(clippy::cognitive_complexity)]
 fn log_validation_error(err: &ValidationError) {
     match err {
         ValidationError::PathNotFound(p) => {
             tracing::warn!(path = %p.display(), "Source path not found");
-        },
-        ValidationError::NoContentTypes(s) => {
-            tracing::error!(source = %s, "Content source has no allowed_content_types configured");
         },
     }
 }
@@ -160,12 +148,7 @@ async fn ingest_source(
 ) -> Result<IngestionReport, crate::ContentError> {
     let override_existing = config.indexing.is_some_and(|i| i.override_existing);
     let recursive = config.indexing.is_some_and(|i| i.recursive);
-    let allowed_types: Vec<&str> = config
-        .allowed_content_types
-        .iter()
-        .map(String::as_str)
-        .collect();
-    let source = IngestionSource::new(&config.source_id, &config.category_id, &allowed_types);
+    let source = IngestionSource::new(&config.source_id, &config.category_id);
 
     service
         .ingest_directory(

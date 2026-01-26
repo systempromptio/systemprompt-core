@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Remove `allowed_content_types` parameter from scanner and validation functions
+- Simplify content ingestion API by removing content type filtering at scan time
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

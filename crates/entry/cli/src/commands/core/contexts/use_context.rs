@@ -3,14 +3,14 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
-use systemprompt_cloud::CliSession;
+use systemprompt_cloud::{SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 use super::resolve::resolve_context;
 use super::types::ContextSwitchedOutput;
 use crate::cli_settings::CliConfig;
+use crate::paths::ResolvedPaths;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
 
@@ -36,16 +36,21 @@ pub async fn execute(
         .await
         .context("Failed to fetch context details")?;
 
-    let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
-    let session_path = cloud_paths.resolve(CloudPath::CliSession);
+    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
+    let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
-    let mut session = CliSession::load_from_path(&session_path)
-        .context("Failed to load session. Run 'systemprompt cloud login' first.")?;
+    let session_key = SessionKey::from_tenant_id(
+        session_ctx
+            .profile
+            .cloud
+            .as_ref()
+            .and_then(|c| c.tenant_id.as_deref()),
+    );
 
+    let mut session = session_ctx.session.clone();
     session.set_context_id(context_id.clone());
-    session
-        .save_to_path(&session_path)
-        .context("Failed to save session")?;
+    store.upsert_session(&session_key, session);
+    store.save(&sessions_dir)?;
 
     let output = ContextSwitchedOutput {
         id: context_id.clone(),

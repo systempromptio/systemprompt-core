@@ -25,12 +25,6 @@ pub struct IngestArgs {
     #[arg(long, help = "Category ID")]
     pub category: Option<String>,
 
-    #[arg(
-        long,
-        help = "Allowed content types (comma-separated, overrides config)"
-    )]
-    pub allowed_types: Option<String>,
-
     #[arg(long, help = "Scan recursively")]
     pub recursive: bool,
 
@@ -70,14 +64,12 @@ pub async fn execute(args: IngestArgs, _config: &CliConfig) -> Result<IngestResu
     let ctx = AppContext::new().await?;
     let service = IngestionService::new(ctx.db_pool())?;
 
-    let allowed_types = resolve_allowed_types(&args, source_id)?;
     let category_id_str = resolve_category_id(&args, source_id);
     let indexing_options = resolve_indexing_options(&args, source_id);
 
     let source_id_typed = SourceId::new(source_id);
     let category_id = CategoryId::new(category_id_str);
-    let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
-    let source = IngestionSource::new(&source_id_typed, &category_id, &allowed_types_refs);
+    let source = IngestionSource::new(&source_id_typed, &category_id);
 
     let options = IngestionOptions::default()
         .with_recursive(indexing_options.recursive)
@@ -151,7 +143,6 @@ async fn execute_all_sources(args: &IngestArgs) -> Result<IngestResult> {
             continue;
         }
 
-        let allowed_types = source_config.allowed_content_types.clone();
         let category_id_str = source_config.category_id.as_str().to_string();
         let indexing = source_config
             .indexing
@@ -159,8 +150,7 @@ async fn execute_all_sources(args: &IngestArgs) -> Result<IngestResult> {
 
         let source_id = SourceId::new(&name);
         let category_id = CategoryId::new(category_id_str);
-        let allowed_types_refs: Vec<&str> = allowed_types.iter().map(String::as_str).collect();
-        let source = IngestionSource::new(&source_id, &category_id, &allowed_types_refs);
+        let source = IngestionSource::new(&source_id, &category_id);
 
         let options = IngestionOptions::default()
             .with_recursive(args.recursive || indexing.recursive)
@@ -225,25 +215,6 @@ fn resolve_directory(args: &IngestArgs, source_id: &str) -> Result<PathBuf> {
         .to_path_buf();
 
     Ok(content_base.join(&source_config.path))
-}
-
-fn resolve_allowed_types(args: &IngestArgs, source_id: &str) -> Result<Vec<String>> {
-    if let Some(types) = &args.allowed_types {
-        return Ok(types.split(',').map(|t| t.trim().to_string()).collect());
-    }
-
-    let config = load_content_config()?;
-    config
-        .content_sources
-        .get(source_id)
-        .map(|source| source.allowed_content_types.clone())
-        .ok_or_else(|| {
-            anyhow!(
-                "Source '{}' not found in content config. Use --allowed-types to specify types \
-                 manually.",
-                source_id
-            )
-        })
 }
 
 fn resolve_category_id(args: &IngestArgs, source_id: &str) -> String {
