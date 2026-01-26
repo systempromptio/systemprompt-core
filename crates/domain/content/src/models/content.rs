@@ -169,19 +169,13 @@ impl IngestionOptions {
 pub struct IngestionSource<'a> {
     pub source_id: &'a SourceId,
     pub category_id: &'a CategoryId,
-    pub allowed_content_types: &'a [&'a str],
 }
 
 impl<'a> IngestionSource<'a> {
-    pub const fn new(
-        source_id: &'a SourceId,
-        category_id: &'a CategoryId,
-        allowed_content_types: &'a [&'a str],
-    ) -> Self {
+    pub const fn new(source_id: &'a SourceId, category_id: &'a CategoryId) -> Self {
         Self {
             source_id,
             category_id,
-            allowed_content_types,
         }
     }
 }

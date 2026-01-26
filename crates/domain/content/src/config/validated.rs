@@ -217,14 +217,6 @@ fn validate_single_source(
         return None;
     };
 
-    if source.enabled && source.allowed_content_types.is_empty() {
-        errors.push(ContentConfigError::Validation {
-            field: format!("{field_prefix}.allowed_content_types"),
-            message: "Enabled source must have at least one allowed_content_type".to_string(),
-            suggestion: Some("Add content types like 'article', 'guide', 'tutorial'".to_string()),
-        });
-    }
-
     Some(ContentSourceConfigValidated {
         path: canonical_path,
         source_id: source.source_id.clone(),

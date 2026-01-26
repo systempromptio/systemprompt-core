@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.11] - 2026-01-26
+
+### Changed
+- Update content sync to use simplified ingestion API without content type filtering
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

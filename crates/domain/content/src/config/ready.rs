@@ -171,13 +171,7 @@ fn parse_content_file(
 
     let (metadata, body) = parse_frontmatter(&markdown_text)?;
 
-    let allowed_types: Vec<&str> = source_config
-        .allowed_content_types
-        .iter()
-        .map(String::as_str)
-        .collect();
-
-    validate_content_metadata(&metadata, &allowed_types)?;
+    validate_content_metadata(&metadata)?;
 
     let published_at = parse_date(&metadata.published_at)?;
 

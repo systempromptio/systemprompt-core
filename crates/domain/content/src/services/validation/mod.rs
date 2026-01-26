@@ -1,10 +1,7 @@
 use crate::error::ContentError;
 use crate::models::ContentMetadata;
 
-pub fn validate_content_metadata(
-    metadata: &ContentMetadata,
-    allowed_types: &[&str],
-) -> Result<(), ContentError> {
+pub fn validate_content_metadata(metadata: &ContentMetadata) -> Result<(), ContentError> {
     if metadata.title.trim().is_empty() {
         return Err(ContentError::Validation(
             "title cannot be empty".to_string(),
@@ -42,14 +39,6 @@ pub fn validate_content_metadata(
         return Err(ContentError::Validation(format!(
             "published_at must be in YYYY-MM-DD format (got: {})",
             metadata.published_at
-        )));
-    }
-
-    if !allowed_types.contains(&metadata.kind.as_str()) {
-        return Err(ContentError::Validation(format!(
-            "invalid kind '{}'. must be one of: {}",
-            metadata.kind,
-            allowed_types.join(", ")
         )));
     }
 

@@ -134,16 +134,9 @@ impl ContentLocalSync {
 
         for entry in diffs {
             let source_path = &entry.path;
-
-            let allowed_types: Vec<&str> = entry
-                .allowed_content_types
-                .iter()
-                .map(String::as_str)
-                .collect();
-
             let source_id = SourceId::new(&entry.source_id);
             let category_id = CategoryId::new(&entry.category_id);
-            let source = IngestionSource::new(&source_id, &category_id, &allowed_types);
+            let source = IngestionSource::new(&source_id, &category_id);
             let report = ingestion_service
                 .ingest_directory(
                     source_path,

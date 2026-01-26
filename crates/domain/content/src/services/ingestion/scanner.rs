@@ -10,11 +10,7 @@ pub struct ScanResult {
     pub warnings: Vec<String>,
 }
 
-pub fn scan_markdown_files(
-    dir: &Path,
-    allowed_content_types: &[&str],
-    recursive: bool,
-) -> ScanResult {
+pub fn scan_markdown_files(dir: &Path, recursive: bool) -> ScanResult {
     let mut files = Vec::new();
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -45,7 +41,7 @@ pub fn scan_markdown_files(
             continue;
         }
 
-        match validate_markdown_file(entry.path(), allowed_content_types) {
+        match validate_markdown_file(entry.path()) {
             Ok(()) => files.push(entry.path().to_path_buf()),
             Err(e) => errors.push(format!("{}: {}", entry.path().display(), e)),
         }
@@ -66,16 +62,13 @@ pub fn scan_markdown_files(
     }
 }
 
-fn validate_markdown_file(path: &Path, allowed_content_types: &[&str]) -> Result<(), ContentError> {
+fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
     let markdown_text = std::fs::read_to_string(path)?;
-    let _ = parse_frontmatter(&markdown_text, allowed_content_types)?;
+    let _ = parse_frontmatter(&markdown_text)?;
     Ok(())
 }
 
-pub fn parse_frontmatter(
-    markdown: &str,
-    allowed_content_types: &[&str],
-) -> Result<(ContentMetadata, String), ContentError> {
+pub fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), ContentError> {
     let parts: Vec<&str> = markdown.splitn(3, "---").collect();
 
     if parts.len() < 3 {
@@ -85,7 +78,7 @@ pub fn parse_frontmatter(
     }
 
     let metadata: ContentMetadata = serde_yaml::from_str(parts[1])?;
-    validate_content_metadata(&metadata, allowed_content_types)?;
+    validate_content_metadata(&metadata)?;
 
     let content = parts[2].trim().to_string();
 
