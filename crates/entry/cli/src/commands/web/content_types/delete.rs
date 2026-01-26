@@ -2,7 +2,7 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::fs;
 
-use crate::interactive::resolve_required;
+use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
@@ -43,22 +43,7 @@ pub fn execute(
         return Err(anyhow!("Content type '{}' not found", name));
     }
 
-    if !args.yes {
-        if !config.is_interactive() {
-            return Err(anyhow!(
-                "--yes is required to delete content types in non-interactive mode"
-            ));
-        }
-
-        if !CliService::confirm(&format!("Delete content type '{}'?", name))? {
-            CliService::info("Cancelled");
-            return Ok(CommandResult::text(ContentTypeDeleteOutput {
-                deleted: vec![],
-                message: "Operation cancelled".to_string(),
-            })
-            .with_title("Delete Cancelled"));
-        }
-    }
+    require_confirmation(&format!("Delete content type '{}'?", name), args.yes, config)?;
 
     let web_config_path = profile.paths.web_config();
     if let Ok(web_content) = fs::read_to_string(&web_config_path) {

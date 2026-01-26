@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::Result;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::ProfileBootstrap;
@@ -9,15 +9,13 @@ use super::helpers::{
 };
 use super::ResetArgs;
 use crate::cli_settings::OutputFormat;
+use crate::interactive::require_confirmation;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
 use super::super::types::{ResetChange, ResetOutput};
 
 pub fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
-    if !args.yes && !args.dry_run && !config.is_interactive() {
-        bail!("--yes or --dry-run is required in non-interactive mode");
-    }
 
     let profile_path = ProfileBootstrap::get_path()?;
     let mut profile = load_profile_for_edit(profile_path)?;
@@ -89,16 +87,13 @@ pub fn execute_reset(args: &ResetArgs, config: &CliConfig) -> Result<()> {
     } else if changes.is_empty() {
         "No changes needed - already at defaults".to_string()
     } else {
-        if !args.yes && config.is_interactive() {
+        if config.is_interactive() && !args.yes {
             CliService::warning(&format!(
                 "This will reset {} value(s) to defaults",
                 changes.len()
             ));
-            if !CliService::confirm("Proceed with reset?")? {
-                CliService::info("Reset cancelled");
-                return Ok(());
-            }
         }
+        require_confirmation("Proceed with reset?", args.yes, config)?;
         save_profile(&profile, profile_path)?;
         format!("Reset {} value(s) to defaults", changes.len())
     };

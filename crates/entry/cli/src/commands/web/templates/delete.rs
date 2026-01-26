@@ -3,7 +3,7 @@ use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use crate::interactive::resolve_required;
+use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
@@ -57,29 +57,13 @@ pub fn execute(
         return Err(anyhow!("Template '{}' not found", name));
     }
 
-    if !args.yes {
-        if !config.is_interactive() {
-            return Err(anyhow!(
-                "--yes is required to delete templates in non-interactive mode"
-            ));
-        }
+    let confirm_msg = if args.delete_file {
+        format!("Delete template '{}' and its HTML file?", name)
+    } else {
+        format!("Delete template '{}'?", name)
+    };
 
-        let confirm_msg = if args.delete_file {
-            format!("Delete template '{}' and its HTML file?", name)
-        } else {
-            format!("Delete template '{}'?", name)
-        };
-
-        if !CliService::confirm(&confirm_msg)? {
-            CliService::info("Cancelled");
-            return Ok(CommandResult::text(TemplateDeleteOutput {
-                deleted: String::new(),
-                file_deleted: false,
-                message: "Operation cancelled".to_string(),
-            })
-            .with_title("Delete Cancelled"));
-        }
-    }
+    require_confirmation(&confirm_msg, args.yes, config)?;
 
     templates_config.templates.remove(&name);
 

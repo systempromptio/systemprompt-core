@@ -1,10 +1,11 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
 use super::LogDeleteOutput;
+use crate::interactive::require_confirmation;
 use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
@@ -15,16 +16,11 @@ pub struct DeleteArgs {
 }
 
 pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
-    if !args.yes {
-        if config.is_interactive() {
-            if !CliService::confirm("Delete ALL log entries? This cannot be undone.")? {
-                CliService::info("Cancelled");
-                return Ok(());
-            }
-        } else {
-            return Err(anyhow!("--yes is required in non-interactive mode"));
-        }
-    }
+    require_confirmation(
+        "Delete ALL log entries? This cannot be undone.",
+        args.yes,
+        config,
+    )?;
 
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
