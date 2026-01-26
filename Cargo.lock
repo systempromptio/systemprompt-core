@@ -4670,6 +4670,7 @@ dependencies = [
  "reqwest",
  "rmcp",
  "rmcp-macros",
+ "schemars",
  "serde",
  "serde_json",
  "serde_yaml",
