@@ -246,3 +246,44 @@ pub async fn get_session_for_behavioral_analysis(
     .await
     .map_err(Into::into)
 }
+
+pub async fn has_analytics_events(pool: &DbPool, session_id: &SessionId) -> Result<bool> {
+    let pool = pool.pool_arc().context("Failed to get pool")?;
+    let id = session_id.as_str();
+
+    let result = sqlx::query_scalar!(
+        r#"
+        SELECT EXISTS(
+            SELECT 1 FROM analytics_events WHERE session_id = $1
+        ) as "exists!"
+        "#,
+        id
+    )
+    .fetch_one(pool.as_ref())
+    .await?;
+
+    Ok(result)
+}
+
+pub async fn get_session_velocity(
+    pool: &DbPool,
+    session_id: &SessionId,
+) -> Result<(Option<i64>, Option<i64>)> {
+    let pool = pool.pool_arc().context("Failed to get pool")?;
+    let id = session_id.as_str();
+
+    let row = sqlx::query!(
+        r#"
+        SELECT
+            request_count::BIGINT as request_count,
+            EXTRACT(EPOCH FROM (last_activity_at - started_at))::BIGINT as duration_seconds
+        FROM user_sessions
+        WHERE session_id = $1
+        "#,
+        id
+    )
+    .fetch_optional(pool.as_ref())
+    .await?;
+
+    Ok(row.map_or((None, None), |r| (r.request_count, r.duration_seconds)))
+}

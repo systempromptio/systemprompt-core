@@ -3944,7 +3944,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -3998,7 +3998,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-agent-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4014,7 +4014,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4052,7 +4052,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-ai-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4073,7 +4073,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4098,7 +4098,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-analytics-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4113,7 +4113,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4173,7 +4173,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-api-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "axum",
  "http",
@@ -4186,7 +4186,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4253,7 +4253,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cli-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "rand 0.8.5",
@@ -4270,7 +4270,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4287,7 +4287,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-client-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "serde",
  "serde_json",
@@ -4300,7 +4300,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -4329,7 +4329,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-cloud-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4343,7 +4343,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "regex",
@@ -4359,7 +4359,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-config-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "schemars",
  "serde",
@@ -4372,7 +4372,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4411,7 +4411,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-content-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4426,7 +4426,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4449,7 +4449,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-database-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4462,7 +4462,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4478,7 +4478,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-events-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-events",
@@ -4489,7 +4489,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4506,7 +4506,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-extension-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "axum",
  "serde_json",
@@ -4518,7 +4518,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4548,7 +4548,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-files-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4562,7 +4562,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4605,7 +4605,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-generator-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4620,7 +4620,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
@@ -4633,7 +4633,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-identifiers-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "serde_json",
  "systemprompt-identifiers",
@@ -4643,7 +4643,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "serde",
@@ -4658,7 +4658,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-loader-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "serde",
  "serde_json",
@@ -4671,7 +4671,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4701,7 +4701,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-logging-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4712,7 +4712,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4752,7 +4752,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-mcp-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4765,7 +4765,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4792,7 +4792,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-models-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
@@ -4805,7 +4805,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4843,7 +4843,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth-integration-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "base64 0.22.1",
  "chrono",
@@ -4860,7 +4860,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-oauth-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "axum",
  "chrono",
@@ -4878,7 +4878,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-provider-contracts"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4893,7 +4893,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "axum",
@@ -4920,7 +4920,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-runtime-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "axum",
  "serde_json",
@@ -4935,7 +4935,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-scheduler"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4966,7 +4966,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4983,7 +4983,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-security-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "axum",
  "chrono",
@@ -4996,7 +4996,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-sync"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "chrono",
@@ -5022,7 +5022,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-template-provider"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
@@ -5032,7 +5032,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5049,7 +5049,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-templates-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5062,7 +5062,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5081,11 +5081,12 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-traits-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "axum",
  "chrono",
+ "futures",
  "serde_json",
  "systemprompt-traits",
  "thiserror 2.0.17",
@@ -5094,7 +5095,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -5115,7 +5116,7 @@ dependencies = [
 
 [[package]]
 name = "systemprompt-users-tests"
-version = "0.0.3"
+version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",

@@ -81,24 +81,24 @@ impl SessionMiddleware {
             } else {
                 let token_result = TokenExtractor::browser_only().extract(headers).ok();
 
-                let (session_id, user_id, jwt_token, jwt_cookie) = if let Some(token) = token_result
-                {
-                    if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
-                        (jwt_context.session_id, jwt_context.user_id, token, None)
+                let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
+                    if let Some(token) = token_result {
+                        if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
+                            (jwt_context.session_id, jwt_context.user_id, token, None, None)
+                        } else {
+                            let (sid, uid, token, is_new, fp) =
+                                self.create_new_session(headers, &uri, &method).await?;
+                            let jwt_cookie = if is_new { Some(token.clone()) } else { None };
+                            (sid, uid, token, jwt_cookie, Some(fp))
+                        }
                     } else {
-                        let (sid, uid, token, is_new) =
+                        let (sid, uid, token, is_new, fp) =
                             self.create_new_session(headers, &uri, &method).await?;
                         let jwt_cookie = if is_new { Some(token.clone()) } else { None };
-                        (sid, uid, token, jwt_cookie)
-                    }
-                } else {
-                    let (sid, uid, token, is_new) =
-                        self.create_new_session(headers, &uri, &method).await?;
-                    let jwt_cookie = if is_new { Some(token.clone()) } else { None };
-                    (sid, uid, token, jwt_cookie)
-                };
+                        (sid, uid, token, jwt_cookie, Some(fp))
+                    };
 
-                let ctx = RequestContext::new(
+                let mut ctx = RequestContext::new(
                     session_id,
                     trace_id,
                     ContextId::new(String::new()),
@@ -108,6 +108,9 @@ impl SessionMiddleware {
                 .with_auth_token(jwt_token)
                 .with_user_type(UserType::Anon)
                 .with_tracked(true);
+                if let Some(fp) = fingerprint_hash {
+                    ctx = ctx.with_fingerprint_hash(fp);
+                }
                 (ctx, jwt_cookie)
             }
         };
@@ -134,7 +137,7 @@ impl SessionMiddleware {
         headers: &http::HeaderMap,
         uri: &http::Uri,
         _method: &http::Method,
-    ) -> Result<(SessionId, UserId, String, bool), ApiError> {
+    ) -> Result<(SessionId, UserId, String, bool, String), ApiError> {
         let client_id = ClientId::new("sp_web".to_string());
 
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {
@@ -157,6 +160,7 @@ impl SessionMiddleware {
                     session_info.user_id,
                     session_info.jwt_token,
                     session_info.is_new,
+                    session_info.fingerprint_hash,
                 )
             })
             .map_err(|e| {

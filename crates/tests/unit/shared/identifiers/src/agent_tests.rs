@@ -143,13 +143,13 @@ fn test_agent_name_display() {
 
 #[test]
 fn test_agent_name_from_string() {
-    let name: AgentName = String::from("from-string-agent").into();
+    let name: AgentName = String::from("from-string-agent").try_into().unwrap();
     assert_eq!(name.as_str(), "from-string-agent");
 }
 
 #[test]
 fn test_agent_name_from_str() {
-    let name: AgentName = "from-str-agent".into();
+    let name: AgentName = "from-str-agent".try_into().unwrap();
     assert_eq!(name.as_str(), "from-str-agent");
 }
 
@@ -224,25 +224,25 @@ fn test_agent_name_debug() {
 }
 
 #[test]
-#[should_panic(expected = "Agent name cannot be empty")]
+#[should_panic(expected = "AgentName validation failed")]
 fn test_agent_name_empty_panics() {
     let _ = AgentName::new("");
 }
 
 #[test]
-#[should_panic(expected = "Agent name 'unknown' is reserved")]
+#[should_panic(expected = "'unknown' is reserved for error detection")]
 fn test_agent_name_unknown_panics() {
     let _ = AgentName::new("unknown");
 }
 
 #[test]
-#[should_panic(expected = "Agent name 'unknown' is reserved")]
+#[should_panic(expected = "'unknown' is reserved for error detection")]
 fn test_agent_name_unknown_uppercase_panics() {
     let _ = AgentName::new("UNKNOWN");
 }
 
 #[test]
-#[should_panic(expected = "Agent name 'unknown' is reserved")]
+#[should_panic(expected = "'unknown' is reserved for error detection")]
 fn test_agent_name_unknown_mixed_case_panics() {
     let _ = AgentName::new("UnKnOwN");
 }

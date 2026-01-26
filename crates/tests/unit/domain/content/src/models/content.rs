@@ -8,6 +8,7 @@
 //! - IngestionSource (constructor)
 
 use systemprompt_content::{ContentMetadata, IngestionOptions, IngestionReport, IngestionSource};
+use systemprompt_identifiers::{CategoryId, SourceId};
 
 // ============================================================================
 // ContentKind Tests
@@ -167,11 +168,13 @@ fn test_ingestion_options_with_override_false() {
 
 #[test]
 fn test_ingestion_source_new() {
+    let source_id = SourceId::new("blog");
+    let category_id = CategoryId::new("tech");
     let allowed_types: &[&str] = &["article", "paper"];
-    let source = IngestionSource::new("blog", "tech", allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
 
-    assert_eq!(source.source_id, "blog");
-    assert_eq!(source.category_id, "tech");
+    assert_eq!(source.source_id.as_str(), "blog");
+    assert_eq!(source.category_id.as_str(), "tech");
     assert_eq!(source.allowed_content_types.len(), 2);
     assert_eq!(source.allowed_content_types[0], "article");
     assert_eq!(source.allowed_content_types[1], "paper");
@@ -179,18 +182,22 @@ fn test_ingestion_source_new() {
 
 #[test]
 fn test_ingestion_source_empty_content_types() {
+    let source_id = SourceId::new("docs");
+    let category_id = CategoryId::new("documentation");
     let allowed_types: &[&str] = &[];
-    let source = IngestionSource::new("docs", "documentation", allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
 
-    assert_eq!(source.source_id, "docs");
-    assert_eq!(source.category_id, "documentation");
+    assert_eq!(source.source_id.as_str(), "docs");
+    assert_eq!(source.category_id.as_str(), "documentation");
     assert!(source.allowed_content_types.is_empty());
 }
 
 #[test]
 fn test_ingestion_source_clone() {
+    let source_id = SourceId::new("tutorials");
+    let category_id = CategoryId::new("learning");
     let allowed_types: &[&str] = &["guide"];
-    let source = IngestionSource::new("tutorials", "learning", allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
     let cloned = source.clone();
 
     assert_eq!(cloned.source_id, source.source_id);

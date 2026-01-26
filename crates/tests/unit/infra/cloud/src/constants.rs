@@ -248,13 +248,13 @@ fn test_env_vars_system_managed_not_empty() {
 }
 
 #[test]
-fn test_env_vars_system_managed_contains_database_url() {
-    assert!(env_vars::SYSTEM_MANAGED.contains(&"DATABASE_URL"));
+fn test_env_vars_system_managed_contains_fly_app_name() {
+    assert!(env_vars::SYSTEM_MANAGED.contains(&"FLY_APP_NAME"));
 }
 
 #[test]
-fn test_env_vars_system_managed_contains_jwt_secret() {
-    assert!(env_vars::SYSTEM_MANAGED.contains(&"JWT_SECRET"));
+fn test_env_vars_system_managed_contains_fly_machine_id() {
+    assert!(env_vars::SYSTEM_MANAGED.contains(&"FLY_MACHINE_ID"));
 }
 
 #[test]

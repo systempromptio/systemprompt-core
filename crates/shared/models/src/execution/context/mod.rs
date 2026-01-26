@@ -92,6 +92,7 @@ impl RequestContext {
                 timestamp: Instant::now(),
                 client_id: None,
                 is_tracked: true,
+                fingerprint_hash: None,
             },
             execution: ExecutionContext {
                 trace_id,
@@ -184,6 +185,15 @@ impl RequestContext {
     pub const fn with_tracked(mut self, is_tracked: bool) -> Self {
         self.request.is_tracked = is_tracked;
         self
+    }
+
+    pub fn with_fingerprint_hash(mut self, hash: impl Into<String>) -> Self {
+        self.request.fingerprint_hash = Some(hash.into());
+        self
+    }
+
+    pub fn fingerprint_hash(&self) -> Option<&str> {
+        self.request.fingerprint_hash.as_deref()
     }
 
     pub fn with_tool_model_config(mut self, config: ToolModelConfig) -> Self {

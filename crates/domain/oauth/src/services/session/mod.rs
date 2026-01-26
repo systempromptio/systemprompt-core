@@ -31,6 +31,7 @@ pub struct AnonymousSessionInfo {
     pub user_id: UserId,
     pub is_new: bool,
     pub jwt_token: String,
+    pub fingerprint_hash: String,
 }
 
 #[derive(Debug, Clone)]

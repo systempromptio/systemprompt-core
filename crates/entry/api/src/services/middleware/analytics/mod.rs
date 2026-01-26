@@ -111,12 +111,14 @@ impl AnalyticsMiddleware {
             self.spawn_mark_scanner_task(req_ctx.request.session_id.clone());
         }
 
+        self.spawn_velocity_scanner_check(req_ctx.request.session_id.clone());
+
         self.spawn_session_tracking_task(req_ctx.request.session_id.clone());
 
         detection::spawn_behavioral_detection_task(
             self.session_repo.clone(),
             req_ctx.request.session_id.clone(),
-            None,
+            req_ctx.request.fingerprint_hash.clone(),
             user_agent.clone(),
             1,
         );
@@ -148,6 +150,29 @@ impl AnalyticsMiddleware {
 
             if let Err(e) = session_repo.increment_request_count(&session_id).await {
                 tracing::error!(error = %e, "Failed to increment request count");
+            }
+        });
+    }
+
+    fn spawn_velocity_scanner_check(&self, session_id: SessionId) {
+        let session_repo = self.session_repo.clone();
+
+        tokio::spawn(async move {
+            let (request_count, duration_seconds) = session_repo
+                .get_session_velocity(&session_id)
+                .await
+                .unwrap_or((None, None));
+
+            if let (Some(count), Some(duration)) = (request_count, duration_seconds) {
+                if ScannerDetector::is_high_velocity(count, duration) {
+                    if let Err(e) = session_repo.mark_as_scanner(&session_id).await {
+                        tracing::warn!(
+                            error = %e,
+                            session_id = %session_id,
+                            "Failed to mark high-velocity session as scanner"
+                        );
+                    }
+                }
             }
         });
     }

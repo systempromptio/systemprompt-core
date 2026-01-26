@@ -25,6 +25,7 @@ pub struct RequestMetadata {
     pub timestamp: Instant,
     pub client_id: Option<ClientId>,
     pub is_tracked: bool,
+    pub fingerprint_hash: Option<String>,
 }
 
 impl Default for RequestMetadata {
@@ -34,6 +35,7 @@ impl Default for RequestMetadata {
             timestamp: Instant::now(),
             client_id: None,
             is_tracked: true,
+            fingerprint_hash: None,
         }
     }
 }

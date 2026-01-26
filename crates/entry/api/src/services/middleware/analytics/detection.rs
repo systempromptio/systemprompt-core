@@ -50,6 +50,11 @@ pub fn spawn_behavioral_detection_task(
                 100
             });
 
+        let has_javascript_events = session_repo
+            .has_analytics_events(&session_id)
+            .await
+            .unwrap_or(false);
+
         let session_data = session_repo
             .get_session_for_behavioral_analysis(&session_id)
             .await
@@ -60,11 +65,17 @@ pub fn spawn_behavioral_detection_task(
             .ok()
             .flatten();
 
-        let (started_at, last_activity_at) = session_data
-            .map(|s| (s.started_at, s.last_activity_at))
+        let (started_at, last_activity_at, actual_request_count) = session_data
+            .map(|s| {
+                (
+                    s.started_at,
+                    s.last_activity_at,
+                    s.request_count.map(i64::from).unwrap_or(request_count),
+                )
+            })
             .unwrap_or_else(|| {
                 let now = Utc::now();
-                (now, now)
+                (now, now, request_count)
             });
 
         let session_id_for_update = session_id.clone();
@@ -72,13 +83,14 @@ pub fn spawn_behavioral_detection_task(
             session_id,
             fingerprint_hash,
             user_agent,
-            request_count,
+            request_count: actual_request_count,
             started_at,
             last_activity_at,
             endpoints_accessed,
             total_site_pages,
             fingerprint_session_count,
             request_timestamps,
+            has_javascript_events,
         };
 
         let result = BehavioralBotDetector::analyze(&input);

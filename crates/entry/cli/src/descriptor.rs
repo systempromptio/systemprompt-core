@@ -1,4 +1,5 @@
 #[derive(Debug, Clone, Copy, Default)]
+#[allow(clippy::struct_excessive_bools)]
 pub struct CommandDescriptor {
     pub profile: bool,
     pub secrets: bool,

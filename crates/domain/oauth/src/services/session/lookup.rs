@@ -80,6 +80,7 @@ impl SessionCreationService {
             user_id,
             is_new: false,
             jwt_token: token,
+            fingerprint_hash: fingerprint.to_string(),
         })
     }
 
@@ -138,6 +139,7 @@ impl SessionCreationService {
             user_id,
             is_new: false,
             jwt_token: token,
+            fingerprint_hash: fingerprint.to_string(),
         })
     }
 }

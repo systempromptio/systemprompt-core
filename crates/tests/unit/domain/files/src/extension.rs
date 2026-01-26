@@ -62,7 +62,7 @@ fn test_files_extension_metadata_version() {
 fn test_files_extension_migration_weight() {
     let ext = FilesExtension;
     let weight = ext.migration_weight();
-    assert_eq!(weight, 15);
+    assert_eq!(weight, 50);
 }
 
 #[test]
@@ -109,8 +109,9 @@ fn test_files_extension_content_files_schema_has_required_columns() {
 fn test_files_extension_dependencies() {
     let ext = FilesExtension;
     let deps = ext.dependencies();
-    assert_eq!(deps.len(), 1);
+    assert_eq!(deps.len(), 2);
     assert!(deps.contains(&"users"));
+    assert!(deps.contains(&"content"));
 }
 
 #[test]

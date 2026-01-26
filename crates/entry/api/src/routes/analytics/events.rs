@@ -5,8 +5,9 @@ use axum::Json;
 use std::sync::Arc;
 
 use systemprompt_analytics::{
-    AnalyticsEventBatchResponse, AnalyticsEventsRepository, CreateAnalyticsEventBatchInput,
-    CreateAnalyticsEventInput,
+    AnalyticsEventBatchResponse, AnalyticsEventType, AnalyticsEventsRepository,
+    CreateAnalyticsEventBatchInput, CreateAnalyticsEventInput, CreateEngagementEventInput,
+    EngagementOptionalMetrics, EngagementRepository,
 };
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::ContentId;
@@ -17,6 +18,7 @@ use systemprompt_models::execution::context::RequestContext;
 pub struct AnalyticsState {
     pub events_repo: Arc<AnalyticsEventsRepository>,
     pub content_repo: Arc<ContentRepository>,
+    pub engagement_repo: Arc<EngagementRepository>,
 }
 
 fn extract_slug_from_url(page_url: &str) -> Option<&str> {
