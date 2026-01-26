@@ -108,6 +108,12 @@ pub async fn record_events_batch(
             ApiError::internal_error("Failed to record analytics events")
         })?;
 
+    for event in &input.events {
+        if event.event_type == AnalyticsEventType::PageExit {
+            fan_out_engagement(&state, &req_ctx, event).await;
+        }
+    }
+
     Ok((
         StatusCode::CREATED,
         Json(AnalyticsEventBatchResponse {
@@ -115,4 +121,68 @@ pub async fn record_events_batch(
             events: created,
         }),
     ))
+}
+
+async fn fan_out_engagement(
+    state: &AnalyticsState,
+    req_ctx: &RequestContext,
+    input: &CreateAnalyticsEventInput,
+) {
+    let Some(ref data) = input.data else { return };
+
+    let get_i32 = |key: &str| -> Option<i32> {
+        data.get(key).and_then(|v| v.as_i64()).map(|v| v as i32)
+    };
+    let get_f32 = |key: &str| -> Option<f32> {
+        data.get(key).and_then(|v| v.as_f64()).map(|v| v as f32)
+    };
+    let get_bool = |key: &str| -> Option<bool> {
+        data.get(key).and_then(|v| v.as_bool())
+    };
+    let get_string = |key: &str| -> Option<String> {
+        data.get(key).and_then(|v| v.as_str()).map(String::from)
+    };
+
+    let engagement_input = CreateEngagementEventInput {
+        page_url: input.page_url.clone(),
+        time_on_page_ms: get_i32("time_on_page_ms").unwrap_or(0),
+        max_scroll_depth: get_i32("max_scroll_depth").unwrap_or(0),
+        click_count: get_i32("click_count").unwrap_or(0),
+        optional_metrics: EngagementOptionalMetrics {
+            time_to_first_interaction_ms: get_i32("time_to_first_interaction_ms"),
+            time_to_first_scroll_ms: get_i32("time_to_first_scroll_ms"),
+            scroll_velocity_avg: get_f32("scroll_velocity_avg"),
+            scroll_direction_changes: get_i32("scroll_direction_changes"),
+            mouse_move_distance_px: get_i32("mouse_move_distance_px"),
+            keyboard_events: get_i32("keyboard_events"),
+            copy_events: get_i32("copy_events"),
+            focus_time_ms: get_i32("focus_time_ms"),
+            blur_count: get_i32("blur_count"),
+            visible_time_ms: get_i32("visible_time_ms"),
+            hidden_time_ms: get_i32("hidden_time_ms"),
+            is_rage_click: get_bool("is_rage_click"),
+            is_dead_click: get_bool("is_dead_click"),
+            reading_pattern: get_string("reading_pattern"),
+        },
+    };
+
+    let content_id = resolve_content_id(
+        &state.content_repo,
+        &input.page_url,
+        input.slug.as_deref(),
+    )
+    .await;
+
+    if let Err(e) = state
+        .engagement_repo
+        .create_engagement(
+            req_ctx.session_id().as_str(),
+            req_ctx.user_id().as_str(),
+            content_id.as_ref(),
+            &engagement_input,
+        )
+        .await
+    {
+        tracing::warn!(error = %e, "Failed to fan out engagement data from page_exit event");
+    }
 }
