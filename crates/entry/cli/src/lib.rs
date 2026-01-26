@@ -1,6 +1,7 @@
 mod bootstrap;
 pub mod cli_settings;
 mod commands;
+pub mod environment;
 pub mod paths;
 mod presentation;
 pub mod requirements;
@@ -218,9 +219,9 @@ pub async fn run() -> Result<()> {
         let profile = ProfileBootstrap::get()?;
         let is_cloud = profile.target.is_cloud();
 
-        let is_fly_environment = std::env::var("FLY_APP_NAME").is_ok();
+        let env = environment::ExecutionEnvironment::detect();
 
-        if !is_fly_environment && should_check_remote_routing(cli.command.as_ref()) {
+        if !env.is_fly && should_check_remote_routing(cli.command.as_ref()) {
             match routing::determine_execution_target() {
                 Ok(routing::ExecutionTarget::Remote {
                     hostname,
@@ -268,7 +269,7 @@ pub async fn run() -> Result<()> {
                 _ => {},
             }
         } else if is_cloud
-            && !is_fly_environment
+            && !env.is_fly
             && !profile.database.external_db_access
             && !matches!(
                 cli.command.as_ref(),
@@ -301,7 +302,7 @@ pub async fn run() -> Result<()> {
         }
 
         if !is_cloud {
-            bootstrap::validate_cloud_credentials();
+            bootstrap::validate_cloud_credentials(&env);
         }
     }
 
