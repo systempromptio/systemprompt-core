@@ -52,3 +52,4 @@ systemprompt-models = { path = "../../shared/models", version = "0.0.12" }
 systemprompt-traits = { path = "../../shared/traits", version = "0.0.12" }
 
 inventory = { workspace = true }
+xxhash-rust = { version = "0.8", features = ["xxh64"] }

@@ -22,8 +22,8 @@ pub async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
     let extension = ExtensionLoader::find_cli_extension(&project_root, &args.extension)
         .ok_or_else(|| {
             anyhow::anyhow!(
-                "CLI extension '{}' not found. Use 'plugins list --cli' to see available \
-                 extensions",
+                "CLI extension '{}' not found. Use 'plugins list --type cli' to see available \
+                 CLI extensions",
                 args.extension
             )
         })?;

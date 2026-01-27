@@ -49,6 +49,18 @@ pub enum CloudCommands {
 
         #[arg(long, short = 'p', help = "Profile name to deploy")]
         profile: Option<String>,
+
+        #[arg(
+            long,
+            help = "Skip pre-deploy sync from cloud (WARNING: may lose runtime files)"
+        )]
+        no_sync: bool,
+
+        #[arg(short = 'y', long, help = "Skip confirmation prompts")]
+        yes: bool,
+
+        #[arg(long, help = "Preview sync without deploying")]
+        dry_run: bool,
     },
 
     #[command(about = "Check cloud deployment status")]
@@ -125,8 +137,24 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
         CloudCommands::Init { force } => init::execute(force, config),
         CloudCommands::Tenant { command } => tenant::execute(command, config).await,
         CloudCommands::Profile { command } => profile::execute(command, config).await,
-        CloudCommands::Deploy { skip_push, profile } => {
-            deploy::execute(skip_push, profile, config).await
+        CloudCommands::Deploy {
+            skip_push,
+            profile,
+            no_sync,
+            yes,
+            dry_run,
+        } => {
+            deploy::execute(
+                deploy::DeployArgs {
+                    skip_push,
+                    profile_name: profile,
+                    no_sync,
+                    yes,
+                    dry_run,
+                },
+                config,
+            )
+            .await
         },
         CloudCommands::Status => status::execute().await,
         CloudCommands::Restart { tenant, yes } => restart::execute(tenant, yes, config).await,

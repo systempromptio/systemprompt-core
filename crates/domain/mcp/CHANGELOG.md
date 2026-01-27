@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Added
+- UI renderer module with template-based HTML generation for artifacts
+- Renderers for Dashboard, Chart, Table, Form, List, Image, and Text artifact types
+- Asset loading via `include_str!` for CSS and JS files
+- CSP (Content Security Policy) builder with configurable directives
+
+### Changed
+- Refactor inline CSS/JS to separate asset files for maintainability
+- Update code for clippy pedantic compliance
+
 ## [0.0.3] - 2026-01-22
 
 ### Fixed

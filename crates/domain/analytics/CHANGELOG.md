@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Changed
+- Use `is_none_or` instead of `map_or` in bot detection for clarity
+
 ## [0.0.11] - 2026-01-26
 
 ### Added

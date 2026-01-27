@@ -205,7 +205,7 @@ impl SessionAnalytics {
     pub fn is_bot(&self) -> bool {
         self.user_agent
             .as_ref()
-            .is_some_and(|ua| matches_bot_pattern(ua))
+            .is_none_or(|ua| ua.is_empty() || matches_bot_pattern(ua))
     }
 
     pub fn is_bot_ip(&self) -> bool {

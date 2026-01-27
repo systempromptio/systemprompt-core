@@ -11,6 +11,7 @@ mod providers;
 pub mod registry;
 pub mod schema;
 pub mod tool_provider;
+pub mod ui_renderer;
 
 pub use database::{DatabaseManager, ServiceInfo};
 pub use deployment::DeploymentService;

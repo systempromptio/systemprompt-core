@@ -38,4 +38,5 @@ pub fn artifacts_router() -> Router<AppContext> {
     Router::new()
         .route("/", get(artifacts::list_artifacts_by_user))
         .route("/{artifact_id}", get(artifacts::get_artifact))
+        .route("/{artifact_id}/ui", get(artifacts::get_artifact_ui))
 }

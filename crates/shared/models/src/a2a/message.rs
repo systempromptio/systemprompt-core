@@ -59,3 +59,26 @@ pub struct FileWithBytes {
     pub mime_type: Option<String>,
     pub bytes: String,
 }
+
+impl Part {
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            Self::Text(text_part) => Some(&text_part.text),
+            _ => None,
+        }
+    }
+
+    pub fn as_data(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::Data(data_part) => Some(serde_json::Value::Object(data_part.data.clone())),
+            _ => None,
+        }
+    }
+
+    pub fn as_file(&self) -> Option<serde_json::Value> {
+        match self {
+            Self::File(file_part) => serde_json::to_value(&file_part.file).ok(),
+            _ => None,
+        }
+    }
+}

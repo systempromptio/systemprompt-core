@@ -40,10 +40,7 @@ pub struct EditArgs {
     pub body_file: Option<String>,
 }
 
-pub async fn execute(
-    args: EditArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<UpdateOutput>> {
+pub async fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<UpdateOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
@@ -74,13 +71,7 @@ pub async fn execute_with_pool(
         let source = SourceId::new(source_id.clone());
         repo.get_by_source_and_slug(&source, &identifier)
             .await?
-            .ok_or_else(|| {
-                anyhow!(
-                    "Content not found: {} in source {}",
-                    identifier,
-                    source_id
-                )
-            })?
+            .ok_or_else(|| anyhow!("Content not found: {} in source {}", identifier, source_id))?
     };
 
     let mut changes = Vec::new();
@@ -196,7 +187,9 @@ pub async fn execute_with_pool(
     }
 
     if changes.is_empty() {
-        return Err(anyhow!("No changes specified. Use --set, --public, --private, --body, or --body-file"));
+        return Err(anyhow!(
+            "No changes specified. Use --set, --public, --private, --body, or --body-file"
+        ));
     }
 
     CliService::info(&format!("Updating content '{}'...", content.slug));

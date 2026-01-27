@@ -78,26 +78,17 @@ impl AnalyticsService {
     }
 
     pub fn compute_fingerprint(analytics: &SessionAnalytics) -> String {
-        analytics.fingerprint_hash.as_deref().map_or_else(
-            || {
-                use std::collections::hash_map::DefaultHasher;
-                use std::hash::{Hash, Hasher};
+        analytics.fingerprint_hash.clone().unwrap_or_else(|| {
+            use xxhash_rust::xxh64::xxh64;
 
-                let mut hasher = DefaultHasher::new();
-                analytics
-                    .user_agent
-                    .as_deref()
-                    .unwrap_or("unknown")
-                    .hash(&mut hasher);
-                analytics
-                    .preferred_locale
-                    .as_deref()
-                    .unwrap_or("")
-                    .hash(&mut hasher);
-                format!("{:x}", hasher.finish())
-            },
-            ToString::to_string,
-        )
+            let data = format!(
+                "{}|{}",
+                analytics.user_agent.as_deref().unwrap_or(""),
+                analytics.preferred_locale.as_deref().unwrap_or("")
+            );
+
+            format!("fp_{:016x}", xxh64(data.as_bytes(), 0))
+        })
     }
 
     pub async fn create_analytics_session(

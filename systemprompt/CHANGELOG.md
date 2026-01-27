@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Added
+- UI renderer module in MCP crate with template-based HTML generation for artifacts
+- Renderers for Dashboard, Chart, Table, Form, List, Image, and Text artifact types
+
+### Changed
+- Update all workspace crate dependencies to 0.0.13
+- Refactor inline CSS/JS to separate asset files in MCP crate
+- Fix clippy pedantic warnings across workspace
+
 ## [0.0.11] - 2026-01-26
 
 ### Changed

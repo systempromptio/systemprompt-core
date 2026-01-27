@@ -33,6 +33,7 @@ serde = { workspace = true }
 futures = { workspace = true }
 http = { workspace = true }
 uuid = { workspace = true }
+xxhash-rust = { version = "0.8", features = ["xxh64"] }
 
 axum = { workspace = true, optional = true }
 

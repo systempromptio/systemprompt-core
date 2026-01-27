@@ -25,7 +25,10 @@ pub enum CoreCommands {
     #[command(subcommand, about = "Context management")]
     Contexts(contexts::ContextsCommands),
 
-    #[command(subcommand, about = "Workflow playbooks - step-by-step operational guides")]
+    #[command(
+        subcommand,
+        about = "Workflow playbooks - step-by-step operational guides"
+    )]
     Playbooks(playbooks::PlaybooksCommands),
 
     #[command(subcommand, about = "Skill management and database sync")]

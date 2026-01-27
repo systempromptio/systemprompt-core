@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Changed
+- Use `Self::` instead of type name in Part enum match arms for clippy compliance
+
 ## [0.0.11] - 2026-01-26
 
 ### Changed

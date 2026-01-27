@@ -1,4 +1,5 @@
 use crate::error::McpError;
+use crate::services::ui_renderer::UiMetadata;
 use rmcp::model::{CallToolResult, Content};
 use schemars::JsonSchema;
 use serde::Serialize;
@@ -46,7 +47,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
             .build();
 
         let tool_response = ToolResponse::new(
-            artifact_id,
+            artifact_id.clone(),
             self.mcp_execution_id.clone(),
             self.output,
             metadata.clone(),
@@ -57,12 +58,28 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
             McpError::Serialization(e)
         })?;
 
+        let meta = Self::build_meta_with_ui(&metadata, &artifact_id);
+
         Ok(CallToolResult {
             content: vec![Content::text(summary.into())],
             structured_content: Some(structured_content),
             is_error: Some(false),
-            meta: metadata.to_meta(),
+            meta,
         })
+    }
+
+    fn build_meta_with_ui(
+        metadata: &ExecutionMetadata,
+        artifact_id: &ArtifactId,
+    ) -> Option<rmcp::model::Meta> {
+        let base_meta = metadata.to_meta()?;
+        let mut meta_obj = base_meta.0;
+
+        let source = metadata.agent_name.as_str();
+        let ui_metadata = UiMetadata::for_artifact(artifact_id.as_str(), Some(source));
+        meta_obj.insert("ui".to_string(), ui_metadata.to_json());
+
+        Some(rmcp::model::Meta(meta_obj))
     }
 
     pub fn build_error(error_message: impl Into<String>) -> CallToolResult {

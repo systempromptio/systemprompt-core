@@ -49,17 +49,15 @@ impl SessionAnalytics {
     }
 
     pub fn compute_fingerprint(&self) -> String {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
+        use xxhash_rust::xxh64::xxh64;
 
-        let mut hasher = DefaultHasher::new();
-        self.ip_address.hash(&mut hasher);
-        self.user_agent.hash(&mut hasher);
-        self.accept_language.hash(&mut hasher);
-        self.screen_width.hash(&mut hasher);
-        self.screen_height.hash(&mut hasher);
-        self.timezone.hash(&mut hasher);
-        format!("fp_{:x}", hasher.finish())
+        let data = format!(
+            "{}|{}",
+            self.user_agent.as_deref().unwrap_or(""),
+            self.accept_language.as_deref().unwrap_or("")
+        );
+
+        format!("fp_{:016x}", xxh64(data.as_bytes(), 0))
     }
 }
 

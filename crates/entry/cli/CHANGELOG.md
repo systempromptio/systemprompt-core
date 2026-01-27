@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Changed
+- Update `playbooks show` to take args by reference for efficiency
+- Use char array pattern in `title_case` function
+
+### Fixed
+- Fix clippy pedantic warnings across crate
+
 ## [0.0.16] - 2026-01-27
 
 ### Added
