@@ -52,14 +52,14 @@ clap = { workspace = true }
 jsonwebtoken = { workspace = true }
 
 # systemprompt.io integration
-systemprompt-config = { path = "../../infra/config", version = "0.0.13" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.13" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.13" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.13", features = ["sqlx"] }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.13" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.13" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.13" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.13" }
+systemprompt-config = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-loader = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
 
 # Process management
 uuid = { workspace = true }

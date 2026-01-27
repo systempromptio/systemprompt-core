@@ -27,30 +27,30 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-runtime = { path = "../../app/runtime", version = "0.0.13" }
-systemprompt-agent = { path = "../../domain/agent", version = "0.0.13" }
-systemprompt-mcp = { path = "../../domain/mcp", version = "0.0.13" }
-systemprompt-api = { path = "../api", version = "0.0.13" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.13" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.13" }
-systemprompt-oauth = { path = "../../domain/oauth", version = "0.0.13" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.13" }
-systemprompt-content = { path = "../../domain/content", version = "0.0.13" }
-systemprompt-files = { path = "../../domain/files", version = "0.0.13" }
-systemprompt-scheduler = { path = "../../app/scheduler", version = "0.0.13" }
-systemprompt-config = { path = "../../infra/config", version = "0.0.13" }
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.13" }
-systemprompt-security = { path = "../../infra/security", version = "0.0.13" }
-systemprompt-ai = { path = "../../domain/ai", version = "0.0.13" }
-systemprompt-sync = { path = "../../app/sync", version = "0.0.13" }
-systemprompt-generator = { path = "../../app/generator", version = "0.0.13" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.13" }
-systemprompt-loader = { path = "../../infra/loader", version = "0.0.13" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.13" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.13" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.13" }
-systemprompt-cloud = { path = "../../infra/cloud", version = "0.0.13" }
-systemprompt-client = { path = "../../shared/client", version = "0.0.13" }
+systemprompt-runtime = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-mcp = { workspace = true }
+systemprompt-api = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-users = { workspace = true }
+systemprompt-oauth = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-content = { workspace = true }
+systemprompt-files = { workspace = true }
+systemprompt-scheduler = { workspace = true }
+systemprompt-config = { workspace = true }
+systemprompt-analytics = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-ai = { workspace = true }
+systemprompt-sync = { workspace = true }
+systemprompt-generator = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-loader = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-cloud = { workspace = true }
+systemprompt-client = { workspace = true }
 
 # Additional dependencies used by CLI modules
 tracing = { workspace = true }

@@ -30,8 +30,8 @@ jsonwebtoken = { workspace = true }
 chrono = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-models = { path = "../../shared/models", version = "0.0.13" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.13" }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
 
 [dev-dependencies]
 serde_json = { workspace = true }
