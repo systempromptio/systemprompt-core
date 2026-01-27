@@ -49,6 +49,12 @@ impl SessionMiddleware {
 
         let should_skip = Self::should_skip_session_tracking(uri.path());
 
+        tracing::debug!(
+            path = %uri.path(),
+            should_skip = should_skip,
+            "Session middleware evaluating request"
+        );
+
         let trace_id = HeaderExtractor::extract_trace_id(headers);
 
         let (req_ctx, jwt_cookie) = if should_skip {
@@ -67,6 +73,13 @@ impl SessionMiddleware {
                 .analytics_service
                 .extract_analytics(headers, Some(&uri));
             let is_bot = AnalyticsService::is_bot(&analytics);
+
+            tracing::debug!(
+                path = %uri.path(),
+                is_bot = is_bot,
+                user_agent = ?analytics.user_agent,
+                "Session middleware bot check"
+            );
 
             if is_bot {
                 let ctx = RequestContext::new(
@@ -141,6 +154,12 @@ impl SessionMiddleware {
                 (ctx, jwt_cookie)
             }
         };
+
+        tracing::debug!(
+            path = %uri.path(),
+            session_id = %req_ctx.session_id(),
+            "Session middleware setting context"
+        );
 
         request.extensions_mut().insert(req_ctx);
 
