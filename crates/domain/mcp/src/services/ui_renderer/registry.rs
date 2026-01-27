@@ -46,9 +46,12 @@ impl UiRendererRegistry {
     pub async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
         let artifact_type = &artifact.metadata.artifact_type;
 
-        let renderer = self
-            .get(artifact_type)
-            .ok_or_else(|| anyhow!("No renderer registered for artifact type: {}", artifact_type))?;
+        let renderer = self.get(artifact_type).ok_or_else(|| {
+            anyhow!(
+                "No renderer registered for artifact type: {}",
+                artifact_type
+            )
+        })?;
 
         renderer.render(artifact).await
     }

@@ -1,4 +1,6 @@
-use super::html::{base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder};
+use super::html::{
+    base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder,
+};
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -26,24 +28,36 @@ impl TableRenderer {
                             if i == 0 {
                                 columns = obj.keys().cloned().collect();
                             }
-                            let row: Vec<JsonValue> =
-                                columns.iter().map(|k| obj.get(k).cloned().unwrap_or(JsonValue::Null)).collect();
+                            let row: Vec<JsonValue> = columns
+                                .iter()
+                                .map(|k| obj.get(k).cloned().unwrap_or(JsonValue::Null))
+                                .collect();
                             rows.push(row);
                         }
                     }
                 } else if let Some(obj) = data.as_object() {
-                    if let Some(data_arr) = obj.get("data").or_else(|| obj.get("rows")).and_then(JsonValue::as_array) {
+                    if let Some(data_arr) = obj
+                        .get("data")
+                        .or_else(|| obj.get("rows"))
+                        .and_then(JsonValue::as_array)
+                    {
                         if let Some(cols) = obj.get("columns").and_then(JsonValue::as_array) {
                             columns = cols
                                 .iter()
-                                .filter_map(|c| c.as_str().map(String::from).or_else(|| c.get("name").and_then(|n| n.as_str()).map(String::from)))
+                                .filter_map(|c| {
+                                    c.as_str().map(String::from).or_else(|| {
+                                        c.get("name").and_then(|n| n.as_str()).map(String::from)
+                                    })
+                                })
                                 .collect();
                         }
 
                         for item in data_arr {
                             if let Some(row_obj) = item.as_object() {
-                                let row: Vec<JsonValue> =
-                                    columns.iter().map(|k| row_obj.get(k).cloned().unwrap_or(JsonValue::Null)).collect();
+                                let row: Vec<JsonValue> = columns
+                                    .iter()
+                                    .map(|k| row_obj.get(k).cloned().unwrap_or(JsonValue::Null))
+                                    .collect();
                                 rows.push(row);
                             } else if let Some(row_arr) = item.as_array() {
                                 rows.push(row_arr.clone());
@@ -55,7 +69,9 @@ impl TableRenderer {
         }
 
         if columns.is_empty() && !rows.is_empty() {
-            columns = (0..rows[0].len()).map(|i| format!("Column {}", i + 1)).collect();
+            columns = (0..rows[0].len())
+                .map(|i| format!("Column {}", i + 1))
+                .collect();
         }
 
         (columns, rows)
@@ -65,10 +81,19 @@ impl TableRenderer {
         let mut hints = TableHints::default();
 
         if let Some(rendering_hints) = &artifact.metadata.rendering_hints {
-            if let Some(sortable) = rendering_hints.get("sortable_columns").and_then(JsonValue::as_array) {
-                hints.sortable_columns = sortable.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+            if let Some(sortable) = rendering_hints
+                .get("sortable_columns")
+                .and_then(JsonValue::as_array)
+            {
+                hints.sortable_columns = sortable
+                    .iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect();
             }
-            if let Some(filterable) = rendering_hints.get("filterable").and_then(JsonValue::as_bool) {
+            if let Some(filterable) = rendering_hints
+                .get("filterable")
+                .and_then(JsonValue::as_bool)
+            {
                 hints.filterable = filterable;
             }
             if let Some(page_size) = rendering_hints.get("page_size").and_then(JsonValue::as_u64) {
@@ -136,7 +161,9 @@ impl UiRenderer for TableRenderer {
         );
 
         let script = format!(
-            "{bridge}\nwindow.TABLE_COLUMNS = {columns};\nwindow.TABLE_ROWS = {rows};\nwindow.TABLE_SORTABLE = {sortable};\nwindow.TABLE_FILTERABLE = {filterable};\nwindow.TABLE_PAGE_SIZE = {page_size};\n{app}",
+            "{bridge}\nwindow.TABLE_COLUMNS = {columns};\nwindow.TABLE_ROWS = \
+             {rows};\nwindow.TABLE_SORTABLE = {sortable};\nwindow.TABLE_FILTERABLE = \
+             {filterable};\nwindow.TABLE_PAGE_SIZE = {page_size};\n{app}",
             bridge = mcp_app_bridge_script(),
             columns = json_to_js_literal(&serde_json::json!(columns)),
             rows = json_to_js_literal(&serde_json::json!(rows)),

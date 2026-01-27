@@ -88,8 +88,15 @@ impl ListItem {
                 .or_else(|| value.get("subtitle"))
                 .and_then(JsonValue::as_str)
                 .map(String::from),
-            icon: value.get("icon").and_then(JsonValue::as_str).map(String::from),
-            link: value.get("link").or_else(|| value.get("url")).and_then(JsonValue::as_str).map(String::from),
+            icon: value
+                .get("icon")
+                .and_then(JsonValue::as_str)
+                .map(String::from),
+            link: value
+                .get("link")
+                .or_else(|| value.get("url"))
+                .and_then(JsonValue::as_str)
+                .map(String::from),
         })
     }
 
@@ -101,7 +108,12 @@ impl ListItem {
             .unwrap_or_default();
 
         let title_html = self.link.as_ref().map_or_else(
-            || format!(r#"<span class="item-title">{}</span>"#, html_escape(&self.title)),
+            || {
+                format!(
+                    r#"<span class="item-title">{}</span>"#,
+                    html_escape(&self.title)
+                )
+            },
             |link| {
                 format!(
                     r#"<a href="{}" class="item-link" target="_blank" rel="noopener">{}</a>"#,
@@ -165,7 +177,11 @@ impl UiRenderer for ListRenderer {
         let style = Self::extract_list_style(artifact);
         let title = artifact.name.as_deref().unwrap_or("List");
 
-        let items_html: String = items.iter().enumerate().map(|(i, item)| item.render_html(i)).collect();
+        let items_html: String = items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| item.render_html(i))
+            .collect();
 
         let body = format!(
             r#"<div class="container">

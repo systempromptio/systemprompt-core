@@ -1,4 +1,6 @@
-use super::html::{base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder};
+use super::html::{
+    base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder,
+};
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -70,19 +72,24 @@ enum SectionType {
 
 impl DashboardSection {
     fn from_json(value: &JsonValue) -> Self {
-        let title = value.get("title").and_then(JsonValue::as_str).unwrap_or("Section").to_string();
-
-        let section_type = value
-            .get("type")
+        let title = value
+            .get("title")
             .and_then(JsonValue::as_str)
-            .map_or(SectionType::Text, |s| match s.to_lowercase().as_str() {
-                "metrics" | "kpi" => SectionType::Metrics,
-                "chart" | "graph" => SectionType::Chart,
-                "table" => SectionType::Table,
-                "status" => SectionType::Status,
-                "list" => SectionType::List,
-                _ => SectionType::Text,
-            });
+            .unwrap_or("Section")
+            .to_string();
+
+        let section_type =
+            value
+                .get("type")
+                .and_then(JsonValue::as_str)
+                .map_or(SectionType::Text, |s| match s.to_lowercase().as_str() {
+                    "metrics" | "kpi" => SectionType::Metrics,
+                    "chart" | "graph" => SectionType::Chart,
+                    "table" => SectionType::Table,
+                    "status" => SectionType::Status,
+                    "list" => SectionType::List,
+                    _ => SectionType::Text,
+                });
 
         let id = value
             .get("id")
@@ -94,7 +101,10 @@ impl DashboardSection {
             title,
             section_type,
             data: value.clone(),
-            width: value.get("width").and_then(JsonValue::as_str).map(String::from),
+            width: value
+                .get("width")
+                .and_then(JsonValue::as_str)
+                .map(String::from),
         }
     }
 
@@ -176,7 +186,10 @@ impl DashboardSection {
     }
 
     fn render_chart(&self) -> String {
-        format!(r#"<div class="chart-container"><canvas id="chart-{}"></canvas></div>"#, html_escape(&self.id))
+        format!(
+            r#"<div class="chart-container"><canvas id="chart-{}"></canvas></div>"#,
+            html_escape(&self.id)
+        )
     }
 
     fn render_table(&self) -> String {
@@ -187,7 +200,11 @@ impl DashboardSection {
             .map(|arr| arr.iter().filter_map(|c| c.as_str()).collect::<Vec<_>>())
             .unwrap_or_default();
 
-        let rows = self.data.get("rows").or_else(|| self.data.get("data")).and_then(JsonValue::as_array);
+        let rows = self
+            .data
+            .get("rows")
+            .or_else(|| self.data.get("data"))
+            .and_then(JsonValue::as_array);
 
         if columns.is_empty() {
             return "<p>No table data</p>".to_string();
@@ -212,7 +229,9 @@ impl DashboardSection {
                             |obj| {
                                 columns
                                     .iter()
-                                    .map(|c| obj.get(*c).map(ToString::to_string).unwrap_or_default())
+                                    .map(|c| {
+                                        obj.get(*c).map(ToString::to_string).unwrap_or_default()
+                                    })
                                     .collect::<Vec<_>>()
                             },
                         );
@@ -251,8 +270,14 @@ impl DashboardSection {
             .map(|arr| {
                 arr.iter()
                     .filter_map(|item| {
-                        let name = item.get("name").or_else(|| item.get("label")).and_then(JsonValue::as_str)?;
-                        let status = item.get("status").and_then(JsonValue::as_str).unwrap_or("unknown");
+                        let name = item
+                            .get("name")
+                            .or_else(|| item.get("label"))
+                            .and_then(JsonValue::as_str)?;
+                        let status = item
+                            .get("status")
+                            .and_then(JsonValue::as_str)
+                            .unwrap_or("unknown");
                         let status_class = match status.to_lowercase().as_str() {
                             "ok" | "healthy" | "success" | "active" => "status-ok",
                             "warning" | "degraded" => "status-warning",
@@ -327,7 +352,10 @@ enum DashboardLayout {
 
 fn rand_id() -> u32 {
     use std::time::{SystemTime, UNIX_EPOCH};
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u32).unwrap_or(0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u32)
+        .unwrap_or(0)
 }
 
 #[async_trait]
@@ -349,9 +377,10 @@ impl UiRenderer for DashboardRenderer {
 
         let sections_html: String = sections.iter().map(DashboardSection::render_html).collect();
 
-        let tabs_nav = if matches!(layout, DashboardLayout::Tabs) {
-            use std::fmt::Write;
-            let tabs = sections.iter().enumerate().fold(String::new(), |mut acc, (i, s)| {
+        let tabs_nav =
+            if matches!(layout, DashboardLayout::Tabs) {
+                use std::fmt::Write;
+                let tabs = sections.iter().enumerate().fold(String::new(), |mut acc, (i, s)| {
                 let active = if i == 0 { " active" } else { "" };
                 let _ = write!(
                     acc,
@@ -363,19 +392,34 @@ impl UiRenderer for DashboardRenderer {
                 acc
             });
 
-            format!(r#"<div class="tabs-nav">{tabs}</div>"#)
-        } else {
-            String::new()
-        };
+                format!(r#"<div class="tabs-nav">{tabs}</div>"#)
+            } else {
+                String::new()
+            };
 
-        let chart_sections: Vec<&DashboardSection> = sections.iter().filter(|s| matches!(s.section_type, SectionType::Chart)).collect();
+        let chart_sections: Vec<&DashboardSection> = sections
+            .iter()
+            .filter(|s| matches!(s.section_type, SectionType::Chart))
+            .collect();
 
         let chart_configs: Vec<JsonValue> = chart_sections
             .iter()
             .map(|s| {
-                let chart_type = s.data.get("chart_type").and_then(JsonValue::as_str).unwrap_or("bar");
-                let labels = s.data.get("labels").cloned().unwrap_or(serde_json::json!([]));
-                let datasets = s.data.get("datasets").cloned().unwrap_or(serde_json::json!([]));
+                let chart_type = s
+                    .data
+                    .get("chart_type")
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or("bar");
+                let labels = s
+                    .data
+                    .get("labels")
+                    .cloned()
+                    .unwrap_or(serde_json::json!([]));
+                let datasets = s
+                    .data
+                    .get("datasets")
+                    .cloned()
+                    .unwrap_or(serde_json::json!([]));
 
                 serde_json::json!({
                     "id": format!("chart-{}", s.id),
@@ -417,7 +461,8 @@ impl UiRenderer for DashboardRenderer {
         );
 
         let script = format!(
-            "{bridge}\nwindow.DASHBOARD_CHART_CONFIGS = {chart_configs};\nwindow.CHART_JS_CDN = '{cdn}';\n{app}",
+            "{bridge}\nwindow.DASHBOARD_CHART_CONFIGS = {chart_configs};\nwindow.CHART_JS_CDN = \
+             '{cdn}';\n{app}",
             bridge = mcp_app_bridge_script(),
             chart_configs = json_to_js_literal(&serde_json::json!(chart_configs)),
             cdn = CHART_JS_CDN,

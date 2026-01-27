@@ -31,7 +31,11 @@ impl ImageRenderer {
             }
 
             if let Some(part_data) = part.as_data() {
-                if let Some(src) = part_data.get("src").or_else(|| part_data.get("url")).and_then(|v| v.as_str()) {
+                if let Some(src) = part_data
+                    .get("src")
+                    .or_else(|| part_data.get("url"))
+                    .and_then(|v| v.as_str())
+                {
                     data.src = src.to_string();
                 }
                 if let Some(alt) = part_data.get("alt").and_then(|v| v.as_str()) {
@@ -122,7 +126,10 @@ impl UiRenderer for ImageRenderer {
             caption_html = image_data
                 .caption
                 .as_ref()
-                .map(|c| format!(r#"<figcaption class="image-caption">{}</figcaption>"#, html_escape(c)))
+                .map(|c| format!(
+                    r#"<figcaption class="image-caption">{}</figcaption>"#,
+                    html_escape(c)
+                ))
                 .unwrap_or_default(),
         );
 
