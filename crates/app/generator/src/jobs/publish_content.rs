@@ -8,8 +8,8 @@ use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
 use crate::{
-    copy_storage_assets_to_dist, generate_feed, generate_sitemap, organize_css_files,
-    organize_js_files, prerender_content, prerender_homepage,
+    copy_storage_assets_to_dist, generate_feed, generate_sitemap, organize_dist_assets,
+    prerender_content, prerender_homepage,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -178,38 +178,22 @@ async fn run_rss_generation(db_pool: &DbPool, stats: &mut PublishStats) {
 }
 
 async fn run_css_organization(stats: &mut PublishStats) {
-    let web_dir = match AppPaths::get() {
-        Ok(paths) => paths.web().dist(),
+    let dist_dir = match AppPaths::get() {
+        Ok(paths) => paths.web().dist().to_path_buf(),
         Err(e) => {
             tracing::warn!(error = %e, "Failed to get app paths");
             stats.record_failure();
             return;
         },
     };
-    let Some(web_dir_str) = web_dir.to_str() else {
-        tracing::warn!("Web dist path is not valid UTF-8");
-        stats.record_failure();
-        return;
-    };
 
-    match organize_css_files(web_dir_str).await {
-        Ok(count) => {
-            tracing::debug!(files = count, "CSS organized");
+    match organize_dist_assets(&dist_dir).await {
+        Ok((css_count, js_count)) => {
+            tracing::debug!(css = css_count, js = js_count, "Assets organized");
             stats.record_success();
         },
         Err(e) => {
-            tracing::warn!(error = %e, "CSS organization warning");
-            stats.record_failure();
-        },
-    }
-
-    match organize_js_files(web_dir_str).await {
-        Ok(count) => {
-            tracing::debug!(files = count, "JS organized");
-            stats.record_success();
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "JS organization warning");
+            tracing::warn!(error = %e, "Asset organization failed");
             stats.record_failure();
         },
     }

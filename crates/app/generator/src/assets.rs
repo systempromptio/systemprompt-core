@@ -1,28 +1,20 @@
 use anyhow::{Context, Result};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use systemprompt_models::StoragePaths;
 use tokio::fs;
 
-pub async fn organize_css_files(web_dir: &str) -> Result<u32> {
-    let dist_dir = PathBuf::from(web_dir);
-    let css_dir = dist_dir.join("css");
-
-    fs::create_dir_all(&css_dir)
-        .await
-        .context("Failed to create css directory")?;
-
-    copy_files_by_extension(&dist_dir, &css_dir, "css").await
+pub async fn organize_dist_assets(dist_dir: &Path) -> Result<(u32, u32)> {
+    let css_count = organize_assets_by_extension(dist_dir, "css").await?;
+    let js_count = organize_assets_by_extension(dist_dir, "js").await?;
+    Ok((css_count, js_count))
 }
 
-pub async fn organize_js_files(web_dir: &str) -> Result<u32> {
-    let dist_dir = PathBuf::from(web_dir);
-    let js_dir = dist_dir.join("js");
-
-    fs::create_dir_all(&js_dir)
+async fn organize_assets_by_extension(dist_dir: &Path, ext: &str) -> Result<u32> {
+    let dest_dir = dist_dir.join(ext);
+    fs::create_dir_all(&dest_dir)
         .await
-        .context("Failed to create js directory")?;
-
-    copy_files_by_extension(&dist_dir, &js_dir, "js").await
+        .context(format!("Failed to create {} directory", ext))?;
+    copy_files_by_extension(dist_dir, &dest_dir, ext).await
 }
 
 async fn copy_files_by_extension(source_dir: &Path, dest_dir: &Path, ext: &str) -> Result<u32> {
@@ -109,6 +101,3 @@ async fn copy_directory_contents(source: &Path, dest: &Path) -> Result<u32> {
     Ok(copied)
 }
 
-pub async fn copy_implementation_assets(_web_dir: &str) -> Result<u32> {
-    Ok(0)
-}
