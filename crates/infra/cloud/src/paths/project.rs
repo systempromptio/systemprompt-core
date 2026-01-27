@@ -22,7 +22,7 @@ impl ProjectPath {
             Self::Root => &[paths::ROOT_DIR],
             Self::ProfilesDir => &[paths::ROOT_DIR, paths::PROFILES_DIR],
             Self::DockerDir => &[paths::ROOT_DIR, paths::DOCKER_DIR],
-            Self::StorageDir => &[paths::ROOT_DIR, paths::STORAGE_DIR],
+            Self::StorageDir => &[paths::STORAGE_DIR],
             Self::SessionsDir => &[paths::ROOT_DIR, dir_names::SESSIONS],
             Self::Dockerfile => &[paths::ROOT_DIR, paths::DOCKERFILE],
             Self::LocalCredentials => &[paths::ROOT_DIR, paths::CREDENTIALS_FILE],

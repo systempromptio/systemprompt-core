@@ -21,7 +21,7 @@ impl Extension for FilesExtension {
             SchemaDefinition::inline("files", include_str!("../schema/files.sql"))
                 .with_required_columns(vec![
                     "id".into(),
-                    "filename".into(),
+                    "path".into(),
                     "mime_type".into(),
                     "created_at".into(),
                 ]),

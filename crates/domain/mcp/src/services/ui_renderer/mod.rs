@@ -11,6 +11,7 @@ use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
 
 pub const MCP_APP_MIME_TYPE: &str = "text/html;profile=mcp-app";
+const ARTIFACT_ID_PLACEHOLDER: &str = "{artifact_id}";
 
 #[derive(Debug, Clone)]
 pub struct UiResource {
@@ -83,7 +84,7 @@ impl UiMetadata {
     pub fn to_result_meta(&self, artifact_id: &str) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
         let ui_with_id = serde_json::json!({
-            "resourceUri": self.resource_uri.replace("{artifact_id}", artifact_id),
+            "resourceUri": self.resource_uri.replace(ARTIFACT_ID_PLACEHOLDER, artifact_id),
             "visibility": self.visibility
         });
         meta.insert("ui".to_string(), ui_with_id);

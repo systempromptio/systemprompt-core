@@ -21,12 +21,7 @@ impl Extension for SchedulerExtension {
             "scheduled_jobs",
             include_str!("../schema/scheduled_jobs.sql"),
         )
-        .with_required_columns(vec![
-            "id".into(),
-            "job_type".into(),
-            "status".into(),
-            "created_at".into(),
-        ])]
+        .with_required_columns(vec!["id".into(), "job_name".into(), "created_at".into()])]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

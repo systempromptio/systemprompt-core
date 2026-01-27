@@ -1,6 +1,6 @@
 use anyhow::{anyhow, bail, Context, Result};
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Confirm, Input, Password, Select};
+use dialoguer::{Confirm, Input, Select};
 use std::fs;
 use std::process::Command;
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
@@ -19,8 +19,9 @@ use crate::cloud::profile::{
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
-    generate_postgres_compose, is_port_in_use, nanoid, stop_container_on_port,
-    wait_for_postgres_healthy,
+    create_database_for_tenant, generate_admin_password, generate_shared_postgres_compose,
+    is_shared_container_running, load_shared_config, nanoid, save_shared_config,
+    wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
 };
 use super::validation::{validate_build_ready, warn_required_secrets};
 
@@ -36,83 +37,77 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         bail!("Tenant name cannot be empty");
     }
 
-    CliService::info("PostgreSQL configuration:");
+    let db_name = sanitize_database_name(&name);
 
-    let db_user: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database user")
-        .default("systemprompt".to_string())
-        .interact_text()?;
-
-    let db_password: String = Password::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database password")
-        .interact()?;
-
-    if db_password.is_empty() {
-        bail!("Password cannot be empty");
-    }
-
-    let db_name: String = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Database name")
-        .default("systemprompt".to_string())
-        .interact_text()?;
-
-    let port: u16 = Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Port")
-        .default(5432u16)
-        .interact_text()?;
-
-    if is_port_in_use(port) {
-        let reset = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(format!(
-                "Port {} is in use. Stop existing container and reset?",
-                port
-            ))
-            .default(false)
-            .interact()?;
-
-        if reset {
-            stop_container_on_port(port)?;
-        } else {
-            bail!("Port {} is in use. Choose a different port.", port);
-        }
-    }
-
-    let compose_content = generate_postgres_compose(&name, &db_user, &db_password, &db_name, port);
     let ctx = ProjectContext::discover();
     let docker_dir = ctx.docker_dir();
     fs::create_dir_all(&docker_dir).context("Failed to create docker directory")?;
 
-    let compose_path = docker_dir.join(format!("{}.yaml", name));
-    fs::write(&compose_path, &compose_content)
-        .with_context(|| format!("Failed to write {}", compose_path.display()))?;
-    CliService::success(&format!("Created: {}", compose_path.display()));
+    let shared_config = load_shared_config()?;
+    let container_running = is_shared_container_running();
 
-    CliService::info("Starting PostgreSQL container...");
-    let compose_path_str = compose_path
-        .to_str()
-        .ok_or_else(|| anyhow!("Invalid compose path"))?;
+    let (config, needs_start) = match (shared_config, container_running) {
+        (Some(config), true) => {
+            CliService::info("Using existing shared PostgreSQL container");
+            (config, false)
+        },
+        (Some(config), false) => {
+            CliService::info("Shared container config found, restarting container...");
+            (config, true)
+        },
+        (None, _) => {
+            CliService::info("Creating new shared PostgreSQL container...");
+            let password = generate_admin_password();
+            let config = SharedContainerConfig::new(password, SHARED_PORT);
+            (config, true)
+        },
+    };
 
-    let status = Command::new("docker")
-        .args(["compose", "-f", compose_path_str, "up", "-d"])
-        .status()
-        .context("Failed to execute docker compose. Is Docker running?")?;
+    let compose_path = docker_dir.join("shared.yaml");
 
-    if !status.success() {
-        bail!("Failed to start PostgreSQL container. Is Docker running?");
+    if needs_start {
+        let compose_content = generate_shared_postgres_compose(&config.admin_password, config.port);
+        fs::write(&compose_path, &compose_content)
+            .with_context(|| format!("Failed to write {}", compose_path.display()))?;
+        CliService::success(&format!("Created: {}", compose_path.display()));
+
+        CliService::info("Starting shared PostgreSQL container...");
+        let compose_path_str = compose_path
+            .to_str()
+            .ok_or_else(|| anyhow!("Invalid compose path"))?;
+
+        let status = Command::new("docker")
+            .args(["compose", "-f", compose_path_str, "up", "-d"])
+            .status()
+            .context("Failed to execute docker compose. Is Docker running?")?;
+
+        if !status.success() {
+            bail!("Failed to start PostgreSQL container. Is Docker running?");
+        }
+
+        let spinner = CliService::spinner("Waiting for PostgreSQL to be ready...");
+        wait_for_postgres_healthy(&compose_path, 60).await?;
+        spinner.finish_and_clear();
+        CliService::success("Shared PostgreSQL container is ready");
     }
 
-    let spinner = CliService::spinner("Waiting for PostgreSQL to be ready...");
-    wait_for_postgres_healthy(&compose_path, 60).await?;
+    let spinner = CliService::spinner(&format!("Creating database '{}'...", db_name));
+    create_database_for_tenant(&config.admin_password, config.port, &db_name).await?;
     spinner.finish_and_clear();
-    CliService::success("PostgreSQL is ready");
+    CliService::success(&format!("Database '{}' created", db_name));
 
     let database_url = format!(
         "postgres://{}:{}@localhost:{}/{}",
-        db_user, db_password, port, db_name
+        SHARED_ADMIN_USER, config.admin_password, config.port, db_name
     );
 
     let id = format!("local_{}", nanoid());
-    let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
+    let tenant =
+        StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
+
+    let mut updated_config = config;
+    updated_config.add_tenant(tenant.id.clone(), db_name);
+    save_shared_config(&updated_config)?;
 
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())
@@ -132,6 +127,27 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     handle_local_tenant_setup(&cloud_user, &database_url, &name, &profile_path).await?;
 
     Ok(tenant)
+}
+
+fn sanitize_database_name(name: &str) -> String {
+    let sanitized: String = name
+        .chars()
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
+        .collect();
+
+    if sanitized.is_empty() {
+        "systemprompt".to_string()
+    } else if sanitized.chars().next().is_some_and(|c| c.is_ascii_digit()) {
+        format!("db_{}", sanitized)
+    } else {
+        sanitized
+    }
 }
 
 pub async fn create_cloud_tenant(
@@ -286,6 +302,7 @@ pub async fn create_cloud_tenant(
         internal_database_url: Some(internal_database_url),
         external_db_access,
         sync_token,
+        shared_container_db: None,
     };
 
     CliService::section("Profile Setup");

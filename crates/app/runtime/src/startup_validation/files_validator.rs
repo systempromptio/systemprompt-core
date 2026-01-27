@@ -37,12 +37,12 @@ impl systemprompt_traits::DomainConfig for FilesConfigValidator {
             return Ok(report);
         };
 
-        let errors = files_config.validate_storage_structure();
+        let errors = files_config.ensure_storage_structure();
         for error_msg in errors {
-            report
-                .add_error(ValidationError::new("storage", &error_msg).with_suggestion(
-                    "Ensure static files are copied to storage during deployment",
-                ));
+            report.add_error(
+                ValidationError::new("storage", &error_msg)
+                    .with_suggestion("Check filesystem permissions for storage directory"),
+            );
         }
 
         Ok(report)

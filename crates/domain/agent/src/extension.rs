@@ -39,7 +39,7 @@ impl Extension for AgentExtension {
                     "created_at".into(),
                 ]),
             SchemaDefinition::inline("message_parts", include_str!("../schema/message_parts.sql"))
-                .with_required_columns(vec!["id".into(), "message_id".into(), "part_type".into()]),
+                .with_required_columns(vec!["id".into(), "message_id".into(), "part_kind".into()]),
             SchemaDefinition::inline(
                 "task_artifacts",
                 include_str!("../schema/task_artifacts.sql"),
@@ -56,7 +56,7 @@ impl Extension for AgentExtension {
             .with_required_columns(vec![
                 "id".into(),
                 "artifact_id".into(),
-                "part_type".into(),
+                "part_kind".into(),
             ]),
             SchemaDefinition::inline(
                 "context_agents",
@@ -65,7 +65,7 @@ impl Extension for AgentExtension {
             .with_required_columns(vec![
                 "id".into(),
                 "context_id".into(),
-                "agent_id".into(),
+                "agent_name".into(),
             ]),
             SchemaDefinition::inline(
                 "context_notifications",
