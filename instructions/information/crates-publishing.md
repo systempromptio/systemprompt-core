@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.13` (Playbooks, MCP UI Renderer - January 27, 2026)
+**Current Version:** `0.0.14` (SQLx Offline Mode, UI Metadata - January 27, 2026)
 
 All **30 crates** have been published to crates.io.
 
@@ -129,6 +129,71 @@ Format:
 ```bash
 cargo publish -p <crate-name> --dry-run --allow-dirty
 ```
+
+### 5. Update SQLx Query Cache (for SQLx crates)
+
+See [SQLx Query Cache Management](#sqlx-query-cache-management) below.
+
+---
+
+## SQLx Query Cache Management
+
+### Background
+
+Crates using SQLx query macros (`sqlx::query!`, `sqlx::query_as!`) require compile-time database schema validation. When published to crates.io, consumers download crates to `~/.cargo/registry/` where SQLx looks for `.sqlx/` cache files.
+
+**Problem**: A workspace-level `.sqlx/` is NOT included when individual crates are packaged. Consumers can't compile without a live database connection.
+
+**Solution**: Generate per-crate `.sqlx/` directories before publishing.
+
+### Two-Level Cache Strategy
+
+| Cache Level | Purpose | Git Status |
+|-------------|---------|------------|
+| `/.sqlx/` (workspace root) | Development | Ignored (in `.gitignore`) |
+| `crates/*/.sqlx/` (per-crate) | Publishing | Committed |
+
+### Pre-Publish Workflow
+
+Before publishing any version with database changes:
+
+```bash
+# 1. Ensure database is running
+just postgres-start
+
+# 2. Generate per-crate caches (requires DATABASE_URL)
+just sqlx-prepare-publish
+
+# 3. Verify offline compilation works
+just sqlx-verify-offline
+
+# 4. Commit updated caches
+git add crates/*/.sqlx
+git commit -m "chore: update SQLx cache for release"
+
+# 5. Proceed with normal publish workflow
+```
+
+### Crates Requiring SQLx Cache
+
+14 crates use SQLx query macros:
+
+| Layer | Crates |
+|-------|--------|
+| Infra | `systemprompt-database`, `systemprompt-logging` |
+| Domain | `systemprompt-analytics`, `systemprompt-agent`, `systemprompt-oauth`, `systemprompt-users`, `systemprompt-content`, `systemprompt-files`, `systemprompt-ai`, `systemprompt-mcp` |
+| App | `systemprompt-scheduler`, `systemprompt-sync` |
+| Entry | `systemprompt-cli`, `systemprompt-api` |
+
+### Troubleshooting
+
+**Error: "set DATABASE_URL to use query macros online"**
+- Consumer issue: `.sqlx/` directory was not included in published crate
+- Fix: Regenerate per-crate cache with `just sqlx-prepare-publish`
+
+**Error: ".sqlx is missing one or more queries"**
+- Schema has changed since cache was generated
+- Fix: Run `just sqlx-prepare-publish` with database running
 
 ---
 

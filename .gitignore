@@ -3,6 +3,9 @@ target/
 **/target/
 **/*.rs.bk
 
+# SQLx workspace cache (development only - per-crate caches are committed)
+/.sqlx/
+
 # Dependencies
 node_modules/
 **/node_modules/

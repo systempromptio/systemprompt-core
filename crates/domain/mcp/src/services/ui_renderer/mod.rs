@@ -53,6 +53,14 @@ impl UiMetadata {
         }
     }
 
+    pub fn for_tool_definition(server_name: &str) -> Self {
+        Self {
+            resource_uri: format!("ui://{server_name}/{{artifact_id}}"),
+            csp: None,
+            visibility: vec!["model".to_string()],
+        }
+    }
+
     pub fn to_json(&self) -> serde_json::Value {
         let mut meta = serde_json::json!({
             "resourceUri": self.resource_uri,
@@ -63,6 +71,22 @@ impl UiMetadata {
             meta["csp"] = serde_json::json!(csp.to_header_value());
         }
 
+        meta
+    }
+
+    pub fn to_tool_meta(&self) -> serde_json::Map<String, serde_json::Value> {
+        let mut meta = serde_json::Map::new();
+        meta.insert("ui".to_string(), self.to_json());
+        meta
+    }
+
+    pub fn to_result_meta(&self, artifact_id: &str) -> serde_json::Map<String, serde_json::Value> {
+        let mut meta = serde_json::Map::new();
+        let ui_with_id = serde_json::json!({
+            "resourceUri": self.resource_uri.replace("{artifact_id}", artifact_id),
+            "visibility": self.visibility
+        });
+        meta.insert("ui".to_string(), ui_with_id);
         meta
     }
 }

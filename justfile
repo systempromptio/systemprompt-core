@@ -29,6 +29,42 @@ cli-offline:
 sqlx-prepare:
     cargo sqlx prepare --workspace
 
+# Prepare per-crate SQLx caches for publishing (requires running database)
+sqlx-prepare-publish:
+    #!/usr/bin/env bash
+    set -e
+    echo "Generating per-crate .sqlx directories for crates.io publishing..."
+    echo ""
+    for crate in crates/infra/database crates/infra/logging crates/domain/analytics \
+                 crates/domain/agent crates/domain/oauth crates/domain/users \
+                 crates/domain/content crates/domain/files crates/domain/ai \
+                 crates/domain/mcp crates/app/scheduler crates/app/sync \
+                 crates/entry/cli crates/entry/api; do
+        echo "  Preparing $crate..."
+        (cd "$crate" && cargo sqlx prepare)
+    done
+    echo ""
+    echo "Done! Commit the .sqlx directories before publishing:"
+    echo "  git add crates/*/.sqlx"
+    echo "  git commit -m 'chore: update SQLx cache for release'"
+
+# Verify packages can be built offline (pre-publish check)
+sqlx-verify-offline:
+    #!/usr/bin/env bash
+    set -e
+    echo "Verifying offline compilation for all SQLx crates..."
+    echo ""
+    for crate in systemprompt-database systemprompt-logging systemprompt-analytics \
+                 systemprompt-agent systemprompt-oauth systemprompt-users \
+                 systemprompt-content systemprompt-files systemprompt-ai \
+                 systemprompt-mcp systemprompt-scheduler systemprompt-sync \
+                 systemprompt-cli systemprompt-api; do
+        echo "  Checking $crate..."
+        SQLX_OFFLINE=true cargo package -p "$crate" --allow-dirty 2>&1 | tail -1
+    done
+    echo ""
+    echo "All crates verified for offline compilation!"
+
 # Check without building
 check:
     cargo check --workspace

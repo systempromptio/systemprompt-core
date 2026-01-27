@@ -9,6 +9,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "OAuth 2.0 authentication and authorization module for systemprompt.io OS"
+include = ["src/**/*", "schema/**/*", "templates/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true

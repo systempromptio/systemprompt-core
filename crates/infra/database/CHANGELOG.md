@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.14] - 2026-01-27
+
+### Changed
+- Add `include` directive to Cargo.toml for SQLx offline mode support
+- Published crates now include `.sqlx/` query cache for offline compilation
+
 ## [0.0.13] - 2026-01-27
 
 ### Changed

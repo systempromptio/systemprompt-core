@@ -10,6 +10,7 @@ description = "Database abstraction layer for systemprompt.io supporting SQLite,
 keywords = ["database", "abstraction", "sqlx", "repository", "pattern"]
 categories = ["database"]
 documentation = "https://docs.rs/systemprompt-database"
+include = ["src/**/*", "schema/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
