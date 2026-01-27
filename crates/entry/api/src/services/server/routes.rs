@@ -172,7 +172,7 @@ pub fn configure_routes(
                 message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.content_per_second)
-            .with_auth_middleware(user_middleware.clone()),
+            .with_auth_middleware(public_middleware.clone()),
     );
 
     router = router.nest(
