@@ -66,7 +66,8 @@ impl SessionMiddleware {
             let analytics = self
                 .analytics_service
                 .extract_analytics(headers, Some(&uri));
-            let is_bot = AnalyticsService::is_bot(&analytics);
+            let is_tracking_path = uri.path().starts_with(ApiPaths::TRACK_BASE);
+            let is_bot = !is_tracking_path && AnalyticsService::is_bot(&analytics);
 
             if is_bot {
                 let ctx = RequestContext::new(
