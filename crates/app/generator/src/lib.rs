@@ -11,7 +11,9 @@ pub mod rss;
 pub mod sitemap;
 pub mod templates;
 
-pub use assets::{copy_implementation_assets, organize_css_files, organize_js_files};
+pub use assets::{
+    copy_implementation_assets, copy_storage_assets_to_dist, organize_css_files, organize_js_files,
+};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::PublishError;

@@ -13,9 +13,6 @@ pub async fn fetch_content_for_source(
     source_name: &str,
     source_id: &str,
 ) -> Result<Vec<Content>> {
-    if source_name.contains("skill") {
-        return Ok(Vec::new());
-    }
     let repo = ContentRepository::new(&ctx.db_pool)
         .map_err(|e| anyhow::anyhow!("{}", e))
         .context("Failed to create content repository")?;
