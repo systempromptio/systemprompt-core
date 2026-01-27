@@ -36,16 +36,16 @@ url = { workspace = true }
 urlencoding = { workspace = true }
 
 # Core libs - scheduler only depends on infrastructure modules
-systemprompt-analytics = { path = "../../domain/analytics", version = "0.0.13" }
-systemprompt-database = { path = "../../infra/database", version = "0.0.13" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.13" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.13" }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.13" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.13" }
-systemprompt-provider-contracts = { path = "../../shared/provider-contracts", version = "0.0.13" }
-systemprompt-runtime = { path = "../runtime", version = "0.0.13" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.13" }
-systemprompt-users = { path = "../../domain/users", version = "0.0.13" }
+systemprompt-analytics = { workspace = true }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+systemprompt-logging = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-runtime = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-users = { workspace = true }
 
 # Job registration and discovery
 inventory = { workspace = true }

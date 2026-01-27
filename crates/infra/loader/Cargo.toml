@@ -28,6 +28,6 @@ serde_yaml = { workspace = true }
 tokio = { workspace = true }
 
 # systemprompt.io dependencies
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.13" }
-systemprompt-models = { path = "../../shared/models", version = "0.0.13" }
+systemprompt-extension = { workspace = true }
+systemprompt-models = { workspace = true }
 

@@ -24,7 +24,7 @@ serde_json = { workspace = true }
 serde_yaml = { workspace = true }
 chrono = { workspace = true }
 inventory = { workspace = true }
-systemprompt-models = { path = "../../shared/models", version = "0.0.13", features = ["web"] }
+systemprompt-models = { workspace = true, features = ["web"] }
 
 # Database
 sqlx = { workspace = true }
@@ -64,12 +64,12 @@ axum = { workspace = true, optional = true }
 reqwest = { workspace = true }
 
 # Core module dependencies
-systemprompt-database = { path = "../../infra/database", version = "0.0.13" }
-systemprompt-extension = { path = "../../shared/extension", version = "0.0.13" }
-systemprompt-identifiers = { path = "../../shared/identifiers", version = "0.0.13", features = ["sqlx"] }
-systemprompt-logging = { path = "../../infra/logging", version = "0.0.13" }
-systemprompt-security = { path = "../../infra/security", version = "0.0.13" }
-systemprompt-traits = { path = "../../shared/traits", version = "0.0.13" }
+systemprompt-database = { workspace = true }
+systemprompt-extension = { workspace = true }
+systemprompt-identifiers = { workspace = true, features = ["sqlx"] }
+systemprompt-logging = { workspace = true }
+systemprompt-security = { workspace = true }
+systemprompt-traits = { workspace = true }
 
 
 

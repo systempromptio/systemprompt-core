@@ -197,6 +197,41 @@ git commit -m "chore: update SQLx cache for release"
 
 ---
 
+## Workspace Dependency Inheritance
+
+All inter-crate dependencies use workspace inheritance for clean version management.
+
+### How It Works
+
+1. **Root `Cargo.toml`** defines all internal crates in `[workspace.dependencies]`:
+   ```toml
+   [workspace.package]
+   version = "0.0.14"  # Single source of truth
+
+   [workspace.dependencies]
+   systemprompt-database = { path = "crates/infra/database", version = "0.0.14" }
+   systemprompt-models = { path = "crates/shared/models", version = "0.0.14" }
+   # ... all 30 crates
+   ```
+
+2. **Individual crates** inherit version and use `workspace = true`:
+   ```toml
+   [package]
+   version.workspace = true  # Inherits from workspace
+
+   [dependencies]
+   systemprompt-database = { workspace = true }  # Inherits path+version
+   systemprompt-models = { workspace = true, features = ["web"] }  # With features
+   ```
+
+### Benefits
+
+- **Single version source**: Only update `[workspace.package].version` in root
+- **No version mismatches**: cargo-workspaces updates all references atomically
+- **Clean dependency graph**: All crates always at same version
+
+---
+
 ## Publishing with cargo-workspaces (Recommended)
 
 We use `cargo-workspaces` for lock-step versioning and publishing all crates together.
@@ -207,7 +242,7 @@ We use `cargo-workspaces` for lock-step versioning and publishing all crates tog
 cargo install cargo-workspaces
 ```
 
-### Publish Workflow
+### Complete Publish Workflow
 
 ```bash
 # 1. Make code changes and update CHANGELOG.md in affected crates
@@ -216,12 +251,24 @@ cargo install cargo-workspaces
 git add -A
 git commit -m "feat: description of changes"
 
-# 3. Bump version and publish all crates
-cargo ws version patch --no-git-push --yes  # or minor/major
-cargo ws publish --no-verify --publish-as-is --yes
+# 3. Ensure database is running (for SQLx cache)
+just postgres-start
 
-# 4. Push version bump commit and tags
+# 4. Generate SQLx caches for all crates
+just sqlx-prepare-publish
+
+# 5. Commit SQLx caches
+git add crates/*/.sqlx
+git commit -m "chore: update SQLx cache for release"
+
+# 6. Bump version (updates root + all workspace deps automatically)
+cargo ws version --all patch --no-git-push --yes  # or minor/major
+
+# 7. Push version bump commit and tags
 git push && git push --tags
+
+# 8. Publish all crates
+cargo ws publish --no-verify --publish-as-is --yes
 ```
 
 ### Version Types
@@ -232,8 +279,8 @@ git push && git push --tags
 
 ### What cargo-ws Does
 
-1. Bumps version in root `Cargo.toml`
-2. Updates all inter-crate dependency versions automatically
+1. Bumps version in root `[workspace.package]`
+2. Updates all `[workspace.dependencies]` versions automatically
 3. Creates a git commit with version bump
 4. Creates git tags for each crate
 5. Publishes all crates in correct dependency order
@@ -360,29 +407,3 @@ Dependencies flow downward only. No circular dependencies.
 | 30 | `systemprompt` | Facade |
 
 ---
-
-## Usage Examples
-
-### Basic Usage
-
-```toml
-[dependencies]
-systemprompt = "0.0.1"
-```
-
-### With Features
-
-```toml
-[dependencies]
-systemprompt = { version = "0.0.1", features = ["full"] }
-```
-
-### Specific Crates Only
-
-```toml
-[dependencies]
-systemprompt-models = "0.0.1"
-systemprompt-extension = "0.0.1"
-systemprompt-identifiers = "0.0.1"
-```
-

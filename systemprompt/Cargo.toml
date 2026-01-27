@@ -84,40 +84,40 @@ full = [
 
 [dependencies]
 # Core shared crates
-systemprompt-traits = { version = "0.0.13", path = "../crates/shared/traits", optional = true }
-systemprompt-models = { version = "0.0.13", path = "../crates/shared/models", optional = true }
-systemprompt-identifiers = { version = "0.0.13", path = "../crates/shared/identifiers", optional = true }
-systemprompt-extension = { version = "0.0.13", path = "../crates/shared/extension", optional = true }
-systemprompt-template-provider = { version = "0.0.13", path = "../crates/shared/template-provider", optional = true }
+systemprompt-traits = { workspace = true, optional = true }
+systemprompt-models = { workspace = true, optional = true }
+systemprompt-identifiers = { workspace = true, optional = true }
+systemprompt-extension = { workspace = true, optional = true }
+systemprompt-template-provider = { workspace = true, optional = true }
 
 # Infrastructure
-systemprompt-database = { version = "0.0.13", path = "../crates/infra/database", optional = true }
-systemprompt-logging = { version = "0.0.13", path = "../crates/infra/logging", optional = true }
-systemprompt-config = { version = "0.0.13", path = "../crates/infra/config", optional = true }
-systemprompt-cloud = { version = "0.0.13", path = "../crates/infra/cloud", optional = true }
-systemprompt-loader = { version = "0.0.13", path = "../crates/infra/loader", optional = true }
-systemprompt-events = { version = "0.0.13", path = "../crates/infra/events", optional = true }
-systemprompt-client = { version = "0.0.13", path = "../crates/shared/client", optional = true }
-systemprompt-security = { version = "0.0.13", path = "../crates/infra/security", optional = true }
+systemprompt-database = { workspace = true, optional = true }
+systemprompt-logging = { workspace = true, optional = true }
+systemprompt-config = { workspace = true, optional = true }
+systemprompt-cloud = { workspace = true, optional = true }
+systemprompt-loader = { workspace = true, optional = true }
+systemprompt-events = { workspace = true, optional = true }
+systemprompt-client = { workspace = true, optional = true }
+systemprompt-security = { workspace = true, optional = true }
 
 # Application
-systemprompt-sync = { version = "0.0.13", path = "../crates/app/sync", optional = true }
-systemprompt-runtime = { version = "0.0.13", path = "../crates/app/runtime", optional = true }
+systemprompt-sync = { workspace = true, optional = true }
+systemprompt-runtime = { workspace = true, optional = true }
 
 # Entry points
-systemprompt-api = { version = "0.0.13", path = "../crates/entry/api", optional = true }
-systemprompt-cli = { version = "0.0.13", path = "../crates/entry/cli", optional = true }
+systemprompt-api = { workspace = true, optional = true }
+systemprompt-cli = { workspace = true, optional = true }
 
 # Domain crates
-systemprompt-agent = { version = "0.0.13", path = "../crates/domain/agent", optional = true }
-systemprompt-ai = { version = "0.0.13", path = "../crates/domain/ai", optional = true }
-systemprompt-mcp = { version = "0.0.13", path = "../crates/domain/mcp", optional = true }
-systemprompt-oauth = { version = "0.0.13", path = "../crates/domain/oauth", optional = true }
-systemprompt-users = { version = "0.0.13", path = "../crates/domain/users", optional = true }
-systemprompt-content = { version = "0.0.13", path = "../crates/domain/content", optional = true }
-systemprompt-analytics = { version = "0.0.13", path = "../crates/domain/analytics", optional = true }
-systemprompt-scheduler = { version = "0.0.13", path = "../crates/app/scheduler", optional = true }
-systemprompt-files = { version = "0.0.13", path = "../crates/domain/files", optional = true }
+systemprompt-agent = { workspace = true, optional = true }
+systemprompt-ai = { workspace = true, optional = true }
+systemprompt-mcp = { workspace = true, optional = true }
+systemprompt-oauth = { workspace = true, optional = true }
+systemprompt-users = { workspace = true, optional = true }
+systemprompt-content = { workspace = true, optional = true }
+systemprompt-analytics = { workspace = true, optional = true }
+systemprompt-scheduler = { workspace = true, optional = true }
+systemprompt-files = { workspace = true, optional = true }
 
 # External dependencies for prelude re-exports
 axum = { workspace = true, optional = true }
