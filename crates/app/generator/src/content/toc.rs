@@ -258,3 +258,40 @@ mod tests {
         assert!(entries.is_empty());
     }
 }
+
+#[cfg(test)]
+mod additional_tests {
+    use super::*;
+
+    #[test]
+    fn test_real_content_with_code_block() {
+        let markdown = r#"# Layer System
+
+SystemPrompt organizes its 33 crates into five distinct layers.
+
+## Layer Diagram
+
+```
+┌────────────────────────────────────────────┐
+│                 ENTRY LAYER                 │
+└────────────────────────────────────────────┘
+```
+
+## Shared Layer
+
+The foundation layer.
+
+### Models
+
+Core data structures.
+"#;
+
+        let entries = extract_headings(markdown);
+        println!("Entries found: {:?}", entries);
+        
+        assert!(!entries.is_empty(), "Should find headings");
+        assert_eq!(entries.len(), 3, "Should find 3 headings (Layer Diagram, Shared Layer, Models)");
+        assert_eq!(entries[0].text, "Layer Diagram");
+        assert_eq!(entries[0].level, 2);
+    }
+}
