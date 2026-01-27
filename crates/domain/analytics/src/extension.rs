@@ -25,7 +25,6 @@ impl Extension for AnalyticsExtension {
             .with_required_columns(vec![
                 "id".into(),
                 "session_id".into(),
-                "event_type".into(),
                 "created_at".into(),
             ]),
             SchemaDefinition::inline(

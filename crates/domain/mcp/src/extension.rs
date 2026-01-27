@@ -22,7 +22,7 @@ impl Extension for McpExtension {
             include_str!("../schema/mcp_tool_executions.sql"),
         )
         .with_required_columns(vec![
-            "id".into(),
+            "mcp_execution_id".into(),
             "tool_name".into(),
             "server_name".into(),
             "created_at".into(),
