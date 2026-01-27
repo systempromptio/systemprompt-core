@@ -6,13 +6,8 @@
 
 use systemprompt_content::{validate_content_metadata, ContentMetadata};
 
-// ============================================================================
-// validate_content_metadata Tests
-// ============================================================================
-
-#[test]
-fn test_validate_content_metadata_valid() {
-    let metadata = ContentMetadata {
+fn create_valid_metadata() -> ContentMetadata {
+    ContentMetadata {
         title: "Valid Title".to_string(),
         description: "Valid description".to_string(),
         author: "John Doe".to_string(),
@@ -24,278 +19,185 @@ fn test_validate_content_metadata_valid() {
         category: None,
         tags: vec![],
         links: vec![],
-    };
+    }
+}
 
-    let allowed_types = ["article", "paper", "guide"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+#[test]
+fn test_validate_content_metadata_valid() {
+    let metadata = create_valid_metadata();
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_validate_content_metadata_empty_title() {
-    let metadata = ContentMetadata {
-        title: "".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.title = "".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("title"));
 }
 
 #[test]
 fn test_validate_content_metadata_whitespace_title() {
-    let metadata = ContentMetadata {
-        title: "   ".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.title = "   ".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_validate_content_metadata_empty_slug() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+fn test_validate_content_metadata_empty_slug_allowed_for_index() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("slug"));
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_ok());
 }
 
 #[test]
 fn test_validate_content_metadata_empty_author() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.author = "".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("author"));
 }
 
 #[test]
 fn test_validate_content_metadata_empty_published_at() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "".to_string(),
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.published_at = "".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("published_at"));
 }
 
 #[test]
 fn test_validate_content_metadata_invalid_slug_uppercase() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "Invalid-Slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "Invalid-Slug".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("slug"));
 }
 
 #[test]
 fn test_validate_content_metadata_invalid_slug_spaces() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "invalid slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "invalid slug".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_validate_content_metadata_valid_slug_with_numbers() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "article-2024-01".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "article-2024-01".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_ok());
 }
 
 #[test]
 fn test_validate_content_metadata_invalid_date_format() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "01-15-2024".to_string(), // Wrong format
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.published_at = "01-15-2024".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("YYYY-MM-DD"));
 }
 
 #[test]
 fn test_validate_content_metadata_invalid_date_short() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-1-5".to_string(), // Should be 2024-01-05
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "article".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+    let mut metadata = create_valid_metadata();
+    metadata.published_at = "2024-1-5".to_string();
 
-    let allowed_types = ["article"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
+    let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
 }
 
 #[test]
-fn test_validate_content_metadata_invalid_kind() {
-    let metadata = ContentMetadata {
-        title: "Title".to_string(),
-        description: "Desc".to_string(),
-        author: "Author".to_string(),
-        published_at: "2024-01-15".to_string(),
-        slug: "slug".to_string(),
-        keywords: "".to_string(),
-        kind: "invalid-type".to_string(),
-        image: None,
-        category: None,
-        tags: vec![],
-        links: vec![],
-    };
+fn test_validate_content_metadata_nested_slug_simple() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "getting-started/installation".to_string();
 
-    let allowed_types = ["article", "paper"];
-    let result = validate_content_metadata(&metadata, &allowed_types);
-    assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("invalid kind"));
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_ok());
 }
 
 #[test]
-fn test_validate_content_metadata_all_kinds() {
-    let allowed_types = ["article", "paper", "guide", "tutorial"];
+fn test_validate_content_metadata_nested_slug_deep() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "crates/infrastructure/database".to_string();
 
-    for kind in &allowed_types {
-        let metadata = ContentMetadata {
-            title: "Title".to_string(),
-            description: "Desc".to_string(),
-            author: "Author".to_string(),
-            published_at: "2024-01-15".to_string(),
-            slug: "slug".to_string(),
-            keywords: "".to_string(),
-            kind: kind.to_string(),
-            image: None,
-            category: None,
-            tags: vec![],
-            links: vec![],
-        };
-
-        let result = validate_content_metadata(&metadata, &allowed_types);
-        assert!(result.is_ok(), "Kind '{}' should be valid", kind);
-    }
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_ok());
 }
 
-// ============================================================================
-// Date Format Pattern Tests
-// ============================================================================
+#[test]
+fn test_validate_content_metadata_nested_slug_with_numbers() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "guides/v2/migration-2024".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_validate_content_metadata_nested_slug_rejects_double_slash() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "guides//migration".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("double slashes"));
+}
+
+#[test]
+fn test_validate_content_metadata_nested_slug_rejects_uppercase_segment() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "guides/Migration/steps".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("slug"));
+}
+
+#[test]
+fn test_validate_content_metadata_nested_slug_rejects_spaces_in_segment() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "guides/my guide/steps".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validate_content_metadata_nested_slug_allows_leading_trailing_slash_trim() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "/guides/migration/".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_validate_content_metadata_slug_only_slashes() {
+    let mut metadata = create_valid_metadata();
+    metadata.slug = "///".to_string();
+
+    let result = validate_content_metadata(&metadata);
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("only slashes"));
+}
 
 #[test]
 fn test_valid_date_formats() {
@@ -308,59 +210,32 @@ fn test_valid_date_formats() {
     ];
 
     for date in valid_dates {
-        let metadata = ContentMetadata {
-            title: "Title".to_string(),
-            description: "Desc".to_string(),
-            author: "Author".to_string(),
-            published_at: date.to_string(),
-            slug: "slug".to_string(),
-            keywords: "".to_string(),
-            kind: "article".to_string(),
-            image: None,
-            category: None,
-            tags: vec![],
-            links: vec![],
-        };
+        let mut metadata = create_valid_metadata();
+        metadata.published_at = date.to_string();
 
-        let allowed_types = ["article"];
-        let result = validate_content_metadata(&metadata, &allowed_types);
+        let result = validate_content_metadata(&metadata);
         assert!(result.is_ok(), "Date '{}' should be valid", date);
     }
 }
 
 #[test]
 fn test_invalid_date_formats() {
-    // Test clearly invalid date formats that should fail validation
     let invalid_dates = vec![
-        "2024/01/01",  // Wrong separator
-        "24-01-01",    // Short year
-        "2024-1-01",   // Single digit month
-        "2024-01-1",   // Single digit day
-        "01-01-2024",  // Wrong order
-        "not-a-date",  // Completely invalid
-        "2024",        // Just year
-        "2024-01",     // Year and month only
+        "2024/01/01",
+        "24-01-01",
+        "2024-1-01",
+        "2024-01-1",
+        "01-01-2024",
+        "not-a-date",
+        "2024",
+        "2024-01",
     ];
-    // Note: "2024-13-01" passes format check (YYYY-MM-DD pattern) but represents an invalid
-    // date. The current validation only checks format, not logical validity.
 
     for date in invalid_dates {
-        let metadata = ContentMetadata {
-            title: "Title".to_string(),
-            description: "Desc".to_string(),
-            author: "Author".to_string(),
-            published_at: date.to_string(),
-            slug: "slug".to_string(),
-            keywords: "".to_string(),
-            kind: "article".to_string(),
-            image: None,
-            category: None,
-            tags: vec![],
-            links: vec![],
-        };
+        let mut metadata = create_valid_metadata();
+        metadata.published_at = date.to_string();
 
-        let allowed_types = ["article"];
-        let result = validate_content_metadata(&metadata, &allowed_types);
+        let result = validate_content_metadata(&metadata);
         assert!(result.is_err(), "Date '{}' should be invalid", date);
     }
 }

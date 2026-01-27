@@ -3,7 +3,9 @@
 use super::validation_config_provider::{WebConfigRaw, WebMetadataRaw};
 use super::ValidationConfigProvider;
 use std::path::Path;
-use systemprompt_traits::validation_report::{ValidationError, ValidationReport};
+use systemprompt_traits::validation_report::{
+    ValidationError, ValidationReport, ValidationWarning,
+};
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
 #[derive(Debug, Default)]
@@ -11,6 +13,7 @@ pub struct WebConfigValidator {
     config: Option<WebConfigRaw>,
     metadata: Option<WebMetadataRaw>,
     config_path: Option<String>,
+    system_path: Option<String>,
 }
 
 impl DomainConfig for WebConfigValidator {
@@ -35,6 +38,7 @@ impl DomainConfig for WebConfigValidator {
         self.config = provider.web_config().cloned();
         self.metadata = provider.web_metadata().cloned();
         self.config_path = config.get("web_config_path");
+        self.system_path = Some(config.system_path().to_string());
         Ok(())
     }
 
@@ -79,6 +83,7 @@ impl DomainConfig for WebConfigValidator {
         }
 
         self.validate_branding(&mut report);
+        self.validate_paths(&mut report);
 
         Ok(report)
     }
@@ -87,6 +92,69 @@ impl DomainConfig for WebConfigValidator {
 impl WebConfigValidator {
     pub fn new() -> Self {
         Self::default()
+    }
+
+    fn validate_paths(&self, report: &mut ValidationReport) {
+        let Some(cfg) = self.config.as_ref() else {
+            return;
+        };
+
+        let Some(paths) = cfg.paths.as_ref() else {
+            report.add_warning(
+                ValidationWarning::new(
+                    "web_config.paths",
+                    "Missing 'paths' section - using defaults",
+                )
+                .with_suggestion("Add paths.templates and paths.assets to web_config.yaml"),
+            );
+            return;
+        };
+
+        if let Some(templates) = &paths.templates {
+            if !templates.is_empty() {
+                let resolved = self.resolve_path(templates);
+                let path = Path::new(&resolved);
+                if !path.exists() {
+                    report.add_error(
+                        ValidationError::new(
+                            "web_config.paths.templates",
+                            format!("Templates directory does not exist: {}", resolved),
+                        )
+                        .with_path(path)
+                        .with_suggestion(
+                            "Create the templates directory or update paths.templates in \
+                             web_config.yaml",
+                        ),
+                    );
+                } else if !path.is_dir() {
+                    report.add_error(
+                        ValidationError::new(
+                            "web_config.paths.templates",
+                            "Templates path is not a directory",
+                        )
+                        .with_path(path),
+                    );
+                }
+            }
+        }
+    }
+
+    fn resolve_path(&self, path: &str) -> String {
+        let p = Path::new(path);
+        if p.is_absolute() {
+            return path.to_string();
+        }
+
+        if let Some(ref system_path) = self.system_path {
+            let base = Path::new(system_path);
+            let resolved = base.join(p);
+            return resolved.canonicalize().map_or_else(
+                |_| resolved.to_string_lossy().to_string(),
+                |c| c.to_string_lossy().to_string(),
+            );
+        }
+
+        path.to_string()
     }
 
     fn validate_branding(&self, report: &mut ValidationReport) {
@@ -100,12 +168,19 @@ impl WebConfigValidator {
                     "web_config.branding",
                     "Missing 'branding' section in web.yaml",
                 )
-                .with_suggestion("Add a 'branding' section with copyright, logo, favicon, twitter_handle, and display_sitename"),
+                .with_suggestion(
+                    "Add a 'branding' section with copyright, logo, favicon, twitter_handle, and \
+                     display_sitename",
+                ),
             );
             return;
         };
 
-        if branding.copyright.as_ref().map_or(true, |s| s.is_empty()) {
+        if branding
+            .copyright
+            .as_ref()
+            .is_none_or(String::is_empty)
+        {
             report.add_error(
                 ValidationError::new(
                     "web_config.branding.copyright",
@@ -115,7 +190,11 @@ impl WebConfigValidator {
             );
         }
 
-        if branding.twitter_handle.as_ref().map_or(true, |s| s.is_empty()) {
+        if branding
+            .twitter_handle
+            .as_ref()
+            .is_none_or(String::is_empty)
+        {
             report.add_error(
                 ValidationError::new(
                     "web_config.branding.twitter_handle",
@@ -135,7 +214,7 @@ impl WebConfigValidator {
             );
         }
 
-        if branding.favicon.as_ref().map_or(true, |s| s.is_empty()) {
+        if branding.favicon.as_ref().is_none_or(String::is_empty) {
             report.add_error(
                 ValidationError::new(
                     "web_config.branding.favicon",
@@ -151,7 +230,7 @@ impl WebConfigValidator {
             .and_then(|l| l.primary.as_ref())
             .and_then(|p| p.svg.as_ref());
 
-        if logo_svg.map_or(true, |s| s.is_empty()) {
+        if logo_svg.is_none_or(String::is_empty) {
             report.add_error(
                 ValidationError::new(
                     "web_config.branding.logo.primary.svg",

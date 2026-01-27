@@ -7,14 +7,14 @@ pub use types::TemplateDataParams;
 use anyhow::Result;
 use serde_json::Value;
 use systemprompt_database::DbPool;
+use systemprompt_models::FullWebConfig;
 
 use crate::error::PublishError;
 
 use self::builders::build_template_json;
 use self::extractors::{
-    extract_article_config, extract_author, extract_display_sitename, extract_favicon_path,
-    extract_logo_path, extract_org_config, extract_published_date, extract_twitter_handle,
-    format_date_pair,
+    extract_article_config, extract_author, extract_org_config, extract_published_date,
+    format_date_pair, get_display_sitename, get_favicon_path, get_logo_path, get_twitter_handle,
 };
 use self::types::{
     ArticleConfig, BrandingData, BuildTemplateJsonParams, ContentData, DateData, ImageData,
@@ -51,16 +51,16 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
         .map_err(|e| PublishError::missing_field(e.to_string(), slug))?;
 
     let date_data = prepare_date_data(item, slug)?;
-    let image_data = prepare_image_data(item, org_url, slug)?;
+    let image_data = prepare_image_data(item, org_url);
     let content_data =
         prepare_content_data(item, all_items, popular_ids, content_html, &db_pool).await?;
 
     let navigation = prepare_navigation_html(web_config)?;
     let author = extract_author(item, config)?;
-    let twitter_handle = extract_twitter_handle(web_config)?;
-    let display_sitename = extract_display_sitename(web_config)?;
-    let logo_path = extract_logo_path(web_config)?;
-    let favicon_path = extract_favicon_path(web_config)?;
+    let twitter_handle = get_twitter_handle(web_config);
+    let display_sitename = get_display_sitename(web_config);
+    let logo_path = get_logo_path(web_config);
+    let favicon_path = get_favicon_path(web_config);
 
     build_template_json(BuildTemplateJsonParams {
         item,
@@ -111,28 +111,34 @@ fn prepare_date_data(item: &Value, slug: &str) -> Result<DateData> {
 
 const DEFAULT_PLACEHOLDER_IMAGE: &str = "/files/images/placeholder.svg";
 
-fn prepare_image_data(item: &Value, org_url: &str, _slug: &str) -> Result<ImageData> {
+fn prepare_image_data(item: &Value, org_url: &str) -> ImageData {
     let raw_image = item
         .get("image")
         .or_else(|| item.get("cover_image"))
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty());
 
-    let featured = normalize_image_url(raw_image).unwrap_or_else(|| DEFAULT_PLACEHOLDER_IMAGE.to_string());
-    let absolute_url = get_absolute_image_url(raw_image, org_url)
-        .unwrap_or_else(|| format!("{}{}", org_url.trim_end_matches('/'), DEFAULT_PLACEHOLDER_IMAGE));
+    let featured =
+        normalize_image_url(raw_image).unwrap_or_else(|| DEFAULT_PLACEHOLDER_IMAGE.to_string());
+    let absolute_url = get_absolute_image_url(raw_image, org_url).unwrap_or_else(|| {
+        format!(
+            "{}{}",
+            org_url.trim_end_matches('/'),
+            DEFAULT_PLACEHOLDER_IMAGE
+        )
+    });
 
     let title = item
         .get("title")
         .and_then(|v| v.as_str())
         .unwrap_or_default();
 
-    Ok(ImageData {
+    ImageData {
         featured,
         absolute_url: absolute_url.clone(),
         hero: absolute_url,
         hero_alt: title.to_string(),
-    })
+    }
 }
 
 async fn prepare_content_data(
@@ -168,9 +174,9 @@ async fn prepare_content_data(
     })
 }
 
-fn prepare_navigation_html(web_config: &serde_yaml::Value) -> Result<(String, String, String)> {
+fn prepare_navigation_html(web_config: &FullWebConfig) -> Result<(String, String, String)> {
     let footer = generate_footer_html(web_config)?;
-    let social_bar = generate_social_action_bar_html(web_config, false)?;
-    let social_bar_hero = generate_social_action_bar_html(web_config, true)?;
+    let social_bar = generate_social_action_bar_html(web_config, false);
+    let social_bar_hero = generate_social_action_bar_html(web_config, true);
     Ok((footer, social_bar, social_bar_hero))
 }

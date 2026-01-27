@@ -1,5 +1,6 @@
 use std::any::Any;
 
+use crate::web_config::WebConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
@@ -8,7 +9,7 @@ pub struct ExtenderContext<'a> {
     pub item: &'a Value,
     pub all_items: &'a [Value],
     pub config: &'a serde_yaml::Value,
-    pub web_config: &'a serde_yaml::Value,
+    pub web_config: &'a WebConfig,
     pub content_html: &'a str,
     pub url_pattern: &'a str,
     pub source_name: &'a str,
@@ -35,7 +36,7 @@ pub struct ExtenderContextBuilder<'a> {
     item: &'a Value,
     all_items: &'a [Value],
     config: &'a serde_yaml::Value,
-    web_config: &'a serde_yaml::Value,
+    web_config: &'a WebConfig,
     db_pool: &'a (dyn Any + Send + Sync),
     content_html: &'a str,
     url_pattern: &'a str,
@@ -64,7 +65,7 @@ impl<'a> ExtenderContextBuilder<'a> {
         item: &'a Value,
         all_items: &'a [Value],
         config: &'a serde_yaml::Value,
-        web_config: &'a serde_yaml::Value,
+        web_config: &'a WebConfig,
         db_pool: &'a (dyn Any + Send + Sync),
     ) -> Self {
         Self {
@@ -118,7 +119,7 @@ impl<'a> ExtenderContext<'a> {
         item: &'a Value,
         all_items: &'a [Value],
         config: &'a serde_yaml::Value,
-        web_config: &'a serde_yaml::Value,
+        web_config: &'a WebConfig,
         db_pool: &'a (dyn Any + Send + Sync),
     ) -> ExtenderContextBuilder<'a> {
         ExtenderContextBuilder::new(item, all_items, config, web_config, db_pool)

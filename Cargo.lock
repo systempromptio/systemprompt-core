@@ -4767,6 +4767,7 @@ dependencies = [
  "serde_yaml",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-provider-contracts",
  "systemprompt-traits",
  "tempfile",
  "thiserror 2.0.18",

@@ -9,6 +9,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Template registry and management for systemprompt.io"
+include = ["src/**/*", "defaults/**/*", "Cargo.toml"]
 
 [lints]
 workspace = true
