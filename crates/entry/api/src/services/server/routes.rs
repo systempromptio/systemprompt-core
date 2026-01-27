@@ -165,7 +165,7 @@ pub fn configure_routes(
     );
 
     router = router.nest(
-        "/api/v1/engagement",
+        ApiPaths::TRACK_ENGAGEMENT,
         crate::routes::engagement::router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
                 extension: "engagement".to_string(),

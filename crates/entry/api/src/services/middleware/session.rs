@@ -242,6 +242,10 @@ impl SessionMiddleware {
     }
 
     fn should_skip_session_tracking(path: &str) -> bool {
+        if path.starts_with(ApiPaths::TRACK_BASE) {
+            return false;
+        }
+
         if path.starts_with(ApiPaths::API_BASE) {
             return true;
         }

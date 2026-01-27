@@ -8,7 +8,7 @@ use systemprompt_sync::{
 
 use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
-use crate::interactive::require_confirmation_default_yes;
+use crate::interactive::confirm_optional;
 
 pub struct PreSyncConfig {
     pub no_sync: bool,
@@ -65,12 +65,18 @@ pub async fn execute(
     CliService::section("Pre-Deploy Sync");
     display_destructive_warning();
 
-    if !config.dry_run {
-        require_confirmation_default_yes(
+    if !config.dry_run && !config.yes {
+        let should_sync = confirm_optional(
             "Sync files from cloud before deploying?",
-            config.yes,
+            true,
             cli_config,
         )?;
+
+        if !should_sync {
+            CliService::warning("Pre-deploy sync skipped by user");
+            CliService::warning("Runtime files on the container will be LOST");
+            return Ok(PreSyncResult::skipped());
+        }
     }
 
     let (sync_config, api_client) = build_sync_config(profile, tenant_id, config.dry_run)?;
