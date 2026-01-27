@@ -4,11 +4,40 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct ToolUiConfig {
+    #[serde(default = "default_resource_uri_template")]
+    pub resource_uri_template: String,
+    #[serde(default = "default_visibility")]
+    pub visibility: Vec<String>,
+}
+
+fn default_resource_uri_template() -> String {
+    "ui://systemprompt/{artifact_id}".to_string()
+}
+
+fn default_visibility() -> Vec<String> {
+    vec!["model".to_string()]
+}
+
+impl ToolUiConfig {
+    pub fn to_meta_json(&self) -> serde_json::Value {
+        serde_json::json!({
+            "ui": {
+                "resourceUri": self.resource_uri_template,
+                "visibility": self.visibility
+            }
+        })
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolMetadata {
     #[serde(default)]
     pub terminal_on_success: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_config: Option<ToolModelConfig>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ui: Option<ToolUiConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

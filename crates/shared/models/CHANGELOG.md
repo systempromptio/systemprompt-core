@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.0.14] - 2026-01-27
+
+### Added
+- `ToolUiConfig` struct for configuring UI metadata in MCP tool definitions
+- `ToolUiConfig::to_meta_json()` method for generating UI metadata JSON
+
 ## [0.0.13] - 2026-01-27
 
 ### Changed

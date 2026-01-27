@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.0.14] - 2026-01-27
+
+### Added
+- `UiMetadata::for_tool_definition()` factory method for creating tool-specific UI metadata
+- `UiMetadata::to_tool_meta()` method for generating tool metadata JSON
+- `UiMetadata::to_result_meta()` method for generating result metadata with artifact ID substitution
+
+### Changed
+- Add `include` directive to Cargo.toml for SQLx offline mode support in published crates
+
 ## [0.0.13] - 2026-01-27
 
 ### Added

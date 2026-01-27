@@ -9,6 +9,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "Sync services for systemprompt.io - file, database, and crate deployment synchronization"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [dependencies]
 # Core runtime

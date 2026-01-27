@@ -9,6 +9,7 @@ homepage.workspace = true
 keywords.workspace = true
 categories.workspace = true
 description = "systemprompt.io OS - CLI for agent orchestration, AI operations, and system management"
+include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [lints]
 workspace = true
