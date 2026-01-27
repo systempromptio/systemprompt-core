@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.0.14] - 2026-01-27
+
+### Added
+- Early branding config validation on startup (copyright, twitter_handle, logo, favicon, display_sitename)
+- `BrandingConfigRaw` struct for structured web.yaml branding validation
+- Content templates documentation (`instructions/information/content-templates.md`)
+- `EmbeddedDefaultsProvider` with homepage template fallback
+
+### Changed
+- Empty/missing image fields now default to placeholder instead of failing
+- Improved error messages show available templates when template not found
+
+### Fixed
+- `image: ""` in frontmatter no longer causes publish to fail
+
 ## [0.0.13] - 2026-01-27
 
 ### Added
