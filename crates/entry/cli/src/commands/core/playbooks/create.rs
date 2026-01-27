@@ -105,16 +105,23 @@ pub async fn execute(
         ));
     }
 
-    fs::create_dir_all(&category_dir)
-        .with_context(|| format!("Failed to create category directory: {}", category_dir.display()))?;
+    fs::create_dir_all(&category_dir).with_context(|| {
+        format!(
+            "Failed to create category directory: {}",
+            category_dir.display()
+        )
+    })?;
 
-    let content = build_playbook_markdown(&PlaybookFrontmatterParams {
-        title: &name,
-        slug: &playbook_id,
-        description: &description,
-        enabled,
-        tags: &tags,
-    }, &instructions);
+    let content = build_playbook_markdown(
+        &PlaybookFrontmatterParams {
+            title: &name,
+            slug: &playbook_id,
+            description: &description,
+            enabled,
+            tags: &tags,
+        },
+        &instructions,
+    );
 
     fs::write(&playbook_file, content)
         .with_context(|| format!("Failed to write playbook file: {}", playbook_file.display()))?;
@@ -134,7 +141,8 @@ pub async fn execute(
             },
             Err(e) => {
                 CliService::warning(&format!(
-                    "Playbook created but not synced to database: {}. Run 'playbooks sync' manually.",
+                    "Playbook created but not synced to database: {}. Run 'playbooks sync' \
+                     manually.",
                     e
                 ));
             },
@@ -148,7 +156,11 @@ pub async fn execute(
             playbook_file.display()
         )
     } else {
-        format!("Playbook '{}' created at {}", playbook_id, playbook_file.display())
+        format!(
+            "Playbook '{}' created at {}",
+            playbook_id,
+            playbook_file.display()
+        )
     };
 
     let output = PlaybookCreateOutput {
@@ -162,12 +174,18 @@ pub async fn execute(
 
 fn get_playbooks_path() -> Result<std::path::PathBuf> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(format!("{}/playbook", profile.paths.services)))
+    Ok(std::path::PathBuf::from(format!(
+        "{}/playbook",
+        profile.paths.services
+    )))
 }
 
 fn validate_identifier(value: &str, field_name: &str) -> Result<()> {
     if value.len() < 2 || value.len() > 30 {
-        return Err(anyhow!("{} must be between 2 and 30 characters", field_name));
+        return Err(anyhow!(
+            "{} must be between 2 and 30 characters",
+            field_name
+        ));
     }
 
     if !value
@@ -184,7 +202,7 @@ fn validate_identifier(value: &str, field_name: &str) -> Result<()> {
 }
 
 fn title_case(s: &str) -> String {
-    s.split(|c| c == '_' || c == '-')
+    s.split(['_', '-'])
         .map(|word| {
             let mut chars = word.chars();
             chars.next().map_or_else(String::new, |first| {
@@ -229,7 +247,9 @@ fn build_playbook_markdown(params: &PlaybookFrontmatterParams<'_>, instructions:
     let keywords_yaml = if params.tags.is_empty() {
         "keywords: []".to_string()
     } else {
-        let tags_list = params.tags.iter()
+        let tags_list = params
+            .tags
+            .iter()
             .map(|t| format!("  - {}", t))
             .collect::<Vec<_>>()
             .join("\n");
@@ -327,7 +347,8 @@ async fn sync_playbook_to_db(playbook_file: &Path) -> Result<()> {
         .await
         .context("Failed to connect to database")?;
 
-    let parent_dir = playbook_file.parent()
+    let parent_dir = playbook_file
+        .parent()
         .ok_or_else(|| anyhow!("Invalid playbook file path"))?;
 
     let ingestion_service = PlaybookIngestionService::new(Arc::new(database));

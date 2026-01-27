@@ -1,3 +1,4 @@
+mod pre_sync;
 mod select;
 
 use std::path::PathBuf;
@@ -156,14 +157,18 @@ impl DeployConfig {
 }
 
 
-pub async fn execute(
-    skip_push: bool,
-    profile_name: Option<String>,
-    config: &CliConfig,
-) -> Result<()> {
+pub struct DeployArgs {
+    pub skip_push: bool,
+    pub profile_name: Option<String>,
+    pub no_sync: bool,
+    pub yes: bool,
+    pub dry_run: bool,
+}
+
+pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     CliService::section("systemprompt.io Cloud Deploy");
 
-    let (profile, profile_path) = resolve_profile(profile_name.as_deref(), config)?;
+    let (profile, profile_path) = resolve_profile(args.profile_name.as_deref(), config)?;
 
     let cloud_config = profile
         .cloud
@@ -201,6 +206,23 @@ pub async fn execute(
 
     let tenant_name = &tenant.name;
 
+    let sync_result = pre_sync::execute(
+        &profile,
+        tenant_id,
+        pre_sync::PreSyncConfig {
+            no_sync: args.no_sync,
+            yes: args.yes,
+            dry_run: args.dry_run,
+        },
+        config,
+    )
+    .await?;
+
+    if sync_result.dry_run {
+        CliService::info("Dry run complete. No deployment performed.");
+        return Ok(());
+    }
+
     let project = ProjectRoot::discover().map_err(|e| anyhow!("{}", e))?;
 
     let config = DeployConfig::from_project(&project, &profile.name)?;
@@ -230,7 +252,7 @@ pub async fn execute(
     spinner.finish_and_clear();
     CliService::success("Docker image built");
 
-    if skip_push {
+    if args.skip_push {
         CliService::info("Push skipped (--skip-push)");
     } else {
         let spinner = CliService::spinner("Pushing to registry...");

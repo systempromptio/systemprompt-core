@@ -24,7 +24,10 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<PlaybookDeleteOutput>> {
+pub fn execute(
+    args: DeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<PlaybookDeleteOutput>> {
     let playbooks_path = get_playbooks_path()?;
 
     let playbooks_to_delete: Vec<String> = if args.all {
@@ -35,7 +38,9 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Pla
         })?;
 
         let (category, domain) = parse_playbook_id(&name)?;
-        let playbook_file = playbooks_path.join(&category).join(format!("{}.md", domain));
+        let playbook_file = playbooks_path
+            .join(&category)
+            .join(format!("{}.md", domain));
 
         if !playbook_file.exists() {
             return Err(anyhow!("Playbook '{}' not found", name));
@@ -71,7 +76,10 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Pla
                 deleted.push(playbook_id.clone());
             },
             Err(e) => {
-                CliService::error(&format!("Failed to delete playbook '{}': {}", playbook_id, e));
+                CliService::error(&format!(
+                    "Failed to delete playbook '{}': {}",
+                    playbook_id, e
+                ));
             },
         }
     }
@@ -88,7 +96,10 @@ pub fn execute(args: DeleteArgs, config: &CliConfig) -> Result<CommandResult<Pla
 
 fn get_playbooks_path() -> Result<std::path::PathBuf> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(format!("{}/playbook", profile.paths.services)))
+    Ok(std::path::PathBuf::from(format!(
+        "{}/playbook",
+        profile.paths.services
+    )))
 }
 
 fn parse_playbook_id(id: &str) -> Result<(String, String)> {
@@ -104,14 +115,20 @@ fn parse_playbook_id(id: &str) -> Result<(String, String)> {
 
 fn delete_playbook(playbooks_path: &Path, playbook_id: &str) -> Result<()> {
     let (category, domain) = parse_playbook_id(playbook_id)?;
-    let playbook_file = playbooks_path.join(&category).join(format!("{}.md", domain));
+    let playbook_file = playbooks_path
+        .join(&category)
+        .join(format!("{}.md", domain));
 
     if !playbook_file.exists() {
         return Err(anyhow!("Playbook '{}' not found", playbook_id));
     }
 
-    fs::remove_file(&playbook_file)
-        .with_context(|| format!("Failed to remove playbook file: {}", playbook_file.display()))?;
+    fs::remove_file(&playbook_file).with_context(|| {
+        format!(
+            "Failed to remove playbook file: {}",
+            playbook_file.display()
+        )
+    })?;
 
     let category_dir = playbooks_path.join(&category);
     if let Ok(entries) = fs::read_dir(&category_dir) {

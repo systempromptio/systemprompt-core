@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Changed
+- Version bump for workspace consistency
+
 ## [0.0.11] - 2026-01-26
 
 ### Fixed

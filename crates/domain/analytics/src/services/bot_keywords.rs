@@ -72,6 +72,9 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "scrapy",
     "python-requests",
     "python-urllib",
+    "python-httpx",
+    "httpx/",
+    "aiohttp",
     "curl",
     "wget",
     "libwww",
@@ -82,6 +85,9 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "go-http-client",
     "node-fetch",
     "axios",
+    "java/",
+    "perl/",
+    "ruby/",
 ];
 
 pub const BOT_IP_PREFIXES: &[&str] = &[

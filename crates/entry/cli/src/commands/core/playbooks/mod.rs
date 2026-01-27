@@ -41,7 +41,7 @@ pub async fn execute(cmd: PlaybooksCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         PlaybooksCommands::Show(args) => {
-            let result = show::execute(args).context("Failed to show playbook")?;
+            let result = show::execute(&args).context("Failed to show playbook")?;
             render_result(&result);
             Ok(())
         },

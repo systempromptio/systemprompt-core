@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.13] - 2026-01-27
+
+### Changed
+- Use `expect()` instead of `unwrap()` in artifact response builder for better error messages
+
 ## [0.0.11] - 2026-01-26
 
 ### Changed

@@ -45,10 +45,16 @@ pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<CommandResult<Play
     })?;
 
     let (category, domain) = parse_playbook_id(&name)?;
-    let playbook_file = playbooks_path.join(&category).join(format!("{}.md", domain));
+    let playbook_file = playbooks_path
+        .join(&category)
+        .join(format!("{}.md", domain));
 
     if !playbook_file.exists() {
-        return Err(anyhow!("Playbook '{}' not found at {}", name, playbook_file.display()));
+        return Err(anyhow!(
+            "Playbook '{}' not found at {}",
+            name,
+            playbook_file.display()
+        ));
     }
 
     edit_playbook(&playbook_file, &name, args)
@@ -126,7 +132,10 @@ fn edit_playbook(
 
 fn get_playbooks_path() -> Result<std::path::PathBuf> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    Ok(std::path::PathBuf::from(format!("{}/playbook", profile.paths.services)))
+    Ok(std::path::PathBuf::from(format!(
+        "{}/playbook",
+        profile.paths.services
+    )))
 }
 
 fn parse_playbook_id(id: &str) -> Result<(String, String)> {

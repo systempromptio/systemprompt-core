@@ -15,7 +15,7 @@ pub struct ShowArgs {
     pub raw: bool,
 }
 
-pub fn execute(args: ShowArgs) -> Result<CommandResult<PlaybookContentOutput>> {
+pub fn execute(args: &ShowArgs) -> Result<CommandResult<PlaybookContentOutput>> {
     let playbooks_path = get_playbooks_path()?;
 
     let parts: Vec<&str> = args.playbook_id.split('_').collect();

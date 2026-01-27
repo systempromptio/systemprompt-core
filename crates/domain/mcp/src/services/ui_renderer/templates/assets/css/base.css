@@ -1,0 +1,48 @@
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #333;
+    background: #fff;
+    padding: 16px;
+}
+
+.container {
+    max-width: 100%;
+    overflow-x: auto;
+}
+
+.mcp-app-title {
+    font-size: 18px;
+    font-weight: 600;
+    margin-bottom: 16px;
+    color: #1a1a1a;
+}
+
+.mcp-app-description {
+    color: #666;
+    margin-bottom: 16px;
+}
+
+.error-message {
+    background: #fee;
+    border: 1px solid #f88;
+    color: #a00;
+    padding: 12px;
+    border-radius: 4px;
+    margin: 16px 0;
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 32px;
+    color: #666;
+}
