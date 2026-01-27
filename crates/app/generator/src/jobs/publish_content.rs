@@ -8,8 +8,8 @@ use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
 use crate::{
-    generate_feed, generate_sitemap, organize_css_files, organize_js_files, prerender_content,
-    prerender_homepage,
+    copy_storage_assets_to_dist, generate_feed, generate_sitemap, organize_css_files,
+    organize_js_files, prerender_content, prerender_homepage,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -50,6 +50,7 @@ impl PublishContentJob {
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         run_asset_copy(&mut stats).await;
+        run_storage_asset_copy(&mut stats).await;
         run_prerender(db_pool, &mut stats).await;
         run_homepage_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
@@ -90,6 +91,39 @@ async fn run_asset_copy(stats: &mut PublishStats) {
         },
         Err(e) => {
             tracing::warn!(error = %e, "Extension asset copy failed");
+            stats.record_failure();
+        },
+    }
+}
+
+async fn run_storage_asset_copy(stats: &mut PublishStats) {
+    let paths = match AppPaths::get() {
+        Ok(paths) => paths,
+        Err(e) => {
+            tracing::warn!(error = %e, "Failed to get app paths for storage asset copy");
+            stats.record_failure();
+            return;
+        },
+    };
+
+    let Some(storage_dir) = paths.storage() else {
+        tracing::debug!("No storage path configured, skipping storage asset copy");
+        return;
+    };
+
+    let dist_dir = paths.web().dist();
+
+    match copy_storage_assets_to_dist(storage_dir, dist_dir).await {
+        Ok((css_count, js_count)) => {
+            tracing::info!(
+                css = css_count,
+                js = js_count,
+                "Storage assets copied to dist"
+            );
+            stats.record_success();
+        },
+        Err(e) => {
+            tracing::warn!(error = %e, "Storage asset copy failed");
             stats.record_failure();
         },
     }

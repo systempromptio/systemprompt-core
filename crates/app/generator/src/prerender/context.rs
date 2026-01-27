@@ -4,9 +4,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_models::{AppPaths, ContentConfigRaw};
+use systemprompt_models::{AppPaths, ContentConfigRaw, FullWebConfig};
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
-use systemprompt_templates::{CoreTemplateProvider, TemplateRegistry, TemplateRegistryBuilder};
+use systemprompt_templates::{
+    CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
+};
 use tokio::fs;
 
 use crate::templates::{get_templates_path, load_web_config};
@@ -14,7 +16,7 @@ use crate::templates::{get_templates_path, load_web_config};
 pub struct PrerenderContext {
     pub db_pool: DbPool,
     pub config: ContentConfigRaw,
-    pub web_config: serde_yaml::Value,
+    pub web_config: FullWebConfig,
     pub template_registry: TemplateRegistry,
     pub dist_dir: PathBuf,
 }
@@ -30,48 +32,20 @@ pub struct HomepageBranding {
 }
 
 pub fn extract_homepage_branding(
-    web_config: &serde_yaml::Value,
+    web_config: &FullWebConfig,
     config: &ContentConfigRaw,
 ) -> HomepageBranding {
     let org = &config.metadata.structured_data.organization;
-
-    let logo_path = web_config
-        .get("branding")
-        .and_then(|b| b.get("logo"))
-        .and_then(|l| l.get("primary"))
-        .and_then(|p| p.get("svg"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let favicon_path = web_config
-        .get("branding")
-        .and_then(|b| b.get("favicon"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let twitter_handle = web_config
-        .get("branding")
-        .and_then(|b| b.get("twitter_handle"))
-        .and_then(|v| v.as_str())
-        .unwrap_or("")
-        .to_string();
-
-    let display_sitename = web_config
-        .get("branding")
-        .and_then(|b| b.get("display_sitename"))
-        .and_then(serde_yaml::Value::as_bool)
-        .unwrap_or(true);
+    let branding = &web_config.branding;
 
     HomepageBranding {
         org_name: org.name.clone(),
         org_url: org.url.clone(),
         org_logo: org.logo.clone(),
-        logo_path,
-        favicon_path,
-        twitter_handle,
-        display_sitename,
+        logo_path: branding.logo.primary.svg.clone().unwrap_or_default(),
+        favicon_path: branding.favicon.clone(),
+        twitter_handle: branding.twitter_handle.clone(),
+        display_sitename: branding.display_sitename,
     }
 }
 
@@ -91,9 +65,15 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
 
     tracing::debug!(config_path = %config_path.display(), "Loaded config");
 
-    let template_dir = get_templates_path(&web_config)?;
-    let extension_template_path = PathBuf::from(&template_dir);
-    let core_template_path = paths.system().default_templates();
+    let template_dir = get_templates_path(&web_config);
+    if !template_dir.exists() {
+        return Err(anyhow::anyhow!(
+            "Template directory not found: {}. Configure profile.paths.web_path or \
+             web_config.yaml paths.templates",
+            template_dir.display()
+        ));
+    }
+    let extension_template_path = template_dir;
 
     let extension_provider = CoreTemplateProvider::discover_with_priority(
         &extension_template_path,
@@ -102,39 +82,18 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
     .await
     .context("Failed to discover extension templates")?;
 
-    let core_provider = if core_template_path.exists() {
-        Some(
-            CoreTemplateProvider::discover_with_priority(
-                &core_template_path,
-                CoreTemplateProvider::DEFAULT_PRIORITY,
-            )
-            .await
-            .context("Failed to discover core templates")?,
-        )
-    } else {
-        tracing::debug!(
-            path = %core_template_path.display(),
-            "Core templates directory not found, skipping fallback"
-        );
-        None
-    };
+    let embedded_defaults = EmbeddedDefaultsProvider;
 
-    let mut loader = FileSystemLoader::with_path(&extension_template_path);
-    if core_template_path.exists() {
-        loader = loader.add_path(&core_template_path);
-    }
+    let loader = FileSystemLoader::with_path(&extension_template_path);
 
     let extension_provider: DynTemplateProvider = Arc::new(extension_provider);
+    let embedded_defaults: DynTemplateProvider = Arc::new(embedded_defaults);
     let loader: DynTemplateLoader = Arc::new(loader);
 
     let mut registry_builder = TemplateRegistryBuilder::new()
         .with_provider(extension_provider)
+        .with_provider(embedded_defaults)
         .with_loader(loader);
-
-    if let Some(core_prov) = core_provider {
-        let core_prov: DynTemplateProvider = Arc::new(core_prov);
-        registry_builder = registry_builder.with_provider(core_prov);
-    }
 
     let extensions = ExtensionRegistry::discover();
     tracing::debug!(
