@@ -64,6 +64,9 @@ impl ApiPaths {
     pub const SWAGGER_BASE: &'static str = "/swagger";
     pub const OPENAPI_BASE: &'static str = "/openapi";
 
+    pub const TRACK_BASE: &'static str = "/track";
+    pub const TRACK_ENGAGEMENT: &'static str = "/track/engagement";
+
     pub const ADMIN_BASE: &'static str = "/api/v1/admin";
     pub const ADMIN_LOGS: &'static str = "/api/v1/admin/logs";
     pub const ADMIN_USERS: &'static str = "/api/v1/admin/users";
