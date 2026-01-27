@@ -108,7 +108,8 @@ pub use modules::{
 };
 pub use oauth::{OAuthClientConfig, OAuthServerConfig};
 pub use paths::{
-    cloud_container, dir_names, file_names, AppPaths, BuildPaths, PathError, SystemPaths, WebPaths,
+    cloud_container, dir_names, file_names, AppPaths, BuildPaths, PathError, StoragePaths,
+    SystemPaths, WebPaths,
 };
 pub use profile::{
     CloudConfig, CloudValidationMode, DatabaseConfig as ProfileDatabaseConfig, Environment,

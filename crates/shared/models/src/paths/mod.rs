@@ -1,12 +1,14 @@
 mod build;
 pub mod constants;
 mod error;
+mod storage;
 mod system;
 mod web;
 
 pub use build::BuildPaths;
 pub use constants::{cloud_container, dir_names, file_names};
 pub use error::PathError;
+pub use storage::StoragePaths;
 pub use system::SystemPaths;
 pub use web::WebPaths;
 
@@ -22,7 +24,7 @@ pub struct AppPaths {
     system: SystemPaths,
     web: WebPaths,
     build: BuildPaths,
-    storage: Option<PathBuf>,
+    storage: StoragePaths,
     ai_config: Option<PathBuf>,
 }
 
@@ -47,7 +49,7 @@ impl AppPaths {
             system: SystemPaths::from_profile(paths)?,
             web: WebPaths::from_profile(paths),
             build: BuildPaths::from_profile(paths),
-            storage: paths.storage.as_ref().map(PathBuf::from),
+            storage: StoragePaths::from_profile(paths)?,
             ai_config: Some(PathBuf::from(paths.ai_config())),
         })
     }
@@ -64,8 +66,8 @@ impl AppPaths {
         &self.build
     }
 
-    pub fn storage(&self) -> Option<&Path> {
-        self.storage.as_deref()
+    pub const fn storage(&self) -> &StoragePaths {
+        &self.storage
     }
 
     pub fn ai_config(&self) -> Option<&Path> {

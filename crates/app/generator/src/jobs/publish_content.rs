@@ -106,14 +106,10 @@ async fn run_storage_asset_copy(stats: &mut PublishStats) {
         },
     };
 
-    let Some(storage_dir) = paths.storage() else {
-        tracing::debug!("No storage path configured, skipping storage asset copy");
-        return;
-    };
-
+    let storage = paths.storage();
     let dist_dir = paths.web().dist();
 
-    match copy_storage_assets_to_dist(storage_dir, dist_dir).await {
+    match copy_storage_assets_to_dist(storage, dist_dir).await {
         Ok((css_count, js_count)) => {
             tracing::info!(
                 css = css_count,

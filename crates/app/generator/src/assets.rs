@@ -1,5 +1,6 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
+use systemprompt_models::StoragePaths;
 use tokio::fs;
 
 pub async fn organize_css_files(web_dir: &str) -> Result<u32> {
@@ -49,28 +50,38 @@ async fn copy_files_by_extension(source_dir: &Path, dest_dir: &Path, ext: &str) 
 }
 
 pub async fn copy_storage_assets_to_dist(
-    storage_dir: &Path,
+    storage: &StoragePaths,
     dist_dir: &Path,
 ) -> Result<(u32, u32)> {
     let mut css_count = 0;
     let mut js_count = 0;
 
-    let css_source = storage_dir.join("files/css");
+    let css_source = storage.css();
     let css_dest = dist_dir.join("css");
     if css_source.exists() {
         fs::create_dir_all(&css_dest)
             .await
             .context("Failed to create css directory in dist")?;
-        css_count = copy_directory_contents(&css_source, &css_dest).await?;
+        css_count = copy_directory_contents(css_source, &css_dest).await?;
+    } else {
+        tracing::info!(
+            path = %css_source.display(),
+            "Storage CSS directory does not exist, skipping CSS sync"
+        );
     }
 
-    let js_source = storage_dir.join("files/js");
+    let js_source = storage.js();
     let js_dest = dist_dir.join("js");
     if js_source.exists() {
         fs::create_dir_all(&js_dest)
             .await
             .context("Failed to create js directory in dist")?;
-        js_count = copy_directory_contents(&js_source, &js_dest).await?;
+        js_count = copy_directory_contents(js_source, &js_dest).await?;
+    } else {
+        tracing::info!(
+            path = %js_source.display(),
+            "Storage JS directory does not exist, skipping JS sync"
+        );
     }
 
     Ok((css_count, js_count))
