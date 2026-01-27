@@ -10,8 +10,8 @@ use std::fs;
 use std::path::Path;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 
 const VALID_KINDS: &[&str] = &["article", "paper", "guide", "tutorial"];

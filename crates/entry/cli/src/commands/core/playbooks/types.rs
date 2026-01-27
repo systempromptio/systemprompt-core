@@ -100,3 +100,23 @@ pub struct PlaybookStatusSummary {
     pub db_only: usize,
     pub modified: usize,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PlaybookCreateOutput {
+    pub playbook_id: String,
+    pub message: String,
+    pub file_path: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PlaybookEditOutput {
+    pub playbook_id: String,
+    pub message: String,
+    pub changes: Vec<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PlaybookDeleteOutput {
+    pub deleted: Vec<String>,
+    pub message: String,
+}

@@ -1,3 +1,6 @@
+mod create;
+mod delete;
+mod edit;
 pub mod list;
 pub mod show;
 pub mod sync;
@@ -17,6 +20,15 @@ pub enum PlaybooksCommands {
     #[command(about = "Show full playbook content")]
     Show(show::ShowArgs),
 
+    #[command(about = "Create new playbook")]
+    Create(create::CreateArgs),
+
+    #[command(about = "Edit playbook configuration")]
+    Edit(edit::EditArgs),
+
+    #[command(about = "Delete a playbook")]
+    Delete(delete::DeleteArgs),
+
     #[command(about = "Sync playbooks between disk and database")]
     Sync(sync::SyncArgs),
 }
@@ -30,6 +42,23 @@ pub async fn execute(cmd: PlaybooksCommands, config: &CliConfig) -> Result<()> {
         },
         PlaybooksCommands::Show(args) => {
             let result = show::execute(args).context("Failed to show playbook")?;
+            render_result(&result);
+            Ok(())
+        },
+        PlaybooksCommands::Create(args) => {
+            let result = create::execute(args, config)
+                .await
+                .context("Failed to create playbook")?;
+            render_result(&result);
+            Ok(())
+        },
+        PlaybooksCommands::Edit(args) => {
+            let result = edit::execute(&args, config).context("Failed to edit playbook")?;
+            render_result(&result);
+            Ok(())
+        },
+        PlaybooksCommands::Delete(args) => {
+            let result = delete::execute(args, config).context("Failed to delete playbook")?;
             render_result(&result);
             Ok(())
         },
