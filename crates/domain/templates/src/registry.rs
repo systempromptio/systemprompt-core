@@ -251,6 +251,14 @@ impl TemplateRegistry {
     }
 
     #[must_use]
+    pub fn available_content_types(&self) -> Vec<String> {
+        self.resolved_templates
+            .values()
+            .flat_map(|def| def.content_types.iter().cloned())
+            .collect()
+    }
+
+    #[must_use]
     pub fn stats(&self) -> RegistryStats {
         RegistryStats {
             providers: self.providers.len(),

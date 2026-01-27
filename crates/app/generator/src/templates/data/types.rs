@@ -11,6 +11,7 @@ pub struct TemplateDataParams<'a> {
     pub content_html: &'a str,
     pub url_pattern: &'a str,
     pub db_pool: DbPool,
+    pub slug: &'a str,
 }
 
 pub struct DateData {

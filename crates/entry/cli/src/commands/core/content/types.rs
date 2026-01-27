@@ -354,10 +354,70 @@ pub struct PublishPipelineOutput {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct StepError {
+    pub summary: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub cause: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub location: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub suggestion: Option<String>,
+}
+
+#[derive(Debug)]
+pub struct StepErrorBuilder {
+    summary: String,
+    cause: Option<String>,
+    location: Option<String>,
+    suggestion: Option<String>,
+}
+
+impl StepErrorBuilder {
+    pub fn new(summary: impl Into<String>) -> Self {
+        Self {
+            summary: summary.into(),
+            cause: None,
+            location: None,
+            suggestion: None,
+        }
+    }
+
+    pub fn with_cause(mut self, cause: impl Into<String>) -> Self {
+        self.cause = Some(cause.into());
+        self
+    }
+
+    pub fn with_location(mut self, location: impl Into<String>) -> Self {
+        self.location = Some(location.into());
+        self
+    }
+
+    pub fn with_suggestion(mut self, suggestion: impl Into<String>) -> Self {
+        self.suggestion = Some(suggestion.into());
+        self
+    }
+
+    pub fn build(self) -> StepError {
+        StepError {
+            summary: self.summary,
+            cause: self.cause,
+            location: self.location,
+            suggestion: self.suggestion,
+        }
+    }
+}
+
+impl StepError {
+    pub fn builder(summary: impl Into<String>) -> StepErrorBuilder {
+        StepErrorBuilder::new(summary)
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct StepResult {
     pub step: String,
     pub success: bool,
     pub duration_ms: u64,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pub message: Option<String>,
+    pub error: Option<StepError>,
 }

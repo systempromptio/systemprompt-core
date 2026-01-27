@@ -2,12 +2,6 @@ use anyhow::Result;
 use serde_json::Value;
 use systemprompt_content::models::ContentError;
 
-pub fn extract_str_field<'a>(item: &'a Value, field: &str) -> Result<&'a str> {
-    item.get(field)
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field(field).into())
-}
-
 pub fn extract_published_date(item: &Value) -> Result<&str> {
     item.get("published_at")
         .or_else(|| item.get("date"))
