@@ -1,10 +1,11 @@
+use crate::web_config::WebConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
 
 #[derive(Debug)]
 pub struct ComponentContext<'a> {
-    pub web_config: &'a serde_yaml::Value,
+    pub web_config: &'a WebConfig,
     pub item: Option<&'a Value>,
     pub all_items: Option<&'a [Value]>,
     pub popular_ids: Option<&'a [String]>,
@@ -12,7 +13,7 @@ pub struct ComponentContext<'a> {
 
 impl<'a> ComponentContext<'a> {
     #[must_use]
-    pub const fn for_page(web_config: &'a serde_yaml::Value) -> Self {
+    pub const fn for_page(web_config: &'a WebConfig) -> Self {
         Self {
             web_config,
             item: None,
@@ -23,7 +24,7 @@ impl<'a> ComponentContext<'a> {
 
     #[must_use]
     pub const fn for_content(
-        web_config: &'a serde_yaml::Value,
+        web_config: &'a WebConfig,
         item: &'a Value,
         all_items: &'a [Value],
         popular_ids: &'a [String],
@@ -37,7 +38,7 @@ impl<'a> ComponentContext<'a> {
     }
 
     #[must_use]
-    pub const fn for_list(web_config: &'a serde_yaml::Value, all_items: &'a [Value]) -> Self {
+    pub const fn for_list(web_config: &'a WebConfig, all_items: &'a [Value]) -> Self {
         Self {
             web_config,
             item: None,

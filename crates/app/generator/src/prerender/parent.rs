@@ -3,7 +3,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 use systemprompt_cloud::constants::storage;
 use systemprompt_content::models::ContentError;
-use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw};
+use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, FullWebConfig};
 use systemprompt_template_provider::ComponentContext;
 use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
@@ -15,7 +15,7 @@ pub struct RenderParentParams<'a> {
     pub items: &'a [serde_json::Value],
     pub config: &'a ContentConfigRaw,
     pub source: &'a ContentSourceConfigRaw,
-    pub web_config: &'a serde_yaml::Value,
+    pub web_config: &'a FullWebConfig,
     pub parent_config: &'a systemprompt_models::ParentRoute,
     pub source_name: &'a str,
     pub template_registry: &'a TemplateRegistry,
@@ -148,7 +148,7 @@ struct BuildParentDataParams<'a> {
     footer_html: &'a str,
     org: &'a systemprompt_models::OrganizationData,
     source_branding: Option<&'a systemprompt_models::SourceBranding>,
-    web_config: &'a serde_yaml::Value,
+    web_config: &'a FullWebConfig,
     language: &'a str,
     source_name: &'a str,
 }
@@ -163,25 +163,16 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         language,
         source_name,
     } = params;
+
+    let branding = &web_config.branding;
+
     let blog_name = source_branding
         .and_then(|b| b.name.as_deref())
-        .or_else(|| {
-            web_config
-                .get("branding")
-                .and_then(|b| b.get("name"))
-                .and_then(|v| v.as_str())
-        })
-        .ok_or_else(|| ContentError::missing_branding_config("name"))?;
+        .unwrap_or(&branding.name);
 
     let blog_description = source_branding
         .and_then(|b| b.description.as_deref())
-        .or_else(|| {
-            web_config
-                .get("branding")
-                .and_then(|b| b.get("description"))
-                .and_then(|v| v.as_str())
-        })
-        .ok_or_else(|| ContentError::missing_branding_config("description"))?;
+        .unwrap_or(&branding.description);
 
     let blog_image = source_branding
         .and_then(|b| b.image.as_deref())
@@ -192,31 +183,7 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         .and_then(|b| b.keywords.as_deref())
         .ok_or_else(|| ContentError::missing_branding_config("keywords"))?;
 
-    let twitter_handle = web_config
-        .get("branding")
-        .and_then(|b| b.get("twitter_handle"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("twitter_handle"))?;
-
-    let display_sitename = web_config
-        .get("branding")
-        .and_then(|b| b.get("display_sitename"))
-        .and_then(serde_yaml::Value::as_bool)
-        .ok_or_else(|| ContentError::missing_branding_config("display_sitename"))?;
-
-    let logo_path = web_config
-        .get("branding")
-        .and_then(|b| b.get("logo"))
-        .and_then(|l| l.get("primary"))
-        .and_then(|p| p.get("svg"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("branding.logo.primary.svg"))?;
-
-    let favicon_path = web_config
-        .get("branding")
-        .and_then(|b| b.get("favicon"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("branding.favicon"))?;
+    let logo_path = branding.logo.primary.svg.as_deref().unwrap_or("");
 
     Ok(serde_json::json!({
         "POSTS": posts_html.join("\n"),
@@ -231,11 +198,11 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
         "BLOG_KEYWORDS": blog_keywords,
         "BLOG_URL": format!("{}/{}", org.url, source_name),
         "BLOG_LANGUAGE": language,
-        "TWITTER_HANDLE": twitter_handle,
+        "TWITTER_HANDLE": &branding.twitter_handle,
         "HEADER_CTA_URL": "/",
-        "DISPLAY_SITENAME": display_sitename,
+        "DISPLAY_SITENAME": branding.display_sitename,
         "LOGO_PATH": logo_path,
-        "FAVICON_PATH": favicon_path,
+        "FAVICON_PATH": &branding.favicon,
         "CSS_BASE_PATH": format!("/{}", storage::CSS),
         "JS_BASE_PATH": format!("/{}", storage::JS),
     }))

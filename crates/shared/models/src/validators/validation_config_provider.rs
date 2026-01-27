@@ -13,6 +13,16 @@ pub struct WebConfigRaw {
     pub theme: Option<String>,
     #[serde(default)]
     pub branding: Option<BrandingConfigRaw>,
+    #[serde(default)]
+    pub paths: Option<WebPathsConfigRaw>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct WebPathsConfigRaw {
+    #[serde(default)]
+    pub templates: Option<String>,
+    #[serde(default)]
+    pub assets: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

@@ -1,10 +1,12 @@
 mod builder;
 mod core_provider;
+mod embedded_defaults;
 mod error;
 mod registry;
 
 pub use builder::TemplateRegistryBuilder;
 pub use core_provider::CoreTemplateProvider;
+pub use embedded_defaults::EmbeddedDefaultsProvider;
 pub use error::TemplateError;
 pub use registry::{RegistryStats, TemplateRegistry};
 

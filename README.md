@@ -10,24 +10,25 @@ The missing layer between AI frameworks and production deployment. Not another S
 
 ## Table of Contents
 
-- [Why systemprompt.io?](#why-systemprompt)
+- [Why systemprompt.io?](#your-ai-assistant-shouldnt-live-under-your-desk)
 - [Quick Start](#quick-start)
 - [Using as a Library](#using-as-a-library)
 - [Architecture](#architecture)
 - [Extension Framework](#extension-framework)
 - [License](#license)
 
-## Why systemprompt.io?
+## Your AI assistant shouldn't live under your desk.
 
-Frameworks give you building blocks. We give you the building.
+Personal AI assistants are finally real. But there's a gap between a demo and a product your users can actually use.
 
-| Problem | How others solve it | systemprompt.io |
-|---------|---------------------|-----------------|
-| Agent auth | Build it yourself | OAuth2/OIDC + WebAuthn built-in |
-| User permissions | Build it yourself | Role-based, per-agent, per-tool scopes |
-| MCP hosting | Run locally only | Production deployment with auth |
-| Multi-agent | Orchestration libraries | A2A protocol with shared state |
-| Deployment | Figure it out | One command to cloud or self-host |
+systemprompt.io bridges that gap:
+
+- **Auth that works**: OAuth2/OIDC + WebAuthn
+- **Permissions that scale**: Per-user, per-agent, per-tool scopes
+- **Deployment that's real**: One command to cloud or self-host
+- **Multi-agent that coordinates**: A2A protocol with shared state
+
+The Jarvis dream is here. We handle the infrastructure.
 
 **Core capabilities:**
 - **Complete Runtime**: Web API + agent processes + MCP servers with shared auth and database

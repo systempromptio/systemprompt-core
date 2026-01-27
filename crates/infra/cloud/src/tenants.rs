@@ -60,6 +60,9 @@ pub struct StoredTenant {
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync_token: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub shared_container_db: Option<String>,
 }
 
 impl StoredTenant {
@@ -76,11 +79,12 @@ impl StoredTenant {
             tenant_type: TenantType::default(),
             external_db_access: false,
             sync_token: None,
+            shared_container_db: None,
         }
     }
 
     #[must_use]
-    pub const fn new_local(id: String, name: String, database_url: String) -> Self {
+    pub fn new_local(id: String, name: String, database_url: String) -> Self {
         Self {
             id,
             name,
@@ -92,6 +96,29 @@ impl StoredTenant {
             tenant_type: TenantType::Local,
             external_db_access: false,
             sync_token: None,
+            shared_container_db: None,
+        }
+    }
+
+    #[must_use]
+    pub fn new_local_shared(
+        id: String,
+        name: String,
+        database_url: String,
+        shared_container_db: String,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            app_id: None,
+            hostname: None,
+            region: None,
+            database_url: Some(database_url),
+            internal_database_url: None,
+            tenant_type: TenantType::Local,
+            external_db_access: false,
+            sync_token: None,
+            shared_container_db: Some(shared_container_db),
         }
     }
 
@@ -108,6 +135,7 @@ impl StoredTenant {
             tenant_type: TenantType::Cloud,
             external_db_access: params.external_db_access,
             sync_token: params.sync_token,
+            shared_container_db: None,
         }
     }
 
@@ -124,7 +152,13 @@ impl StoredTenant {
             tenant_type: TenantType::Cloud,
             external_db_access: info.external_db_access,
             sync_token: None,
+            shared_container_db: None,
         }
+    }
+
+    #[must_use]
+    pub fn uses_shared_container(&self) -> bool {
+        self.shared_container_db.is_some()
     }
 
     #[must_use]

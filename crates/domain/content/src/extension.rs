@@ -27,12 +27,7 @@ impl Extension for ContentExtension {
                 "markdown_content",
                 include_str!("../schema/markdown_content.sql"),
             )
-            .with_required_columns(vec![
-                "id".into(),
-                "slug".into(),
-                "title".into(),
-                "created_at".into(),
-            ]),
+            .with_required_columns(vec!["id".into(), "slug".into(), "title".into()]),
             SchemaDefinition::inline("markdown_fts", include_str!("../schema/markdown_fts.sql")),
             SchemaDefinition::inline(
                 "content_performance_metrics",

@@ -5,6 +5,7 @@ mod llm;
 mod page;
 mod template;
 mod tool;
+pub mod web_config;
 
 pub use component::{ComponentContext, ComponentRenderer, RenderedComponent};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
@@ -18,4 +19,12 @@ pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{
     ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider,
     ToolProviderError, ToolProviderResult,
+};
+pub use web_config::{
+    AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, ComparisonConfig, FaqConfig,
+    Feature, FeatureCategory, FeaturesConfig, FinalCtaConfig, FontsConfig, FooterConfig,
+    HeroConfig, HomepageConfig, HowItWorksConfig, IntegrationsConfig, LayoutConfig, LogoConfig,
+    MobileConfig, NavConfig, NavLink, NavigationConfig, PathsConfig, PricingConfig, RadiusConfig,
+    ScriptConfig, ShadowsConfig, SocialActionBar, SocialLink, SpacingConfig, TechnicalConfig,
+    TouchTargetsConfig, TypographyConfig, UseCasesConfig, WebConfig, WebConfigError, ZIndexConfig,
 };

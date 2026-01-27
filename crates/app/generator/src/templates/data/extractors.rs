@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde_json::Value;
 use systemprompt_content::models::ContentError;
+use systemprompt_models::FullWebConfig;
 
 pub fn extract_published_date(item: &Value) -> Result<&str> {
     item.get("published_at")
@@ -68,38 +69,26 @@ pub fn extract_author<'a>(item: &'a Value, config: &'a serde_yaml::Value) -> Res
         .unwrap_or(default_author))
 }
 
-pub fn extract_twitter_handle(web_config: &serde_yaml::Value) -> Result<&str> {
-    web_config
-        .get("branding")
-        .and_then(|b| b.get("twitter_handle"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("twitter_handle").into())
+pub fn get_twitter_handle(web_config: &FullWebConfig) -> &str {
+    &web_config.branding.twitter_handle
 }
 
-pub fn extract_display_sitename(web_config: &serde_yaml::Value) -> Result<bool> {
-    web_config
-        .get("branding")
-        .and_then(|b| b.get("display_sitename"))
-        .and_then(serde_yaml::Value::as_bool)
-        .ok_or_else(|| ContentError::missing_branding_config("display_sitename").into())
+pub const fn get_display_sitename(web_config: &FullWebConfig) -> bool {
+    web_config.branding.display_sitename
 }
 
-pub fn extract_logo_path(web_config: &serde_yaml::Value) -> Result<&str> {
+pub fn get_logo_path(web_config: &FullWebConfig) -> &str {
     web_config
-        .get("branding")
-        .and_then(|b| b.get("logo"))
-        .and_then(|l| l.get("primary"))
-        .and_then(|p| p.get("svg"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("branding.logo.primary.svg").into())
+        .branding
+        .logo
+        .primary
+        .svg
+        .as_deref()
+        .unwrap_or("")
 }
 
-pub fn extract_favicon_path(web_config: &serde_yaml::Value) -> Result<&str> {
-    web_config
-        .get("branding")
-        .and_then(|b| b.get("favicon"))
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_branding_config("branding.favicon").into())
+pub fn get_favicon_path(web_config: &FullWebConfig) -> &str {
+    &web_config.branding.favicon
 }
 
 pub fn format_date_pair(date_str: &str) -> (String, String) {

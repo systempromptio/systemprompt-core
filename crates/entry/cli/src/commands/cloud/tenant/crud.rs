@@ -7,6 +7,9 @@ use systemprompt_cloud::{
 };
 use systemprompt_logging::CliService;
 
+use super::docker::{
+    drop_database_for_tenant, load_shared_config, save_shared_config, stop_shared_container,
+};
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::{TenantCancelArgs, TenantDeleteArgs};
@@ -220,12 +223,63 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
         let spinner = CliService::spinner("Deleting cloud tenant...");
         client.delete_tenant(&tenant_id).await?;
         spinner.finish_and_clear();
+    } else if tenant.uses_shared_container() {
+        cleanup_shared_container_tenant(&tenant, config).await?;
     }
 
     store.tenants.retain(|t| t.id != tenant_id);
     store.save_to_path(&tenants_path)?;
 
     CliService::success(&format!("Deleted tenant: {}", tenant_id));
+
+    Ok(())
+}
+
+async fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {
+    let Some(ref db_name) = tenant.shared_container_db else {
+        return Ok(());
+    };
+
+    let Some(mut shared_config) = load_shared_config()? else {
+        CliService::warning("Shared container config not found, skipping database cleanup");
+        return Ok(());
+    };
+
+    let spinner = CliService::spinner(&format!("Dropping database '{}'...", db_name));
+    match drop_database_for_tenant(&shared_config.admin_password, shared_config.port, db_name).await
+    {
+        Ok(()) => {
+            spinner.finish_and_clear();
+            CliService::success(&format!("Database '{}' dropped", db_name));
+        },
+        Err(e) => {
+            spinner.finish_and_clear();
+            CliService::warning(&format!("Failed to drop database '{}': {}", db_name, e));
+        },
+    }
+
+    shared_config.remove_tenant(&tenant.id);
+    save_shared_config(&shared_config)?;
+
+    if shared_config.tenant_databases.is_empty() {
+        let should_remove = if config.is_interactive() {
+            Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("No local tenants remain. Remove shared PostgreSQL container?")
+                .default(true)
+                .interact()?
+        } else {
+            false
+        };
+
+        if should_remove {
+            stop_shared_container()?;
+        } else {
+            CliService::info(
+                "Shared container kept. Remove manually with 'docker compose -f \
+                 .systemprompt/docker/shared.yaml down -v'",
+            );
+        }
+    }
 
     Ok(())
 }

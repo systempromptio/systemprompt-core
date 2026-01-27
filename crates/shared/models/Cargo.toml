@@ -55,6 +55,7 @@ axum = { workspace = true, optional = true }
 systemprompt-traits = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-extension = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
 
 # MCP protocol
 rmcp = { workspace = true }

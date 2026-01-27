@@ -128,6 +128,15 @@ pub use services::{
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 
+pub use systemprompt_provider_contracts::{
+    AnimationConfig, BrandingConfig as WebBrandingConfig, CardConfig, ColorsConfig,
+    ComparisonConfig, FaqConfig, Feature, FeatureCategory, FeaturesConfig, FinalCtaConfig,
+    FontsConfig, FooterConfig, HeroConfig, HomepageConfig, HowItWorksConfig, IntegrationsConfig,
+    LayoutConfig, LogoConfig, MobileConfig, NavConfig, NavLink, NavigationConfig,
+    PathsConfig as WebPathsConfig, PricingConfig, RadiusConfig, ScriptConfig, ShadowsConfig,
+    SocialActionBar, SocialLink, SpacingConfig, TechnicalConfig, TouchTargetsConfig,
+    TypographyConfig, UseCasesConfig, WebConfig as FullWebConfig, WebConfigError, ZIndexConfig,
+};
 pub use systemprompt_traits::{
     StartupValidationError, StartupValidationReport, ValidationReport, ValidationWarning,
 };
