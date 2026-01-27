@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.0.12] - 2026-01-27
+
+### Added
+- Expose `UpdateContentParams` builder methods for CLI edit command integration
+
 ## [0.0.11] - 2026-01-26
 
 ### Changed

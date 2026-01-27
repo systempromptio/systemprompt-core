@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.16] - 2026-01-27
+
+### Added
+- Add `systemprompt core playbooks create` command to create new playbooks with category/domain structure
+- Add `systemprompt core playbooks edit` command to modify playbook frontmatter and instructions via `--set KEY=VALUE`
+- Add `systemprompt core playbooks delete` command with confirmation prompt and `--all` support
+- Add `systemprompt core content edit` command to modify content fields (title, description, body, keywords, etc.)
+- Support `--public/--private` flags for content visibility in edit command
+
 ## [0.0.15] - 2026-01-26
 
 ### Added
