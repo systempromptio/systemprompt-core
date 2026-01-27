@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-use anyhow::{Context, Result};
-use systemprompt_content::models::ContentError;
+use anyhow::Result;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 use systemprompt_template_provider::{ComponentContext, ExtenderContext};
 use tokio::fs;
 
 use crate::content::render_markdown;
+use crate::error::PublishError;
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
 use crate::prerender::parent::{render_parent_route, RenderParentParams};
@@ -57,7 +57,7 @@ async fn process_source(
 ) -> Result<u32> {
     let contents = fetch_content_for_source(ctx, source_name, source.source_id.as_str())
         .await
-        .with_context(|| format!("Failed to fetch content for source '{}'", source_name))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
     if contents.is_empty() {
         tracing::debug!(source = %source_name, "No content found for source");
@@ -67,7 +67,7 @@ async fn process_source(
     let items = contents_to_json(&contents);
     let popular_ids = fetch_popular_ids(ctx, source_name, source.source_id.as_str())
         .await
-        .with_context(|| format!("Failed to fetch popular IDs for source '{}'", source_name))?;
+        .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
     let rendered = render_all_items(ctx, source_name, sitemap_config, &items, &popular_ids).await?;
     let parent = render_parent_if_enabled(ctx, source_name, source, sitemap_config, &items).await?;
@@ -125,12 +125,12 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
     let slug = item
         .get("slug")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("slug"))?;
+        .ok_or_else(|| PublishError::missing_field("slug", "unknown"))?;
 
     let markdown_content = item
         .get("content")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("content"))?;
+        .ok_or_else(|| PublishError::missing_field("content", slug))?;
 
     let content_html = render_markdown(markdown_content);
 
@@ -143,14 +143,14 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         content_html: &content_html,
         url_pattern: &sitemap_config.url_pattern,
         db_pool: Arc::clone(&ctx.db_pool),
+        slug,
     })
-    .await
-    .with_context(|| format!("Failed to prepare template data for item '{}'", slug))?;
+    .await?;
 
     let content_type = item
         .get("content_type")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| ContentError::missing_field("content_type"))?;
+        .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
 
     let component_ctx =
         ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
@@ -192,17 +192,20 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         }
     }
 
+    let available_templates = ctx.template_registry.available_content_types();
     let template_name = ctx
         .template_registry
         .find_template_for_content_type(content_type)
         .ok_or_else(|| {
-            anyhow::anyhow!("No template registered for content type: {}", content_type)
+            PublishError::template_not_found(content_type, slug, available_templates.clone())
         })?;
 
     let html = ctx
         .template_registry
         .render(template_name, &template_data)
-        .with_context(|| format!("Failed to render template for item '{}'", slug))?;
+        .map_err(|e| {
+            PublishError::render_failed(template_name, Some(slug.to_string()), e.to_string())
+        })?;
 
     write_rendered_page(&ctx.dist_dir, &sitemap_config.url_pattern, slug, &html).await
 }

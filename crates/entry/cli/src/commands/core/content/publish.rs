@@ -1,4 +1,4 @@
-use super::types::{PublishPipelineOutput, StepResult};
+use super::types::{PublishPipelineOutput, StepError, StepResult};
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 use anyhow::Result;
@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_content::ContentIngestionJob;
 use systemprompt_generator::{
-    generate_sitemap, prerender_content, prerender_homepage, CopyExtensionAssetsJob,
+    generate_sitemap, prerender_content, prerender_homepage, CopyExtensionAssetsJob, PublishError,
 };
 use systemprompt_runtime::AppContext;
 
@@ -89,7 +89,7 @@ pub async fn execute(
             step: "ingest".to_string(),
             success: result.is_ok(),
             duration_ms,
-            message: result.err().map(|e| e.to_string()),
+            error: result.as_ref().err().map(extract_step_error),
         });
     }
 
@@ -106,7 +106,7 @@ pub async fn execute(
             step: "assets".to_string(),
             success: result.is_ok(),
             duration_ms,
-            message: result.err().map(|e| e.to_string()),
+            error: result.as_ref().err().map(extract_step_error),
         });
     }
 
@@ -123,7 +123,7 @@ pub async fn execute(
             step: "prerender".to_string(),
             success: result.is_ok(),
             duration_ms,
-            message: result.err().map(|e| e.to_string()),
+            error: result.as_ref().err().map(extract_step_error),
         });
     }
 
@@ -140,7 +140,7 @@ pub async fn execute(
             step: "homepage".to_string(),
             success: result.is_ok(),
             duration_ms,
-            message: result.err().map(|e| e.to_string()),
+            error: result.as_ref().err().map(extract_step_error),
         });
     }
 
@@ -157,7 +157,7 @@ pub async fn execute(
             step: "sitemap".to_string(),
             success: result.is_ok(),
             duration_ms,
-            message: result.err().map(|e| e.to_string()),
+            error: result.as_ref().err().map(extract_step_error),
         });
     }
 
@@ -181,4 +181,22 @@ pub async fn execute(
     };
 
     Ok(CommandResult::card(output).with_title(title))
+}
+
+fn extract_step_error(err: &anyhow::Error) -> StepError {
+    if let Some(publish_err) = err.downcast_ref::<PublishError>() {
+        return StepError::builder(publish_err.to_string())
+            .with_cause(publish_err.cause_string().unwrap_or_default())
+            .with_location(publish_err.location().unwrap_or_default())
+            .with_suggestion(publish_err.suggestion_string().unwrap_or_default())
+            .build();
+    }
+
+    let mut builder = StepError::builder(err.to_string());
+
+    if let Some(source) = err.source() {
+        builder = builder.with_cause(source.to_string());
+    }
+
+    builder.build()
 }

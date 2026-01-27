@@ -6,14 +6,15 @@ pub use types::TemplateDataParams;
 
 use anyhow::Result;
 use serde_json::Value;
-use systemprompt_content::models::ContentError;
 use systemprompt_database::DbPool;
+
+use crate::error::PublishError;
 
 use self::builders::build_template_json;
 use self::extractors::{
     extract_article_config, extract_author, extract_display_sitename, extract_favicon_path,
-    extract_logo_path, extract_org_config, extract_published_date, extract_str_field,
-    extract_twitter_handle, format_date_pair,
+    extract_logo_path, extract_org_config, extract_published_date, extract_twitter_handle,
+    format_date_pair,
 };
 use self::types::{
     ArticleConfig, BrandingData, BuildTemplateJsonParams, ContentData, DateData, ImageData,
@@ -39,16 +40,18 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
         content_html,
         url_pattern,
         db_pool,
+        slug,
     } = params;
 
-    let slug = extract_str_field(item, "slug")?;
     let canonical_path = url_pattern.replace(SLUG_PLACEHOLDER, slug);
 
-    let (org_name, org_url, org_logo) = extract_org_config(config)?;
-    let (article_type, article_section, article_language) = extract_article_config(config)?;
+    let (org_name, org_url, org_logo) =
+        extract_org_config(config).map_err(|e| PublishError::missing_field(e.to_string(), slug))?;
+    let (article_type, article_section, article_language) = extract_article_config(config)
+        .map_err(|e| PublishError::missing_field(e.to_string(), slug))?;
 
-    let date_data = prepare_date_data(item)?;
-    let image_data = prepare_image_data(item, org_url)?;
+    let date_data = prepare_date_data(item, slug)?;
+    let image_data = prepare_image_data(item, org_url, slug)?;
     let content_data =
         prepare_content_data(item, all_items, popular_ids, content_html, &db_pool).await?;
 
@@ -88,8 +91,9 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
     })
 }
 
-fn prepare_date_data(item: &Value) -> Result<DateData> {
-    let published_date = extract_published_date(item)?;
+fn prepare_date_data(item: &Value, slug: &str) -> Result<DateData> {
+    let published_date = extract_published_date(item)
+        .map_err(|e| PublishError::missing_field(e.to_string(), slug))?;
     let (formatted, iso) = format_date_pair(published_date);
 
     let (modified_formatted, modified_iso) = item
@@ -105,16 +109,16 @@ fn prepare_date_data(item: &Value) -> Result<DateData> {
     })
 }
 
-fn prepare_image_data(item: &Value, org_url: &str) -> Result<ImageData> {
+fn prepare_image_data(item: &Value, org_url: &str, slug: &str) -> Result<ImageData> {
     let raw_image = item
         .get("image")
         .or_else(|| item.get("cover_image"))
         .and_then(|v| v.as_str());
 
     let featured =
-        normalize_image_url(raw_image).ok_or_else(|| ContentError::missing_field("image"))?;
+        normalize_image_url(raw_image).ok_or_else(|| PublishError::missing_field("image", slug))?;
     let absolute_url = get_absolute_image_url(raw_image, org_url)
-        .ok_or_else(|| ContentError::missing_field("image"))?;
+        .ok_or_else(|| PublishError::missing_field("image", slug))?;
 
     let title = item
         .get("title")
