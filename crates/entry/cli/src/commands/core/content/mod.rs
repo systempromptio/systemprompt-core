@@ -1,6 +1,7 @@
 pub mod analytics;
 pub mod delete;
 pub mod delete_source;
+mod edit;
 pub mod files;
 pub mod ingest;
 pub mod link;
@@ -32,6 +33,9 @@ pub enum ContentCommands {
 
     #[command(about = "Ingest markdown files from directory")]
     Ingest(ingest::IngestArgs),
+
+    #[command(about = "Edit content fields")]
+    Edit(edit::EditArgs),
 
     #[command(about = "Delete content by ID")]
     Delete(delete::DeleteArgs),
@@ -97,6 +101,12 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
                 ingest::IngestResult::Single(r) => render_result(&r),
                 ingest::IngestResult::All(r) => render_result(&r),
             }
+        },
+        ContentCommands::Edit(args) => {
+            let result = edit::execute(args, config)
+                .await
+                .context("Failed to edit content")?;
+            render_result(&result);
         },
         ContentCommands::Delete(args) => {
             let result = delete::execute(args, config)
@@ -187,6 +197,7 @@ pub async fn execute_with_db(
             analytics::execute_with_pool(cmd, db_ctx.db_pool(), config).await?;
         },
         ContentCommands::Ingest(_)
+        | ContentCommands::Edit(_)
         | ContentCommands::Delete(_)
         | ContentCommands::DeleteSource(_)
         | ContentCommands::Verify(_)
