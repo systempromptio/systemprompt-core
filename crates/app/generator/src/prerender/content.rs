@@ -6,7 +6,7 @@ use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 use systemprompt_template_provider::{ComponentContext, ExtenderContext};
 use tokio::fs;
 
-use crate::content::render_markdown;
+use crate::content::{generate_toc, render_markdown};
 use crate::error::PublishError;
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
@@ -132,7 +132,8 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content", slug))?;
 
-    let content_html = render_markdown(markdown_content);
+    let rendered_html = render_markdown(markdown_content);
+    let toc_result = generate_toc(markdown_content, &rendered_html);
 
     let mut template_data = prepare_template_data(TemplateDataParams {
         item,
@@ -140,7 +141,8 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         popular_ids,
         config: config_value,
         web_config: &ctx.web_config,
-        content_html: &content_html,
+        content_html: &toc_result.content_html,
+        toc_html: &toc_result.toc_html,
         url_pattern: &sitemap_config.url_pattern,
         db_pool: Arc::clone(&ctx.db_pool),
         slug,
@@ -177,7 +179,7 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
 
     let extender_ctx =
         ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
-            .with_content_html(&content_html)
+            .with_content_html(&toc_result.content_html)
             .with_url_pattern(&sitemap_config.url_pattern)
             .with_source_name(source_name)
             .build();

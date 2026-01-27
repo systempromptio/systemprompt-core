@@ -10,6 +10,7 @@ pub struct TemplateDataParams<'a> {
     pub config: &'a serde_yaml::Value,
     pub web_config: &'a FullWebConfig,
     pub content_html: &'a str,
+    pub toc_html: &'a str,
     pub url_pattern: &'a str,
     pub db_pool: DbPool,
     pub slug: &'a str,

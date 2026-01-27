@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.0.14] - 2026-01-27
+
+### Added
+- Table of Contents (TOC) generation for documentation pages
+- New `toc` module with AST-based heading extraction using comrak
+- Automatic heading ID injection for anchor links
+- Stylable TOC HTML with CSS classes (`.toc-list`, `.toc-item`, `.toc-level-N`, `.toc-link`)
+- Duplicate heading slug handling with numeric suffixes
+
 ## [0.0.13] - 2026-01-27
 
 ### Changed
