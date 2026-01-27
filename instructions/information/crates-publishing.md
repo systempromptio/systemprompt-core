@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.12` (MCP OAuth Session Fixes - January 26, 2026)
+**Current Version:** `0.0.13` (Playbooks, MCP UI Renderer - January 27, 2026)
 
 All **30 crates** have been published to crates.io.
 
