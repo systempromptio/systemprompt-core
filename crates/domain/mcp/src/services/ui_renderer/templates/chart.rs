@@ -1,4 +1,6 @@
-use super::html::{base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder};
+use super::html::{
+    base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder,
+};
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -37,7 +39,10 @@ impl ChartRenderer {
         for part in &artifact.parts {
             if let Some(data) = part.as_data() {
                 if let Some(labels) = data.get("labels").and_then(JsonValue::as_array) {
-                    config.labels = labels.iter().filter_map(|v| v.as_str().map(String::from)).collect();
+                    config.labels = labels
+                        .iter()
+                        .filter_map(|v| v.as_str().map(String::from))
+                        .collect();
                 }
                 if let Some(datasets) = data.get("datasets").and_then(JsonValue::as_array) {
                     config.datasets.clone_from(datasets);

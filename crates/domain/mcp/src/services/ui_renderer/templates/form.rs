@@ -1,4 +1,6 @@
-use super::html::{base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder};
+use super::html::{
+    base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder,
+};
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -88,8 +90,14 @@ impl FormField {
                 .and_then(JsonValue::as_str)
                 .unwrap_or("text")
                 .to_string(),
-            required: value.get("required").and_then(JsonValue::as_bool).unwrap_or(false),
-            placeholder: value.get("placeholder").and_then(JsonValue::as_str).map(String::from),
+            required: value
+                .get("required")
+                .and_then(JsonValue::as_bool)
+                .unwrap_or(false),
+            placeholder: value
+                .get("placeholder")
+                .and_then(JsonValue::as_str)
+                .map(String::from),
             default_value: value.get("default").cloned(),
             options: value
                 .get("options")
@@ -98,7 +106,11 @@ impl FormField {
                     arr.iter()
                         .filter_map(|o| {
                             let value = o.get("value").and_then(JsonValue::as_str)?.to_string();
-                            let label = o.get("label").and_then(JsonValue::as_str).unwrap_or(&value).to_string();
+                            let label = o
+                                .get("label")
+                                .and_then(JsonValue::as_str)
+                                .unwrap_or(&value)
+                                .to_string();
                             Some(FormOption { value, label })
                         })
                         .collect()
@@ -121,7 +133,11 @@ impl FormField {
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self.default_value.as_ref().and_then(JsonValue::as_str).unwrap_or(""),
+                value = self
+                    .default_value
+                    .as_ref()
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or(""),
             ),
             "select" => {
                 use std::fmt::Write;
@@ -147,45 +163,69 @@ impl FormField {
                     required = required_attr,
                     options = options_html,
                 )
-            }
+            },
             "checkbox" => {
-                let checked = self.default_value.as_ref().and_then(JsonValue::as_bool).unwrap_or(false);
+                let checked = self
+                    .default_value
+                    .as_ref()
+                    .and_then(JsonValue::as_bool)
+                    .unwrap_or(false);
                 format!(
                     r#"<input type="checkbox" name="{name}" id="{name}" class="form-checkbox"{checked}>"#,
                     name = html_escape(&self.name),
                     checked = if checked { " checked" } else { "" },
                 )
-            }
+            },
             "number" => format!(
                 r#"<input type="number" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self.default_value.as_ref().map(ToString::to_string).unwrap_or_default(),
+                value = self
+                    .default_value
+                    .as_ref()
+                    .map(ToString::to_string)
+                    .unwrap_or_default(),
             ),
             "email" => format!(
                 r#"<input type="email" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self.default_value.as_ref().and_then(JsonValue::as_str).unwrap_or(""),
+                value = self
+                    .default_value
+                    .as_ref()
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or(""),
             ),
             "date" => format!(
                 r#"<input type="date" name="{name}" id="{name}" class="form-input"{required} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
-                value = self.default_value.as_ref().and_then(JsonValue::as_str).unwrap_or(""),
+                value = self
+                    .default_value
+                    .as_ref()
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or(""),
             ),
             _ => format!(
                 r#"<input type="text" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
                 name = html_escape(&self.name),
                 required = required_attr,
                 placeholder = placeholder_attr,
-                value = self.default_value.as_ref().and_then(JsonValue::as_str).unwrap_or(""),
+                value = self
+                    .default_value
+                    .as_ref()
+                    .and_then(JsonValue::as_str)
+                    .unwrap_or(""),
             ),
         };
 
-        let required_mark = if self.required { r#"<span class="required-mark">*</span>"# } else { "" };
+        let required_mark = if self.required {
+            r#"<span class="required-mark">*</span>"#
+        } else {
+            ""
+        };
 
         format!(
             r#"<div class="form-field">
@@ -251,7 +291,8 @@ impl UiRenderer for FormRenderer {
         );
 
         let script = format!(
-            "{bridge}\nwindow.FORM_FIELDS = {fields_json};\nwindow.FORM_SUBMIT_TOOL = {submit_tool};\n{app}",
+            "{bridge}\nwindow.FORM_FIELDS = {fields_json};\nwindow.FORM_SUBMIT_TOOL = \
+             {submit_tool};\n{app}",
             bridge = mcp_app_bridge_script(),
             fields_json = json_to_js_literal(&serde_json::json!(fields_json)),
             submit_tool = submit_tool.map_or_else(|| "null".to_string(), |t| format!("\"{t}\"")),
