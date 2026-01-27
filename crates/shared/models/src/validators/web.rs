@@ -13,12 +13,6 @@ pub struct WebConfigValidator {
     config_path: Option<String>,
 }
 
-impl WebConfigValidator {
-    pub fn new() -> Self {
-        Self::default()
-    }
-}
-
 impl DomainConfig for WebConfigValidator {
     fn domain_id(&self) -> &'static str {
         "web"
@@ -84,6 +78,87 @@ impl DomainConfig for WebConfigValidator {
             }
         }
 
+        self.validate_branding(&mut report);
+
         Ok(report)
+    }
+}
+
+impl WebConfigValidator {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    fn validate_branding(&self, report: &mut ValidationReport) {
+        let Some(cfg) = self.config.as_ref() else {
+            return;
+        };
+
+        let Some(branding) = cfg.branding.as_ref() else {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding",
+                    "Missing 'branding' section in web.yaml",
+                )
+                .with_suggestion("Add a 'branding' section with copyright, logo, favicon, twitter_handle, and display_sitename"),
+            );
+            return;
+        };
+
+        if branding.copyright.as_ref().map_or(true, |s| s.is_empty()) {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding.copyright",
+                    "Missing required field 'copyright'",
+                )
+                .with_suggestion("Add 'copyright: \"© 2024 Your Company\"' under branding"),
+            );
+        }
+
+        if branding.twitter_handle.as_ref().map_or(true, |s| s.is_empty()) {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding.twitter_handle",
+                    "Missing required field 'twitter_handle'",
+                )
+                .with_suggestion("Add 'twitter_handle: \"@yourhandle\"' under branding"),
+            );
+        }
+
+        if branding.display_sitename.is_none() {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding.display_sitename",
+                    "Missing required field 'display_sitename'",
+                )
+                .with_suggestion("Add 'display_sitename: true' under branding"),
+            );
+        }
+
+        if branding.favicon.as_ref().map_or(true, |s| s.is_empty()) {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding.favicon",
+                    "Missing required field 'favicon'",
+                )
+                .with_suggestion("Add 'favicon: \"/favicon.ico\"' under branding"),
+            );
+        }
+
+        let logo_svg = branding
+            .logo
+            .as_ref()
+            .and_then(|l| l.primary.as_ref())
+            .and_then(|p| p.svg.as_ref());
+
+        if logo_svg.map_or(true, |s| s.is_empty()) {
+            report.add_error(
+                ValidationError::new(
+                    "web_config.branding.logo.primary.svg",
+                    "Missing required field 'logo.primary.svg'",
+                )
+                .with_suggestion("Add 'logo: { primary: { svg: \"/logo.svg\" } }' under branding"),
+            );
+        }
     }
 }

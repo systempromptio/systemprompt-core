@@ -11,6 +11,34 @@ pub struct WebConfigRaw {
     pub base_url: Option<String>,
     #[serde(default)]
     pub theme: Option<String>,
+    #[serde(default)]
+    pub branding: Option<BrandingConfigRaw>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct BrandingConfigRaw {
+    #[serde(default)]
+    pub copyright: Option<String>,
+    #[serde(default)]
+    pub twitter_handle: Option<String>,
+    #[serde(default)]
+    pub display_sitename: Option<bool>,
+    #[serde(default)]
+    pub favicon: Option<String>,
+    #[serde(default)]
+    pub logo: Option<LogoConfigRaw>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct LogoConfigRaw {
+    #[serde(default)]
+    pub primary: Option<LogoPrimaryRaw>,
+}
+
+#[derive(Debug, Clone, serde::Deserialize)]
+pub struct LogoPrimaryRaw {
+    #[serde(default)]
+    pub svg: Option<String>,
 }
 
 #[derive(Debug, Clone, serde::Deserialize)]

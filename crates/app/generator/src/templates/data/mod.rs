@@ -109,16 +109,18 @@ fn prepare_date_data(item: &Value, slug: &str) -> Result<DateData> {
     })
 }
 
-fn prepare_image_data(item: &Value, org_url: &str, slug: &str) -> Result<ImageData> {
+const DEFAULT_PLACEHOLDER_IMAGE: &str = "/files/images/placeholder.svg";
+
+fn prepare_image_data(item: &Value, org_url: &str, _slug: &str) -> Result<ImageData> {
     let raw_image = item
         .get("image")
         .or_else(|| item.get("cover_image"))
-        .and_then(|v| v.as_str());
+        .and_then(|v| v.as_str())
+        .filter(|s| !s.is_empty());
 
-    let featured =
-        normalize_image_url(raw_image).ok_or_else(|| PublishError::missing_field("image", slug))?;
+    let featured = normalize_image_url(raw_image).unwrap_or_else(|| DEFAULT_PLACEHOLDER_IMAGE.to_string());
     let absolute_url = get_absolute_image_url(raw_image, org_url)
-        .ok_or_else(|| PublishError::missing_field("image", slug))?;
+        .unwrap_or_else(|| format!("{}{}", org_url.trim_end_matches('/'), DEFAULT_PLACEHOLDER_IMAGE));
 
     let title = item
         .get("title")
