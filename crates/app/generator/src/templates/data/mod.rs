@@ -38,6 +38,7 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
         config,
         web_config,
         content_html,
+        toc_html,
         url_pattern,
         db_pool,
         slug,
@@ -53,7 +54,7 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
     let date_data = prepare_date_data(item, slug)?;
     let image_data = prepare_image_data(item, org_url);
     let content_data =
-        prepare_content_data(item, all_items, popular_ids, content_html, &db_pool).await?;
+        prepare_content_data(item, all_items, popular_ids, content_html, toc_html, &db_pool).await?;
 
     let navigation = prepare_navigation_html(web_config)?;
     let author = extract_author(item, config)?;
@@ -146,6 +147,7 @@ async fn prepare_content_data(
     all_items: &[Value],
     popular_ids: &[String],
     content_html: &str,
+    toc_html: &str,
     db_pool: &DbPool,
 ) -> Result<ContentData> {
     let latest = find_latest_items(item, all_items, 6)?;
@@ -169,7 +171,7 @@ async fn prepare_content_data(
         social_html,
         header_cta_url,
         banner_cta_url,
-        toc_html: String::new(),
+        toc_html: toc_html.to_string(),
         sections_html: content_html.to_string(),
     })
 }
