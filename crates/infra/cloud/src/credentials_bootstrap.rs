@@ -98,6 +98,10 @@ impl CredentialsBootstrap {
             .ok()
             .filter(|s| !s.is_empty())?;
 
+        let user_email = std::env::var("SYSTEMPROMPT_USER_EMAIL")
+            .ok()
+            .filter(|s| !s.is_empty())?;
+
         tracing::debug!("Loading cloud credentials from environment variables");
 
         Some(CloudCredentials {
@@ -107,9 +111,7 @@ impl CredentialsBootstrap {
                 .filter(|s| !s.is_empty())
                 .unwrap_or_else(|| "https://api.systemprompt.io".into()),
             authenticated_at: Utc::now(),
-            user_email: std::env::var("SYSTEMPROMPT_USER_EMAIL")
-                .ok()
-                .filter(|s| !s.is_empty()),
+            user_email,
         })
     }
 
@@ -211,7 +213,7 @@ pub mod test_helpers {
             api_token: "test_token_valid_eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9".into(),
             api_url: "https://api.test.systemprompt.io".into(),
             authenticated_at: Utc::now(),
-            user_email: Some("test@example.com".into()),
+            user_email: "test@example.com".into(),
         }
     }
 
@@ -232,7 +234,7 @@ pub mod test_helpers {
             api_token: "minimal_test_token".into(),
             api_url: "https://api.systemprompt.io".into(),
             authenticated_at: Utc::now(),
-            user_email: None,
+            user_email: "minimal@example.com".into(),
         }
     }
 }

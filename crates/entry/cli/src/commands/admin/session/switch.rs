@@ -1,14 +1,16 @@
 #![allow(clippy::single_match_else)]
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
+use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
+use super::login::{self, LoginArgs};
 use crate::cli_settings::CliConfig;
 use crate::paths::ResolvedPaths;
+use crate::shared::render_result;
 
-pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
+pub async fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
@@ -35,10 +37,22 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
 
     let has_session = store.get_valid_session(&session_key).is_some();
     if !has_session {
-        CliService::warning(
-            "No active session for this profile. Run 'systemprompt admin session login' to \
-             authenticate.",
-        );
+        CliService::info("No active session for this profile, logging in...");
+
+        let email = CredentialsBootstrap::require()
+            .context("Cloud credentials required for auto-login")?
+            .user_email
+            .clone();
+
+        let login_args = LoginArgs {
+            email: Some(email),
+            duration_hours: 24,
+            token_only: false,
+            force_new: false,
+        };
+
+        let result = login::execute(login_args, config).await?;
+        render_result(&result);
     }
 
     CliService::success(&format!("Switched to profile '{}'", profile_name));
@@ -48,9 +62,6 @@ pub fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
         CliService::key_value("Session key", &session_key.as_storage_key());
         if let Some(tid) = &new_tenant_id {
             CliService::key_value("Tenant", tid);
-        }
-        if has_session {
-            CliService::info("Session available for this tenant");
         }
     }
 

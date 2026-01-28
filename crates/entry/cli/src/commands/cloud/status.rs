@@ -37,9 +37,7 @@ pub async fn execute() -> Result<()> {
     match CredentialsBootstrap::get() {
         Ok(Some(creds)) => {
             CliService::key_value("Authenticated", "Yes");
-            if let Some(email) = &creds.user_email {
-                CliService::key_value("User", email);
-            }
+            CliService::key_value("User", &creds.user_email);
             CliService::key_value(
                 "Token expired",
                 if creds.is_token_expired() {

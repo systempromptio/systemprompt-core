@@ -20,14 +20,13 @@ pub struct CloudCredentials {
 
     pub authenticated_at: DateTime<Utc>,
 
-    #[serde(skip_serializing_if = "Option::is_none")]
     #[validate(email(message = "User email must be a valid email address"))]
-    pub user_email: Option<String>,
+    pub user_email: String,
 }
 
 impl CloudCredentials {
     #[must_use]
-    pub fn new(api_token: String, api_url: String, user_email: Option<String>) -> Self {
+    pub fn new(api_token: String, api_url: String, user_email: String) -> Self {
         Self {
             api_token,
             api_url,
