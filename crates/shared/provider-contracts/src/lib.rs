@@ -21,10 +21,8 @@ pub use tool::{
     ToolProviderError, ToolProviderResult,
 };
 pub use web_config::{
-    AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, ComparisonConfig, FaqConfig,
-    Feature, FeatureCategory, FeaturesConfig, FinalCtaConfig, FontsConfig, FooterConfig,
-    HeroConfig, HomepageConfig, HowItWorksConfig, IntegrationsConfig, LayoutConfig, LogoConfig,
-    MobileConfig, NavConfig, NavLink, NavigationConfig, PathsConfig, PricingConfig, RadiusConfig,
-    ScriptConfig, ShadowsConfig, SocialActionBar, SocialLink, SpacingConfig, TechnicalConfig,
-    TouchTargetsConfig, TypographyConfig, UseCasesConfig, WebConfig, WebConfigError, ZIndexConfig,
+    AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, FooterConfig,
+    LayoutConfig, LogoConfig, MobileConfig, NavConfig, NavLink, NavigationConfig, PathsConfig,
+    RadiusConfig, ScriptConfig, ShadowsConfig, SocialActionBar, SocialLink, SpacingConfig,
+    TouchTargetsConfig, TypographyConfig, WebConfig, WebConfigError, ZIndexConfig,
 };

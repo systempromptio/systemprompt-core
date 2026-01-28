@@ -1,18 +1,11 @@
 mod branding;
 mod error;
-mod homepage;
 mod navigation;
 mod paths;
 mod theme;
 
 pub use branding::{BrandingConfig, LogoConfig, LogoVariant};
 pub use error::WebConfigError;
-pub use homepage::{
-    ComparisonConfig, ComparisonSide, FaqConfig, FaqItem, Feature, FeatureCategory, FeaturesConfig,
-    FinalCtaConfig, HeroConfig, HomepageConfig, HowItWorksConfig, HowItWorksStep, IntegrationBrand,
-    IntegrationsConfig, PricingConfig, PricingTier, TechnicalConfig, TechnicalSpec, UseCase,
-    UseCasesConfig,
-};
 pub use navigation::{
     FooterConfig, NavConfig, NavLink, NavigationConfig, SocialActionBar, SocialLink, SocialPlatform,
 };
@@ -25,6 +18,7 @@ pub use theme::{
 };
 
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebConfig {
@@ -51,6 +45,6 @@ pub struct WebConfig {
     pub navigation: NavigationConfig,
     pub social_action_bar: SocialActionBar,
     #[serde(default)]
-    pub homepage: Option<HomepageConfig>,
+    pub pages: HashMap<String, serde_json::Value>,
     pub nav: NavConfig,
 }
