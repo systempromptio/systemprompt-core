@@ -55,11 +55,7 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
     let response = client.get_user().await?;
     spinner.finish_and_clear();
 
-    let creds = CloudCredentials::new(
-        token,
-        api_url.to_string(),
-        response.user.email.clone(),
-    );
+    let creds = CloudCredentials::new(token, api_url.to_string(), response.user.email.clone());
 
     let save_path = cloud_paths.resolve(CloudPath::Credentials);
     creds.save_to_path(&save_path)?;

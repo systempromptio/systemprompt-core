@@ -53,7 +53,7 @@ license = "BSL-1.0"
 version = "0.0.14"
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
-documentation = "https://docs.systemprompt.io"
+documentation = "https://systemprompt.io/documentation"
 keywords = ["ai", "agents", "mcp", "llm", "orchestration"]
 categories = ["api-bindings", "development-tools"]
 

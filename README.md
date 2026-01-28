@@ -250,7 +250,7 @@ systemprompt.io uses a **layered crate architecture**:
 
 Dependencies flow downward only. Domain crates communicate via traits and events, not direct dependencies.
 
-See [full architecture documentation](https://docs.systemprompt.io/architecture) for details on all 25+ crates.
+See [full architecture documentation](https://systemprompt.io/documentation/architecture) for details on all 25+ crates.
 
 ## Extension Framework
 
@@ -298,5 +298,5 @@ FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](https://github.com/syst
 
 - [GitHub Repository](https://github.com/systempromptio/systemprompt-core)
 - [Issues](https://github.com/systempromptio/systemprompt-core/issues)
-- [Documentation](https://docs.systemprompt.io)
+- [Documentation](https://systemprompt.io/documentation)
 - [Website](https://systemprompt.io)
