@@ -102,8 +102,8 @@ impl DescribeCommand for CloudCommands {
         match self {
             Self::Sync {
                 command: Some(sync::SyncCommands::Local(_)),
-            }
-            | Self::Deploy { .. } => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+            } => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
+            Self::Deploy { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
             Self::Sync { command: Some(_) } | Self::Secrets { .. } => {
                 CommandDescriptor::PROFILE_AND_SECRETS
             },
