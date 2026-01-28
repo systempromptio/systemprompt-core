@@ -9,7 +9,7 @@ keywords = ["ai", "agents", "mcp", "llm", "orchestration"]
 categories = ["api-bindings", "development-tools"]
 repository = "https://github.com/systempromptio/systemprompt-core"
 homepage = "https://systemprompt.io"
-documentation = "https://docs.systemprompt.io"
+documentation = "https://systemprompt.io/documentation"
 readme = "../README.md"
 
 [lints]

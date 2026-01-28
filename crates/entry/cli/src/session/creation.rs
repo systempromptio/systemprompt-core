@@ -92,6 +92,55 @@ async fn fetch_admin(
     Ok(user)
 }
 
+async fn get_or_create_local_admin(
+    db_pool: &DbPool,
+    email: &str,
+) -> Result<systemprompt_users::User> {
+    let user_service = UserService::new(db_pool)?;
+
+    if let Some(user) = user_service
+        .find_by_email(email)
+        .await
+        .context("Failed to query user by email")?
+    {
+        if user.is_admin() {
+            return Ok(user);
+        }
+
+        tracing::info!(
+            email = %email,
+            "Promoting existing user to admin for local session"
+        );
+
+        return user_service
+            .assign_roles(&user.id, &["admin".to_string()])
+            .await
+            .context("Failed to assign admin role to existing user");
+    }
+
+    let name = email
+        .split('@')
+        .next()
+        .unwrap_or("admin")
+        .to_string();
+
+    tracing::info!(
+        email = %email,
+        name = %name,
+        "Auto-provisioning cloud user in local database"
+    );
+
+    let user = user_service
+        .create(&name, email, None, None)
+        .await
+        .context("Failed to create user in local database")?;
+
+    user_service
+        .assign_roles(&user.id, &["admin".to_string()])
+        .await
+        .context("Failed to assign admin role to new user")
+}
+
 fn generate_admin_token(
     jwt_secret: &str,
     issuer: &str,
@@ -161,7 +210,7 @@ pub(super) async fn create_local_session(
     }
 
     let db_pool = connect_database(&secrets.database_url).await?;
-    let admin_user = fetch_admin(&db_pool, user_email, AdminLookupContext::Local).await?;
+    let admin_user = get_or_create_local_admin(&db_pool, user_email).await?;
 
     if config.is_interactive() {
         CliService::key_value("User", &admin_user.email);
