@@ -17,9 +17,22 @@ use crate::cli_settings::CliConfig;
 use crate::shared::docker::{build_docker_image, docker_login, docker_push};
 use crate::shared::project::ProjectRoot;
 use select::resolve_profile;
-use systemprompt_extension::ExtensionRegistry;
+use systemprompt_extension::{AssetPaths, ExtensionRegistry};
 use systemprompt_loader::ConfigLoader;
-use systemprompt_models::AppPaths;
+
+struct ProjectAssetPaths {
+    storage_files: PathBuf,
+    web_dist: PathBuf,
+}
+
+impl AssetPaths for ProjectAssetPaths {
+    fn storage_files(&self) -> &std::path::Path {
+        &self.storage_files
+    }
+    fn web_dist(&self) -> &std::path::Path {
+        &self.web_dist
+    }
+}
 
 #[derive(Debug)]
 pub struct DeployConfig {
@@ -71,14 +84,17 @@ impl DeployConfig {
     }
 
     fn validate_extension_assets(&self) -> Result<()> {
-        let paths = AppPaths::get().map_err(|e| anyhow!("AppPaths not initialized: {}", e))?;
+        let paths = ProjectAssetPaths {
+            storage_files: self.project_root.join("storage/files"),
+            web_dist: self.project_root.join("web/dist"),
+        };
         let registry = ExtensionRegistry::discover();
         let mut missing = Vec::new();
         let mut outside_context = Vec::new();
 
         for ext in registry.asset_extensions() {
             let ext_id = ext.id();
-            for asset in ext.required_assets(paths) {
+            for asset in ext.required_assets(&paths) {
                 if !asset.is_required() {
                     continue;
                 }

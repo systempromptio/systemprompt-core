@@ -21,11 +21,6 @@ struct ResolvedSecrets {
     jwt_secret: String,
 }
 
-enum AdminLookupContext {
-    Local,
-    Tenant,
-}
-
 fn load_secrets() -> Result<ResolvedSecrets> {
     let secrets = SecretsBootstrap::get().map_err(|e| {
         anyhow::anyhow!(
@@ -48,10 +43,9 @@ async fn connect_database(url: &str) -> Result<DbPool> {
     Ok(DbPool::from(Arc::new(db)))
 }
 
-async fn fetch_admin(
+async fn fetch_tenant_admin(
     db_pool: &DbPool,
     email: &str,
-    ctx: AdminLookupContext,
 ) -> Result<systemprompt_users::User> {
     let user_service = UserService::new(db_pool)?;
 
@@ -59,34 +53,20 @@ async fn fetch_admin(
         .find_by_email(email)
         .await
         .context("Failed to query user by email")?
-        .ok_or_else(|| match ctx {
-            AdminLookupContext::Local => anyhow::anyhow!(
-                "User '{}' not found in local database.\n\nEnsure this user exists, or run \
-                 'systemprompt admin users create --email {} --admin'.",
-                email,
-                email
-            ),
-            AdminLookupContext::Tenant => anyhow::anyhow!(
+        .ok_or_else(|| {
+            anyhow::anyhow!(
                 "User '{}' not found in database.\n\nRun 'systemprompt cloud auth login' to sync \
                  your user.",
                 email
-            ),
+            )
         })?;
 
     if !user.is_admin() {
-        match ctx {
-            AdminLookupContext::Local => anyhow::bail!(
-                "User '{}' is not an admin.\n\nGrant admin role with 'systemprompt admin users \
-                 set-role {} admin'.",
-                email,
-                email
-            ),
-            AdminLookupContext::Tenant => anyhow::bail!(
-                "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your \
-                 admin role.",
-                email
-            ),
-        }
+        anyhow::bail!(
+            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your \
+             admin role.",
+            email
+        );
     }
 
     Ok(user)
@@ -278,7 +258,7 @@ pub(super) async fn create_session_for_tenant(
     }
 
     let db_pool = connect_database(&secrets.database_url).await?;
-    let admin_user = fetch_admin(&db_pool, cloud_email, AdminLookupContext::Tenant).await?;
+    let admin_user = fetch_tenant_admin(&db_pool, cloud_email).await?;
 
     let session_id = request_session_id(
         &profile.server.api_external_url,
