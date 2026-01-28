@@ -4,6 +4,7 @@ mod engine;
 mod fetch;
 mod index;
 mod parent;
+mod utils;
 
 pub use context::PrerenderContext;
 pub use engine::{prerender_content, prerender_pages, PagePrerenderResult};

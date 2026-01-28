@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::{ComponentContext, ExtenderContext};
+use systemprompt_template_provider::{ComponentContext, ExtenderContext, PageContext};
+
+use crate::prerender::utils::merge_json_data;
 use tokio::fs;
 
 use crate::content::{generate_toc, render_markdown};
@@ -84,7 +86,18 @@ async fn render_all_items(
     let config_value = serde_yaml::to_value(&ctx.config)?;
     let mut rendered = 0;
 
+    let parent_route_enabled = sitemap_config
+        .parent_route
+        .as_ref()
+        .is_some_and(|p| p.enabled);
+
     for item in items {
+        let slug = item.get("slug").and_then(|v| v.as_str()).unwrap_or("");
+        if slug.is_empty() && parent_route_enabled {
+            tracing::debug!(source = %source_name, "Skipping index content - rendered by parent route");
+            continue;
+        }
+
         render_single_item(&RenderSingleItemParams {
             ctx,
             source_name,
@@ -153,6 +166,16 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .get("content_type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
+
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.db_pool);
+    let providers = ctx.template_registry.page_providers_for(content_type);
+
+    for provider in &providers {
+        let data = provider.provide_page_data(&page_ctx).await.map_err(|e| {
+            PublishError::provider_failed(provider.provider_id(), e.to_string())
+        })?;
+        merge_json_data(&mut template_data, &data);
+    }
 
     let component_ctx =
         ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
@@ -244,6 +267,12 @@ async fn render_parent_if_enabled(
         return Ok(0);
     }
 
+    let index_content = items.iter().find(|item| {
+        item.get("slug")
+            .and_then(|v| v.as_str())
+            .is_some_and(|s| s.is_empty())
+    });
+
     render_parent_route(RenderParentParams {
         items,
         config: &ctx.config,
@@ -253,6 +282,8 @@ async fn render_parent_if_enabled(
         source_name,
         template_registry: &ctx.template_registry,
         dist_dir: &ctx.dist_dir,
+        index_content,
+        db_pool: &ctx.db_pool,
     })
     .await?;
 

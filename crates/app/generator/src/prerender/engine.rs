@@ -8,6 +8,7 @@ use tokio::fs;
 use crate::error::PublishError;
 use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{load_prerender_context, PrerenderContext};
+use crate::prerender::utils::merge_json_data;
 
 pub async fn prerender_content(db_pool: DbPool) -> Result<()> {
     let ctx = load_prerender_context(db_pool).await?;
@@ -132,22 +133,4 @@ pub async fn prerender_pages_with_context(
     }
 
     Ok(results)
-}
-
-fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
-    match (base, extension) {
-        (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
-            for (key, ext_value) in ext_obj {
-                match base_obj.get_mut(key) {
-                    Some(base_value) => merge_json_data(base_value, ext_value),
-                    None => {
-                        base_obj.insert(key.clone(), ext_value.clone());
-                    },
-                }
-            }
-        },
-        (base, extension) => {
-            *base = extension.clone();
-        },
-    }
 }
