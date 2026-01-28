@@ -64,7 +64,10 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
         .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found after rotation"))?;
 
-    tenant.database_url = Some(response.internal_database_url.clone());
+    tenant.internal_database_url = Some(response.internal_database_url.clone());
+    if tenant.external_db_access {
+        tenant.database_url = Some(response.external_database_url.clone());
+    }
 
     store.save_to_path(&tenants_path)?;
 

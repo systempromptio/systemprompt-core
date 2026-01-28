@@ -198,6 +198,10 @@ impl StoredTenant {
         self.hostname.clone_from(&info.hostname);
         self.region.clone_from(&info.region);
         self.external_db_access = info.external_db_access;
+
+        if !info.database_url.contains(":***@") {
+            self.internal_database_url = Some(info.database_url.clone());
+        }
     }
 
     #[must_use]

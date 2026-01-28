@@ -10,7 +10,7 @@ use systemprompt_models::Profile;
 
 use systemprompt_identifiers::TenantId;
 
-use crate::commands::cloud::tenant::{get_credentials, swap_to_external_host};
+use crate::commands::cloud::tenant::get_credentials;
 
 use super::api_keys::{collect_api_keys, ApiKeys};
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
@@ -319,16 +319,26 @@ fn resolve_tenant_from_args(args: &CreateArgs, store: &TenantStore) -> Result<St
     Ok(tenant.clone())
 }
 
+struct RefreshedCredentials {
+    external_database_url: String,
+    internal_database_url: String,
+    sync_token: Option<String>,
+}
+
 async fn refresh_tenant_credentials(
     client: &CloudApiClient,
     tenant_id: &str,
-) -> Result<(String, Option<String>)> {
+) -> Result<RefreshedCredentials> {
     let status = client.get_tenant_status(tenant_id).await?;
     let secrets_url = status
         .secrets_url
         .ok_or_else(|| anyhow::anyhow!("No secrets URL available for tenant"))?;
     let secrets = client.fetch_secrets(&secrets_url).await?;
-    Ok((secrets.database_url, secrets.sync_token))
+    Ok(RefreshedCredentials {
+        external_database_url: secrets.database_url,
+        internal_database_url: secrets.internal_database_url,
+        sync_token: secrets.sync_token,
+    })
 }
 
 async fn ensure_unmasked_credentials(
@@ -339,10 +349,12 @@ async fn ensure_unmasked_credentials(
         return Ok(tenant);
     }
 
-    let external_url = tenant.get_local_database_url();
+    let external_url = tenant.database_url.as_deref();
     let internal_url = tenant.internal_database_url.as_deref();
 
-    let needs_refresh = external_url.is_none_or(|url| Profile::is_masked_database_url(url))
+    let needs_external = tenant.external_db_access && external_url.is_none();
+    let needs_refresh = needs_external
+        || external_url.is_some_and(|url| Profile::is_masked_database_url(url))
         || internal_url.is_none_or(Profile::is_masked_database_url);
 
     if !needs_refresh {
@@ -354,13 +366,13 @@ async fn ensure_unmasked_credentials(
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
     match refresh_tenant_credentials(&client, &tenant.id).await {
-        Ok((db_url, sync_token)) => {
+        Ok(creds) => {
             let mut updated_tenant = tenant.clone();
-            updated_tenant.internal_database_url = Some(db_url.clone());
+            updated_tenant.internal_database_url = Some(creds.internal_database_url);
             if updated_tenant.external_db_access {
-                updated_tenant.database_url = Some(swap_to_external_host(&db_url));
+                updated_tenant.database_url = Some(creds.external_database_url);
             }
-            if let Some(token) = sync_token {
+            if let Some(token) = creds.sync_token {
                 updated_tenant.sync_token = Some(token);
             }
 
