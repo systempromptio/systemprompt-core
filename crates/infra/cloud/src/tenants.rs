@@ -199,6 +199,24 @@ impl StoredTenant {
         self.region.clone_from(&info.region);
         self.external_db_access = info.external_db_access;
     }
+
+    #[must_use]
+    pub fn is_sync_token_missing(&self) -> bool {
+        self.tenant_type == TenantType::Cloud && self.sync_token.is_none()
+    }
+
+    #[must_use]
+    pub fn is_database_url_masked(&self) -> bool {
+        self.internal_database_url
+            .as_ref()
+            .is_some_and(|url| url.contains(":***@") || url.contains(":********@"))
+    }
+
+    #[must_use]
+    pub fn has_missing_credentials(&self) -> bool {
+        self.tenant_type == TenantType::Cloud
+            && (self.is_sync_token_missing() || self.is_database_url_masked())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Validate)]

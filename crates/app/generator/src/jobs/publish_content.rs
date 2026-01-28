@@ -1,16 +1,15 @@
 use anyhow::Result;
+use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_content::ContentIngestionJob;
-use systemprompt_database::DbPool;
-use systemprompt_models::AppPaths;
+use systemprompt_database::{DatabaseProvider, DbPool};
+use systemprompt_models::{AppPaths, ProfileBootstrap};
+use systemprompt_sync::PlaybooksLocalSync;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
-use crate::{
-    copy_storage_assets_to_dist, generate_feed, generate_sitemap, organize_dist_assets,
-    prerender_content, prerender_homepage, warn_unexpected_dist_directories,
-};
+use crate::{generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_homepage};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PublishContentJob;
@@ -46,11 +45,11 @@ impl PublishContentJob {
         let mut stats = PublishStats::new();
 
         run_content_ingestion(db_pool, &mut stats).await;
+        run_playbook_sync(db_pool, &mut stats).await;
 
         tokio::time::sleep(Duration::from_millis(500)).await;
 
         run_asset_copy(&mut stats).await;
-        run_storage_asset_copy(&mut stats).await;
         run_prerender(db_pool, &mut stats).await;
         run_homepage_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
@@ -96,33 +95,43 @@ async fn run_asset_copy(stats: &mut PublishStats) {
     }
 }
 
-async fn run_storage_asset_copy(stats: &mut PublishStats) {
-    let paths = match AppPaths::get() {
-        Ok(paths) => paths,
+async fn run_playbook_sync(db_pool: &DbPool, stats: &mut PublishStats) {
+    let Some(playbooks_path) = get_playbooks_path() else {
+        tracing::debug!("Playbooks path not configured or does not exist, skipping sync");
+        return;
+    };
+
+    #[allow(clippy::clone_on_ref_ptr)]
+    let db: Arc<dyn DatabaseProvider> = db_pool.clone();
+    let sync = PlaybooksLocalSync::new(db, playbooks_path);
+
+    let diff = match sync.calculate_diff().await {
+        Ok(diff) => diff,
         Err(e) => {
-            tracing::warn!(error = %e, "Failed to get app paths for storage asset copy");
+            tracing::warn!(error = %e, "Failed to calculate playbooks diff");
             stats.record_failure();
             return;
         },
     };
 
-    let storage = paths.storage();
-    let dist_dir = paths.web().dist();
+    if !diff.has_changes() {
+        tracing::debug!("Playbooks are in sync, no changes needed");
+        stats.record_success();
+        return;
+    }
 
-    warn_unexpected_dist_directories(dist_dir);
-
-    match copy_storage_assets_to_dist(storage, dist_dir).await {
-        Ok(asset_stats) => {
+    match sync.sync_to_db(&diff, false).await {
+        Ok(result) => {
             tracing::info!(
-                css = asset_stats.css,
-                js = asset_stats.js,
-                fonts = asset_stats.fonts,
-                "Storage assets copied to dist"
+                direction = %result.direction,
+                synced = result.items_synced,
+                skipped = result.items_skipped,
+                "Playbooks synced to database"
             );
             stats.record_success();
         },
         Err(e) => {
-            tracing::warn!(error = %e, "Storage asset copy failed");
+            tracing::warn!(error = %e, "Playbook sync failed");
             stats.record_failure();
         },
     }
@@ -230,3 +239,13 @@ impl Job for PublishContentJob {
 }
 
 systemprompt_provider_contracts::submit_job!(&PublishContentJob);
+
+fn get_playbooks_path() -> Option<PathBuf> {
+    let profile = ProfileBootstrap::get().ok()?;
+    let playbooks_path = PathBuf::from(format!("{}/playbook", profile.paths.services));
+    if playbooks_path.exists() {
+        Some(playbooks_path)
+    } else {
+        None
+    }
+}

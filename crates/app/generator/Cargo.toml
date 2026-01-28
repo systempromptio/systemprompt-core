@@ -37,6 +37,9 @@ systemprompt-template-provider = { workspace = true }
 # Extension system
 systemprompt-extension = { workspace = true }
 
+# App layer (sync)
+systemprompt-sync = { workspace = true }
+
 # Async runtime
 tokio = { workspace = true }
 
