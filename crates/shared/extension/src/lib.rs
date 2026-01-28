@@ -17,8 +17,8 @@ use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use systemprompt_provider_contracts::{
-    ComponentRenderer, Job, LlmProvider, PageDataProvider, TemplateDataExtender, TemplateProvider,
-    ToolProvider,
+    ComponentRenderer, Job, LlmProvider, PageDataProvider, PagePrerenderer, TemplateDataExtender,
+    TemplateProvider, ToolProvider,
 };
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
@@ -258,6 +258,10 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
+        vec![]
+    }
+
     fn required_storage_paths(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -340,6 +344,10 @@ pub trait Extension: Send + Sync + 'static {
         !self.page_data_providers().is_empty()
     }
 
+    fn has_page_prerenderers(&self) -> bool {
+        !self.page_prerenderers().is_empty()
+    }
+
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }
@@ -415,8 +423,9 @@ pub mod prelude {
     };
 
     pub use systemprompt_provider_contracts::{
-        ComponentContext, ComponentRenderer, PageContext, PageDataProvider, RenderedComponent,
-        TemplateDataExtender, TemplateDefinition, TemplateProvider, TemplateSource,
+        ComponentContext, ComponentRenderer, PageContext, PageDataProvider, PagePrepareContext,
+        PagePrerenderer, PageRenderSpec, RenderedComponent, TemplateDataExtender,
+        TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }
 

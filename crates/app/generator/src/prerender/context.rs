@@ -13,45 +13,13 @@ use tokio::fs;
 
 use crate::templates::{get_templates_path, load_web_config};
 
+#[derive(Debug)]
 pub struct PrerenderContext {
     pub db_pool: DbPool,
     pub config: ContentConfigRaw,
     pub web_config: FullWebConfig,
     pub template_registry: TemplateRegistry,
     pub dist_dir: PathBuf,
-}
-
-pub struct HomepageBranding {
-    pub org_name: String,
-    pub org_url: String,
-    pub org_logo: String,
-    pub logo_path: String,
-    pub favicon_path: String,
-    pub twitter_handle: String,
-    pub display_sitename: bool,
-}
-
-pub fn extract_homepage_branding(
-    web_config: &FullWebConfig,
-    config: &ContentConfigRaw,
-) -> HomepageBranding {
-    let org = &config.metadata.structured_data.organization;
-    let branding = &web_config.branding;
-
-    HomepageBranding {
-        org_name: org.name.clone(),
-        org_url: org.url.clone(),
-        org_logo: org.logo.clone(),
-        logo_path: branding
-            .logo
-            .primary
-            .svg
-            .clone()
-            .unwrap_or_else(String::new),
-        favicon_path: branding.favicon.clone(),
-        twitter_handle: branding.twitter_handle.clone(),
-        display_sitename: branding.display_sitename,
-    }
 }
 
 pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
@@ -108,12 +76,14 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
 
     for ext in extensions.extensions() {
         let providers = ext.page_data_providers();
+        let prerenderers = ext.page_prerenderers();
         tracing::debug!(
             extension_id = %ext.metadata().id,
             page_provider_count = providers.len(),
+            page_prerenderer_count = prerenderers.len(),
             component_count = ext.component_renderers().len(),
             extender_count = ext.template_data_extenders().len(),
-            "Extension page data providers"
+            "Extension providers discovered"
         );
 
         for component in ext.component_renderers() {
@@ -124,6 +94,9 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
         }
         for provider in providers {
             registry_builder = registry_builder.with_page_provider(provider);
+        }
+        for prerenderer in prerenderers {
+            registry_builder = registry_builder.with_page_prerenderer(prerenderer);
         }
     }
 

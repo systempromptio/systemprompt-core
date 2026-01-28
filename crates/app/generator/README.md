@@ -48,11 +48,10 @@ src/
 │
 ├── prerender/                # Static page generation
 │   ├── mod.rs               # Module exports
-│   ├── engine.rs            # prerender_content, prerender_homepage entry points
+│   ├── engine.rs            # prerender_content, prerender_pages entry points
 │   ├── context.rs           # PrerenderContext, HomepageBranding
 │   ├── content.rs           # Source processing, item rendering
 │   ├── fetch.rs             # Database content fetching with retries
-│   ├── homepage.rs          # Homepage-specific rendering
 │   ├── index.rs             # GenerateParentIndexParams, parent index generation
 │   └── parent.rs            # RenderParentParams, parent route rendering
 │
@@ -110,7 +109,7 @@ src/
 pub use assets::{copy_implementation_assets, organize_css_files, organize_js_files};
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
-pub use prerender::{prerender_content, prerender_homepage};
+pub use prerender::{prerender_content, prerender_pages, PagePrerenderResult};
 pub use rss::{build_rss_xml, generate_feed, RssChannel, RssItem};
 pub use sitemap::{build_sitemap_index, build_sitemap_xml, generate_sitemap, SitemapUrl};
 pub use templates::{generate_footer_html, load_web_config, prepare_template_data};

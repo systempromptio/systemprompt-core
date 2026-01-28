@@ -39,6 +39,9 @@ pub enum PublishError {
         message: String,
         path: Option<String>,
     },
+
+    #[error("Page prerenderer '{page_type}' failed: {cause}")]
+    PagePrerendererFailed { page_type: String, cause: String },
 }
 
 impl PublishError {
@@ -112,6 +115,13 @@ impl PublishError {
         }
     }
 
+    pub fn page_prerenderer_failed(page_type: impl Into<String>, cause: impl Into<String>) -> Self {
+        Self::PagePrerendererFailed {
+            page_type: page_type.into(),
+            cause: cause.into(),
+        }
+    }
+
     pub fn location(&self) -> Option<String> {
         match self {
             Self::MissingField { source_path, .. } => {
@@ -150,7 +160,8 @@ impl PublishError {
         match self {
             Self::ProviderFailed { cause, .. }
             | Self::RenderFailed { cause, .. }
-            | Self::FetchFailed { cause, .. } => Some(cause.clone()),
+            | Self::FetchFailed { cause, .. }
+            | Self::PagePrerendererFailed { cause, .. } => Some(cause.clone()),
             _ => None,
         }
     }

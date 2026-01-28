@@ -68,14 +68,7 @@ impl AppContext {
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
 
-        let injected = systemprompt_extension::runtime_config::get_injected_extensions();
-
-        let registry = match extension_registry {
-            Some(r) => r,
-            None if injected.is_empty() => ExtensionRegistry::discover(),
-            None => ExtensionRegistry::discover_and_merge(injected)?,
-        };
-
+        let registry = extension_registry.unwrap_or_else(ExtensionRegistry::discover);
         registry.validate()?;
 
         let extension_registry = Arc::new(registry);

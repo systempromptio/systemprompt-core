@@ -1,6 +1,6 @@
 use systemprompt_template_provider::{
-    DynComponentRenderer, DynPageDataProvider, DynTemplateDataExtender, DynTemplateLoader,
-    DynTemplateProvider,
+    DynComponentRenderer, DynPageDataProvider, DynPagePrerenderer, DynTemplateDataExtender,
+    DynTemplateLoader, DynTemplateProvider,
 };
 
 use crate::{TemplateError, TemplateRegistry};
@@ -12,6 +12,7 @@ pub struct TemplateRegistryBuilder {
     extenders: Vec<DynTemplateDataExtender>,
     components: Vec<DynComponentRenderer>,
     page_providers: Vec<DynPageDataProvider>,
+    page_prerenderers: Vec<DynPagePrerenderer>,
 }
 
 impl std::fmt::Debug for TemplateRegistryBuilder {
@@ -22,6 +23,7 @@ impl std::fmt::Debug for TemplateRegistryBuilder {
             .field("extenders", &self.extenders.len())
             .field("components", &self.components.len())
             .field("page_providers", &self.page_providers.len())
+            .field("page_prerenderers", &self.page_prerenderers.len())
             .finish()
     }
 }
@@ -63,6 +65,12 @@ impl TemplateRegistryBuilder {
     }
 
     #[must_use]
+    pub fn with_page_prerenderer(mut self, prerenderer: impl Into<DynPagePrerenderer>) -> Self {
+        self.page_prerenderers.push(prerenderer.into());
+        self
+    }
+
+    #[must_use]
     pub fn build(self) -> TemplateRegistry {
         let mut registry = TemplateRegistry::new();
 
@@ -80,6 +88,9 @@ impl TemplateRegistryBuilder {
         }
         for page_provider in self.page_providers {
             registry.register_page_provider(page_provider);
+        }
+        for prerenderer in self.page_prerenderers {
+            registry.register_page_prerenderer(prerenderer);
         }
 
         registry

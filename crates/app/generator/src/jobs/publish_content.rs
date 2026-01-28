@@ -10,7 +10,7 @@ use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
 use crate::{
-    generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_homepage,
+    generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_pages,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -53,7 +53,7 @@ impl PublishContentJob {
 
         run_asset_copy(&mut stats).await;
         run_prerender(db_pool, &mut stats).await;
-        run_homepage_prerender(db_pool, &mut stats).await;
+        run_page_prerender(db_pool, &mut stats).await;
         run_sitemap_generation(db_pool, &mut stats).await;
         run_rss_generation(db_pool, &mut stats).await;
         run_css_organization(&mut stats).await;
@@ -152,14 +152,19 @@ async fn run_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
     }
 }
 
-async fn run_homepage_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
-    match prerender_homepage(Arc::clone(db_pool)).await {
-        Ok(()) => {
-            tracing::debug!("Homepage prerendering completed");
+async fn run_page_prerender(db_pool: &DbPool, stats: &mut PublishStats) {
+    match prerender_pages(Arc::clone(db_pool)).await {
+        Ok(results) => {
+            let page_count = results.len();
+            if page_count > 0 {
+                tracing::debug!(page_count = page_count, "Page prerendering completed");
+            } else {
+                tracing::debug!("No page prerenderers registered");
+            }
             stats.record_success();
         },
         Err(e) => {
-            tracing::warn!("Homepage prerendering failed: {:#}", e);
+            tracing::warn!("Page prerendering failed: {:#}", e);
             stats.record_failure();
         },
     }

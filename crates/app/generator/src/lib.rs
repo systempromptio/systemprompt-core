@@ -15,7 +15,7 @@ pub use assets::organize_dist_assets;
 pub use build::{BuildError, BuildMode, BuildOrchestrator};
 pub use content::{extract_frontmatter, render_markdown};
 pub use error::PublishError;
-pub use prerender::{prerender_content, prerender_homepage};
+pub use prerender::{prerender_content, prerender_pages, PagePrerenderResult};
 pub use rss::{build_rss_xml, generate_feed, RssChannel, RssItem};
 pub use sitemap::{build_sitemap_index, build_sitemap_xml, generate_sitemap, SitemapUrl};
 pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
