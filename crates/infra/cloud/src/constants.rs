@@ -10,6 +10,8 @@ pub mod container {
     pub const SERVICES: &str = cloud_container::SERVICES;
     pub const STORAGE: &str = cloud_container::STORAGE;
     pub const WEB: &str = cloud_container::WEB;
+    pub const WEB_DIST: &str = cloud_container::WEB_DIST;
+    pub const WEB_CONFIG: &str = cloud_container::WEB_CONFIG;
     pub const PROFILES: &str = cloud_container::PROFILES;
     pub const TEMPLATES: &str = cloud_container::TEMPLATES;
     pub const ASSETS: &str = cloud_container::ASSETS;

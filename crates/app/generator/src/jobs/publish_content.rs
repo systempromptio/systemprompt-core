@@ -9,7 +9,7 @@ use systemprompt_traits::{Job, JobContext, JobResult};
 use super::CopyExtensionAssetsJob;
 use crate::{
     copy_storage_assets_to_dist, generate_feed, generate_sitemap, organize_dist_assets,
-    prerender_content, prerender_homepage,
+    prerender_content, prerender_homepage, warn_unexpected_dist_directories,
 };
 
 #[derive(Debug, Clone, Copy)]
@@ -109,11 +109,14 @@ async fn run_storage_asset_copy(stats: &mut PublishStats) {
     let storage = paths.storage();
     let dist_dir = paths.web().dist();
 
+    warn_unexpected_dist_directories(dist_dir);
+
     match copy_storage_assets_to_dist(storage, dist_dir).await {
-        Ok((css_count, js_count)) => {
+        Ok(asset_stats) => {
             tracing::info!(
-                css = css_count,
-                js = js_count,
+                css = asset_stats.css,
+                js = asset_stats.js,
+                fonts = asset_stats.fonts,
                 "Storage assets copied to dist"
             );
             stats.record_success();

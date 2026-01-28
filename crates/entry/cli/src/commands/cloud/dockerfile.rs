@@ -58,13 +58,16 @@ RUN apt-get update && apt-get install -y \
 RUN useradd -m -u 1000 app
 WORKDIR {app}
 
-RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads}{extension_dirs}
+RUN mkdir -p {bin} {logs} {storage}/{images} {storage}/{generated} {storage}/{logos} {storage}/{audio} {storage}/{video} {storage}/{documents} {storage}/{uploads} {web}{extension_dirs}
 
 # Copy pre-built binaries
 COPY target/release/systemprompt {bin}/
 {mcp_section}
 # Copy storage assets (images, etc.)
 COPY storage {storage}
+
+# Copy web dist (generated HTML, CSS, JS)
+COPY web/dist {web_dist}
 {extension_assets_section}
 # Copy services configuration
 COPY services {services_path}
@@ -89,6 +92,8 @@ CMD ["{bin}/systemprompt", "{cmd_infra}", "{cmd_services}", "{cmd_serve}", "--fo
             bin = container::BIN,
             logs = container::LOGS,
             storage = container::STORAGE,
+            web = container::WEB,
+            web_dist = container::WEB_DIST,
             services_path = container::SERVICES,
             profiles = container::PROFILES,
             images = storage::IMAGES,
