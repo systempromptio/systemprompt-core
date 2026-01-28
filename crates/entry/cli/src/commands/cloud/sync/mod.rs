@@ -8,7 +8,8 @@ use anyhow::{anyhow, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::{profile_bootstrap::ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;
@@ -120,9 +121,8 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
 
     let sync_token = secrets.sync_token.clone().ok_or_else(|| {
         anyhow!(
-            "Sync token not configured in profile secrets.\n\
-             Run: systemprompt cloud tenant rotate-sync-token\n\
-             Then recreate profile or update secrets.json manually"
+            "Sync token not configured in profile secrets.\nRun: systemprompt cloud tenant \
+             rotate-sync-token\nThen recreate profile or update secrets.json manually"
         )
     })?;
 
@@ -156,9 +156,9 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         }
     }
 
-    let hostname = tenant
-        .and_then(|t| t.hostname.clone())
-        .ok_or_else(|| anyhow!("Hostname not configured for tenant. Run: systemprompt cloud login"))?;
+    let hostname = tenant.and_then(|t| t.hostname.clone()).ok_or_else(|| {
+        anyhow!("Hostname not configured for tenant. Run: systemprompt cloud login")
+    })?;
 
     let services_path = profile.paths.services.clone();
 
@@ -221,4 +221,3 @@ fn print_results(results: &[SyncOperationResult]) {
         }
     }
 }
-

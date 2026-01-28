@@ -1,7 +1,7 @@
 use std::path::Path;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_logging::services::cli::{render_phase_success, BrandColors};
-use systemprompt_models::Config;
+use systemprompt_models::{AppPaths, Config};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
@@ -32,12 +32,22 @@ pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport
         validate_single_extension(config, ext.as_ref(), report, verbose);
     }
 
-    validate_extension_assets(&extensions, report, verbose);
+    match AppPaths::get() {
+        Ok(paths) => validate_extension_assets(&extensions, paths, report, verbose),
+        Err(_) if verbose => {
+            println!(
+                "  {} Asset validation skipped (AppPaths not initialized)",
+                BrandColors::dim("○")
+            );
+        },
+        Err(_) => {},
+    }
 }
 
 #[allow(clippy::print_stdout)]
 fn validate_extension_assets(
     registry: &ExtensionRegistry,
+    paths: &AppPaths,
     report: &mut StartupValidationReport,
     verbose: bool,
 ) {
@@ -45,7 +55,7 @@ fn validate_extension_assets(
         let ext_id = ext.id();
         let mut has_errors = false;
 
-        for asset in ext.required_assets() {
+        for asset in ext.required_assets(paths) {
             if asset.is_required() && !asset.source().exists() {
                 has_errors = true;
                 let mut ext_report = ValidationReport::new(format!("ext:{}", ext_id));

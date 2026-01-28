@@ -1,5 +1,10 @@
 use std::path::{Path, PathBuf};
 
+pub trait AssetPaths: Send + Sync {
+    fn storage_files(&self) -> &Path;
+    fn web_dist(&self) -> &Path;
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssetType {
     Css,

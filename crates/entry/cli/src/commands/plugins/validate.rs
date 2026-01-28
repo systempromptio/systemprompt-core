@@ -64,15 +64,13 @@ pub fn execute(
     }
 
     for ext in registry.asset_extensions() {
-        for asset in ext.required_assets() {
-            if asset.is_required() && !asset.source().exists() {
-                errors.push(ValidationError {
-                    extension_id: Some(ext.id().to_string()),
-                    error_type: "required_asset".to_string(),
-                    message: format!("Missing required asset: {}", asset.source().display()),
-                });
-            }
-        }
+        warnings.push(ValidationWarning {
+            extension_id: Some(ext.id().to_string()),
+            warning_type: "asset_validation_skipped".to_string(),
+            message: "Asset validation requires full profile initialization. Use 'systemprompt \
+                      infra validate'."
+                .to_string(),
+        });
     }
 
     let valid = errors.is_empty();

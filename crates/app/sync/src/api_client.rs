@@ -119,7 +119,7 @@ impl SyncApiClient {
                     );
                     sleep(current_delay).await;
                     current_delay = self.calculate_next_delay(current_delay);
-                }
+                },
                 Err(error) => return Err(error),
             }
         }
@@ -160,7 +160,7 @@ impl SyncApiClient {
                     );
                     sleep(current_delay).await;
                     current_delay = self.calculate_next_delay(current_delay);
-                }
+                },
                 Err(error) => return Err(error),
             }
         }

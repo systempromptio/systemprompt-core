@@ -1,4 +1,4 @@
-use crate::asset::AssetDefinition;
+use crate::asset::{AssetDefinition, AssetPaths};
 use crate::error::LoaderError;
 use crate::Extension;
 use std::collections::HashMap;
@@ -383,17 +383,21 @@ impl ExtensionRegistry {
     pub fn asset_extensions(&self) -> Vec<Arc<dyn Extension>> {
         self.sorted_extensions
             .iter()
-            .filter(|e| e.has_assets())
+            .filter(|e| e.declares_assets())
             .cloned()
             .collect()
     }
 
-    pub fn all_required_assets(&self) -> Vec<(&'static str, AssetDefinition)> {
+    pub fn all_required_assets(
+        &self,
+        paths: &dyn AssetPaths,
+    ) -> Vec<(&'static str, AssetDefinition)> {
         self.sorted_extensions
             .iter()
+            .filter(|e| e.declares_assets())
             .flat_map(|e| {
                 let id = e.id();
-                e.required_assets()
+                e.required_assets(paths)
                     .into_iter()
                     .map(move |asset| (id, asset))
             })
