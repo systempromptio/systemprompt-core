@@ -124,6 +124,7 @@ pub struct CloudTenantStatusResponse {
 pub struct CloudTenantSecrets {
     pub jwt_secret: String,
     pub database_url: String,
+    pub internal_database_url: String,
     pub app_url: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync_token: Option<String>,
