@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use handlebars::Handlebars;
 use serde_json::Value;
 use systemprompt_template_provider::{
-    DynComponentRenderer, DynPageDataProvider, DynTemplateDataExtender, DynTemplateLoader,
-    DynTemplateProvider, TemplateDefinition,
+    DynComponentRenderer, DynPageDataProvider, DynPagePrerenderer, DynTemplateDataExtender,
+    DynTemplateLoader, DynTemplateProvider, TemplateDefinition,
 };
 use tracing::{debug, info, warn};
 
@@ -16,6 +16,7 @@ pub struct TemplateRegistry {
     extenders: Vec<DynTemplateDataExtender>,
     components: Vec<DynComponentRenderer>,
     page_providers: Vec<DynPageDataProvider>,
+    page_prerenderers: Vec<DynPagePrerenderer>,
     resolved_templates: HashMap<String, TemplateDefinition>,
     handlebars: Handlebars<'static>,
     template_sources: HashMap<String, String>,
@@ -36,6 +37,7 @@ impl TemplateRegistry {
             extenders: Vec::new(),
             components: Vec::new(),
             page_providers: Vec::new(),
+            page_prerenderers: Vec::new(),
             resolved_templates: HashMap::new(),
             handlebars: Handlebars::new(),
             template_sources: HashMap::new(),
@@ -83,6 +85,16 @@ impl TemplateRegistry {
         );
         self.page_providers.push(provider);
         self.page_providers.sort_by_key(|p| p.priority());
+    }
+
+    pub fn register_page_prerenderer(&mut self, prerenderer: DynPagePrerenderer) {
+        debug!(
+            page_type = %prerenderer.page_type(),
+            priority = prerenderer.priority(),
+            "Registering page prerenderer"
+        );
+        self.page_prerenderers.push(prerenderer);
+        self.page_prerenderers.sort_by_key(|p| p.priority());
     }
 
     pub async fn initialize(&mut self) -> Result<(), TemplateError> {
@@ -241,6 +253,11 @@ impl TemplateRegistry {
     }
 
     #[must_use]
+    pub fn page_prerenderers(&self) -> &[DynPagePrerenderer] {
+        &self.page_prerenderers
+    }
+
+    #[must_use]
     pub fn find_template_provider(&self, name: &str) -> Option<&str> {
         self.template_sources.get(name).map(String::as_str)
     }
@@ -267,6 +284,7 @@ impl TemplateRegistry {
             extenders: self.extenders.len(),
             components: self.components.len(),
             page_providers: self.page_providers.len(),
+            page_prerenderers: self.page_prerenderers.len(),
         }
     }
 }
@@ -279,6 +297,7 @@ pub struct RegistryStats {
     pub extenders: usize,
     pub components: usize,
     pub page_providers: usize,
+    pub page_prerenderers: usize,
 }
 
 impl std::fmt::Debug for TemplateRegistry {
@@ -293,6 +312,7 @@ impl std::fmt::Debug for TemplateRegistry {
             .field("extenders", &self.extenders.len())
             .field("components", &self.components.len())
             .field("page_providers", &self.page_providers.len())
+            .field("page_prerenderers", &self.page_prerenderers.len())
             .finish_non_exhaustive()
     }
 }

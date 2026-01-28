@@ -54,10 +54,36 @@ impl ExtensionRegistry {
                 id = %ext_id,
                 name = %ext_name,
                 priority = ext_arc.priority(),
-                "Discovered extension"
+                "Discovered extension via inventory"
             );
             registry.extensions.insert(ext_id, Arc::clone(&ext_arc));
             registry.sorted_extensions.push(ext_arc);
+        }
+
+        let injected = crate::runtime_config::get_injected_extensions();
+        if !injected.is_empty() {
+            debug!(
+                count = injected.len(),
+                "Including injected extensions in discovery"
+            );
+            for ext in injected {
+                let ext_id = ext.id().to_string();
+                if registry.extensions.contains_key(&ext_id) {
+                    debug!(
+                        id = %ext_id,
+                        "Skipping injected extension - already discovered via inventory"
+                    );
+                    continue;
+                }
+                debug!(
+                    id = %ext_id,
+                    name = %ext.name(),
+                    priority = ext.priority(),
+                    "Including injected extension"
+                );
+                registry.extensions.insert(ext_id, Arc::clone(&ext));
+                registry.sorted_extensions.push(ext);
+            }
         }
 
         registry.sort_by_priority();
@@ -394,7 +420,6 @@ impl ExtensionRegistry {
     ) -> Vec<(&'static str, AssetDefinition)> {
         self.sorted_extensions
             .iter()
-            .filter(|e| e.declares_assets())
             .flat_map(|e| {
                 let id = e.id();
                 e.required_assets(paths)

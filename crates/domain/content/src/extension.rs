@@ -1,4 +1,8 @@
+use std::sync::Arc;
+
 use systemprompt_extension::prelude::*;
+
+use crate::homepage_prerenderer::DefaultHomepagePrerenderer;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -54,6 +58,10 @@ impl Extension for ContentExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "analytics"]
+    }
+
+    fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
+        vec![Arc::new(DefaultHomepagePrerenderer)]
     }
 }
 

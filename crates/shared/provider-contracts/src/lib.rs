@@ -3,6 +3,7 @@ mod extender;
 mod job;
 mod llm;
 mod page;
+mod page_prerenderer;
 mod template;
 mod tool;
 pub mod web_config;
@@ -15,6 +16,9 @@ pub use llm::{
     LlmProviderResult, SamplingParameters, TokenUsage, ToolExecutionContext, ToolExecutor,
 };
 pub use page::{PageContext, PageDataProvider};
+pub use page_prerenderer::{
+    DynPagePrerenderer, PagePrepareContext, PagePrerenderer, PageRenderSpec,
+};
 pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{
     ToolCallRequest, ToolCallResult, ToolContent, ToolContext, ToolDefinition, ToolProvider,

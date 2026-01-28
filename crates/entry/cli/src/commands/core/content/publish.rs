@@ -7,7 +7,7 @@ use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_content::ContentIngestionJob;
 use systemprompt_generator::{
-    generate_sitemap, prerender_content, prerender_homepage, CopyExtensionAssetsJob, PublishError,
+    generate_sitemap, prerender_content, prerender_pages, CopyExtensionAssetsJob, PublishError,
 };
 use systemprompt_runtime::AppContext;
 
@@ -17,10 +17,10 @@ pub enum PublishStep {
     Ingest,
     /// Copy extension assets (CSS, JS) to web dist
     Assets,
-    /// Generate static HTML pages
+    /// Generate static HTML pages from content
     Prerender,
-    /// Generate homepage
-    Homepage,
+    /// Generate pages from registered prerenderers (homepage, etc.)
+    Pages,
     /// Generate sitemap.xml
     Sitemap,
     /// Run all steps (default)
@@ -127,17 +127,22 @@ pub async fn execute(
         });
     }
 
-    if args.should_run(PublishStep::Homepage) {
+    if args.should_run(PublishStep::Pages) {
         let step_start = Instant::now();
         if verbose {
-            tracing::info!("Starting homepage prerendering...");
+            tracing::info!("Starting page prerendering...");
         }
 
-        let result = prerender_homepage(Arc::clone(db_pool)).await;
+        let result = prerender_pages(Arc::clone(db_pool)).await;
         let duration_ms = step_start.elapsed().as_millis() as u64;
 
+        let page_count = result.as_ref().map(Vec::len).unwrap_or(0);
+        if verbose && page_count > 0 {
+            tracing::info!(page_count = page_count, "Pages prerendered");
+        }
+
         steps.push(StepResult {
-            step: "homepage".to_string(),
+            step: "pages".to_string(),
             success: result.is_ok(),
             duration_ms,
             error: result.as_ref().err().map(extract_step_error),

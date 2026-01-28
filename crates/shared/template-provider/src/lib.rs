@@ -6,6 +6,8 @@ pub use traits::{
     TemplateLoader, TemplateLoaderError, TemplateLoaderResult, TemplateProvider, TemplateSource,
 };
 
+pub use systemprompt_provider_contracts::{PagePrepareContext, PagePrerenderer, PageRenderSpec};
+
 #[cfg(feature = "tokio")]
 pub use traits::FileSystemLoader;
 
@@ -18,3 +20,5 @@ pub type DynTemplateDataExtender = std::sync::Arc<dyn TemplateDataExtender>;
 pub type DynComponentRenderer = std::sync::Arc<dyn ComponentRenderer>;
 
 pub type DynPageDataProvider = std::sync::Arc<dyn PageDataProvider>;
+
+pub type DynPagePrerenderer = std::sync::Arc<dyn PagePrerenderer>;

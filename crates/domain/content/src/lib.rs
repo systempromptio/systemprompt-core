@@ -3,12 +3,14 @@
 pub mod config;
 pub mod error;
 pub mod extension;
+pub mod homepage_prerenderer;
 pub mod jobs;
 pub mod models;
 pub mod repository;
 pub mod services;
 
 pub use extension::ContentExtension;
+pub use homepage_prerenderer::{default_homepage_prerenderer, DefaultHomepagePrerenderer};
 
 pub use config::{
     ContentConfigValidated, ContentReady, ContentSourceConfigValidated, LoadStats, ParsedContent,
