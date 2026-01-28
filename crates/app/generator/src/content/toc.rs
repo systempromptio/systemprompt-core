@@ -53,7 +53,7 @@ fn extract_headings(markdown: &str) -> Vec<TocEntry> {
                 continue;
             }
 
-            if level < 2 || level > 6 {
+            if !(2..=6).contains(&level) {
                 continue;
             }
 
@@ -89,15 +89,7 @@ fn extract_text_from_node<'a>(node: &'a AstNode<'a>) -> String {
 fn slugify(text: &str) -> String {
     text.to_lowercase()
         .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() {
-                c
-            } else if c.is_whitespace() || c == '-' || c == '_' {
-                '-'
-            } else {
-                '-'
-            }
-        })
+        .map(|c| if c.is_ascii_alphanumeric() { c } else { '-' })
         .collect::<String>()
         .split('-')
         .filter(|s| !s.is_empty())
@@ -129,18 +121,22 @@ fn build_toc_html(entries: &[TocEntry]) -> String {
 
     for entry in entries {
         while let Some(&current_level) = stack.last() {
-            if entry.level > current_level {
-                html.push_str("<ul class=\"toc-list toc-nested\">\n");
-                stack.push(entry.level);
-                break;
-            } else if entry.level < current_level {
-                html.push_str("</li>\n</ul>\n");
-                stack.pop();
-            } else {
-                if html.ends_with("</a>\n") {
-                    html.push_str("</li>\n");
-                }
-                break;
+            match entry.level.cmp(&current_level) {
+                std::cmp::Ordering::Greater => {
+                    html.push_str("<ul class=\"toc-list toc-nested\">\n");
+                    stack.push(entry.level);
+                    break;
+                },
+                std::cmp::Ordering::Less => {
+                    html.push_str("</li>\n</ul>\n");
+                    stack.pop();
+                },
+                std::cmp::Ordering::Equal => {
+                    if html.ends_with("</a>\n") {
+                        html.push_str("</li>\n");
+                    }
+                    break;
+                },
             }
         }
 
@@ -185,7 +181,10 @@ fn inject_heading_ids(html: &str, entries: &[TocEntry]) -> String {
                         if attrs.contains("id=") {
                             format!("<{}{}>{}</{}>", tag, attrs, content, tag)
                         } else {
-                            format!("<{} id=\"{}\"{}>{}</{}>", tag, entry.slug, attrs, content, tag)
+                            format!(
+                                "<{} id=\"{}\"{}>{}</{}>",
+                                tag, entry.slug, attrs, content, tag
+                            )
                         }
                     })
                     .to_string();
@@ -288,9 +287,13 @@ Core data structures.
 
         let entries = extract_headings(markdown);
         println!("Entries found: {:?}", entries);
-        
+
         assert!(!entries.is_empty(), "Should find headings");
-        assert_eq!(entries.len(), 3, "Should find 3 headings (Layer Diagram, Shared Layer, Models)");
+        assert_eq!(
+            entries.len(),
+            3,
+            "Should find 3 headings (Layer Diagram, Shared Layer, Models)"
+        );
         assert_eq!(entries[0].text, "Layer Diagram");
         assert_eq!(entries[0].level, 2);
     }

@@ -170,39 +170,31 @@ fn test_ingestion_options_with_override_false() {
 fn test_ingestion_source_new() {
     let source_id = SourceId::new("blog");
     let category_id = CategoryId::new("tech");
-    let allowed_types: &[&str] = &["article", "paper"];
-    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id);
 
     assert_eq!(source.source_id.as_str(), "blog");
     assert_eq!(source.category_id.as_str(), "tech");
-    assert_eq!(source.allowed_content_types.len(), 2);
-    assert_eq!(source.allowed_content_types[0], "article");
-    assert_eq!(source.allowed_content_types[1], "paper");
 }
 
 #[test]
-fn test_ingestion_source_empty_content_types() {
+fn test_ingestion_source_different_ids() {
     let source_id = SourceId::new("docs");
     let category_id = CategoryId::new("documentation");
-    let allowed_types: &[&str] = &[];
-    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id);
 
     assert_eq!(source.source_id.as_str(), "docs");
     assert_eq!(source.category_id.as_str(), "documentation");
-    assert!(source.allowed_content_types.is_empty());
 }
 
 #[test]
 fn test_ingestion_source_clone() {
     let source_id = SourceId::new("tutorials");
     let category_id = CategoryId::new("learning");
-    let allowed_types: &[&str] = &["guide"];
-    let source = IngestionSource::new(&source_id, &category_id, allowed_types);
+    let source = IngestionSource::new(&source_id, &category_id);
     let cloned = source.clone();
 
     assert_eq!(cloned.source_id, source.source_id);
     assert_eq!(cloned.category_id, source.category_id);
-    assert_eq!(cloned.allowed_content_types.len(), source.allowed_content_types.len());
 }
 
 // ============================================================================

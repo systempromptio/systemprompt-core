@@ -89,7 +89,7 @@ fn test_files_extension_files_schema_has_required_columns() {
     let files_schema = schemas.iter().find(|s| s.table == "files").unwrap();
     let required = &files_schema.required_columns;
     assert!(required.contains(&"id".to_string()));
-    assert!(required.contains(&"filename".to_string()));
+    assert!(required.contains(&"path".to_string()));
     assert!(required.contains(&"mime_type".to_string()));
     assert!(required.contains(&"created_at".to_string()));
 }

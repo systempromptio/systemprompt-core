@@ -2,7 +2,6 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::path::Path;
 
-/// Unique identifier for a stored file
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StoredFileId(pub String);
 
@@ -36,7 +35,6 @@ impl std::fmt::Display for StoredFileId {
     }
 }
 
-/// Metadata about a stored file
 #[derive(Debug, Clone)]
 pub struct StoredFileMetadata {
     pub id: StoredFileId,
@@ -47,28 +45,18 @@ pub struct StoredFileMetadata {
     pub updated_at: chrono::DateTime<chrono::Utc>,
 }
 
-/// Trait for file storage operations
-///
-/// Implementations of this trait handle the actual storage and retrieval
-/// of file contents, whether that's local filesystem, cloud storage, etc.
 #[async_trait]
 pub trait FileStorage: Send + Sync {
-    /// Store a file at the given path with the provided content
     async fn store(&self, path: &Path, content: &[u8]) -> Result<StoredFileId>;
 
-    /// Retrieve the contents of a file by its ID
     async fn retrieve(&self, id: &StoredFileId) -> Result<Vec<u8>>;
 
-    /// Delete a file by its ID
     async fn delete(&self, id: &StoredFileId) -> Result<()>;
 
-    /// Get metadata for a file by its ID
     async fn metadata(&self, id: &StoredFileId) -> Result<StoredFileMetadata>;
 
-    /// Check if a file exists by its ID
     async fn exists(&self, id: &StoredFileId) -> Result<bool>;
 
-    /// Get the public URL for a file (if applicable)
     fn public_url(&self, _id: &StoredFileId) -> Option<String> {
         None
     }

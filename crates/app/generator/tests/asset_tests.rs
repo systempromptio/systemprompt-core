@@ -119,8 +119,10 @@ export default config;
 
 #[tokio::test]
 async fn test_organize_dist_assets_nonexistent_dir() {
-    let result =
-        organize_dist_assets(std::path::Path::new("/nonexistent/path/that/does/not/exist")).await;
+    let result = organize_dist_assets(std::path::Path::new(
+        "/nonexistent/path/that/does/not/exist",
+    ))
+    .await;
     assert!(result.is_err());
 }
 

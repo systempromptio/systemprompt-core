@@ -29,10 +29,14 @@ fn row_to_entry(r: LogRow) -> LogEntry {
         level: r.level.parse().unwrap_or(LogLevel::Info),
         module: r.module,
         message: r.message,
-        metadata: r
-            .metadata
-            .as_ref()
-            .and_then(|m| serde_json::from_str(m).ok()),
+        metadata: r.metadata.as_ref().and_then(|m| {
+            serde_json::from_str(m)
+                .map_err(|e| {
+                    tracing::warn!(error = %e, raw = %m, "Failed to parse log metadata JSON");
+                    e
+                })
+                .ok()
+        }),
         user_id: UserId::new(r.user_id),
         session_id: SessionId::new(r.session_id),
         task_id: r.task_id.map(TaskId::new),

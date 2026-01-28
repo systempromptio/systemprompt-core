@@ -1,23 +1,12 @@
 //! Unified validation report types for startup validation.
-//!
-//! These types provide a consistent structure for reporting validation
-//! errors and warnings across all domains and extensions.
 
 use std::path::PathBuf;
 
-/// A single validation error with actionable information.
 #[derive(Debug, Clone)]
 pub struct ValidationError {
-    /// The field or config key that failed validation
     pub field: String,
-
-    /// Human-readable error message
     pub message: String,
-
-    /// Optional path to the file/directory that caused the error
     pub path: Option<PathBuf>,
-
-    /// Optional suggestion for how to fix the error
     pub suggestion: Option<String>,
 }
 
@@ -58,16 +47,10 @@ impl std::fmt::Display for ValidationError {
     }
 }
 
-/// A validation warning (non-fatal).
 #[derive(Debug, Clone)]
 pub struct ValidationWarning {
-    /// The field or config key that triggered the warning
     pub field: String,
-
-    /// Human-readable warning message
     pub message: String,
-
-    /// Optional suggestion for how to address the warning
     pub suggestion: Option<String>,
 }
 
@@ -88,16 +71,10 @@ impl ValidationWarning {
     }
 }
 
-/// Validation report for a single domain or component.
 #[derive(Debug, Clone, Default)]
 pub struct ValidationReport {
-    /// Domain identifier (e.g., "paths", "web", "content", "mcp")
     pub domain: String,
-
-    /// List of errors (fatal)
     pub errors: Vec<ValidationError>,
-
-    /// List of warnings (non-fatal)
     pub warnings: Vec<ValidationWarning>,
 }
 
@@ -131,23 +108,16 @@ impl ValidationReport {
         self.errors.is_empty() && self.warnings.is_empty()
     }
 
-    /// Merge another report into this one.
     pub fn merge(&mut self, other: Self) {
         self.errors.extend(other.errors);
         self.warnings.extend(other.warnings);
     }
 }
 
-/// Complete startup validation report.
 #[derive(Debug, Clone, Default)]
 pub struct StartupValidationReport {
-    /// Path to the profile that was validated
     pub profile_path: Option<PathBuf>,
-
-    /// Reports from each domain
     pub domains: Vec<ValidationReport>,
-
-    /// Reports from extensions
     pub extensions: Vec<ValidationReport>,
 }
 
@@ -211,7 +181,6 @@ impl std::fmt::Display for StartupValidationReport {
     }
 }
 
-/// Error type for startup validation failures.
 #[derive(Debug, thiserror::Error)]
 #[error("Startup validation failed with {0}")]
 pub struct StartupValidationError(pub StartupValidationReport);

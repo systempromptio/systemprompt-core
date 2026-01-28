@@ -372,7 +372,8 @@ fn display_readonly_cloud_fields(tenant: &StoredTenant) {
 }
 
 async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
-    let mut local_store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
+    let mut local_store =
+        TenantStore::load_from_path(tenants_path).unwrap_or_else(|_| TenantStore::default());
 
     let Ok(creds) = get_credentials() else {
         return local_store;
@@ -421,7 +422,8 @@ pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> 
 
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let store = TenantStore::load_from_path(&tenants_path).unwrap_or_default();
+    let store =
+        TenantStore::load_from_path(&tenants_path).unwrap_or_else(|_| TenantStore::default());
 
     let cloud_tenants: Vec<&StoredTenant> = store
         .tenants

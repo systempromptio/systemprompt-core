@@ -188,7 +188,7 @@ pub async fn fetch_ai_request_message_previews(
         .into_iter()
         .map(|r| ConversationMessage {
             role: r.role,
-            content: r.content_preview.unwrap_or_default(),
+            content: r.content_preview.unwrap_or_else(String::new),
             sequence_number: r.sequence_number,
         })
         .collect())

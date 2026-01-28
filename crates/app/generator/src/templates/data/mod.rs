@@ -6,7 +6,6 @@ pub use types::TemplateDataParams;
 
 use anyhow::Result;
 use serde_json::Value;
-use systemprompt_database::DbPool;
 use systemprompt_models::FullWebConfig;
 
 use crate::error::PublishError;
@@ -17,8 +16,8 @@ use self::extractors::{
     format_date_pair, get_display_sitename, get_favicon_path, get_logo_path, get_twitter_handle,
 };
 use self::types::{
-    ArticleConfig, BrandingData, BuildTemplateJsonParams, ContentData, DateData, ImageData,
-    OrgConfig,
+    ArticleConfig, BrandingData, BuildTemplateJsonParams, ContentData, ContentDataParams, DateData,
+    ImageData, OrgConfig,
 };
 use super::html::{
     generate_cta_links, generate_latest_and_popular_html, generate_references_html,
@@ -53,8 +52,15 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
 
     let date_data = prepare_date_data(item, slug)?;
     let image_data = prepare_image_data(item, org_url);
-    let content_data =
-        prepare_content_data(item, all_items, popular_ids, content_html, toc_html, &db_pool).await?;
+    let content_data = prepare_content_data(ContentDataParams {
+        item,
+        all_items,
+        popular_ids,
+        content_html,
+        toc_html,
+        db_pool: &db_pool,
+    })
+    .await?;
 
     let navigation = prepare_navigation_html(web_config)?;
     let author = extract_author(item, config)?;
@@ -129,10 +135,7 @@ fn prepare_image_data(item: &Value, org_url: &str) -> ImageData {
         )
     });
 
-    let title = item
-        .get("title")
-        .and_then(|v| v.as_str())
-        .unwrap_or_default();
+    let title = item.get("title").and_then(|v| v.as_str()).unwrap_or("");
 
     ImageData {
         featured,
@@ -142,14 +145,16 @@ fn prepare_image_data(item: &Value, org_url: &str) -> ImageData {
     }
 }
 
-async fn prepare_content_data(
-    item: &Value,
-    all_items: &[Value],
-    popular_ids: &[String],
-    content_html: &str,
-    toc_html: &str,
-    db_pool: &DbPool,
-) -> Result<ContentData> {
+async fn prepare_content_data(params: ContentDataParams<'_>) -> Result<ContentData> {
+    let ContentDataParams {
+        item,
+        all_items,
+        popular_ids,
+        content_html,
+        toc_html,
+        db_pool,
+    } = params;
+
     let latest = find_latest_items(item, all_items, 6)?;
     let latest_slugs: Vec<&str> = latest
         .iter()

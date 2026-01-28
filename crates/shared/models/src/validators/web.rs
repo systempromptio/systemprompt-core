@@ -176,11 +176,7 @@ impl WebConfigValidator {
             return;
         };
 
-        if branding
-            .copyright
-            .as_ref()
-            .is_none_or(String::is_empty)
-        {
+        if branding.copyright.as_ref().is_none_or(String::is_empty) {
             report.add_error(
                 ValidationError::new(
                     "web_config.branding.copyright",
