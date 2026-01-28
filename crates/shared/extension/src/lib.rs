@@ -21,7 +21,7 @@ use systemprompt_provider_contracts::{
     ToolProvider,
 };
 
-pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
+pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
 pub use context::{DynExtensionContext, ExtensionContext};
 pub use error::{ConfigError, LoaderError};
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
@@ -352,12 +352,12 @@ pub trait Extension: Send + Sync + 'static {
         !self.migrations().is_empty()
     }
 
-    fn required_assets(&self) -> Vec<AssetDefinition> {
-        vec![]
+    fn declares_assets(&self) -> bool {
+        false
     }
 
-    fn has_assets(&self) -> bool {
-        !self.required_assets().is_empty()
+    fn required_assets(&self, _paths: &dyn AssetPaths) -> Vec<AssetDefinition> {
+        vec![]
     }
 }
 
@@ -380,7 +380,7 @@ macro_rules! register_extension {
 }
 
 pub mod prelude {
-    pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetType};
+    pub use crate::asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
     pub use crate::context::{DynExtensionContext, ExtensionContext};
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;

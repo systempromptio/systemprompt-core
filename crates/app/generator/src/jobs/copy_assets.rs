@@ -13,8 +13,11 @@ impl CopyExtensionAssetsJob {
 
         tracing::info!("Copy extension assets job started");
 
+        let paths =
+            AppPaths::get().map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
+
         let registry = ExtensionRegistry::discover();
-        let assets = registry.all_required_assets();
+        let assets = registry.all_required_assets(paths);
 
         if assets.is_empty() {
             let duration_ms = start_time.elapsed().as_millis() as u64;
@@ -24,8 +27,6 @@ impl CopyExtensionAssetsJob {
                 .with_duration(duration_ms));
         }
 
-        let paths = AppPaths::get()
-            .map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
         let dist_dir = paths.web().dist();
 
         let mut copied = 0u64;

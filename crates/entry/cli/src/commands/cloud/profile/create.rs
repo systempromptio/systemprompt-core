@@ -105,7 +105,12 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
         external: external_url,
         internal: tenant.internal_database_url.as_deref(),
     };
-    save_secrets(&db_urls, &api_keys, tenant.sync_token.as_deref(), &secrets_path)?;
+    save_secrets(
+        &db_urls,
+        &api_keys,
+        tenant.sync_token.as_deref(),
+        &secrets_path,
+    )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let services_path = get_services_path()?;
@@ -226,7 +231,12 @@ pub fn create_profile_for_tenant(
         external: local_db_url,
         internal: tenant.internal_database_url.as_deref(),
     };
-    save_secrets(&db_urls, api_keys, tenant.sync_token.as_deref(), &secrets_path)?;
+    save_secrets(
+        &db_urls,
+        api_keys,
+        tenant.sync_token.as_deref(),
+        &secrets_path,
+    )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);

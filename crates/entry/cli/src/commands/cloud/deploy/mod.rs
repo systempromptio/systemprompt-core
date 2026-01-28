@@ -19,6 +19,7 @@ use crate::shared::project::ProjectRoot;
 use select::resolve_profile;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_models::AppPaths;
 
 #[derive(Debug)]
 pub struct DeployConfig {
@@ -70,13 +71,14 @@ impl DeployConfig {
     }
 
     fn validate_extension_assets(&self) -> Result<()> {
+        let paths = AppPaths::get().map_err(|e| anyhow!("AppPaths not initialized: {}", e))?;
         let registry = ExtensionRegistry::discover();
         let mut missing = Vec::new();
         let mut outside_context = Vec::new();
 
         for ext in registry.asset_extensions() {
             let ext_id = ext.id();
-            for asset in ext.required_assets() {
+            for asset in ext.required_assets(paths) {
                 if !asset.is_required() {
                     continue;
                 }

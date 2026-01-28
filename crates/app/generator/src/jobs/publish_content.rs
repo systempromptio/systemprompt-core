@@ -9,7 +9,9 @@ use systemprompt_sync::PlaybooksLocalSync;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 use super::CopyExtensionAssetsJob;
-use crate::{generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_homepage};
+use crate::{
+    generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_homepage,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct PublishContentJob;

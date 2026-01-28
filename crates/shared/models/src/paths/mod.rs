@@ -16,6 +16,7 @@ use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 
 use crate::profile::PathsConfig;
+use systemprompt_extension::AssetPaths;
 
 static APP_PATHS: OnceLock<AppPaths> = OnceLock::new();
 
@@ -72,5 +73,15 @@ impl AppPaths {
 
     pub fn ai_config(&self) -> Option<&Path> {
         self.ai_config.as_deref()
+    }
+}
+
+impl AssetPaths for AppPaths {
+    fn storage_files(&self) -> &Path {
+        self.storage.files()
+    }
+
+    fn web_dist(&self) -> &Path {
+        self.web.dist()
     }
 }

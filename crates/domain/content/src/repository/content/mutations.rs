@@ -22,6 +22,20 @@ pub async fn create(
             version_hash, links, updated_at
         )
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        ON CONFLICT (slug) DO UPDATE SET
+            title = EXCLUDED.title,
+            description = EXCLUDED.description,
+            body = EXCLUDED.body,
+            author = EXCLUDED.author,
+            published_at = EXCLUDED.published_at,
+            keywords = EXCLUDED.keywords,
+            kind = EXCLUDED.kind,
+            image = EXCLUDED.image,
+            category_id = EXCLUDED.category_id,
+            source_id = EXCLUDED.source_id,
+            version_hash = EXCLUDED.version_hash,
+            links = EXCLUDED.links,
+            updated_at = EXCLUDED.updated_at
         RETURNING id as "id: ContentId", slug, title, description, body, author,
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",

@@ -39,6 +39,20 @@ impl LinkRepository {
                 destination_type, is_active, expires_at, created_at, updated_at
             )
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $15)
+            ON CONFLICT (short_code) DO UPDATE SET
+                target_url = EXCLUDED.target_url,
+                link_type = EXCLUDED.link_type,
+                source_content_id = EXCLUDED.source_content_id,
+                source_page = EXCLUDED.source_page,
+                campaign_id = EXCLUDED.campaign_id,
+                campaign_name = EXCLUDED.campaign_name,
+                utm_params = EXCLUDED.utm_params,
+                link_text = EXCLUDED.link_text,
+                link_position = EXCLUDED.link_position,
+                destination_type = EXCLUDED.destination_type,
+                is_active = EXCLUDED.is_active,
+                expires_at = EXCLUDED.expires_at,
+                updated_at = EXCLUDED.updated_at
             RETURNING id as "id: LinkId", short_code, target_url, link_type,
                       campaign_id as "campaign_id: CampaignId", campaign_name,
                       source_content_id as "source_content_id: ContentId", source_page,
