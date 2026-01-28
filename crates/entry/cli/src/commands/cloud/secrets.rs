@@ -282,9 +282,10 @@ pub async fn sync_cloud_credentials(
         creds.api_token.clone(),
     );
 
-    if let Some(email) = &creds.user_email {
-        secrets.insert("SYSTEMPROMPT_USER_EMAIL".to_string(), email.clone());
-    }
+    secrets.insert(
+        "SYSTEMPROMPT_USER_EMAIL".to_string(),
+        creds.user_email.clone(),
+    );
 
     secrets.insert("SYSTEMPROMPT_CLI_REMOTE".to_string(), "true".to_string());
 

@@ -18,23 +18,12 @@ fn test_cloud_credentials_new() {
     let creds = CloudCredentials::new(
         "test_token".to_string(),
         "https://api.test.io".to_string(),
-        Some("test@example.com".to_string()),
+        "test@example.com".to_string(),
     );
 
     assert_eq!(creds.api_token, "test_token");
     assert_eq!(creds.api_url, "https://api.test.io");
-    assert_eq!(creds.user_email, Some("test@example.com".to_string()));
-}
-
-#[test]
-fn test_cloud_credentials_new_without_email() {
-    let creds = CloudCredentials::new(
-        "test_token".to_string(),
-        "https://api.test.io".to_string(),
-        None,
-    );
-
-    assert!(creds.user_email.is_none());
+    assert_eq!(creds.user_email, "test@example.com");
 }
 
 #[test]
@@ -43,7 +32,7 @@ fn test_cloud_credentials_authenticated_at_is_now() {
     let creds = CloudCredentials::new(
         "token".to_string(),
         "https://api.test.io".to_string(),
-        None,
+        "test@example.com".to_string(),
     );
     let after = Utc::now();
 
@@ -54,7 +43,7 @@ fn test_cloud_credentials_authenticated_at_is_now() {
 #[test]
 fn test_cloud_credentials_token() {
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token.clone(), "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token.clone(), "https://api.test.io".to_string(), "test@example.com".to_string());
 
     let cloud_token = creds.token();
     assert_eq!(cloud_token.as_str(), &token);
@@ -63,7 +52,7 @@ fn test_cloud_credentials_token() {
 #[test]
 fn test_cloud_credentials_is_token_expired_false_for_valid() {
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     assert!(!creds.is_token_expired());
 }
@@ -71,7 +60,7 @@ fn test_cloud_credentials_is_token_expired_false_for_valid() {
 #[test]
 fn test_cloud_credentials_is_token_expired_true_for_expired() {
     let token = create_valid_token(-3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     assert!(creds.is_token_expired());
 }
@@ -79,7 +68,7 @@ fn test_cloud_credentials_is_token_expired_true_for_expired() {
 #[test]
 fn test_cloud_credentials_expires_within_true_when_expiring_soon() {
     let token = create_valid_token(1800);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     assert!(creds.expires_within(Duration::hours(1)));
 }
@@ -87,7 +76,7 @@ fn test_cloud_credentials_expires_within_true_when_expiring_soon() {
 #[test]
 fn test_cloud_credentials_expires_within_false_when_not_expiring_soon() {
     let token = create_valid_token(7200);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     assert!(!creds.expires_within(Duration::hours(1)));
 }
@@ -98,7 +87,7 @@ fn test_cloud_credentials_serialization() {
     let creds = CloudCredentials::new(
         token.clone(),
         "https://api.test.io".to_string(),
-        Some("test@example.com".to_string()),
+        "test@example.com".to_string(),
     );
 
     let json = serde_json::to_string(&creds).unwrap();
@@ -109,15 +98,16 @@ fn test_cloud_credentials_serialization() {
 }
 
 #[test]
-fn test_cloud_credentials_serialization_skips_none_email() {
+fn test_cloud_credentials_serialization_includes_email() {
     let creds = CloudCredentials::new(
         "token".to_string(),
         "https://api.test.io".to_string(),
-        None,
+        "test@example.com".to_string(),
     );
 
     let json = serde_json::to_string(&creds).unwrap();
-    assert!(!json.contains("user_email"));
+    assert!(json.contains("user_email"));
+    assert!(json.contains("test@example.com"));
 }
 
 #[test]
@@ -125,26 +115,14 @@ fn test_cloud_credentials_deserialization() {
     let json = r#"{
         "api_token": "test_token",
         "api_url": "https://api.test.io",
-        "authenticated_at": "2024-01-15T12:00:00Z"
+        "authenticated_at": "2024-01-15T12:00:00Z",
+        "user_email": "test@example.com"
     }"#;
 
     let creds: CloudCredentials = serde_json::from_str(json).unwrap();
     assert_eq!(creds.api_token, "test_token");
     assert_eq!(creds.api_url, "https://api.test.io");
-    assert!(creds.user_email.is_none());
-}
-
-#[test]
-fn test_cloud_credentials_deserialization_with_email() {
-    let json = r#"{
-        "api_token": "test_token",
-        "api_url": "https://api.test.io",
-        "authenticated_at": "2024-01-15T12:00:00Z",
-        "user_email": "user@example.com"
-    }"#;
-
-    let creds: CloudCredentials = serde_json::from_str(json).unwrap();
-    assert_eq!(creds.user_email, Some("user@example.com".to_string()));
+    assert_eq!(creds.user_email, "test@example.com");
 }
 
 #[test]
@@ -153,7 +131,7 @@ fn test_cloud_credentials_roundtrip() {
     let original = CloudCredentials::new(
         token,
         "https://api.systemprompt.io".to_string(),
-        Some("admin@example.com".to_string()),
+        "admin@example.com".to_string(),
     );
 
     let json = serde_json::to_string(&original).unwrap();
@@ -173,7 +151,7 @@ fn test_cloud_credentials_save_and_load() {
     let creds = CloudCredentials::new(
         token.clone(),
         "https://api.systemprompt.io".to_string(),
-        Some("test@example.com".to_string()),
+        "test@example.com".to_string(),
     );
 
     creds.save_to_path(&creds_path).unwrap();
@@ -190,7 +168,7 @@ fn test_cloud_credentials_save_creates_parent_dirs() {
     let creds_path = temp_dir.path().join("nested").join("dir").join("credentials.json");
 
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     creds.save_to_path(&creds_path).unwrap();
     assert!(creds_path.exists());
@@ -203,7 +181,7 @@ fn test_cloud_credentials_save_creates_gitignore() {
     let creds_path = creds_dir.join("credentials.json");
 
     let token = create_valid_token(3600);
-    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), None);
+    let creds = CloudCredentials::new(token, "https://api.test.io".to_string(), "test@example.com".to_string());
 
     creds.save_to_path(&creds_path).unwrap();
 
@@ -274,7 +252,7 @@ fn test_cloud_credentials_clone() {
     let creds = CloudCredentials::new(
         token.clone(),
         "https://api.test.io".to_string(),
-        Some("test@example.com".to_string()),
+        "test@example.com".to_string(),
     );
 
     let cloned = creds.clone();

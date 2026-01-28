@@ -19,11 +19,7 @@ pub async fn execute() -> Result<()> {
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
     let creds = CloudCredentials::load_from_path(&creds_path)?;
 
-    if let Some(email) = &creds.user_email {
-        CliService::key_value("User", email);
-    } else {
-        CliService::key_value("User", "(unknown)");
-    }
+    CliService::key_value("User", &creds.user_email);
 
     CliService::key_value("API URL", &creds.api_url);
 

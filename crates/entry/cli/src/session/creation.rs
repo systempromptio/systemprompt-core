@@ -151,11 +151,7 @@ pub(super) async fn create_local_session(
         )
     })?;
 
-    let user_email = creds.user_email.as_ref().ok_or_else(|| {
-        anyhow::anyhow!(
-            "No user email in credentials.\n\nRun 'systemprompt cloud auth login' to authenticate."
-        )
-    })?;
+    let user_email = &creds.user_email;
 
     let secrets = load_secrets().context("Failed to load secrets")?;
 
@@ -222,9 +218,7 @@ pub(super) async fn create_session_for_tenant(
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;
 
-    let cloud_email = creds.user_email.as_ref().ok_or_else(|| {
-        anyhow::anyhow!("No email in cloud credentials. Run 'systemprompt cloud auth login'.")
-    })?;
+    let cloud_email = &creds.user_email;
 
     let secrets = load_secrets().context("Failed to load secrets")?;
 

@@ -29,10 +29,8 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
     if cloud_paths.exists(CloudPath::Credentials) {
         let creds_path = cloud_paths.resolve(CloudPath::Credentials);
         let existing = CloudCredentials::load_from_path(&creds_path)?;
-        if let Some(email) = &existing.user_email {
-            CliService::warning(&format!("Already logged in as: {email}"));
-            CliService::info("Re-authenticating...");
-        }
+        CliService::warning(&format!("Already logged in as: {}", existing.user_email));
+        CliService::info("Re-authenticating...");
     }
 
     let providers = [OAuthProvider::Github, OAuthProvider::Google];
@@ -60,7 +58,7 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
     let creds = CloudCredentials::new(
         token,
         api_url.to_string(),
-        Some(response.user.email.clone()),
+        response.user.email.clone(),
     );
 
     let save_path = cloud_paths.resolve(CloudPath::Credentials);

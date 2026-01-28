@@ -34,7 +34,10 @@ impl CloudUser {
 
         let creds = CloudCredentials::load_from_path(&creds_path)?;
 
-        Ok(creds.user_email.map(|email| Self { email, name: None }))
+        Ok(Some(Self {
+            email: creds.user_email,
+            name: None,
+        }))
     }
 
     pub fn username(&self) -> String {

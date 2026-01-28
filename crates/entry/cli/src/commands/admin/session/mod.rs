@@ -34,10 +34,8 @@ pub enum SessionCommands {
 impl DescribeCommand for SessionCommands {
     fn descriptor(&self) -> CommandDescriptor {
         match self {
-            Self::Login(_) => CommandDescriptor::PROFILE_AND_SECRETS,
-            Self::Show | Self::Switch { .. } | Self::List | Self::Logout(_) => {
-                CommandDescriptor::NONE
-            },
+            Self::Login(_) | Self::Switch { .. } => CommandDescriptor::PROFILE_AND_SECRETS,
+            Self::Show | Self::List | Self::Logout(_) => CommandDescriptor::NONE,
         }
     }
 }
@@ -45,7 +43,7 @@ impl DescribeCommand for SessionCommands {
 pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         SessionCommands::Show => show::execute(config),
-        SessionCommands::Switch { profile_name } => switch::execute(&profile_name, config),
+        SessionCommands::Switch { profile_name } => switch::execute(&profile_name, config).await,
         SessionCommands::List => {
             list::execute(config);
             Ok(())
