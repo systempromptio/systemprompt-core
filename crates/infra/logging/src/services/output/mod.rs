@@ -4,7 +4,7 @@ use std::sync::{Arc, OnceLock};
 use chrono::Utc;
 use systemprompt_traits::{LogEventData, LogEventLevel, LogEventPublisher};
 
-static STARTUP_MODE: AtomicBool = AtomicBool::new(true); // Default true for CLI startup
+static STARTUP_MODE: AtomicBool = AtomicBool::new(true);
 
 static LOG_PUBLISHER: OnceLock<Arc<dyn LogEventPublisher>> = OnceLock::new();
 

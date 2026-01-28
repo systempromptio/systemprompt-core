@@ -791,6 +791,7 @@ mod stats_tests {
             extenders: 4,
             components: 5,
             page_providers: 6,
+            page_prerenderers: 7,
         };
 
         let debug_str = format!("{:?}", stats);
@@ -808,6 +809,7 @@ mod stats_tests {
             extenders: 4,
             components: 5,
             page_providers: 6,
+            page_prerenderers: 7,
         };
 
         let cloned = stats;
@@ -824,6 +826,7 @@ mod stats_tests {
             extenders: 40,
             components: 50,
             page_providers: 60,
+            page_prerenderers: 70,
         };
 
         let copied: RegistryStats = stats;

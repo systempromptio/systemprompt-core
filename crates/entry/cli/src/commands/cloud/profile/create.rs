@@ -354,7 +354,7 @@ async fn ensure_unmasked_credentials(
 
     let needs_external = tenant.external_db_access && external_url.is_none();
     let needs_refresh = needs_external
-        || external_url.is_some_and(|url| Profile::is_masked_database_url(url))
+        || external_url.is_some_and(Profile::is_masked_database_url)
         || internal_url.is_none_or(Profile::is_masked_database_url);
 
     if !needs_refresh {

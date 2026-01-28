@@ -43,10 +43,7 @@ async fn connect_database(url: &str) -> Result<DbPool> {
     Ok(DbPool::from(Arc::new(db)))
 }
 
-async fn fetch_tenant_admin(
-    db_pool: &DbPool,
-    email: &str,
-) -> Result<systemprompt_users::User> {
+async fn fetch_tenant_admin(db_pool: &DbPool, email: &str) -> Result<systemprompt_users::User> {
     let user_service = UserService::new(db_pool)?;
 
     let user = user_service
@@ -63,8 +60,8 @@ async fn fetch_tenant_admin(
 
     if !user.is_admin() {
         anyhow::bail!(
-            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your \
-             admin role.",
+            "User '{}' is not an admin.\n\nRun 'systemprompt cloud auth login' to sync your admin \
+             role.",
             email
         );
     }
@@ -98,11 +95,7 @@ async fn get_or_create_local_admin(
             .context("Failed to assign admin role to existing user");
     }
 
-    let name = email
-        .split('@')
-        .next()
-        .unwrap_or("admin")
-        .to_string();
+    let name = email.split('@').next().unwrap_or("admin").to_string();
 
     tracing::info!(
         email = %email,

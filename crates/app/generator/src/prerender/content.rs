@@ -171,9 +171,10 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
     let providers = ctx.template_registry.page_providers_for(content_type);
 
     for provider in &providers {
-        let data = provider.provide_page_data(&page_ctx).await.map_err(|e| {
-            PublishError::provider_failed(provider.provider_id(), e.to_string())
-        })?;
+        let data = provider
+            .provide_page_data(&page_ctx)
+            .await
+            .map_err(|e| PublishError::provider_failed(provider.provider_id(), e.to_string()))?;
         merge_json_data(&mut template_data, &data);
     }
 
@@ -270,7 +271,7 @@ async fn render_parent_if_enabled(
     let index_content = items.iter().find(|item| {
         item.get("slug")
             .and_then(|v| v.as_str())
-            .is_some_and(|s| s.is_empty())
+            .is_some_and(str::is_empty)
     });
 
     render_parent_route(RenderParentParams {

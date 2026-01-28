@@ -28,7 +28,7 @@ impl LogLevel {
     fn matches(&self, level_str: &str) -> bool {
         let level_upper = level_str.to_uppercase();
         match self {
-            Self::Debug => true, // Show all levels
+            Self::Debug => true,
             Self::Info => !level_upper.contains("DEBUG"),
             Self::Warn => level_upper.contains("WARN") || level_upper.contains("ERROR"),
             Self::Error => level_upper.contains("ERROR"),

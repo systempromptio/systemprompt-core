@@ -28,7 +28,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<McpL
         .iter()
         .filter(|(_, server)| {
             if args.enabled && args.disabled {
-                true // Show all if both flags set
+                true
             } else if args.enabled {
                 server.enabled
             } else if args.disabled {

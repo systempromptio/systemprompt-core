@@ -164,9 +164,10 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
     let providers = template_registry.page_providers_for(&list_content_type);
 
     for provider in &providers {
-        let data = provider.provide_page_data(&page_ctx).await.map_err(|e| {
-            anyhow::anyhow!("Provider {} failed: {}", provider.provider_id(), e)
-        })?;
+        let data = provider
+            .provide_page_data(&page_ctx)
+            .await
+            .map_err(|e| anyhow::anyhow!("Provider {} failed: {}", provider.provider_id(), e))?;
         merge_json_data(&mut parent_data, &data);
     }
 
@@ -248,15 +249,17 @@ fn build_parent_data(params: &BuildParentDataParams<'_>) -> Result<serde_json::V
 
     let logo_path = branding.logo.primary.svg.as_deref().unwrap_or("");
 
-    let (title, description, content_html, toc_html) = match index_content {
-        Some(idx) => (
-            idx.title.as_str(),
-            idx.description.as_str(),
-            idx.content_html.as_str(),
-            idx.toc_html.as_str(),
-        ),
-        None => (blog_name, blog_description, "", ""),
-    };
+    let (title, description, content_html, toc_html) =
+        index_content
+            .as_ref()
+            .map_or((blog_name, blog_description, "", ""), |idx| {
+                (
+                    idx.title.as_str(),
+                    idx.description.as_str(),
+                    idx.content_html.as_str(),
+                    idx.toc_html.as_str(),
+                )
+            });
 
     Ok(serde_json::json!({
         "POSTS": posts_html.join("\n"),

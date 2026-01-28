@@ -238,7 +238,7 @@ fn test_cloud_credentials_debug() {
     let creds = CloudCredentials::new(
         "secret_token".to_string(),
         "https://api.test.io".to_string(),
-        None,
+        "test@example.com".to_string(),
     );
 
     let debug_str = format!("{:?}", creds);
