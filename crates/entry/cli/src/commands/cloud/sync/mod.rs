@@ -8,7 +8,7 @@ use anyhow::{anyhow, Result};
 use clap::{Args, Subcommand, ValueEnum};
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
+use systemprompt_models::{profile_bootstrap::ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;
@@ -115,6 +115,17 @@ async fn execute_local_sync(cmd: LocalSyncCommands, config: &CliConfig) -> Resul
 }
 
 async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<()> {
+    let secrets = SecretsBootstrap::get()
+        .map_err(|_| anyhow!("Failed to load secrets. Check profile configuration"))?;
+
+    let sync_token = secrets.sync_token.clone().ok_or_else(|| {
+        anyhow!(
+            "Sync token not configured in profile secrets.\n\
+             Run: systemprompt cloud tenant rotate-sync-token\n\
+             Then recreate profile or update secrets.json manually"
+        )
+    })?;
+
     let creds = get_credentials()?;
 
     let profile = ProfileBootstrap::get()
@@ -145,8 +156,9 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         }
     }
 
-    let (hostname, sync_token) =
-        tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
+    let hostname = tenant
+        .and_then(|t| t.hostname.clone())
+        .ok_or_else(|| anyhow!("Hostname not configured for tenant. Run: systemprompt cloud login"))?;
 
     let services_path = profile.paths.services.clone();
 
@@ -158,8 +170,8 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         api_url: creds.api_url.clone(),
         api_token: creds.api_token.clone(),
         services_path,
-        hostname,
-        sync_token,
+        hostname: Some(hostname),
+        sync_token: Some(sync_token),
         local_database_url: None,
     };
 
@@ -209,3 +221,4 @@ fn print_results(results: &[SyncOperationResult]) {
         }
     }
 }
+

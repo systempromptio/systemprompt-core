@@ -1,8 +1,30 @@
+use std::time::Duration;
+
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
+use tokio::time::sleep;
 
 use crate::error::{SyncError, SyncResult};
+
+#[derive(Debug, Clone, Copy)]
+pub struct RetryConfig {
+    pub max_attempts: u32,
+    pub initial_delay: Duration,
+    pub max_delay: Duration,
+    pub exponential_base: u32,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_attempts: 3,
+            initial_delay: Duration::from_millis(500),
+            max_delay: Duration::from_secs(10),
+            exponential_base: 2,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct SyncApiClient {
@@ -11,6 +33,7 @@ pub struct SyncApiClient {
     token: String,
     hostname: Option<String>,
     sync_token: Option<String>,
+    retry_config: RetryConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -34,6 +57,7 @@ impl SyncApiClient {
             token: token.to_string(),
             hostname: None,
             sync_token: None,
+            retry_config: RetryConfig::default(),
         }
     }
 
@@ -57,6 +81,12 @@ impl SyncApiClient {
         }
     }
 
+    fn calculate_next_delay(&self, current: Duration) -> Duration {
+        current
+            .saturating_mul(self.retry_config.exponential_base)
+            .min(self.retry_config.max_delay)
+    }
+
     pub async fn upload_files(&self, tenant_id: &str, data: Vec<u8>) -> SyncResult<()> {
         let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
             (
@@ -65,16 +95,39 @@ impl SyncApiClient {
             )
         });
 
-        let response = self
-            .client
-            .post(&url)
-            .header("Authorization", format!("Bearer {}", token))
-            .header("Content-Type", "application/octet-stream")
-            .body(data)
-            .send()
-            .await?;
+        let mut current_delay = self.retry_config.initial_delay;
 
-        self.handle_empty_response(response).await
+        for attempt in 1..=self.retry_config.max_attempts {
+            let response = self
+                .client
+                .post(&url)
+                .header("Authorization", format!("Bearer {}", token))
+                .header("Content-Type", "application/octet-stream")
+                .body(data.clone())
+                .send()
+                .await?;
+
+            match self.handle_empty_response(response).await {
+                Ok(()) => return Ok(()),
+                Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
+                    tracing::warn!(
+                        attempt = attempt,
+                        max_attempts = self.retry_config.max_attempts,
+                        delay_ms = current_delay.as_millis() as u64,
+                        error = %error,
+                        "Retryable sync error, waiting before retry"
+                    );
+                    sleep(current_delay).await;
+                    current_delay = self.calculate_next_delay(current_delay);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Err(SyncError::ApiError {
+            status: 503,
+            message: "Max retry attempts exceeded".to_string(),
+        })
     }
 
     pub async fn download_files(&self, tenant_id: &str) -> SyncResult<Vec<u8>> {
@@ -85,14 +138,37 @@ impl SyncApiClient {
             )
         });
 
-        let response = self
-            .client
-            .get(&url)
-            .header("Authorization", format!("Bearer {}", token))
-            .send()
-            .await?;
+        let mut current_delay = self.retry_config.initial_delay;
 
-        self.handle_binary_response(response).await
+        for attempt in 1..=self.retry_config.max_attempts {
+            let response = self
+                .client
+                .get(&url)
+                .header("Authorization", format!("Bearer {}", token))
+                .send()
+                .await?;
+
+            match self.handle_binary_response(response).await {
+                Ok(data) => return Ok(data),
+                Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
+                    tracing::warn!(
+                        attempt = attempt,
+                        max_attempts = self.retry_config.max_attempts,
+                        delay_ms = current_delay.as_millis() as u64,
+                        error = %error,
+                        "Retryable sync error, waiting before retry"
+                    );
+                    sleep(current_delay).await;
+                    current_delay = self.calculate_next_delay(current_delay);
+                }
+                Err(error) => return Err(error),
+            }
+        }
+
+        Err(SyncError::ApiError {
+            status: 503,
+            message: "Max retry attempts exceeded".to_string(),
+        })
     }
 
     pub async fn get_registry_token(&self, tenant_id: &str) -> SyncResult<RegistryToken> {
@@ -195,9 +271,13 @@ impl SyncApiClient {
     async fn handle_binary_response(&self, response: reqwest::Response) -> SyncResult<Vec<u8>> {
         let status = response.status();
         if !status.is_success() {
+            let message = response
+                .text()
+                .await
+                .unwrap_or_else(|e| format!("(body unreadable: {})", e));
             return Err(SyncError::ApiError {
                 status: status.as_u16(),
-                message: String::new(),
+                message,
             });
         }
         Ok(response.bytes().await?.to_vec())

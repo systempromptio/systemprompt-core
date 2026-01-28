@@ -4636,6 +4636,7 @@ dependencies = [
  "systemprompt-logging",
  "systemprompt-models",
  "systemprompt-provider-contracts",
+ "systemprompt-sync",
  "systemprompt-template-provider",
  "systemprompt-templates",
  "systemprompt-traits",

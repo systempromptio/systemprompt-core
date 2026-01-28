@@ -16,6 +16,9 @@ pub struct Secrets {
     pub database_url: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub sync_token: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gemini: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -60,6 +63,7 @@ impl Secrets {
         match key {
             "jwt_secret" | "JWT_SECRET" => Some(&self.jwt_secret),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
+            "sync_token" | "SYNC_TOKEN" => self.sync_token.as_ref(),
             "gemini" | "GEMINI_API_KEY" => self.gemini.as_ref(),
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
             "openai" | "OPENAI_API_KEY" => self.openai.as_ref(),
@@ -178,6 +182,7 @@ impl SecretsBootstrap {
         let secrets = Secrets {
             jwt_secret,
             database_url,
+            sync_token: std::env::var("SYNC_TOKEN").ok().filter(|s| !s.is_empty()),
             gemini: std::env::var("GEMINI_API_KEY")
                 .ok()
                 .filter(|s| !s.is_empty()),

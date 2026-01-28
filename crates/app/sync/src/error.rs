@@ -42,4 +42,15 @@ pub enum SyncError {
     StripPrefix(#[from] std::path::StripPrefixError),
 }
 
+impl SyncError {
+    pub const fn is_retryable(&self) -> bool {
+        matches!(self, Self::Http(_))
+            || matches!(
+                self,
+                Self::ApiError { status, .. }
+                    if *status == 502 || *status == 503 || *status == 504 || *status == 429
+            )
+    }
+}
+
 pub type SyncResult<T> = Result<T, SyncError>;

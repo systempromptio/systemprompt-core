@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
+use std::path::Path;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
-use systemprompt_files::FilesConfig;
+use systemprompt_models::AppPaths;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
 #[derive(Debug, Clone, Copy)]
@@ -23,14 +24,15 @@ impl CopyExtensionAssetsJob {
                 .with_duration(duration_ms));
         }
 
-        let files_config = FilesConfig::get()
-            .map_err(|e| anyhow::anyhow!("FilesConfig not initialized: {}", e))?;
+        let paths = AppPaths::get()
+            .map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
+        let dist_dir = paths.web().dist();
 
         let mut copied = 0u64;
         let mut failed = 0u64;
 
         for (ext_id, asset) in assets {
-            match copy_asset(files_config, ext_id, &asset).await {
+            match copy_asset(dist_dir, ext_id, &asset).await {
                 Ok(()) => copied += 1,
                 Err(e) => {
                     if asset.is_required() {
@@ -62,8 +64,8 @@ impl CopyExtensionAssetsJob {
     }
 }
 
-async fn copy_asset(config: &FilesConfig, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
-    let dest_path = config.files().join(asset.destination());
+async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
+    let dest_path = dist_dir.join(asset.destination());
 
     if let Some(parent) = dest_path.parent() {
         tokio::fs::create_dir_all(parent)
@@ -98,7 +100,7 @@ impl Job for CopyExtensionAssetsJob {
     }
 
     fn description(&self) -> &'static str {
-        "Copies extension assets to storage"
+        "Copies extension assets to dist"
     }
 
     fn schedule(&self) -> &'static str {
@@ -109,5 +111,3 @@ impl Job for CopyExtensionAssetsJob {
         Self::execute_copy().await
     }
 }
-
-systemprompt_provider_contracts::submit_job!(&CopyExtensionAssetsJob);

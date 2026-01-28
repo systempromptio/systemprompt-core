@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_models::{Profile, SecretsBootstrap};
 use systemprompt_sync::{
     FileSyncService, SyncApiClient, SyncConfigBuilder, SyncDirection, SyncOperationResult,
 };
@@ -76,7 +76,12 @@ pub async fn execute(
         }
     }
 
-    let (sync_config, api_client) = build_sync_config(profile, tenant_id, config.dry_run)?;
+    let Some((sync_config, api_client)) = build_sync_config(profile, tenant_id, config.dry_run)?
+    else {
+        CliService::warning("Skipping sync - runtime files on the container may be LOST");
+        return Ok(PreSyncResult::skipped());
+    };
+
     let result = run_sync(sync_config, api_client).await;
 
     handle_sync_result(result, config.dry_run)
@@ -86,7 +91,17 @@ fn build_sync_config(
     profile: &Profile,
     tenant_id: &str,
     dry_run: bool,
-) -> Result<(systemprompt_sync::SyncConfig, SyncApiClient)> {
+) -> Result<Option<(systemprompt_sync::SyncConfig, SyncApiClient)>> {
+    let secrets = SecretsBootstrap::get().context("Failed to load secrets")?;
+
+    let sync_token = secrets.sync_token.clone();
+    if sync_token.is_none() {
+        CliService::warning("Sync token not configured in profile secrets");
+        CliService::info("  Run: systemprompt cloud tenant rotate-sync-token");
+        CliService::info("  Then recreate profile or update secrets.json manually");
+        return Ok(None);
+    }
+
     let creds = get_credentials()?;
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
@@ -94,8 +109,13 @@ fn build_sync_config(
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
     let tenant = tenant_store.find_tenant(tenant_id);
-    let (hostname, sync_token) =
-        tenant.map_or((None, None), |t| (t.hostname.clone(), t.sync_token.clone()));
+    let hostname = tenant.and_then(|t| t.hostname.clone());
+
+    if hostname.is_none() {
+        CliService::warning("Hostname not configured for tenant");
+        CliService::info("  Run: systemprompt cloud login");
+        return Ok(None);
+    }
 
     let sync_config = SyncConfigBuilder::new(
         tenant_id,
@@ -112,7 +132,7 @@ fn build_sync_config(
     let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)
         .with_direct_sync(sync_config.hostname.clone(), sync_config.sync_token.clone());
 
-    Ok((sync_config, api_client))
+    Ok(Some((sync_config, api_client)))
 }
 
 async fn run_sync(
