@@ -9,6 +9,7 @@ pub struct StoragePaths {
     files: PathBuf,
     css: PathBuf,
     js: PathBuf,
+    fonts: PathBuf,
     images: PathBuf,
     generated_images: PathBuf,
     logos: PathBuf,
@@ -31,6 +32,7 @@ impl StoragePaths {
         Ok(Self {
             css: files.join("css"),
             js: files.join("js"),
+            fonts: files.join("fonts"),
             images: files.join("images"),
             generated_images: files.join("images/generated"),
             logos: files.join("images/logos"),
@@ -57,6 +59,10 @@ impl StoragePaths {
 
     pub fn js(&self) -> &Path {
         &self.js
+    }
+
+    pub fn fonts(&self) -> &Path {
+        &self.fonts
     }
 
     pub fn images(&self) -> &Path {

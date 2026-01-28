@@ -56,6 +56,25 @@ impl Profile {
                 ));
             }
         }
+
+        if let Some(web_path) = &self.paths.web_path {
+            if !web_path.is_empty() {
+                if !web_path.starts_with("/app/web") {
+                    errors.push(format!(
+                        "Cloud profile web_path should start with /app/web, got: {}. \
+                         Note: web_path points to the parent of dist/, e.g., /app/web for /app/web/dist",
+                        web_path
+                    ));
+                }
+                if web_path.contains("/services/web") {
+                    errors.push(format!(
+                        "Cloud profile web_path should be /app/web (for dist output), \
+                         not /app/services/web (which is for templates/config). Got: {}",
+                        web_path
+                    ));
+                }
+            }
+        }
     }
 
     pub(super) fn validate_local_paths(&self, errors: &mut Vec<String>) {
