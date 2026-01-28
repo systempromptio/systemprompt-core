@@ -4410,6 +4410,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "systemprompt-cloud",
  "systemprompt-config",
  "systemprompt-database",
  "systemprompt-extension",

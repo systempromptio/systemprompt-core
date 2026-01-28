@@ -59,7 +59,7 @@ pub fn init_logging(db_pool: DbPool) {
 
 pub fn init_console_logging() {
     if LOGGING_INITIALIZED.set(()).is_err() {
-        return; // Already initialized
+        return;
     }
 
     let env_filter = EnvFilter::try_from_default_env()

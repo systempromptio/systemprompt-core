@@ -43,7 +43,7 @@ pub fn execute(_config: &CliConfig) -> Result<()> {
         rate_limits: RateLimitsSummary {
             enabled: !profile.rate_limits.disabled,
             burst_multiplier: profile.rate_limits.burst_multiplier,
-            tier_count: 6, // admin, user, a2a, mcp, service, anon
+            tier_count: 6,
         },
     };
 

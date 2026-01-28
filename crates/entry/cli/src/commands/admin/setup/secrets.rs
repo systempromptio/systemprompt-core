@@ -69,7 +69,7 @@ pub fn collect_non_interactive(args: &SetupArgs, config: &CliConfig) -> Result<S
 
     let secrets = SecretsData {
         jwt_secret,
-        database_url: None, // Set later by caller
+        database_url: None,
         gemini: args.gemini_key.clone(),
         anthropic: args.anthropic_key.clone(),
         openai: args.openai_key.clone(),
