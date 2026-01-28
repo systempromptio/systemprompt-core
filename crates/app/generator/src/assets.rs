@@ -10,11 +10,11 @@ pub async fn organize_dist_assets(dist_dir: &Path) -> Result<(u32, u32)> {
 }
 
 async fn organize_assets_by_extension(dist_dir: &Path, ext: &str) -> Result<u32> {
-    let dest_dir = dist_dir.join(ext);
-    fs::create_dir_all(&dest_dir)
+    let target_dir = dist_dir.join(ext);
+    fs::create_dir_all(&target_dir)
         .await
         .context(format!("Failed to create {} directory", ext))?;
-    copy_files_by_extension(dist_dir, &dest_dir, ext).await
+    copy_files_by_extension(dist_dir, &target_dir, ext).await
 }
 
 async fn copy_files_by_extension(source_dir: &Path, dest_dir: &Path, ext: &str) -> Result<u32> {
@@ -100,4 +100,3 @@ async fn copy_directory_contents(source: &Path, dest: &Path) -> Result<u32> {
 
     Ok(copied)
 }
-

@@ -52,7 +52,10 @@ pub fn get_templates_path(config: &FullWebConfig) -> PathBuf {
         }
     }
 
-    AppPaths::get().map_or_else(|_| PathBuf::from("templates"), |p| p.web().root().join("templates"))
+    AppPaths::get().map_or_else(
+        |_| PathBuf::from("templates"),
+        |p| p.web().root().join("templates"),
+    )
 }
 
 pub fn get_assets_path(config: &FullWebConfig) -> &str {

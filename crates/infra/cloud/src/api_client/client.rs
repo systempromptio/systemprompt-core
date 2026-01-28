@@ -109,17 +109,21 @@ impl CloudApiClient {
             return Ok(());
         }
 
-        let error_text = response.text().await.unwrap_or_default();
-        let error: Result<ApiError, _> = serde_json::from_str(&error_text);
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| String::from("<failed to read response body>"));
 
-        match error {
-            Ok(parsed) => Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
-            Err(_) => Err(anyhow!(
-                "Request failed with status {}: {}",
-                status,
-                error_text.chars().take(500).collect::<String>()
-            )),
-        }
+        serde_json::from_str::<ApiError>(&error_text).map_or_else(
+            |_| {
+                Err(anyhow!(
+                    "Request failed with status {}: {}",
+                    status,
+                    error_text.chars().take(500).collect::<String>()
+                ))
+            },
+            |parsed| Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
+        )
     }
 
     pub(super) async fn delete(&self, path: &str) -> Result<()> {
@@ -145,17 +149,21 @@ impl CloudApiClient {
         }
 
         if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_default();
-            let error: Result<ApiError, _> = serde_json::from_str(&error_text);
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| String::from("<failed to read response body>"));
 
-            return match error {
-                Ok(parsed) => Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
-                Err(_) => Err(anyhow!(
-                    "Request failed with status {}: {}",
-                    status,
-                    error_text.chars().take(500).collect::<String>()
-                )),
-            };
+            return serde_json::from_str::<ApiError>(&error_text).map_or_else(
+                |_| {
+                    Err(anyhow!(
+                        "Request failed with status {}: {}",
+                        status,
+                        error_text.chars().take(500).collect::<String>()
+                    ))
+                },
+                |parsed| Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
+            );
         }
 
         Ok(())
@@ -184,24 +192,21 @@ impl CloudApiClient {
         }
 
         if !status.is_success() {
-            let error_text = response.text().await.unwrap_or_default();
+            let error_text = response
+                .text()
+                .await
+                .unwrap_or_else(|_| String::from("<failed to read response body>"));
 
-            // Try to parse as our expected error format
-            let error: Result<ApiError, _> = serde_json::from_str(&error_text);
-
-            match error {
-                Ok(parsed) => {
-                    return Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message));
-                },
-                Err(_parse_error) => {
-                    // Parsing failed - show raw response for debugging
-                    return Err(anyhow!(
+            return serde_json::from_str::<ApiError>(&error_text).map_or_else(
+                |_| {
+                    Err(anyhow!(
                         "Request failed with status {}: {}",
                         status,
                         error_text.chars().take(500).collect::<String>()
-                    ));
+                    ))
                 },
-            }
+                |parsed| Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
+            );
         }
 
         response

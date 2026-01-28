@@ -14,8 +14,7 @@ pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, Reposit
     let agent_name = row
         .agent_name
         .as_ref()
-        .map(|n| n.to_string())
-        .unwrap_or_default();
+        .map_or_else(String::new, ToString::to_string);
 
     let mut metadata = serde_json::from_str::<TaskMetadata>(&metadata_json)
         .unwrap_or_else(|_| TaskMetadata::new_agent_message(agent_name.clone()));

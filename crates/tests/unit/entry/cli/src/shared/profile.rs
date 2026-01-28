@@ -203,10 +203,10 @@ fn test_capitalize_first_with_underscore() {
 
 #[test]
 fn test_jwt_secret_generation_expected_length() {
-    use rand::distributions::Alphanumeric;
-    use rand::{thread_rng, Rng};
+    use rand::distr::Alphanumeric;
+    use rand::{rng, Rng};
 
-    let secret: String = thread_rng()
+    let secret: String = rng()
         .sample_iter(&Alphanumeric)
         .take(64)
         .map(char::from)
@@ -217,10 +217,10 @@ fn test_jwt_secret_generation_expected_length() {
 
 #[test]
 fn test_jwt_secret_generation_alphanumeric() {
-    use rand::distributions::Alphanumeric;
-    use rand::{thread_rng, Rng};
+    use rand::distr::Alphanumeric;
+    use rand::{rng, Rng};
 
-    let secret: String = thread_rng()
+    let secret: String = rng()
         .sample_iter(&Alphanumeric)
         .take(64)
         .map(char::from)
@@ -231,12 +231,13 @@ fn test_jwt_secret_generation_alphanumeric() {
 
 #[test]
 fn test_jwt_secret_generation_uniqueness() {
-    use rand::distributions::Alphanumeric;
-    use rand::{thread_rng, Rng};
+    use rand::distr::Alphanumeric;
+    use rand::{rng, Rng};
+    use std::collections::HashSet;
 
     let secrets: HashSet<String> = (0..100)
         .map(|_| {
-            thread_rng()
+            rng()
                 .sample_iter(&Alphanumeric)
                 .take(64)
                 .map(char::from)

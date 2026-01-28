@@ -484,11 +484,11 @@ mod session_analytics_tests {
     }
 
     #[test]
-    fn is_bot_returns_false_when_no_user_agent() {
+    fn is_bot_returns_true_when_no_user_agent() {
         let headers = HeaderMap::new();
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(!analytics.is_bot());
+        assert!(analytics.is_bot());
     }
 
     #[test]

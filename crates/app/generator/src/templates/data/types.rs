@@ -40,6 +40,15 @@ pub struct ContentData {
     pub sections_html: String,
 }
 
+pub struct ContentDataParams<'a> {
+    pub item: &'a Value,
+    pub all_items: &'a [Value],
+    pub popular_ids: &'a [String],
+    pub content_html: &'a str,
+    pub toc_html: &'a str,
+    pub db_pool: &'a DbPool,
+}
+
 pub struct OrgConfig<'a> {
     pub name: &'a str,
     pub url: &'a str,

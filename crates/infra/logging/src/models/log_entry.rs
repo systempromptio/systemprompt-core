@@ -120,7 +120,7 @@ impl std::fmt::Display for LogEntry {
                 level_str,
                 self.module,
                 self.message,
-                serde_json::to_string(metadata).unwrap_or_default()
+                serde_json::to_string(metadata).unwrap_or_else(|_| String::new())
             )
         } else {
             write!(

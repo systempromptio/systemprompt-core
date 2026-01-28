@@ -139,16 +139,15 @@ impl Profile {
         serde_yaml::to_string(self).context("Failed to serialize profile")
     }
 
-    // NOTE: validate() is implemented in validation.rs
-
     pub fn list_available(services_path: &Path) -> Vec<String> {
         let profiles_dir = services_path.join("profiles");
         if !profiles_dir.exists() {
             return Vec::new();
         }
 
-        std::fs::read_dir(&profiles_dir)
-            .map(|entries| {
+        std::fs::read_dir(&profiles_dir).map_or_else(
+            |_| Vec::new(),
+            |entries| {
                 entries
                     .filter_map(std::result::Result::ok)
                     .filter_map(|e| {
@@ -160,11 +159,9 @@ impl Profile {
                         }
                     })
                     .collect()
-            })
-            .unwrap_or_default()
+            },
+        )
     }
-
-    // NOTE: from_env() is implemented in from_env.rs
 
     pub fn save(&self, services_path: &Path) -> Result<()> {
         let profiles_dir = services_path.join("profiles");

@@ -354,7 +354,8 @@ async fn ensure_unmasked_credentials(
                 updated_tenant.sync_token = Some(token);
             }
 
-            let mut store = TenantStore::load_from_path(tenants_path).unwrap_or_default();
+            let mut store = TenantStore::load_from_path(tenants_path)
+                .unwrap_or_else(|_| TenantStore::default());
             if let Some(t) = store.tenants.iter_mut().find(|t| t.id == tenant.id) {
                 *t = updated_tenant.clone();
                 store.save_to_path(tenants_path)?;

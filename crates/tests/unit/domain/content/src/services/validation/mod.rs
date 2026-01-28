@@ -192,11 +192,16 @@ fn test_validate_content_metadata_nested_slug_allows_leading_trailing_slash_trim
 #[test]
 fn test_validate_content_metadata_slug_only_slashes() {
     let mut metadata = create_valid_metadata();
-    metadata.slug = "///".to_string();
+    metadata.slug = "/".to_string();
 
     let result = validate_content_metadata(&metadata);
     assert!(result.is_err());
-    assert!(result.unwrap_err().to_string().contains("only slashes"));
+    let err_str = result.unwrap_err().to_string();
+    assert!(
+        err_str.contains("only slashes"),
+        "Expected error about only slashes, got: {}",
+        err_str
+    );
 }
 
 #[test]

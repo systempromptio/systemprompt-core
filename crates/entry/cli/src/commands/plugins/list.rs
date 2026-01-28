@@ -82,7 +82,7 @@ pub fn execute(args: &ListArgs, _config: &CliConfig) -> CommandResult<ExtensionL
     }
 
     if include_manifest {
-        let project_root = std::env::current_dir().unwrap_or_default();
+        let project_root = std::env::current_dir().unwrap_or_else(|_| std::path::PathBuf::new());
         let discovered = ExtensionLoader::discover(&project_root);
 
         for ext in discovered {

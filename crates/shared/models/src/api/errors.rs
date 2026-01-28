@@ -165,7 +165,12 @@ impl From<InternalApiError> for ApiError {
             | InternalApiError::InternalError { .. } => None,
         };
 
-        Self::new(code, message).with_details(details.unwrap_or_default())
+        let api_error = Self::new(code, message);
+        if let Some(d) = details {
+            api_error.with_details(d)
+        } else {
+            api_error
+        }
     }
 }
 

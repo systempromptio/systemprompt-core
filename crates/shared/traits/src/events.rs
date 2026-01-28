@@ -54,7 +54,6 @@ pub trait LogEventPublisher: Send + Sync {
     fn publish_log(&self, event: LogEventData);
 }
 
-/// Events for user/session changes
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum UserEvent {
@@ -64,24 +63,18 @@ pub enum UserEvent {
     SessionEnded { user_id: String, session_id: String },
 }
 
-/// Publisher for user-related events
 pub trait UserEventPublisher: Send + Sync {
     fn publish_user_event(&self, event: UserEvent);
 }
 
-/// Events for analytics updates
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub enum AnalyticsEvent {
-    /// Analytics data has been updated
     Updated,
-    /// A new AI request was completed
     AiRequestCompleted { tokens_used: i64 },
-    /// User activity was recorded
     UserActivityRecorded { user_id: String },
 }
 
-/// Publisher for analytics events
 pub trait AnalyticsEventPublisher: Send + Sync {
     fn publish_analytics_event(&self, event: AnalyticsEvent);
 }

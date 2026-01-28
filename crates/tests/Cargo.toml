@@ -66,7 +66,7 @@ module_name_repetitions = "allow"
 # Core dependencies - match main workspace versions
 tokio = { version = "1.47", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal", "test-util"] }
 tokio-test = "0.4"
-axum-test = "15.0"
+axum-test = "18.0"
 anyhow = "1.0"
 thiserror = "2.0"
 tracing = "0.1"
@@ -83,7 +83,7 @@ serde_yaml = "0.9"
 serde_json = { version = "1.0", features = ["preserve_order"] }
 chrono = { version = "0.4", features = ["serde"] }
 uuid = { version = "1.18", features = ["v4", "serde"] }
-validator = { version = "0.16", features = ["derive"] }
+validator = { version = "0.20", features = ["derive"] }
 regex = "1.11"
 indexmap = { version = "2.0", features = ["serde"] }
 
@@ -115,48 +115,48 @@ url = "2.5"
 semver = { version = "1.0", features = ["serde"] }
 
 # MCP
-rmcp = { version = "0.12.0", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
+rmcp = { version = "0.14", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
 
 # Security
-rand = "0.8"
-bcrypt = "0.15"
+rand = "0.9"
+bcrypt = "0.18"
 base64 = "0.22"
-jsonwebtoken = "9.3"
+jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = "0.10"
 
 # Testing utilities
 wiremock = "0.6"
 
 # Path dependencies to main crates (relative to crates/tests/)
-systemprompt-traits = { workspace = true }
-systemprompt-models = { workspace = true }
-systemprompt-client = { workspace = true }
-systemprompt-identifiers = { workspace = true }
-systemprompt-extension = { workspace = true }
-systemprompt-database = { workspace = true }
-systemprompt-logging = { workspace = true }
-systemprompt-config = { workspace = true }
-systemprompt-events = { workspace = true }
-systemprompt-security = { workspace = true }
-systemprompt-cloud = { workspace = true }
-systemprompt-loader = { workspace = true }
-systemprompt-users = { workspace = true }
-systemprompt-oauth = { workspace = true }
-systemprompt-files = { workspace = true }
-systemprompt-analytics = { workspace = true }
-systemprompt-content = { workspace = true }
-systemprompt-mcp = { workspace = true }
-systemprompt-ai = { workspace = true }
-systemprompt-agent = { workspace = true }
-systemprompt-templates = { workspace = true }
+systemprompt-identifiers = { path = "../shared/identifiers" }
+systemprompt-provider-contracts = { path = "../shared/provider-contracts" }
+systemprompt-traits = { path = "../shared/traits" }
+systemprompt-extension = { path = "../shared/extension" }
+systemprompt-models = { path = "../shared/models" }
+systemprompt-client = { path = "../shared/client" }
 systemprompt-template-provider = { path = "../shared/template-provider", features = ["tokio"] }
-systemprompt-runtime = { workspace = true }
-systemprompt-scheduler = { workspace = true }
-systemprompt-generator = { workspace = true }
-systemprompt-sync = { workspace = true }
-systemprompt-api = { workspace = true }
-systemprompt-tui = { workspace = true }
-systemprompt-cli = { workspace = true }
+systemprompt-database = { path = "../infra/database" }
+systemprompt-logging = { path = "../infra/logging" }
+systemprompt-config = { path = "../infra/config" }
+systemprompt-events = { path = "../infra/events" }
+systemprompt-security = { path = "../infra/security" }
+systemprompt-cloud = { path = "../infra/cloud" }
+systemprompt-loader = { path = "../infra/loader" }
+systemprompt-users = { path = "../domain/users" }
+systemprompt-oauth = { path = "../domain/oauth" }
+systemprompt-files = { path = "../domain/files" }
+systemprompt-analytics = { path = "../domain/analytics" }
+systemprompt-content = { path = "../domain/content" }
+systemprompt-mcp = { path = "../domain/mcp" }
+systemprompt-ai = { path = "../domain/ai" }
+systemprompt-agent = { path = "../domain/agent" }
+systemprompt-templates = { path = "../domain/templates" }
+systemprompt-runtime = { path = "../app/runtime" }
+systemprompt-scheduler = { path = "../app/scheduler" }
+systemprompt-generator = { path = "../app/generator" }
+systemprompt-sync = { path = "../app/sync" }
+systemprompt-api = { path = "../entry/api" }
+systemprompt-cli = { path = "../entry/cli" }
 
 # Testing utility
 trybuild = "1.0"

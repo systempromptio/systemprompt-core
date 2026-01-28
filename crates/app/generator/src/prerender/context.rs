@@ -42,7 +42,12 @@ pub fn extract_homepage_branding(
         org_name: org.name.clone(),
         org_url: org.url.clone(),
         org_logo: org.logo.clone(),
-        logo_path: branding.logo.primary.svg.clone().unwrap_or_default(),
+        logo_path: branding
+            .logo
+            .primary
+            .svg
+            .clone()
+            .unwrap_or_else(String::new),
         favicon_path: branding.favicon.clone(),
         twitter_handle: branding.twitter_handle.clone(),
         display_sitename: branding.display_sitename,

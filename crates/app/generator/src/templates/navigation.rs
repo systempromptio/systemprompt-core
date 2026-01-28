@@ -29,11 +29,9 @@ fn build_social_link(platform_type: &str, href: &str) -> String {
         return String::new();
     }
 
-    let platform_label = platform_type
-        .chars()
-        .next()
-        .map(|c| c.to_uppercase().collect::<String>() + &platform_type[1..])
-        .unwrap_or_default();
+    let platform_label = platform_type.chars().next().map_or_else(String::new, |c| {
+        c.to_uppercase().collect::<String>() + &platform_type[1..]
+    });
 
     format!(
         r#"<a href="{}" target="_blank" rel="noopener noreferrer" class="social-action-bar__link social-action-bar__link--{}" aria-label="Follow on {}">{}</a>"#,
@@ -100,11 +98,9 @@ fn build_footer_section(
         return None;
     }
 
-    let section_title = section_name
-        .chars()
-        .next()
-        .map(|c| c.to_uppercase().collect::<String>() + &section_name[1..])
-        .unwrap_or_default();
+    let section_title = section_name.chars().next().map_or_else(String::new, |c| {
+        c.to_uppercase().collect::<String>() + &section_name[1..]
+    });
 
     let link_items: Vec<String> = links
         .iter()

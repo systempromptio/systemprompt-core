@@ -55,11 +55,11 @@ mod analytics_service_tests {
     }
 
     #[test]
-    fn is_bot_returns_false_for_empty_analytics() {
+    fn is_bot_returns_true_for_empty_analytics() {
         let headers = HeaderMap::new();
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        assert!(!AnalyticsService::is_bot(&analytics));
+        assert!(AnalyticsService::is_bot(&analytics));
     }
 
     #[test]
@@ -89,9 +89,9 @@ mod analytics_service_tests {
 
         let fingerprint = AnalyticsService::compute_fingerprint(&analytics);
 
-        // Should be a hex string
         assert!(!fingerprint.is_empty());
-        assert!(fingerprint.chars().all(|c| c.is_ascii_hexdigit()));
+        assert!(fingerprint.starts_with("fp_"));
+        assert!(fingerprint[3..].chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]

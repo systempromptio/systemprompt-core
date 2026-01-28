@@ -166,12 +166,11 @@ fn print_schema_properties(schema: &serde_json::Value, indent: &str) {
     let required = schema
         .get("required")
         .and_then(|r| r.as_array())
-        .map(|arr| {
+        .map_or_else(std::collections::HashSet::new, |arr| {
             arr.iter()
                 .filter_map(|v| v.as_str())
                 .collect::<std::collections::HashSet<_>>()
-        })
-        .unwrap_or_default();
+        });
 
     if let Some(props) = properties {
         for (name, prop_schema) in props {

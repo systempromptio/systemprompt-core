@@ -66,11 +66,8 @@ pub async fn execute(
     display_destructive_warning();
 
     if !config.dry_run && !config.yes {
-        let should_sync = confirm_optional(
-            "Sync files from cloud before deploying?",
-            true,
-            cli_config,
-        )?;
+        let should_sync =
+            confirm_optional("Sync files from cloud before deploying?", true, cli_config)?;
 
         if !should_sync {
             CliService::warning("Pre-deploy sync skipped by user");
