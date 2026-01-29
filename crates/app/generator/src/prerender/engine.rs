@@ -8,7 +8,7 @@ use tokio::fs;
 use crate::error::PublishError;
 use crate::prerender::content::process_all_sources;
 use crate::prerender::context::{load_prerender_context, PrerenderContext};
-use crate::prerender::utils::merge_json_data;
+use crate::prerender::utils::{merge_json_data, render_components};
 
 pub async fn prerender_content(db_pool: DbPool) -> Result<()> {
     let ctx = load_prerender_context(db_pool).await?;
@@ -75,7 +75,7 @@ pub async fn prerender_pages_with_context(
 
         let mut page_data = spec.base_data;
 
-        let page_ctx = PageContext::new(page_type, &ctx.web_config, &ctx.db_pool);
+        let page_ctx = PageContext::new(page_type, &ctx.web_config, &ctx.config, &ctx.db_pool);
         let providers = ctx.template_registry.page_providers_for(page_type);
         let provider_ids: Vec<_> = providers.iter().map(|p| p.provider_id()).collect();
 
@@ -94,18 +94,13 @@ pub async fn prerender_pages_with_context(
         }
 
         let component_ctx = ComponentContext::for_page(&ctx.web_config);
-        for component in ctx.template_registry.components_for(page_type) {
-            let rendered = component.render(&component_ctx).await.map_err(|e| {
-                PublishError::provider_failed(component.component_id(), e.to_string())
-            })?;
-
-            if let Some(obj) = page_data.as_object_mut() {
-                obj.insert(
-                    rendered.variable_name,
-                    serde_json::Value::String(rendered.html),
-                );
-            }
-        }
+        render_components(
+            &ctx.template_registry,
+            page_type,
+            &component_ctx,
+            &mut page_data,
+        )
+        .await;
 
         let html = ctx
             .template_registry

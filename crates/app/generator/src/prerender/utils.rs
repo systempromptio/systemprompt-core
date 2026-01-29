@@ -1,3 +1,6 @@
+use systemprompt_template_provider::{ComponentContext, RenderedComponent};
+use systemprompt_templates::TemplateRegistry;
+
 pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Value) {
     match (base, extension) {
         (serde_json::Value::Object(base_obj), serde_json::Value::Object(ext_obj)) => {
@@ -13,5 +16,42 @@ pub fn merge_json_data(base: &mut serde_json::Value, extension: &serde_json::Val
         (base, extension) => {
             *base = extension.clone();
         },
+    }
+}
+
+pub async fn render_components(
+    template_registry: &TemplateRegistry,
+    target_type: &str,
+    component_ctx: &ComponentContext<'_>,
+    data: &mut serde_json::Value,
+) {
+    for component in template_registry.components_for(target_type) {
+        let result = if let Some(partial) = component.partial_template() {
+            template_registry
+                .render_partial(&partial.name, data)
+                .map(|html| RenderedComponent::new(component.variable_name(), html))
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        } else {
+            component.render(component_ctx).await
+        };
+
+        match result {
+            Ok(rendered) => {
+                if let Some(obj) = data.as_object_mut() {
+                    obj.insert(
+                        rendered.variable_name,
+                        serde_json::Value::String(rendered.html),
+                    );
+                }
+            }
+            Err(e) => {
+                tracing::warn!(
+                    component_id = %component.component_id(),
+                    target_type = %target_type,
+                    error = %e,
+                    "Component render failed"
+                );
+            }
+        }
     }
 }

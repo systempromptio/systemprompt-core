@@ -2,7 +2,9 @@ use std::sync::Arc;
 
 use systemprompt_extension::prelude::*;
 
+use crate::branding_provider::default_branding_provider;
 use crate::homepage_prerenderer::DefaultHomepagePrerenderer;
+use crate::list_branding_provider::default_list_branding_provider;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -62,6 +64,13 @@ impl Extension for ContentExtension {
 
     fn page_prerenderers(&self) -> Vec<Arc<dyn PagePrerenderer>> {
         vec![Arc::new(DefaultHomepagePrerenderer)]
+    }
+
+    fn page_data_providers(&self) -> Vec<Arc<dyn PageDataProvider>> {
+        vec![
+            default_branding_provider(),
+            default_list_branding_provider(),
+        ]
     }
 }
 
