@@ -3,18 +3,16 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::{
-    ComponentContext, ExtenderContext, PageContext, RenderedComponent,
-};
+use systemprompt_template_provider::{ComponentContext, ExtenderContext, PageContext};
 
-use crate::prerender::utils::merge_json_data;
+use crate::prerender::utils::{merge_json_data, render_components};
 use tokio::fs;
 
 use crate::content::{generate_toc, render_markdown};
 use crate::error::PublishError;
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
-use crate::prerender::parent::{render_parent_route, RenderParentParams};
+use crate::prerender::list::{render_list_route, RenderListParams};
 use crate::templates::data::{prepare_template_data, TemplateDataParams};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
@@ -74,7 +72,7 @@ async fn process_source(
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
 
     let rendered = render_all_items(ctx, source_name, sitemap_config, &items, &popular_ids).await?;
-    let parent = render_parent_if_enabled(ctx, source_name, source, sitemap_config, &items).await?;
+    let parent = render_parent_if_enabled(ctx, source_name, sitemap_config, &items).await?;
     Ok(rendered + parent)
 }
 
@@ -169,7 +167,7 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
 
-    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.db_pool);
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool);
     let providers = ctx.template_registry.page_providers_for(content_type);
 
     for provider in &providers {
@@ -182,35 +180,13 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
 
     let component_ctx =
         ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
-
-    for component in ctx.template_registry.components_for(content_type) {
-        let result = if component.partial_template().is_some() {
-            ctx.template_registry
-                .render_partial(component.component_id(), &template_data)
-                .map(|html| RenderedComponent::new(component.variable_name(), html))
-                .map_err(|e| anyhow::anyhow!("{}", e))
-        } else {
-            component.render(&component_ctx).await
-        };
-
-        match result {
-            Ok(rendered) => {
-                if let Some(obj) = template_data.as_object_mut() {
-                    obj.insert(
-                        rendered.variable_name,
-                        serde_json::Value::String(rendered.html),
-                    );
-                }
-            },
-            Err(e) => {
-                tracing::warn!(
-                    component_id = %component.component_id(),
-                    error = %e,
-                    "Component render failed"
-                );
-            },
-        }
-    }
+    render_components(
+        &ctx.template_registry,
+        content_type,
+        &component_ctx,
+        &mut template_data,
+    )
+    .await;
 
     let extender_ctx =
         ExtenderContext::builder(item, all_items, config_value, &ctx.web_config, &ctx.db_pool)
@@ -267,7 +243,6 @@ async fn write_rendered_page(
 async fn render_parent_if_enabled(
     ctx: &PrerenderContext,
     source_name: &str,
-    source: &ContentSourceConfigRaw,
     sitemap_config: &SitemapConfig,
     items: &[serde_json::Value],
 ) -> Result<u32> {
@@ -285,12 +260,11 @@ async fn render_parent_if_enabled(
             .is_some_and(str::is_empty)
     });
 
-    render_parent_route(RenderParentParams {
+    render_list_route(RenderListParams {
         items,
         config: &ctx.config,
-        source,
         web_config: &ctx.web_config,
-        parent_config,
+        list_config: parent_config,
         source_name,
         template_registry: &ctx.template_registry,
         dist_dir: &ctx.dist_dir,

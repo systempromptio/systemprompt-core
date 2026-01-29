@@ -196,19 +196,19 @@ impl TemplateRegistry {
                 },
             };
 
-            let partial_name = format!("partial_{}", component.component_id());
             debug!(
                 component_id = %component.component_id(),
-                partial_name = %partial_name,
+                partial_name = %partial.name,
                 "Registering partial template"
             );
 
             if let Err(e) = self
                 .handlebars
-                .register_template_string(&partial_name, content)
+                .register_template_string(&partial.name, content)
             {
                 warn!(
                     component_id = %component.component_id(),
+                    partial_name = %partial.name,
                     error = %e,
                     "Failed to compile partial template"
                 );
@@ -253,22 +253,20 @@ impl TemplateRegistry {
 
     pub fn render_partial(
         &self,
-        component_id: &str,
+        partial_name: &str,
         data: &Value,
     ) -> Result<String, TemplateError> {
-        let partial_name = format!("partial_{}", component_id);
         self.handlebars
-            .render(&partial_name, data)
+            .render(partial_name, data)
             .map_err(|e| TemplateError::RenderError {
-                name: partial_name,
+                name: partial_name.to_string(),
                 source: e.into(),
             })
     }
 
     #[must_use]
-    pub fn has_partial(&self, component_id: &str) -> bool {
-        let partial_name = format!("partial_{}", component_id);
-        self.handlebars.has_template(&partial_name)
+    pub fn has_partial(&self, partial_name: &str) -> bool {
+        self.handlebars.has_template(partial_name)
     }
 
     #[must_use]

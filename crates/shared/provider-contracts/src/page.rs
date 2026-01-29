@@ -8,6 +8,7 @@ use serde_json::Value;
 pub struct PageContext<'a> {
     pub page_type: &'a str,
     pub web_config: &'a WebConfig,
+    content_config: &'a (dyn Any + Send + Sync),
     db_pool: &'a (dyn Any + Send + Sync),
 }
 
@@ -16,6 +17,7 @@ impl std::fmt::Debug for PageContext<'_> {
         f.debug_struct("PageContext")
             .field("page_type", &self.page_type)
             .field("web_config", &"<WebConfig>")
+            .field("content_config", &"<dyn Any>")
             .field("db_pool", &"<dyn Any>")
             .finish()
     }
@@ -26,13 +28,20 @@ impl<'a> PageContext<'a> {
     pub fn new(
         page_type: &'a str,
         web_config: &'a WebConfig,
+        content_config: &'a (dyn Any + Send + Sync),
         db_pool: &'a (dyn Any + Send + Sync),
     ) -> Self {
         Self {
             page_type,
             web_config,
+            content_config,
             db_pool,
         }
+    }
+
+    #[must_use]
+    pub fn content_config<T: 'static>(&self) -> Option<&T> {
+        self.content_config.downcast_ref::<T>()
     }
 
     #[must_use]
