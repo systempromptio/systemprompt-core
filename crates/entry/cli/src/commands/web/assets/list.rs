@@ -6,8 +6,8 @@ use walkdir::WalkDir;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::super::paths::WebPaths;
 use super::super::types::{AssetListOutput, AssetSummary, AssetType};
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
@@ -28,9 +28,8 @@ pub struct ListArgs {
 }
 
 pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<AssetListOutput>> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_path = profile.paths.web_path_resolved();
-    let assets_dir = Path::new(&web_path).join("assets");
+    let web_paths = WebPaths::resolve()?;
+    let assets_dir = &web_paths.assets;
 
     if !assets_dir.exists() {
         return Ok(CommandResult::table(AssetListOutput { assets: vec![] })
@@ -45,7 +44,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Asse
 
     let mut assets: Vec<AssetSummary> = Vec::new();
 
-    for entry in WalkDir::new(&assets_dir)
+    for entry in WalkDir::new(assets_dir)
         .follow_links(true)
         .into_iter()
         .filter_map(Result::ok)
@@ -57,7 +56,7 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Asse
         }
 
         let relative_path = path
-            .strip_prefix(&assets_dir)
+            .strip_prefix(assets_dir)
             .unwrap_or(path)
             .to_string_lossy()
             .to_string();

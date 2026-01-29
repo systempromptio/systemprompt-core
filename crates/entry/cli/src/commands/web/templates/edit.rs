@@ -10,8 +10,8 @@ use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::super::paths::WebPaths;
 use super::super::types::{TemplateEditOutput, TemplatesConfig};
 
 #[derive(Debug, Args)]
@@ -33,9 +33,8 @@ pub struct EditArgs {
 }
 
 pub fn execute(args: EditArgs, config: &CliConfig) -> Result<CommandResult<TemplateEditOutput>> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_path = profile.paths.web_path_resolved();
-    let templates_dir = Path::new(&web_path).join("templates");
+    let web_paths = WebPaths::resolve()?;
+    let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     let yaml_content = fs::read_to_string(&templates_yaml_path).with_context(|| {

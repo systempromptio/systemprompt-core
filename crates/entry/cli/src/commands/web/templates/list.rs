@@ -1,12 +1,11 @@
 use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
-use std::path::Path;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::super::paths::WebPaths;
 use super::super::types::{TemplateListOutput, TemplateSummary, TemplatesConfig};
 
 #[derive(Debug, Clone, Copy, Args)]
@@ -16,9 +15,8 @@ pub struct ListArgs {
 }
 
 pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<TemplateListOutput>> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_path = profile.paths.web_path_resolved();
-    let templates_dir = Path::new(&web_path).join("templates");
+    let web_paths = WebPaths::resolve()?;
+    let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     if !templates_yaml_path.exists() {
