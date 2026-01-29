@@ -7,6 +7,6 @@ pub use loader::FileSystemLoader;
 pub use loader::{EmbeddedLoader, TemplateLoader};
 pub use systemprompt_provider_contracts::{
     ComponentContext, ComponentRenderer, ExtendedData, ExtenderContext, PageContext,
-    PageDataProvider, RenderedComponent, TemplateDataExtender, TemplateDefinition,
-    TemplateProvider, TemplateSource,
+    PageDataProvider, PartialSource, PartialTemplate, RenderedComponent, TemplateDataExtender,
+    TemplateDefinition, TemplateProvider, TemplateSource,
 };

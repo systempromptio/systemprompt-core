@@ -5,7 +5,7 @@ use systemprompt_cloud::constants::storage;
 use systemprompt_content::models::ContentError;
 use systemprompt_database::DbPool;
 use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, FullWebConfig};
-use systemprompt_template_provider::{ComponentContext, PageContext};
+use systemprompt_template_provider::{ComponentContext, PageContext, RenderedComponent};
 
 use crate::prerender::utils::merge_json_data;
 use systemprompt_templates::TemplateRegistry;
@@ -174,7 +174,16 @@ pub async fn render_parent_route(params: RenderParentParams<'_>) -> Result<()> {
     let component_ctx = ComponentContext::for_list(web_config, items);
 
     for component in template_registry.components_for(&list_content_type) {
-        match component.render(&component_ctx).await {
+        let result = if component.partial_template().is_some() {
+            template_registry
+                .render_partial(component.component_id(), &parent_data)
+                .map(|html| RenderedComponent::new(component.variable_name(), html))
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        } else {
+            component.render(&component_ctx).await
+        };
+
+        match result {
             Ok(rendered) => {
                 if let Some(obj) = parent_data.as_object_mut() {
                     obj.insert(

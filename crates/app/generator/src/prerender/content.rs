@@ -3,7 +3,9 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
-use systemprompt_template_provider::{ComponentContext, ExtenderContext, PageContext};
+use systemprompt_template_provider::{
+    ComponentContext, ExtenderContext, PageContext, RenderedComponent,
+};
 
 use crate::prerender::utils::merge_json_data;
 use tokio::fs;
@@ -182,7 +184,16 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         ComponentContext::for_content(&ctx.web_config, item, all_items, popular_ids);
 
     for component in ctx.template_registry.components_for(content_type) {
-        match component.render(&component_ctx).await {
+        let result = if component.partial_template().is_some() {
+            ctx.template_registry
+                .render_partial(component.component_id(), &template_data)
+                .map(|html| RenderedComponent::new(component.variable_name(), html))
+                .map_err(|e| anyhow::anyhow!("{}", e))
+        } else {
+            component.render(&component_ctx).await
+        };
+
+        match result {
             Ok(rendered) => {
                 if let Some(obj) = template_data.as_object_mut() {
                     obj.insert(

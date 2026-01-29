@@ -2,8 +2,9 @@ pub mod traits;
 
 pub use traits::{
     ComponentContext, ComponentRenderer, EmbeddedLoader, ExtendedData, ExtenderContext,
-    PageContext, PageDataProvider, RenderedComponent, TemplateDataExtender, TemplateDefinition,
-    TemplateLoader, TemplateLoaderError, TemplateLoaderResult, TemplateProvider, TemplateSource,
+    PageContext, PageDataProvider, PartialSource, PartialTemplate, RenderedComponent,
+    TemplateDataExtender, TemplateDefinition, TemplateLoader, TemplateLoaderError,
+    TemplateLoaderResult, TemplateProvider, TemplateSource,
 };
 
 pub use systemprompt_provider_contracts::{PagePrepareContext, PagePrerenderer, PageRenderSpec};
