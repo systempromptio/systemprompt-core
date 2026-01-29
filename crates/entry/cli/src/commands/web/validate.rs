@@ -9,6 +9,7 @@ use crate::CliConfig;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::paths::WebPaths;
 use super::types::{TemplatesConfig, ValidationIssue, ValidationOutput};
 
 #[derive(Debug, Clone, Copy, ValueEnum, Default)]
@@ -32,6 +33,7 @@ pub fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<ValidationOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
+    let web_paths = WebPaths::resolve_from_profile(profile)?;
 
     let mut errors = Vec::new();
     let mut warnings = Vec::new();
@@ -42,21 +44,21 @@ pub fn execute(
         category,
         ValidationCategory::All | ValidationCategory::Config
     ) {
-        validate_config(profile, &mut errors, &mut warnings);
+        validate_config(profile, &web_paths, &mut errors, &mut warnings);
     }
 
     if matches!(
         category,
         ValidationCategory::All | ValidationCategory::Templates
     ) {
-        validate_templates(profile, &mut errors, &mut warnings);
+        validate_templates(profile, &web_paths, &mut errors, &mut warnings);
     }
 
     if matches!(
         category,
         ValidationCategory::All | ValidationCategory::Assets
     ) {
-        validate_assets(profile, &mut errors, &mut warnings);
+        validate_assets(profile, &web_paths, &mut errors, &mut warnings);
     }
 
     if matches!(
@@ -84,6 +86,7 @@ pub fn execute(
 
 fn validate_config(
     profile: &systemprompt_models::Profile,
+    web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,
 ) {
@@ -130,29 +133,21 @@ fn validate_config(
         return;
     };
 
-    let web_path = profile.paths.web_path_resolved();
-    if !Path::new(&web_path).exists() {
+    if !web_paths.templates.exists() {
         warnings.push(ValidationIssue {
             source: "config".to_string(),
-            message: format!("Web path does not exist: {}", web_path),
-            suggestion: Some("Create the web directory structure".to_string()),
-        });
-    }
-
-    let templates_dir = Path::new(&web_path).join("templates");
-    if !templates_dir.exists() {
-        warnings.push(ValidationIssue {
-            source: "config".to_string(),
-            message: format!("Templates directory not found: {}", templates_dir.display()),
+            message: format!(
+                "Templates directory not found: {}",
+                web_paths.templates.display()
+            ),
             suggestion: Some("Create the templates directory".to_string()),
         });
     }
 
-    let assets_dir = Path::new(&web_path).join("assets");
-    if !assets_dir.exists() {
+    if !web_paths.assets.exists() {
         warnings.push(ValidationIssue {
             source: "config".to_string(),
-            message: format!("Assets directory not found: {}", assets_dir.display()),
+            message: format!("Assets directory not found: {}", web_paths.assets.display()),
             suggestion: Some("Create the assets directory".to_string()),
         });
     }
@@ -160,11 +155,11 @@ fn validate_config(
 
 fn validate_templates(
     profile: &systemprompt_models::Profile,
+    web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,
     warnings: &mut Vec<ValidationIssue>,
 ) {
-    let web_path = profile.paths.web_path_resolved();
-    let templates_dir = Path::new(&web_path).join("templates");
+    let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     if !templates_yaml_path.exists() {
@@ -252,12 +247,12 @@ fn validate_templates(
 
 fn validate_assets(
     profile: &systemprompt_models::Profile,
+    web_paths: &WebPaths,
     errors: &mut Vec<ValidationIssue>,
     _warnings: &mut Vec<ValidationIssue>,
 ) {
     let web_config_path = profile.paths.web_config();
-    let web_path = profile.paths.web_path_resolved();
-    let assets_dir = Path::new(&web_path).join("assets");
+    let assets_dir = &web_paths.assets;
 
     if !assets_dir.exists() {
         return;

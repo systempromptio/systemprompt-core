@@ -8,6 +8,7 @@ use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::super::paths::WebPaths;
 use super::super::types::{AssetDetailOutput, AssetType};
 
 #[derive(Debug, Args)]
@@ -18,8 +19,8 @@ pub struct ShowArgs {
 
 pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<AssetDetailOutput>> {
     let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_path = profile.paths.web_path_resolved();
-    let assets_dir = Path::new(&web_path).join("assets");
+    let web_paths = WebPaths::resolve()?;
+    let assets_dir = &web_paths.assets;
     let asset_path = assets_dir.join(&args.path);
 
     if !asset_path.exists() {

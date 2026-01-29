@@ -1,5 +1,6 @@
 pub mod assets;
 pub mod content_types;
+pub mod paths;
 pub mod sitemap;
 pub mod templates;
 pub mod types;

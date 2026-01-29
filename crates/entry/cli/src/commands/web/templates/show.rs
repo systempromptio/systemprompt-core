@@ -4,15 +4,14 @@ use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{BufRead, BufReader};
-use std::path::Path;
 
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
+use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};
 
 #[derive(Debug, Args)]
@@ -25,9 +24,8 @@ pub struct ShowArgs {
 }
 
 pub fn execute(args: ShowArgs, config: &CliConfig) -> Result<CommandResult<TemplateDetailOutput>> {
-    let profile = ProfileBootstrap::get().context("Failed to get profile")?;
-    let web_path = profile.paths.web_path_resolved();
-    let templates_dir = Path::new(&web_path).join("templates");
+    let web_paths = WebPaths::resolve()?;
+    let templates_dir = &web_paths.templates;
     let templates_yaml_path = templates_dir.join("templates.yaml");
 
     let content = fs::read_to_string(&templates_yaml_path).with_context(|| {
