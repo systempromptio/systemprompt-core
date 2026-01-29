@@ -12,7 +12,7 @@ pub struct DefaultBrandingProvider;
 
 #[async_trait]
 impl PageDataProvider for DefaultBrandingProvider {
-    fn provider_id(&self) -> &str {
+    fn provider_id(&self) -> &'static str {
         "default-branding"
     }
 

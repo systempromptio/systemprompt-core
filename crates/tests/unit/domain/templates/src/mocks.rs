@@ -254,31 +254,31 @@ impl ComponentRenderer for MockComponent {
 }
 
 pub struct MockPageProvider {
-    id: String,
+    id: &'static str,
     applies_to_pages: Vec<String>,
     priority: u32,
 }
 
 impl MockPageProvider {
-    pub fn new(id: &str) -> Self {
+    pub fn new(id: &'static str) -> Self {
         Self {
-            id: id.to_string(),
+            id,
             applies_to_pages: Vec::new(),
             priority: 100,
         }
     }
 
-    pub fn with_applies_to(id: &str, applies_to_pages: Vec<String>) -> Self {
+    pub fn with_applies_to(id: &'static str, applies_to_pages: Vec<String>) -> Self {
         Self {
-            id: id.to_string(),
+            id,
             applies_to_pages,
             priority: 100,
         }
     }
 
-    pub fn with_priority(id: &str, priority: u32) -> Self {
+    pub fn with_priority(id: &'static str, priority: u32) -> Self {
         Self {
-            id: id.to_string(),
+            id,
             applies_to_pages: Vec::new(),
             priority,
         }
@@ -287,8 +287,8 @@ impl MockPageProvider {
 
 #[async_trait]
 impl PageDataProvider for MockPageProvider {
-    fn provider_id(&self) -> &str {
-        &self.id
+    fn provider_id(&self) -> &'static str {
+        self.id
     }
 
     fn applies_to_pages(&self) -> Vec<String> {

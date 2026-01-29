@@ -52,7 +52,7 @@ impl<'a> PageContext<'a> {
 
 #[async_trait]
 pub trait PageDataProvider: Send + Sync {
-    fn provider_id(&self) -> &str;
+    fn provider_id(&self) -> &'static str;
 
     fn applies_to_pages(&self) -> Vec<String> {
         vec![]
