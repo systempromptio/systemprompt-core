@@ -37,7 +37,7 @@ pub use content::{CategoryId, ContentId, FileId, PlaybookId, SkillId, SourceId, 
 pub use context::ContextId;
 pub use email::Email;
 pub use execution::{ArtifactId, ExecutionStepId, LogId, TokenId};
-pub use funnel::{FunnelId, FunnelProgressId};
+pub use funnel::{EngagementEventId, FunnelId, FunnelProgressId};
 pub use jobs::{JobName, ScheduledJobId};
 pub use links::{CampaignId, LinkClickId, LinkId};
 pub use mcp::{AiToolCallId, McpExecutionId, McpServerId};

@@ -1,11 +1,11 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use systemprompt_identifiers::{ContentId, SessionId, UserId};
+use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct EngagementEvent {
-    pub id: String,
+    pub id: EngagementEventId,
     pub session_id: SessionId,
     pub user_id: UserId,
     pub page_url: String,
