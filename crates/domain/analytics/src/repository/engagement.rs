@@ -3,7 +3,7 @@ use std::sync::Arc;
 use anyhow::Result;
 use sqlx::PgPool;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContentId, SessionId};
+use systemprompt_identifiers::{ContentId, EngagementEventId, SessionId};
 
 use crate::models::{CreateEngagementEventInput, EngagementEvent};
 
@@ -25,8 +25,8 @@ impl EngagementRepository {
         user_id: &str,
         content_id: Option<&ContentId>,
         input: &CreateEngagementEventInput,
-    ) -> Result<String> {
-        let id = format!("eng_{}", uuid::Uuid::new_v4());
+    ) -> Result<EngagementEventId> {
+        let id = EngagementEventId::generate();
 
         sqlx::query!(
             r#"
@@ -44,7 +44,7 @@ impl EngagementRepository {
                 $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
             )
             "#,
-            id,
+            id.as_str(),
             session_id,
             user_id,
             input.page_url,
@@ -73,12 +73,12 @@ impl EngagementRepository {
         Ok(id)
     }
 
-    pub async fn find_by_id(&self, id: &str) -> Result<Option<EngagementEvent>> {
+    pub async fn find_by_id(&self, id: &EngagementEventId) -> Result<Option<EngagementEvent>> {
         let event = sqlx::query_as!(
             EngagementEvent,
             r#"
             SELECT
-                id, session_id, user_id, page_url,
+                id as "id: EngagementEventId", session_id, user_id, page_url,
                 content_id as "content_id: ContentId",
                 time_on_page_ms, time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth, scroll_velocity_avg, scroll_direction_changes,
@@ -93,7 +93,7 @@ impl EngagementRepository {
             FROM engagement_events
             WHERE id = $1
             "#,
-            id
+            id.as_str()
         )
         .fetch_optional(&*self.pool)
         .await?;
@@ -106,7 +106,7 @@ impl EngagementRepository {
             EngagementEvent,
             r#"
             SELECT
-                id, session_id, user_id, page_url,
+                id as "id: EngagementEventId", session_id, user_id, page_url,
                 content_id as "content_id: ContentId",
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth as "max_scroll_depth!", scroll_velocity_avg, scroll_direction_changes,
@@ -135,7 +135,7 @@ impl EngagementRepository {
             EngagementEvent,
             r#"
             SELECT
-                id, session_id, user_id, page_url,
+                id as "id: EngagementEventId", session_id, user_id, page_url,
                 content_id as "content_id: ContentId",
                 time_on_page_ms as "time_on_page_ms!", time_to_first_interaction_ms, time_to_first_scroll_ms,
                 max_scroll_depth as "max_scroll_depth!", scroll_velocity_avg, scroll_direction_changes,
