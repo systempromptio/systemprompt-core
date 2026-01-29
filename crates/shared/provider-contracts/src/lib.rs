@@ -8,7 +8,9 @@ mod template;
 mod tool;
 pub mod web_config;
 
-pub use component::{ComponentContext, ComponentRenderer, RenderedComponent};
+pub use component::{
+    ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
+};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
 pub use job::{Job, JobContext, JobResult};
 pub use llm::{

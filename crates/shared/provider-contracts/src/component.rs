@@ -1,7 +1,39 @@
+use std::path::PathBuf;
+
 use crate::web_config::WebConfig;
 use anyhow::Result;
 use async_trait::async_trait;
 use serde_json::Value;
+
+#[derive(Debug, Clone)]
+pub enum PartialSource {
+    Embedded(&'static str),
+    File(PathBuf),
+}
+
+#[derive(Debug, Clone)]
+pub struct PartialTemplate {
+    pub name: String,
+    pub source: PartialSource,
+}
+
+impl PartialTemplate {
+    #[must_use]
+    pub fn embedded(name: impl Into<String>, content: &'static str) -> Self {
+        Self {
+            name: name.into(),
+            source: PartialSource::Embedded(content),
+        }
+    }
+
+    #[must_use]
+    pub fn file(name: impl Into<String>, path: impl Into<PathBuf>) -> Self {
+        Self {
+            name: name.into(),
+            source: PartialSource::File(path.into()),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct ComponentContext<'a> {
@@ -72,6 +104,10 @@ pub trait ComponentRenderer: Send + Sync {
 
     fn applies_to(&self) -> Vec<String> {
         vec![]
+    }
+
+    fn partial_template(&self) -> Option<PartialTemplate> {
+        None
     }
 
     async fn render(&self, ctx: &ComponentContext<'_>) -> Result<RenderedComponent>;

@@ -1,10 +1,11 @@
 use std::collections::HashMap;
+use std::path::Path;
 
 use handlebars::Handlebars;
 use serde_json::Value;
 use systemprompt_template_provider::{
     DynComponentRenderer, DynPageDataProvider, DynPagePrerenderer, DynTemplateDataExtender,
-    DynTemplateLoader, DynTemplateProvider, TemplateDefinition,
+    DynTemplateLoader, DynTemplateProvider, PartialSource, TemplateDefinition,
 };
 use tracing::{debug, info, warn};
 
@@ -163,12 +164,65 @@ impl TemplateRegistry {
             }
         }
 
+        self.register_partial_templates().await;
+
         info!(
             templates = self.resolved_templates.len(),
             "Template registry initialized"
         );
 
         Ok(())
+    }
+
+    async fn register_partial_templates(&mut self) {
+        for component in &self.components {
+            let Some(partial) = component.partial_template() else {
+                continue;
+            };
+
+            let content = match &partial.source {
+                PartialSource::Embedded(s) => (*s).to_string(),
+                PartialSource::File(path) => match self.load_partial_file(path).await {
+                    Ok(c) => c,
+                    Err(e) => {
+                        warn!(
+                            component_id = %component.component_id(),
+                            path = %path.display(),
+                            error = %e,
+                            "Failed to load partial template file"
+                        );
+                        continue;
+                    },
+                },
+            };
+
+            let partial_name = format!("partial_{}", component.component_id());
+            debug!(
+                component_id = %component.component_id(),
+                partial_name = %partial_name,
+                "Registering partial template"
+            );
+
+            if let Err(e) = self
+                .handlebars
+                .register_template_string(&partial_name, content)
+            {
+                warn!(
+                    component_id = %component.component_id(),
+                    error = %e,
+                    "Failed to compile partial template"
+                );
+            }
+        }
+    }
+
+    async fn load_partial_file(&self, path: &Path) -> Result<String, TemplateError> {
+        tokio::fs::read_to_string(path)
+            .await
+            .map_err(|e| TemplateError::LoadError {
+                name: path.display().to_string(),
+                source: e.into(),
+            })
     }
 
     async fn load_template(
@@ -195,6 +249,26 @@ impl TemplateRegistry {
                 name: template_name.to_string(),
                 source: e.into(),
             })
+    }
+
+    pub fn render_partial(
+        &self,
+        component_id: &str,
+        data: &Value,
+    ) -> Result<String, TemplateError> {
+        let partial_name = format!("partial_{}", component_id);
+        self.handlebars
+            .render(&partial_name, data)
+            .map_err(|e| TemplateError::RenderError {
+                name: partial_name,
+                source: e.into(),
+            })
+    }
+
+    #[must_use]
+    pub fn has_partial(&self, component_id: &str) -> bool {
+        let partial_name = format!("partial_{}", component_id);
+        self.handlebars.has_template(&partial_name)
     }
 
     #[must_use]
