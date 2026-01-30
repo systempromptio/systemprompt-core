@@ -3,6 +3,7 @@ use crate::error::LoaderError;
 use crate::Extension;
 use std::collections::HashMap;
 use std::sync::Arc;
+use systemprompt_provider_contracts::Job;
 use tracing::{debug, info, warn};
 
 pub const RESERVED_PATHS: &[&str] = &[
@@ -437,6 +438,31 @@ impl ExtensionRegistry {
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.extensions.is_empty()
+    }
+
+    #[must_use]
+    pub fn all_jobs(&self) -> Vec<Arc<dyn Job>> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| ext.jobs())
+            .collect()
+    }
+
+    #[must_use]
+    pub fn job_by_name(&self, name: &str) -> Option<Arc<dyn Job>> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| ext.jobs())
+            .find(|job| job.name() == name)
+    }
+
+    #[must_use]
+    pub fn jobs_by_tag(&self, tag: &str) -> Vec<Arc<dyn Job>> {
+        self.sorted_extensions
+            .iter()
+            .flat_map(|ext| ext.jobs())
+            .filter(|job| job.tags().contains(&tag))
+            .collect()
     }
 }
 

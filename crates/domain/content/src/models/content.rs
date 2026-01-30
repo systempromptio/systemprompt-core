@@ -115,6 +115,8 @@ pub struct IngestionReport {
     pub would_update: Vec<String>,
     #[serde(default)]
     pub unchanged_count: usize,
+    #[serde(default)]
+    pub skipped_count: usize,
 }
 
 impl IngestionReport {
@@ -127,6 +129,7 @@ impl IngestionReport {
             would_create: Vec::new(),
             would_update: Vec::new(),
             unchanged_count: 0,
+            skipped_count: 0,
         }
     }
 

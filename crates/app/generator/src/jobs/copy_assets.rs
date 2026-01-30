@@ -2,67 +2,61 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_extension::{AssetDefinition, ExtensionRegistry};
 use systemprompt_models::AppPaths;
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::JobResult;
 
-#[derive(Debug, Clone, Copy)]
-pub struct CopyExtensionAssetsJob;
+pub async fn execute_copy_extension_assets() -> Result<JobResult> {
+    let start_time = std::time::Instant::now();
 
-impl CopyExtensionAssetsJob {
-    pub async fn execute_copy() -> Result<JobResult> {
-        let start_time = std::time::Instant::now();
+    tracing::info!("Copy extension assets job started");
 
-        tracing::info!("Copy extension assets job started");
+    let paths = AppPaths::get().map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
 
-        let paths =
-            AppPaths::get().map_err(|e| anyhow::anyhow!("AppPaths not initialized: {}", e))?;
+    let registry = ExtensionRegistry::discover();
+    let assets = registry.all_required_assets(paths);
 
-        let registry = ExtensionRegistry::discover();
-        let assets = registry.all_required_assets(paths);
-
-        if assets.is_empty() {
-            let duration_ms = start_time.elapsed().as_millis() as u64;
-            tracing::info!(duration_ms, "No extension assets to copy");
-            return Ok(JobResult::success()
-                .with_stats(0, 0)
-                .with_duration(duration_ms));
-        }
-
-        let dist_dir = paths.web().dist();
-
-        let mut copied = 0u64;
-        let mut failed = 0u64;
-
-        for (ext_id, asset) in assets {
-            match copy_asset(dist_dir, ext_id, &asset).await {
-                Ok(()) => copied += 1,
-                Err(e) => {
-                    if asset.is_required() {
-                        return Err(e);
-                    }
-                    tracing::warn!(
-                        extension = %ext_id,
-                        asset = %asset.source().display(),
-                        error = %e,
-                        "Optional asset copy failed"
-                    );
-                    failed += 1;
-                },
-            }
-        }
-
+    if assets.is_empty() {
         let duration_ms = start_time.elapsed().as_millis() as u64;
-
-        tracing::info!(
-            copied,
-            failed,
-            duration_ms,
-            "Copy extension assets job completed"
-        );
-
-        Ok(JobResult::success()
-            .with_stats(copied, failed)
-            .with_duration(duration_ms))
+        tracing::info!(duration_ms, "No extension assets to copy");
+        return Ok(JobResult::success()
+            .with_stats(0, 0)
+            .with_duration(duration_ms));
     }
+
+    let dist_dir = paths.web().dist();
+
+    let mut copied = 0u64;
+    let mut failed = 0u64;
+
+    for (ext_id, asset) in assets {
+        match copy_asset(dist_dir, ext_id, &asset).await {
+            Ok(()) => copied += 1,
+            Err(e) => {
+                if asset.is_required() {
+                    return Err(e);
+                }
+                tracing::warn!(
+                    extension = %ext_id,
+                    asset = %asset.source().display(),
+                    error = %e,
+                    "Optional asset copy failed"
+                );
+                failed += 1;
+            },
+        }
+    }
+
+    let duration_ms = start_time.elapsed().as_millis() as u64;
+
+    tracing::info!(
+        copied,
+        failed,
+        duration_ms,
+        "Copy extension assets job completed"
+    );
+
+    Ok(JobResult::success()
+        .with_stats(copied, failed)
+        .with_duration(duration_ms))
 }
 
 async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> Result<()> {
@@ -92,23 +86,4 @@ async fn copy_asset(dist_dir: &Path, ext_id: &str, asset: &AssetDefinition) -> R
     );
 
     Ok(())
-}
-
-#[async_trait::async_trait]
-impl Job for CopyExtensionAssetsJob {
-    fn name(&self) -> &'static str {
-        "copy_extension_assets"
-    }
-
-    fn description(&self) -> &'static str {
-        "Copies extension assets to dist"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 */15 * * * *"
-    }
-
-    async fn execute(&self, _ctx: &JobContext) -> Result<JobResult> {
-        Self::execute_copy().await
-    }
 }

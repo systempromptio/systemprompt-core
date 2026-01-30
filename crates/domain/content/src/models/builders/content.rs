@@ -97,6 +97,9 @@ pub struct UpdateContentParams {
     pub category_id: Option<Option<CategoryId>>,
     pub public: Option<bool>,
     pub kind: Option<String>,
+    pub author: Option<String>,
+    pub published_at: Option<DateTime<Utc>>,
+    pub links: Option<serde_json::Value>,
 }
 
 impl UpdateContentParams {
@@ -112,6 +115,9 @@ impl UpdateContentParams {
             category_id: None,
             public: None,
             kind: None,
+            author: None,
+            published_at: None,
+            links: None,
         }
     }
 
@@ -143,6 +149,21 @@ impl UpdateContentParams {
 
     pub fn with_kind(mut self, kind: Option<String>) -> Self {
         self.kind = kind;
+        self
+    }
+
+    pub fn with_author(mut self, author: Option<String>) -> Self {
+        self.author = author;
+        self
+    }
+
+    pub const fn with_published_at(mut self, published_at: Option<DateTime<Utc>>) -> Self {
+        self.published_at = published_at;
+        self
+    }
+
+    pub fn with_links(mut self, links: Option<serde_json::Value>) -> Self {
+        self.links = links;
         self
     }
 }

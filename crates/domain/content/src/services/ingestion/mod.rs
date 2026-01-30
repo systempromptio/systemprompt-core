@@ -62,9 +62,8 @@ impl IngestionService {
                         IngestFileResult::WouldCreate(slug) => report.would_create.push(slug),
                         IngestFileResult::WouldUpdate(slug) => report.would_update.push(slug),
                         IngestFileResult::Unchanged => report.unchanged_count += 1,
-                        IngestFileResult::Created
-                        | IngestFileResult::Updated
-                        | IngestFileResult::Skipped => {},
+                        IngestFileResult::Skipped => report.skipped_count += 1,
+                        IngestFileResult::Created | IngestFileResult::Updated => {},
                     }
                 },
                 Err(e) => {
@@ -153,7 +152,12 @@ impl IngestionService {
                 )
                 .with_keywords(new_content.keywords.clone())
                 .with_image(new_content.image.clone())
-                .with_version_hash(new_hash);
+                .with_version_hash(new_hash)
+                .with_category_id(Some(new_content.category_id.clone()))
+                .with_kind(Some(new_content.kind.clone()))
+                .with_author(Some(new_content.author.clone()))
+                .with_published_at(Some(new_content.published_at))
+                .with_links(Some(new_content.links.clone()));
                 self.content_repo.update(&update_params).await?;
                 Ok(IngestFileResult::Updated)
             },

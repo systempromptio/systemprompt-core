@@ -69,28 +69,40 @@ pub async fn update(
 ) -> Result<Content, sqlx::Error> {
     let now = Utc::now();
 
+    let current = queries::get_by_id(pool, &params.id).await?;
+    let current_ref = current.as_ref();
+
     let category_id_value: Option<String> = match &params.category_id {
         Some(Some(cat)) => Some(cat.as_str().to_string()),
         Some(None) => None,
         None => {
-            let current = queries::get_by_id(pool, &params.id).await?;
-            current.and_then(|c| c.category_id.map(|cat| cat.as_str().to_string()))
+            current_ref.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_string()))
         },
     };
 
-    let kind_value: String = if let Some(k) = &params.kind {
-        k.clone()
-    } else {
-        let current = queries::get_by_id(pool, &params.id).await?;
-        current.map_or_else(|| ContentKind::Article.as_str().to_string(), |c| c.kind)
-    };
+    let kind_value: String = params.kind.clone().unwrap_or_else(|| {
+        current_ref.map_or_else(
+            || ContentKind::Article.as_str().to_string(),
+            |c| c.kind.clone(),
+        )
+    });
 
-    let public_value: bool = if let Some(p) = params.public {
-        p
-    } else {
-        let current = queries::get_by_id(pool, &params.id).await?;
-        current.is_some_and(|c| c.public)
-    };
+    let public_value: bool = params
+        .public
+        .unwrap_or_else(|| current_ref.is_some_and(|c| c.public));
+
+    let author_value: String = params
+        .author
+        .clone()
+        .unwrap_or_else(|| current_ref.map_or_else(String::new, |c| c.author.clone()));
+
+    let published_at_value = params
+        .published_at
+        .unwrap_or_else(|| current_ref.map_or_else(Utc::now, |c| c.published_at));
+
+    let links_value = params.links.clone().unwrap_or_else(|| {
+        current_ref.map_or_else(|| serde_json::Value::Array(vec![]), |c| c.links.clone())
+    });
 
     sqlx::query_as!(
         Content,
@@ -98,8 +110,9 @@ pub async fn update(
         UPDATE markdown_content
         SET title = $1, description = $2, body = $3, keywords = $4,
             image = $5, version_hash = $6, updated_at = $7,
-            category_id = $8, kind = $9, public = $10
-        WHERE id = $11
+            category_id = $8, kind = $9, public = $10,
+            author = $11, published_at = $12, links = $13
+        WHERE id = $14
         RETURNING id as "id: ContentId", slug, title, description, body, author,
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
@@ -117,6 +130,9 @@ pub async fn update(
         category_id_value,
         kind_value,
         public_value,
+        author_value,
+        published_at_value,
+        links_value,
         params.id.as_str()
     )
     .fetch_one(&**pool)

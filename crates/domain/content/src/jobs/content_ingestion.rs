@@ -2,37 +2,32 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use systemprompt_database::DbPool;
 use systemprompt_models::{AppPaths, ContentConfigRaw, ContentSourceConfigRaw};
-use systemprompt_traits::{Job, JobContext, JobResult};
+use systemprompt_traits::JobResult;
 
 use crate::services::IngestionService;
 use crate::{IngestionOptions, IngestionReport, IngestionSource};
-
-#[derive(Debug, Clone, Copy)]
-pub struct ContentIngestionJob;
 
 struct IngestionStats {
     processed: u64,
     errors: u64,
 }
 
-impl ContentIngestionJob {
-    pub async fn execute_ingestion(db_pool: &DbPool) -> Result<JobResult> {
-        let start_time = std::time::Instant::now();
-        log_job_started();
+pub async fn execute_content_ingestion(db_pool: &DbPool) -> Result<JobResult> {
+    let start_time = std::time::Instant::now();
+    log_job_started();
 
-        let config = load_content_config()?;
-        let ingestion_service = create_ingestion_service(db_pool)?;
-        let sources = get_enabled_sources(&config);
+    let config = load_content_config()?;
+    let ingestion_service = create_ingestion_service(db_pool)?;
+    let sources = get_enabled_sources(&config);
 
-        if sources.is_empty() {
-            return Ok(empty_sources_result(start_time));
-        }
-
-        log_processing_sources(sources.len());
-        let stats = process_all_sources(&ingestion_service, &sources).await?;
-
-        Ok(build_result(start_time, &stats))
+    if sources.is_empty() {
+        return Ok(empty_sources_result(start_time));
     }
+
+    log_processing_sources(sources.len());
+    let stats = process_all_sources(&ingestion_service, &sources).await?;
+
+    Ok(build_result(start_time, &stats))
 }
 
 fn log_job_started() {
@@ -208,28 +203,3 @@ fn build_result(start_time: std::time::Instant, stats: &IngestionStats) -> JobRe
         .with_stats(stats.processed, stats.errors)
         .with_duration(duration_ms)
 }
-
-#[async_trait::async_trait]
-impl Job for ContentIngestionJob {
-    fn name(&self) -> &'static str {
-        "content_ingestion"
-    }
-
-    fn description(&self) -> &'static str {
-        "Ingests markdown content from configured directories into the database"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 0 * * * *"
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
-        let pool = ctx
-            .db_pool::<DbPool>()
-            .ok_or_else(|| anyhow::anyhow!("Failed to get database pool from job context"))?;
-
-        Self::execute_ingestion(pool).await
-    }
-}
-
-systemprompt_provider_contracts::submit_job!(&ContentIngestionJob);

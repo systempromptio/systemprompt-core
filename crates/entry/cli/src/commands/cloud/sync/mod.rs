@@ -1,5 +1,4 @@
 pub mod admin_user;
-pub mod content;
 mod interactive;
 mod prompt;
 pub mod skills;
@@ -33,8 +32,6 @@ pub enum SyncCommands {
 
 #[derive(Debug, Subcommand)]
 pub enum LocalSyncCommands {
-    Content(ContentSyncArgs),
-
     Skills(SkillsSyncArgs),
 }
 
@@ -48,27 +45,6 @@ pub struct SyncArgs {
 
     #[arg(short, long)]
     pub verbose: bool,
-}
-
-#[derive(Debug, Args)]
-pub struct ContentSyncArgs {
-    #[arg(long, value_enum)]
-    pub direction: Option<CliLocalSyncDirection>,
-
-    #[arg(long)]
-    pub database_url: Option<String>,
-
-    #[arg(long)]
-    pub source: Option<String>,
-
-    #[arg(long)]
-    pub dry_run: bool,
-
-    #[arg(long)]
-    pub delete_orphans: bool,
-
-    #[arg(short = 'y', long, help = "Skip confirmation prompts")]
-    pub yes: bool,
 }
 
 #[derive(Debug, Args)]
@@ -110,7 +86,6 @@ pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()
 
 async fn execute_local_sync(cmd: LocalSyncCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        LocalSyncCommands::Content(args) => content::execute(args, config).await,
         LocalSyncCommands::Skills(args) => skills::execute(args, config).await,
     }
 }

@@ -3,11 +3,9 @@ pub mod delete;
 pub mod delete_source;
 mod edit;
 pub mod files;
-pub mod ingest;
 pub mod link;
 pub mod list;
 pub mod popular;
-pub mod publish;
 pub mod search;
 pub mod show;
 pub mod status;
@@ -30,9 +28,6 @@ pub enum ContentCommands {
 
     #[command(about = "Search content")]
     Search(search::SearchArgs),
-
-    #[command(about = "Ingest markdown files from directory")]
-    Ingest(ingest::IngestArgs),
 
     #[command(about = "Edit content fields")]
     Edit(edit::EditArgs),
@@ -60,12 +55,6 @@ pub enum ContentCommands {
 
     #[command(subcommand, about = "Content-file operations (link, unlink, featured)")]
     Files(files::ContentFilesCommands),
-
-    #[command(about = "Publish static content (ingest, prerender, sitemap)")]
-    Publish(publish::PublishArgs),
-
-    #[command(about = "Alias for publish", hide = true)]
-    Generate(publish::PublishArgs),
 }
 
 pub async fn execute(command: ContentCommands) -> Result<()> {
@@ -92,15 +81,6 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
                 .await
                 .context("Failed to search content")?;
             render_result(&result);
-        },
-        ContentCommands::Ingest(args) => {
-            let result = ingest::execute(args, config)
-                .await
-                .context("Failed to ingest content")?;
-            match result {
-                ingest::IngestResult::Single(r) => render_result(&r),
-                ingest::IngestResult::All(r) => render_result(&r),
-            }
         },
         ContentCommands::Edit(args) => {
             let result = edit::execute(args, config)
@@ -147,12 +127,6 @@ pub async fn execute_with_config(command: ContentCommands, config: &CliConfig) -
         ContentCommands::Files(cmd) => {
             files::execute(cmd, config).await?;
         },
-        ContentCommands::Publish(args) | ContentCommands::Generate(args) => {
-            let result = publish::execute(args, config)
-                .await
-                .context("Failed to publish content")?;
-            render_result(&result);
-        },
     }
     Ok(())
 }
@@ -196,15 +170,12 @@ pub async fn execute_with_db(
         ContentCommands::Analytics(cmd) => {
             analytics::execute_with_pool(cmd, db_ctx.db_pool(), config).await?;
         },
-        ContentCommands::Ingest(_)
-        | ContentCommands::Edit(_)
+        ContentCommands::Edit(_)
         | ContentCommands::Delete(_)
         | ContentCommands::DeleteSource(_)
         | ContentCommands::Verify(_)
         | ContentCommands::Link(_)
-        | ContentCommands::Files(_)
-        | ContentCommands::Publish(_)
-        | ContentCommands::Generate(_) => {
+        | ContentCommands::Files(_) => {
             bail!("This content command requires full profile context")
         },
     }
