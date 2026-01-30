@@ -83,12 +83,8 @@ pub async fn contents_to_json(
         })
         .collect();
 
-    for item in &mut items {
-        let content_id = item
-            .get("id")
-            .and_then(|v| v.as_str())
-            .unwrap_or_default()
-            .to_string();
+    for (item, content) in items.iter_mut().zip(contents.iter()) {
+        let content_id = content.id.to_string();
 
         for provider in providers {
             let applies = provider.applies_to_sources();
