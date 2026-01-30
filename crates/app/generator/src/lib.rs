@@ -20,6 +20,6 @@ pub use rss::{build_rss_xml, generate_feed, RssChannel, RssItem};
 pub use sitemap::{build_sitemap_index, build_sitemap_xml, generate_sitemap, SitemapUrl};
 pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapConfig};
 pub use systemprompt_templates::TemplateRegistry;
-pub use templates::{generate_footer_html, load_web_config, prepare_template_data};
+pub use templates::{load_web_config, prepare_template_data};
 
 pub use jobs::{execute_copy_extension_assets, execute_publish_content, ContentPublishJob};

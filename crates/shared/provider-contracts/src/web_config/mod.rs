@@ -1,14 +1,10 @@
 mod branding;
 mod error;
-mod navigation;
 mod paths;
 mod theme;
 
 pub use branding::{BrandingConfig, LogoConfig, LogoVariant};
 pub use error::WebConfigError;
-pub use navigation::{
-    FooterConfig, NavConfig, NavLink, NavigationConfig, SocialActionBar, SocialLink, SocialPlatform,
-};
 pub use paths::{ContentConfig, PathsConfig, ScriptConfig};
 pub use theme::{
     AnimationConfig, CardConfig, CardGradient, CardPadding, CardRadius, ColorPalette, ColorsConfig,
@@ -42,9 +38,6 @@ pub struct WebConfig {
     pub mobile: MobileConfig,
     #[serde(rename = "touchTargets")]
     pub touch_targets: TouchTargetsConfig,
-    pub navigation: NavigationConfig,
-    pub social_action_bar: SocialActionBar,
     #[serde(default)]
     pub pages: HashMap<String, serde_json::Value>,
-    pub nav: NavConfig,
 }
