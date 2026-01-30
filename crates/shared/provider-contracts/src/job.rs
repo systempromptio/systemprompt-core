@@ -1,5 +1,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -52,6 +53,7 @@ impl JobResult {
 pub struct JobContext {
     db_pool: Arc<dyn std::any::Any + Send + Sync>,
     app_context: Arc<dyn std::any::Any + Send + Sync>,
+    parameters: HashMap<String, String>,
 }
 
 impl std::fmt::Debug for JobContext {
@@ -59,6 +61,7 @@ impl std::fmt::Debug for JobContext {
         f.debug_struct("JobContext")
             .field("db_pool", &"<type-erased>")
             .field("app_context", &"<type-erased>")
+            .field("parameters", &self.parameters)
             .finish()
     }
 }
@@ -71,7 +74,13 @@ impl JobContext {
         Self {
             db_pool,
             app_context,
+            parameters: HashMap::new(),
         }
+    }
+
+    pub fn with_parameters(mut self, parameters: HashMap<String, String>) -> Self {
+        self.parameters = parameters;
+        self
     }
 
     pub fn db_pool<T: 'static>(&self) -> Option<&T> {
@@ -89,6 +98,14 @@ impl JobContext {
     pub fn app_context_arc(&self) -> Arc<dyn std::any::Any + Send + Sync> {
         Arc::clone(&self.app_context)
     }
+
+    pub fn parameters(&self) -> &HashMap<String, String> {
+        &self.parameters
+    }
+
+    pub fn get_parameter(&self, key: &str) -> Option<&String> {
+        self.parameters.get(key)
+    }
 }
 
 #[async_trait]
@@ -100,6 +117,10 @@ pub trait Job: Send + Sync + 'static {
     }
 
     fn schedule(&self) -> &'static str;
+
+    fn tags(&self) -> Vec<&'static str> {
+        vec![]
+    }
 
     async fn execute(&self, ctx: &JobContext) -> Result<JobResult>;
 

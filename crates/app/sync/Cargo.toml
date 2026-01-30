@@ -45,6 +45,13 @@ systemprompt-content = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-traits = { workspace = true }
+systemprompt-provider-contracts = { workspace = true }
+
+# Async trait
+async-trait = { workspace = true }
+inventory = { workspace = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

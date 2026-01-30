@@ -43,7 +43,7 @@ pub async fn render_components(
                         serde_json::Value::String(rendered.html),
                     );
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!(
                     component_id = %component.component_id(),
@@ -51,7 +51,7 @@ pub async fn render_components(
                     error = %e,
                     "Component render failed"
                 );
-            }
+            },
         }
     }
 }

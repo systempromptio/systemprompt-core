@@ -1,18 +1,36 @@
+use std::collections::HashSet;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_traits::Job;
 
 use super::types::{JobInfo, JobListOutput};
 use crate::shared::{CommandResult, RenderingHints};
 
 pub fn execute() -> CommandResult<JobListOutput> {
-    let jobs: Vec<JobInfo> = inventory::iter::<&'static dyn Job>
-        .into_iter()
-        .map(|job| JobInfo {
-            name: job.name().to_string(),
-            description: job.description().to_string(),
-            schedule: job.schedule().to_string(),
-            enabled: job.enabled(),
-        })
-        .collect();
+    let registry = ExtensionRegistry::discover();
+    let mut seen_names: HashSet<String> = HashSet::new();
+    let mut jobs: Vec<JobInfo> = Vec::new();
+
+    for job in registry.all_jobs() {
+        if seen_names.insert(job.name().to_string()) {
+            jobs.push(JobInfo {
+                name: job.name().to_string(),
+                description: job.description().to_string(),
+                schedule: job.schedule().to_string(),
+                enabled: job.enabled(),
+            });
+        }
+    }
+
+    for job in inventory::iter::<&'static dyn Job> {
+        if seen_names.insert(job.name().to_string()) {
+            jobs.push(JobInfo {
+                name: job.name().to_string(),
+                description: job.description().to_string(),
+                schedule: job.schedule().to_string(),
+                enabled: job.enabled(),
+            });
+        }
+    }
 
     let total = jobs.len();
     let output = JobListOutput { jobs, total };

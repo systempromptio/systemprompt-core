@@ -124,6 +124,7 @@ impl ContentLocalSync {
         &self,
         diffs: &[ContentDiffEntry],
         delete_orphans: bool,
+        override_existing: bool,
     ) -> Result<LocalSyncResult> {
         let ingestion_service = IngestionService::new(&self.db)?;
         let content_repo = ContentRepository::new(&self.db)?;
@@ -141,11 +142,14 @@ impl ContentLocalSync {
                 .ingest_directory(
                     source_path,
                     &source,
-                    IngestionOptions::default().with_recursive(true),
+                    IngestionOptions::default()
+                        .with_recursive(true)
+                        .with_override(override_existing),
                 )
                 .await?;
 
             result.items_synced += report.files_processed;
+            result.items_skipped_modified += report.skipped_count;
 
             for error in report.errors {
                 result.errors.push(error);

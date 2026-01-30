@@ -1,20 +1,18 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::Duration;
-use systemprompt_content::ContentIngestionJob;
+use systemprompt_content::execute_content_ingestion;
 use systemprompt_database::{DatabaseProvider, DbPool};
 use systemprompt_models::{AppPaths, ProfileBootstrap};
 use systemprompt_sync::PlaybooksLocalSync;
 use systemprompt_traits::{Job, JobContext, JobResult};
 
-use super::CopyExtensionAssetsJob;
+use super::execute_copy_extension_assets;
 use crate::{
     generate_feed, generate_sitemap, organize_dist_assets, prerender_content, prerender_pages,
 };
-
-#[derive(Debug, Clone, Copy)]
-pub struct PublishContentJob;
 
 struct PublishStats {
     succeeded: u64,
@@ -38,44 +36,42 @@ impl PublishStats {
     }
 }
 
-impl PublishContentJob {
-    pub async fn execute_publish(db_pool: &DbPool) -> Result<JobResult> {
-        let start_time = std::time::Instant::now();
+pub async fn execute_publish_content(db_pool: &DbPool) -> Result<JobResult> {
+    let start_time = std::time::Instant::now();
 
-        tracing::info!("Publish content job started");
+    tracing::info!("Publish content job started");
 
-        let mut stats = PublishStats::new();
+    let mut stats = PublishStats::new();
 
-        run_content_ingestion(db_pool, &mut stats).await;
-        run_playbook_sync(db_pool, &mut stats).await;
+    run_content_ingestion(db_pool, &mut stats).await;
+    run_playbook_sync(db_pool, &mut stats).await;
 
-        tokio::time::sleep(Duration::from_millis(500)).await;
+    tokio::time::sleep(Duration::from_millis(500)).await;
 
-        run_asset_copy(&mut stats).await;
-        run_prerender(db_pool, &mut stats).await;
-        run_page_prerender(db_pool, &mut stats).await;
-        run_sitemap_generation(db_pool, &mut stats).await;
-        run_rss_generation(db_pool, &mut stats).await;
-        run_css_organization(&mut stats).await;
+    run_asset_copy(&mut stats).await;
+    run_prerender(db_pool, &mut stats).await;
+    run_page_prerender(db_pool, &mut stats).await;
+    run_sitemap_generation(db_pool, &mut stats).await;
+    run_rss_generation(db_pool, &mut stats).await;
+    run_css_organization(&mut stats).await;
 
-        let duration_ms = start_time.elapsed().as_millis() as u64;
+    let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        tracing::info!(
-            steps_succeeded = stats.succeeded,
-            steps_failed = stats.failed,
-            total_steps = stats.succeeded + stats.failed,
-            duration_ms = duration_ms,
-            "Publish content job completed"
-        );
+    tracing::info!(
+        steps_succeeded = stats.succeeded,
+        steps_failed = stats.failed,
+        total_steps = stats.succeeded + stats.failed,
+        duration_ms = duration_ms,
+        "Publish content job completed"
+    );
 
-        Ok(JobResult::success()
-            .with_stats(stats.succeeded, stats.failed)
-            .with_duration(duration_ms))
-    }
+    Ok(JobResult::success()
+        .with_stats(stats.succeeded, stats.failed)
+        .with_duration(duration_ms))
 }
 
 async fn run_content_ingestion(db_pool: &DbPool, stats: &mut PublishStats) {
-    match ContentIngestionJob::execute_ingestion(db_pool).await {
+    match execute_content_ingestion(db_pool).await {
         Ok(_) => stats.record_success(),
         Err(e) => {
             tracing::error!(error = %e, "Content ingestion failed");
@@ -85,7 +81,7 @@ async fn run_content_ingestion(db_pool: &DbPool, stats: &mut PublishStats) {
 }
 
 async fn run_asset_copy(stats: &mut PublishStats) {
-    match CopyExtensionAssetsJob::execute_copy().await {
+    match execute_copy_extension_assets().await {
         Ok(_) => {
             tracing::debug!("Extension asset copy completed");
             stats.record_success();
@@ -218,35 +214,6 @@ async fn run_css_organization(stats: &mut PublishStats) {
     }
 }
 
-#[async_trait::async_trait]
-impl Job for PublishContentJob {
-    fn name(&self) -> &'static str {
-        "publish_content"
-    }
-
-    fn description(&self) -> &'static str {
-        "Publishes content through the full pipeline: ingestion, prerender, sitemap, CSS, JS"
-    }
-
-    fn schedule(&self) -> &'static str {
-        "0 */15 * * * *"
-    }
-
-    fn run_on_startup(&self) -> bool {
-        true
-    }
-
-    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
-        let pool = ctx
-            .db_pool::<DbPool>()
-            .ok_or_else(|| anyhow::anyhow!("Failed to get database pool from job context"))?;
-
-        Self::execute_publish(pool).await
-    }
-}
-
-systemprompt_provider_contracts::submit_job!(&PublishContentJob);
-
 fn get_playbooks_path() -> Option<PathBuf> {
     let profile = ProfileBootstrap::get().ok()?;
     let playbooks_path = PathBuf::from(format!("{}/playbook", profile.paths.services));
@@ -256,3 +223,39 @@ fn get_playbooks_path() -> Option<PathBuf> {
         None
     }
 }
+
+#[derive(Debug, Clone, Copy)]
+pub struct ContentPublishJob;
+
+#[async_trait]
+impl Job for ContentPublishJob {
+    fn name(&self) -> &'static str {
+        "content_publish"
+    }
+
+    fn description(&self) -> &'static str {
+        "Full content publishing pipeline: ingest, assets, prerender, sitemap, RSS"
+    }
+
+    fn schedule(&self) -> &'static str {
+        ""
+    }
+
+    fn tags(&self) -> Vec<&'static str> {
+        vec!["content", "publish", "prerender"]
+    }
+
+    fn enabled(&self) -> bool {
+        false
+    }
+
+    async fn execute(&self, ctx: &JobContext) -> Result<JobResult> {
+        let db_pool = ctx
+            .db_pool::<DbPool>()
+            .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?;
+
+        execute_publish_content(db_pool).await
+    }
+}
+
+systemprompt_provider_contracts::submit_job!(&ContentPublishJob);

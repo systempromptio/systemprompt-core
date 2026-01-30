@@ -10,13 +10,12 @@ use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
 
-use super::{content, skills, ContentSyncArgs, SkillsSyncArgs};
+use super::{skills, SkillsSyncArgs};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SyncType {
     Push,
     Pull,
-    LocalContent,
     LocalSkills,
 }
 
@@ -35,7 +34,6 @@ pub async fn execute(config: &CliConfig) -> Result<()> {
 
     match sync_type {
         SyncType::Push | SyncType::Pull => execute_cloud_sync(sync_type, &source).await,
-        SyncType::LocalContent => execute_local_content_sync(&source, config).await,
         SyncType::LocalSkills => execute_local_skills_sync(&source, config).await,
     }
 }
@@ -44,7 +42,6 @@ fn select_sync_type() -> Result<SyncType> {
     let options = vec![
         "Push to cloud (Local → Cloud)",
         "Pull from cloud (Cloud → Local)",
-        "Sync content (Disk ↔ Database)",
         "Sync skills (Disk ↔ Database)",
     ];
 
@@ -58,8 +55,7 @@ fn select_sync_type() -> Result<SyncType> {
     match selection {
         0 => Ok(SyncType::Push),
         1 => Ok(SyncType::Pull),
-        2 => Ok(SyncType::LocalContent),
-        3 => Ok(SyncType::LocalSkills),
+        2 => Ok(SyncType::LocalSkills),
         _ => bail!("Invalid selection"),
     }
 }
@@ -214,21 +210,6 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     }
 
     Ok(())
-}
-
-async fn execute_local_content_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
-
-    let args = ContentSyncArgs {
-        direction: None,
-        database_url: None,
-        source: None,
-        dry_run: false,
-        delete_orphans: false,
-        yes: false,
-    };
-
-    content::execute(args, config).await
 }
 
 async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {

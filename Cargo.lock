@@ -4919,8 +4919,10 @@ name = "systemprompt-sync"
 version = "0.0.14"
 dependencies = [
  "anyhow",
+ "async-trait",
  "chrono",
  "flate2",
+ "inventory",
  "reqwest",
  "serde",
  "serde_json",
@@ -4932,6 +4934,9 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-identifiers",
  "systemprompt-logging",
+ "systemprompt-models",
+ "systemprompt-provider-contracts",
+ "systemprompt-traits",
  "tar",
  "tempfile",
  "thiserror 2.0.18",

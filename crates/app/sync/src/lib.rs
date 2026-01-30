@@ -5,6 +5,7 @@ pub mod diff;
 pub mod error;
 pub mod export;
 pub mod files;
+pub mod jobs;
 pub mod local;
 pub mod models;
 
@@ -22,6 +23,7 @@ pub use export::{
     generate_skill_markdown,
 };
 pub use files::{FileBundle, FileEntry, FileManifest, FileSyncService};
+pub use jobs::ContentSyncJob;
 pub use local::{ContentDiffEntry, ContentLocalSync, PlaybooksLocalSync, SkillsLocalSync};
 pub use models::{
     ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, DiskPlaybook, DiskSkill,

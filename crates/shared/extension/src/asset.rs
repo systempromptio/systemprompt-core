@@ -90,6 +90,11 @@ impl AssetDefinition {
     }
 
     #[must_use]
+    pub fn js(source: impl Into<PathBuf>, destination: &'static str) -> Self {
+        Self::javascript(source, destination)
+    }
+
+    #[must_use]
     pub fn source(&self) -> &Path {
         &self.source
     }

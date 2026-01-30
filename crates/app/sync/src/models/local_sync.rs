@@ -69,6 +69,7 @@ impl SkillsDiffResult {
 pub struct LocalSyncResult {
     pub items_synced: usize,
     pub items_skipped: usize,
+    pub items_skipped_modified: usize,
     pub items_deleted: usize,
     pub errors: Vec<String>,
     pub direction: String,
