@@ -24,7 +24,12 @@ pub struct RunArgs {
     #[arg(long, help = "Run jobs sequentially instead of in parallel")]
     pub sequential: bool,
 
-    #[arg(long = "param", short = 'p', value_name = "KEY=VALUE", help = "Job parameters (can be specified multiple times)")]
+    #[arg(
+        long = "param",
+        short = 'p',
+        value_name = "KEY=VALUE",
+        help = "Job parameters (can be specified multiple times)"
+    )]
     pub params: Vec<String>,
 }
 

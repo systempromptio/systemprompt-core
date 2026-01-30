@@ -4,6 +4,12 @@ use crate::services::validation::validate_content_metadata;
 use std::path::{Path, PathBuf};
 use walkdir::WalkDir;
 
+pub struct ParsedFrontmatter {
+    pub metadata: ContentMetadata,
+    pub raw_yaml: serde_yaml::Value,
+    pub body: String,
+}
+
 pub struct ScanResult {
     pub files: Vec<PathBuf>,
     pub errors: Vec<String>,
@@ -68,7 +74,7 @@ fn validate_markdown_file(path: &Path) -> Result<(), ContentError> {
     Ok(())
 }
 
-pub fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), ContentError> {
+pub fn parse_frontmatter(markdown: &str) -> Result<ParsedFrontmatter, ContentError> {
     let parts: Vec<&str> = markdown.splitn(3, "---").collect();
 
     if parts.len() < 3 {
@@ -77,10 +83,15 @@ pub fn parse_frontmatter(markdown: &str) -> Result<(ContentMetadata, String), Co
         ));
     }
 
-    let metadata: ContentMetadata = serde_yaml::from_str(parts[1])?;
+    let raw_yaml: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
+    let metadata: ContentMetadata = serde_yaml::from_value(raw_yaml.clone())?;
     validate_content_metadata(&metadata)?;
 
-    let content = parts[2].trim().to_string();
+    let body = parts[2].trim().to_string();
 
-    Ok((metadata, content))
+    Ok(ParsedFrontmatter {
+        metadata,
+        raw_yaml,
+        body,
+    })
 }

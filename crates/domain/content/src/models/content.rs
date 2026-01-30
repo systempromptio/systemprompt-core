@@ -171,13 +171,19 @@ impl IngestionOptions {
 #[derive(Debug, Clone)]
 pub struct IngestionSource<'a> {
     pub source_id: &'a SourceId,
+    pub source_name: &'a str,
     pub category_id: &'a CategoryId,
 }
 
 impl<'a> IngestionSource<'a> {
-    pub const fn new(source_id: &'a SourceId, category_id: &'a CategoryId) -> Self {
+    pub const fn new(
+        source_id: &'a SourceId,
+        source_name: &'a str,
+        category_id: &'a CategoryId,
+    ) -> Self {
         Self {
             source_id,
+            source_name,
             category_id,
         }
     }

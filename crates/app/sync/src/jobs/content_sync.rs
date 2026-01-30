@@ -130,18 +130,12 @@ impl Job for ContentSyncJob {
 
 fn get_direction_from_params(ctx: &JobContext) -> Result<LocalSyncDirection> {
     let params = ctx.parameters();
-    let direction_str = params
-        .get("direction")
-        .map(|s| s.as_str())
-        .unwrap_or("to_db");
+    let direction_str = params.get("direction").map_or("to_db", String::as_str);
 
     match direction_str {
         "to_disk" | "to-disk" | "disk" => Ok(LocalSyncDirection::ToDisk),
         "to_db" | "to-db" | "db" | "to_database" => Ok(LocalSyncDirection::ToDatabase),
-        other => anyhow::bail!(
-            "Invalid direction '{}'. Use 'to_disk' or 'to_db'",
-            other
-        ),
+        other => anyhow::bail!("Invalid direction '{}'. Use 'to_disk' or 'to_db'", other),
     }
 }
 
@@ -156,14 +150,10 @@ fn load_content_config() -> Result<ContentConfigRaw> {
     let config_path = paths.system().content_config();
 
     if !config_path.exists() {
-        anyhow::bail!(
-            "Content config not found at: {}",
-            config_path.display()
-        );
+        anyhow::bail!("Content config not found at: {}", config_path.display());
     }
 
-    let content = std::fs::read_to_string(config_path)
-        .context("Failed to read content config")?;
+    let content = std::fs::read_to_string(config_path).context("Failed to read content config")?;
     let config: ContentConfigRaw =
         serde_yaml::from_str(&content).context("Failed to parse content config")?;
     Ok(config)

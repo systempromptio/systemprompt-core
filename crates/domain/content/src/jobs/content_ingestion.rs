@@ -102,7 +102,7 @@ async fn process_single_source(
         return Ok(());
     }
 
-    let report = ingest_source(service, &content_path, config).await;
+    let report = ingest_source(service, name, &content_path, config).await;
     update_stats_from_report(name, report, stats);
     Ok(())
 }
@@ -138,12 +138,13 @@ fn log_validation_error(err: &ValidationError) {
 
 async fn ingest_source(
     service: &IngestionService,
+    source_name: &str,
     path: &Path,
     config: &ContentSourceConfigRaw,
 ) -> Result<IngestionReport, crate::ContentError> {
     let override_existing = config.indexing.is_some_and(|i| i.override_existing);
     let recursive = config.indexing.is_some_and(|i| i.recursive);
-    let source = IngestionSource::new(&config.source_id, &config.category_id);
+    let source = IngestionSource::new(&config.source_id, source_name, &config.category_id);
 
     service
         .ingest_directory(

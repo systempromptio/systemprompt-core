@@ -6,10 +6,14 @@ use crate::models::{
     IngestionReport, IngestionSource, UpdateContentParams,
 };
 use crate::repository::ContentRepository;
+use scanner::ParsedFrontmatter;
 use sha2::{Digest, Sha256};
 use std::path::Path;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_extension::ExtensionRegistry;
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
+use systemprompt_provider_contracts::FrontmatterContext;
 
 #[derive(Debug)]
 enum IngestFileResult {
@@ -24,12 +28,14 @@ enum IngestFileResult {
 #[derive(Debug)]
 pub struct IngestionService {
     content_repo: ContentRepository,
+    db_pool: DbPool,
 }
 
 impl IngestionService {
     pub fn new(db: &DbPool) -> Result<Self, ContentError> {
         Ok(Self {
             content_repo: ContentRepository::new(db)?,
+            db_pool: Arc::clone(db),
         })
     }
 
@@ -85,16 +91,17 @@ impl IngestionService {
         dry_run: bool,
     ) -> Result<IngestFileResult, ContentError> {
         let markdown_text = std::fs::read_to_string(path)?;
-        let (metadata, content_text) = scanner::parse_frontmatter(&markdown_text)?;
+        let parsed = scanner::parse_frontmatter(&markdown_text)?;
 
-        let resolved_category_id = metadata
+        let resolved_category_id = parsed
+            .metadata
             .category
             .clone()
             .unwrap_or_else(|| source.category_id.to_string());
 
         let new_content = Self::create_content_from_metadata(
-            &metadata,
-            &content_text,
+            &parsed.metadata,
+            &parsed.body,
             source.source_id.to_string(),
             resolved_category_id,
         )?;
@@ -128,7 +135,16 @@ impl IngestionService {
                 .with_version_hash(new_hash)
                 .with_links(new_content.links.clone());
 
-                self.content_repo.create(&params).await?;
+                let created_content = self.content_repo.create(&params).await?;
+
+                self.call_frontmatter_processors(
+                    created_content.id.as_str(),
+                    &slug,
+                    source.source_name,
+                    &parsed,
+                )
+                .await;
+
                 Ok(IngestFileResult::Created)
             },
             Some(existing) => {
@@ -159,8 +175,53 @@ impl IngestionService {
                 .with_published_at(Some(new_content.published_at))
                 .with_links(Some(new_content.links.clone()));
                 self.content_repo.update(&update_params).await?;
+
+                self.call_frontmatter_processors(
+                    existing.id.as_str(),
+                    &slug,
+                    source.source_name,
+                    &parsed,
+                )
+                .await;
+
                 Ok(IngestFileResult::Updated)
             },
+        }
+    }
+
+    async fn call_frontmatter_processors(
+        &self,
+        content_id: &str,
+        slug: &str,
+        source_name: &str,
+        parsed: &ParsedFrontmatter,
+    ) {
+        let registry = ExtensionRegistry::discover();
+
+        for ext in registry.extensions() {
+            for processor in ext.frontmatter_processors() {
+                let applies = processor.applies_to_sources();
+                if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
+                    continue;
+                }
+
+                let ctx = FrontmatterContext::new(
+                    content_id,
+                    slug,
+                    source_name,
+                    &parsed.raw_yaml,
+                    &self.db_pool,
+                );
+
+                if let Err(e) = processor.process_frontmatter(&ctx).await {
+                    tracing::warn!(
+                        processor = %processor.processor_id(),
+                        content_id = %content_id,
+                        error = %e,
+                        "Frontmatter processor failed"
+                    );
+                }
+            }
         }
     }
 

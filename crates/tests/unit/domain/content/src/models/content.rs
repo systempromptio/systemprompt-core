@@ -170,9 +170,10 @@ fn test_ingestion_options_with_override_false() {
 fn test_ingestion_source_new() {
     let source_id = SourceId::new("blog");
     let category_id = CategoryId::new("tech");
-    let source = IngestionSource::new(&source_id, &category_id);
+    let source = IngestionSource::new(&source_id, "blog", &category_id);
 
     assert_eq!(source.source_id.as_str(), "blog");
+    assert_eq!(source.source_name, "blog");
     assert_eq!(source.category_id.as_str(), "tech");
 }
 
@@ -180,9 +181,10 @@ fn test_ingestion_source_new() {
 fn test_ingestion_source_different_ids() {
     let source_id = SourceId::new("docs");
     let category_id = CategoryId::new("documentation");
-    let source = IngestionSource::new(&source_id, &category_id);
+    let source = IngestionSource::new(&source_id, "docs", &category_id);
 
     assert_eq!(source.source_id.as_str(), "docs");
+    assert_eq!(source.source_name, "docs");
     assert_eq!(source.category_id.as_str(), "documentation");
 }
 
@@ -190,10 +192,11 @@ fn test_ingestion_source_different_ids() {
 fn test_ingestion_source_clone() {
     let source_id = SourceId::new("tutorials");
     let category_id = CategoryId::new("learning");
-    let source = IngestionSource::new(&source_id, &category_id);
+    let source = IngestionSource::new(&source_id, "tutorials", &category_id);
     let cloned = source.clone();
 
     assert_eq!(cloned.source_id, source.source_id);
+    assert_eq!(cloned.source_name, source.source_name);
     assert_eq!(cloned.category_id, source.category_id);
 }
 

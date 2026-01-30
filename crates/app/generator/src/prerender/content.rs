@@ -66,7 +66,13 @@ async fn process_source(
         return Ok(0);
     }
 
-    let items = contents_to_json(&contents);
+    let items = contents_to_json(
+        &contents,
+        source_name,
+        &ctx.content_data_providers,
+        &ctx.db_pool,
+    )
+    .await;
     let popular_ids = fetch_popular_ids(ctx, source_name, source.source_id.as_str())
         .await
         .map_err(|e| PublishError::fetch_failed(source_name, e.to_string()))?;
@@ -167,7 +173,9 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
 
-    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool);
+    let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
+        .with_content_item(item)
+        .with_all_items(all_items);
     let providers = ctx.template_registry.page_providers_for(content_type);
 
     for provider in &providers {

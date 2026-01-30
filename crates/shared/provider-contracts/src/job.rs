@@ -99,7 +99,7 @@ impl JobContext {
         Arc::clone(&self.app_context)
     }
 
-    pub fn parameters(&self) -> &HashMap<String, String> {
+    pub const fn parameters(&self) -> &HashMap<String, String> {
         &self.parameters
     }
 
