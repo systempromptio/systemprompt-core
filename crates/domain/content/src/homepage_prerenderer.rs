@@ -44,55 +44,6 @@ impl DefaultHomepagePrerenderer {
             display_sitename: branding.display_sitename,
         }
     }
-
-    fn generate_footer_html(web_config: &WebConfig) -> String {
-        let footer = &web_config.navigation.footer;
-        if footer.legal.is_empty() && footer.resources.is_empty() {
-            return String::new();
-        }
-
-        let mut html = String::from("<nav class=\"footer-nav\" aria-label=\"Footer navigation\">");
-
-        if !footer.legal.is_empty() {
-            html.push_str(
-                "<div class=\"footer-section\"><h3 class=\"footer-section-title\">Legal</h3><ul>",
-            );
-            for link in &footer.legal {
-                let target = if link.path.starts_with("http") {
-                    " target=\"_blank\" rel=\"noopener noreferrer\""
-                } else {
-                    ""
-                };
-                html.push_str(&format!(
-                    "<li><a href=\"{}\"{}>{}</a></li>",
-                    link.path, target, link.label
-                ));
-            }
-            html.push_str("</ul></div>");
-        }
-
-        if !footer.resources.is_empty() {
-            html.push_str(
-                "<div class=\"footer-section\"><h3 \
-                 class=\"footer-section-title\">Resources</h3><ul>",
-            );
-            for link in &footer.resources {
-                let target = if link.path.starts_with("http") {
-                    " target=\"_blank\" rel=\"noopener noreferrer\""
-                } else {
-                    ""
-                };
-                html.push_str(&format!(
-                    "<li><a href=\"{}\"{}>{}</a></li>",
-                    link.path, target, link.label
-                ));
-            }
-            html.push_str("</ul></div>");
-        }
-
-        html.push_str("</nav>");
-        html
-    }
 }
 
 struct HomepageBranding {
@@ -121,14 +72,9 @@ impl PagePrerenderer for DefaultHomepagePrerenderer {
             .ok_or_else(|| anyhow::anyhow!("ContentConfigRaw not available in context"))?;
 
         let branding = Self::extract_branding(ctx.web_config, content_config);
-        let footer_html = Self::generate_footer_html(ctx.web_config);
 
         let base_data = serde_json::json!({
             "site": ctx.web_config,
-            "nav": {
-                "app_url": "/app",
-                "blog_url": "/blog"
-            },
             "ORG_NAME": branding.org_name,
             "ORG_URL": branding.org_url,
             "ORG_LOGO": branding.org_logo,
@@ -136,7 +82,6 @@ impl PagePrerenderer for DefaultHomepagePrerenderer {
             "FAVICON_PATH": branding.favicon_path,
             "TWITTER_HANDLE": branding.twitter_handle,
             "DISPLAY_SITENAME": branding.display_sitename,
-            "FOOTER_NAV": footer_html,
             "HEADER_CTA_URL": "/",
             "JS_BASE_PATH": format!("/{}", storage::JS),
             "CSS_BASE_PATH": format!("/{}", storage::CSS)

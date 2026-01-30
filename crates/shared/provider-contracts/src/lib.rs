@@ -31,8 +31,7 @@ pub use tool::{
     ToolProviderError, ToolProviderResult,
 };
 pub use web_config::{
-    AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, FooterConfig,
-    LayoutConfig, LogoConfig, MobileConfig, NavConfig, NavLink, NavigationConfig, PathsConfig,
-    RadiusConfig, ScriptConfig, ShadowsConfig, SocialActionBar, SocialLink, SpacingConfig,
-    TouchTargetsConfig, TypographyConfig, WebConfig, WebConfigError, ZIndexConfig,
+    AnimationConfig, BrandingConfig, CardConfig, ColorsConfig, FontsConfig, LayoutConfig,
+    LogoConfig, MobileConfig, PathsConfig, RadiusConfig, ScriptConfig, ShadowsConfig,
+    SpacingConfig, TouchTargetsConfig, TypographyConfig, WebConfig, WebConfigError, ZIndexConfig,
 };

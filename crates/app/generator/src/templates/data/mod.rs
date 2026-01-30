@@ -6,7 +6,6 @@ pub use types::TemplateDataParams;
 
 use anyhow::Result;
 use serde_json::Value;
-use systemprompt_models::FullWebConfig;
 
 use crate::error::PublishError;
 
@@ -24,7 +23,6 @@ use super::html::{
     generate_social_content_html,
 };
 use super::items::{find_latest_items, find_popular_items};
-use super::navigation::{generate_footer_html, generate_social_action_bar_html};
 use crate::content::{get_absolute_image_url, normalize_image_url};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
@@ -62,7 +60,7 @@ pub async fn prepare_template_data(params: TemplateDataParams<'_>) -> Result<Val
     })
     .await?;
 
-    let navigation = prepare_navigation_html(web_config)?;
+    let navigation = (String::new(), String::new(), String::new());
     let author = extract_author(item, config)?;
     let twitter_handle = get_twitter_handle(web_config);
     let display_sitename = get_display_sitename(web_config);
@@ -179,11 +177,4 @@ async fn prepare_content_data(params: ContentDataParams<'_>) -> Result<ContentDa
         toc_html: toc_html.to_string(),
         sections_html: content_html.to_string(),
     })
-}
-
-fn prepare_navigation_html(web_config: &FullWebConfig) -> Result<(String, String, String)> {
-    let footer = generate_footer_html(web_config)?;
-    let social_bar = generate_social_action_bar_html(web_config, false);
-    let social_bar_hero = generate_social_action_bar_html(web_config, true);
-    Ok((footer, social_bar, social_bar_hero))
 }

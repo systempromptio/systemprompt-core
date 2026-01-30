@@ -11,7 +11,6 @@ use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
 
 use crate::content::{generate_content_card, generate_toc, render_markdown, CardData};
-use crate::templates::navigation::generate_footer_html;
 
 struct IndexContentData {
     title: String,
@@ -142,7 +141,7 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
         }));
     }
 
-    let footer_html = generate_footer_html(web_config)?;
+    let footer_html = String::new();
 
     let mut list_data = serde_json::json!({
         "POSTS": posts_html.join("\n"),
