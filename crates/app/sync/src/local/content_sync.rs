@@ -137,7 +137,7 @@ impl ContentLocalSync {
             let source_path = &entry.path;
             let source_id = SourceId::new(&entry.source_id);
             let category_id = CategoryId::new(&entry.category_id);
-            let source = IngestionSource::new(&source_id, &category_id);
+            let source = IngestionSource::new(&source_id, &entry.name, &category_id);
             let report = ingestion_service
                 .ingest_directory(
                     source_path,

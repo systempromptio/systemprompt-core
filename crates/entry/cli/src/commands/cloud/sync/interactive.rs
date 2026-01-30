@@ -164,7 +164,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     let direction = match sync_type {
         SyncType::Push => SyncDirection::Push,
         SyncType::Pull => SyncDirection::Pull,
-        _ => bail!("Invalid sync type for cloud sync"),
+        SyncType::LocalSkills => bail!("Invalid sync type for cloud sync"),
     };
 
     let config = SyncConfig {

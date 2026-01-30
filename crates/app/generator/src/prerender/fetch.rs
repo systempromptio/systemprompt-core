@@ -1,7 +1,11 @@
+use std::sync::Arc;
+
 use anyhow::{Context, Result};
 use systemprompt_content::models::Content;
 use systemprompt_content::ContentRepository;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
+use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};
 
 use crate::prerender::context::PrerenderContext;
 
@@ -51,8 +55,13 @@ async fn fetch_with_retries(
     )
 }
 
-pub fn contents_to_json(contents: &[Content]) -> Vec<serde_json::Value> {
-    contents
+pub async fn contents_to_json(
+    contents: &[Content],
+    source_name: &str,
+    providers: &[Arc<dyn ContentDataProvider>],
+    db_pool: &DbPool,
+) -> Vec<serde_json::Value> {
+    let mut items: Vec<serde_json::Value> = contents
         .iter()
         .map(|c| {
             serde_json::json!({
@@ -72,7 +81,35 @@ pub fn contents_to_json(contents: &[Content]) -> Vec<serde_json::Value> {
                 "links": c.links,
             })
         })
-        .collect()
+        .collect();
+
+    for item in &mut items {
+        let content_id = item
+            .get("id")
+            .and_then(|v| v.as_str())
+            .unwrap_or_default()
+            .to_string();
+
+        for provider in providers {
+            let applies = provider.applies_to_sources();
+            if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
+                continue;
+            }
+
+            let ctx = ContentDataContext::new(&content_id, source_name, db_pool);
+
+            if let Err(e) = provider.enrich_content(&ctx, item).await {
+                tracing::warn!(
+                    provider = %provider.provider_id(),
+                    content_id = %content_id,
+                    error = %e,
+                    "Content data provider enrichment failed"
+                );
+            }
+        }
+    }
+
+    items
 }
 
 pub async fn fetch_popular_ids(

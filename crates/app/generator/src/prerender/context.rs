@@ -5,6 +5,7 @@ use anyhow::{Context, Result};
 use systemprompt_database::DbPool;
 use systemprompt_extension::ExtensionRegistry;
 use systemprompt_models::{AppPaths, ContentConfigRaw, FullWebConfig};
+use systemprompt_provider_contracts::ContentDataProvider;
 use systemprompt_template_provider::{DynTemplateLoader, DynTemplateProvider, FileSystemLoader};
 use systemprompt_templates::{
     CoreTemplateProvider, EmbeddedDefaultsProvider, TemplateRegistry, TemplateRegistryBuilder,
@@ -13,13 +14,28 @@ use tokio::fs;
 
 use crate::templates::{get_templates_path, load_web_config};
 
-#[derive(Debug)]
 pub struct PrerenderContext {
     pub db_pool: DbPool,
     pub config: ContentConfigRaw,
     pub web_config: FullWebConfig,
     pub template_registry: TemplateRegistry,
     pub dist_dir: PathBuf,
+    pub content_data_providers: Vec<Arc<dyn ContentDataProvider>>,
+}
+
+impl std::fmt::Debug for PrerenderContext {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PrerenderContext")
+            .field("config", &self.config)
+            .field("web_config", &self.web_config)
+            .field("template_registry", &self.template_registry)
+            .field("dist_dir", &self.dist_dir)
+            .field(
+                "content_data_providers_count",
+                &self.content_data_providers.len(),
+            )
+            .finish_non_exhaustive()
+    }
 }
 
 pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext> {
@@ -74,13 +90,17 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
         "Discovered extensions for prerender context"
     );
 
+    let mut content_data_providers: Vec<Arc<dyn ContentDataProvider>> = Vec::new();
+
     for ext in extensions.extensions() {
         let providers = ext.page_data_providers();
         let prerenderers = ext.page_prerenderers();
+        let content_providers = ext.content_data_providers();
         tracing::debug!(
             extension_id = %ext.metadata().id,
             page_provider_count = providers.len(),
             page_prerenderer_count = prerenderers.len(),
+            content_data_provider_count = content_providers.len(),
             component_count = ext.component_renderers().len(),
             extender_count = ext.template_data_extenders().len(),
             "Extension providers discovered"
@@ -98,7 +118,10 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
         for prerenderer in prerenderers {
             registry_builder = registry_builder.with_page_prerenderer(prerenderer);
         }
+        content_data_providers.extend(content_providers);
     }
+
+    content_data_providers.sort_by_key(|p| p.priority());
 
     let template_registry = registry_builder
         .build_and_init()
@@ -117,5 +140,6 @@ pub async fn load_prerender_context(db_pool: DbPool) -> Result<PrerenderContext>
         web_config,
         template_registry,
         dist_dir,
+        content_data_providers,
     })
 }

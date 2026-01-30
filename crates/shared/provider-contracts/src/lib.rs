@@ -1,5 +1,7 @@
 mod component;
+mod content_data;
 mod extender;
+mod frontmatter;
 mod job;
 mod llm;
 mod page;
@@ -11,7 +13,9 @@ pub mod web_config;
 pub use component::{
     ComponentContext, ComponentRenderer, PartialSource, PartialTemplate, RenderedComponent,
 };
+pub use content_data::{ContentDataContext, ContentDataProvider};
 pub use extender::{ExtendedData, ExtenderContext, ExtenderContextBuilder, TemplateDataExtender};
+pub use frontmatter::{FrontmatterContext, FrontmatterProcessor};
 pub use job::{Job, JobContext, JobResult};
 pub use llm::{
     ChatMessage, ChatRequest, ChatResponse, ChatRole, ChatStream, LlmProvider, LlmProviderError,

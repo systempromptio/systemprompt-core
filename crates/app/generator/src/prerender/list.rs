@@ -169,7 +169,11 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
         }
     }
 
-    let page_ctx = PageContext::new(&list_content_type, web_config, config, db_pool);
+    let mut page_ctx =
+        PageContext::new(&list_content_type, web_config, config, db_pool).with_all_items(items);
+    if let Some(item) = index_content {
+        page_ctx = page_ctx.with_content_item(item);
+    }
     let providers = template_registry.page_providers_for(&list_content_type);
 
     for provider in &providers {
