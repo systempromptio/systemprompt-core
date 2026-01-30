@@ -7,7 +7,6 @@ use systemprompt_templates::TemplateRegistry;
 use tokio::fs;
 
 use crate::content::{generate_content_card, CardData};
-use crate::templates::navigation::generate_footer_html;
 
 pub struct GenerateParentIndexParams<'a> {
     pub source_name: &'a str,
@@ -112,7 +111,7 @@ fn build_parent_template_data(
     web_config: &FullWebConfig,
     source_name: &str,
 ) -> Result<serde_json::Value> {
-    let footer_html = generate_footer_html(web_config)?;
+    let footer_html = String::new();
 
     let org = &config.metadata.structured_data.organization;
     let branding = &web_config.branding;

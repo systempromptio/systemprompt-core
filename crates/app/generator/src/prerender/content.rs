@@ -287,16 +287,14 @@ async fn render_parent_if_enabled(
 fn determine_output_dir(dist_dir: &Path, url_pattern: &str, slug: &str) -> PathBuf {
     let path = if slug.is_empty() {
         url_pattern
-            .replace(&format!("/{}", SLUG_PLACEHOLDER), "")
-            .replace(&format!("{}/", SLUG_PLACEHOLDER), "")
+            .replace(&format!("/{SLUG_PLACEHOLDER}"), "")
+            .replace(&format!("{SLUG_PLACEHOLDER}/"), "")
             .replace(SLUG_PLACEHOLDER, "")
     } else {
         url_pattern.replace(SLUG_PLACEHOLDER, slug)
     };
-    let path = path.trim_start_matches('/');
-    if path.is_empty() {
-        dist_dir.to_path_buf()
-    } else {
-        dist_dir.join(path)
+    match path.trim_start_matches('/') {
+        "" => dist_dir.to_path_buf(),
+        p => dist_dir.join(p),
     }
 }
