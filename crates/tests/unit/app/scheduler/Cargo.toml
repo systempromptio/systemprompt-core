@@ -1,0 +1,21 @@
+[package]
+name = "systemprompt-scheduler-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-scheduler crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-scheduler = { workspace = true }
+systemprompt-models = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+chrono = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

@@ -1,0 +1,19 @@
+[package]
+name = "systemprompt-provider-contracts-tests"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Unit tests for systemprompt-provider-contracts crate"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+systemprompt-provider-contracts = { workspace = true }
+systemprompt-identifiers = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }
