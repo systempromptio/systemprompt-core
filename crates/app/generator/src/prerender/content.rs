@@ -1,5 +1,4 @@
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
@@ -13,7 +12,6 @@ use crate::error::PublishError;
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
 use crate::prerender::list::{render_list_route, RenderListParams};
-use crate::templates::data::{prepare_template_data, TemplateDataParams};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
 
@@ -154,31 +152,22 @@ async fn render_single_item(params: &RenderSingleItemParams<'_>) -> Result<()> {
     let rendered_html = render_markdown(markdown_content);
     let toc_result = generate_toc(markdown_content, &rendered_html);
 
-    let mut template_data = prepare_template_data(TemplateDataParams {
-        item,
-        all_items,
-        popular_ids,
-        config: config_value,
-        web_config: &ctx.web_config,
-        content_html: &toc_result.content_html,
-        toc_html: &toc_result.toc_html,
-        url_pattern: &sitemap_config.url_pattern,
-        db_pool: Arc::clone(&ctx.db_pool),
-        slug,
-    })
-    .await?;
-
     let content_type = item
         .get("content_type")
         .and_then(|v| v.as_str())
         .ok_or_else(|| PublishError::missing_field("content_type", slug))?;
 
+    let mut template_data = serde_json::json!({
+        "CONTENT": toc_result.content_html,
+        "TOC_HTML": toc_result.toc_html,
+        "SLUG": slug,
+    });
+
     let page_ctx = PageContext::new(content_type, &ctx.web_config, &ctx.config, &ctx.db_pool)
         .with_content_item(item)
         .with_all_items(all_items);
-    let providers = ctx.template_registry.page_providers_for(content_type);
 
-    for provider in &providers {
+    for provider in ctx.template_registry.page_providers_for(content_type) {
         let data = provider
             .provide_page_data(&page_ctx)
             .await
