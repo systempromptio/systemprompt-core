@@ -61,7 +61,7 @@ pub fn build_sitemap_index(chunks: &[Vec<SitemapUrl>], base_url: &str) -> String
     xml
 }
 
-fn escape_xml(s: &str) -> String {
+pub fn escape_xml(s: &str) -> String {
     s.replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")

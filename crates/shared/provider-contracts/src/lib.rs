@@ -6,6 +6,8 @@ mod job;
 mod llm;
 mod page;
 mod page_prerenderer;
+mod rss;
+mod sitemap;
 mod template;
 mod tool;
 pub mod web_config;
@@ -24,6 +26,10 @@ pub use llm::{
 pub use page::{PageContext, PageDataProvider};
 pub use page_prerenderer::{
     DynPagePrerenderer, PagePrepareContext, PagePrerenderer, PageRenderSpec,
+};
+pub use rss::{RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec};
+pub use sitemap::{
+    PlaceholderMapping, SitemapContext, SitemapProvider, SitemapSourceSpec, SitemapUrlEntry,
 };
 pub use template::{TemplateDefinition, TemplateProvider, TemplateSource};
 pub use tool::{

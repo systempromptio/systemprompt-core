@@ -6,6 +6,7 @@ use std::path::PathBuf;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
+use systemprompt_generator::{build_sitemap_xml, SitemapUrl};
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
@@ -105,7 +106,7 @@ pub fn execute(
             .unwrap_or(std::cmp::Ordering::Equal)
     });
 
-    let xml = generate_sitemap_xml(&urls);
+    let xml = build_sitemap_xml(&urls);
 
     fs::write(&output_path, &xml)
         .with_context(|| format!("Failed to write sitemap to {}", output_path.display()))?;
@@ -127,42 +128,6 @@ pub fn execute(
     };
 
     Ok(CommandResult::text(output).with_title("Sitemap Generated"))
-}
-
-struct SitemapUrl {
-    loc: String,
-    lastmod: String,
-    changefreq: String,
-    priority: f32,
-}
-
-fn generate_sitemap_xml(urls: &[SitemapUrl]) -> String {
-    let mut xml = String::from(concat!(
-        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n",
-        "<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\n"
-    ));
-
-    for url in urls {
-        xml.push_str(&format!(
-            "  <url>\n    <loc>{}</loc>\n    <lastmod>{}</lastmod>\n    \
-             <changefreq>{}</changefreq>\n    <priority>{:.1}</priority>\n  </url>\n",
-            escape_xml(&url.loc),
-            url.lastmod,
-            url.changefreq,
-            url.priority
-        ));
-    }
-
-    xml.push_str("</urlset>\n");
-    xml
-}
-
-fn escape_xml(s: &str) -> String {
-    s.replace('&', "&amp;")
-        .replace('<', "&lt;")
-        .replace('>', "&gt;")
-        .replace('"', "&quot;")
-        .replace('\'', "&apos;")
 }
 
 fn extract_base_url(metadata_content: &str) -> Option<String> {

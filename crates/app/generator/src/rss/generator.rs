@@ -1,94 +1,108 @@
 use super::xml::{build_rss_xml, RssChannel, RssItem};
 use anyhow::{anyhow, Context, Result};
 use std::path::Path;
-use systemprompt_content::ContentRepository;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config};
+use systemprompt_provider_contracts::{RssFeedContext, RssFeedProvider};
 use tokio::fs;
 
-const MAX_FEED_ITEMS: i64 = 20;
+use super::default_provider::DefaultRssFeedProvider;
 
-struct RssContext {
-    db_pool: DbPool,
-    base_url: String,
-    web_dir: std::path::PathBuf,
-    site_title: String,
-    site_description: String,
+#[derive(Debug, Clone)]
+pub struct GeneratedFeed {
+    pub filename: String,
+    pub xml: String,
+    pub item_count: usize,
 }
 
 pub async fn generate_feed(db_pool: DbPool) -> Result<()> {
-    let ctx = load_rss_context(db_pool)?;
-    let items = collect_feed_items(&ctx).await?;
-    write_feed_file(&ctx, items).await
-}
+    let provider = DefaultRssFeedProvider::new(Arc::clone(&db_pool)).await?;
+    let providers: Vec<Arc<dyn RssFeedProvider>> = vec![Arc::new(provider)];
+    let feeds = generate_feed_with_providers(&providers, db_pool).await?;
 
-fn load_rss_context(db_pool: DbPool) -> Result<RssContext> {
-    let global_config = Config::get()?;
     let web_dir = AppPaths::get()
         .map_err(|e| anyhow!("{}", e))?
         .web()
         .dist()
         .to_path_buf();
 
-    Ok(RssContext {
-        db_pool,
-        base_url: global_config.api_external_url.clone(),
-        web_dir,
-        site_title: "Tying Shoelaces".to_string(),
-        site_description: "Technical insights and engineering perspectives".to_string(),
-    })
-}
-
-async fn collect_feed_items(ctx: &RssContext) -> Result<Vec<RssItem>> {
-    let repo = ContentRepository::new(&ctx.db_pool)
-        .map_err(|e| anyhow!("Failed to create content repository: {}", e))?;
-
-    let source_id = SourceId::new("blog");
-    let content_items = repo
-        .list_by_source_limited(&source_id, MAX_FEED_ITEMS)
-        .await
-        .context("Failed to fetch blog content for RSS feed")?;
-
-    let items = content_items
-        .into_iter()
-        .map(|content| {
-            let link = format!("{}/blog/{}", ctx.base_url, content.slug);
-            RssItem {
-                title: content.title,
-                link: link.clone(),
-                description: content.description,
-                pub_date: content.published_at,
-                guid: link,
-                author: Some(content.author),
-            }
-        })
-        .collect();
-
-    Ok(items)
-}
-
-async fn write_feed_file(ctx: &RssContext, items: Vec<RssItem>) -> Result<()> {
-    let channel = RssChannel {
-        title: ctx.site_title.clone(),
-        link: ctx.base_url.clone(),
-        description: ctx.site_description.clone(),
-        items,
-    };
-
-    let xml = build_rss_xml(&channel);
-    let feed_path = ctx.web_dir.join("feed.xml");
-
-    ensure_parent_exists(&feed_path).await?;
-    fs::write(&feed_path, &xml).await?;
-
-    tracing::info!(
-        path = %feed_path.display(),
-        items = channel.items.len(),
-        "Generated RSS feed"
-    );
+    for feed in feeds {
+        let feed_path = web_dir.join(&feed.filename);
+        ensure_parent_exists(&feed_path).await?;
+        fs::write(&feed_path, &feed.xml).await?;
+        tracing::info!(
+            path = %feed_path.display(),
+            items = feed.item_count,
+            "Generated RSS feed"
+        );
+    }
 
     Ok(())
+}
+
+pub async fn generate_feed_with_providers(
+    providers: &[Arc<dyn RssFeedProvider>],
+    _db_pool: DbPool,
+) -> Result<Vec<GeneratedFeed>> {
+    let global_config = Config::get()?;
+    let base_url = &global_config.api_external_url;
+
+    let mut feeds = Vec::new();
+
+    for provider in providers {
+        for spec in provider.feed_specs() {
+            let ctx = RssFeedContext {
+                base_url,
+                source_name: spec.source_id.as_str(),
+            };
+
+            let metadata = provider
+                .feed_metadata(&ctx)
+                .await
+                .context("Failed to fetch feed metadata")?;
+
+            let items = provider
+                .fetch_items(&ctx, spec.max_items)
+                .await
+                .context("Failed to fetch feed items")?;
+
+            let rss_items: Vec<RssItem> = items
+                .into_iter()
+                .map(|item| RssItem {
+                    title: item.title,
+                    link: item.link,
+                    description: item.description,
+                    pub_date: item.pub_date,
+                    guid: item.guid,
+                    author: item.author,
+                })
+                .collect();
+
+            let channel = RssChannel {
+                title: metadata.title,
+                link: metadata.link,
+                description: metadata.description,
+                items: rss_items.clone(),
+            };
+
+            let xml = build_rss_xml(&channel);
+
+            feeds.push(GeneratedFeed {
+                filename: spec.output_filename,
+                xml,
+                item_count: rss_items.len(),
+            });
+        }
+    }
+
+    if feeds.is_empty() {
+        return Err(anyhow!(
+            "No RSS feeds generated. Ensure at least one RssFeedProvider is registered."
+        ));
+    }
+
+    Ok(feeds)
 }
 
 async fn ensure_parent_exists(path: &Path) -> Result<()> {

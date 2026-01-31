@@ -5,6 +5,7 @@ use systemprompt_extension::prelude::*;
 use crate::branding_provider::default_branding_provider;
 use crate::homepage_prerenderer::DefaultHomepagePrerenderer;
 use crate::list_branding_provider::default_list_branding_provider;
+use crate::list_items_renderer::default_list_items_renderer;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ContentExtension;
@@ -71,6 +72,10 @@ impl Extension for ContentExtension {
             default_branding_provider(),
             default_list_branding_provider(),
         ]
+    }
+
+    fn component_renderers(&self) -> Vec<Arc<dyn ComponentRenderer>> {
+        vec![default_list_items_renderer()]
     }
 }
 

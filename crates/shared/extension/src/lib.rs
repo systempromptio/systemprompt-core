@@ -18,7 +18,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use systemprompt_provider_contracts::{
     ComponentRenderer, ContentDataProvider, FrontmatterProcessor, Job, LlmProvider,
-    PageDataProvider, PagePrerenderer, TemplateDataExtender, TemplateProvider, ToolProvider,
+    PageDataProvider, PagePrerenderer, RssFeedProvider, SitemapProvider, TemplateDataExtender,
+    TemplateProvider, ToolProvider,
 };
 
 pub use asset::{AssetDefinition, AssetDefinitionBuilder, AssetPaths, AssetType};
@@ -270,6 +271,14 @@ pub trait Extension: Send + Sync + 'static {
         vec![]
     }
 
+    fn rss_feed_providers(&self) -> Vec<Arc<dyn RssFeedProvider>> {
+        vec![]
+    }
+
+    fn sitemap_providers(&self) -> Vec<Arc<dyn SitemapProvider>> {
+        vec![]
+    }
+
     fn required_storage_paths(&self) -> Vec<&'static str> {
         vec![]
     }
@@ -364,6 +373,14 @@ pub trait Extension: Send + Sync + 'static {
         !self.content_data_providers().is_empty()
     }
 
+    fn has_rss_feed_providers(&self) -> bool {
+        !self.rss_feed_providers().is_empty()
+    }
+
+    fn has_sitemap_providers(&self) -> bool {
+        !self.sitemap_providers().is_empty()
+    }
+
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }
@@ -441,8 +458,10 @@ pub mod prelude {
     pub use systemprompt_provider_contracts::{
         ComponentContext, ComponentRenderer, ContentDataContext, ContentDataProvider,
         FrontmatterContext, FrontmatterProcessor, PageContext, PageDataProvider,
-        PagePrepareContext, PagePrerenderer, PageRenderSpec, RenderedComponent,
-        TemplateDataExtender, TemplateDefinition, TemplateProvider, TemplateSource,
+        PagePrepareContext, PagePrerenderer, PageRenderSpec, PlaceholderMapping, RenderedComponent,
+        RssFeedContext, RssFeedItem, RssFeedMetadata, RssFeedProvider, RssFeedSpec, SitemapContext,
+        SitemapProvider, SitemapSourceSpec, SitemapUrlEntry, TemplateDataExtender,
+        TemplateDefinition, TemplateProvider, TemplateSource,
     };
 }
 
