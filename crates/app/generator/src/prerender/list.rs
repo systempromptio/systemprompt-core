@@ -54,8 +54,8 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
         "HAS_INDEX_CONTENT": index_content.is_some(),
     });
 
-    let mut page_ctx = PageContext::new(&list_content_type, web_config, config, db_pool)
-        .with_all_items(items);
+    let mut page_ctx =
+        PageContext::new(&list_content_type, web_config, config, db_pool).with_all_items(items);
 
     if let Some(item) = index_content {
         page_ctx = page_ctx.with_content_item(item);
@@ -70,7 +70,13 @@ pub async fn render_list_route(params: RenderListParams<'_>) -> Result<()> {
     }
 
     let component_ctx = ComponentContext::for_list(web_config, items);
-    render_components(template_registry, &list_content_type, &component_ctx, &mut list_data).await;
+    render_components(
+        template_registry,
+        &list_content_type,
+        &component_ctx,
+        &mut list_data,
+    )
+    .await;
 
     let list_html = template_registry
         .render(template_name, &list_data)
