@@ -1,7 +1,9 @@
 use anyhow::{anyhow, Result};
 use std::time::Instant;
 
-use crate::models::ai::{AiMessage, MessageRole, SamplingParams, SearchGroundedResponse, WebSource};
+use crate::models::ai::{
+    AiMessage, MessageRole, SamplingParams, SearchGroundedResponse, WebSource,
+};
 use crate::models::providers::openai::{
     OpenAiResponsesInput, OpenAiResponsesRequest, OpenAiResponsesResponse, OpenAiResponsesTool,
 };
@@ -17,11 +19,7 @@ pub struct SearchParams<'a> {
 }
 
 impl<'a> SearchParams<'a> {
-    pub const fn new(
-        messages: &'a [AiMessage],
-        max_output_tokens: u32,
-        model: &'a str,
-    ) -> Self {
+    pub const fn new(messages: &'a [AiMessage], max_output_tokens: u32, model: &'a str) -> Self {
         Self {
             messages,
             sampling: None,
@@ -83,7 +81,11 @@ pub async fn generate_with_web_search(
             .text()
             .await
             .unwrap_or_else(|e| format!("<error reading response: {}>", e));
-        return Err(anyhow!("OpenAI API returned status {}: {}", status, error_body));
+        return Err(anyhow!(
+            "OpenAI API returned status {}: {}",
+            status,
+            error_body
+        ));
     }
 
     let responses_response: OpenAiResponsesResponse = response
@@ -91,13 +93,13 @@ pub async fn generate_with_web_search(
         .await
         .map_err(|e| anyhow!("Failed to parse response: {}", e))?;
 
-    extract_search_response(&responses_response, start)
+    Ok(extract_search_response(&responses_response, start))
 }
 
 fn extract_search_response(
     response: &OpenAiResponsesResponse,
     start: Instant,
-) -> Result<SearchGroundedResponse> {
+) -> SearchGroundedResponse {
     let mut content_text = String::new();
     let mut sources = Vec::new();
     let mut seen_urls = std::collections::HashSet::new();
@@ -115,7 +117,9 @@ fn extract_search_response(
                     if let Some(annotations) = &content.annotations {
                         for annotation in annotations {
                             if annotation.r#type == "url_citation" {
-                                if let (Some(url), Some(title)) = (&annotation.url, &annotation.title) {
+                                if let (Some(url), Some(title)) =
+                                    (&annotation.url, &annotation.title)
+                                {
                                     if seen_urls.insert(url.clone()) {
                                         sources.push(WebSource {
                                             title: title.clone(),
@@ -134,7 +138,7 @@ fn extract_search_response(
 
     let latency_ms = start.elapsed().as_millis() as u64;
 
-    Ok(SearchGroundedResponse {
+    SearchGroundedResponse {
         content: content_text,
         sources,
         confidence_scores: Vec::new(),
@@ -144,5 +148,5 @@ fn extract_search_response(
         latency_ms,
         finish_reason: Some("stop".to_string()),
         safety_ratings: None,
-    })
+    }
 }

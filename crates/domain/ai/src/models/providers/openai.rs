@@ -236,6 +236,7 @@ pub struct OpenAiWebSearchAnnotation {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
+#[allow(clippy::struct_field_names)]
 pub struct OpenAiResponsesUsage {
     #[serde(default)]
     pub input_tokens: u32,

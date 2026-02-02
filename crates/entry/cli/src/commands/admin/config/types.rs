@@ -382,7 +382,7 @@ impl ConfigSection {
     pub fn file_path(self) -> Result<PathBuf> {
         let profile = ProfileBootstrap::get()?;
         match self {
-            ConfigSection::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
+            Self::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
         }
     }
 }
@@ -396,8 +396,7 @@ pub fn read_yaml_file(path: &PathBuf) -> Result<serde_yaml::Value> {
 }
 
 pub fn write_yaml_file(path: &PathBuf, content: &serde_yaml::Value) -> Result<()> {
-    let yaml_str = serde_yaml::to_string(content)
-        .with_context(|| "Failed to serialize YAML")?;
+    let yaml_str = serde_yaml::to_string(content).with_context(|| "Failed to serialize YAML")?;
     std::fs::write(path, yaml_str)
         .with_context(|| format!("Failed to write file: {}", path.display()))
 }

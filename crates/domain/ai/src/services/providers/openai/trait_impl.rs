@@ -6,8 +6,8 @@ use std::pin::Pin;
 use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams,
-    SearchGenerationParams, StructuredGenerationParams, ToolGenerationParams,
+    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
+    StructuredGenerationParams, ToolGenerationParams,
 };
 use crate::services::schema::ProviderCapabilities;
 
@@ -55,7 +55,6 @@ impl AiProvider for OpenAiProvider {
     fn get_pricing(&self, model: &str) -> ModelPricing {
         match model {
             "gpt-4" | "gpt-4-turbo" | "gpt-4-turbo-preview" => ModelPricing::new(0.01, 0.03),
-            "gpt-4o" | "gpt-4o-2024-08-06" => ModelPricing::new(0.0025, 0.01),
             "gpt-4o-mini" | "gpt-4o-mini-2024-07-18" => ModelPricing::new(0.00015, 0.0006),
             "gpt-3.5-turbo" | "gpt-3.5-turbo-0125" => ModelPricing::new(0.0005, 0.0015),
             "o1" | "o1-2024-12-17" => ModelPricing::new(0.015, 0.06),
