@@ -28,4 +28,4 @@ pub use systemprompt_models::{ContentConfigRaw, ContentSourceConfigRaw, SitemapC
 pub use systemprompt_templates::TemplateRegistry;
 pub use templates::load_web_config;
 
-pub use jobs::execute_copy_extension_assets;
+pub use jobs::{execute_copy_extension_assets, ContentPrerenderJob, PagePrerenderJob};
