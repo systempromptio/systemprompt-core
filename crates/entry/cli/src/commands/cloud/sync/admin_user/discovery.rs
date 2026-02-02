@@ -29,7 +29,6 @@ fn process_profile_entry(ctx: &ProjectContext, path: PathBuf) -> ProfileEntryRes
         Ok(db_url) => ProfileEntryResult::Valid(ProfileInfo {
             name,
             database_url: db_url,
-            path,
         }),
         Err(reason) => ProfileEntryResult::Skip(reason),
     }

@@ -17,36 +17,20 @@ pub struct PreSyncConfig {
 }
 
 pub struct PreSyncResult {
-    #[allow(dead_code)]
-    pub files_synced: usize,
-    #[allow(dead_code)]
-    pub skipped: bool,
     pub dry_run: bool,
 }
 
 impl PreSyncResult {
     const fn skipped() -> Self {
-        Self {
-            files_synced: 0,
-            skipped: true,
-            dry_run: false,
-        }
+        Self { dry_run: false }
     }
 
     const fn dry_run() -> Self {
-        Self {
-            files_synced: 0,
-            skipped: false,
-            dry_run: true,
-        }
+        Self { dry_run: true }
     }
 
-    const fn success(files_synced: usize) -> Self {
-        Self {
-            files_synced,
-            skipped: false,
-            dry_run: false,
-        }
+    const fn success() -> Self {
+        Self { dry_run: false }
     }
 }
 
@@ -157,7 +141,7 @@ fn handle_sync_result(
         },
         Ok(op) if op.success => {
             CliService::success(&format!("Synced {} files from cloud", op.items_synced));
-            Ok(PreSyncResult::success(op.items_synced))
+            Ok(PreSyncResult::success())
         },
         Ok(op) => {
             for err in &op.errors {

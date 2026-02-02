@@ -1,6 +1,4 @@
-use systemprompt_logging::{
-    AiRequestInfo, CliService, ConversationMessage, ExecutionStep, TaskInfo,
-};
+use systemprompt_logging::{AiRequestInfo, CliService, ExecutionStep, TaskInfo};
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
@@ -203,46 +201,4 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
     CliService::info(&table);
 
     request_ids
-}
-
-#[allow(dead_code)]
-pub fn print_system_prompt(prompt: Option<&String>) {
-    if let Some(content) = prompt {
-        print_section("SYSTEM PROMPT");
-        print_content_block(content);
-    }
-}
-
-#[allow(dead_code)]
-pub fn print_conversation_history(messages_by_request: &[(usize, Vec<ConversationMessage>)]) {
-    if messages_by_request.is_empty() {
-        return;
-    }
-
-    print_section("CONVERSATION HISTORY");
-
-    for (req_idx, messages) in messages_by_request {
-        if messages.is_empty() {
-            continue;
-        }
-
-        CliService::info(&format!("── Request {} ──", req_idx + 1));
-
-        for msg in messages {
-            let label = match msg.role.as_str() {
-                "system" => "SYSTEM",
-                "user" => "USER",
-                "assistant" => "ASSISTANT",
-                _ => &msg.role,
-            };
-
-            CliService::info(&format!("[{label}] #{}", msg.sequence_number));
-
-            if msg.role == "system" && msg.content.len() > 500 {
-                CliService::info(&format!("  [System prompt: {} chars]", msg.content.len()));
-            } else {
-                print_content_block(&msg.content);
-            }
-        }
-    }
 }
