@@ -3,15 +3,16 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiResponse, SamplingParams};
+use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, ToolGenerationParams,
+    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams,
+    SearchGenerationParams, ToolGenerationParams,
 };
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider::AnthropicProvider;
-use super::{converters, generation};
+use super::{converters, generation, search};
 
 #[async_trait]
 impl AiProvider for AnthropicProvider {
@@ -98,5 +99,26 @@ impl AiProvider for AnthropicProvider {
         let anthropic_tools = converters::convert_tools(params.tools);
         self.create_stream_request(params.base, Some(anthropic_tools))
             .await
+    }
+
+    fn supports_google_search(&self) -> bool {
+        self.web_search_enabled
+    }
+
+    async fn generate_with_google_search(
+        &self,
+        params: SearchGenerationParams<'_>,
+    ) -> Result<SearchGroundedResponse> {
+        let search_params = search::SearchParams::new(
+            params.base.messages,
+            params.base.max_output_tokens,
+            params.base.model,
+        );
+        let search_params = if let Some(sampling) = params.base.sampling {
+            search_params.with_sampling(sampling)
+        } else {
+            search_params
+        };
+        search::generate_with_web_search(self, search_params).await
     }
 }
