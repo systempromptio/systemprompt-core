@@ -133,6 +133,12 @@ impl ContextPropagation for RequestContext {
             .and_then(|v| v.to_str().ok())
             .map(|s| ClientId::new(s.to_string()));
 
+        let auth_token = hdrs
+            .get(headers::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.strip_prefix("Bearer "))
+            .map(ToString::to_string);
+
         let mut ctx = Self::new(
             SessionId::new(session_id.to_string()),
             TraceId::new(trace_id.to_string()),
@@ -155,6 +161,10 @@ impl ContextPropagation for RequestContext {
 
         if let Some(cid) = client_id {
             ctx = ctx.with_client_id(cid);
+        }
+
+        if let Some(token) = auth_token {
+            ctx = ctx.with_auth_token(token);
         }
 
         Ok(ctx)

@@ -37,7 +37,19 @@ impl A2aContextExtractor {
             context = context.with_task_id(TaskId::new(task_id_str));
         }
 
+        if let Some(auth_token) = Self::extract_bearer_token(headers) {
+            context = context.with_auth_token(auth_token);
+        }
+
         Ok(context)
+    }
+
+    fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
+        headers
+            .get("authorization")
+            .and_then(|v| v.to_str().ok())
+            .and_then(|s| s.strip_prefix("Bearer "))
+            .map(ToString::to_string)
     }
 
     fn try_from_payload(
@@ -70,6 +82,10 @@ impl A2aContextExtractor {
 
         if let Some(task_id_str) = task_id {
             context = context.with_task_id(TaskId::new(task_id_str));
+        }
+
+        if let Some(auth_token) = Self::extract_bearer_token(headers) {
+            context = context.with_auth_token(auth_token);
         }
 
         Ok(context)
