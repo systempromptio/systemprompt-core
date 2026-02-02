@@ -73,6 +73,7 @@ pub struct GeminiGroundingSupport {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GeminiTextSegment {
+    #[serde(default)]
     pub start_index: i32,
     pub end_index: i32,
     pub text: String,

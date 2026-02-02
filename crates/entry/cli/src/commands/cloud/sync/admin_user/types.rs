@@ -2,6 +2,7 @@ use anyhow::Result;
 use std::path::PathBuf;
 use systemprompt_cloud::{get_cloud_paths, CloudCredentials, CloudPath};
 
+
 #[derive(Debug, Clone)]
 pub struct CloudUser {
     pub email: String,
@@ -63,8 +64,6 @@ impl CloudUser {
 pub struct ProfileInfo {
     pub name: String,
     pub database_url: String,
-    #[allow(dead_code)]
-    pub path: PathBuf,
 }
 
 pub(super) enum ProfileEntryResult {

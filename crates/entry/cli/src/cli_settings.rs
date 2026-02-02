@@ -16,7 +16,6 @@ pub enum VerbosityLevel {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(dead_code)]
 pub enum ColorMode {
     Auto,
     Always,

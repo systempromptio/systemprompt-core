@@ -1,6 +1,5 @@
 pub mod admin_user;
 mod interactive;
-mod prompt;
 pub mod skills;
 
 use anyhow::{anyhow, Result};
