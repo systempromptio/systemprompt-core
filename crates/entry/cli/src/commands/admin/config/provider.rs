@@ -5,7 +5,7 @@ use super::types::{
     read_yaml_file, write_yaml_file, ConfigSection, ProviderInfo, ProviderListOutput,
     ProviderSetOutput,
 };
-use crate::shared::CommandResult;
+use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -44,28 +44,34 @@ pub struct DisableArgs {
     pub provider: String,
 }
 
-pub fn execute(
-    cmd: ProviderCommands,
-    _config: &CliConfig,
-) -> Result<CommandResult<serde_json::Value>> {
+pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
     match cmd {
         ProviderCommands::List(_args) => {
             let result = list_providers()?;
-            Ok(CommandResult::table(serde_json::to_value(result)?).with_title("AI Providers"))
-        },
+            render_result(
+                &CommandResult::table(serde_json::to_value(result)?).with_title("AI Providers"),
+            );
+        }
         ProviderCommands::Set(args) => {
             let result = set_default_provider(&args.provider)?;
-            Ok(CommandResult::card(serde_json::to_value(result)?).with_title("Provider Updated"))
-        },
+            render_result(
+                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Updated"),
+            );
+        }
         ProviderCommands::Enable(args) => {
             let result = set_provider_enabled(&args.provider, true)?;
-            Ok(CommandResult::card(serde_json::to_value(result)?).with_title("Provider Enabled"))
-        },
+            render_result(
+                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Enabled"),
+            );
+        }
         ProviderCommands::Disable(args) => {
             let result = set_provider_enabled(&args.provider, false)?;
-            Ok(CommandResult::card(serde_json::to_value(result)?).with_title("Provider Disabled"))
-        },
+            render_result(
+                &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Disabled"),
+            );
+        }
     }
+    Ok(())
 }
 
 fn get_ai_config_path() -> Result<std::path::PathBuf> {
@@ -139,13 +145,14 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
         .as_mapping()
         .is_some_and(|m| m.contains_key(serde_yaml::Value::String(provider.to_string())))
     {
+        let available: Vec<String> = providers
+            .as_mapping()
+            .map(|m| m.keys().filter_map(|k| k.as_str().map(String::from)).collect())
+            .unwrap_or_default();
         anyhow::bail!(
             "Unknown provider: '{}'. Available providers: {:?}",
             provider,
-            providers
-                .as_mapping()
-                .map(|m| m.keys().filter_map(|k| k.as_str()).collect::<Vec<_>>())
-                .unwrap_or_else(String::new)
+            available
         );
     }
 

@@ -1,4 +1,5 @@
 pub mod paths;
+pub mod provider;
 pub mod rate_limits;
 pub mod runtime;
 pub mod security;
@@ -31,6 +32,9 @@ pub enum ConfigCommands {
 
     #[command(subcommand, about = "Paths configuration")]
     Paths(paths::PathsCommands),
+
+    #[command(subcommand, about = "AI provider configuration")]
+    Provider(provider::ProviderCommands),
 }
 
 pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
@@ -41,6 +45,7 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
         ConfigCommands::Runtime(cmd) => runtime::execute(cmd, config),
         ConfigCommands::Security(ref cmd) => security::execute(cmd, config),
         ConfigCommands::Paths(cmd) => paths::execute(cmd, config),
+        ConfigCommands::Provider(cmd) => provider::execute(cmd, config),
     }
 }
 
