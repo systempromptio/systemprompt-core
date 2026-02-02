@@ -51,16 +51,24 @@ impl AiService {
 
         let providers = ProviderFactory::create_all(config.providers.clone(), Some(&db_pool))?;
         let default_provider = config.default_provider.clone();
-        let default_model = providers
-            .get(&default_provider)
-            .ok_or_else(|| {
-                anyhow::anyhow!(
-                    "Default provider '{}' not found or not enabled",
-                    default_provider
-                )
-            })?
-            .default_model()
-            .to_string();
+
+        let provider = providers.get(&default_provider).ok_or_else(|| {
+            anyhow::anyhow!(
+                "Default provider '{}' not found or not enabled",
+                default_provider
+            )
+        })?;
+
+        let provider_config = config.providers.get(&default_provider);
+        let default_model = provider_config
+            .and_then(|pc| {
+                if pc.default_model.is_empty() {
+                    None
+                } else {
+                    Some(pc.default_model.clone())
+                }
+            })
+            .unwrap_or_else(|| provider.default_model().to_string());
 
         let tool_discovery = Arc::new(ToolDiscovery::new(Arc::clone(&tool_provider)));
         let tooled_executor = TooledExecutor::new(Arc::clone(&tool_provider));

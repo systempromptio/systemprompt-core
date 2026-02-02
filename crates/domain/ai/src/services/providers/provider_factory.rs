@@ -20,15 +20,22 @@ impl ProviderFactory {
         }
 
         let provider: Arc<dyn AiProvider> = match name {
-            "openai" => config.endpoint.as_ref().map_or_else(
-                || Arc::new(OpenAiProvider::new(config.api_key.clone())),
-                |endpoint| {
-                    Arc::new(OpenAiProvider::with_endpoint(
-                        config.api_key.clone(),
-                        endpoint.clone(),
-                    ))
-                },
-            ),
+            "openai" => {
+                let provider = config.endpoint.as_ref().map_or_else(
+                    || OpenAiProvider::new(config.api_key.clone()),
+                    |endpoint| {
+                        OpenAiProvider::with_endpoint(config.api_key.clone(), endpoint.clone())
+                    },
+                );
+
+                let provider = if config.google_search_enabled {
+                    provider.with_web_search()
+                } else {
+                    provider
+                };
+
+                Arc::new(provider)
+            },
             "anthropic" => config.endpoint.as_ref().map_or_else(
                 || Arc::new(AnthropicProvider::new(config.api_key.clone())),
                 |endpoint| {

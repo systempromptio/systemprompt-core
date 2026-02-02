@@ -169,3 +169,78 @@ pub struct OpenAiJsonSchema {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub strict: Option<bool>,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAiResponsesRequest {
+    pub model: String,
+    pub input: Vec<OpenAiResponsesInput>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tools: Option<Vec<OpenAiResponsesTool>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub max_output_tokens: Option<u32>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OpenAiResponsesInput {
+    pub role: String,
+    pub content: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(tag = "type")]
+pub enum OpenAiResponsesTool {
+    #[serde(rename = "web_search")]
+    WebSearch {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        search_context_size: Option<String>,
+    },
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenAiResponsesResponse {
+    pub id: String,
+    pub output: Vec<OpenAiResponsesOutput>,
+    #[serde(default)]
+    pub usage: Option<OpenAiResponsesUsage>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenAiResponsesOutput {
+    pub r#type: String,
+    #[serde(default)]
+    pub content: Option<Vec<OpenAiResponsesContent>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenAiResponsesContent {
+    pub r#type: String,
+    #[serde(default)]
+    pub text: Option<String>,
+    #[serde(default)]
+    pub annotations: Option<Vec<OpenAiWebSearchAnnotation>>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct OpenAiWebSearchAnnotation {
+    pub r#type: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub title: Option<String>,
+    #[serde(default)]
+    pub start_index: Option<u32>,
+    #[serde(default)]
+    pub end_index: Option<u32>,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct OpenAiResponsesUsage {
+    #[serde(default)]
+    pub input_tokens: u32,
+    #[serde(default)]
+    pub output_tokens: u32,
+    #[serde(default)]
+    pub total_tokens: u32,
+}

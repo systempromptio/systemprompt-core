@@ -3,16 +3,16 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiResponse, SamplingParams};
+use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
-    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, StructuredGenerationParams,
-    ToolGenerationParams,
+    AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams,
+    SearchGenerationParams, StructuredGenerationParams, ToolGenerationParams,
 };
 use crate::services::schema::ProviderCapabilities;
 
 use super::provider::OpenAiProvider;
-use super::{converters, generation};
+use super::{converters, generation, search};
 
 #[async_trait]
 impl AiProvider for OpenAiProvider {
@@ -49,16 +49,19 @@ impl AiProvider for OpenAiProvider {
     }
 
     fn default_model(&self) -> &'static str {
-        "gpt-4-turbo"
+        "gpt-4o"
     }
 
     fn get_pricing(&self, model: &str) -> ModelPricing {
         match model {
             "gpt-4" | "gpt-4-turbo" | "gpt-4-turbo-preview" => ModelPricing::new(0.01, 0.03),
+            "gpt-4o" | "gpt-4o-2024-08-06" => ModelPricing::new(0.0025, 0.01),
             "gpt-4o-mini" | "gpt-4o-mini-2024-07-18" => ModelPricing::new(0.00015, 0.0006),
             "gpt-3.5-turbo" | "gpt-3.5-turbo-0125" => ModelPricing::new(0.0005, 0.0015),
             "o1" | "o1-2024-12-17" => ModelPricing::new(0.015, 0.06),
             "o1-mini" | "o1-mini-2024-09-12" => ModelPricing::new(0.003, 0.012),
+            "o3" => ModelPricing::new(0.01, 0.04),
+            "o3-mini" => ModelPricing::new(0.0011, 0.0044),
             _ => ModelPricing::new(0.0025, 0.01),
         }
     }
@@ -111,5 +114,26 @@ impl AiProvider for OpenAiProvider {
         let openai_tools = converters::convert_tools(params.tools)?;
         self.create_stream_request(params.base, Some(openai_tools))
             .await
+    }
+
+    fn supports_google_search(&self) -> bool {
+        self.web_search_enabled
+    }
+
+    async fn generate_with_google_search(
+        &self,
+        params: SearchGenerationParams<'_>,
+    ) -> Result<SearchGroundedResponse> {
+        let search_params = search::SearchParams::new(
+            params.base.messages,
+            params.base.max_output_tokens,
+            params.base.model,
+        );
+        let search_params = if let Some(sampling) = params.base.sampling {
+            search_params.with_sampling(sampling)
+        } else {
+            search_params
+        };
+        search::generate_with_web_search(self, search_params).await
     }
 }
