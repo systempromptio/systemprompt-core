@@ -187,6 +187,16 @@ pub struct AiProviderConfig {
     #[serde(default)]
     pub default_model: String,
 
+    /// Image generation model (e.g., "dall-e-3", "gpt-image-1",
+    /// "gemini-2.0-flash-exp") If not set, uses provider's built-in default
+    #[serde(default)]
+    pub default_image_model: String,
+
+    /// Preferred image resolution: "1K", "2K", or "4K"
+    /// Falls back to best supported if not available
+    #[serde(default)]
+    pub default_image_resolution: String,
+
     #[serde(default)]
     pub google_search_enabled: bool,
 
@@ -201,6 +211,8 @@ impl Default for AiProviderConfig {
             api_key: String::new(),
             endpoint: None,
             default_model: String::new(),
+            default_image_model: String::new(),
+            default_image_resolution: String::new(),
             google_search_enabled: false,
             models: HashMap::new(),
         }

@@ -64,10 +64,9 @@ impl ImageProviderFactory {
 
         let provider = base.with_model_definitions(config.models.clone());
 
-        let provider = if config.default_model.is_empty() {
-            provider
-        } else {
-            provider.with_default_model(config.default_model.clone())
+        let provider = match config.default_image_model.as_str() {
+            "" => provider,
+            model => provider.with_default_model(model.to_string()),
         };
 
         Arc::new(provider)
@@ -79,10 +78,9 @@ impl ImageProviderFactory {
             |ep| OpenAiImageProvider::with_endpoint(config.api_key.clone(), ep.clone()),
         );
 
-        let provider = if config.default_model.is_empty() {
-            base
-        } else {
-            base.with_default_model(config.default_model.clone())
+        let provider = match config.default_image_model.as_str() {
+            "" => base,
+            model => base.with_default_model(model.to_string()),
         };
 
         Arc::new(provider)

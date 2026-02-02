@@ -64,7 +64,13 @@ impl AiService {
             .values()
             .find(|p| p.supports_google_search())
             .ok_or_else(|| anyhow::anyhow!("No provider with Google Search support available"))?;
-        let model = params.model.unwrap_or_else(|| provider.default_model());
+        let model = params
+            .model
+            .or_else(|| {
+                let cfg = self.default_model();
+                (!cfg.is_empty()).then_some(cfg)
+            })
+            .unwrap_or_else(|| provider.default_model());
         let mut base = GenerationParams::new(&params.messages, model, params.max_output_tokens);
         if let Some(sampling) = params.sampling.as_ref() {
             base = base.with_sampling(sampling);
