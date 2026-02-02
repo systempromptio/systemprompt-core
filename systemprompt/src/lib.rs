@@ -148,6 +148,12 @@ pub mod scheduler {
 
 #[cfg(feature = "full")]
 #[cfg_attr(docsrs, doc(cfg(feature = "full")))]
+pub mod generator {
+    pub use systemprompt_generator::*;
+}
+
+#[cfg(feature = "full")]
+#[cfg_attr(docsrs, doc(cfg(feature = "full")))]
 pub mod files {
     pub use systemprompt_files::*;
 }
