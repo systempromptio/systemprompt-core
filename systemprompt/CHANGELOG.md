@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.0] - 2026-02-02
+
+### Added
+- Anthropic web search support via `web_search_20250305` tool
+- OpenAI web search support
+- CLI provider subcommand for AI provider management
+- Updated AI provider models with latest versions
+
+### Changed
+- First stable release milestone
+- All 30 crates now at consistent 0.1.0 version
+
 ## [0.0.14] - 2026-01-27
 
 ### Added
