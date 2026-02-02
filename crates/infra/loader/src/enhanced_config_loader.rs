@@ -202,7 +202,7 @@ impl EnhancedConfigLoader {
                 target.ai = ai;
             } else {
                 for (name, provider) in ai.providers {
-                    target.ai.providers.entry(name).or_insert(provider);
+                    target.ai.providers.insert(name, provider);
                 }
             }
         }

@@ -12,7 +12,7 @@ pub use storage::StoragePaths;
 pub use system::SystemPaths;
 pub use web::WebPaths;
 
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::OnceLock;
 
 use crate::profile::PathsConfig;
@@ -26,7 +26,6 @@ pub struct AppPaths {
     web: WebPaths,
     build: BuildPaths,
     storage: StoragePaths,
-    ai_config: Option<PathBuf>,
 }
 
 impl AppPaths {
@@ -51,7 +50,6 @@ impl AppPaths {
             web: WebPaths::from_profile(paths),
             build: BuildPaths::from_profile(paths),
             storage: StoragePaths::from_profile(paths)?,
-            ai_config: Some(PathBuf::from(paths.ai_config())),
         })
     }
 
@@ -69,10 +67,6 @@ impl AppPaths {
 
     pub const fn storage(&self) -> &StoragePaths {
         &self.storage
-    }
-
-    pub fn ai_config(&self) -> Option<&Path> {
-        self.ai_config.as_deref()
     }
 }
 

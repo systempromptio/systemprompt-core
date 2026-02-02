@@ -94,6 +94,7 @@ fn build_agent_command(
         .arg(port.to_string())
         .envs(std::env::vars())
         .env("SYSTEMPROMPT_PROFILE", profile_path)
+        .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("JWT_SECRET", &secrets.jwt_secret)
         .env("DATABASE_URL", &secrets.database_url)
         .env("AGENT_NAME", agent_name)
