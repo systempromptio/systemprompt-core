@@ -79,9 +79,6 @@ impl Default for SchedulerConfig {
                 JobConfig::new("database_cleanup")
                     .with_extension("core")
                     .with_schedule("0 0 4 * * *"),
-                JobConfig::new("publish_content")
-                    .with_extension("content")
-                    .with_schedule("0 */30 * * * *"),
             ],
             bootstrap_jobs: default_bootstrap_jobs(),
         }
