@@ -72,6 +72,7 @@ full = [
     "dep:systemprompt-content",
     "dep:systemprompt-analytics",
     "dep:systemprompt-scheduler",
+    "dep:systemprompt-generator",
     "dep:systemprompt-logging",
     "dep:systemprompt-config",
     "dep:systemprompt-files",
@@ -103,6 +104,7 @@ systemprompt-security = { workspace = true, optional = true }
 # Application
 systemprompt-sync = { workspace = true, optional = true }
 systemprompt-runtime = { workspace = true, optional = true }
+systemprompt-generator = { workspace = true, optional = true }
 
 # Entry points
 systemprompt-api = { workspace = true, optional = true }
