@@ -36,15 +36,22 @@ impl ProviderFactory {
 
                 Arc::new(provider)
             },
-            "anthropic" => config.endpoint.as_ref().map_or_else(
-                || Arc::new(AnthropicProvider::new(config.api_key.clone())),
-                |endpoint| {
-                    Arc::new(AnthropicProvider::with_endpoint(
-                        config.api_key.clone(),
-                        endpoint.clone(),
-                    ))
-                },
-            ),
+            "anthropic" => {
+                let provider = config.endpoint.as_ref().map_or_else(
+                    || AnthropicProvider::new(config.api_key.clone()),
+                    |endpoint| {
+                        AnthropicProvider::with_endpoint(config.api_key.clone(), endpoint.clone())
+                    },
+                );
+
+                let provider = if config.google_search_enabled {
+                    provider.with_web_search()
+                } else {
+                    provider
+                };
+
+                Arc::new(provider)
+            },
             "gemini" => {
                 let mut provider = if let Some(endpoint) = &config.endpoint {
                     GeminiProvider::with_endpoint(config.api_key.clone(), endpoint.clone())?
