@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.0] - 2026-02-02
+
+### Added
+- `systemprompt admin provider` subcommand for AI provider management
+- List, show, enable/disable AI providers from CLI
+
+### Fixed
+- Resolve clippy errors and warnings
+
+### Changed
+- First stable release milestone
+- All crates now at consistent 0.1.0 version
+
 ## [0.0.13] - 2026-01-27
 
 ### Changed

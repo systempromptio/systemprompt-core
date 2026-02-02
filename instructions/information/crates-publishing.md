@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.0.14` (SQLx Offline Mode, UI Metadata - January 27, 2026)
+**Current Version:** `0.1.0` (First Stable Release - February 2, 2026)
 
 All **30 crates** have been published to crates.io.
 

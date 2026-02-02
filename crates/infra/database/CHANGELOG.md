@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.0] - 2026-02-02
+
+### Changed
+- First stable release milestone
+- All crates now at consistent 0.1.0 version
+
 ## [0.0.14] - 2026-01-27
 
 ### Changed

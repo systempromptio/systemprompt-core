@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.0] - 2026-02-02
+
+### Added
+- Anthropic web search support via `web_search_20250305` tool
+- OpenAI web search support
+- Updated AI provider models with latest versions
+
+### Fixed
+- Use correct model configs for image providers and search capabilities
+
+### Changed
+- First stable release milestone
+- All crates now at consistent 0.1.0 version
+
 ## [0.0.13] - 2026-01-27
 
 ### Changed
