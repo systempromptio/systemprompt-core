@@ -1,8 +1,10 @@
 use anyhow::{Context, Result};
-use std::fs;
-use std::path::Path;
+use std::fs::{self, File};
+use std::path::{Path, PathBuf};
 use std::process::Command;
-use systemprompt_models::{AppPaths, CliPaths, Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{
+    AppPaths, CliPaths, Config, ProfileBootstrap, Secrets, SecretsBootstrap,
+};
 
 use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult};
 
@@ -18,20 +20,8 @@ fn rotate_log_if_needed(log_path: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    let paths = AppPaths::get()
-        .map_err(|e| OrchestrationError::ProcessSpawnFailed(format!("Failed to get paths: {e}")))?;
-
-    let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
-    })?;
-
-    let config = Config::get().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get config: {e}"))
-    })?;
-
-    let log_dir = paths.system().logs();
-    if let Err(e) = fs::create_dir_all(&log_dir) {
+fn prepare_agent_log_file(agent_name: &str, log_dir: &Path) -> OrchestrationResult<File> {
+    if let Err(e) = fs::create_dir_all(log_dir) {
         tracing::error!(
             error = %e,
             path = %log_dir.display(),
@@ -48,7 +38,7 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
         );
     }
 
-    let log_file = fs::OpenOptions::new()
+    fs::OpenOptions::new()
         .create(true)
         .append(true)
         .open(&log_file_path)
@@ -58,36 +48,10 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
                 log_file_path.display(),
                 e
             ))
-        })?;
+        })
+}
 
-    let secrets = SecretsBootstrap::get().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get secrets: {e}"))
-    })?;
-
-    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
-        OrchestrationError::ProcessSpawnFailed(format!("Failed to get profile path: {e}"))
-    })?;
-
-    let mut command = Command::new(&binary_path);
-    for arg in CliPaths::agent_run_args() {
-        command.arg(arg);
-    }
-    command
-        .arg("--agent-name")
-        .arg(agent_name)
-        .arg("--port")
-        .arg(port.to_string())
-        .envs(std::env::vars())
-        .env("SYSTEMPROMPT_PROFILE", profile_path)
-        .env("JWT_SECRET", &secrets.jwt_secret)
-        .env("DATABASE_URL", &secrets.database_url)
-        .env("AGENT_NAME", agent_name)
-        .env("AGENT_PORT", port.to_string())
-        .env("DATABASE_TYPE", &config.database_type)
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::from(log_file))
-        .stdin(std::process::Stdio::null());
-
+fn configure_secrets_env(command: &mut Command, secrets: &Secrets) {
     if let Some(ref key) = secrets.gemini {
         command.env("GEMINI_API_KEY", key);
     }
@@ -108,13 +72,78 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
             command.env(key, value);
         }
     }
+}
+
+fn build_agent_command(
+    binary_path: &PathBuf,
+    agent_name: &str,
+    port: u16,
+    profile_path: &str,
+    secrets: &Secrets,
+    config: &Config,
+    log_file: File,
+) -> Command {
+    let mut command = Command::new(binary_path);
+    for arg in CliPaths::agent_run_args() {
+        command.arg(arg);
+    }
+    command
+        .arg("--agent-name")
+        .arg(agent_name)
+        .arg("--port")
+        .arg(port.to_string())
+        .envs(std::env::vars())
+        .env("SYSTEMPROMPT_PROFILE", profile_path)
+        .env("JWT_SECRET", &secrets.jwt_secret)
+        .env("DATABASE_URL", &secrets.database_url)
+        .env("AGENT_NAME", agent_name)
+        .env("AGENT_PORT", port.to_string())
+        .env("DATABASE_TYPE", &config.database_type)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::from(log_file))
+        .stdin(std::process::Stdio::null());
+
+    configure_secrets_env(&mut command, secrets);
+    command
+}
+
+pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
+    let paths = AppPaths::get()
+        .map_err(|e| OrchestrationError::ProcessSpawnFailed(format!("Failed to get paths: {e}")))?;
+
+    let binary_path = paths.build().resolve_binary("systemprompt").map_err(|e| {
+        OrchestrationError::ProcessSpawnFailed(format!("Failed to find systemprompt binary: {e}"))
+    })?;
+
+    let config = Config::get().map_err(|e| {
+        OrchestrationError::ProcessSpawnFailed(format!("Failed to get config: {e}"))
+    })?;
+
+    let secrets = SecretsBootstrap::get().map_err(|e| {
+        OrchestrationError::ProcessSpawnFailed(format!("Failed to get secrets: {e}"))
+    })?;
+
+    let profile_path = ProfileBootstrap::get_path().map_err(|e| {
+        OrchestrationError::ProcessSpawnFailed(format!("Failed to get profile path: {e}"))
+    })?;
+
+    let log_file = prepare_agent_log_file(agent_name, &paths.system().logs())?;
+
+    let mut command = build_agent_command(
+        &binary_path,
+        agent_name,
+        port,
+        profile_path,
+        &secrets,
+        &config,
+        log_file,
+    );
 
     let child = command.spawn().map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))
     })?;
 
     let pid = child.id();
-
     std::mem::forget(child);
 
     if !verify_process_started(pid) {
@@ -164,6 +193,10 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
 }
 
 pub async fn terminate_gracefully(pid: u32, timeout_secs: u64) -> Result<()> {
+    if !process_exists(pid) {
+        return Ok(());
+    }
+
     terminate_process(pid)?;
 
     let check_interval = tokio::time::Duration::from_millis(100);

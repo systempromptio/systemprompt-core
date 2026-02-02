@@ -28,6 +28,9 @@ pub enum SyncCommands {
 
     #[command(subcommand)]
     Local(LocalSyncCommands),
+
+    #[command(about = "Sync cloud user as admin to all local profiles")]
+    AdminUser(AdminUserSyncArgs),
 }
 
 #[derive(Debug, Subcommand)]
@@ -68,15 +71,29 @@ pub struct SkillsSyncArgs {
     pub yes: bool,
 }
 
+#[derive(Debug, Args)]
+pub struct AdminUserSyncArgs {
+    #[arg(short, long, help = "Show detailed discovery information")]
+    pub verbose: bool,
+
+    #[arg(long, help = "Specific profile to sync (default: all profiles)")]
+    pub profile: Option<String>,
+
+    #[arg(long, help = "Override database URL (requires --profile)")]
+    pub database_url: Option<String>,
+}
+
 pub async fn execute(cmd: Option<SyncCommands>, config: &CliConfig) -> Result<()> {
     match cmd {
         Some(SyncCommands::Push(args)) => execute_cloud_sync(SyncDirection::Push, args).await,
         Some(SyncCommands::Pull(args)) => execute_cloud_sync(SyncDirection::Pull, args).await,
         Some(SyncCommands::Local(cmd)) => execute_local_sync(cmd, config).await,
+        Some(SyncCommands::AdminUser(args)) => execute_admin_user_sync(args).await,
         None => {
             if !config.is_interactive() {
                 return Err(anyhow!(
-                    "Sync subcommand required in non-interactive mode. Use push, pull, or local."
+                    "Sync subcommand required in non-interactive mode. Use push, pull, local, or \
+                     admin-user."
                 ));
             }
             interactive::execute(config).await
@@ -88,6 +105,47 @@ async fn execute_local_sync(cmd: LocalSyncCommands, config: &CliConfig) -> Resul
     match cmd {
         LocalSyncCommands::Skills(args) => skills::execute(args, config).await,
     }
+}
+
+async fn execute_admin_user_sync(args: AdminUserSyncArgs) -> Result<()> {
+    CliService::section("Admin User Sync");
+
+    let cloud_user = admin_user::CloudUser::from_credentials()?
+        .ok_or_else(|| anyhow!("Not logged in. Run 'systemprompt cloud auth login' first."))?;
+
+    CliService::key_value("Cloud User", &cloud_user.email);
+
+    if let Some(profile_name) = &args.profile {
+        let database_url = if let Some(url) = &args.database_url {
+            url.clone()
+        } else {
+            let discovery = admin_user::discover_profiles()?;
+            discovery
+                .profiles
+                .into_iter()
+                .find(|p| &p.name == profile_name)
+                .map(|p| p.database_url)
+                .ok_or_else(|| {
+                    anyhow!(
+                        "Profile '{}' not found or has no database_url",
+                        profile_name
+                    )
+                })?
+        };
+
+        let result =
+            admin_user::sync_admin_to_database(&cloud_user, &database_url, profile_name).await;
+        admin_user::print_sync_results(&[result]);
+    } else {
+        if args.database_url.is_some() {
+            return Err(anyhow!("--database-url requires --profile"));
+        }
+
+        let results = admin_user::sync_admin_to_all_profiles(&cloud_user, args.verbose).await;
+        admin_user::print_sync_results(&results);
+    }
+
+    Ok(())
 }
 
 async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<()> {

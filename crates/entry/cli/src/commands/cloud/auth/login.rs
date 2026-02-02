@@ -3,7 +3,7 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use systemprompt_cloud::{
     get_cloud_paths, run_oauth_flow, CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates,
-    TenantStore,
+    TenantInfo, TenantStore, UserMeResponse,
 };
 use systemprompt_logging::CliService;
 
@@ -70,12 +70,20 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
 
     CliService::section("Syncing Admin User to Profiles");
     if let Some(cloud_user) = crate::cloud::sync::admin_user::CloudUser::from_credentials()? {
-        let results = crate::cloud::sync::admin_user::sync_admin_to_all_profiles(&cloud_user).await;
+        let verbose = config.should_show_verbose();
+        let results =
+            crate::cloud::sync::admin_user::sync_admin_to_all_profiles(&cloud_user, verbose).await;
         crate::cloud::sync::admin_user::print_sync_results(&results);
     } else {
         CliService::warning("Could not load cloud user for admin sync");
     }
 
+    print_login_result(&response);
+
+    Ok(())
+}
+
+fn print_login_result(response: &UserMeResponse) {
     CliService::section("User");
     CliService::key_value("Email", &response.user.email);
     if let Some(name) = &response.user.name {
@@ -88,33 +96,36 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
         CliService::key_value("ID", &customer.id);
     }
 
-    if response.tenants.is_empty() {
+    print_tenants(&response.tenants);
+}
+
+fn print_tenants(tenants: &[TenantInfo]) {
+    if tenants.is_empty() {
         CliService::info("No cloud tenants found.");
         CliService::info("Run 'systemprompt cloud tenant create' to create a local tenant.");
-    } else {
-        CliService::section("Available Tenants");
-        for tenant in &response.tenants {
-            let status_str = tenant
-                .subscription_status
-                .map_or_else(|| "Unknown".to_string(), |s| format!("{s:?}"));
-            CliService::key_value(&tenant.name, &status_str);
-            if let Some(plan) = &tenant.plan {
-                CliService::info(&format!(
-                    "  Plan: {} ({}MB RAM, {}GB storage)",
-                    plan.name, plan.memory_mb, plan.volume_gb
-                ));
-            }
-            if let Some(region) = &tenant.region {
-                CliService::info(&format!("  Region: {region}"));
-            }
-            if let Some(hostname) = &tenant.hostname {
-                CliService::info(&format!("  URL: https://{hostname}"));
-            }
-        }
-        CliService::info("");
-        CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
-        CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
+        return;
     }
 
-    Ok(())
+    CliService::section("Available Tenants");
+    for tenant in tenants {
+        let status_str = tenant
+            .subscription_status
+            .map_or_else(|| "Unknown".to_string(), |s| format!("{s:?}"));
+        CliService::key_value(&tenant.name, &status_str);
+        if let Some(plan) = &tenant.plan {
+            CliService::info(&format!(
+                "  Plan: {} ({}MB RAM, {}GB storage)",
+                plan.name, plan.memory_mb, plan.volume_gb
+            ));
+        }
+        if let Some(region) = &tenant.region {
+            CliService::info(&format!("  Region: {region}"));
+        }
+        if let Some(hostname) = &tenant.hostname {
+            CliService::info(&format!("  URL: https://{hostname}"));
+        }
+    }
+    CliService::info("");
+    CliService::info("Run 'systemprompt cloud tenant create' to add a local tenant,");
+    CliService::info("then 'systemprompt cloud profile create <name>' to create a profile.");
 }
