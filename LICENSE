@@ -10,7 +10,22 @@ Licensor:             Edward Jack Burton
 Licensed Work:        systemprompt
                       The Licensed Work is (c) 2025 Edward Jack Burton.
 
-Additional Use Grant: You may use the Licensed Work in production.
+Additional Use Grant: You may use the Licensed Work in production,
+                      provided that you may NOT:
+
+                      (a) Offer the Licensed Work as a hosted or managed
+                          service to third parties;
+
+                      (b) Use the Licensed Work, in whole or in part, to
+                          create a product or service that competes with
+                          any product or service offered by the Licensor;
+
+                      (c) Use the Licensed Work, including its source code,
+                          documentation, or outputs, as training data for
+                          machine learning or artificial intelligence models;
+
+                      (d) Remove or obscure any licensing, copyright, or
+                          attribution notices.
 
 Change Date:          Four years from the date each version of the Licensed
                       Work is published.
