@@ -304,9 +304,7 @@ pub enum AnthropicWebSearchResultItem {
         page_age: Option<String>,
     },
     #[serde(rename = "web_search_tool_result_error")]
-    Error {
-        error_code: String,
-    },
+    Error { error_code: String },
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]

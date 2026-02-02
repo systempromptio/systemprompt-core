@@ -1,7 +1,9 @@
 use crate::error::{AiError, Result};
 use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::repository::AiRequestRepository;
-use crate::services::providers::image_provider_trait::BoxedImageProvider;
+use crate::services::providers::image_provider_trait::{
+    BoxedImageProvider, ImageProviderCapabilities,
+};
 use crate::services::storage::{ImageStorage, StorageConfig};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -85,6 +87,20 @@ impl ImageService {
 
     pub fn list_providers(&self) -> Vec<String> {
         self.providers.keys().cloned().collect()
+    }
+
+    pub fn default_provider_name(&self) -> Option<&str> {
+        self.default_provider.as_deref()
+    }
+
+    pub fn get_default_provider(&self) -> Option<&BoxedImageProvider> {
+        self.default_provider
+            .as_ref()
+            .and_then(|name| self.providers.get(name))
+    }
+
+    pub fn default_provider_capabilities(&self) -> Option<ImageProviderCapabilities> {
+        self.get_default_provider().map(|p| p.capabilities())
     }
 
     pub async fn generate_image(

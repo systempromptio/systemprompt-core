@@ -49,9 +49,9 @@ pub async fn generate_with_web_search(
 
     let (system_prompt, anthropic_messages) = converters::convert_messages(params.messages);
 
-    let (temperature, top_p, top_k) = params.sampling.map_or((None, None, None), |s| {
-        (s.temperature, s.top_p, s.top_k)
-    });
+    let (temperature, top_p, top_k) = params
+        .sampling
+        .map_or((None, None, None), |s| (s.temperature, s.top_p, s.top_k));
 
     let web_search_tool = AnthropicServerTool::WebSearch {
         name: "web_search".to_string(),
@@ -98,13 +98,13 @@ pub async fn generate_with_web_search(
         .await
         .map_err(|e| anyhow!("Failed to parse response: {}", e))?;
 
-    extract_search_response(&search_response, start)
+    Ok(extract_search_response(&search_response, start))
 }
 
 fn extract_search_response(
     response: &AnthropicSearchResponse,
     start: Instant,
-) -> Result<SearchGroundedResponse> {
+) -> SearchGroundedResponse {
     let mut content_text = String::new();
     let mut sources = Vec::new();
     let mut web_search_queries = Vec::new();
@@ -151,7 +151,7 @@ fn extract_search_response(
     let latency_ms = start.elapsed().as_millis() as u64;
     let tokens_used = Some(response.usage.input_tokens + response.usage.output_tokens);
 
-    Ok(SearchGroundedResponse {
+    SearchGroundedResponse {
         content: content_text,
         sources,
         confidence_scores: Vec::new(),
@@ -161,5 +161,5 @@ fn extract_search_response(
         latency_ms,
         finish_reason: response.stop_reason.clone(),
         safety_ratings: None,
-    })
+    }
 }

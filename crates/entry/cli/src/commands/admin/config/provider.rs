@@ -23,8 +23,8 @@ pub enum ProviderCommands {
     Disable(DisableArgs),
 }
 
-#[derive(Debug, Clone, Args)]
-pub struct ListArgs {}
+#[derive(Debug, Clone, Copy, Args)]
+pub struct ListArgs;
 
 #[derive(Debug, Clone, Args)]
 pub struct SetArgs {
@@ -51,25 +51,25 @@ pub fn execute(cmd: ProviderCommands, _config: &CliConfig) -> Result<()> {
             render_result(
                 &CommandResult::table(serde_json::to_value(result)?).with_title("AI Providers"),
             );
-        }
+        },
         ProviderCommands::Set(args) => {
             let result = set_default_provider(&args.provider)?;
             render_result(
                 &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Updated"),
             );
-        }
+        },
         ProviderCommands::Enable(args) => {
             let result = set_provider_enabled(&args.provider, true)?;
             render_result(
                 &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Enabled"),
             );
-        }
+        },
         ProviderCommands::Disable(args) => {
             let result = set_provider_enabled(&args.provider, false)?;
             render_result(
                 &CommandResult::card(serde_json::to_value(result)?).with_title("Provider Disabled"),
             );
-        }
+        },
     }
     Ok(())
 }
@@ -102,7 +102,7 @@ fn list_providers() -> Result<ProviderListOutput> {
 
             let enabled = config
                 .get("enabled")
-                .and_then(|v| v.as_bool())
+                .and_then(serde_yaml::Value::as_bool)
                 .unwrap_or(true);
 
             let model = config
@@ -147,7 +147,11 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
     {
         let available: Vec<String> = providers
             .as_mapping()
-            .map(|m| m.keys().filter_map(|k| k.as_str().map(String::from)).collect())
+            .map(|m| {
+                m.keys()
+                    .filter_map(|k| k.as_str().map(String::from))
+                    .collect()
+            })
             .unwrap_or_default();
         anyhow::bail!(
             "Unknown provider: '{}'. Available providers: {:?}",
@@ -156,13 +160,11 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
         );
     }
 
-    if let Some(ai) = content.get_mut("ai") {
-        if let serde_yaml::Value::Mapping(ai_map) = ai {
-            ai_map.insert(
-                serde_yaml::Value::String("default_provider".to_string()),
-                serde_yaml::Value::String(provider.to_string()),
-            );
-        }
+    if let Some(serde_yaml::Value::Mapping(ai_map)) = content.get_mut("ai") {
+        ai_map.insert(
+            serde_yaml::Value::String("default_provider".to_string()),
+            serde_yaml::Value::String(provider.to_string()),
+        );
     }
 
     write_yaml_file(&file_path, &content)?;
