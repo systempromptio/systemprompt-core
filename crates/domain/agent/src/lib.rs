@@ -72,3 +72,5 @@ pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
     ContextService, PlaybookIngestionService, PlaybookService, SkillIngestionService, SkillService,
 };
+
+pub use repository::content::ArtifactRepository;

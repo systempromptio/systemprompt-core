@@ -30,6 +30,14 @@ impl NetworkManager {
         port_manager::wait_for_port_release(port).await
     }
 
+    pub async fn wait_for_port_release_with_retry(
+        &self,
+        port: u16,
+        max_attempts: u32,
+    ) -> Result<()> {
+        port_manager::wait_for_port_release_with_retry(port, max_attempts).await
+    }
+
     pub const fn cleanup_port_resources(port: u16) {
         port_manager::cleanup_port_resources(port);
     }

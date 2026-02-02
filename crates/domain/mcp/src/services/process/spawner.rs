@@ -63,6 +63,10 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
 
     let mut child_command = Command::new(&binary_path);
 
+    let ai_config_path = paths
+        .ai_config()
+        .context("AI_CONFIG_PATH not configured - cannot spawn MCP server")?;
+
     child_command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("JWT_SECRET", &secrets.jwt_secret)
@@ -71,7 +75,9 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
         .env("MCP_SERVICE_ID", &config.name)
         .env("MCP_PORT", config.port.to_string())
         .env("MCP_TOOLS_CONFIG", &tools_config_json)
-        .env("MCP_SERVER_MODEL_CONFIG", &server_model_config_json);
+        .env("MCP_SERVER_MODEL_CONFIG", &server_model_config_json)
+        .env("AI_CONFIG_PATH", ai_config_path)
+        .env("SYSTEM_PATH", paths.system().root());
 
     if let Some(key) = &secrets.gemini {
         child_command.env("GEMINI_API_KEY", key);
@@ -87,10 +93,10 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
     }
 
     if !secrets.custom.is_empty() {
-        let custom_keys: Vec<&str> = secrets.custom.keys().map(String::as_str).collect();
-        child_command.env("SYSTEMPROMPT_CUSTOM_SECRETS", custom_keys.join(","));
-        for (key, value) in &secrets.custom {
-            child_command.env(key, value);
+        let uppercase_keys = secrets.custom_env_var_names();
+        child_command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
+        for (env_name, value) in secrets.custom_env_vars() {
+            child_command.env(env_name, value);
         }
     }
 

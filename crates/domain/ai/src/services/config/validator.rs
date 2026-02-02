@@ -19,21 +19,27 @@ impl ConfigValidator {
             config.providers.iter().filter(|(_, c)| c.enabled).collect();
 
         if enabled_providers.is_empty() {
-            let mut error_msg =
-                String::from("No AI providers are enabled. Check your config file:\n\n");
+            let mut error_msg = String::from("No AI providers are enabled.\n\n");
 
             if missing_env_vars.is_empty() {
-                error_msg.push_str("- Ensure at least one provider has 'enabled: true'\n");
-                error_msg.push_str(
-                    "- Verify API keys are set (GEMINI_API_KEY, ANTHROPIC_API_KEY, or \
-                     OPENAI_API_KEY in .env)\n",
-                );
+                error_msg.push_str("To fix, configure AI providers in your services.yaml:\n\n");
+                error_msg.push_str("  ai:\n");
+                error_msg.push_str("    default_provider: gemini\n");
+                error_msg.push_str("    providers:\n");
+                error_msg.push_str("      gemini:\n");
+                error_msg.push_str("        enabled: true\n");
+                error_msg.push_str("        api_key: \"${GEMINI_API_KEY}\"\n");
+                error_msg.push_str("        default_model: gemini-2.5-flash-lite\n\n");
+                error_msg.push_str("And add the API key to your secrets.json:\n\n");
+                error_msg.push_str("  { \"gemini\": \"your-api-key-here\" }\n\n");
+                error_msg.push_str("Supported providers: gemini, anthropic, openai\n");
             } else {
-                error_msg.push_str("Providers disabled due to missing environment variables:\n");
+                error_msg.push_str("Providers disabled due to missing secrets:\n");
                 for env_var_message in missing_env_vars {
                     error_msg.push_str(&format!("  - {env_var_message}\n"));
                 }
-                error_msg.push_str("\nTo fix: Set the required API keys in your .env file\n");
+                error_msg
+                    .push_str("\nTo fix: Add the required API keys to your secrets.json file\n");
             }
 
             error_msg.push_str(&format!(
@@ -47,10 +53,10 @@ impl ConfigValidator {
         for (name, provider_config) in &enabled_providers {
             if provider_config.api_key.is_empty() {
                 return Err(anyhow!(
-                    "Provider '{}' is enabled but has no API key.\nFix: Set {}_API_KEY in your \
-                     .env file",
+                    "Provider '{}' is enabled but has no API key.\n\nFix: Add '\"{}\"' key to \
+                     your secrets.json file",
                     name,
-                    name.to_uppercase()
+                    name
                 ));
             }
 

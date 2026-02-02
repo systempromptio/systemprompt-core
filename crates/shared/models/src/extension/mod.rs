@@ -67,6 +67,9 @@ pub struct Extension {
 
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub commands: Vec<CliCommand>,
+
+    #[serde(default)]
+    pub supports_json_output: bool,
 }
 
 const fn default_true() -> bool {
@@ -115,5 +118,9 @@ impl DiscoveredExtension {
 
     pub const fn build_type(&self) -> BuildType {
         self.manifest.extension.build_type
+    }
+
+    pub const fn supports_json_output(&self) -> bool {
+        self.manifest.extension.supports_json_output
     }
 }

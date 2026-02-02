@@ -197,6 +197,20 @@ impl EnhancedConfigLoader {
             target.scheduler = partial.scheduler;
         }
 
+        if let Some(ai) = partial.ai {
+            if target.ai.providers.is_empty() && !ai.providers.is_empty() {
+                target.ai = ai;
+            } else {
+                for (name, provider) in ai.providers {
+                    target.ai.providers.entry(name).or_insert(provider);
+                }
+            }
+        }
+
+        if let Some(web) = partial.web {
+            target.web = web;
+        }
+
         Ok(())
     }
 
