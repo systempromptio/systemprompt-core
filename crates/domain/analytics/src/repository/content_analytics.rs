@@ -54,16 +54,29 @@ impl ContentAnalyticsRepository {
         sqlx::query_as!(
             ContentStatsRow,
             r#"
+            WITH page_view_stats AS (
+                SELECT
+                    COUNT(*) as total_views,
+                    COUNT(DISTINCT user_id) as unique_visitors
+                FROM analytics_events
+                WHERE event_type = 'page_view'
+                    AND timestamp >= $1 AND timestamp < $2
+            ),
+            engagement_stats AS (
+                SELECT
+                    COALESCE(AVG(time_on_page_ms) / 1000.0, 0) as avg_time_on_page_seconds,
+                    COALESCE(AVG(max_scroll_depth), 0) as avg_scroll_depth,
+                    COALESCE(SUM(click_count), 0) as total_clicks
+                FROM engagement_events
+                WHERE created_at >= $1 AND created_at < $2
+            )
             SELECT
-                COUNT(*)::bigint as "total_views!",
-                COUNT(DISTINCT ae.session_id)::bigint as "unique_visitors!",
-                COALESCE(AVG(ee.time_on_page_ms) / 1000.0, 0)::float8 as "avg_time_on_page_seconds",
-                COALESCE(AVG(ee.max_scroll_depth), 0)::float8 as "avg_scroll_depth",
-                COALESCE(SUM(ee.click_count), 0)::bigint as "total_clicks!"
-            FROM analytics_events ae
-            LEFT JOIN engagement_events ee ON ae.session_id = ee.session_id
-            WHERE ae.event_type = 'page_view'
-                AND ae.timestamp >= $1 AND ae.timestamp < $2
+                pv.total_views::bigint as "total_views!",
+                pv.unique_visitors::bigint as "unique_visitors!",
+                es.avg_time_on_page_seconds::float8 as "avg_time_on_page_seconds",
+                es.avg_scroll_depth::float8 as "avg_scroll_depth",
+                es.total_clicks::bigint as "total_clicks!"
+            FROM page_view_stats pv, engagement_stats es
             "#,
             start,
             end

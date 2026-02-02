@@ -63,12 +63,9 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
 
     let mut child_command = Command::new(&binary_path);
 
-    let ai_config_path = paths
-        .ai_config()
-        .context("AI_CONFIG_PATH not configured - cannot spawn MCP server")?;
-
     child_command
         .env("SYSTEMPROMPT_PROFILE", profile_path)
+        .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("JWT_SECRET", &secrets.jwt_secret)
         .env("DATABASE_URL", &secrets.database_url)
         .env("DATABASE_TYPE", &config_global.database_type)
@@ -76,7 +73,6 @@ pub fn spawn_server(config: &McpServerConfig) -> Result<u32> {
         .env("MCP_PORT", config.port.to_string())
         .env("MCP_TOOLS_CONFIG", &tools_config_json)
         .env("MCP_SERVER_MODEL_CONFIG", &server_model_config_json)
-        .env("AI_CONFIG_PATH", ai_config_path)
         .env("SYSTEM_PATH", paths.system().root());
 
     if let Some(key) = &secrets.gemini {
