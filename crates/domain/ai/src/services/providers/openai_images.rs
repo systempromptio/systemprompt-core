@@ -28,7 +28,7 @@ impl OpenAiImageProvider {
             client,
             api_key,
             endpoint: "https://api.openai.com/v1".to_string(),
-            default_model: "dall-e-3".to_string(),
+            default_model: "gpt-image-1".to_string(),
         }
     }
 
@@ -95,7 +95,12 @@ impl ImageProvider for OpenAiImageProvider {
     }
 
     fn supported_models(&self) -> Vec<String> {
-        vec!["dall-e-3".to_string(), "dall-e-2".to_string()]
+        vec![
+            "gpt-image-1".to_string(),
+            "gpt-image-1-mini".to_string(),
+            "dall-e-3".to_string(),
+            "dall-e-2".to_string(),
+        ]
     }
 
     fn default_model(&self) -> &str {

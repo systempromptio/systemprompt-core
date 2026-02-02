@@ -35,6 +35,11 @@ impl AiProvider for AnthropicProvider {
                 | "claude-3-haiku-20240307"
                 | "claude-3-5-sonnet-20241022"
                 | "claude-3-5-haiku-20241022"
+                | "claude-sonnet-4-20250514"
+                | "claude-opus-4-20250514"
+                | "claude-opus-4-5-20251101"
+                | "claude-sonnet-4-5-20251101"
+                | "claude-haiku-4-5-20251101"
         )
     }
 
@@ -43,12 +48,17 @@ impl AiProvider for AnthropicProvider {
     }
 
     fn default_model(&self) -> &'static str {
-        "claude-3-sonnet-20240229"
+        "claude-sonnet-4-20250514"
     }
 
     fn get_pricing(&self, model: &str) -> ModelPricing {
         match model {
-            "claude-3-opus-20240229" => ModelPricing::new(0.015, 0.075),
+            "claude-3-opus-20240229" | "claude-opus-4-20250514" => ModelPricing::new(0.015, 0.075),
+            "claude-opus-4-5-20251101" => ModelPricing::new(0.005, 0.025),
+            "claude-3-5-sonnet-20241022"
+            | "claude-sonnet-4-20250514"
+            | "claude-sonnet-4-5-20251101" => ModelPricing::new(0.003, 0.015),
+            "claude-haiku-4-5-20251101" => ModelPricing::new(0.001, 0.005),
             "claude-3-5-haiku-20241022" => ModelPricing::new(0.0008, 0.004),
             "claude-3-haiku-20240307" => ModelPricing::new(0.00025, 0.00125),
             _ => ModelPricing::new(0.003, 0.015),

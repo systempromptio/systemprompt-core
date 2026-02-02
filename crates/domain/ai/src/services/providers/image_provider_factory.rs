@@ -21,6 +21,41 @@ impl ImageProviderFactory {
         }
     }
 
+    pub fn create_with_fallback(
+        name: &str,
+        config: &AiProviderConfig,
+        all_configs: &HashMap<String, AiProviderConfig>,
+    ) -> Result<BoxedImageProvider> {
+        match Self::create(name, config) {
+            Ok(provider) => Ok(provider),
+            Err(_) if !Self::supports_image_generation(name) => {
+                for fallback_name in &["openai", "gemini"] {
+                    if let Some(fallback_config) = all_configs.get(*fallback_name) {
+                        if fallback_config.enabled {
+                            if let Ok(provider) = Self::create(fallback_name, fallback_config) {
+                                tracing::info!(
+                                    primary = %name,
+                                    fallback = %fallback_name,
+                                    "Using fallback image provider"
+                                );
+                                return Ok(provider);
+                            }
+                        }
+                    }
+                }
+                Err(anyhow!(
+                    "No image provider available (primary: {} does not support images)",
+                    name
+                ))
+            },
+            Err(e) => Err(e),
+        }
+    }
+
+    pub fn supports_image_generation(provider_name: &str) -> bool {
+        matches!(provider_name, "openai" | "gemini")
+    }
+
     fn create_gemini(config: &AiProviderConfig) -> BoxedImageProvider {
         let base = config.endpoint.as_ref().map_or_else(
             || GeminiImageProvider::new(config.api_key.clone()),
