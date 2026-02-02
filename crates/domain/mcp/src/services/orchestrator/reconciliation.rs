@@ -13,6 +13,7 @@ use super::schema_sync::validate_schemas;
 use super::server_startup::{start_pending_servers, StartPendingServersParams};
 use crate::services::database::DatabaseManager;
 use crate::services::lifecycle::LifecycleManager;
+use crate::services::network::port_manager::{self, POST_KILL_DELAY_MS};
 use crate::services::process::ProcessManager;
 use crate::services::registry::RegistryManager;
 use crate::McpServerConfig;
@@ -125,10 +126,16 @@ async fn kill_all_running_servers(
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     let running_servers = database.get_running_servers().await?;
+
     for server in running_servers {
+        let port = server.port;
         kill_single_server(database, &server.name, events).await?;
+        if let Err(e) = port_manager::wait_for_port_release(port).await {
+            tracing::warn!(port = port, error = %e, "Port release wait failed, continuing");
+        }
     }
-    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(POST_KILL_DELAY_MS)).await;
     Ok(())
 }
 

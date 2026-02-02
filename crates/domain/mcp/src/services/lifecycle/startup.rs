@@ -1,5 +1,6 @@
 use super::LifecycleManager;
 use crate::services::monitoring::health::{perform_health_check, HealthStatus};
+use crate::services::network::port_manager::MAX_PORT_CLEANUP_ATTEMPTS;
 use crate::services::network::NetworkManager;
 use crate::services::process::ProcessManager;
 use crate::McpServerConfig;
@@ -18,9 +19,14 @@ pub async fn start_server(
         tx.mcp_starting(&config.name, config.port);
     }
 
-    verify_prerequisites(config)?;
+    ProcessManager::verify_binary(config)?;
 
     manager.network().prepare_port(config.port).await?;
+
+    manager
+        .network()
+        .wait_for_port_release_with_retry(config.port, MAX_PORT_CLEANUP_ATTEMPTS)
+        .await?;
 
     let pid = ProcessManager::spawn_server(config)?;
 
@@ -33,23 +39,6 @@ pub async fn start_server(
 
     tracing::info!("MCP started: {} :{}", config.name, config.port);
 
-    Ok(())
-}
-
-fn verify_prerequisites(config: &McpServerConfig) -> Result<()> {
-    tracing::debug!(service = %config.name, "Verifying prerequisites");
-
-    if let Some(pid) = ProcessManager::find_pid_by_port(config.port)? {
-        return Err(anyhow::anyhow!(
-            "Service already running on port {} (PID: {})",
-            config.port,
-            pid
-        ));
-    }
-
-    ProcessManager::verify_binary(config)?;
-
-    tracing::debug!(service = %config.name, "Prerequisites verified");
     Ok(())
 }
 

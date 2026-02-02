@@ -85,6 +85,25 @@ impl Secrets {
 
         tracing::info!(providers = ?configured, "Configured API providers");
     }
+
+    pub fn custom_env_vars(&self) -> Vec<(String, &str)> {
+        self.custom
+            .iter()
+            .flat_map(|(key, value)| {
+                let upper_key = key.to_uppercase();
+                let value_str = value.as_str();
+                if upper_key == *key {
+                    vec![(key.clone(), value_str)]
+                } else {
+                    vec![(key.clone(), value_str), (upper_key, value_str)]
+                }
+            })
+            .collect()
+    }
+
+    pub fn custom_env_var_names(&self) -> Vec<String> {
+        self.custom.keys().map(|key| key.to_uppercase()).collect()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

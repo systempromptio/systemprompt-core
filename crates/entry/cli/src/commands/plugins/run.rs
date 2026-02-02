@@ -58,7 +58,7 @@ pub async fn execute(args: RunArgs, config: &CliConfig) -> Result<()> {
         cmd.env("DATABASE_URL", database_url);
     }
 
-    if config.is_json_output() {
+    if config.is_json_output() && extension.supports_json_output() {
         cmd.arg("--json");
     }
 

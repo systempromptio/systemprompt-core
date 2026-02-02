@@ -1,6 +1,10 @@
 use anyhow::Result;
 use std::process::Command;
 
+pub const MAX_PORT_CLEANUP_ATTEMPTS: u32 = 5;
+pub const PORT_BACKOFF_BASE_MS: u64 = 200;
+pub const POST_KILL_DELAY_MS: u64 = 500;
+
 pub async fn prepare_port(port: u16) -> Result<()> {
     tracing::debug!(port = port, "Preparing port");
 
@@ -62,6 +66,38 @@ pub async fn wait_for_port_release(port: u16) -> Result<()> {
 
     Err(anyhow::anyhow!(
         "Port {port} did not become available after {max_attempts} attempts"
+    ))
+}
+
+pub async fn wait_for_port_release_with_retry(port: u16, max_cleanup_attempts: u32) -> Result<()> {
+    for cleanup_attempt in 1..=max_cleanup_attempts {
+        if !is_port_in_use(port) {
+            return Ok(());
+        }
+
+        tracing::debug!(
+            port = port,
+            attempt = cleanup_attempt,
+            max_attempts = max_cleanup_attempts,
+            "Port still in use, attempting cleanup"
+        );
+
+        cleanup_port_processes(port).await?;
+
+        match wait_for_port_release(port).await {
+            Ok(()) => return Ok(()),
+            Err(_) if cleanup_attempt < max_cleanup_attempts => {
+                let backoff = std::time::Duration::from_millis(
+                    PORT_BACKOFF_BASE_MS * u64::from(cleanup_attempt),
+                );
+                tokio::time::sleep(backoff).await;
+            },
+            Err(e) => return Err(e),
+        }
+    }
+
+    Err(anyhow::anyhow!(
+        "Port {port} could not be acquired after {max_cleanup_attempts} cleanup attempts"
     ))
 }
 

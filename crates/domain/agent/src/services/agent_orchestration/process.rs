@@ -66,10 +66,10 @@ fn configure_secrets_env(command: &mut Command, secrets: &Secrets) {
     }
 
     if !secrets.custom.is_empty() {
-        let custom_keys: Vec<&str> = secrets.custom.keys().map(String::as_str).collect();
-        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", custom_keys.join(","));
-        for (key, value) in &secrets.custom {
-            command.env(key, value);
+        let uppercase_keys = secrets.custom_env_var_names();
+        command.env("SYSTEMPROMPT_CUSTOM_SECRETS", uppercase_keys.join(","));
+        for (env_name, value) in secrets.custom_env_vars() {
+            command.env(env_name, value);
         }
     }
 }
