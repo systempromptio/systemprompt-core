@@ -1,5 +1,9 @@
+use std::path::PathBuf;
+
+use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use systemprompt_models::ProfileBootstrap;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct RateLimitsOutput {
@@ -343,4 +347,57 @@ pub struct DiffEntry {
     pub field: String,
     pub current: String,
     pub other: String,
+}
+
+// Provider-related types
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderInfo {
+    pub name: String,
+    pub enabled: bool,
+    pub is_default: bool,
+    pub model: String,
+    pub endpoint: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderListOutput {
+    pub providers: Vec<ProviderInfo>,
+    pub default_provider: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct ProviderSetOutput {
+    pub provider: String,
+    pub action: String,
+    pub message: String,
+}
+
+// Configuration section enum
+#[derive(Debug, Clone, Copy)]
+pub enum ConfigSection {
+    Ai,
+}
+
+impl ConfigSection {
+    pub fn file_path(self) -> Result<PathBuf> {
+        let profile = ProfileBootstrap::get()?;
+        match self {
+            ConfigSection::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
+        }
+    }
+}
+
+// YAML helper functions
+pub fn read_yaml_file(path: &PathBuf) -> Result<serde_yaml::Value> {
+    let content = std::fs::read_to_string(path)
+        .with_context(|| format!("Failed to read file: {}", path.display()))?;
+    serde_yaml::from_str(&content)
+        .with_context(|| format!("Failed to parse YAML from: {}", path.display()))
+}
+
+pub fn write_yaml_file(path: &PathBuf, content: &serde_yaml::Value) -> Result<()> {
+    let yaml_str = serde_yaml::to_string(content)
+        .with_context(|| "Failed to serialize YAML")?;
+    std::fs::write(path, yaml_str)
+        .with_context(|| format!("Failed to write file: {}", path.display()))
 }
