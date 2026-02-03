@@ -46,31 +46,41 @@ pub async fn handle_local_tenant_setup(
             .default(true)
             .interact()?;
 
-        if run_migrations {
-            run_migrations_cmd(profile_path).await?;
+        let migrations_succeeded = if run_migrations {
+            match run_migrations_cmd(profile_path).await {
+                Ok(()) => true,
+                Err(e) => {
+                    CliService::warning(&format!("Migration failed: {}", e));
+                    false
+                },
+            }
+        } else {
+            false
+        };
+
+        if migrations_succeeded {
+            let result =
+                crate::cloud::sync::admin_user::sync_admin_to_database(cloud_user, db_url, tenant_name)
+                    .await;
+
+            match &result {
+                crate::cloud::sync::admin_user::SyncResult::Created { email, .. } => {
+                    CliService::success(&format!("Created admin user: {}", email));
+                },
+                crate::cloud::sync::admin_user::SyncResult::Promoted { email, .. } => {
+                    CliService::success(&format!("Promoted user to admin: {}", email));
+                },
+                crate::cloud::sync::admin_user::SyncResult::AlreadyAdmin { email, .. } => {
+                    CliService::info(&format!("User '{}' is already admin", email));
+                },
+                crate::cloud::sync::admin_user::SyncResult::ConnectionFailed { error, .. } => {
+                    CliService::warning(&format!("Could not sync admin user: {}", error));
+                },
+                crate::cloud::sync::admin_user::SyncResult::Failed { error, .. } => {
+                    CliService::warning(&format!("Admin user sync failed: {}", error));
+                },
+            }
         }
-    }
-
-    let result =
-        crate::cloud::sync::admin_user::sync_admin_to_database(cloud_user, db_url, tenant_name)
-            .await;
-
-    match &result {
-        crate::cloud::sync::admin_user::SyncResult::Created { email, .. } => {
-            CliService::success(&format!("Created admin user: {}", email));
-        },
-        crate::cloud::sync::admin_user::SyncResult::Promoted { email, .. } => {
-            CliService::success(&format!("Promoted user to admin: {}", email));
-        },
-        crate::cloud::sync::admin_user::SyncResult::AlreadyAdmin { email, .. } => {
-            CliService::info(&format!("User '{}' is already admin", email));
-        },
-        crate::cloud::sync::admin_user::SyncResult::ConnectionFailed { error, .. } => {
-            CliService::warning(&format!("Could not sync admin user: {}", error));
-        },
-        crate::cloud::sync::admin_user::SyncResult::Failed { error, .. } => {
-            CliService::warning(&format!("Admin user sync failed: {}", error));
-        },
     }
 
     Ok(())

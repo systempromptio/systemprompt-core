@@ -223,10 +223,16 @@ pub async fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
         return Ok(());
     }
 
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
     let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    if !stderr.is_empty() {
-        CliService::warning(&format!("Migration warning: {}", stderr));
-    }
 
-    Ok(())
+    let error_output = if !stderr.is_empty() {
+        stderr
+    } else if !stdout.is_empty() {
+        stdout
+    } else {
+        "Unknown error (no output)".to_string()
+    };
+
+    anyhow::bail!("Migration failed: {}", error_output)
 }
