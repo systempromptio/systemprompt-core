@@ -2,7 +2,7 @@
 
 **Production infrastructure for AI agents. Self-hosted or cloud.**
 
-The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
+The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure built in Rust with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
