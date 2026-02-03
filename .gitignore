@@ -77,3 +77,6 @@ Thumbs.db
 
 /plan
 /plan/*
+
+# Instructions (local-only documentation)
+instructions/
