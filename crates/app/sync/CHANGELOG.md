@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- Support nested playbook directory structures in diff calculator and sync
+- Use recursive WalkDir scanning (no depth limit) for playbook discovery
+- Export playbooks to nested directories based on domain path separators
+- Clean up empty parent directories when deleting orphan playbooks
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

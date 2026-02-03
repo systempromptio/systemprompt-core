@@ -1,5 +1,22 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Added
+- Support nested playbook directory structures (e.g., `domain/agents/operations.md`)
+- Playbook IDs now map underscores to path separators (`domain_agents_operations` → `domain/agents/operations.md`)
+- `--domain` flag in `playbooks create` now accepts forward slashes for nested paths (e.g., `--domain agents/operations`)
+- Automatic cleanup of empty parent directories when deleting playbooks
+- New `path_helpers.rs` module with shared ID/path conversion utilities
+- Handle orphaned Docker volumes and containers in `cloud tenant create`
+
+### Changed
+- Playbook scanning now uses recursive directory traversal (unlimited depth)
+- Reduce scheduler job log verbosity from `info` to `debug` level
+
+### Fixed
+- Add process existence check before sending SIGTERM in MCP cleanup
+
 ## [0.1.0] - 2026-02-02
 
 ### Added

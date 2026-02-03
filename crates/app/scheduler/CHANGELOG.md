@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- Reduce job log verbosity from `info` to `debug` level for cleanup jobs
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

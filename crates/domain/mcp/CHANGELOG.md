@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Fixed
+- Add process existence check before sending SIGTERM in cleanup to avoid errors on already-terminated processes
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
