@@ -25,6 +25,8 @@
 - Credentials path resolution now uses `ProjectContext` typed paths instead of profile-relative strings
 - Sync token warning no longer shown for local tenants (only applies to cloud tenants)
 - Profile validation no longer fails when only debug build exists
+- Migration errors now propagate with actual output instead of silent failure
+- Admin user sync only runs after successful migrations
 
 ## [0.1.0] - 2026-02-02
 
