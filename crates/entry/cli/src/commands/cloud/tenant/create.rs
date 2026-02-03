@@ -20,9 +20,10 @@ use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITIN
 
 use super::docker::{
     check_volume_exists, create_database_for_tenant, generate_admin_password,
-    generate_shared_postgres_compose, is_shared_container_running, load_shared_config, nanoid,
-    remove_shared_volume, save_shared_config, wait_for_postgres_healthy, SharedContainerConfig,
-    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME,
+    generate_shared_postgres_compose, get_container_password, is_shared_container_running,
+    load_shared_config, nanoid, remove_shared_volume, save_shared_config,
+    wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
+    SHARED_VOLUME_NAME,
 };
 use crate::cloud::profile::templates::validate_connection;
 use super::validation::{validate_build_ready, warn_required_secrets};
@@ -59,56 +60,29 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
             (config, true)
         },
         (None, true) => {
-            CliService::warning(
-                "Shared PostgreSQL container is running but no local configuration found.",
-            );
-            CliService::info("This container may be managed by another systemprompt project.");
+            CliService::info("Found existing shared PostgreSQL container.");
 
-            let choices = vec![
-                "Add tenant to existing container (requires password)",
-                "Create new isolated container for this project",
-                "Cancel",
-            ];
-
-            let selection = Select::with_theme(&ColorfulTheme::default())
-                .with_prompt("How would you like to proceed?")
-                .items(&choices)
-                .default(0)
+            let use_existing = Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Use existing container?")
+                .default(true)
                 .interact()?;
 
-            match selection {
-                0 => {
-                    let password: String = Input::with_theme(&ColorfulTheme::default())
-                        .with_prompt(
-                            "Enter the admin password (from other project's shared_config.json)",
-                        )
-                        .interact_text()?;
-
-                    let test_url = format!(
-                        "postgres://{}:{}@localhost:{}/postgres",
-                        SHARED_ADMIN_USER, password, SHARED_PORT
-                    );
-
-                    let spinner = CliService::spinner("Verifying password...");
-                    let valid = validate_connection(&test_url).await;
-                    spinner.finish_and_clear();
-
-                    if !valid {
-                        bail!("Password verification failed. Check the password and try again.");
-                    }
-
-                    CliService::success("Password verified");
-                    let config = SharedContainerConfig::new(password, SHARED_PORT);
-                    (config, false)
-                },
-                1 => {
-                    bail!(
-                        "Isolated containers not yet implemented. Stop the existing container \
-                         first:\n  docker stop systemprompt-postgres-shared"
-                    );
-                },
-                _ => bail!("Cancelled"),
+            if !use_existing {
+                bail!(
+                    "To create a new container, first stop the existing one:\n  \
+                     docker stop systemprompt-postgres-shared && \
+                     docker rm systemprompt-postgres-shared"
+                );
             }
+
+            let spinner = CliService::spinner("Connecting to container...");
+            let password = get_container_password()?
+                .ok_or_else(|| anyhow!("Could not retrieve password from container"))?;
+            spinner.finish_and_clear();
+
+            CliService::success("Connected to existing container");
+            let config = SharedContainerConfig::new(password, SHARED_PORT);
+            (config, false)
         },
         (None, false) => {
             if check_volume_exists() {
@@ -191,6 +165,59 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     let mut updated_config = config;
     updated_config.add_tenant(tenant.id.clone(), db_name);
     save_shared_config(&updated_config)?;
+
+    CliService::section("Profile Setup");
+    let profile_name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Profile name")
+        .default(name.clone())
+        .interact_text()?;
+
+    CliService::section("API Keys");
+    let api_keys = collect_api_keys()?;
+
+    let profile = create_profile_for_tenant(&tenant, &api_keys, &profile_name)?;
+    CliService::success(&format!("Profile '{}' created", profile.name));
+
+    let cloud_user = get_cloud_user()?;
+    let ctx = ProjectContext::discover();
+    let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
+    handle_local_tenant_setup(&cloud_user, &database_url, &name, &profile_path).await?;
+
+    Ok(tenant)
+}
+
+pub async fn create_external_tenant() -> Result<StoredTenant> {
+    CliService::section("Create Local Tenant (External PostgreSQL)");
+
+    let name: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("Tenant name")
+        .default("local".to_string())
+        .interact_text()?;
+
+    if name.is_empty() {
+        bail!("Tenant name cannot be empty");
+    }
+
+    let database_url: String = Input::with_theme(&ColorfulTheme::default())
+        .with_prompt("PostgreSQL connection URL")
+        .interact_text()?;
+
+    if database_url.is_empty() {
+        bail!("Database URL cannot be empty");
+    }
+
+    let spinner = CliService::spinner("Validating connection...");
+    let valid = validate_connection(&database_url).await;
+    spinner.finish_and_clear();
+
+    if !valid {
+        bail!("Could not connect to database. Check your connection URL and try again.");
+    }
+    CliService::success("Database connection verified");
+
+    let unique_suffix = nanoid();
+    let id = format!("local_{}", unique_suffix);
+    let tenant = StoredTenant::new_local(id, name.clone(), database_url.clone());
 
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())

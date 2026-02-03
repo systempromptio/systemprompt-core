@@ -99,6 +99,30 @@ pub fn is_shared_container_running() -> bool {
     }
 }
 
+pub fn get_container_password() -> Result<Option<String>> {
+    let output = Command::new("docker")
+        .args([
+            "inspect",
+            SHARED_CONTAINER_NAME,
+            "--format",
+            "{{range .Config.Env}}{{println .}}{{end}}",
+        ])
+        .output();
+
+    match output {
+        Ok(out) if out.status.success() => {
+            let env_vars = String::from_utf8_lossy(&out.stdout);
+            for line in env_vars.lines() {
+                if let Some(password) = line.strip_prefix("POSTGRES_PASSWORD=") {
+                    return Ok(Some(password.to_string()));
+                }
+            }
+            Ok(None)
+        }
+        _ => Ok(None),
+    }
+}
+
 pub fn check_volume_exists() -> bool {
     let output = Command::new("docker")
         .args(["volume", "ls", "-q", "-f", &format!("name={}", SHARED_VOLUME_NAME)])

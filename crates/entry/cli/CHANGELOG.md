@@ -10,6 +10,7 @@
 - Automatic cleanup of empty parent directories when deleting playbooks
 - New `path_helpers.rs` module with shared ID/path conversion utilities
 - Handle orphaned Docker volumes and containers in `cloud tenant create`
+- "External PostgreSQL" option for local tenants to use custom database connection strings
 
 ### Changed
 - Playbook scanning now uses recursive directory traversal (unlimited depth)
@@ -19,6 +20,7 @@
 - `cloud status` now displays resolved credentials path using typed paths
 - Local tenant database names now include unique suffix to prevent conflicts across projects (e.g., `local_19c22e8f38b`)
 - Profile bin path now dynamically resolves to debug or release based on which binary is newer
+- Local tenant creation now prompts for database source: Docker or External PostgreSQL
 
 ### Fixed
 - Add process existence check before sending SIGTERM in MCP cleanup
@@ -28,6 +30,7 @@
 - Migration errors now propagate with actual output instead of silent failure
 - Admin user sync only runs after successful migrations
 - Remove hardcoded content sources from `cloud init` templates (now generates empty config)
+- Docker container reuse now retrieves password directly from container (no more password prompts across projects)
 
 ## [0.1.0] - 2026-02-02
 
