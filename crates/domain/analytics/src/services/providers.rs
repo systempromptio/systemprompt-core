@@ -25,6 +25,9 @@ impl AnalyticsProvider for AnalyticsService {
             screen_height: None,
             timezone: None,
             page_url: local.entry_url,
+            country: local.country.clone(),
+            region: local.region.clone(),
+            city: local.city,
         }
     }
 
@@ -35,6 +38,9 @@ impl AnalyticsProvider for AnalyticsService {
             referrer_url: input.analytics.referer.clone(),
             preferred_locale: input.analytics.accept_language.clone(),
             entry_url: input.analytics.page_url.clone(),
+            country: input.analytics.country.clone(),
+            region: input.analytics.region.clone(),
+            city: input.analytics.city.clone(),
             ..Default::default()
         };
 

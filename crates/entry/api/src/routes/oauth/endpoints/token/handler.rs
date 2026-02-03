@@ -47,7 +47,7 @@ pub async fn handle_token(
             handle_refresh_token_grant(repo, request, &headers, &state).await
         },
         Some(GrantType::ClientCredentials) => {
-            handle_client_credentials_grant(repo, request, &state).await
+            handle_client_credentials_grant(repo, request, &headers, &state).await
         },
         None => {
             tracing::info!(
@@ -244,6 +244,7 @@ async fn handle_refresh_token_grant(
 async fn handle_client_credentials_grant(
     repo: OAuthRepository,
     request: TokenRequest,
+    headers: &HeaderMap,
     state: &OAuthState,
 ) -> axum::response::Response {
     let result = async {
@@ -255,7 +256,7 @@ async fn handle_client_credentials_grant(
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
         let token_response =
-            generate_client_tokens(&repo, &client_id, request.scope.as_deref(), state)
+            generate_client_tokens(&repo, &client_id, request.scope.as_deref(), headers, state)
                 .await
                 .map_err(|e| TokenError::ServerError {
                     message: e.to_string(),
