@@ -9,7 +9,9 @@ use systemprompt_models::api::ApiError;
 use systemprompt_models::auth::UserType;
 use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_oauth::services::{CreateAnonymousSessionInput, SessionCreationService};
+use systemprompt_oauth::services::{
+    CreateAnonymousSessionInput, SessionCreationError, SessionCreationService,
+};
 use systemprompt_runtime::AppContext;
 use systemprompt_security::{HeaderExtractor, TokenExtractor};
 use systemprompt_traits::AnalyticsProvider;
@@ -120,10 +122,24 @@ impl SessionMiddleware {
                                     user_id = %jwt_context.user_id,
                                     "JWT valid but session missing, refreshing with new session"
                                 );
-                                let (sid, uid, new_token, _, fp) = self
+                                match self
                                     .refresh_session_for_user(&jwt_context.user_id, headers, &uri)
-                                    .await?;
-                                (sid, uid, new_token.clone(), Some(new_token), Some(fp))
+                                    .await
+                                {
+                                    Ok((sid, uid, new_token, _, fp)) => {
+                                        (sid, uid, new_token.clone(), Some(new_token), Some(fp))
+                                    }
+                                    Err(e) if e.error_key.as_deref() == Some("user_not_found") => {
+                                        tracing::warn!(
+                                            user_id = %jwt_context.user_id,
+                                            "JWT references non-existent user, creating new anonymous session"
+                                        );
+                                        let (sid, uid, token, _, fp) =
+                                            self.create_new_session(headers, &uri, &method).await?;
+                                        (sid, uid, token.clone(), Some(token), Some(fp))
+                                    }
+                                    Err(e) => return Err(e),
+                                }
                             }
                         } else {
                             let (sid, uid, token, is_new, fp) =
@@ -225,9 +241,15 @@ impl SessionMiddleware {
             .session_creation_service
             .create_authenticated_session(user_id, headers, SessionSource::Web)
             .await
-            .map_err(|e| {
-                tracing::error!(error = %e, user_id = %user_id, "Failed to create session for user");
-                ApiError::internal_error("Failed to refresh session")
+            .map_err(|e| match e {
+                SessionCreationError::UserNotFound { ref user_id } => {
+                    ApiError::not_found(format!("User not found: {}", user_id))
+                        .with_error_key("user_not_found")
+                }
+                SessionCreationError::Internal(ref msg) => {
+                    tracing::error!(error = %msg, user_id = %user_id, "Failed to create session for user");
+                    ApiError::internal_error("Failed to refresh session")
+                }
             })?;
 
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret().map_err(|e| {

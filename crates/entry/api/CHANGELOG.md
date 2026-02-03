@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Fixed
+- Session middleware now gracefully handles JWT tokens referencing non-existent users by creating new anonymous session instead of error spam
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
