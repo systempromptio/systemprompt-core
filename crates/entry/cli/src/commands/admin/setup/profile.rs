@@ -93,8 +93,6 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             non_interactive: is_prod,
         },
         cloud: Some(CloudConfig {
-            credentials_path: "../credentials.json".to_string(),
-            tenants_path: "../tenants.json".to_string(),
             tenant_id: None,
             validation: CloudValidationMode::Skip,
         }),

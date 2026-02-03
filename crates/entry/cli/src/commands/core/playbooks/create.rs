@@ -97,9 +97,7 @@ pub async fn execute(
 
     let playbooks_path = get_playbooks_path()?;
     let domain_parts = domain_to_path_components(&domain);
-    let filename = domain_parts
-        .last()
-        .expect("domain_to_path_components returns non-empty Vec");
+    let filename = &domain_parts[domain_parts.len() - 1];
 
     let mut playbook_dir = playbooks_path.join(&category);
     for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {

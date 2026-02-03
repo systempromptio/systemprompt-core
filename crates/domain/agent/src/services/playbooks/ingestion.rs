@@ -157,9 +157,7 @@ impl PlaybookIngestionService {
 
                             if components.len() >= 2 {
                                 let category = components[0].to_string();
-                                let filename = components
-                                    .last()
-                                    .expect("components has >= 2 elements");
+                                let filename = components[components.len() - 1];
                                 let domain_name =
                                     filename.strip_suffix(".md").unwrap_or(filename);
 

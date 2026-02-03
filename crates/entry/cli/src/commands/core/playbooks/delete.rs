@@ -32,7 +32,7 @@ pub fn execute(
     let playbooks_path = get_playbooks_path()?;
 
     let playbooks_to_delete: Vec<String> = if args.all {
-        list_all_playbooks(&playbooks_path)?
+        list_all_playbooks(&playbooks_path)
     } else {
         let name = resolve_required(args.name, "name", config, || {
             prompt_playbook_selection(&playbooks_path)
@@ -127,7 +127,7 @@ fn list_all_playbooks(playbooks_path: &Path) -> Vec<String> {
 }
 
 fn prompt_playbook_selection(playbooks_path: &Path) -> Result<String> {
-    let playbooks = list_all_playbooks(playbooks_path)?;
+    let playbooks = list_all_playbooks(playbooks_path);
 
     if playbooks.is_empty() {
         return Err(anyhow!("No playbooks found"));

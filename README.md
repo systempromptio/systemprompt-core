@@ -83,7 +83,7 @@ docker run -d --name systemprompt-db \
   -e POSTGRES_USER=systemprompt \
   -e POSTGRES_PASSWORD=systemprompt \
   -p 5432:5432 \
-  postgres:16
+  postgres:18-alpine
 
 # Login to systemprompt.io Cloud (free account - enables CLI profile management)
 systemprompt cloud auth login

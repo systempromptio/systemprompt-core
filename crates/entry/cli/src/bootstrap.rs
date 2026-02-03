@@ -63,9 +63,7 @@ pub fn init_profile(path: &Path) -> Result<()> {
 }
 
 pub async fn init_credentials() -> Result<()> {
-    CredentialsBootstrap::init()
-        .await
-        .context("Cloud credentials required. Run 'systemprompt cloud login'")?;
+    CredentialsBootstrap::init().await?;
     Ok(())
 }
 

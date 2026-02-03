@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- `get_cloud_paths()` now uses `ProjectContext` with typed `ProjectPath` enum
+- Credentials always resolve to `.systemprompt/credentials.json` via `ProjectPath::LocalCredentials`
+- Add `CloudPaths::from_project_context()` constructor for typed path resolution
+
+### Removed
+- Remove profile-relative path resolution from `get_cloud_paths()` (now uses `ProjectContext::discover()`)
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

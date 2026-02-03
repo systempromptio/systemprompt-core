@@ -131,7 +131,7 @@ pub fn generate_shared_postgres_compose(password: &str, port: u16) -> String {
 
 services:
   postgres:
-    image: postgres:17-alpine
+    image: postgres:18-alpine
     container_name: {container_name}
     restart: unless-stopped
     environment:
@@ -141,7 +141,7 @@ services:
     ports:
       - "{port}:5432"
     volumes:
-      - {volume_name}:/var/lib/postgresql/data
+      - {volume_name}:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U {admin_user}"]
       interval: 5s

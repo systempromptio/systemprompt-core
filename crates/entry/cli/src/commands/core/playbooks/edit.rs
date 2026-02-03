@@ -223,7 +223,7 @@ fn list_all_playbooks(playbooks_path: &Path) -> Vec<String> {
 }
 
 fn prompt_playbook_selection(playbooks_path: &Path) -> Result<String> {
-    let playbooks = list_all_playbooks(playbooks_path)?;
+    let playbooks = list_all_playbooks(playbooks_path);
 
     if playbooks.is_empty() {
         return Err(anyhow!("No playbooks found"));

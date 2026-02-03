@@ -16,6 +16,7 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
+use systemprompt_cloud::CredentialsBootstrapError;
 use systemprompt_logging::{set_startup_mode, CliService};
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_runtime::DatabaseContext;
@@ -95,7 +96,15 @@ async fn init_profile_and_route(
 
     if !is_cloud || profile.database.external_db_access {
         if let Err(e) = bootstrap::init_credentials().await {
-            tracing::debug!(error = %e, "Cloud credentials not available, continuing in local-only mode");
+            let is_file_not_found = e
+                .downcast_ref::<CredentialsBootstrapError>()
+                .is_some_and(|ce| matches!(ce, CredentialsBootstrapError::FileNotFound { .. }));
+
+            if is_file_not_found {
+                tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
+            } else {
+                return Err(e.context("Credential initialization failed"));
+            }
         }
     }
 

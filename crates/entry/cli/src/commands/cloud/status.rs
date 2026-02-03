@@ -1,5 +1,5 @@
 use anyhow::Result;
-use systemprompt_cloud::{CloudApiClient, CredentialsBootstrap};
+use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, CredentialsBootstrap};
 use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
@@ -16,7 +16,10 @@ pub async fn execute() -> Result<()> {
             );
 
             if let Some(cloud) = &profile.cloud {
-                CliService::key_value("Credentials path", &cloud.credentials_path);
+                if let Ok(paths) = get_cloud_paths() {
+                    let creds_path = paths.resolve(CloudPath::Credentials);
+                    CliService::key_value("Credentials path", &creds_path.display().to_string());
+                }
                 CliService::key_value("Validation mode", &format!("{:?}", cloud.validation));
 
                 if let Some(ref tid) = cloud.tenant_id {

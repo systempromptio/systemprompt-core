@@ -33,7 +33,7 @@ pub use style::ProfileStyle;
 use anyhow::{Context, Result};
 use regex::Regex;
 use serde::{Deserialize, Serialize};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::LazyLock;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -217,31 +217,5 @@ impl Profile {
 
     pub fn is_masked_database_url(url: &str) -> bool {
         url.contains(":***@") || url.contains(":********@")
-    }
-
-    pub fn credentials_path(&self, profile_dir: Option<&Path>) -> Result<PathBuf> {
-        let cloud = self
-            .cloud
-            .as_ref()
-            .context("Profile missing cloud configuration")?;
-        Ok(Self::resolve_cloud_path(
-            &cloud.credentials_path,
-            profile_dir,
-        ))
-    }
-
-    pub fn tenants_path(&self, profile_dir: Option<&Path>) -> Result<PathBuf> {
-        let cloud = self
-            .cloud
-            .as_ref()
-            .context("Profile missing cloud configuration")?;
-        Ok(Self::resolve_cloud_path(&cloud.tenants_path, profile_dir))
-    }
-
-    fn resolve_cloud_path(path_str: &str, profile_dir: Option<&Path>) -> PathBuf {
-        profile_dir.map_or_else(
-            || expand_home(path_str),
-            |base| resolve_with_home(base, path_str),
-        )
     }
 }

@@ -15,9 +15,12 @@
 - Playbook scanning now uses recursive directory traversal (unlimited depth)
 - Reduce scheduler job log verbosity from `info` to `debug` level
 - Hide `profile create` from interactive menu (still available via direct CLI for power users)
+- Credential errors are now fatal except for `FileNotFound` (which allows local-only mode)
+- `cloud status` now displays resolved credentials path using typed paths
 
 ### Fixed
 - Add process existence check before sending SIGTERM in MCP cleanup
+- Credentials path resolution now uses `ProjectContext` typed paths instead of profile-relative strings
 
 ## [0.1.0] - 2026-02-02
 

@@ -175,7 +175,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
     let compose_content = format!(
         r#"services:
   postgres:
-    image: postgres:16-alpine
+    image: postgres:18-alpine
     container_name: {container_name}
     environment:
       POSTGRES_USER: ${{POSTGRES_USER:-systemprompt}}
@@ -184,7 +184,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
     ports:
       - "{port}:5432"
     volumes:
-      - {container_name}_data:/var/lib/postgresql/data
+      - {container_name}_data:/var/lib/postgresql
       - ./init-scripts:/docker-entrypoint-initdb.d
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${{POSTGRES_USER:-systemprompt}}"]

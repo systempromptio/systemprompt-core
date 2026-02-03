@@ -49,7 +49,7 @@ pub fn path_to_playbook_info(playbooks_base: &Path, file_path: &Path) -> Result<
 
     let category = components[0].to_string();
 
-    let filename = components.last().expect("components has >= 2 elements");
+    let filename = components[components.len() - 1];
     let domain_name = filename
         .strip_suffix(".md")
         .ok_or_else(|| anyhow!("File must have .md extension"))?;
