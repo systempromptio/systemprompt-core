@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Added
+- Support nested playbook directory structures (`domain/agents/operations.md`)
+- Playbook IDs map underscores to path separators (`domain_agents_operations` → `domain/agents/operations.md`)
+- Handle orphaned Docker volumes and containers in cloud tenant creation
+
+### Changed
+- Reduce scheduler job log verbosity (info → debug)
+
+### Fixed
+- Add process existence check before SIGTERM in MCP cleanup
+
 ## [0.1.0] - 2026-02-02
 
 ### Added

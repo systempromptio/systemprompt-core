@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- Support nested playbook directory structures in `PlaybookIngestionService`
+- Remove `max_depth` restriction from playbook scanning (now scans all subdirectories)
+- Playbook IDs now use underscores for all path separators (`domain_agents_operations`)
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
