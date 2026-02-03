@@ -5,7 +5,9 @@ mod rotate;
 mod select;
 mod validation;
 
-pub use create::{create_cloud_tenant, create_local_tenant, swap_to_external_host};
+pub use create::{
+    create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
+};
 pub use crud::{cancel_subscription, delete_tenant, edit_tenant, list_tenants, show_tenant};
 pub use docker::wait_for_postgres_healthy;
 pub use rotate::{rotate_credentials, rotate_sync_token};
@@ -204,7 +206,23 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
         .interact()?;
 
     let tenant = match selection {
-        0 => create_local_tenant().await?,
+        0 => {
+            let db_options = vec![
+                "Docker (creates PostgreSQL container automatically)",
+                "External PostgreSQL (use your own database)",
+            ];
+
+            let db_selection = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("Database source")
+                .items(&db_options)
+                .default(0)
+                .interact()?;
+
+            match db_selection {
+                0 => create_local_tenant().await?,
+                _ => create_external_tenant().await?,
+            }
+        },
         _ if build_result.is_err() => {
             CliService::warning("Cloud tenant requires a built project");
             if let Err(err) = build_result {
