@@ -27,6 +27,7 @@
 - Profile validation no longer fails when only debug build exists
 - Migration errors now propagate with actual output instead of silent failure
 - Admin user sync only runs after successful migrations
+- Remove hardcoded content sources from `cloud init` templates (now generates empty config)
 
 ## [0.1.0] - 2026-02-02
 
