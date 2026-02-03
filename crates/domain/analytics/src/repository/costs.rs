@@ -27,7 +27,7 @@ impl CostAnalyticsRepository {
             r#"
             SELECT
                 COUNT(*)::bigint as "total_requests!",
-                SUM(cost_cents)::bigint as "total_cost",
+                SUM(cost_microdollars)::bigint as "total_cost",
                 SUM(tokens_used)::bigint as "total_tokens"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
@@ -48,7 +48,7 @@ impl CostAnalyticsRepository {
         sqlx::query_as!(
             PreviousCostRow,
             r#"
-            SELECT SUM(cost_cents)::bigint as "cost"
+            SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,
@@ -71,13 +71,13 @@ impl CostAnalyticsRepository {
             r#"
             SELECT
                 model as "name!",
-                COALESCE(SUM(cost_cents), 0)::bigint as "cost!",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             GROUP BY model
-            ORDER BY SUM(cost_cents) DESC NULLS LAST
+            ORDER BY SUM(cost_microdollars) DESC NULLS LAST
             LIMIT $3
             "#,
             start,
@@ -100,13 +100,13 @@ impl CostAnalyticsRepository {
             r#"
             SELECT
                 provider as "name!",
-                COALESCE(SUM(cost_cents), 0)::bigint as "cost!",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             GROUP BY provider
-            ORDER BY SUM(cost_cents) DESC NULLS LAST
+            ORDER BY SUM(cost_microdollars) DESC NULLS LAST
             LIMIT $3
             "#,
             start,
@@ -129,14 +129,14 @@ impl CostAnalyticsRepository {
             r#"
             SELECT
                 COALESCE(at.agent_name, 'unknown') as "name!",
-                COALESCE(SUM(r.cost_cents), 0)::bigint as "cost!",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "cost!",
                 COUNT(*)::bigint as "requests!",
                 COALESCE(SUM(r.tokens_used), 0)::bigint as "tokens!"
             FROM ai_requests r
             LEFT JOIN agent_tasks at ON at.task_id = r.task_id
             WHERE r.created_at >= $1 AND r.created_at < $2
             GROUP BY at.agent_name
-            ORDER BY SUM(r.cost_cents) DESC NULLS LAST
+            ORDER BY SUM(r.cost_microdollars) DESC NULLS LAST
             LIMIT $3
             "#,
             start,
@@ -158,7 +158,7 @@ impl CostAnalyticsRepository {
             r#"
             SELECT
                 created_at as "created_at!",
-                cost_cents,
+                cost_microdollars,
                 tokens_used
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2

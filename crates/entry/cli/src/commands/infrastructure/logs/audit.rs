@@ -51,7 +51,7 @@ struct AiRequestRow {
     model: String,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
-    cost_cents: i32,
+    cost_microdollars: i64,
     latency_ms: Option<i32>,
     task_id: Option<String>,
     trace_id: Option<String>,
@@ -133,7 +133,7 @@ async fn find_by_request_id(
         AiRequestRow,
         r#"
         SELECT id as "id!", provider as "provider!", model as "model!",
-            input_tokens, output_tokens, cost_cents as "cost_cents!",
+            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms, task_id, trace_id
         FROM ai_requests WHERE id = $1 OR id LIKE $2 LIMIT 1
         "#,
@@ -153,7 +153,7 @@ async fn find_by_task_id(
         AiRequestRow,
         r#"
         SELECT id as "id!", provider as "provider!", model as "model!",
-            input_tokens, output_tokens, cost_cents as "cost_cents!",
+            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms, task_id, trace_id
         FROM ai_requests WHERE task_id = $1 OR task_id LIKE $2
         ORDER BY created_at DESC LIMIT 1
@@ -174,7 +174,7 @@ async fn find_by_trace_id(
         AiRequestRow,
         r#"
         SELECT id as "id!", provider as "provider!", model as "model!",
-            input_tokens, output_tokens, cost_cents as "cost_cents!",
+            input_tokens, output_tokens, cost_microdollars as "cost_microdollars!",
             latency_ms, task_id, trace_id
         FROM ai_requests WHERE trace_id = $1 OR trace_id LIKE $2
         ORDER BY created_at DESC LIMIT 1
@@ -203,7 +203,7 @@ async fn build_output(pool: &Arc<sqlx::PgPool>, row: AiRequestRow) -> Result<Aud
         model: row.model,
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
-        cost_dollars: f64::from(row.cost_cents) / 100.0,
+        cost_dollars: row.cost_microdollars as f64 / 1_000_000.0,
         latency_ms: i64::from(row.latency_ms.unwrap_or(0)),
         task_id: row.task_id,
         trace_id: row.trace_id,

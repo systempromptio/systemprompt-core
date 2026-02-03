@@ -108,7 +108,7 @@ pub async fn fetch_execution_steps(
 
 pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &str) -> Result<Vec<AiRequestInfo>> {
     let rows = sqlx::query!(
-        r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_cents, latency_ms
+        r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_microdollars, latency_ms
            FROM ai_requests
            WHERE task_id = $1
            ORDER BY created_at"#,
@@ -126,7 +126,7 @@ pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &str) -> Result<Vec<
             max_tokens: r.max_tokens,
             input_tokens: r.input_tokens,
             output_tokens: r.output_tokens,
-            cost_cents: r.cost_cents,
+            cost_microdollars: r.cost_microdollars,
             latency_ms: r.latency_ms,
         })
         .collect())

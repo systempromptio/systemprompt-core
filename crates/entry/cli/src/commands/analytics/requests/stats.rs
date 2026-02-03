@@ -72,7 +72,7 @@ async fn execute_internal(
         total_tokens: row.total_tokens.unwrap_or(0),
         input_tokens: row.input_tokens.unwrap_or(0),
         output_tokens: row.output_tokens.unwrap_or(0),
-        total_cost_cents: row.cost.unwrap_or(0),
+        total_cost_microdollars: row.cost.unwrap_or(0),
         avg_latency_ms: row.avg_latency.map_or(0, |v| v as i64),
         cache_hit_rate,
     };
@@ -100,7 +100,7 @@ fn render_stats(output: &RequestStatsOutput) {
     CliService::key_value("Total Tokens", &format_tokens(output.total_tokens));
     CliService::key_value("Input Tokens", &format_tokens(output.input_tokens));
     CliService::key_value("Output Tokens", &format_tokens(output.output_tokens));
-    CliService::key_value("Total Cost", &format_cost(output.total_cost_cents));
+    CliService::key_value("Total Cost", &format_cost(output.total_cost_microdollars));
     CliService::key_value("Avg Latency", &format_duration_ms(output.avg_latency_ms));
     CliService::key_value("Cache Hit Rate", &format_percent(output.cache_hit_rate));
 }

@@ -43,7 +43,7 @@ impl AiService {
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
-                    cost_cents: cost,
+                    cost_microdollars: cost,
                 });
 
                 Ok(if tool_calls.is_empty() {
@@ -118,7 +118,7 @@ impl AiService {
         Ok(response.content)
     }
 
-    pub(super) fn estimate_cost(&self, response: &AiResponse) -> i32 {
+    pub(super) fn estimate_cost(&self, response: &AiResponse) -> i64 {
         let input = f64::from(response.input_tokens.unwrap_or(0));
         let output = f64::from(response.output_tokens.unwrap_or(0));
 
@@ -132,6 +132,6 @@ impl AiService {
         let input_cost = (input / 1000.0) * f64::from(pricing.input_cost_per_1k);
         let output_cost = (output / 1000.0) * f64::from(pricing.output_cost_per_1k);
 
-        ((input_cost + output_cost) * 100.0).round() as i32
+        ((input_cost + output_cost) * 1_000_000.0).round() as i64
     }
 }

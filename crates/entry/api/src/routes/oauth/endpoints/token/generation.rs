@@ -53,12 +53,13 @@ pub async fn generate_tokens_by_user_id(
         .await?;
 
     let access_token_jti = generate_access_token_jti();
-    let config = JwtConfig {
-        permissions: final_permissions,
-        ..Default::default()
-    };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
+    let config = JwtConfig {
+        permissions: final_permissions,
+        audience: global_config.jwt_audiences.clone(),
+        ..Default::default()
+    };
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,
@@ -167,12 +168,13 @@ pub async fn generate_client_tokens(
         role_strings,
     );
 
-    let config = JwtConfig {
-        permissions: permissions.clone(),
-        ..Default::default()
-    };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
+    let config = JwtConfig {
+        permissions: permissions.clone(),
+        audience: global_config.jwt_audiences.clone(),
+        ..Default::default()
+    };
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
     let analytics = SessionAnalytics::default();

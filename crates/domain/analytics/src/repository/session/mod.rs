@@ -113,9 +113,9 @@ impl SessionRepository {
         &self,
         session_id: &SessionId,
         tokens: i32,
-        cost_cents: i32,
+        cost_microdollars: i64,
     ) -> Result<()> {
-        mutations::increment_ai_usage(&self.pool, session_id, tokens, cost_cents).await
+        mutations::increment_ai_usage(&self.pool, session_id, tokens, cost_microdollars).await
     }
 
     pub async fn update_behavioral_detection(

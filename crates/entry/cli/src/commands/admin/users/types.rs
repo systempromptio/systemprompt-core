@@ -227,3 +227,11 @@ pub struct UserMergeOutput {
     pub tasks_transferred: u64,
     pub message: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct WebauthnSetupTokenOutput {
+    pub user_email: String,
+    pub token: String,
+    pub registration_url: String,
+    pub expires_minutes: u32,
+}

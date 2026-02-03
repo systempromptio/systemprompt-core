@@ -71,7 +71,7 @@ async fn execute_internal(
         let entry = buckets.entry(period_key).or_insert((0, 0, 0, 0));
         entry.0 += 1;
         entry.1 += i64::from(row.tokens_used.unwrap_or(0));
-        entry.2 += i64::from(row.cost_cents.unwrap_or(0));
+        entry.2 += i64::from(row.cost_microdollars.unwrap_or(0));
         entry.3 += i64::from(row.latency_ms.unwrap_or(0));
     }
 
@@ -84,7 +84,7 @@ async fn execute_internal(
                 timestamp,
                 request_count: count,
                 total_tokens: tokens,
-                cost_cents: cost,
+                cost_microdollars: cost,
                 avg_latency_ms: avg_latency,
             }
         })
@@ -129,7 +129,7 @@ fn render_trends(output: &RequestTrendsOutput) {
             point.timestamp,
             format_number(point.request_count),
             format_tokens(point.total_tokens),
-            format_cost(point.cost_cents),
+            format_cost(point.cost_microdollars),
             format_duration_ms(point.avg_latency_ms)
         ));
     }

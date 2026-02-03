@@ -70,7 +70,7 @@ pub async fn update_session_usage_async(
     user_id: &UserId,
     session_id: Option<&SessionId>,
     tokens: Option<i32>,
-    cost_cents: i32,
+    cost_microdollars: i64,
 ) {
     if user_id.as_str() == "system" {
         return;
@@ -84,14 +84,14 @@ pub async fn update_session_usage_async(
 
     let tokens = tokens.unwrap_or(0);
     if let Err(e) = session_provider
-        .increment_ai_usage(session_id, tokens, cost_cents)
+        .increment_ai_usage(session_id, tokens, cost_microdollars)
         .await
     {
         error!(
             error = %e,
             session_id = %session_id,
             tokens = tokens,
-            cost_cents = cost_cents,
+            cost_microdollars = cost_microdollars,
             "Failed to update session AI usage"
         );
     }

@@ -59,6 +59,8 @@ pub fn public_router() -> Router<OAuthState> {
             "/webauthn/auth/finish",
             post(webauthn::authenticate::finish_auth),
         )
+        .route("/webauthn/link/start", get(webauthn::link::start_link))
+        .route("/webauthn/link/finish", post(webauthn::link::finish_link))
 }
 
 pub fn authenticated_router() -> Router<OAuthState> {

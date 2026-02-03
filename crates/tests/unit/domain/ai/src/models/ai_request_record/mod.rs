@@ -290,7 +290,7 @@ mod ai_request_record_builder_tests {
             .build()
             .unwrap();
 
-        assert_eq!(record.cost_cents, 150);
+        assert_eq!(record.cost_microdollars, 150);
     }
 
     #[test]
@@ -362,7 +362,7 @@ mod ai_request_record_builder_tests {
         assert_eq!(record.tokens.tokens_used, Some(3000));
         assert!(record.cache.hit);
         assert!(record.is_streaming);
-        assert_eq!(record.cost_cents, 500);
+        assert_eq!(record.cost_microdollars, 500);
         assert_eq!(record.latency_ms, 1500);
         assert_eq!(record.status, RequestStatus::Completed);
     }

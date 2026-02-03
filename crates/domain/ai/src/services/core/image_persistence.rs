@@ -42,7 +42,7 @@ async fn persist_ai_request(
     let mut builder = AiRequestRecordBuilder::new(&response.request_id, user_id)
         .provider(&response.provider)
         .model(&response.model)
-        .cost(response.cost_estimate.map_or(0, |c| c.round() as i32))
+        .cost(response.cost_estimate.map_or(0, |c| c.round() as i64))
         .latency(response.generation_time_ms as i32)
         .completed();
 

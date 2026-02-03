@@ -1,3 +1,4 @@
+use crate::services::webauthn::{create_link_states, LinkStates};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{
@@ -11,6 +12,7 @@ pub struct OAuthState {
     user_provider: Arc<dyn UserProvider>,
     fingerprint_provider: Option<Arc<dyn FingerprintProvider>>,
     event_publisher: Option<Arc<dyn UserEventPublisher>>,
+    link_states: LinkStates,
 }
 
 impl std::fmt::Debug for OAuthState {
@@ -27,6 +29,7 @@ impl std::fmt::Debug for OAuthState {
                 "event_publisher",
                 &self.event_publisher.as_ref().map(|_| "<publisher>"),
             )
+            .field("link_states", &"<link_states>")
             .finish()
     }
 }
@@ -43,6 +46,7 @@ impl OAuthState {
             user_provider,
             fingerprint_provider: None,
             event_publisher: None,
+            link_states: create_link_states(),
         }
     }
 
@@ -76,5 +80,9 @@ impl OAuthState {
 
     pub fn event_publisher(&self) -> Option<&Arc<dyn UserEventPublisher>> {
         self.event_publisher.as_ref()
+    }
+
+    pub const fn link_states(&self) -> &LinkStates {
+        &self.link_states
     }
 }

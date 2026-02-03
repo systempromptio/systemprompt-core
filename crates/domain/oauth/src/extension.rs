@@ -81,6 +81,15 @@ impl Extension for OauthExtension {
                 include_str!("../schema/webauthn_challenges.sql"),
             )
             .with_required_columns(vec!["challenge".into(), "user_id".into()]),
+            SchemaDefinition::inline(
+                "webauthn_setup_tokens",
+                include_str!("../schema/webauthn_setup_tokens.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "user_id".into(),
+                "token_hash".into(),
+            ]),
         ]
     }
 

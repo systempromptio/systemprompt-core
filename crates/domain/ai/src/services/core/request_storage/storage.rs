@@ -20,7 +20,7 @@ pub struct StoreParams<'a> {
     pub context: &'a RequestContext,
     pub status: RequestStatus,
     pub error_message: Option<&'a str>,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
 }
 
 #[derive(Clone)]
@@ -72,7 +72,7 @@ impl RequestStorage {
             context: params.context,
             status: params.status,
             error_message: params.error_message,
-            cost_cents: params.cost_cents,
+            cost_microdollars: params.cost_microdollars,
         });
         let messages = extract_messages(params.request, params.response, params.status);
         let tool_calls = extract_tool_calls(params.response);
@@ -90,7 +90,7 @@ impl RequestStorage {
         let user_id = record.user_id.clone();
         let session_id = record.session_id.clone();
         let tokens = record.tokens.tokens_used;
-        let cost = record.cost_cents;
+        let cost = record.cost_microdollars;
         let event_publisher = self.event_publisher.clone();
 
         tokio::spawn(async move {

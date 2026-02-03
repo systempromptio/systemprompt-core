@@ -15,8 +15,8 @@ pub fn format_timestamp(dt: DateTime<Utc>) -> String {
     dt.format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
-pub fn cost_cents_to_dollars(cents: i32) -> f64 {
-    f64::from(cents) / 1_000_000.0
+pub fn cost_microdollars_to_dollars(microdollars: i64) -> f64 {
+    microdollars as f64 / 1_000_000.0
 }
 
 pub fn format_duration_ms(ms: Option<i64>) -> String {

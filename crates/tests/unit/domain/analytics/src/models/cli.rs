@@ -252,7 +252,7 @@ mod agent_row_tests {
             task_count: 1000,
             completed_count: 950,
             avg_execution_time_ms: 2500,
-            total_cost_cents: 5000,
+            total_cost_microdollars: 5000,
             last_active: now,
         };
 
@@ -260,7 +260,7 @@ mod agent_row_tests {
         assert_eq!(row.task_count, 1000);
         assert_eq!(row.completed_count, 950);
         assert_eq!(row.avg_execution_time_ms, 2500);
-        assert_eq!(row.total_cost_cents, 5000);
+        assert_eq!(row.total_cost_microdollars, 5000);
     }
 
     #[test]
@@ -270,7 +270,7 @@ mod agent_row_tests {
             task_count: 10,
             completed_count: 9,
             avg_execution_time_ms: 100,
-            total_cost_cents: 50,
+            total_cost_microdollars: 50,
             last_active: Utc::now(),
         };
         let cloned = row.clone();
@@ -311,11 +311,11 @@ mod agent_row_tests {
     fn agent_ai_stats_row_stores_values() {
         let row = AgentAiStatsRow {
             total_ai_requests: 50000,
-            total_cost_cents: 250000,
+            total_cost_microdollars: 250000,
         };
 
         assert_eq!(row.total_ai_requests, 50000);
-        assert_eq!(row.total_cost_cents, 250000);
+        assert_eq!(row.total_cost_microdollars, 250000);
     }
 
     #[test]

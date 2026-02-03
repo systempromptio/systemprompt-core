@@ -135,7 +135,7 @@ fn test_trace_event_deserialize() {
 fn test_ai_request_summary_default() {
     let summary = AiRequestSummary::default();
 
-    assert_eq!(summary.total_cost_cents, 0);
+    assert_eq!(summary.total_cost_microdollars, 0);
     assert_eq!(summary.total_tokens, 0);
     assert_eq!(summary.total_input_tokens, 0);
     assert_eq!(summary.total_output_tokens, 0);
@@ -146,7 +146,7 @@ fn test_ai_request_summary_default() {
 #[test]
 fn test_ai_request_summary_creation() {
     let summary = AiRequestSummary {
-        total_cost_cents: 100,
+        total_cost_microdollars: 100,
         total_tokens: 5000,
         total_input_tokens: 3000,
         total_output_tokens: 2000,
@@ -154,7 +154,7 @@ fn test_ai_request_summary_creation() {
         total_latency_ms: 15000,
     };
 
-    assert_eq!(summary.total_cost_cents, 100);
+    assert_eq!(summary.total_cost_microdollars, 100);
     assert_eq!(summary.total_tokens, 5000);
     assert_eq!(summary.total_input_tokens, 3000);
     assert_eq!(summary.total_output_tokens, 2000);
@@ -172,7 +172,7 @@ fn test_ai_request_summary_debug() {
 #[test]
 fn test_ai_request_summary_clone() {
     let summary = AiRequestSummary {
-        total_cost_cents: 50,
+        total_cost_microdollars: 50,
         total_tokens: 1000,
         total_input_tokens: 600,
         total_output_tokens: 400,
@@ -181,7 +181,7 @@ fn test_ai_request_summary_clone() {
     };
 
     let cloned = summary.clone();
-    assert_eq!(summary.total_cost_cents, cloned.total_cost_cents);
+    assert_eq!(summary.total_cost_microdollars, cloned.total_cost_microdollars);
     assert_eq!(summary.request_count, cloned.request_count);
 }
 
@@ -189,13 +189,13 @@ fn test_ai_request_summary_clone() {
 fn test_ai_request_summary_copy() {
     let summary = AiRequestSummary::default();
     let copied: AiRequestSummary = summary;
-    assert_eq!(summary.total_cost_cents, copied.total_cost_cents);
+    assert_eq!(summary.total_cost_microdollars, copied.total_cost_microdollars);
 }
 
 #[test]
 fn test_ai_request_summary_serialize() {
     let summary = AiRequestSummary {
-        total_cost_cents: 25,
+        total_cost_microdollars: 25,
         total_tokens: 500,
         total_input_tokens: 300,
         total_output_tokens: 200,
@@ -211,7 +211,7 @@ fn test_ai_request_summary_serialize() {
 #[test]
 fn test_ai_request_summary_deserialize() {
     let json = r#"{
-        "total_cost_cents": 100,
+        "total_cost_microdollars": 100,
         "total_tokens": 2000,
         "total_input_tokens": 1200,
         "total_output_tokens": 800,
@@ -220,7 +220,7 @@ fn test_ai_request_summary_deserialize() {
     }"#;
 
     let summary: AiRequestSummary = serde_json::from_str(json).unwrap();
-    assert_eq!(summary.total_cost_cents, 100);
+    assert_eq!(summary.total_cost_microdollars, 100);
     assert_eq!(summary.total_tokens, 2000);
 }
 
@@ -617,7 +617,7 @@ fn test_ai_request_info_creation() {
         max_tokens: Some(4096),
         input_tokens: Some(500),
         output_tokens: Some(300),
-        cost_cents: 5,
+        cost_microdollars: 5,
         latency_ms: Some(1200),
     };
 
@@ -625,7 +625,7 @@ fn test_ai_request_info_creation() {
     assert_eq!(info.provider, "anthropic");
     assert_eq!(info.model, "claude-3");
     assert_eq!(info.max_tokens, Some(4096));
-    assert_eq!(info.cost_cents, 5);
+    assert_eq!(info.cost_microdollars, 5);
 }
 
 #[test]
@@ -637,7 +637,7 @@ fn test_ai_request_info_minimal() {
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,
-        cost_cents: 0,
+        cost_microdollars: 0,
         latency_ms: None,
     };
 
@@ -655,7 +655,7 @@ fn test_ai_request_info_debug() {
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,
-        cost_cents: 0,
+        cost_microdollars: 0,
         latency_ms: None,
     };
 
@@ -672,7 +672,7 @@ fn test_ai_request_info_clone() {
         max_tokens: Some(1000),
         input_tokens: Some(100),
         output_tokens: Some(200),
-        cost_cents: 3,
+        cost_microdollars: 3,
         latency_ms: Some(500),
     };
 
@@ -690,7 +690,7 @@ fn test_ai_request_info_serialize() {
         max_tokens: None,
         input_tokens: None,
         output_tokens: None,
-        cost_cents: 1,
+        cost_microdollars: 1,
         latency_ms: None,
     };
 
@@ -1126,7 +1126,7 @@ fn test_trace_event_roundtrip() {
 #[test]
 fn test_ai_request_summary_roundtrip() {
     let summary = AiRequestSummary {
-        total_cost_cents: 150,
+        total_cost_microdollars: 150,
         total_tokens: 8000,
         total_input_tokens: 5000,
         total_output_tokens: 3000,
@@ -1137,7 +1137,7 @@ fn test_ai_request_summary_roundtrip() {
     let json = serde_json::to_string(&summary).unwrap();
     let deserialized: AiRequestSummary = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(summary.total_cost_cents, deserialized.total_cost_cents);
+    assert_eq!(summary.total_cost_microdollars, deserialized.total_cost_microdollars);
     assert_eq!(summary.total_tokens, deserialized.total_tokens);
     assert_eq!(summary.request_count, deserialized.request_count);
 }

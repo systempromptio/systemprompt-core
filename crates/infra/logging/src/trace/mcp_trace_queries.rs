@@ -41,7 +41,7 @@ pub async fn fetch_mcp_linked_ai_requests(
     mcp_execution_id: &str,
 ) -> Result<Vec<AiRequestInfo>> {
     let rows = sqlx::query!(
-        r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_cents, latency_ms
+        r#"SELECT id, model, provider, max_tokens, input_tokens, output_tokens, cost_microdollars, latency_ms
            FROM ai_requests
            WHERE mcp_execution_id = $1
            ORDER BY created_at"#,
@@ -59,7 +59,7 @@ pub async fn fetch_mcp_linked_ai_requests(
             max_tokens: r.max_tokens,
             input_tokens: r.input_tokens,
             output_tokens: r.output_tokens,
-            cost_cents: r.cost_cents,
+            cost_microdollars: r.cost_microdollars,
             latency_ms: r.latency_ms,
         })
         .collect())

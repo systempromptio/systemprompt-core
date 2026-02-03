@@ -92,7 +92,7 @@ async fn execute_internal(
         success_rate,
         avg_execution_time_ms: summary_row.avg_time as i64,
         total_ai_requests: 0,
-        total_cost_cents: 0,
+        total_cost_microdollars: 0,
     };
 
     let total: i64 = status_breakdown_rows.iter().map(|r| r.status_count).sum();

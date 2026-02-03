@@ -103,7 +103,7 @@ async fn execute_internal(
                 task_count: row.task_count,
                 success_rate,
                 avg_execution_time_ms: row.avg_execution_time_ms,
-                total_cost_cents: row.total_cost_cents,
+                total_cost_microdollars: row.total_cost_microdollars,
                 last_active: row.last_active.format("%Y-%m-%d %H:%M:%S").to_string(),
             }
         })
@@ -132,7 +132,7 @@ async fn execute_internal(
                 "task_count".to_string(),
                 "success_rate".to_string(),
                 "avg_execution_time_ms".to_string(),
-                "total_cost_cents".to_string(),
+                "total_cost_microdollars".to_string(),
             ]),
             ..Default::default()
         };
@@ -155,7 +155,7 @@ fn render_list(output: &AgentListOutput) {
         CliService::key_value("Tasks", &format_number(agent.task_count));
         CliService::key_value("Success Rate", &format_percent(agent.success_rate));
         CliService::key_value("Avg Time", &format_duration_ms(agent.avg_execution_time_ms));
-        CliService::key_value("Cost", &format_cost(agent.total_cost_cents));
+        CliService::key_value("Cost", &format_cost(agent.total_cost_microdollars));
         CliService::key_value("Last Active", &agent.last_active);
     }
 

@@ -8,6 +8,8 @@
 
 ### Changed
 - `RequestStorage` is now `Clone` to support stream wrapper ownership
+- **BREAKING**: Cost tracking changed from `cost_cents` (INTEGER) to `cost_microdollars` (BIGINT) for sub-cent precision
+- Regenerated SQLx offline query cache
 
 ## [0.1.0] - 2026-02-02
 

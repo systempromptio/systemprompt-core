@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS ai_requests (
     tokens_used INTEGER,
     input_tokens INTEGER,
     output_tokens INTEGER,
-    cost_cents INTEGER NOT NULL DEFAULT 0,
+    cost_microdollars BIGINT NOT NULL DEFAULT 0,
     latency_ms INTEGER,
     cache_hit BOOLEAN NOT NULL DEFAULT FALSE,
     cache_read_tokens INTEGER,
@@ -38,7 +38,7 @@ CREATE INDEX IF NOT EXISTS idx_ai_requests_task_id ON ai_requests(task_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_context_id ON ai_requests(context_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_trace_id ON ai_requests(trace_id);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_mcp_execution_id ON ai_requests(mcp_execution_id);
-CREATE INDEX IF NOT EXISTS idx_ai_requests_cost ON ai_requests(cost_cents);
+CREATE INDEX IF NOT EXISTS idx_ai_requests_cost ON ai_requests(cost_microdollars);
 
 CREATE INDEX IF NOT EXISTS idx_ai_requests_user_created ON ai_requests(user_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_ai_requests_user_model ON ai_requests(user_id, model);

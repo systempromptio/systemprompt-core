@@ -70,7 +70,7 @@ async fn execute_internal(
             &args.group_by,
         );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
-        let cost = i64::from(row.cost_cents.unwrap_or(0));
+        let cost = i64::from(row.cost_microdollars.unwrap_or(0));
         entry.0 += cost;
         entry.1 += 1;
         entry.2 += i64::from(row.tokens_used.unwrap_or(0));
@@ -81,7 +81,7 @@ async fn execute_internal(
         .into_iter()
         .map(|(timestamp, (cost, count, tokens))| CostTrendPoint {
             timestamp,
-            cost_cents: cost,
+            cost_microdollars: cost,
             request_count: count,
             tokens,
         })
@@ -93,7 +93,7 @@ async fn execute_internal(
         period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
         group_by: args.group_by.clone(),
         points,
-        total_cost_cents: total_cost,
+        total_cost_microdollars: total_cost,
     };
 
     if let Some(ref path) = args.export {
@@ -119,14 +119,14 @@ async fn execute_internal(
 
 fn render_trends(output: &CostTrendsOutput) {
     CliService::section(&format!("Cost Trends ({})", output.period));
-    CliService::key_value("Total", &format_cost(output.total_cost_cents));
+    CliService::key_value("Total", &format_cost(output.total_cost_microdollars));
     CliService::key_value("Grouped by", &output.group_by);
 
     for point in &output.points {
         CliService::info(&format!(
             "{}: {} ({} requests, {} tokens)",
             point.timestamp,
-            format_cost(point.cost_cents),
+            format_cost(point.cost_microdollars),
             format_number(point.request_count),
             format_tokens(point.tokens)
         ));

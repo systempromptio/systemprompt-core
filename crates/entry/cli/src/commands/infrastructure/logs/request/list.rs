@@ -37,11 +37,12 @@ pub struct ListArgs {
 struct AiRequestRow {
     id: String,
     created_at: DateTime<Utc>,
+    trace_id: Option<String>,
     provider: String,
     model: String,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
-    cost_cents: i32,
+    cost_microdollars: i64,
     latency_ms: Option<i32>,
     status: String,
 }
@@ -75,11 +76,12 @@ async fn execute_with_pool_inner(
             SELECT
                 id as "id!",
                 created_at as "created_at!",
+                trace_id,
                 provider as "provider!",
                 model as "model!",
                 input_tokens,
                 output_tokens,
-                cost_cents as "cost_cents!",
+                cost_microdollars as "cost_microdollars!",
                 latency_ms,
                 status as "status!"
             FROM ai_requests
@@ -99,11 +101,12 @@ async fn execute_with_pool_inner(
             SELECT
                 id as "id!",
                 created_at as "created_at!",
+                trace_id,
                 provider as "provider!",
                 model as "model!",
                 input_tokens,
                 output_tokens,
-                cost_cents as "cost_cents!",
+                cost_microdollars as "cost_microdollars!",
                 latency_ms,
                 status as "status!"
             FROM ai_requests
@@ -114,6 +117,13 @@ async fn execute_with_pool_inner(
         )
         .fetch_all(pool.as_ref())
         .await?
+    };
+
+    // Store trace_id for single-result hint
+    let single_trace_id = if args.limit == 1 && rows.len() == 1 {
+        rows[0].trace_id.clone()
+    } else {
+        None
     };
 
     let requests: Vec<RequestListRow> = rows
@@ -134,7 +144,7 @@ async fn execute_with_pool_inner(
         .map(|r| {
             let input = r.input_tokens.unwrap_or(0);
             let output = r.output_tokens.unwrap_or(0);
-            let cost_dollars = f64::from(r.cost_cents) / 100.0;
+            let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
             RequestListRow {
                 request_id: truncate_id(&r.id, 12),
@@ -174,13 +184,13 @@ async fn execute_with_pool_inner(
             ]);
         render_result(&result);
     } else {
-        render_text_output(&output);
+        render_text_output(&output, single_trace_id.as_deref());
     }
 
     Ok(())
 }
 
-fn render_text_output(output: &RequestListOutput) {
+fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
     CliService::section("Recent AI Requests");
 
     for req in &output.requests {
@@ -207,4 +217,12 @@ fn render_text_output(output: &RequestListOutput) {
     }
 
     CliService::info(&format!("Total: {} requests", output.total));
+
+    // Show trace hint for single-result queries
+    if let Some(trace_id) = trace_hint {
+        CliService::info(&format!(
+            "For full trace: systemprompt infra logs trace show {} --all",
+            trace_id
+        ));
+    }
 }

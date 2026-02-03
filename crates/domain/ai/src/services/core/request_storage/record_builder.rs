@@ -23,7 +23,7 @@ pub struct BuildRecordParams<'a> {
     pub context: &'a RequestContext,
     pub status: RequestStatus,
     pub error_message: Option<&'a str>,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
 }
 
 pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
@@ -42,7 +42,7 @@ pub fn build_record(params: &BuildRecordParams<'_>) -> AiRequestRecord {
             params.response.cache_creation_tokens.map(|t| t as i32),
         )
         .streaming(params.response.is_streaming)
-        .cost(params.cost_cents)
+        .cost(params.cost_microdollars)
         .latency(params.response.latency_ms as i32);
 
     builder = builder.max_tokens(params.request.max_output_tokens());

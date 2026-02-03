@@ -229,7 +229,7 @@ pub trait AiSessionProvider: Send + Sync {
         &self,
         session_id: &SessionId,
         tokens: i32,
-        cost_cents: i32,
+        cost_microdollars: i64,
     ) -> AiProviderResult<()>;
 }
 

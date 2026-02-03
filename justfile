@@ -842,3 +842,27 @@ sync-content:
 #   systemprompt agents enable my-agent
 #   systemprompt db describe agents
 #   systemprompt logs --level ERROR --stream
+
+# =============================================================================
+# WEBAUTHN
+# =============================================================================
+
+# Generate WebAuthn setup token for admin and open registration page
+webauthn-admin EMAIL="admin@localhost":
+    #!/usr/bin/env bash
+    set -e
+    echo "🔐 Generating WebAuthn setup token for {{EMAIL}}..."
+
+    # Find the systemprompt binary
+    if [ -f "./target/debug/systemprompt" ]; then
+        CLI="./target/debug/systemprompt"
+    elif [ -f "../systemprompt-template/target/debug/systemprompt" ]; then
+        CLI="../systemprompt-template/target/debug/systemprompt"
+    elif command -v systemprompt &> /dev/null; then
+        CLI="systemprompt"
+    else
+        echo "❌ systemprompt binary not found. Run 'just build' first."
+        exit 1
+    fi
+
+    $CLI admin users webauthn generate-setup-token --email "{{EMAIL}}"

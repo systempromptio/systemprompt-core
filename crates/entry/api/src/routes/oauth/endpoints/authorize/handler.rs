@@ -5,7 +5,7 @@ use super::response_builder::{
 use super::validation::{validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
 use axum::extract::{Extension, Form, Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect};
 use axum::Json;
 use std::sync::Arc;
@@ -15,12 +15,41 @@ use systemprompt_oauth::services::validation::CsrfToken;
 use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
-#[instrument(skip(state, _req_ctx, params), fields(client_id = %params.client_id))]
+#[instrument(skip(state, _req_ctx, params, headers), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
+    headers: HeaderMap,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(params): Query<AuthorizeQuery>,
     State(state): State<OAuthState>,
 ) -> impl IntoResponse {
+    let accepts_html = headers
+        .get(http::header::ACCEPT)
+        .and_then(|v| {
+            v.to_str()
+                .map_err(|e| {
+                    tracing::debug!(error = %e, "Invalid UTF-8 in Accept header");
+                    e
+                })
+                .ok()
+        })
+        .is_none_or(|accept| accept.contains("text/html") || accept.contains("*/*"));
+
+    if !accepts_html {
+        tracing::info!(
+            client_id = %params.client_id,
+            "Programmatic client attempted browser-only OAuth endpoint"
+        );
+        return (
+            StatusCode::NOT_ACCEPTABLE,
+            Json(serde_json::json!({
+                "error": "browser_auth_required",
+                "error_description": "This OAuth endpoint requires browser-based authentication. Your token may lack required permissions for the requested resource.",
+                "hint": "Ensure your user account has the required scopes/permissions, or authenticate via browser."
+            })),
+        )
+            .into_response();
+    }
+
     let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
         Ok(r) => r,
         Err(e) => {

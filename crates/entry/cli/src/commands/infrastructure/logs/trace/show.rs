@@ -108,7 +108,7 @@ async fn execute_trace_view(args: &ShowArgs, pool: &Arc<sqlx::PgPool>) -> Result
                         ai_summary.total_input_tokens, ai_summary.total_output_tokens
                     ),
                 );
-                let cost_dollars = f64::from(ai_summary.total_cost_cents as i32) / 1_000_000.0;
+                let cost_dollars = f64::from(ai_summary.total_cost_microdollars as i32) / 1_000_000.0;
                 CliService::key_value("Cost", &format!("${:.6}", cost_dollars));
             }
             if mcp_summary.execution_count > 0 {
