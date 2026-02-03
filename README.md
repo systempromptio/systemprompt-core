@@ -1,22 +1,28 @@
-# systemprompt.io
+<div align="center">
 
-**Production infrastructure for AI agents. Self-hosted or cloud.**
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img alt="systemprompt.io" src="https://systemprompt.io/files/images/logo.svg" width="400">
+</picture>
 
-AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK—complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
-
-**Playbooks** provide deterministic instruction rails that eliminate hallucination—your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
+### Production infrastructure for AI agents
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
 [![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
-[![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
-[![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://a2a-protocol.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Playbooks](https://systemprompt.io/documentation/playbooks) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions) · [Crates.io](https://crates.io/crates/systemprompt)
+[Website](https://systemprompt.io) · [Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Playbooks](https://systemprompt.io/documentation/playbooks) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions)
 
-**Questions or issues?** Join us on [Discord](https://discord.gg/wkAbSuPWpr) for help.
+</div>
+
+---
+
+AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK—complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
+
+**Playbooks** provide deterministic instruction rails that eliminate hallucination—your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
 
 ## Table of Contents
 
