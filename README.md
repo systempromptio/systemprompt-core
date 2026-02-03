@@ -12,7 +12,7 @@ The missing layer between AI frameworks and production deployment. Not another S
 [![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://a2a-protocol.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Discord](https://discord.gg/wkAbSuPWpr) · [Documentation](https://systemprompt.io/documentation) · [Crates.io](https://crates.io/crates/systemprompt) · [Issues](https://github.com/systempromptio/systemprompt-core/issues)
+[Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions) · [Crates.io](https://crates.io/crates/systemprompt)
 
 **Questions or issues?** Join us on [Discord](https://discord.gg/wkAbSuPWpr) for help.
 
@@ -240,16 +240,6 @@ register_api_extension!(MyExtension);
 | `ProviderExtension` | Custom LLM/tool provider implementations |
 
 Extensions are discovered at runtime via the `inventory` crate.
-
-## Versioning
-
-Follows [Semantic Versioning](https://semver.org/):
-
-- **Major**: Breaking API changes
-- **Minor**: New features, backward compatible
-- **Patch**: Bug fixes, backward compatible
-
-Current version: **0.0.1**
 
 ## License
 
