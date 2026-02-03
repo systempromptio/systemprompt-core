@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use std::path::PathBuf;
 
 use anyhow::Result;
@@ -50,9 +51,19 @@ pub async fn prerender_pages_with_context(
         PagePrepareContext::new(&ctx.web_config, &ctx.config, &ctx.db_pool, &ctx.dist_dir);
 
     let mut results = Vec::new();
+    let mut rendered_page_types: HashSet<String> = HashSet::new();
 
     for prerenderer in prerenderers {
         let page_type = prerenderer.page_type();
+
+        if rendered_page_types.contains(page_type) {
+            tracing::debug!(
+                page_type = %page_type,
+                priority = prerenderer.priority(),
+                "Skipping prerenderer, page type already rendered by higher-priority prerenderer"
+            );
+            continue;
+        }
 
         let render_spec = prerenderer
             .prepare(&prepare_ctx)
@@ -120,6 +131,8 @@ pub async fn prerender_pages_with_context(
             path = %output_path.display(),
             "Generated page"
         );
+
+        rendered_page_types.insert(page_type.to_string());
 
         results.push(PagePrerenderResult {
             page_type: page_type.to_string(),

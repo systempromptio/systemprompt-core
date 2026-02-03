@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- Components now sorted by priority on registration in `TemplateRegistry`
+- Added priority field to component registration debug logging
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

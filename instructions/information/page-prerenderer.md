@@ -249,14 +249,16 @@ register_extension!(MyExtension);
 
 ## Priority
 
-Lower priority values execute first:
+Lower priority values indicate higher importance and execute first. When multiple prerenderers share the same `page_type`, only the first one (lowest priority) runs - others are skipped. This allows extensions to override core defaults.
 
 | Priority | Use Case |
 |----------|----------|
-| 0-49 | Critical system pages |
+| 0-49 | Critical - overrides defaults |
 | 50-99 | Core application pages |
-| 100 | Default (most pages) |
+| 100 | Default (fallback, easily overridden) |
 | 101+ | Low priority/optional |
+
+**Example**: Extension with `HomepagePrerenderer` (priority 10) overrides core's `DefaultHomepagePrerenderer` (priority 100).
 
 ## Error Handling
 

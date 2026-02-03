@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Added
+- Priority-based deduplication for page prerenderers (skip lower-priority prerenderers when page type already rendered)
+- Priority-based deduplication for component renderers (skip lower-priority components when variable already rendered)
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

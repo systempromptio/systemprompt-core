@@ -7,6 +7,9 @@
 - Playbook IDs map underscores to path separators (`domain_agents_operations` → `domain/agents/operations.md`)
 - Handle orphaned Docker volumes and containers in cloud tenant creation
 - Docker container reuse now retrieves password directly from container environment
+- Priority-based deduplication for page prerenderers (higher-priority prerenderer wins per page type)
+- Priority-based deduplication for component renderers (higher-priority component wins per variable)
+- Components now sorted by priority on registration in `TemplateRegistry`
 
 ### Changed
 - Reduce scheduler job log verbosity (info → debug)

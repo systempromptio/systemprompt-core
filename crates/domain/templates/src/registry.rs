@@ -73,9 +73,11 @@ impl TemplateRegistry {
         debug!(
             component_id = %component.component_id(),
             variable_name = %component.variable_name(),
+            priority = component.priority(),
             "Registering component renderer"
         );
         self.components.push(component);
+        self.components.sort_by_key(|c| c.priority());
     }
 
     pub fn register_page_provider(&mut self, provider: DynPageDataProvider) {
