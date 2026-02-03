@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Added
+- `SessionCreationError` typed error enum for session creation failures
+
+### Fixed
+- Validate user existence before creating authenticated session to prevent FK constraint violations
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

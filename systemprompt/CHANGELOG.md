@@ -12,6 +12,7 @@
 
 ### Fixed
 - Add process existence check before SIGTERM in MCP cleanup
+- Clear invalid JWT cookies when user no longer exists instead of repeated FK constraint errors
 
 ## [0.1.0] - 2026-02-02
 

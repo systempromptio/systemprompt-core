@@ -16,6 +16,15 @@ use systemprompt_traits::{
 
 const MAX_SESSION_AGE_SECONDS: i64 = 7 * 24 * 60 * 60;
 
+#[derive(Debug, thiserror::Error)]
+pub enum SessionCreationError {
+    #[error("User not found: {user_id}")]
+    UserNotFound { user_id: String },
+
+    #[error("Session creation failed: {0}")]
+    Internal(String),
+}
+
 struct SessionCreationParams<'a> {
     analytics: SessionAnalytics,
     is_bot: bool,
@@ -125,12 +134,25 @@ impl SessionCreationService {
         user_id: &UserId,
         headers: &HeaderMap,
         session_source: SessionSource,
-    ) -> Result<SessionId> {
+    ) -> Result<SessionId, SessionCreationError> {
+        let user = self
+            .user_provider
+            .find_by_id(user_id.as_str())
+            .await
+            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
+
+        if user.is_none() {
+            return Err(SessionCreationError::UserNotFound {
+                user_id: user_id.to_string(),
+            });
+        }
+
         let session_id = SessionId::new(format!("sess_{}", Uuid::new_v4()));
         let analytics = self.analytics_provider.extract_analytics(headers, None);
         let is_bot = analytics.is_bot();
 
-        let global_config = systemprompt_models::Config::get()?;
+        let global_config = systemprompt_models::Config::get()
+            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
         let expires_at = chrono::Utc::now()
             + chrono::Duration::seconds(global_config.jwt_access_token_expiration);
 
@@ -144,7 +166,7 @@ impl SessionCreationService {
                 expires_at,
             })
             .await
-            .map_err(|e| anyhow::anyhow!("{}", e))?;
+            .map_err(|e| SessionCreationError::Internal(e.to_string()))?;
 
         self.publish_event(UserEvent::SessionCreated {
             user_id: user_id.to_string(),
