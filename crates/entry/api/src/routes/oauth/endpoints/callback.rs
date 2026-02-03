@@ -147,10 +147,13 @@ async fn exchange_code_for_token(
 
     let permissions = parse_permissions(&scope)?;
 
-    let session_service = systemprompt_oauth::services::SessionCreationService::new(
+    let mut session_service = systemprompt_oauth::services::SessionCreationService::new(
         Arc::clone(state.analytics_provider()),
         Arc::clone(state.user_provider()),
     );
+    if let Some(publisher) = state.event_publisher() {
+        session_service = session_service.with_event_publisher(Arc::clone(publisher));
+    }
     let session_id = session_service
         .create_authenticated_session(&user_id, params.headers, SessionSource::Oauth)
         .await?;

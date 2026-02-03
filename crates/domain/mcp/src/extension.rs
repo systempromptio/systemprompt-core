@@ -28,15 +28,12 @@ impl Extension for McpExtension {
                 "server_name".into(),
                 "created_at".into(),
             ]),
-            SchemaDefinition::inline(
-                "mcp_sessions",
-                include_str!("../schema/mcp_sessions.sql"),
-            )
-            .with_required_columns(vec![
-                "session_id".into(),
-                "status".into(),
-                "created_at".into(),
-            ]),
+            SchemaDefinition::inline("mcp_sessions", include_str!("../schema/mcp_sessions.sql"))
+                .with_required_columns(vec![
+                    "session_id".into(),
+                    "status".into(),
+                    "created_at".into(),
+                ]),
         ]
     }
 

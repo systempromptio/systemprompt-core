@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-02-03
+
+### Changed
+- Simplified `create_oauth_state()` - removed webhook publisher configuration (now uses cloud activity API)
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed

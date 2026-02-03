@@ -304,6 +304,18 @@ pub struct CustomDomainResponse {
     pub verified_at: Option<String>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityRequest {
+    pub event: String,
+    pub timestamp: String,
+    pub data: ActivityData,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityData {
+    pub user_id: String,
+}
+
 pub type ApiResponse<T> = CloudApiResponse<T>;
 pub type ApiError = CloudApiError;
 pub type ApiErrorDetail = CloudApiErrorDetail;

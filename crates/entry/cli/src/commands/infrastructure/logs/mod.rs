@@ -17,7 +17,8 @@ pub mod types;
 mod view;
 
 pub use shared::{
-    cost_microdollars_to_dollars, display_log_row, format_duration_ms, format_timestamp, truncate_id,
+    cost_microdollars_to_dollars, display_log_row, format_duration_ms, format_timestamp,
+    truncate_id,
 };
 pub use types::{MessageRow, ToolCallRow};
 

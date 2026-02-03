@@ -234,7 +234,8 @@ async fn execute_with_pool_inner(
                 provider: r.provider,
                 request_count: r.request_count.unwrap_or(0),
                 total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32) / 1_000_000.0,
+                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32)
+                    / 1_000_000.0,
                 avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
             })
             .collect(),
@@ -245,7 +246,8 @@ async fn execute_with_pool_inner(
                 provider: r.provider,
                 request_count: r.request_count.unwrap_or(0),
                 total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32) / 1_000_000.0,
+                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32)
+                    / 1_000_000.0,
                 avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
             })
             .collect(),

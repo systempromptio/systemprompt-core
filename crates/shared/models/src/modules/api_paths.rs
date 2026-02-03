@@ -76,6 +76,10 @@ impl ApiPaths {
     pub const CLOUD_TENANTS: &'static str = "/api/v1/tenants";
     pub const CLOUD_CHECKOUT: &'static str = "/api/v1/checkout";
     pub const CLOUD_CHECKOUT_PLANS: &'static str = "/api/v1/checkout/plans";
+    pub const CLOUD_ACTIVITY: &'static str = "/api/v1/activity";
+
+    pub const ACTIVITY_EVENT_LOGIN: &'static str = "cloud_login";
+    pub const ACTIVITY_EVENT_LOGOUT: &'static str = "cloud_logout";
 
     pub fn tenant(tenant_id: &str) -> String {
         format!("{}/{}", Self::CLOUD_TENANTS, tenant_id)

@@ -96,11 +96,7 @@ impl McpSessionRepository {
         }))
     }
 
-    pub async fn update_last_event_id(
-        &self,
-        session_id: &str,
-        last_event_id: &str,
-    ) -> Result<()> {
+    pub async fn update_last_event_id(&self, session_id: &str, last_event_id: &str) -> Result<()> {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions

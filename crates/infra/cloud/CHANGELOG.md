@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-02-03
+
+### Added
+- `CloudApiClient::report_activity()` method for sending activity events to management API
+- `post_no_response()` helper method for POST requests without response body
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed

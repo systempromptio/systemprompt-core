@@ -19,7 +19,8 @@ use systemprompt_users::BannedIpRepository;
 fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let analytics = ctx.analytics_provider()?;
     let users = ctx.user_provider()?;
-    Some(OAuthState::new(ctx.db_pool().clone(), analytics, users))
+    let state = OAuthState::new(ctx.db_pool().clone(), analytics, users);
+    Some(state)
 }
 
 pub fn configure_routes(

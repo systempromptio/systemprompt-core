@@ -1,11 +1,13 @@
 use anyhow::{anyhow, Context, Result};
+use chrono::Utc;
 use reqwest::{Client, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use systemprompt_models::modules::ApiPaths;
 
 use super::types::{
-    ApiError, CheckoutRequest, CheckoutResponse, ListResponse, Plan, Tenant, UserMeResponse,
+    ActivityRequest, ApiError, CheckoutRequest, CheckoutResponse, ListResponse, Plan, Tenant,
+    UserMeResponse,
 };
 
 #[derive(Debug)]
@@ -64,6 +66,48 @@ impl CloudApiClient {
             .context("Failed to connect to API")?;
 
         self.handle_response(response).await
+    }
+
+    pub(super) async fn post_no_response<B: Serialize + Sync>(
+        &self,
+        path: &str,
+        body: &B,
+    ) -> Result<()> {
+        let url = format!("{}{}", self.api_url, path);
+        let response = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.token))
+            .json(body)
+            .send()
+            .await
+            .context("Failed to connect to API")?;
+
+        let status = response.status();
+        if status == StatusCode::UNAUTHORIZED {
+            return Err(anyhow!(
+                "Authentication failed. Please run 'systemprompt cloud login' again."
+            ));
+        }
+        if status == StatusCode::NO_CONTENT || status.is_success() {
+            return Ok(());
+        }
+
+        let error_text = response
+            .text()
+            .await
+            .unwrap_or_else(|_| String::from("<failed to read response body>"));
+
+        serde_json::from_str::<ApiError>(&error_text).map_or_else(
+            |_| {
+                Err(anyhow!(
+                    "Request failed with status {}: {}",
+                    status,
+                    error_text.chars().take(500).collect::<String>()
+                ))
+            },
+            |parsed| Err(anyhow!("{}: {}", parsed.error.code, parsed.error.message)),
+        )
     }
 
     pub(super) async fn put<T: DeserializeOwned, B: Serialize + Sync>(
@@ -241,5 +285,17 @@ impl CloudApiClient {
             redirect_uri: redirect_uri.map(String::from),
         };
         self.post(ApiPaths::CLOUD_CHECKOUT, &request).await
+    }
+
+    pub async fn report_activity(&self, event_type: &str, user_id: &str) -> Result<()> {
+        let request = ActivityRequest {
+            event: event_type.to_string(),
+            timestamp: Utc::now().to_rfc3339(),
+            data: super::types::ActivityData {
+                user_id: user_id.to_string(),
+            },
+        };
+        self.post_no_response(ApiPaths::CLOUD_ACTIVITY, &request)
+            .await
     }
 }
