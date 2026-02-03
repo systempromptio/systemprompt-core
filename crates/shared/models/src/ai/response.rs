@@ -64,6 +64,11 @@ impl AiResponse {
         self
     }
 
+    pub const fn with_streaming(mut self, is_streaming: bool) -> Self {
+        self.is_streaming = is_streaming;
+        self
+    }
+
     pub fn with_tool_calls(mut self, tool_calls: Vec<ToolCall>) -> Self {
         self.tool_calls = tool_calls;
         self

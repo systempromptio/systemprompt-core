@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- `AiResponse::with_streaming()` builder method to mark responses as streaming
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed

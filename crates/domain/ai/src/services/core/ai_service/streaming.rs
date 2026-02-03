@@ -2,24 +2,30 @@ use anyhow::Result;
 use futures::Stream;
 use std::collections::HashMap;
 use std::pin::Pin;
+use uuid::Uuid;
 
 use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse};
 use crate::services::providers::{GenerationParams, SearchGenerationParams, ToolGenerationParams};
 
 use super::service::AiService;
+use super::stream_wrapper::StreamStorageWrapper;
 
 impl AiService {
     pub async fn generate_stream(
         &self,
         request: &AiRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+        let request_id = Uuid::new_v4();
+        let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
+
         if !provider.supports_streaming() {
             return Err(anyhow::anyhow!(
                 "Provider {} does not support streaming",
                 request.provider()
             ));
         }
+
         let mut params = GenerationParams::new(
             &request.messages,
             request.model(),
@@ -28,20 +34,37 @@ impl AiService {
         if let Some(sampling) = request.sampling.as_ref() {
             params = params.with_sampling(sampling);
         }
-        provider.generate_stream(params).await
+
+        let inner_stream = provider.generate_stream(params).await?;
+
+        let wrapped_stream = StreamStorageWrapper::new(
+            inner_stream,
+            self.storage.clone(),
+            request.clone(),
+            request_id,
+            start,
+            request.provider().to_string(),
+            request.model().to_string(),
+        );
+
+        Ok(Box::pin(wrapped_stream))
     }
 
     pub async fn generate_with_tools_stream(
         &self,
         request: &AiRequest,
     ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+        let request_id = Uuid::new_v4();
+        let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
+
         if !provider.supports_streaming() {
             return Err(anyhow::anyhow!(
                 "Provider {} does not support streaming",
                 request.provider()
             ));
         }
+
         let tools = request.tools.clone().unwrap_or_else(Vec::new);
         let mut base = GenerationParams::new(
             &request.messages,
@@ -52,7 +75,20 @@ impl AiService {
             base = base.with_sampling(sampling);
         }
         let params = ToolGenerationParams::new(base, tools);
-        provider.generate_with_tools_stream(params).await
+
+        let inner_stream = provider.generate_with_tools_stream(params).await?;
+
+        let wrapped_stream = StreamStorageWrapper::new(
+            inner_stream,
+            self.storage.clone(),
+            request.clone(),
+            request_id,
+            start,
+            request.provider().to_string(),
+            request.model().to_string(),
+        );
+
+        Ok(Box::pin(wrapped_stream))
     }
 
     pub async fn generate_with_google_search(

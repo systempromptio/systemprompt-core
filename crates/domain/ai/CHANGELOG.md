@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- `StreamStorageWrapper` for capturing and storing streaming AI response data
+- Request storage tracking for `generate_stream` and `generate_with_tools_stream` methods
+
+### Changed
+- `RequestStorage` is now `Clone` to support stream wrapper ownership
+
 ## [0.1.0] - 2026-02-02
 
 ### Added

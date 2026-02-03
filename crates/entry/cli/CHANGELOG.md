@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- Initialize logging with database pool in `admin agents run` command
+
 ## [0.1.1] - 2026-02-03
 
 ### Added
