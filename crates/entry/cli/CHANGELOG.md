@@ -13,6 +13,7 @@
 ### Changed
 - Playbook scanning now uses recursive directory traversal (unlimited depth)
 - Reduce scheduler job log verbosity from `info` to `debug` level
+- Hide `profile create` from interactive menu (still available via direct CLI for power users)
 
 ### Fixed
 - Add process existence check before sending SIGTERM in MCP cleanup
