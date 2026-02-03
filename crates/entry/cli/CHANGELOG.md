@@ -17,10 +17,14 @@
 - Hide `profile create` from interactive menu (still available via direct CLI for power users)
 - Credential errors are now fatal except for `FileNotFound` (which allows local-only mode)
 - `cloud status` now displays resolved credentials path using typed paths
+- Local tenant database names now include unique suffix to prevent conflicts across projects (e.g., `local_19c22e8f38b`)
+- Profile bin path now dynamically resolves to debug or release based on which binary is newer
 
 ### Fixed
 - Add process existence check before sending SIGTERM in MCP cleanup
 - Credentials path resolution now uses `ProjectContext` typed paths instead of profile-relative strings
+- Sync token warning no longer shown for local tenants (only applies to cloud tenants)
+- Profile validation no longer fails when only debug build exists
 
 ## [0.1.0] - 2026-02-02
 

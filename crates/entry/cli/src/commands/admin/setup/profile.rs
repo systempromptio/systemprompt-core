@@ -1,6 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 use systemprompt_cloud::ProjectContext;
+use systemprompt_loader::ExtensionLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
@@ -61,7 +62,9 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         paths: PathsConfig {
             system: system_path.clone(),
             services: services_path,
-            bin: format!("{}/target/release", system_path),
+            bin: ExtensionLoader::resolve_bin_directory(project_root)
+                .to_string_lossy()
+                .to_string(),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
             geoip_database: None,
             web_path: None,

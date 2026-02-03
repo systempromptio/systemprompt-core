@@ -110,6 +110,7 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
         &api_keys,
         tenant.sync_token.as_deref(),
         &secrets_path,
+        tenant.tenant_type == TenantType::Cloud,
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 
@@ -236,6 +237,7 @@ pub fn create_profile_for_tenant(
         api_keys,
         tenant.sync_token.as_deref(),
         &secrets_path,
+        tenant.tenant_type == TenantType::Cloud,
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
 

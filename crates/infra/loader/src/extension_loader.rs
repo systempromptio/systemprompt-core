@@ -117,6 +117,33 @@ impl ExtensionLoader {
         None
     }
 
+    pub fn resolve_bin_directory(project_root: &Path) -> std::path::PathBuf {
+        let release_dir = project_root.join(CARGO_TARGET).join("release");
+        let debug_dir = project_root.join(CARGO_TARGET).join("debug");
+
+        let release_binary = release_dir.join("systemprompt");
+        let debug_binary = debug_dir.join("systemprompt");
+
+        match (release_binary.exists(), debug_binary.exists()) {
+            (true, true) => {
+                let release_mtime = fs::metadata(&release_binary)
+                    .and_then(|m| m.modified())
+                    .ok();
+                let debug_mtime = fs::metadata(&debug_binary)
+                    .and_then(|m| m.modified())
+                    .ok();
+
+                match (release_mtime, debug_mtime) {
+                    (Some(r), Some(d)) if d > r => debug_dir,
+                    _ => release_dir,
+                }
+            },
+            (true, false) => release_dir,
+            (false, true) => debug_dir,
+            (false, false) => release_dir,
+        }
+    }
+
     pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
         let extensions = Self::get_enabled_mcp_extensions(project_root);
         let target_dir = project_root.join(CARGO_TARGET).join("release");

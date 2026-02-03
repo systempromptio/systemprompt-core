@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Added
+- `ExtensionLoader::resolve_bin_directory()` utility to dynamically resolve target/debug or target/release based on binary modification time
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
