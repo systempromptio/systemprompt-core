@@ -97,20 +97,17 @@ providers:
 
 pub fn content_config() -> String {
     r#"# Content Configuration
-content_sources:
-  blog:
-    enabled: true
-    path: "content/blog"
-    source_id: "blog"
-    category_id: "articles"
-    description: "Blog posts"
+# Define content sources for your project
+# Example:
+#   content_sources:
+#     blog:
+#       enabled: true
+#       path: "content/blog"
+#       source_id: "blog"
+#       category_id: "articles"
+#       description: "Blog posts"
 
-  legal:
-    enabled: true
-    path: "content/legal"
-    source_id: "legal"
-    category_id: "legal"
-    description: "Legal documents"
+content_sources: {}
 "#
     .to_string()
 }
