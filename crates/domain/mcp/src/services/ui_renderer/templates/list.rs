@@ -101,11 +101,9 @@ impl ListItem {
     }
 
     fn render_html(&self, index: usize) -> String {
-        let icon_html = self
-            .icon
-            .as_ref()
-            .map(|i| format!(r#"<span class="item-icon">{}</span>"#, html_escape(i)))
-            .unwrap_or_default();
+        let icon_html = self.icon.as_ref().map_or_else(String::new, |i| {
+            format!(r#"<span class="item-icon">{}</span>"#, html_escape(i))
+        });
 
         let title_html = self.link.as_ref().map_or_else(
             || {
@@ -123,11 +121,9 @@ impl ListItem {
             },
         );
 
-        let description_html = self
-            .description
-            .as_ref()
-            .map(|d| format!(r#"<p class="item-description">{}</p>"#, html_escape(d)))
-            .unwrap_or_default();
+        let description_html = self.description.as_ref().map_or_else(String::new, |d| {
+            format!(r#"<p class="item-description">{}</p>"#, html_escape(d))
+        });
 
         format!(
             r#"<li class="list-item" data-index="{index}">
@@ -202,8 +198,10 @@ impl UiRenderer for ListRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             tag = style.tag(),
             class = style.class(),
             items = items_html,

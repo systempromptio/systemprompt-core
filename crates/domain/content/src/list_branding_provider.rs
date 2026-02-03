@@ -41,12 +41,11 @@ impl PageDataProvider for DefaultListBrandingProvider {
 
         let blog_image = source_branding
             .and_then(|b| b.image.as_deref())
-            .map(|img| format!("{}{}", org.url, img))
-            .unwrap_or_default();
+            .map_or_else(String::new, |img| format!("{}{}", org.url, img));
 
         let blog_keywords = source_branding
             .and_then(|b| b.keywords.as_deref())
-            .unwrap_or_default();
+            .unwrap_or("");
 
         Ok(serde_json::json!({
             "BLOG_NAME": blog_name,

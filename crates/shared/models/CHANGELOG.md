@@ -2,6 +2,9 @@
 
 ## [0.1.1] - 2026-02-03
 
+### Changed
+- Replace `unwrap_or_default()` with explicit `map_or_else` patterns in secrets and profile loading
+
 ### Removed
 - Remove `credentials_path` and `tenants_path` fields from `CloudConfig` (use typed paths via `ProjectContext`)
 - Remove `Profile::credentials_path()` and `Profile::tenants_path()` methods

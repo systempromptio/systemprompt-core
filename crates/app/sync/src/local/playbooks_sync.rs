@@ -74,7 +74,10 @@ impl PlaybooksLocalSync {
                 let domain_parts: Vec<&str> = item.domain.split('/').collect();
                 let mut file_dir = self.playbooks_path.join(&item.category);
 
-                for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {
+                for part in domain_parts
+                    .iter()
+                    .take(domain_parts.len().saturating_sub(1))
+                {
                     file_dir = file_dir.join(part);
                 }
 

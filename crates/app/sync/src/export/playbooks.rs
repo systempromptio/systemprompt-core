@@ -41,7 +41,10 @@ pub fn export_playbook_to_disk(playbook: &Playbook, base_path: &Path) -> Result<
 
     let domain_parts: Vec<&str> = playbook.domain.split('/').collect();
 
-    for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {
+    for part in domain_parts
+        .iter()
+        .take(domain_parts.len().saturating_sub(1))
+    {
         dir_path = dir_path.join(part);
     }
 

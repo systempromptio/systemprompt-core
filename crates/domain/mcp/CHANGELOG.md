@@ -2,6 +2,9 @@
 
 ## [0.1.1] - 2026-02-03
 
+### Changed
+- Replace `unwrap_or_default()` with explicit `map_or_else` patterns in UI renderer templates
+
 ### Fixed
 - Add process existence check before sending SIGTERM in cleanup to avoid errors on already-terminated processes
 

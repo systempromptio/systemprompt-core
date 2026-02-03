@@ -59,9 +59,12 @@ pub async fn handle_local_tenant_setup(
         };
 
         if migrations_succeeded {
-            let result =
-                crate::cloud::sync::admin_user::sync_admin_to_database(cloud_user, db_url, tenant_name)
-                    .await;
+            let result = crate::cloud::sync::admin_user::sync_admin_to_database(
+                cloud_user,
+                db_url,
+                tenant_name,
+            )
+            .await;
 
             match &result {
                 crate::cloud::sync::admin_user::SyncResult::Created { email, .. } => {

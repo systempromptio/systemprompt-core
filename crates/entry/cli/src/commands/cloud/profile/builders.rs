@@ -2,8 +2,8 @@ use std::path::Path;
 
 use systemprompt_cloud::constants::{container, profile as consts};
 use systemprompt_cloud::ProjectContext;
-use systemprompt_loader::ExtensionLoader;
 use systemprompt_identifiers::TenantId;
+use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
@@ -69,7 +69,7 @@ impl LocalProfileBuilder {
                 cors_allowed_origins: vec![local_url, "http://localhost:5173".to_string()],
             },
             paths: PathsConfig {
-                system: system_path.clone(),
+                system: system_path,
                 services: self.services_path,
                 bin: ExtensionLoader::resolve_bin_directory(root)
                     .to_string_lossy()

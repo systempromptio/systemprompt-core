@@ -102,7 +102,7 @@ impl FormField {
             options: value
                 .get("options")
                 .and_then(JsonValue::as_array)
-                .map(|arr| {
+                .map_or_else(Vec::new, |arr| {
                     arr.iter()
                         .filter_map(|o| {
                             let value = o.get("value").and_then(JsonValue::as_str)?.to_string();
@@ -114,18 +114,15 @@ impl FormField {
                             Some(FormOption { value, label })
                         })
                         .collect()
-                })
-                .unwrap_or_default(),
+                }),
         })
     }
 
     fn render_html(&self) -> String {
         let required_attr = if self.required { " required" } else { "" };
-        let placeholder_attr = self
-            .placeholder
-            .as_ref()
-            .map(|p| format!(r#" placeholder="{}""#, html_escape(p)))
-            .unwrap_or_default();
+        let placeholder_attr = self.placeholder.as_ref().map_or_else(String::new, |p| {
+            format!(r#" placeholder="{}""#, html_escape(p))
+        });
 
         let input_html = match self.field_type.as_str() {
             "textarea" => format!(
@@ -184,8 +181,7 @@ impl FormField {
                 value = self
                     .default_value
                     .as_ref()
-                    .map(ToString::to_string)
-                    .unwrap_or_default(),
+                    .map_or_else(String::new, ToString::to_string),
             ),
             "email" => format!(
                 r#"<input type="email" name="{name}" id="{name}" class="form-input"{required}{placeholder} value="{value}">"#,
@@ -285,8 +281,10 @@ impl UiRenderer for FormRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             fields = fields_html,
         );
 

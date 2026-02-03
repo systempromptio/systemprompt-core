@@ -118,19 +118,20 @@ impl UiRenderer for ImageRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             src = html_escape(&image_data.src),
             alt = html_escape(alt_text),
             size_attrs = size_attrs,
             caption_html = image_data
                 .caption
                 .as_ref()
-                .map(|c| format!(
+                .map_or_else(String::new, |c| format!(
                     r#"<figcaption class="image-caption">{}</figcaption>"#,
                     html_escape(c)
-                ))
-                .unwrap_or_default(),
+                )),
         );
 
         let script = format!(

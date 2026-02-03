@@ -129,18 +129,15 @@ impl ExtensionLoader {
                 let release_mtime = fs::metadata(&release_binary)
                     .and_then(|m| m.modified())
                     .ok();
-                let debug_mtime = fs::metadata(&debug_binary)
-                    .and_then(|m| m.modified())
-                    .ok();
+                let debug_mtime = fs::metadata(&debug_binary).and_then(|m| m.modified()).ok();
 
                 match (release_mtime, debug_mtime) {
                     (Some(r), Some(d)) if d > r => debug_dir,
                     _ => release_dir,
                 }
             },
-            (true, false) => release_dir,
+            (true | false, false) => release_dir,
             (false, true) => debug_dir,
-            (false, false) => release_dir,
         }
     }
 

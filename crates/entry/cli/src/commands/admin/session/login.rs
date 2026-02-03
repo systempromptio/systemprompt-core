@@ -22,7 +22,12 @@ use systemprompt_users::{User, UserService};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
-    #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL", hide = true, help = "Override email from credentials")]
+    #[arg(
+        long,
+        env = "SYSTEMPROMPT_ADMIN_EMAIL",
+        hide = true,
+        help = "Override email from credentials"
+    )]
     pub email: Option<String>,
 
     #[arg(long, default_value = "24", help = "Session duration in hours")]

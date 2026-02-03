@@ -97,62 +97,65 @@ impl SessionMiddleware {
             } else {
                 let token_result = TokenExtractor::browser_only().extract(headers).ok();
 
-                let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) =
-                    if let Some(token) = token_result {
-                        if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
-                            let session_exists = self
-                                .analytics_service
-                                .find_session_by_id(&jwt_context.session_id)
-                                .await
-                                .ok()
-                                .flatten()
-                                .is_some();
+                let (session_id, user_id, jwt_token, jwt_cookie, fingerprint_hash) = if let Some(
+                    token,
+                ) =
+                    token_result
+                {
+                    if let Ok(jwt_context) = self.jwt_extractor.extract_user_context(&token) {
+                        let session_exists = self
+                            .analytics_service
+                            .find_session_by_id(&jwt_context.session_id)
+                            .await
+                            .ok()
+                            .flatten()
+                            .is_some();
 
-                            if session_exists {
-                                (
-                                    jwt_context.session_id,
-                                    jwt_context.user_id,
-                                    token,
-                                    None,
-                                    None,
-                                )
-                            } else {
-                                tracing::info!(
-                                    old_session_id = %jwt_context.session_id,
-                                    user_id = %jwt_context.user_id,
-                                    "JWT valid but session missing, refreshing with new session"
-                                );
-                                match self
-                                    .refresh_session_for_user(&jwt_context.user_id, headers, &uri)
-                                    .await
-                                {
-                                    Ok((sid, uid, new_token, _, fp)) => {
-                                        (sid, uid, new_token.clone(), Some(new_token), Some(fp))
-                                    }
-                                    Err(e) if e.error_key.as_deref() == Some("user_not_found") => {
-                                        tracing::warn!(
-                                            user_id = %jwt_context.user_id,
-                                            "JWT references non-existent user, creating new anonymous session"
-                                        );
-                                        let (sid, uid, token, _, fp) =
-                                            self.create_new_session(headers, &uri, &method).await?;
-                                        (sid, uid, token.clone(), Some(token), Some(fp))
-                                    }
-                                    Err(e) => return Err(e),
-                                }
-                            }
+                        if session_exists {
+                            (
+                                jwt_context.session_id,
+                                jwt_context.user_id,
+                                token,
+                                None,
+                                None,
+                            )
                         } else {
-                            let (sid, uid, token, is_new, fp) =
-                                self.create_new_session(headers, &uri, &method).await?;
-                            let jwt_cookie = if is_new { Some(token.clone()) } else { None };
-                            (sid, uid, token, jwt_cookie, Some(fp))
+                            tracing::info!(
+                                old_session_id = %jwt_context.session_id,
+                                user_id = %jwt_context.user_id,
+                                "JWT valid but session missing, refreshing with new session"
+                            );
+                            match self
+                                .refresh_session_for_user(&jwt_context.user_id, headers, &uri)
+                                .await
+                            {
+                                Ok((sid, uid, new_token, _, fp)) => {
+                                    (sid, uid, new_token.clone(), Some(new_token), Some(fp))
+                                },
+                                Err(e) if e.error_key.as_deref() == Some("user_not_found") => {
+                                    tracing::warn!(
+                                        user_id = %jwt_context.user_id,
+                                        "JWT references non-existent user, creating new anonymous session"
+                                    );
+                                    let (sid, uid, token, _, fp) =
+                                        self.create_new_session(headers, &uri, &method).await?;
+                                    (sid, uid, token.clone(), Some(token), Some(fp))
+                                },
+                                Err(e) => return Err(e),
+                            }
                         }
                     } else {
                         let (sid, uid, token, is_new, fp) =
                             self.create_new_session(headers, &uri, &method).await?;
                         let jwt_cookie = if is_new { Some(token.clone()) } else { None };
                         (sid, uid, token, jwt_cookie, Some(fp))
-                    };
+                    }
+                } else {
+                    let (sid, uid, token, is_new, fp) =
+                        self.create_new_session(headers, &uri, &method).await?;
+                    let jwt_cookie = if is_new { Some(token.clone()) } else { None };
+                    (sid, uid, token, jwt_cookie, Some(fp))
+                };
 
                 let mut ctx = RequestContext::new(
                     session_id,

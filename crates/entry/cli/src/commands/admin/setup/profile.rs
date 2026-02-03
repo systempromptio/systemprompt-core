@@ -60,7 +60,7 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
             ],
         },
         paths: PathsConfig {
-            system: system_path.clone(),
+            system: system_path,
             services: services_path,
             bin: ExtensionLoader::resolve_bin_directory(project_root)
                 .to_string_lossy()

@@ -99,7 +99,7 @@ pub fn is_shared_container_running() -> bool {
     }
 }
 
-pub fn get_container_password() -> Result<Option<String>> {
+pub fn get_container_password() -> Option<String> {
     let output = Command::new("docker")
         .args([
             "inspect",
@@ -114,18 +114,24 @@ pub fn get_container_password() -> Result<Option<String>> {
             let env_vars = String::from_utf8_lossy(&out.stdout);
             for line in env_vars.lines() {
                 if let Some(password) = line.strip_prefix("POSTGRES_PASSWORD=") {
-                    return Ok(Some(password.to_string()));
+                    return Some(password.to_string());
                 }
             }
-            Ok(None)
-        }
-        _ => Ok(None),
+            None
+        },
+        _ => None,
     }
 }
 
 pub fn check_volume_exists() -> bool {
     let output = Command::new("docker")
-        .args(["volume", "ls", "-q", "-f", &format!("name={}", SHARED_VOLUME_NAME)])
+        .args([
+            "volume",
+            "ls",
+            "-q",
+            "-f",
+            &format!("name={}", SHARED_VOLUME_NAME),
+        ])
         .output();
 
     match output {
@@ -141,7 +147,10 @@ pub fn remove_shared_volume() -> Result<()> {
         .context("Failed to remove PostgreSQL volume")?;
 
     if !status.success() {
-        bail!("Failed to remove volume '{}'. Is a container still using it?", SHARED_VOLUME_NAME);
+        bail!(
+            "Failed to remove volume '{}'. Is a container still using it?",
+            SHARED_VOLUME_NAME
+        );
     }
 
     Ok(())

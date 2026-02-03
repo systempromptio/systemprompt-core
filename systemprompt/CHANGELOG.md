@@ -6,16 +6,19 @@
 - Support nested playbook directory structures (`domain/agents/operations.md`)
 - Playbook IDs map underscores to path separators (`domain_agents_operations` → `domain/agents/operations.md`)
 - Handle orphaned Docker volumes and containers in cloud tenant creation
+- Docker container reuse now retrieves password directly from container environment
 
 ### Changed
 - Reduce scheduler job log verbosity (info → debug)
 - Credential errors are now fatal except for `FileNotFound` (allows local-only mode)
 - Cloud paths use `ProjectContext` typed paths instead of profile-relative strings
 - Update recommended PostgreSQL version to 18-alpine in README
+- Replace `unwrap_or_default()` with explicit `map_or_else` patterns per Rust standards
 
 ### Fixed
 - Add process existence check before SIGTERM in MCP cleanup
 - Clear invalid JWT cookies when user no longer exists instead of repeated FK constraint errors
+- Fix clippy unnested or-patterns warning in extension loader
 
 ## [0.1.0] - 2026-02-02
 
