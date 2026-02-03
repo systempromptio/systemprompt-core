@@ -59,75 +59,25 @@ A complete platform with built-in:
 
 ## Quick Start
 
-### Prerequisites
-
-- Rust 1.75+
-- Docker (for local PostgreSQL) **OR** systemprompt.io Cloud account
-
-### Install the CLI
-
-**Option A: Install from crates.io**
 ```bash
-cargo install systemprompt-cli
-```
+# 1. Clone the template
+git clone https://github.com/systempromptio/systemprompt-template my-project
+cd my-project
 
-**Option B: Build from source**
-```bash
-git clone https://github.com/systempromptio/systemprompt-core
-cd systemprompt-core
-cargo build --release -p systemprompt-cli
-```
+# 2. Build
+cargo build --release
 
-### Setup
-
-All setup is done through the CLI. Choose your database option:
-
-#### Option 1: Local PostgreSQL (Free)
-
-```bash
-# Start PostgreSQL in Docker
-docker run -d --name systemprompt-db \
-  -e POSTGRES_DB=systemprompt \
-  -e POSTGRES_USER=systemprompt \
-  -e POSTGRES_PASSWORD=systemprompt \
-  -p 5432:5432 \
-  postgres:18-alpine
-
-# Login to systemprompt.io Cloud (free account - enables CLI profile management)
+# 3. Login
 systemprompt cloud auth login
 
-# Create a local tenant with your Docker database
-systemprompt cloud tenant create --type local
+# 4. Create tenant
+systemprompt cloud tenant create
 
-# Create and configure your profile
-systemprompt cloud profile create local
-
-# Run database migrations
-systemprompt infra db migrate
-
-# Start services
+# 5. Start
 systemprompt infra services start --all
 ```
 
-#### Option 2: systemprompt.io Cloud (Paid)
-
-Production-ready agentic mesh served over the web. Cloud deployment includes your code and managed PostgreSQL running together as a complete platform. Point your DNS and deploy your web frontend chained to your agents.
-
-```bash
-# Login to systemprompt.io Cloud
-systemprompt cloud auth login
-
-# Create a cloud tenant (provisions your full platform instance)
-systemprompt cloud tenant create --region iad
-
-# Create and configure your profile
-systemprompt cloud profile create production
-
-# Deploy to cloud
-systemprompt cloud deploy --profile production
-```
-
-Your agentic mesh will be deployed in the region of your choice and available at your tenant URL (e.g., `https://my-tenant.systemprompt.io`). This can be easily used (CNAME) to run your own web accessible agent mesh and domain.  
+See the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) for full installation instructions and configuration options.  
 
 ### Native MCP Client Support
 
