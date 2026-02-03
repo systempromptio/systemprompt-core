@@ -1,6 +1,6 @@
 <div align="center">
 
-# systemprompt.io
+<img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 
 ### Production infrastructure for AI agents
 
