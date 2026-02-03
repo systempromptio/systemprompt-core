@@ -12,7 +12,7 @@ use systemprompt_models::Config;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::services::{generate_jwt, JwtConfig, JwtSigningParams};
 use systemprompt_oauth::OAuthState;
-use systemprompt_traits::{CreateSessionInput, SessionAnalytics};
+use systemprompt_traits::CreateSessionInput;
 
 pub struct TokenGenerationParams<'a> {
     pub client_id: &'a ClientId,
@@ -111,6 +111,7 @@ pub async fn generate_client_tokens(
     repo: &OAuthRepository,
     client_id: &ClientId,
     scope: Option<&str>,
+    headers: &HeaderMap,
     state: &OAuthState,
 ) -> Result<TokenResponse> {
     let expires_in = Config::get()?.jwt_access_token_expiration;
@@ -177,7 +178,7 @@ pub async fn generate_client_tokens(
     };
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
     let expires_at = chrono::Utc::now() + chrono::Duration::seconds(expires_in);
-    let analytics = SessionAnalytics::default();
+    let analytics = state.analytics_provider().extract_analytics(headers, None);
 
     state
         .analytics_provider()

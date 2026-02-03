@@ -35,6 +35,9 @@ pub struct SessionAnalytics {
     pub screen_height: Option<i32>,
     pub timezone: Option<String>,
     pub page_url: Option<String>,
+    pub country: Option<String>,
+    pub region: Option<String>,
+    pub city: Option<String>,
 }
 
 impl SessionAnalytics {
