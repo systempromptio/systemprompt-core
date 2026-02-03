@@ -2,7 +2,9 @@
 
 **Production infrastructure for AI agents. Self-hosted or cloud.**
 
-The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure built in Rust with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
+AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK—complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
+
+**Playbooks** provide deterministic instruction rails that eliminate hallucination—your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
@@ -12,7 +14,7 @@ The missing layer between AI frameworks and production deployment. Not another S
 [![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://a2a-protocol.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions) · [Crates.io](https://crates.io/crates/systemprompt)
+[Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Playbooks](https://systemprompt.io/documentation/playbooks) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions) · [Crates.io](https://crates.io/crates/systemprompt)
 
 **Questions or issues?** Join us on [Discord](https://discord.gg/wkAbSuPWpr) for help.
 
