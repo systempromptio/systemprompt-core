@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- `mcp_sessions` table for persisting MCP session state across server restarts
+- `McpSessionRepository` with CRUD operations for session persistence
+- `DatabaseSessionManagerError` enum with specific error types for session handling
+
+### Fixed
+- **Critical**: Fix infinite token refresh loop after server restart by implementing database-backed MCP session persistence
+- `DatabaseSessionManager` now properly uses the `DbPool` parameter instead of ignoring it
+- Session resumption now returns `SessionNeedsReconnect` error when session exists in database but not in memory
+
+### Changed
+- `DatabaseSessionManager` now uses hybrid approach: in-memory for active sessions + database for persistence
+- Register `mcp_sessions` schema in `McpExtension`
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed

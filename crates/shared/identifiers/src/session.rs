@@ -73,6 +73,7 @@ pub enum SessionSource {
     Cli,
     Tui,
     Oauth,
+    Mcp,
     #[default]
     Unknown,
 }
@@ -85,6 +86,7 @@ impl SessionSource {
             Self::Cli => "cli",
             Self::Tui => "tui",
             Self::Oauth => "oauth",
+            Self::Mcp => "mcp",
             Self::Unknown => "unknown",
         }
     }
@@ -115,6 +117,7 @@ impl std::str::FromStr for SessionSource {
             "cli" => Self::Cli,
             "tui" => Self::Tui,
             "oauth" => Self::Oauth,
+            "mcp" => Self::Mcp,
             _ => Self::Unknown,
         })
     }
