@@ -69,16 +69,16 @@ git clone https://github.com/systempromptio/systemprompt-template my-project
 cd my-project
 
 # 2. Build
-cargo build --release
+just build
 
 # 3. Login
-systemprompt cloud auth login
+just login
 
 # 4. Create tenant
-systemprompt cloud tenant create
+just tenant
 
 # 5. Start
-systemprompt infra services start --all
+just start
 ```
 
 See the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) for full installation instructions and configuration options.  
