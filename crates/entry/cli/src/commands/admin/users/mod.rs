@@ -13,6 +13,7 @@ mod show;
 mod stats;
 mod types;
 mod update;
+mod webauthn;
 
 use crate::cli_settings::CliConfig;
 use anyhow::{bail, Result};
@@ -64,6 +65,9 @@ pub enum UsersCommands {
 
     #[command(subcommand, about = "IP ban management commands")]
     Ban(ban::BanCommands),
+
+    #[command(subcommand, about = "WebAuthn credential management commands")]
+    Webauthn(webauthn::WebauthnCommands),
 }
 
 pub async fn execute(cmd: UsersCommands, config: &CliConfig) -> Result<()> {
@@ -82,6 +86,7 @@ pub async fn execute(cmd: UsersCommands, config: &CliConfig) -> Result<()> {
         UsersCommands::Role(cmd) => role::execute(cmd, config).await,
         UsersCommands::Session(cmd) => session::execute(cmd, config).await,
         UsersCommands::Ban(cmd) => ban::execute(cmd, config).await,
+        UsersCommands::Webauthn(cmd) => webauthn::execute(cmd, config).await,
     }
 }
 
@@ -112,7 +117,8 @@ pub async fn execute_with_db(
         | UsersCommands::Update(_)
         | UsersCommands::Delete(_)
         | UsersCommands::Merge(_)
-        | UsersCommands::Bulk(_) => {
+        | UsersCommands::Bulk(_)
+        | UsersCommands::Webauthn(_) => {
             bail!("Write operations require full profile context")
         },
     }

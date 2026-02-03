@@ -28,7 +28,7 @@ pub struct ModelUsageRow {
 pub struct RequestTrendRow {
     pub created_at: DateTime<Utc>,
     pub tokens_used: Option<i32>,
-    pub cost_cents: Option<i32>,
+    pub cost_microdollars: Option<i64>,
     pub latency_ms: Option<i32>,
 }
 
@@ -39,7 +39,7 @@ pub struct RequestListRow {
     pub model: String,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
-    pub cost_cents: Option<i32>,
+    pub cost_microdollars: Option<i64>,
     pub latency_ms: Option<i32>,
     pub cache_hit: Option<bool>,
     pub created_at: DateTime<Utc>,
@@ -69,6 +69,6 @@ pub struct CostBreakdownRow {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct CostTrendRow {
     pub created_at: DateTime<Utc>,
-    pub cost_cents: Option<i32>,
+    pub cost_microdollars: Option<i64>,
     pub tokens_used: Option<i32>,
 }

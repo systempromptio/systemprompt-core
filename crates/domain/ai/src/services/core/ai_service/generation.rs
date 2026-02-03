@@ -85,7 +85,7 @@ impl AiService {
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
-                    cost_cents: cost,
+                    cost_microdollars: cost,
                 });
                 request_logging::log_request_success(&response);
                 Ok(response)
@@ -104,7 +104,7 @@ impl AiService {
                     context: &request.context,
                     status: RequestStatus::Failed,
                     error_message: Some(&e.to_string()),
-                    cost_cents: 0,
+                    cost_microdollars: 0,
                 });
                 request_logging::log_request_error(request_id, request.provider(), latency_ms, &e);
                 Err(e)

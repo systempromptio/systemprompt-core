@@ -158,7 +158,7 @@ impl AiService {
             context: &request.context,
             status: RequestStatus::Failed,
             error_message: Some(&error.to_string()),
-            cost_cents: 0,
+            cost_microdollars: 0,
         });
     }
 }

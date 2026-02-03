@@ -46,7 +46,7 @@ pub struct AiRequestRecord {
     pub tokens: TokenInfo,
     pub cache: CacheInfo,
     pub is_streaming: bool,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
     pub latency_ms: i32,
     pub status: RequestStatus,
     pub error_message: Option<String>,
@@ -72,7 +72,7 @@ impl AiRequestRecord {
             tokens: TokenInfo::default(),
             cache: CacheInfo::default(),
             is_streaming: false,
-            cost_cents: 0,
+            cost_microdollars: 0,
             latency_ms: 0,
             status: RequestStatus::Failed,
             error_message: Some("Record construction failed".to_string()),
@@ -95,7 +95,7 @@ pub struct AiRequestRecordBuilder {
     tokens: TokenInfo,
     cache: CacheInfo,
     is_streaming: bool,
-    cost_cents: i32,
+    cost_microdollars: i64,
     latency_ms: i32,
     status: RequestStatus,
     error_message: Option<String>,
@@ -117,7 +117,7 @@ impl AiRequestRecordBuilder {
             tokens: TokenInfo::default(),
             cache: CacheInfo::default(),
             is_streaming: false,
-            cost_cents: 0,
+            cost_microdollars: 0,
             latency_ms: 0,
             status: RequestStatus::Pending,
             error_message: None,
@@ -193,8 +193,8 @@ impl AiRequestRecordBuilder {
         self
     }
 
-    pub const fn cost(mut self, cost_cents: i32) -> Self {
-        self.cost_cents = cost_cents;
+    pub const fn cost(mut self, cost_microdollars: i64) -> Self {
+        self.cost_microdollars = cost_microdollars;
         self
     }
 
@@ -232,7 +232,7 @@ impl AiRequestRecordBuilder {
             tokens: self.tokens,
             cache: self.cache,
             is_streaming: self.is_streaming,
-            cost_cents: self.cost_cents,
+            cost_microdollars: self.cost_microdollars,
             latency_ms: self.latency_ms,
             status: self.status,
             error_message: self.error_message,

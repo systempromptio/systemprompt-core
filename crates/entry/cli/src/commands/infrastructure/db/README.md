@@ -383,7 +383,7 @@ sp infra db query "SELECT * FROM user_sessions ORDER BY started_at DESC LIMIT 10
 sp infra db query "SELECT id, slug, title FROM markdown_content WHERE source_id = 'blog'"
 
 # Check AI request costs
-sp infra db query "SELECT DATE(created_at), SUM(cost_cents) FROM ai_requests GROUP BY DATE(created_at) ORDER BY 1 DESC LIMIT 7"
+sp infra db query "SELECT DATE(created_at), SUM(cost_microdollars) FROM ai_requests GROUP BY DATE(created_at) ORDER BY 1 DESC LIMIT 7"
 ```
 
 ### Common Write Operations

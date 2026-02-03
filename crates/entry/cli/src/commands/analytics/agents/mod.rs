@@ -36,7 +36,7 @@ pub struct AgentStatsOutput {
     pub success_rate: f64,
     pub avg_execution_time_ms: i64,
     pub total_ai_requests: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -45,7 +45,7 @@ pub struct AgentListRow {
     pub task_count: i64,
     pub success_rate: f64,
     pub avg_execution_time_ms: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
     pub last_active: String,
 }
 

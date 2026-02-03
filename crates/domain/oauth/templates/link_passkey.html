@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Link Passkey - systemprompt.io</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container {
+            background: #18181b;
+            border-radius: 12px;
+            padding: 40px;
+            max-width: 420px;
+            width: 90%;
+            text-align: center;
+        }
+        h1 { color: #f79938; margin-bottom: 10px; font-size: 24px; }
+        .subtitle { color: #888; margin-bottom: 30px; }
+        .user-info {
+            background: #222;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            border-left: 4px solid #f79938;
+            text-align: left;
+        }
+        .user-info p { margin: 5px 0; color: #ccc; }
+        .user-info strong { color: #fff; }
+        .btn {
+            width: 100%;
+            padding: 15px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            background: #f79938;
+            color: #fff;
+            transition: all 0.2s;
+        }
+        .btn:hover { background: #e88828; transform: translateY(-1px); }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        .error { background: rgba(255,59,48,0.15); color: #ff3b30; border-left: 4px solid #ff3b30; }
+        .success { background: rgba(52,199,89,0.15); color: #34c759; border-left: 4px solid #34c759; }
+        .spinner {
+            border: 3px solid #333;
+            border-top: 3px solid #f79938;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Link Passkey</h1>
+        <p class="subtitle">Add a passkey to your account</p>
+
+        <div id="error-msg" class="message error"></div>
+        <div id="success-msg" class="message success"></div>
+
+        <div id="user-section" class="hidden">
+            <div class="user-info">
+                <p><strong>Email:</strong> <span id="user-email"></span></p>
+                <p><strong>Name:</strong> <span id="user-name"></span></p>
+            </div>
+            <button id="register-btn" class="btn">Register Passkey</button>
+        </div>
+
+        <div id="loading-section">
+            <div class="spinner"></div>
+            <p>Validating token...</p>
+        </div>
+    </div>
+
+    <script>
+        const params = new URLSearchParams(window.location.search);
+        const token = params.get('token');
+
+        const errorMsg = document.getElementById('error-msg');
+        const successMsg = document.getElementById('success-msg');
+        const userSection = document.getElementById('user-section');
+        const loadingSection = document.getElementById('loading-section');
+        const registerBtn = document.getElementById('register-btn');
+
+        function showError(msg) {
+            errorMsg.textContent = msg;
+            errorMsg.style.display = 'block';
+            successMsg.style.display = 'none';
+            loadingSection.classList.add('hidden');
+        }
+
+        function showSuccess(msg) {
+            successMsg.textContent = msg;
+            successMsg.style.display = 'block';
+            errorMsg.style.display = 'none';
+        }
+
+        function base64urlToBuffer(base64url) {
+            const base64 = base64url.replace(/-/g, '+').replace(/_/g, '/');
+            const pad = '='.repeat((4 - base64.length % 4) % 4);
+            const binary = atob(base64 + pad);
+            return Uint8Array.from(binary, c => c.charCodeAt(0)).buffer;
+        }
+
+        async function init() {
+            if (!token) {
+                showError('No token provided. Generate one with: just webauthn-admin your@email.com');
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/v1/core/oauth/webauthn/link/start?token=${encodeURIComponent(token)}`);
+                const data = await res.json();
+
+                if (!res.ok) {
+                    showError(data.error || 'Token validation failed');
+                    return;
+                }
+
+                window.challengeId = res.headers.get('x-challenge-id');
+                window.challenge = data.challenge;
+
+                document.getElementById('user-email').textContent = data.user.email;
+                document.getElementById('user-name').textContent = data.user.name || data.user.display_name || '-';
+
+                loadingSection.classList.add('hidden');
+                userSection.classList.remove('hidden');
+            } catch (e) {
+                showError('Failed to validate token: ' + e.message);
+            }
+        }
+
+        async function registerPasskey() {
+            try {
+                registerBtn.disabled = true;
+                registerBtn.textContent = 'Registering...';
+
+                const publicKey = {
+                    ...window.challenge.publicKey,
+                    challenge: base64urlToBuffer(window.challenge.publicKey.challenge),
+                    user: {
+                        ...window.challenge.publicKey.user,
+                        id: base64urlToBuffer(window.challenge.publicKey.user.id)
+                    },
+                    excludeCredentials: (window.challenge.publicKey.excludeCredentials || []).map(c => ({
+                        ...c,
+                        id: base64urlToBuffer(c.id)
+                    }))
+                };
+
+                const credential = await navigator.credentials.create({ publicKey });
+
+                const finishRes = await fetch('/api/v1/core/oauth/webauthn/link/finish', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        challenge_id: window.challengeId,
+                        token: token,
+                        credential: {
+                            id: credential.id,
+                            rawId: Array.from(new Uint8Array(credential.rawId)),
+                            response: {
+                                attestationObject: Array.from(new Uint8Array(credential.response.attestationObject)),
+                                clientDataJSON: Array.from(new Uint8Array(credential.response.clientDataJSON))
+                            },
+                            type: credential.type
+                        }
+                    })
+                });
+
+                const result = await finishRes.json();
+
+                if (!finishRes.ok) {
+                    throw new Error(result.error || 'Registration failed');
+                }
+
+                showSuccess('Passkey registered successfully! You can now sign in with your passkey.');
+                registerBtn.textContent = 'Done!';
+                registerBtn.style.background = '#34c759';
+
+            } catch (e) {
+                showError(e.message || 'Registration failed');
+                registerBtn.disabled = false;
+                registerBtn.textContent = 'Register Passkey';
+            }
+        }
+
+        registerBtn.addEventListener('click', registerPasskey);
+
+        if (!window.PublicKeyCredential) {
+            showError('WebAuthn is not supported in this browser.');
+        } else {
+            init();
+        }
+    </script>
+</body>
+</html>

@@ -77,7 +77,7 @@ async fn execute_internal(
                 model: row.model,
                 request_count: row.request_count,
                 total_tokens: row.total_tokens.unwrap_or(0),
-                total_cost_cents: row.total_cost.unwrap_or(0),
+                total_cost_microdollars: row.total_cost.unwrap_or(0),
                 avg_latency_ms: row.avg_latency.map_or(0, |v| v as i64),
                 percentage,
             }
@@ -112,7 +112,7 @@ async fn execute_internal(
                 "model".to_string(),
                 "request_count".to_string(),
                 "total_tokens".to_string(),
-                "total_cost_cents".to_string(),
+                "total_cost_microdollars".to_string(),
             ]),
             ..Default::default()
         };
@@ -141,7 +141,7 @@ fn render_models(output: &ModelsOutput) {
             ),
         );
         CliService::key_value("Tokens", &format_tokens(model.total_tokens));
-        CliService::key_value("Cost", &format_cost(model.total_cost_cents));
+        CliService::key_value("Cost", &format_cost(model.total_cost_microdollars));
         CliService::key_value("Avg Latency", &format_duration_ms(model.avg_latency_ms));
     }
 

@@ -5,6 +5,10 @@
 ### Added
 - Initialize logging with database pool in `admin agents run` command
 
+### Changed
+- Analytics cost displays now use `cost_microdollars` for sub-cent precision
+- Regenerated SQLx offline query cache
+
 ## [0.1.1] - 2026-02-03
 
 ### Added

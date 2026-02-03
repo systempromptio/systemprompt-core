@@ -69,10 +69,10 @@ impl AiSessionProvider for AnalyticsAiSessionProvider {
         &self,
         session_id: &SessionId,
         tokens: i32,
-        cost_cents: i32,
+        cost_microdollars: i64,
     ) -> AiProviderResult<()> {
         self.session_repo
-            .increment_ai_usage(session_id, tokens, cost_cents)
+            .increment_ai_usage(session_id, tokens, cost_microdollars)
             .await
             .map_err(|e| AiProviderError::Internal(e.to_string()))
     }

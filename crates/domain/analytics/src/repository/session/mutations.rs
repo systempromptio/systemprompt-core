@@ -176,22 +176,21 @@ pub async fn increment_ai_usage(
     pool: &DbPool,
     session_id: &SessionId,
     tokens: i32,
-    cost_cents: i32,
+    cost_microdollars: i64,
 ) -> Result<()> {
     let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
-    let cost_cents_i64 = i64::from(cost_cents);
     sqlx::query!(
         r#"
         UPDATE user_sessions
         SET ai_request_count = COALESCE(ai_request_count, 0) + 1,
             total_tokens_used = COALESCE(total_tokens_used, 0) + $1,
-            total_ai_cost_cents = COALESCE(total_ai_cost_cents, 0) + $2,
+            total_ai_cost_microdollars = COALESCE(total_ai_cost_microdollars, 0) + $2,
             last_activity_at = CURRENT_TIMESTAMP
         WHERE session_id = $3
         "#,
         tokens,
-        cost_cents_i64,
+        cost_microdollars,
         id
     )
     .execute(&*pool)

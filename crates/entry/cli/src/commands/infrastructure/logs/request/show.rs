@@ -30,7 +30,7 @@ struct AiRequestRow {
     model: String,
     input_tokens: Option<i32>,
     output_tokens: Option<i32>,
-    cost_cents: i32,
+    cost_microdollars: i64,
     latency_ms: Option<i32>,
     status: String,
     error_message: Option<String>,
@@ -73,7 +73,7 @@ async fn execute_with_pool_inner(
             model as "model!",
             input_tokens,
             output_tokens,
-            cost_cents as "cost_cents!",
+            cost_microdollars as "cost_microdollars!",
             latency_ms,
             status as "status!",
             error_message
@@ -93,7 +93,7 @@ async fn execute_with_pool_inner(
     };
 
     let request_id = row.id.clone();
-    let cost_dollars = f64::from(row.cost_cents) / 100.0;
+    let cost_dollars = row.cost_microdollars as f64 / 1_000_000.0;
 
     let messages = if args.messages {
         fetch_messages(pool, &request_id).await

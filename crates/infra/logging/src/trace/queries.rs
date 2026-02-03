@@ -53,7 +53,7 @@ pub async fn fetch_ai_request_summary(
     let row = sqlx::query!(
         r#"
         SELECT
-            COALESCE(SUM(cost_cents), 0)::bigint as total_cost_cents,
+            COALESCE(SUM(cost_microdollars), 0)::bigint as total_cost_microdollars,
             COALESCE(SUM(COALESCE(input_tokens, 0) + COALESCE(output_tokens, 0)), 0)::bigint as total_tokens,
             COALESCE(SUM(input_tokens), 0)::bigint as total_input_tokens,
             COALESCE(SUM(output_tokens), 0)::bigint as total_output_tokens,
@@ -68,7 +68,7 @@ pub async fn fetch_ai_request_summary(
     .await?;
 
     Ok(AiRequestSummary {
-        total_cost_cents: row.total_cost_cents.unwrap_or(0),
+        total_cost_microdollars: row.total_cost_microdollars.unwrap_or(0),
         total_tokens: row.total_tokens.unwrap_or(0),
         total_input_tokens: row.total_input_tokens.unwrap_or(0),
         total_output_tokens: row.total_output_tokens.unwrap_or(0),
@@ -89,7 +89,7 @@ pub async fn fetch_ai_request_events(
             model,
             input_tokens,
             output_tokens,
-            cost_cents,
+            cost_microdollars,
             latency_ms,
             status,
             user_id,
@@ -119,7 +119,7 @@ pub async fn fetch_ai_request_events(
             );
 
             let metadata = json!({
-                "cost_cents": row.cost_cents,
+                "cost_microdollars": row.cost_microdollars,
                 "latency_ms": row.latency_ms,
                 "input_tokens": row.input_tokens,
                 "output_tokens": row.output_tokens,

@@ -246,6 +246,11 @@ pub fn configure_routes(
 
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 
+    router = router.route(
+        "/auth/link-passkey",
+        get(crate::routes::oauth::webauthn::link::link_passkey_page),
+    );
+
     let static_router = Router::new()
         .route("/", get(serve_homepage))
         .fallback(smart_fallback_handler)

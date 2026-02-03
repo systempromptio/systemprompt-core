@@ -156,12 +156,13 @@ async fn exchange_code_for_token(
         .await?;
 
     let access_token_jti = generate_access_token_jti();
-    let config = JwtConfig {
-        permissions: permissions.clone(),
-        ..Default::default()
-    };
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
+    let config = JwtConfig {
+        permissions: permissions.clone(),
+        audience: global_config.jwt_audiences.clone(),
+        ..Default::default()
+    };
     let signing = JwtSigningParams {
         secret: jwt_secret,
         issuer: &global_config.jwt_issuer,

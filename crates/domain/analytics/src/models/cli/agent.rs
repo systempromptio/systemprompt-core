@@ -9,7 +9,7 @@ pub struct AgentListRow {
     pub task_count: i64,
     pub completed_count: i64,
     pub avg_execution_time_ms: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
     pub last_active: DateTime<Utc>,
 }
 
@@ -25,7 +25,7 @@ pub struct AgentStatsRow {
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct AgentAiStatsRow {
     pub total_ai_requests: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

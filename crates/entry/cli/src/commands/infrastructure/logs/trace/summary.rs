@@ -63,7 +63,7 @@ fn print_ai_summary(ai_summary: &AiRequestSummary) {
                 ai_summary.total_output_tokens
             ),
         );
-        let dollars = ai_summary.total_cost_cents as f64 / 1_000_000.0;
+        let dollars = ai_summary.total_cost_microdollars as f64 / 1_000_000.0;
         CliService::key_value("     Cost", &format!("${dollars:.6}"));
         CliService::key_value(
             "     Total Latency",

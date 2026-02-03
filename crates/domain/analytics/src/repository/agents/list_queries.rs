@@ -34,7 +34,7 @@ impl AgentAnalyticsRepository {
                 COUNT(*)::bigint as "task_count!",
                 COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_cents), 0)::bigint as "total_cost_cents!",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
             FROM agent_tasks t
             LEFT JOIN ai_requests r ON r.task_id = t.task_id
@@ -69,14 +69,14 @@ impl AgentAnalyticsRepository {
                 COUNT(*)::bigint as "task_count!",
                 COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_cents), 0)::bigint as "total_cost_cents!",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
             FROM agent_tasks t
             LEFT JOIN ai_requests r ON r.task_id = t.task_id
             WHERE t.started_at >= $1 AND t.started_at < $2
               AND t.agent_name IS NOT NULL
             GROUP BY t.agent_name
-            ORDER BY COALESCE(SUM(r.cost_cents), 0) DESC
+            ORDER BY COALESCE(SUM(r.cost_microdollars), 0) DESC
             LIMIT $3
             "#,
             start,
@@ -102,7 +102,7 @@ impl AgentAnalyticsRepository {
                 COUNT(*)::bigint as "task_count!",
                 COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_cents), 0)::bigint as "total_cost_cents!",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
             FROM agent_tasks t
             LEFT JOIN ai_requests r ON r.task_id = t.task_id
@@ -135,7 +135,7 @@ impl AgentAnalyticsRepository {
                 COUNT(*)::bigint as "task_count!",
                 COUNT(*) FILTER (WHERE t.status = 'completed')::bigint as "completed_count!",
                 COALESCE(AVG(t.execution_time_ms), 0)::bigint as "avg_execution_time_ms!",
-                COALESCE(SUM(r.cost_cents), 0)::bigint as "total_cost_cents!",
+                COALESCE(SUM(r.cost_microdollars), 0)::bigint as "total_cost_microdollars!",
                 MAX(t.started_at) as "last_active!"
             FROM agent_tasks t
             LEFT JOIN ai_requests r ON r.task_id = t.task_id

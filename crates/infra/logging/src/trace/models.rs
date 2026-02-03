@@ -16,7 +16,7 @@ pub struct TraceEvent {
 
 #[derive(Debug, Clone, Copy, Default, Serialize, Deserialize)]
 pub struct AiRequestSummary {
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
     pub total_tokens: i64,
     pub total_input_tokens: i64,
     pub total_output_tokens: i64,
@@ -73,7 +73,7 @@ pub struct AiRequestInfo {
     pub max_tokens: Option<i32>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
 }
 

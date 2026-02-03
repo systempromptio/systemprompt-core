@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     message_count INTEGER NOT NULL DEFAULT 0,
     ai_request_count INTEGER NOT NULL DEFAULT 0,
     total_tokens_used INTEGER NOT NULL DEFAULT 0,
-    total_ai_cost_cents BIGINT NOT NULL DEFAULT 0,
+    total_ai_cost_microdollars BIGINT NOT NULL DEFAULT 0,
     ip_address TEXT,
     user_agent TEXT,
     device_type VARCHAR(255),
@@ -53,7 +53,7 @@ COMMENT ON COLUMN user_sessions.throttle_level IS 'Rate limit escalation level: 
 COMMENT ON COLUMN user_sessions.behavioral_bot_score IS 'Cumulative behavioral bot score from multi-signal detection (0-100+)';
 COMMENT ON COLUMN user_sessions.throttle_escalated_at IS 'Timestamp of last throttle level escalation';
 
-COMMENT ON COLUMN user_sessions.total_ai_cost_cents IS 'AI cost in microdollars (millionths of a dollar). Divide by 1,000,000 to get USD. Column name is legacy (should be total_ai_cost_microdollars).';
+COMMENT ON COLUMN user_sessions.total_ai_cost_microdollars IS 'AI cost in microdollars (millionths of a dollar). Divide by 1,000,000 to get USD.';
 COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a bot/crawler (search engines, AI scrapers, social media bots, etc.)';
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
@@ -65,7 +65,7 @@ CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON user_sessions(last_acti
 CREATE INDEX IF NOT EXISTS idx_sessions_country ON user_sessions(country);
 CREATE INDEX IF NOT EXISTS idx_sessions_device_type ON user_sessions(device_type);
 CREATE INDEX IF NOT EXISTS idx_sessions_ai_usage ON user_sessions(ai_request_count);
-CREATE INDEX IF NOT EXISTS idx_sessions_cost ON user_sessions(total_ai_cost_cents);
+CREATE INDEX IF NOT EXISTS idx_sessions_cost ON user_sessions(total_ai_cost_microdollars);
 CREATE INDEX IF NOT EXISTS idx_sessions_fingerprint ON user_sessions(fingerprint_hash);
 CREATE INDEX IF NOT EXISTS idx_sessions_fingerprint_activity ON user_sessions(fingerprint_hash, last_activity_at);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_user_type ON user_sessions(user_type);
@@ -74,7 +74,7 @@ CREATE INDEX IF NOT EXISTS idx_user_sessions_expires ON user_sessions(expires_at
 CREATE INDEX IF NOT EXISTS idx_user_sessions_client_id ON user_sessions(client_id);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_client_type ON user_sessions(client_type);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_client_activity ON user_sessions(client_id, last_activity_at);
-CREATE INDEX IF NOT EXISTS idx_user_sessions_client_cost ON user_sessions(client_id, total_ai_cost_cents);
+CREATE INDEX IF NOT EXISTS idx_user_sessions_client_cost ON user_sessions(client_id, total_ai_cost_microdollars);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_referrer_source ON user_sessions(referrer_source);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_utm_source ON user_sessions(utm_source);
 CREATE INDEX IF NOT EXISTS idx_user_sessions_landing_page ON user_sessions(landing_page);
@@ -113,7 +113,7 @@ SELECT
     AVG(duration_seconds) as avg_session_duration_seconds,
     AVG(avg_response_time_ms) as avg_response_time_ms,
     SUM(total_tokens_used) as total_tokens,
-    SUM(total_ai_cost_cents) as total_cost_cents,
+    SUM(total_ai_cost_microdollars) as total_cost_microdollars,
     MIN(started_at) as first_seen,
     MAX(last_activity_at) as last_seen
 FROM user_sessions
@@ -224,7 +224,7 @@ SELECT
     COUNT(DISTINCT user_id) as unique_users,
     AVG(request_count) as avg_requests_per_session,
     AVG(duration_seconds) as avg_session_duration_seconds,
-    SUM(total_ai_cost_cents) as total_cost_cents
+    SUM(total_ai_cost_microdollars) as total_cost_microdollars
 FROM user_sessions
 WHERE referrer_source IS NOT NULL
   AND is_bot = false
@@ -244,8 +244,8 @@ SELECT
     SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) as conversions,
     CAST(SUM(CASE WHEN converted_at IS NOT NULL THEN 1 ELSE 0 END) AS NUMERIC) / NULLIF(COUNT(*), 0) * 100 as conversion_rate_percent,
     AVG(duration_seconds) as avg_session_duration_seconds,
-    SUM(total_ai_cost_cents) as total_cost_cents,
-    AVG(total_ai_cost_cents) as avg_cost_per_session_cents
+    SUM(total_ai_cost_microdollars) as total_cost_microdollars,
+    AVG(total_ai_cost_microdollars) as avg_cost_per_session_cents
 FROM user_sessions
 WHERE utm_source IS NOT NULL
   AND is_bot = false

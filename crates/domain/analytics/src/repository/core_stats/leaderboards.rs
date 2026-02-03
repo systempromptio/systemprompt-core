@@ -14,7 +14,7 @@ impl CoreStatsRepository {
                 COUNT(DISTINCT s.session_id) as "session_count!",
                 COUNT(DISTINCT t.task_id) as "task_count!",
                 COUNT(DISTINCT a.request_id) as "ai_request_count!",
-                COALESCE(SUM(a.cost_cents)::float / 100.0, 0.0) as "total_cost!"
+                COALESCE(SUM(a.cost_microdollars)::float / 1000000.0, 0.0) as "total_cost!"
             FROM users u
             LEFT JOIN user_sessions s ON s.user_id = u.id
             LEFT JOIN agent_tasks t ON t.user_id = u.id

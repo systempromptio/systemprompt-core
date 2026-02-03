@@ -16,7 +16,7 @@ fn create_analytics_row() -> ClientAnalyticsRow {
         unique_users: 50,
         total_requests: 1000,
         total_tokens: 50000,
-        total_cost_cents: 2500,
+        total_cost_microdollars: 2500,
         avg_session_duration_seconds: 300.5,
         avg_response_time_ms: 150.25,
         first_seen: Utc::now(),
@@ -34,7 +34,7 @@ fn test_client_analytics_from_row() {
     assert_eq!(analytics.unique_users, 50);
     assert_eq!(analytics.total_requests, 1000);
     assert_eq!(analytics.total_tokens, 50000);
-    assert_eq!(analytics.total_cost_cents, 2500);
+    assert_eq!(analytics.total_cost_microdollars, 2500);
     assert!((analytics.avg_session_duration_seconds - 300.5).abs() < f64::EPSILON);
     assert!((analytics.avg_response_time_ms - 150.25).abs() < f64::EPSILON);
 }
@@ -83,7 +83,7 @@ fn test_client_analytics_deserialize() {
         "unique_users": 5,
         "total_requests": 100,
         "total_tokens": 500,
-        "total_cost_cents": 25,
+        "total_cost_microdollars": 25,
         "avg_session_duration_seconds": 120.0,
         "avg_response_time_ms": 50.0,
         "first_seen": "2024-01-01T00:00:00Z",
@@ -123,7 +123,7 @@ fn test_client_analytics_zero_values() {
         unique_users: 0,
         total_requests: 0,
         total_tokens: 0,
-        total_cost_cents: 0,
+        total_cost_microdollars: 0,
         avg_session_duration_seconds: 0.0,
         avg_response_time_ms: 0.0,
         first_seen: Utc::now(),
@@ -133,7 +133,7 @@ fn test_client_analytics_zero_values() {
     let analytics: ClientAnalytics = row.into();
     assert_eq!(analytics.session_count, 0);
     assert_eq!(analytics.unique_users, 0);
-    assert_eq!(analytics.total_cost_cents, 0);
+    assert_eq!(analytics.total_cost_microdollars, 0);
 }
 
 // ============================================================================

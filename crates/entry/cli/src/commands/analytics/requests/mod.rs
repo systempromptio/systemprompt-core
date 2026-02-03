@@ -33,7 +33,7 @@ pub struct RequestStatsOutput {
     pub total_tokens: i64,
     pub input_tokens: i64,
     pub output_tokens: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
     pub avg_latency_ms: i64,
     pub cache_hit_rate: f64,
 }
@@ -43,7 +43,7 @@ pub struct RequestTrendPoint {
     pub timestamp: String,
     pub request_count: i64,
     pub total_tokens: i64,
-    pub cost_cents: i64,
+    pub cost_microdollars: i64,
     pub avg_latency_ms: i64,
 }
 
@@ -60,7 +60,7 @@ pub struct ModelUsageRow {
     pub model: String,
     pub request_count: i64,
     pub total_tokens: i64,
-    pub total_cost_cents: i64,
+    pub total_cost_microdollars: i64,
     pub avg_latency_ms: i64,
     pub percentage: f64,
 }

@@ -40,7 +40,7 @@ pub struct AiRequest {
     pub tokens_used: Option<i32>,
     pub input_tokens: Option<i32>,
     pub output_tokens: Option<i32>,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
     pub cache_hit: bool,
     pub cache_read_tokens: Option<i32>,

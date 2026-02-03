@@ -90,7 +90,7 @@ async fn execute_internal(
 
             CostBreakdownItem {
                 name: row.name,
-                cost_cents: row.cost,
+                cost_microdollars: row.cost,
                 request_count: row.requests,
                 tokens: row.tokens,
                 percentage,
@@ -106,7 +106,7 @@ async fn execute_internal(
         ),
         breakdown_by: format!("{:?}", args.by).to_lowercase(),
         items,
-        total_cost_cents: total_cost,
+        total_cost_microdollars: total_cost,
     };
 
     if let Some(ref path) = args.export {
@@ -124,7 +124,7 @@ async fn execute_internal(
         let hints = RenderingHints {
             columns: Some(vec![
                 "name".to_string(),
-                "cost_cents".to_string(),
+                "cost_microdollars".to_string(),
                 "request_count".to_string(),
                 "tokens".to_string(),
                 "percentage".to_string(),
@@ -147,7 +147,7 @@ fn render_breakdown(output: &CostBreakdownOutput) {
         "Cost Breakdown by {} ({})",
         output.breakdown_by, output.period
     ));
-    CliService::key_value("Total", &format_cost(output.total_cost_cents));
+    CliService::key_value("Total", &format_cost(output.total_cost_microdollars));
 
     for item in &output.items {
         CliService::subsection(&item.name);
@@ -155,7 +155,7 @@ fn render_breakdown(output: &CostBreakdownOutput) {
             "Cost",
             &format!(
                 "{} ({})",
-                format_cost(item.cost_cents),
+                format_cost(item.cost_microdollars),
                 format_percent(item.percentage)
             ),
         );

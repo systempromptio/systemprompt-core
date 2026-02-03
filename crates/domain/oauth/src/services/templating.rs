@@ -32,4 +32,8 @@ impl TemplateEngine {
     pub const fn load_webauthn_oauth_template() -> &'static str {
         include_str!("../../templates/webauthn_oauth.html")
     }
+
+    pub const fn load_link_passkey_template() -> &'static str {
+        include_str!("../../templates/link_passkey.html")
+    }
 }

@@ -58,7 +58,7 @@ struct TotalRow {
     request_count: Option<i64>,
     total_input_tokens: Option<i64>,
     total_output_tokens: Option<i64>,
-    total_cost_cents: Option<i64>,
+    total_cost_microdollars: Option<i64>,
     avg_latency_ms: Option<i64>,
 }
 
@@ -66,7 +66,7 @@ struct ProviderRow {
     provider: String,
     request_count: Option<i64>,
     total_tokens: Option<i64>,
-    total_cost_cents: Option<i64>,
+    total_cost_microdollars: Option<i64>,
     avg_latency_ms: Option<i64>,
 }
 
@@ -75,7 +75,7 @@ struct ModelRow {
     provider: String,
     request_count: Option<i64>,
     total_tokens: Option<i64>,
-    total_cost_cents: Option<i64>,
+    total_cost_microdollars: Option<i64>,
     avg_latency_ms: Option<i64>,
 }
 
@@ -109,7 +109,7 @@ async fn execute_with_pool_inner(
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
                 COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             WHERE created_at >= $1
@@ -126,7 +126,7 @@ async fn execute_with_pool_inner(
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
                 COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             "#
@@ -143,7 +143,7 @@ async fn execute_with_pool_inner(
                 provider as "provider!",
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             WHERE created_at >= $1
@@ -162,7 +162,7 @@ async fn execute_with_pool_inner(
                 provider as "provider!",
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             GROUP BY provider
@@ -182,7 +182,7 @@ async fn execute_with_pool_inner(
                 provider as "provider!",
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             WHERE created_at >= $1
@@ -203,7 +203,7 @@ async fn execute_with_pool_inner(
                 provider as "provider!",
                 COUNT(*) as "request_count",
                 COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_cents), 0) as "total_cost_cents",
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
                 COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
             FROM ai_requests
             GROUP BY model, provider
@@ -217,7 +217,7 @@ async fn execute_with_pool_inner(
 
     let input_tokens = totals.total_input_tokens.unwrap_or(0);
     let output_tokens = totals.total_output_tokens.unwrap_or(0);
-    let total_cost_cents = totals.total_cost_cents.unwrap_or(0);
+    let total_cost_microdollars = totals.total_cost_microdollars.unwrap_or(0);
 
     let output = RequestStatsOutput {
         total_requests: totals.request_count.unwrap_or(0),
@@ -226,7 +226,7 @@ async fn execute_with_pool_inner(
             output: output_tokens,
             total: input_tokens + output_tokens,
         },
-        total_cost_dollars: f64::from(total_cost_cents as i32) / 1_000_000.0,
+        total_cost_dollars: f64::from(total_cost_microdollars as i32) / 1_000_000.0,
         average_latency_ms: totals.avg_latency_ms.unwrap_or(0),
         by_provider: by_provider
             .into_iter()
@@ -234,7 +234,7 @@ async fn execute_with_pool_inner(
                 provider: r.provider,
                 request_count: r.request_count.unwrap_or(0),
                 total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_cents.unwrap_or(0) as i32) / 1_000_000.0,
+                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32) / 1_000_000.0,
                 avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
             })
             .collect(),
@@ -245,7 +245,7 @@ async fn execute_with_pool_inner(
                 provider: r.provider,
                 request_count: r.request_count.unwrap_or(0),
                 total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_cents.unwrap_or(0) as i32) / 1_000_000.0,
+                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32) / 1_000_000.0,
                 avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
             })
             .collect(),

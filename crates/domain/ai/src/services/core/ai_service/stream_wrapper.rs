@@ -58,7 +58,7 @@ impl StreamStorageWrapper {
             context: &self.request.context,
             status: RequestStatus::Completed,
             error_message: None,
-            cost_cents: 0,
+            cost_microdollars: 0,
         });
     }
 
@@ -78,7 +78,7 @@ impl StreamStorageWrapper {
             context: &self.request.context,
             status: RequestStatus::Failed,
             error_message: Some(&error.to_string()),
-            cost_cents: 0,
+            cost_microdollars: 0,
         });
     }
 }
@@ -91,21 +91,21 @@ impl Stream for StreamStorageWrapper {
             Poll::Ready(Some(Ok(text))) => {
                 self.accumulated.push_str(&text);
                 Poll::Ready(Some(Ok(text)))
-            }
+            },
             Poll::Ready(Some(Err(e))) => {
                 if !self.completed {
                     self.completed = true;
                     self.store_error(&e);
                 }
                 Poll::Ready(Some(Err(e)))
-            }
+            },
             Poll::Ready(None) => {
                 if !self.completed {
                     self.completed = true;
                     self.store_completion();
                 }
                 Poll::Ready(None)
-            }
+            },
             Poll::Pending => Poll::Pending,
         }
     }

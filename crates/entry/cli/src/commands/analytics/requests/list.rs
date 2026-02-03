@@ -47,7 +47,7 @@ pub struct RequestListRowOutput {
     pub model: String,
     pub input_tokens: i32,
     pub output_tokens: i32,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
     pub latency_ms: i32,
     pub cache_hit: bool,
     pub created_at: String,
@@ -92,7 +92,7 @@ async fn execute_internal(
             model: row.model,
             input_tokens: row.input_tokens.unwrap_or(0),
             output_tokens: row.output_tokens.unwrap_or(0),
-            cost_cents: row.cost_cents.unwrap_or(0),
+            cost_microdollars: row.cost_microdollars.unwrap_or(0),
             latency_ms: row.latency_ms.unwrap_or(0),
             cache_hit: row.cache_hit.unwrap_or(false),
             created_at: row.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
@@ -123,7 +123,7 @@ async fn execute_internal(
                 "model".to_string(),
                 "input_tokens".to_string(),
                 "output_tokens".to_string(),
-                "cost_cents".to_string(),
+                "cost_microdollars".to_string(),
                 "latency_ms".to_string(),
             ]),
             ..Default::default()
@@ -161,7 +161,7 @@ fn render_list(output: &RequestListOutput) {
                 format_tokens(i64::from(req.output_tokens))
             ),
         );
-        CliService::key_value("Cost", &format_cost(i64::from(req.cost_cents)));
+        CliService::key_value("Cost", &format_cost(i64::from(req.cost_microdollars)));
         CliService::key_value("Latency", &format_duration_ms(i64::from(req.latency_ms)));
         CliService::key_value("Time", &req.created_at);
     }

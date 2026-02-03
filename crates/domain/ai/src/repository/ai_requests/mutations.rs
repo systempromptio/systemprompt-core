@@ -10,7 +10,7 @@ pub struct UpdateCompletionParams {
     pub tokens_used: i32,
     pub input_tokens: i32,
     pub output_tokens: i32,
-    pub cost_cents: i32,
+    pub cost_microdollars: i64,
     pub latency_ms: i32,
 }
 
@@ -30,7 +30,7 @@ impl AiRequestRepository {
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, CURRENT_TIMESTAMP)
             RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
                       provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_cents, latency_ms, cache_hit,
+                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
@@ -60,19 +60,19 @@ impl AiRequestRepository {
             r#"
             UPDATE ai_requests
             SET tokens_used = $1, input_tokens = $2, output_tokens = $3,
-                cost_cents = $4, latency_ms = $5, status = $6,
+                cost_microdollars = $4, latency_ms = $5, status = $6,
                 completed_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
             WHERE id = $7
             RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
                       provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_cents, latency_ms, cache_hit,
+                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
             params.tokens_used,
             params.input_tokens,
             params.output_tokens,
-            params.cost_cents,
+            params.cost_microdollars,
             params.latency_ms,
             RequestStatus::Completed.as_str(),
             params.id.as_str()
@@ -97,7 +97,7 @@ impl AiRequestRepository {
             WHERE id = $3
             RETURNING id, request_id, user_id, session_id, task_id, context_id, trace_id,
                       provider, model, temperature, top_p, max_tokens, tokens_used,
-                      input_tokens, output_tokens, cost_cents, latency_ms, cache_hit,
+                      input_tokens, output_tokens, cost_microdollars, latency_ms, cache_hit,
                       cache_read_tokens, cache_creation_tokens, is_streaming, status,
                       error_message, created_at, updated_at, completed_at
             "#,
@@ -128,7 +128,7 @@ impl AiRequestRepository {
                 id, request_id, user_id, session_id, task_id, context_id, trace_id,
                 mcp_execution_id, provider, model, max_tokens, tokens_used, input_tokens, output_tokens,
                 cache_hit, cache_read_tokens, cache_creation_tokens, is_streaming,
-                cost_cents, latency_ms, status, error_message,
+                cost_microdollars, latency_ms, status, error_message,
                 created_at, updated_at, completed_at
             )
             VALUES (
@@ -156,7 +156,7 @@ impl AiRequestRepository {
             record.cache.read_tokens,
             record.cache.creation_tokens,
             record.is_streaming,
-            record.cost_cents,
+            record.cost_microdollars,
             record.latency_ms,
             status,
             record.error_message.as_deref(),

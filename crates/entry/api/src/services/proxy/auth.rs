@@ -68,22 +68,31 @@ impl OAuthChallengeBuilder {
 
         let oauth_base_url = &ctx.config().api_server_url;
 
-        let auth_header_value = format!(
-            "Bearer realm=\"{service_name}\", \
-             as_uri=\"{oauth_base_url}/.well-known/oauth-authorization-server\", \
-             error=\"invalid_token\""
-        );
-
-        let error_body = json!({
-            "error": if status_code == StatusCode::UNAUTHORIZED { "invalid_token" } else { "insufficient_scope" },
-            "error_description": if status_code == StatusCode::UNAUTHORIZED {
-                "The access token is missing or invalid"
-            } else {
-                "The access token does not have the required scope"
-            },
-            "server": service_name,
-            "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server")
-        });
+        let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
+            let header = format!(
+                "Bearer realm=\"{service_name}\", \
+                 as_uri=\"{oauth_base_url}/.well-known/oauth-authorization-server\", \
+                 error=\"invalid_token\""
+            );
+            let body = json!({
+                "error": "invalid_token",
+                "error_description": "The access token is missing or invalid",
+                "server": service_name,
+                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server")
+            });
+            (header, body)
+        } else {
+            let header = format!(
+                "Bearer realm=\"{service_name}\", error=\"insufficient_scope\", \
+                 error_description=\"The access token lacks required scope\""
+            );
+            let body = json!({
+                "error": "insufficient_scope",
+                "error_description": "The access token does not have the required scope for this resource",
+                "server": service_name
+            });
+            (header, body)
+        };
 
         Response::builder()
             .status(status_code)

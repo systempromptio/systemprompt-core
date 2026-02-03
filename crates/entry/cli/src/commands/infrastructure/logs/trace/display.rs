@@ -28,7 +28,7 @@ pub fn truncate_string(s: &str, max_len: usize) -> String {
 
 pub fn format_metadata_value(key: &str, value: &Value) -> String {
     match key {
-        "cost_cents" => value.as_i64().map_or_else(
+        "cost_microdollars" => value.as_i64().map_or_else(
             || format!("{}", value).trim_matches('"').to_string(),
             |microdollars| {
                 let dollars = microdollars as f64 / 1_000_000.0;

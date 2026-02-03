@@ -117,7 +117,7 @@ impl AiService {
             context: &request.context,
             status: RequestStatus::Completed,
             error_message: None,
-            cost_cents: cost,
+            cost_microdollars: cost,
         });
 
         let final_response = AiResponse::new(
@@ -205,7 +205,7 @@ impl AiService {
                     context: &request.context,
                     status: RequestStatus::Completed,
                     error_message: None,
-                    cost_cents: cost,
+                    cost_microdollars: cost,
                 });
                 Ok((response, tool_calls))
             },

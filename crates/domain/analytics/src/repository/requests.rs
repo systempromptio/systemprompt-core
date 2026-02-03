@@ -33,7 +33,7 @@ impl RequestAnalyticsRepository {
                     SUM(tokens_used)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
-                    SUM(cost_cents)::bigint as "cost",
+                    SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
                 FROM ai_requests
@@ -56,7 +56,7 @@ impl RequestAnalyticsRepository {
                     SUM(tokens_used)::bigint as "total_tokens",
                     SUM(input_tokens)::bigint as "input_tokens",
                     SUM(output_tokens)::bigint as "output_tokens",
-                    SUM(cost_cents)::bigint as "cost",
+                    SUM(cost_microdollars)::bigint as "cost",
                     AVG(latency_ms)::float8 as "avg_latency",
                     COUNT(*) FILTER (WHERE cache_hit = true)::bigint as "cache_hits!"
                 FROM ai_requests
@@ -85,7 +85,7 @@ impl RequestAnalyticsRepository {
                 model as "model!",
                 COUNT(*)::bigint as "request_count!",
                 SUM(tokens_used)::bigint as "total_tokens",
-                SUM(cost_cents)::bigint as "total_cost",
+                SUM(cost_microdollars)::bigint as "total_cost",
                 AVG(latency_ms)::float8 as "avg_latency"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
@@ -113,7 +113,7 @@ impl RequestAnalyticsRepository {
             SELECT
                 created_at as "created_at!",
                 tokens_used,
-                cost_cents,
+                cost_microdollars,
                 latency_ms
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
@@ -145,7 +145,7 @@ impl RequestAnalyticsRepository {
                     model as "model!",
                     input_tokens,
                     output_tokens,
-                    cost_cents,
+                    cost_microdollars,
                     latency_ms,
                     cache_hit,
                     created_at as "created_at!"
@@ -173,7 +173,7 @@ impl RequestAnalyticsRepository {
                     model as "model!",
                     input_tokens,
                     output_tokens,
-                    cost_cents,
+                    cost_microdollars,
                     latency_ms,
                     cache_hit,
                     created_at as "created_at!"

@@ -65,7 +65,7 @@ impl AgentAnalyticsRepository {
             r#"
             SELECT
                 COUNT(*)::bigint as "total_ai_requests!",
-                COALESCE(SUM(cost_cents), 0)::bigint as "total_cost_cents!"
+                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars!"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,

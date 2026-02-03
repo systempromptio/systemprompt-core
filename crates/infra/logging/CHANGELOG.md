@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Changed
+- Updated trace queries to use `cost_microdollars` for cost tracking
+- Regenerated SQLx offline query cache
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

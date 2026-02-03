@@ -52,7 +52,7 @@ pub fn print_json(
             "total_tokens": ai_summary.total_tokens,
             "input_tokens": ai_summary.total_input_tokens,
             "output_tokens": ai_summary.total_output_tokens,
-            "cost_cents": ai_summary.total_cost_cents,
+            "cost_microdollars": ai_summary.total_cost_microdollars,
             "total_latency_ms": ai_summary.total_latency_ms,
         },
         "mcp_summary": {

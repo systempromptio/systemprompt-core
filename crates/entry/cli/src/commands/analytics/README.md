@@ -259,7 +259,7 @@ sp analytics agents stats --since 7d
   "success_rate": 94.4,
   "avg_execution_time_ms": 8500,
   "total_ai_requests": 1200,
-  "total_cost_cents": 4520
+  "total_cost_microdollars": 4520
 }
 ```
 
@@ -293,7 +293,7 @@ sp analytics agents list --sort-by success-rate
       "task_count": 200,
       "success_rate": 96.5,
       "avg_execution_time_ms": 7500,
-      "total_cost_cents": 2100,
+      "total_cost_microdollars": 2100,
       "last_active": "2024-01-15T11:30:00Z"
     }
   ],
@@ -302,7 +302,7 @@ sp analytics agents list --sort-by success-rate
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `agent_name`, `task_count`, `success_rate`, `avg_execution_time_ms`, `total_cost_cents`
+**Columns:** `agent_name`, `task_count`, `success_rate`, `avg_execution_time_ms`, `total_cost_microdollars`
 
 ---
 
@@ -562,7 +562,7 @@ sp analytics requests stats --since 7d
   "total_tokens": 500000,
   "input_tokens": 350000,
   "output_tokens": 150000,
-  "total_cost_cents": 4520,
+  "total_cost_microdollars": 4520,
   "avg_latency_ms": 850,
   "cache_hit_rate": 35.2
 }
@@ -597,7 +597,7 @@ sp analytics requests trends --since 7d --group-by day
       "timestamp": "2024-01-14",
       "request_count": 180,
       "total_tokens": 75000,
-      "cost_cents": 680,
+      "cost_microdollars": 680,
       "avg_latency_ms": 820
     }
   ]
@@ -605,7 +605,7 @@ sp analytics requests trends --since 7d --group-by day
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `timestamp`, `request_count`, `total_tokens`, `cost_cents`, `avg_latency_ms`
+**Columns:** `timestamp`, `request_count`, `total_tokens`, `cost_microdollars`, `avg_latency_ms`
 
 ---
 
@@ -629,7 +629,7 @@ sp analytics requests models --since 7d
       "model": "claude-3-5-sonnet-20241022",
       "request_count": 800,
       "total_tokens": 350000,
-      "total_cost_cents": 3150,
+      "total_cost_microdollars": 3150,
       "avg_latency_ms": 920,
       "percentage": 66.7
     },
@@ -638,7 +638,7 @@ sp analytics requests models --since 7d
       "model": "gpt-4-turbo",
       "request_count": 400,
       "total_tokens": 150000,
-      "total_cost_cents": 1370,
+      "total_cost_microdollars": 1370,
       "avg_latency_ms": 750,
       "percentage": 33.3
     }
@@ -648,7 +648,7 @@ sp analytics requests models --since 7d
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `provider`, `model`, `request_count`, `total_tokens`, `total_cost_cents`, `percentage`
+**Columns:** `provider`, `model`, `request_count`, `total_tokens`, `total_cost_microdollars`, `percentage`
 
 ---
 
@@ -997,7 +997,7 @@ sp analytics costs summary --since 7d
 ```json
 {
   "period": "2024-01-14 to 2024-01-15",
-  "total_cost_cents": 4520,
+  "total_cost_microdollars": 4520,
   "total_requests": 1200,
   "total_tokens": 500000,
   "avg_cost_per_request_cents": 3.77,
@@ -1032,17 +1032,17 @@ sp analytics costs trends --since 7d --group-by day
   "points": [
     {
       "timestamp": "2024-01-14",
-      "cost_cents": 680,
+      "cost_microdollars": 680,
       "request_count": 180,
       "tokens": 75000
     }
   ],
-  "total_cost_cents": 4520
+  "total_cost_microdollars": 4520
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `timestamp`, `cost_cents`, `request_count`, `tokens`
+**Columns:** `timestamp`, `cost_microdollars`, `request_count`, `tokens`
 
 ---
 
@@ -1070,25 +1070,25 @@ sp analytics costs breakdown --by agent
   "items": [
     {
       "name": "claude-3-5-sonnet-20241022",
-      "cost_cents": 3150,
+      "cost_microdollars": 3150,
       "request_count": 800,
       "tokens": 350000,
       "percentage": 69.7
     },
     {
       "name": "gpt-4-turbo",
-      "cost_cents": 1370,
+      "cost_microdollars": 1370,
       "request_count": 400,
       "tokens": 150000,
       "percentage": 30.3
     }
   ],
-  "total_cost_cents": 4520
+  "total_cost_microdollars": 4520
 }
 ```
 
 **Artifact Type:** `Table`
-**Columns:** `name`, `cost_cents`, `request_count`, `tokens`, `percentage`
+**Columns:** `name`, `cost_microdollars`, `request_count`, `tokens`, `percentage`
 
 ---
 
@@ -1220,7 +1220,7 @@ sp --json analytics overview | jq '.costs.total_cents'
 sp --json analytics agents list | jq '.agents[].agent_name'
 sp --json analytics requests models | jq '.models[] | select(.percentage > 50)'
 sp --json analytics sessions live | jq '.sessions | length'
-sp --json analytics costs breakdown | jq '.items | sort_by(.cost_cents) | reverse'
+sp --json analytics costs breakdown | jq '.items | sort_by(.cost_microdollars) | reverse'
 
 # Filter by criteria
 sp --json analytics agents list | jq '.agents[] | select(.success_rate < 95)'

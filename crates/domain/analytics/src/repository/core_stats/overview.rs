@@ -39,11 +39,11 @@ impl CoreStatsRepository {
             CostOverview,
             r#"
             SELECT
-                COALESCE(SUM(cost_cents)::float / 100.0, 0.0) as "total_cost!",
-                COALESCE(SUM(cost_cents) FILTER (WHERE created_at > $1)::float / 100.0, 0.0) as "cost_24h!",
-                COALESCE(SUM(cost_cents) FILTER (WHERE created_at > $2)::float / 100.0, 0.0) as "cost_7d!",
-                COALESCE(SUM(cost_cents) FILTER (WHERE created_at > $3)::float / 100.0, 0.0) as "cost_30d!",
-                COALESCE(AVG(cost_cents)::float / 100.0, 0.0) as "avg_cost_per_request!"
+                COALESCE(SUM(cost_microdollars)::float / 1000000.0, 0.0) as "total_cost!",
+                COALESCE(SUM(cost_microdollars) FILTER (WHERE created_at > $1)::float / 1000000.0, 0.0) as "cost_24h!",
+                COALESCE(SUM(cost_microdollars) FILTER (WHERE created_at > $2)::float / 1000000.0, 0.0) as "cost_7d!",
+                COALESCE(SUM(cost_microdollars) FILTER (WHERE created_at > $3)::float / 1000000.0, 0.0) as "cost_30d!",
+                COALESCE(AVG(cost_microdollars)::float / 1000000.0, 0.0) as "avg_cost_per_request!"
             FROM ai_requests
             "#,
             since_hours_24,

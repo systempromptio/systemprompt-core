@@ -76,7 +76,7 @@ async fn execute_internal(
         success_rate,
         avg_execution_time_ms: stats.avg_execution_time_ms as i64,
         total_ai_requests: ai_stats.total_ai_requests,
-        total_cost_cents: ai_stats.total_cost_cents,
+        total_cost_microdollars: ai_stats.total_cost_microdollars,
     };
 
     if let Some(ref path) = args.export {
@@ -108,5 +108,5 @@ fn render_stats(output: &AgentStatsOutput) {
         &format_duration_ms(output.avg_execution_time_ms),
     );
     CliService::key_value("AI Requests", &format_number(output.total_ai_requests));
-    CliService::key_value("Total Cost", &format_cost(output.total_cost_cents));
+    CliService::key_value("Total Cost", &format_cost(output.total_cost_microdollars));
 }

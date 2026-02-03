@@ -77,7 +77,7 @@ async fn execute_internal(
             start.format("%Y-%m-%d %H:%M"),
             end.format("%Y-%m-%d %H:%M")
         ),
-        total_cost_cents: total_cost,
+        total_cost_microdollars: total_cost,
         total_requests: current.total_requests,
         total_tokens: current.total_tokens.unwrap_or(0),
         avg_cost_per_request_cents: avg_cost,
@@ -103,7 +103,7 @@ async fn execute_internal(
 fn render_summary(output: &CostSummaryOutput) {
     CliService::section(&format!("Cost Summary ({})", output.period));
 
-    CliService::key_value("Total Cost", &format_cost(output.total_cost_cents));
+    CliService::key_value("Total Cost", &format_cost(output.total_cost_microdollars));
     CliService::key_value("Total Requests", &format_number(output.total_requests));
     CliService::key_value("Total Tokens", &format_tokens(output.total_tokens));
     CliService::key_value(

@@ -189,7 +189,7 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
                 r.input_tokens.unwrap_or(0),
                 r.output_tokens.unwrap_or(0)
             ),
-            cost: format!("${:.4}", f64::from(r.cost_cents) / 100.0),
+            cost: format!("${:.4}", r.cost_microdollars as f64 / 1_000_000.0),
             latency: r
                 .latency_ms
                 .map_or_else(|| "-".to_string(), |ms| format!("{}ms", ms)),

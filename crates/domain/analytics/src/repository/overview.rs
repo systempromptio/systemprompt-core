@@ -139,7 +139,7 @@ impl OverviewAnalyticsRepository {
         sqlx::query_as!(
             OverviewCostRow,
             r#"
-            SELECT SUM(cost_cents)::bigint as "cost"
+            SELECT SUM(cost_microdollars)::bigint as "cost"
             FROM ai_requests
             WHERE created_at >= $1 AND created_at < $2
             "#,

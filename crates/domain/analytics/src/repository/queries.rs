@@ -33,7 +33,7 @@ impl AnalyticsQueryRepository {
                 model,
                 COUNT(*) as request_count,
                 SUM(tokens_used) as total_tokens,
-                SUM(cost_cents) as total_cost_cents,
+                SUM(cost_microdollars) as total_cost_microdollars,
                 AVG(latency_ms) as avg_latency_ms,
                 COUNT(DISTINCT user_id) as unique_users,
                 COUNT(DISTINCT session_id) as unique_sessions
@@ -74,7 +74,7 @@ pub struct ProviderUsage {
     pub model: String,
     pub request_count: i32,
     pub total_tokens: Option<i32>,
-    pub total_cost_cents: Option<i32>,
+    pub total_cost_microdollars: Option<i32>,
     pub avg_latency_ms: Option<f64>,
     pub unique_users: i32,
     pub unique_sessions: i32,
@@ -104,8 +104,8 @@ impl ProviderUsage {
             .and_then(serde_json::Value::as_i64)
             .map(|i| i as i32);
 
-        let total_cost_cents = row
-            .get("total_cost_cents")
+        let total_cost_microdollars = row
+            .get("total_cost_microdollars")
             .and_then(serde_json::Value::as_i64)
             .map(|i| i as i32);
 
@@ -128,7 +128,7 @@ impl ProviderUsage {
             model,
             request_count,
             total_tokens,
-            total_cost_cents,
+            total_cost_microdollars,
             avg_latency_ms,
             unique_users,
             unique_sessions,
