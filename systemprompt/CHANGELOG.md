@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- Streaming response storage tracking via `StreamStorageWrapper`
+- `AiResponse::with_streaming()` builder method
+- Logging initialization in agent run command
+
+### Changed
+- `RequestStorage` now implements `Clone`
+
 ## [0.1.1] - 2026-02-03
 
 ### Added

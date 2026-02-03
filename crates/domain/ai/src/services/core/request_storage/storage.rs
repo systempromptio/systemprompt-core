@@ -23,6 +23,7 @@ pub struct StoreParams<'a> {
     pub cost_cents: i32,
 }
 
+#[derive(Clone)]
 pub struct RequestStorage {
     ai_request_repo: AiRequestRepository,
     session_provider: Option<DynAiSessionProvider>,

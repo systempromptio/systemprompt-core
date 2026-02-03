@@ -7,6 +7,7 @@ use systemprompt_agent::AgentState;
 use systemprompt_ai::AiService;
 use systemprompt_database::Database;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_logging;
 use systemprompt_mcp::McpToolProvider;
 use systemprompt_models::Config;
 use systemprompt_oauth::JwtValidationProviderImpl;
@@ -29,6 +30,8 @@ pub async fn execute(args: RunArgs) -> Result<()> {
             .await
             .context("Failed to connect to database")?,
     );
+
+    systemprompt_logging::init_logging(Arc::clone(&db_pool));
 
     let jwt_provider = Arc::new(
         JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
