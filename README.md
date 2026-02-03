@@ -7,7 +7,12 @@ The missing layer between AI frameworks and production deployment. Not another S
 [![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
-[![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://google.github.io/A2A/)
+[![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://a2a-protocol.org/)
+[![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
+
+[Documentation](https://systemprompt.io/documentation) · [Discord](https://discord.gg/wkAbSuPWpr) · [Issues](https://github.com/systempromptio/systemprompt-core/issues)
+
+**Questions or issues?** Join us on [Discord](https://discord.gg/wkAbSuPWpr) for help.
 
 ## Table of Contents
 
@@ -281,17 +286,6 @@ register_api_extension!(MyExtension);
 
 Extensions are discovered at runtime via the `inventory` crate.
 
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| SQLx compile errors | Use `SQLX_OFFLINE=true cargo build --release` |
-| "No CLI binary found" | Install with `cargo install systemprompt-cli` |
-| Database connection failed | Check PostgreSQL is running: `docker ps` |
-| Migration errors | Ensure database exists and user has permissions |
-| OAuth login fails | Check `~/.systemprompt/credentials.json` exists |
-| MCP server not responding | Verify with `systemprompt plugins mcp status` |
-
 ## Versioning
 
 Follows [Semantic Versioning](https://semver.org/):
@@ -308,7 +302,7 @@ FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [GitHub Repository](https://github.com/systempromptio/systemprompt-core)
-- [Issues](https://github.com/systempromptio/systemprompt-core/issues)
-- [Documentation](https://systemprompt.io/documentation)
-- [Website](https://systemprompt.io)
+- [Discord](https://discord.gg/wkAbSuPWpr) — Get help and connect with the community
+- [Documentation](https://systemprompt.io/documentation) — Full guides and API reference
+- [GitHub](https://github.com/systempromptio/systemprompt-core) — Source code and issues
+- [Website](https://systemprompt.io) — Learn more about systemprompt.io
