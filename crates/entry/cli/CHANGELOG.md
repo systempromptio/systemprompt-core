@@ -4,6 +4,7 @@
 
 ### Added
 - Support nested playbook directory structures (e.g., `domain/agents/operations.md`)
+- Auto-load user email from credentials for `admin session login` (no longer requires `--email` flag)
 - Playbook IDs now map underscores to path separators (`domain_agents_operations` → `domain/agents/operations.md`)
 - `--domain` flag in `playbooks create` now accepts forward slashes for nested paths (e.g., `--domain agents/operations`)
 - Automatic cleanup of empty parent directories when deleting playbooks
