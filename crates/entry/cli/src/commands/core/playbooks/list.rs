@@ -22,7 +22,7 @@ pub fn execute(args: ListArgs) -> Result<CommandResult<ListOrDetail>> {
         return show_playbook_detail(&playbook_id, &playbooks_path);
     }
 
-    let playbooks = scan_playbooks(&playbooks_path, args.category.as_deref())?;
+    let playbooks = scan_playbooks(&playbooks_path, args.category.as_deref());
 
     let output = PlaybookListOutput { playbooks };
 
@@ -86,10 +86,7 @@ fn show_playbook_detail(
         .with_title(format!("Playbook: {}", playbook_id)))
 }
 
-fn scan_playbooks(
-    playbooks_path: &Path,
-    filter_category: Option<&str>,
-) -> Result<Vec<PlaybookSummary>> {
+fn scan_playbooks(playbooks_path: &Path, filter_category: Option<&str>) -> Vec<PlaybookSummary> {
     let all_playbooks = scan_all_playbooks(playbooks_path);
 
     let mut playbooks = Vec::new();
@@ -123,7 +120,7 @@ fn scan_playbooks(
         }
     }
 
-    Ok(playbooks)
+    playbooks
 }
 
 struct ParsedPlaybook {

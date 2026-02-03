@@ -9,6 +9,9 @@
 
 ### Changed
 - Reduce scheduler job log verbosity (info → debug)
+- Credential errors are now fatal except for `FileNotFound` (allows local-only mode)
+- Cloud paths use `ProjectContext` typed paths instead of profile-relative strings
+- Update recommended PostgreSQL version to 18-alpine in README
 
 ### Fixed
 - Add process existence check before SIGTERM in MCP cleanup

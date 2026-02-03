@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::constants::{cli_session, credentials, dir_names, tenants};
 
-use super::resolve_path;
+use super::{resolve_path, ProjectContext};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CloudPath {
@@ -52,6 +52,15 @@ impl CloudPaths {
             base_dir: profile_dir.join(credentials::DEFAULT_DIR_NAME),
             credentials_path: None,
             tenants_path: None,
+        }
+    }
+
+    #[must_use]
+    pub fn from_project_context(ctx: &ProjectContext) -> Self {
+        Self {
+            base_dir: ctx.systemprompt_dir(),
+            credentials_path: Some(ctx.local_credentials()),
+            tenants_path: Some(ctx.local_tenants()),
         }
     }
 
@@ -120,23 +129,6 @@ impl CloudPaths {
 }
 
 pub fn get_cloud_paths() -> anyhow::Result<CloudPaths> {
-    use systemprompt_models::profile_bootstrap::ProfileBootstrap;
-
-    if let Ok(profile) = ProfileBootstrap::get() {
-        if let Some(cloud_config) = &profile.cloud {
-            if let Ok(profile_path) = ProfileBootstrap::get_path() {
-                if let Some(profile_dir) = Path::new(profile_path).parent() {
-                    return Ok(CloudPaths::from_config(
-                        profile_dir,
-                        &cloud_config.credentials_path,
-                        &cloud_config.tenants_path,
-                    ));
-                }
-            }
-        }
-    }
-
-    let cwd = std::env::current_dir()
-        .map_err(|e| anyhow::anyhow!("Failed to get current directory: {}", e))?;
-    Ok(CloudPaths::new(&cwd))
+    let project_ctx = ProjectContext::discover();
+    Ok(CloudPaths::from_project_context(&project_ctx))
 }

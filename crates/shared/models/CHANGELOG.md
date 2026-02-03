@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Removed
+- Remove `credentials_path` and `tenants_path` fields from `CloudConfig` (use typed paths via `ProjectContext`)
+- Remove `Profile::credentials_path()` and `Profile::tenants_path()` methods
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

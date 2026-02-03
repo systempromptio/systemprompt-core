@@ -4,12 +4,6 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct CloudConfig {
-    #[serde(default = "default_credentials_path")]
-    pub credentials_path: String,
-
-    #[serde(default = "default_tenants_path")]
-    pub tenants_path: String,
-
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tenant_id: Option<String>,
 
@@ -24,12 +18,4 @@ pub enum CloudValidationMode {
     Strict,
     Warn,
     Skip,
-}
-
-fn default_credentials_path() -> String {
-    "./credentials.json".to_string()
-}
-
-fn default_tenants_path() -> String {
-    "./tenants.json".to_string()
 }
