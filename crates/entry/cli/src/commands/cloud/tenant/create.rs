@@ -39,7 +39,8 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         bail!("Tenant name cannot be empty");
     }
 
-    let db_name = sanitize_database_name(&name);
+    let unique_suffix = nanoid();
+    let db_name = format!("{}_{}", sanitize_database_name(&name), unique_suffix);
 
     let ctx = ProjectContext::discover();
     let docker_dir = ctx.docker_dir();
@@ -183,7 +184,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         SHARED_ADMIN_USER, config.admin_password, config.port, db_name
     );
 
-    let id = format!("local_{}", nanoid());
+    let id = format!("local_{}", unique_suffix);
     let tenant =
         StoredTenant::new_local_shared(id, name.clone(), database_url.clone(), db_name.clone());
 

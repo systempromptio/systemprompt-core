@@ -114,6 +114,7 @@ pub fn save_secrets(
     api_keys: &super::api_keys::ApiKeys,
     sync_token: Option<&str>,
     secrets_path: &Path,
+    is_cloud_tenant: bool,
 ) -> Result<()> {
     use serde_json::json;
     use systemprompt_models::Profile;
@@ -135,7 +136,7 @@ pub fn save_secrets(
         }
     }
 
-    if sync_token.is_none() {
+    if sync_token.is_none() && is_cloud_tenant {
         CliService::warning("Sync token not available. Cloud sync will not work.");
         CliService::warning("Run 'systemprompt cloud tenant rotate-sync-token' to generate one.");
     }

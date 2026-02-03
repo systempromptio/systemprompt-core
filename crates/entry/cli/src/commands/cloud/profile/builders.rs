@@ -2,6 +2,7 @@ use std::path::Path;
 
 use systemprompt_cloud::constants::{container, profile as consts};
 use systemprompt_cloud::ProjectContext;
+use systemprompt_loader::ExtensionLoader;
 use systemprompt_identifiers::TenantId;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
@@ -70,7 +71,9 @@ impl LocalProfileBuilder {
             paths: PathsConfig {
                 system: system_path.clone(),
                 services: self.services_path,
-                bin: format!("{}/target/release", system_path),
+                bin: ExtensionLoader::resolve_bin_directory(root)
+                    .to_string_lossy()
+                    .to_string(),
                 storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
                 geoip_database: None,
                 web_path: None,
