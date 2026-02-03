@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-02-03
+
+### Removed
+- `WebhookUserEventPublisher` (replaced by cloud activity API in systemprompt-cloud)
+- Unused dependencies: hmac, sha2, hex, chrono, reqwest, systemprompt-traits
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

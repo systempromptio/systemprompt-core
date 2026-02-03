@@ -117,7 +117,7 @@ impl DatabaseSessionManager {
                         "Failed to check session in database"
                     );
                     None
-                }
+                },
             }
         } else {
             None
@@ -209,14 +209,14 @@ impl SessionManager for DatabaseSessionManager {
                 Err(DatabaseSessionManagerError::SessionNeedsReconnect(
                     id.to_string(),
                 ))
-            }
+            },
             Some(false) => {
                 tracing::debug!(
                     session_id = %id,
                     "Session not found in database"
                 );
                 Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
-            }
+            },
             None => self
                 .local_manager
                 .resume(id, last_event_id)

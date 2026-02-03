@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.3] - 2026-02-03
+
+### Added
+- Cloud activity tracking for CLI login/logout events via `POST /api/v1/activity`
+- `ApiPaths::ACTIVITY_EVENT_LOGIN` and `ApiPaths::ACTIVITY_EVENT_LOGOUT` constants
+
+### Changed
+- `cloud auth logout` command is now async to support activity reporting
+
 ## [0.1.2] - 2026-02-03
 
 ### Added

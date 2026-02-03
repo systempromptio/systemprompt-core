@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.3] - 2026-02-03
+
+### Added
+- `ActivityRequest` and `ActivityData` types for cloud activity tracking
+- `ApiPaths::CLOUD_ACTIVITY` endpoint constant
+- `ApiPaths::ACTIVITY_EVENT_LOGIN` and `ApiPaths::ACTIVITY_EVENT_LOGOUT` event type constants
+
+### Removed
+- `WebhooksConfig` and `UserEventsWebhookConfig` from profile configuration
+- `webhooks` field from `Profile` struct
+
 ## [0.1.2] - 2026-02-03
 
 ### Added

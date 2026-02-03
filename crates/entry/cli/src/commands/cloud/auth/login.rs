@@ -6,6 +6,7 @@ use systemprompt_cloud::{
     TenantInfo, TenantStore, UserMeResponse,
 };
 use systemprompt_logging::CliService;
+use systemprompt_models::modules::ApiPaths;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
@@ -67,6 +68,13 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
     CliService::key_value("Tenants synced to", &tenants_path.display().to_string());
 
     CliService::success("Logged in successfully");
+
+    if let Err(e) = client
+        .report_activity(ApiPaths::ACTIVITY_EVENT_LOGIN, &response.user.id)
+        .await
+    {
+        tracing::debug!(error = %e, "Failed to report login activity");
+    }
 
     CliService::section("Syncing Admin User to Profiles");
     if let Some(cloud_user) = crate::cloud::sync::admin_user::CloudUser::from_credentials()? {

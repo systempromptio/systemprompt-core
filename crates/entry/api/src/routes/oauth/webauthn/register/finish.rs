@@ -120,6 +120,12 @@ pub async fn finish_register(
 
     match webauthn_service.finish_registration(builder.build()).await {
         Ok(user_id) => {
+            if let Some(publisher) = state.event_publisher() {
+                publisher.publish_user_event(systemprompt_traits::UserEvent::UserCreated {
+                    user_id: user_id.clone(),
+                });
+            }
+
             if let Some(session_id_str) = &request.session_id {
                 use systemprompt_identifiers::{SessionId, UserId};
 
