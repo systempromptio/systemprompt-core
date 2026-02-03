@@ -156,7 +156,7 @@ fn select_operation() -> Result<Option<TenantCommands>> {
         1 => Some(TenantCommands::List),
         2 | 3 if !has_tenants => {
             CliService::warning("No tenants configured");
-            CliService::info("Run 'systemprompt cloud tenant create' to create one.");
+            CliService::info("Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.");
             return Ok(Some(TenantCommands::List));
         },
         2 => Some(TenantCommands::Edit { id: None }),
