@@ -44,7 +44,8 @@ src/
 ├── jobs/                     # Scheduled job definitions
 │   ├── mod.rs               # Module exports
 │   ├── copy_assets.rs       # CopyExtensionAssetsJob
-│   └── publish_content.rs   # PublishContentJob (main pipeline)
+│   ├── content_prerender.rs # ContentPrerenderJob
+│   └── page_prerender.rs    # PagePrerenderJob
 │
 ├── prerender/                # Static page generation
 │   ├── mod.rs               # Module exports

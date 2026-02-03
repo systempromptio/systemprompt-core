@@ -2,9 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandResult;
-
+use super::path_helpers::{path_to_playbook_info, playbook_id_to_path, scan_all_playbooks};
 use super::types::{ListOrDetail, PlaybookDetailOutput, PlaybookListOutput, PlaybookSummary};
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {
@@ -50,17 +50,7 @@ fn show_playbook_detail(
     playbook_id: &str,
     playbooks_path: &Path,
 ) -> Result<CommandResult<ListOrDetail>> {
-    let parts: Vec<&str> = playbook_id.split('_').collect();
-    if parts.len() != 2 {
-        return Err(anyhow!(
-            "Invalid playbook_id format. Expected 'category_domain', got '{}'",
-            playbook_id
-        ));
-    }
-
-    let category = parts[0];
-    let domain = parts[1];
-    let md_path = playbooks_path.join(category).join(format!("{}.md", domain));
+    let md_path = playbook_id_to_path(playbooks_path, playbook_id)?;
 
     if !md_path.exists() {
         return Err(anyhow!(
@@ -70,7 +60,8 @@ fn show_playbook_detail(
         ));
     }
 
-    let parsed = parse_playbook_markdown(&md_path, category, domain)?;
+    let path_info = path_to_playbook_info(playbooks_path, &md_path)?;
+    let parsed = parse_playbook_markdown(&md_path, &path_info.category, &path_info.domain)?;
 
     let instructions_preview = parsed.instructions.chars().take(200).collect::<String>()
         + if parsed.instructions.len() > 200 {
@@ -83,8 +74,8 @@ fn show_playbook_detail(
         playbook_id: playbook_id.to_string(),
         name: parsed.name,
         description: parsed.description,
-        category: category.to_string(),
-        domain: domain.to_string(),
+        category: path_info.category,
+        domain: path_info.domain,
         enabled: parsed.enabled,
         tags: parsed.tags,
         file_path: md_path.to_string_lossy().to_string(),
@@ -99,76 +90,39 @@ fn scan_playbooks(
     playbooks_path: &Path,
     filter_category: Option<&str>,
 ) -> Result<Vec<PlaybookSummary>> {
-    if !playbooks_path.exists() {
-        return Ok(Vec::new());
-    }
+    let all_playbooks = scan_all_playbooks(playbooks_path);
 
     let mut playbooks = Vec::new();
 
-    for category_entry in std::fs::read_dir(playbooks_path)? {
-        let category_entry = category_entry?;
-        let category_path = category_entry.path();
-
-        if !category_path.is_dir() {
-            continue;
-        }
-
-        let category = category_path
-            .file_name()
-            .and_then(|n| n.to_str())
-            .unwrap_or("")
-            .to_string();
-
+    for info in all_playbooks {
         if let Some(filter) = filter_category {
-            if category != filter {
+            if info.category != filter {
                 continue;
             }
         }
 
-        for file_entry in std::fs::read_dir(&category_path)? {
-            let file_entry = file_entry?;
-            let file_path = file_entry.path();
-
-            if !file_path.is_file() {
-                continue;
-            }
-
-            let extension = file_path.extension().and_then(|e| e.to_str());
-            if extension != Some("md") {
-                continue;
-            }
-
-            let domain = file_path
-                .file_stem()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
-
-            match parse_playbook_markdown(&file_path, &category, &domain) {
-                Ok(parsed) => {
-                    let playbook_id = format!("{}_{}", category, domain);
-                    playbooks.push(PlaybookSummary {
-                        playbook_id,
-                        name: parsed.name,
-                        category: category.clone(),
-                        domain,
-                        enabled: parsed.enabled,
-                        tags: parsed.tags,
-                        file_path: file_path.to_string_lossy().to_string(),
-                    });
-                },
-                Err(e) => {
-                    tracing::warn!(
-                        path = %file_path.display(),
-                        error = %e,
-                        "Failed to parse playbook"
-                    );
-                },
-            }
+        match parse_playbook_markdown(&info.file_path, &info.category, &info.domain) {
+            Ok(parsed) => {
+                playbooks.push(PlaybookSummary {
+                    playbook_id: info.playbook_id,
+                    name: parsed.name,
+                    category: info.category,
+                    domain: info.domain,
+                    enabled: parsed.enabled,
+                    tags: parsed.tags,
+                    file_path: info.file_path.to_string_lossy().to_string(),
+                });
+            },
+            Err(e) => {
+                tracing::warn!(
+                    path = %info.file_path.display(),
+                    error = %e,
+                    "Failed to parse playbook"
+                );
+            },
         }
     }
 
-    playbooks.sort_by(|a, b| a.playbook_id.cmp(&b.playbook_id));
     Ok(playbooks)
 }
 

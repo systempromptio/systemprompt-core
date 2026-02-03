@@ -19,10 +19,12 @@ use crate::cloud::profile::{
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
-    create_database_for_tenant, generate_admin_password, generate_shared_postgres_compose,
-    is_shared_container_running, load_shared_config, nanoid, save_shared_config,
-    wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
+    check_volume_exists, create_database_for_tenant, generate_admin_password,
+    generate_shared_postgres_compose, is_shared_container_running, load_shared_config, nanoid,
+    remove_shared_volume, save_shared_config, wait_for_postgres_healthy, SharedContainerConfig,
+    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME,
 };
+use crate::cloud::profile::templates::validate_connection;
 use super::validation::{validate_build_ready, warn_required_secrets};
 
 pub async fn create_local_tenant() -> Result<StoredTenant> {
@@ -55,7 +57,87 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
             CliService::info("Shared container config found, restarting container...");
             (config, true)
         },
-        (None, _) => {
+        (None, true) => {
+            CliService::warning(
+                "Shared PostgreSQL container is running but no local configuration found.",
+            );
+            CliService::info("This container may be managed by another systemprompt project.");
+
+            let choices = vec![
+                "Add tenant to existing container (requires password)",
+                "Create new isolated container for this project",
+                "Cancel",
+            ];
+
+            let selection = Select::with_theme(&ColorfulTheme::default())
+                .with_prompt("How would you like to proceed?")
+                .items(&choices)
+                .default(0)
+                .interact()?;
+
+            match selection {
+                0 => {
+                    let password: String = Input::with_theme(&ColorfulTheme::default())
+                        .with_prompt(
+                            "Enter the admin password (from other project's shared_config.json)",
+                        )
+                        .interact_text()?;
+
+                    let test_url = format!(
+                        "postgres://{}:{}@localhost:{}/postgres",
+                        SHARED_ADMIN_USER, password, SHARED_PORT
+                    );
+
+                    let spinner = CliService::spinner("Verifying password...");
+                    let valid = validate_connection(&test_url).await;
+                    spinner.finish_and_clear();
+
+                    if !valid {
+                        bail!("Password verification failed. Check the password and try again.");
+                    }
+
+                    CliService::success("Password verified");
+                    let config = SharedContainerConfig::new(password, SHARED_PORT);
+                    (config, false)
+                },
+                1 => {
+                    bail!(
+                        "Isolated containers not yet implemented. Stop the existing container \
+                         first:\n  docker stop systemprompt-postgres-shared"
+                    );
+                },
+                _ => bail!("Cancelled"),
+            }
+        },
+        (None, false) => {
+            if check_volume_exists() {
+                CliService::warning(
+                    "PostgreSQL data volume exists but no container or configuration found.",
+                );
+                CliService::info(&format!(
+                    "Volume '{}' contains data from a previous installation.",
+                    SHARED_VOLUME_NAME
+                ));
+
+                let reset = Confirm::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Reset volume? (This will delete existing database data)")
+                    .default(false)
+                    .interact()?;
+
+                if reset {
+                    let spinner = CliService::spinner("Removing orphaned volume...");
+                    remove_shared_volume()?;
+                    spinner.finish_and_clear();
+                    CliService::success("Volume removed");
+                } else {
+                    bail!(
+                        "Cannot create container with orphaned volume.\nEither reset the volume \
+                         or remove it manually:\n  docker volume rm {}",
+                        SHARED_VOLUME_NAME
+                    );
+                }
+            }
+
             CliService::info("Creating new shared PostgreSQL container...");
             let password = generate_admin_password();
             let config = SharedContainerConfig::new(password, SHARED_PORT);

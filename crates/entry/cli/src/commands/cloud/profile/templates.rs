@@ -103,6 +103,7 @@ plan
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct DatabaseUrls<'a> {
     pub external: &'a str,
     pub internal: Option<&'a str>,

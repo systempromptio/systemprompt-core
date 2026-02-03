@@ -5,6 +5,7 @@ use dialoguer::Select;
 use std::fs;
 use std::path::Path;
 
+use super::path_helpers::{cleanup_empty_parent_dirs, playbook_id_to_path, scan_all_playbooks};
 use super::types::PlaybookDeleteOutput;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
@@ -37,10 +38,7 @@ pub fn execute(
             prompt_playbook_selection(&playbooks_path)
         })?;
 
-        let (category, domain) = parse_playbook_id(&name)?;
-        let playbook_file = playbooks_path
-            .join(&category)
-            .join(format!("{}.md", domain));
+        let playbook_file = playbook_id_to_path(&playbooks_path, &name)?;
 
         if !playbook_file.exists() {
             return Err(anyhow!("Playbook '{}' not found", name));
@@ -102,22 +100,8 @@ fn get_playbooks_path() -> Result<std::path::PathBuf> {
     )))
 }
 
-fn parse_playbook_id(id: &str) -> Result<(String, String)> {
-    let parts: Vec<&str> = id.splitn(2, '_').collect();
-    if parts.len() != 2 {
-        return Err(anyhow!(
-            "Invalid playbook ID format: '{}'. Expected category_domain (e.g., cli_deploy)",
-            id
-        ));
-    }
-    Ok((parts[0].to_string(), parts[1].to_string()))
-}
-
 fn delete_playbook(playbooks_path: &Path, playbook_id: &str) -> Result<()> {
-    let (category, domain) = parse_playbook_id(playbook_id)?;
-    let playbook_file = playbooks_path
-        .join(&category)
-        .join(format!("{}.md", domain));
+    let playbook_file = playbook_id_to_path(playbooks_path, playbook_id)?;
 
     if !playbook_file.exists() {
         return Err(anyhow!("Playbook '{}' not found", playbook_id));
@@ -130,47 +114,16 @@ fn delete_playbook(playbooks_path: &Path, playbook_id: &str) -> Result<()> {
         )
     })?;
 
-    let category_dir = playbooks_path.join(&category);
-    if let Ok(entries) = fs::read_dir(&category_dir) {
-        if entries.count() == 0 {
-            let _ = fs::remove_dir(&category_dir);
-        }
-    }
+    cleanup_empty_parent_dirs(playbooks_path, &playbook_file)?;
 
     Ok(())
 }
 
-fn list_all_playbooks(playbooks_path: &Path) -> Result<Vec<String>> {
-    if !playbooks_path.exists() {
-        return Ok(Vec::new());
-    }
-
-    let mut playbooks = Vec::new();
-
-    for category_entry in fs::read_dir(playbooks_path)? {
-        let category_entry = category_entry?;
-        let category_path = category_entry.path();
-
-        if !category_path.is_dir() {
-            continue;
-        }
-
-        let category_name = category_entry.file_name().to_string_lossy().to_string();
-
-        for file_entry in fs::read_dir(&category_path)? {
-            let file_entry = file_entry?;
-            let file_path = file_entry.path();
-
-            if file_path.is_file() && file_path.extension().is_some_and(|ext| ext == "md") {
-                if let Some(domain) = file_path.file_stem().and_then(|s| s.to_str()) {
-                    playbooks.push(format!("{}_{}", category_name, domain));
-                }
-            }
-        }
-    }
-
-    playbooks.sort();
-    Ok(playbooks)
+fn list_all_playbooks(playbooks_path: &Path) -> Vec<String> {
+    scan_all_playbooks(playbooks_path)
+        .into_iter()
+        .map(|p| p.playbook_id)
+        .collect()
 }
 
 fn prompt_playbook_selection(playbooks_path: &Path) -> Result<String> {

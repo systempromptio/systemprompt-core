@@ -28,7 +28,7 @@ impl PlaybooksDiffCalculator {
             .map(|p| (p.playbook_id.as_str().to_string(), p))
             .collect();
 
-        let disk_playbooks = Self::scan_disk_playbooks(playbooks_path)?;
+        let disk_playbooks = Self::scan_disk_playbooks(playbooks_path);
 
         let mut result = PlaybooksDiffResult::default();
 
@@ -86,58 +86,57 @@ impl PlaybooksDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_playbooks(path: &Path) -> Result<HashMap<String, DiskPlaybook>> {
+    fn scan_disk_playbooks(path: &Path) -> HashMap<String, DiskPlaybook> {
+        use walkdir::WalkDir;
+
         let mut playbooks = HashMap::new();
 
         if !path.exists() {
-            return Ok(playbooks);
+            return playbooks;
         }
 
-        for category_entry in std::fs::read_dir(path)? {
-            let category_entry = category_entry?;
-            let category_path = category_entry.path();
+        for entry in WalkDir::new(path)
+            .min_depth(2)
+            .into_iter()
+            .filter_map(Result::ok)
+            .filter(|e| e.file_type().is_file())
+            .filter(|e| e.path().extension().is_some_and(|ext| ext == "md"))
+        {
+            let file_path = entry.path();
 
-            if !category_path.is_dir() {
-                continue;
-            }
+            if let Ok(relative) = file_path.strip_prefix(path) {
+                let components: Vec<&str> = relative
+                    .components()
+                    .filter_map(|c| c.as_os_str().to_str())
+                    .collect();
 
-            let category = category_path
-                .file_name()
-                .and_then(|n| n.to_str())
-                .unwrap_or("")
-                .to_string();
+                if components.len() >= 2 {
+                    let category = components[0];
+                    let filename = components
+                        .last()
+                        .expect("components has >= 2 elements");
+                    let domain_name = filename.strip_suffix(".md").unwrap_or(filename);
 
-            for file_entry in std::fs::read_dir(&category_path)? {
-                let file_entry = file_entry?;
-                let file_path = file_entry.path();
+                    let domain_parts: Vec<&str> = components[1..components.len() - 1]
+                        .iter()
+                        .copied()
+                        .chain(std::iter::once(domain_name))
+                        .collect();
+                    let domain = domain_parts.join("/");
 
-                if !file_path.is_file() {
-                    continue;
-                }
-
-                let extension = file_path.extension().and_then(|e| e.to_str());
-                if extension != Some("md") {
-                    continue;
-                }
-
-                let domain = file_path
-                    .file_stem()
-                    .and_then(|n| n.to_str())
-                    .unwrap_or("")
-                    .to_string();
-
-                match parse_playbook_file(&file_path, &category, &domain) {
-                    Ok(playbook) => {
-                        playbooks.insert(playbook.playbook_id.clone(), playbook);
-                    },
-                    Err(e) => {
-                        warn!("Failed to parse playbook at {}: {}", file_path.display(), e);
-                    },
+                    match parse_playbook_file(file_path, category, &domain) {
+                        Ok(playbook) => {
+                            playbooks.insert(playbook.playbook_id.clone(), playbook);
+                        },
+                        Err(e) => {
+                            warn!("Failed to parse playbook at {}: {}", file_path.display(), e);
+                        },
+                    }
                 }
             }
         }
 
-        Ok(playbooks)
+        playbooks
     }
 }
 
@@ -152,7 +151,7 @@ fn parse_playbook_file(md_path: &Path, category: &str, domain: &str) -> Result<D
     let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
     let instructions = parts[2].trim().to_string();
 
-    let playbook_id = format!("{}_{}", category, domain);
+    let playbook_id = format!("{}_{}", category, domain.replace('/', "_"));
 
     let name = frontmatter
         .get("title")

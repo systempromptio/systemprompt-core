@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use systemprompt_analytics::SessionRepository;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{Job, JobContext, JobResult};
-use tracing::info;
+use tracing::debug;
 
 #[derive(Debug, Clone, Copy)]
 pub struct CleanupInactiveSessionsJob;
@@ -30,14 +30,14 @@ impl Job for CleanupInactiveSessionsJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        info!("Job started");
+        debug!("Job started");
 
         let session_repo = SessionRepository::new(db_pool);
         let closed_sessions = session_repo.cleanup_inactive(1).await?;
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        info!(
+        debug!(
             closed_sessions = closed_sessions,
             duration_ms = duration_ms,
             inactive_minutes = 60,

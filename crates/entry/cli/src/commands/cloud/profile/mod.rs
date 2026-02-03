@@ -11,7 +11,7 @@ mod list;
 mod show;
 mod show_display;
 mod show_types;
-mod templates;
+pub mod templates;
 
 pub use api_keys::collect_api_keys;
 pub use create::create_profile_for_tenant;

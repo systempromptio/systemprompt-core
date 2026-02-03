@@ -66,7 +66,7 @@ impl PlaybookIngestionService {
         let markdown_text = std::fs::read_to_string(playbook_file)?;
         let (metadata, instructions) = Self::parse_playbook_markdown(&markdown_text)?;
 
-        let playbook_id = format!("{}_{}", category, domain);
+        let playbook_id = format!("{}_{}", category, domain.replace('/', "_"));
 
         let name = metadata
             .get("title")
@@ -136,7 +136,6 @@ impl PlaybookIngestionService {
 
         for entry in WalkDir::new(dir)
             .min_depth(2)
-            .max_depth(2)
             .into_iter()
             .filter_map(|e| {
                 e.map_err(|err| {
@@ -150,17 +149,30 @@ impl PlaybookIngestionService {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
                     if ext == "md" {
-                        if let (Some(category_dir), Some(file_stem)) = (
-                            path.parent()
-                                .and_then(|p| p.file_name())
-                                .and_then(|n| n.to_str()),
-                            path.file_stem().and_then(|n| n.to_str()),
-                        ) {
-                            playbook_files.push((
-                                path.to_path_buf(),
-                                category_dir.to_string(),
-                                file_stem.to_string(),
-                            ));
+                        if let Ok(relative) = path.strip_prefix(dir) {
+                            let components: Vec<&str> = relative
+                                .components()
+                                .filter_map(|c| c.as_os_str().to_str())
+                                .collect();
+
+                            if components.len() >= 2 {
+                                let category = components[0].to_string();
+                                let filename = components
+                                    .last()
+                                    .expect("components has >= 2 elements");
+                                let domain_name =
+                                    filename.strip_suffix(".md").unwrap_or(filename);
+
+                                let domain_parts: Vec<&str> = components
+                                    [1..components.len() - 1]
+                                    .iter()
+                                    .copied()
+                                    .chain(std::iter::once(domain_name))
+                                    .collect();
+                                let domain = domain_parts.join("/");
+
+                                playbook_files.push((path.to_path_buf(), category, domain));
+                            }
                         }
                     }
                 }

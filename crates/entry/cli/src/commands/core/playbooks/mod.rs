@@ -2,6 +2,7 @@ mod create;
 mod delete;
 mod edit;
 pub mod list;
+mod path_helpers;
 pub mod show;
 pub mod sync;
 pub mod types;
