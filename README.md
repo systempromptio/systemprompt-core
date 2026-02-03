@@ -4,37 +4,39 @@
 
 The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
 
+[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
+[![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
 [![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
 [![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://a2a-protocol.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Documentation](https://systemprompt.io/documentation) · [Discord](https://discord.gg/wkAbSuPWpr) · [Issues](https://github.com/systempromptio/systemprompt-core/issues)
+[Discord](https://discord.gg/wkAbSuPWpr) · [Documentation](https://systemprompt.io/documentation) · [Crates.io](https://crates.io/crates/systemprompt) · [Issues](https://github.com/systempromptio/systemprompt-core/issues)
 
 **Questions or issues?** Join us on [Discord](https://discord.gg/wkAbSuPWpr) for help.
 
 ## Table of Contents
 
-- [Why systemprompt.io?](#your-ai-assistant-shouldnt-live-under-your-desk)
+- [Why systemprompt.io?](#ship-agents-to-production-in-record-time)
 - [Quick Start](#quick-start)
 - [Using as a Library](#using-as-a-library)
 - [Architecture](#architecture)
 - [Extension Framework](#extension-framework)
 - [License](#license)
 
-## Your AI assistant shouldn't live under your desk.
+## Ship agents to production in record time.
 
-Personal AI assistants are finally real. But there's a gap between a demo and a product your users can actually use.
+AI frameworks get you to a demo. Production requires everything else: auth, permissions, observability, multi-agent coordination. You shouldn't rebuild this infrastructure for every project.
 
-systemprompt.io bridges that gap:
+systemprompt.io is the missing layer—a library you own, not a platform you rent:
 
-- **Auth that works**: OAuth2/OIDC + WebAuthn
+- **Auth that works**: OAuth2/OIDC + WebAuthn, production-ready from day one
 - **Permissions that scale**: Per-user, per-agent, per-tool scopes
 - **Deployment that's real**: One command to cloud or self-host
 - **Multi-agent that coordinates**: A2A protocol with shared state
 
-The Jarvis dream is here. We handle the infrastructure.
+50MB of production-ready Rust. You own the binary.
 
 **Core capabilities:**
 - **Complete Runtime**: Web API + agent processes + MCP servers with shared auth and database
@@ -225,9 +227,12 @@ Scheduling complements agentic flows - use agents for dynamic reasoning and sche
 
 ### Building Your Own Project
 
-Use the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) to create a new project with the recommended structure for agents, MCP servers, and content.
+Use the [systemprompt-template](https://github.com/systempromptio/systemprompt-template) to create a new project with the recommended structure for agents, MCP servers, and content. The template includes installation instructions, example configurations, and a working development environment.
 
 ## Using as a Library
+
+[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
+[![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
 
 Build your own extensions by adding the facade to your `Cargo.toml`:
 
