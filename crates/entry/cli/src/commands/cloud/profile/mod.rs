@@ -21,13 +21,13 @@ use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
-use dialoguer::{Input, Select};
+use dialoguer::Select;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
 #[derive(Debug, Subcommand)]
 pub enum ProfileCommands {
-    #[command(about = "Create a new profile")]
+    #[command(about = "Create a new profile", hide = true)]
     Create(CreateArgs),
 
     #[command(about = "List all profiles")]
@@ -217,7 +217,6 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
     };
 
     let operations = vec![
-        "Create".to_string(),
         "List".to_string(),
         edit_label,
         delete_label,
@@ -231,27 +230,13 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         .interact()?;
 
     let cmd = match selection {
-        0 => {
-            let name: String = Input::with_theme(&ColorfulTheme::default())
-                .with_prompt("Profile name")
-                .interact_text()?;
-            Some(ProfileCommands::Create(CreateArgs {
-                name,
-                tenant_id: None,
-                tenant_type: TenantTypeArg::Local,
-                anthropic_key: None,
-                openai_key: None,
-                gemini_key: None,
-                github_token: None,
-            }))
-        },
-        1 => Some(ProfileCommands::List),
-        2 | 3 if !has_profiles => {
+        0 => Some(ProfileCommands::List),
+        1 | 2 if !has_profiles => {
             CliService::warning("No profiles found");
-            CliService::info("Run 'systemprompt cloud profile create <name>' to create one.");
+            CliService::info("Run 'systemprompt cloud tenant create' to create a tenant with a profile.");
             return Ok(Some(ProfileCommands::List));
         },
-        2 => Some(ProfileCommands::Edit(EditArgs {
+        1 => Some(ProfileCommands::Edit(EditArgs {
             name: None,
             set_anthropic_key: None,
             set_openai_key: None,
@@ -262,9 +247,9 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
             set_host: None,
             set_port: None,
         })),
-        3 => select_profile("Select profile to delete")?
+        2 => select_profile("Select profile to delete")?
             .map(|name| ProfileCommands::Delete(DeleteArgs { name, yes: false })),
-        4 => None,
+        3 => None,
         _ => unreachable!(),
     };
 
