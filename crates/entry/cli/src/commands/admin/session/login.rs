@@ -8,11 +8,10 @@ use reqwest::Client;
 use serde::{Deserialize, Serialize};
 
 use crate::cli_settings::CliConfig;
-use crate::interactive::resolve_required;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 use systemprompt_agent::repository::context::ContextRepository;
-use systemprompt_cloud::{CliSession, SessionKey, SessionStore};
+use systemprompt_cloud::{CliSession, CredentialsBootstrap, SessionKey, SessionStore};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_logging::CliService;
@@ -23,7 +22,7 @@ use systemprompt_users::{User, UserService};
 
 #[derive(Debug, Args)]
 pub struct LoginArgs {
-    #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL", help = "Admin email address")]
+    #[arg(long, env = "SYSTEMPROMPT_ADMIN_EMAIL", hide = true, help = "Override email from credentials")]
     pub email: Option<String>,
 
     #[arg(long, default_value = "24", help = "Session duration in hours")]
@@ -60,7 +59,7 @@ struct SessionResponse {
     session_id: String,
 }
 
-pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
+pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
 
@@ -79,11 +78,20 @@ pub async fn execute(args: LoginArgs, config: &CliConfig) -> Result<CommandResul
         }
     }
 
-    let email = resolve_required(args.email, "email", config, || {
-        Err(anyhow::anyhow!(
-            "Admin email is required. Use --email or set SYSTEMPROMPT_ADMIN_EMAIL"
-        ))
-    })?;
+    let email = if let Some(email) = args.email.clone() {
+        email
+    } else {
+        CredentialsBootstrap::try_init()
+            .await
+            .context("Failed to initialize credentials")?;
+
+        let creds = CredentialsBootstrap::require().map_err(|_| {
+            anyhow::anyhow!(
+                "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
+            )
+        })?;
+        creds.user_email.clone()
+    };
 
     let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
     let database_url = &secrets.database_url;
