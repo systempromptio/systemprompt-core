@@ -2,9 +2,9 @@ use anyhow::{anyhow, Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandResult;
-
+use super::path_helpers::playbook_id_to_path;
 use super::types::PlaybookContentOutput;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {
@@ -18,17 +18,7 @@ pub struct ShowArgs {
 pub fn execute(args: &ShowArgs) -> Result<CommandResult<PlaybookContentOutput>> {
     let playbooks_path = get_playbooks_path()?;
 
-    let parts: Vec<&str> = args.playbook_id.split('_').collect();
-    if parts.len() < 2 {
-        return Err(anyhow!(
-            "Invalid playbook_id format. Expected 'category_domain', got '{}'",
-            args.playbook_id
-        ));
-    }
-
-    let category = parts[0];
-    let domain = parts[1..].join("_");
-    let md_path = playbooks_path.join(category).join(format!("{}.md", domain));
+    let md_path = playbook_id_to_path(&playbooks_path, &args.playbook_id)?;
 
     if !md_path.exists() {
         return Err(anyhow!(

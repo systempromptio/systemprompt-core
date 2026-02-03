@@ -39,7 +39,7 @@ pub fn init_logging(db_pool: DbPool) {
         EnvFilter::new("warn")
     } else {
         EnvFilter::try_from_default_env()
-            .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn"))
+            .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn,sqlx::postgres::notice=warn"))
     };
 
     let fmt_layer = tracing_subscriber::fmt::layer()
@@ -63,7 +63,7 @@ pub fn init_console_logging() {
     }
 
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn"));
+        .unwrap_or_else(|_| EnvFilter::new("info,tokio_cron_scheduler=warn,sqlx::postgres::notice=warn"));
 
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 }

@@ -71,13 +71,34 @@ impl PlaybooksLocalSync {
 
         if delete_orphans {
             for item in &diff.added {
-                let playbook_file = self
-                    .playbooks_path
-                    .join(&item.category)
-                    .join(format!("{}.md", &item.domain));
+                let domain_parts: Vec<&str> = item.domain.split('/').collect();
+                let mut file_dir = self.playbooks_path.join(&item.category);
+
+                for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {
+                    file_dir = file_dir.join(part);
+                }
+
+                let filename = domain_parts.last().unwrap_or(&"");
+                let playbook_file = file_dir.join(format!("{}.md", filename));
 
                 if playbook_file.exists() {
                     std::fs::remove_file(&playbook_file)?;
+
+                    let mut current = playbook_file.parent();
+                    while let Some(dir) = current {
+                        if dir == self.playbooks_path {
+                            break;
+                        }
+                        if let Ok(entries) = std::fs::read_dir(dir) {
+                            if entries.count() == 0 {
+                                let _ = std::fs::remove_dir(dir);
+                            } else {
+                                break;
+                            }
+                        }
+                        current = dir.parent();
+                    }
+
                     result.items_deleted += 1;
                     info!("Deleted orphan playbook: {}", item.playbook_id);
                 }

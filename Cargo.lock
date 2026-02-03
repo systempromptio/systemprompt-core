@@ -4144,6 +4144,7 @@ dependencies = [
  "systemprompt-events",
  "systemprompt-extension",
  "systemprompt-files",
+ "systemprompt-generator",
  "systemprompt-identifiers",
  "systemprompt-loader",
  "systemprompt-logging",

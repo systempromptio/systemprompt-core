@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_database::{CleanupRepository, DbPool};
 use systemprompt_traits::{Job, JobContext, JobResult};
-use tracing::info;
+use tracing::debug;
 
 #[derive(Debug, Clone, Copy)]
 pub struct DatabaseCleanupJob;
@@ -29,7 +29,7 @@ impl Job for DatabaseCleanupJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        info!("Job started");
+        debug!("Job started");
 
         let pool = db_pool.pool_arc()?;
         let cleanup_repo = CleanupRepository::new((*pool).clone());
@@ -50,7 +50,7 @@ impl Job for DatabaseCleanupJob {
 
         let duration_ms = start_time.elapsed().as_millis() as u64;
 
-        info!(
+        debug!(
             total_deleted = total_deleted,
             orphaned_logs = orphaned_logs,
             orphaned_mcp = orphaned_mcp,

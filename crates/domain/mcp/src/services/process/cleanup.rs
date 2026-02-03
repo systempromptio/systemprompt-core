@@ -1,7 +1,16 @@
 use anyhow::Result;
 use std::process::Command;
 
+fn process_exists(pid: u32) -> bool {
+    std::path::Path::new(&format!("/proc/{}", pid)).exists()
+}
+
 pub fn terminate_gracefully(pid: u32) -> Result<()> {
+    if !process_exists(pid) {
+        tracing::debug!(pid = pid, "Process already terminated, skipping signal");
+        return Ok(());
+    }
+
     tracing::debug!(pid = pid, "Sending SIGTERM");
 
     let output = Command::new("kill")
@@ -17,6 +26,11 @@ pub fn terminate_gracefully(pid: u32) -> Result<()> {
 }
 
 pub fn force_kill(pid: u32) -> Result<()> {
+    if !process_exists(pid) {
+        tracing::debug!(pid = pid, "Process already terminated, skipping kill");
+        return Ok(());
+    }
+
     tracing::debug!(pid = pid, "Force killing process");
 
     let output = Command::new("kill")

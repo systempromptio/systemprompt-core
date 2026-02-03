@@ -99,6 +99,30 @@ pub fn is_shared_container_running() -> bool {
     }
 }
 
+pub fn check_volume_exists() -> bool {
+    let output = Command::new("docker")
+        .args(["volume", "ls", "-q", "-f", &format!("name={}", SHARED_VOLUME_NAME)])
+        .output();
+
+    match output {
+        Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
+        Err(_) => false,
+    }
+}
+
+pub fn remove_shared_volume() -> Result<()> {
+    let status = Command::new("docker")
+        .args(["volume", "rm", SHARED_VOLUME_NAME])
+        .status()
+        .context("Failed to remove PostgreSQL volume")?;
+
+    if !status.success() {
+        bail!("Failed to remove volume '{}'. Is a container still using it?", SHARED_VOLUME_NAME);
+    }
+
+    Ok(())
+}
+
 pub fn generate_shared_postgres_compose(password: &str, port: u16) -> String {
     format!(
         r#"# systemprompt.io Shared PostgreSQL Container

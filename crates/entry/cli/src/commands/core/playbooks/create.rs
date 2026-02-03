@@ -6,6 +6,7 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
+use super::path_helpers::{domain_to_path_components, validate_domain};
 use super::types::PlaybookCreateOutput;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
@@ -54,9 +55,9 @@ pub async fn execute(
     validate_identifier(&category, "category")?;
 
     let domain = resolve_required(args.domain, "domain", config, prompt_domain)?;
-    validate_identifier(&domain, "domain")?;
+    validate_domain(&domain)?;
 
-    let playbook_id = format!("{}_{}", category, domain);
+    let playbook_id = format!("{}_{}", category, domain.replace('/', "_"));
 
     let name = args.name.unwrap_or_else(|| {
         if config.is_interactive() {
@@ -95,8 +96,16 @@ pub async fn execute(
     ));
 
     let playbooks_path = get_playbooks_path()?;
-    let category_dir = playbooks_path.join(&category);
-    let playbook_file = category_dir.join(format!("{}.md", domain));
+    let domain_parts = domain_to_path_components(&domain);
+    let filename = domain_parts
+        .last()
+        .expect("domain_to_path_components returns non-empty Vec");
+
+    let mut playbook_dir = playbooks_path.join(&category);
+    for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {
+        playbook_dir = playbook_dir.join(part);
+    }
+    let playbook_file = playbook_dir.join(format!("{}.md", filename));
 
     if playbook_file.exists() {
         return Err(anyhow!(
@@ -105,10 +114,10 @@ pub async fn execute(
         ));
     }
 
-    fs::create_dir_all(&category_dir).with_context(|| {
+    fs::create_dir_all(&playbook_dir).with_context(|| {
         format!(
-            "Failed to create category directory: {}",
-            category_dir.display()
+            "Failed to create playbook directory: {}",
+            playbook_dir.display()
         )
     })?;
 
@@ -297,16 +306,22 @@ fn prompt_category() -> Result<String> {
 
 fn prompt_domain() -> Result<String> {
     Input::with_theme(&ColorfulTheme::default())
-        .with_prompt("Domain (e.g., deploy, agents)")
+        .with_prompt("Domain (e.g., deploy, agents/operations)")
         .validate_with(|input: &String| -> Result<(), &str> {
             if input.len() < 2 {
                 return Err("Domain must be at least 2 characters");
             }
+            if input.starts_with('/') || input.ends_with('/') {
+                return Err("Domain cannot start or end with '/'");
+            }
+            if input.contains("//") {
+                return Err("Domain cannot have consecutive slashes");
+            }
             if !input
                 .chars()
-                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+                .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-' || c == '/')
             {
-                return Err("Domain must be lowercase alphanumeric with hyphens only");
+                return Err("Domain must be lowercase alphanumeric with hyphens and slashes");
             }
             Ok(())
         })
