@@ -4,9 +4,10 @@
 
 The missing layer between AI frameworks and production deployment. Not another SDK - complete infrastructure with authentication, permissions, and multi-agent orchestration built on open standards (MCP, A2A, OAuth2).
 
-[![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
-[![Documentation](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
-[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](https://github.com/systempromptio/systemprompt/blob/main/LICENSE)
+[![License: FSL-1.1-ALv2](https://img.shields.io/badge/License-FSL--1.1--ALv2-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
+[![MCP](https://img.shields.io/badge/MCP-compatible-purple.svg)](https://modelcontextprotocol.io/)
+[![A2A](https://img.shields.io/badge/A2A-protocol-green.svg)](https://google.github.io/A2A/)
 
 ## Table of Contents
 
@@ -280,6 +281,17 @@ register_api_extension!(MyExtension);
 
 Extensions are discovered at runtime via the `inventory` crate.
 
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| SQLx compile errors | Use `SQLX_OFFLINE=true cargo build --release` |
+| "No CLI binary found" | Install with `cargo install systemprompt-cli` |
+| Database connection failed | Check PostgreSQL is running: `docker ps` |
+| Migration errors | Ensure database exists and user has permissions |
+| OAuth login fails | Check `~/.systemprompt/credentials.json` exists |
+| MCP server not responding | Verify with `systemprompt plugins mcp status` |
+
 ## Versioning
 
 Follows [Semantic Versioning](https://semver.org/):
@@ -292,7 +304,7 @@ Current version: **0.0.1**
 
 ## License
 
-FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](https://github.com/systempromptio/systemprompt/blob/main/LICENSE) for details.
+FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 
 ## Links
 
