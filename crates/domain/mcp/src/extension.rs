@@ -17,16 +17,27 @@ impl Extension for McpExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::inline(
-            "mcp_tool_executions",
-            include_str!("../schema/mcp_tool_executions.sql"),
-        )
-        .with_required_columns(vec![
-            "mcp_execution_id".into(),
-            "tool_name".into(),
-            "server_name".into(),
-            "created_at".into(),
-        ])]
+        vec![
+            SchemaDefinition::inline(
+                "mcp_tool_executions",
+                include_str!("../schema/mcp_tool_executions.sql"),
+            )
+            .with_required_columns(vec![
+                "mcp_execution_id".into(),
+                "tool_name".into(),
+                "server_name".into(),
+                "created_at".into(),
+            ]),
+            SchemaDefinition::inline(
+                "mcp_sessions",
+                include_str!("../schema/mcp_sessions.sql"),
+            )
+            .with_required_columns(vec![
+                "session_id".into(),
+                "status".into(),
+                "created_at".into(),
+            ]),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

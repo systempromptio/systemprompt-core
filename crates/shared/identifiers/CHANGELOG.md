@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.2] - 2026-02-03
+
+### Added
+- `SessionSource::Mcp` variant for identifying MCP protocol sessions
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed
