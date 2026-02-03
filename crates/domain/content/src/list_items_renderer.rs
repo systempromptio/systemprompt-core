@@ -56,8 +56,9 @@ fn extract_url_prefix(ctx: &ComponentContext<'_>) -> String {
         .and_then(|items| items.first())
         .and_then(|item| item.get("content_type"))
         .and_then(Value::as_str)
-        .map(|ct| format!("/{}", ct.strip_suffix("-list").unwrap_or(ct)))
-        .unwrap_or_default()
+        .map_or_else(String::new, |ct| {
+            format!("/{}", ct.strip_suffix("-list").unwrap_or(ct))
+        })
 }
 
 fn render_card_html(item: &Value, url_prefix: &str) -> Option<String> {
@@ -92,8 +93,7 @@ fn format_published_date(item: &Value) -> String {
     item.get("published_at")
         .and_then(Value::as_str)
         .and_then(|d| chrono::DateTime::parse_from_rfc3339(d).ok())
-        .map(|dt| dt.format("%B %d, %Y").to_string())
-        .unwrap_or_default()
+        .map_or_else(String::new, |dt| dt.format("%B %d, %Y").to_string())
 }
 
 fn render_image_html(image: Option<&str>, alt: &str) -> String {

@@ -144,8 +144,10 @@ impl UiRenderer for TableRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             filter_html = if hints.filterable {
                 r#"<div class="filter-bar">
                     <input type="text" id="filter-input" placeholder="Filter..." class="filter-input">

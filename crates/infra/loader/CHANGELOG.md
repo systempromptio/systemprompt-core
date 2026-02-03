@@ -5,6 +5,9 @@
 ### Added
 - `ExtensionLoader::resolve_bin_directory()` utility to dynamically resolve target/debug or target/release based on binary modification time
 
+### Fixed
+- Fix clippy unnested or-patterns warning in `resolve_bin_directory`
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

@@ -100,7 +100,10 @@ pub async fn execute(
     let filename = &domain_parts[domain_parts.len() - 1];
 
     let mut playbook_dir = playbooks_path.join(&category);
-    for part in domain_parts.iter().take(domain_parts.len().saturating_sub(1)) {
+    for part in domain_parts
+        .iter()
+        .take(domain_parts.len().saturating_sub(1))
+    {
         playbook_dir = playbook_dir.join(part);
     }
     let playbook_file = playbook_dir.join(format!("{}.md", filename));

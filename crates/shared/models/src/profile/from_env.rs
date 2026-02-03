@@ -66,9 +66,9 @@ fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Resul
         api_internal_url: require_env("API_INTERNAL_URL")?,
         api_external_url: require_env("API_EXTERNAL_URL")?,
         use_https: get_env("USE_HTTPS").is_some_and(|v| v.to_lowercase() == "true"),
-        cors_allowed_origins: get_env("CORS_ALLOWED_ORIGINS")
-            .map(|s| s.split(',').map(|s| s.trim().to_string()).collect())
-            .unwrap_or_default(),
+        cors_allowed_origins: get_env("CORS_ALLOWED_ORIGINS").map_or_else(Vec::new, |s| {
+            s.split(',').map(|s| s.trim().to_string()).collect()
+        }),
     })
 }
 

@@ -134,17 +134,13 @@ impl PlaybookIngestionService {
 
         let mut playbook_files = Vec::new();
 
-        for entry in WalkDir::new(dir)
-            .min_depth(2)
-            .into_iter()
-            .filter_map(|e| {
-                e.map_err(|err| {
-                    tracing::debug!(error = %err, "Failed to read directory entry, skipping");
-                    err
-                })
-                .ok()
+        for entry in WalkDir::new(dir).min_depth(2).into_iter().filter_map(|e| {
+            e.map_err(|err| {
+                tracing::debug!(error = %err, "Failed to read directory entry, skipping");
+                err
             })
-        {
+            .ok()
+        }) {
             if entry.file_type().is_file() {
                 let path = entry.path();
                 if let Some(ext) = path.extension() {
@@ -158,11 +154,9 @@ impl PlaybookIngestionService {
                             if components.len() >= 2 {
                                 let category = components[0].to_string();
                                 let filename = components[components.len() - 1];
-                                let domain_name =
-                                    filename.strip_suffix(".md").unwrap_or(filename);
+                                let domain_name = filename.strip_suffix(".md").unwrap_or(filename);
 
-                                let domain_parts: Vec<&str> = components
-                                    [1..components.len() - 1]
+                                let domain_parts: Vec<&str> = components[1..components.len() - 1]
                                     .iter()
                                     .copied()
                                     .chain(std::iter::once(domain_name))

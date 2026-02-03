@@ -250,7 +250,6 @@ impl TemplateValidator {
         schema
             .get("properties")
             .and_then(|p| p.as_object())
-            .map(|obj| obj.keys().cloned().collect())
-            .unwrap_or_default()
+            .map_or_else(Vec::new, |obj| obj.keys().cloned().collect())
     }
 }

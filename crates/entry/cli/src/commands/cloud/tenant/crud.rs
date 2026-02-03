@@ -23,7 +23,9 @@ pub async fn list_tenants(config: &CliConfig) -> Result<()> {
     if store.tenants.is_empty() {
         CliService::section("Tenants");
         CliService::info("No tenants configured.");
-        CliService::info("Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.");
+        CliService::info(
+            "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
+        );
         return Ok(());
     }
 

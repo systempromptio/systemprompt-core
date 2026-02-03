@@ -233,7 +233,10 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
         0 => Some(ProfileCommands::List),
         1 | 2 if !has_profiles => {
             CliService::warning("No profiles found");
-            CliService::info("Run 'systemprompt cloud tenant create' (or 'just tenant') to create a tenant with a profile.");
+            CliService::info(
+                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create a tenant \
+                 with a profile.",
+            );
             return Ok(Some(ProfileCommands::List));
         },
         1 => Some(ProfileCommands::Edit(EditArgs {

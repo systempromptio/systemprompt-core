@@ -185,7 +185,7 @@ impl SecretsBootstrap {
         let custom = std::env::var("SYSTEMPROMPT_CUSTOM_SECRETS")
             .ok()
             .filter(|s| !s.is_empty())
-            .map(|keys| {
+            .map_or_else(HashMap::new, |keys| {
                 keys.split(',')
                     .filter_map(|key| {
                         let key = key.trim();
@@ -195,8 +195,7 @@ impl SecretsBootstrap {
                             .map(|v| (key.to_owned(), v))
                     })
                     .collect()
-            })
-            .unwrap_or_default();
+            });
 
         let secrets = Secrets {
             jwt_secret,

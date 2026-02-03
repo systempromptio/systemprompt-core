@@ -31,6 +31,7 @@
 - Admin user sync only runs after successful migrations
 - Remove hardcoded content sources from `cloud init` templates (now generates empty config)
 - Docker container reuse now retrieves password directly from container (no more password prompts across projects)
+- Replace `unwrap_or_default()` with explicit `map_or_else` patterns per Rust standards
 
 ## [0.1.0] - 2026-02-02
 

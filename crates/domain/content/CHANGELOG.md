@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.1] - 2026-02-03
+
+### Changed
+- Replace `unwrap_or_default()` with explicit `map_or_else` patterns in list renderers
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

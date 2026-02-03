@@ -118,11 +118,9 @@ impl DashboardSection {
             SectionType::Text => self.render_text(),
         };
 
-        let width_style = self
-            .width
-            .as_ref()
-            .map(|w| format!(r#" style="flex-basis: {}""#, html_escape(w)))
-            .unwrap_or_default();
+        let width_style = self.width.as_ref().map_or_else(String::new, |w| {
+            format!(r#" style="flex-basis: {}""#, html_escape(w))
+        });
 
         format!(
             r#"<div class="dashboard-section" id="{id}"{width}>
@@ -144,7 +142,7 @@ impl DashboardSection {
             .get("metrics")
             .or_else(|| self.data.get("data"))
             .and_then(JsonValue::as_array)
-            .map(|arr| {
+            .map_or_else(String::new, |arr| {
                 arr.iter()
                     .filter_map(|m| {
                         let label = m.get("label").or_else(|| m.get("name")).and_then(JsonValue::as_str)?;
@@ -158,12 +156,11 @@ impl DashboardSection {
                         let unit = m.get("unit").and_then(JsonValue::as_str).unwrap_or("");
 
                         let change_html = change
-                            .map(|c| {
+                            .map_or_else(String::new, |c| {
                                 let class = if c >= 0.0 { "positive" } else { "negative" };
                                 let sign = if c >= 0.0 { "+" } else { "" };
                                 format!(r#"<span class="metric-change {class}">{sign}{c:.1}%</span>"#)
-                            })
-                            .unwrap_or_default();
+                            });
 
                         Some(format!(
                             r#"<div class="metric-card">
@@ -179,8 +176,7 @@ impl DashboardSection {
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
-            })
-            .unwrap_or_default();
+            });
 
         format!(r#"<div class="metrics-grid">{}</div>"#, metrics)
     }
@@ -197,8 +193,9 @@ impl DashboardSection {
             .data
             .get("columns")
             .and_then(JsonValue::as_array)
-            .map(|arr| arr.iter().filter_map(|c| c.as_str()).collect::<Vec<_>>())
-            .unwrap_or_default();
+            .map_or_else(Vec::new, |arr| {
+                arr.iter().filter_map(|c| c.as_str()).collect::<Vec<_>>()
+            });
 
         let rows = self
             .data
@@ -216,40 +213,36 @@ impl DashboardSection {
             acc
         });
 
-        let body = rows
-            .map(|arr| {
-                arr.iter()
-                    .map(|row| {
-                        let cells = row.as_object().map_or_else(
-                            || {
-                                row.as_array()
-                                    .map(|arr| arr.iter().map(ToString::to_string).collect())
-                                    .unwrap_or_default()
-                            },
-                            |obj| {
-                                columns
-                                    .iter()
-                                    .map(|c| {
-                                        obj.get(*c).map(ToString::to_string).unwrap_or_default()
-                                    })
-                                    .collect::<Vec<_>>()
-                            },
-                        );
+        let body = rows.map_or_else(String::new, |arr| {
+            arr.iter()
+                .map(|row| {
+                    let cells = row.as_object().map_or_else(
+                        || {
+                            row.as_array().map_or_else(Vec::new, |arr| {
+                                arr.iter().map(ToString::to_string).collect()
+                            })
+                        },
+                        |obj| {
+                            columns
+                                .iter()
+                                .map(|c| obj.get(*c).map_or_else(String::new, ToString::to_string))
+                                .collect::<Vec<_>>()
+                        },
+                    );
 
-                        let cells_html = cells.iter().fold(String::new(), |mut acc, c| {
-                            use std::fmt::Write;
-                            let _ = write!(acc, "<td>{}</td>", html_escape(c.trim_matches('"')));
-                            acc
-                        });
-
-                        format!("<tr>{cells_html}</tr>")
-                    })
-                    .fold(String::new(), |mut acc, row| {
-                        acc.push_str(&row);
+                    let cells_html = cells.iter().fold(String::new(), |mut acc, c| {
+                        use std::fmt::Write;
+                        let _ = write!(acc, "<td>{}</td>", html_escape(c.trim_matches('"')));
                         acc
-                    })
-            })
-            .unwrap_or_default();
+                    });
+
+                    format!("<tr>{cells_html}</tr>")
+                })
+                .fold(String::new(), |mut acc, row| {
+                    acc.push_str(&row);
+                    acc
+                })
+        });
 
         format!(
             r#"<table class="section-table">
@@ -267,7 +260,7 @@ impl DashboardSection {
             .get("items")
             .or_else(|| self.data.get("data"))
             .and_then(JsonValue::as_array)
-            .map(|arr| {
+            .map_or_else(String::new, |arr| {
                 arr.iter()
                     .filter_map(|item| {
                         let name = item
@@ -298,8 +291,7 @@ impl DashboardSection {
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
-            })
-            .unwrap_or_default();
+            });
 
         format!(r#"<div class="status-list">{}</div>"#, items)
     }
@@ -310,7 +302,7 @@ impl DashboardSection {
             .get("items")
             .or_else(|| self.data.get("data"))
             .and_then(JsonValue::as_array)
-            .map(|arr| {
+            .map_or_else(String::new, |arr| {
                 arr.iter()
                     .filter_map(|item| {
                         let text = if let Some(s) = item.as_str() {
@@ -325,8 +317,7 @@ impl DashboardSection {
                     })
                     .collect::<Vec<_>>()
                     .join("\n")
-            })
-            .unwrap_or_default();
+            });
 
         format!(r#"<ul class="section-list">{}</ul>"#, items)
     }
@@ -453,8 +444,10 @@ impl UiRenderer for DashboardRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             tabs_nav = tabs_nav,
             layout_class = layout_class,
             sections = sections_html,

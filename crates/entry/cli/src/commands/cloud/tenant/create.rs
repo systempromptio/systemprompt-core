@@ -25,8 +25,8 @@ use super::docker::{
     wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
     SHARED_VOLUME_NAME,
 };
-use crate::cloud::profile::templates::validate_connection;
 use super::validation::{validate_build_ready, warn_required_secrets};
+use crate::cloud::profile::templates::validate_connection;
 
 pub async fn create_local_tenant() -> Result<StoredTenant> {
     CliService::section("Create Local PostgreSQL Tenant");
@@ -69,14 +69,13 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
 
             if !use_existing {
                 bail!(
-                    "To create a new container, first stop the existing one:\n  \
-                     docker stop systemprompt-postgres-shared && \
-                     docker rm systemprompt-postgres-shared"
+                    "To create a new container, first stop the existing one:\n  docker stop \
+                     systemprompt-postgres-shared && docker rm systemprompt-postgres-shared"
                 );
             }
 
             let spinner = CliService::spinner("Connecting to container...");
-            let password = get_container_password()?
+            let password = get_container_password()
                 .ok_or_else(|| anyhow!("Could not retrieve password from container"))?;
             spinner.finish_and_clear();
 

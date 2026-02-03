@@ -59,8 +59,10 @@ impl UiRenderer for TextRenderer {
             description_html = artifact
                 .description
                 .as_ref()
-                .map(|d| format!(r#"<p class="mcp-app-description">{}</p>"#, html_escape(d)))
-                .unwrap_or_default(),
+                .map_or_else(String::new, |d| format!(
+                    r#"<p class="mcp-app-description">{}</p>"#,
+                    html_escape(d)
+                )),
             text = formatted_text,
         );
 
