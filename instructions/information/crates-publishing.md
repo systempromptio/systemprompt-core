@@ -6,7 +6,7 @@ Complete guide for publishing and maintaining systemprompt.io crates on crates.i
 
 ## Published Status
 
-**Current Version:** `0.1.5` (February 4, 2026)
+**Current Version:** `0.1.6` (February 4, 2026)
 
 All **30 crates** have been published to crates.io.
 
