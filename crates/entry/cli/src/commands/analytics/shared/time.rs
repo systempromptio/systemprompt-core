@@ -61,6 +61,10 @@ pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
 
     let s = s.trim().to_lowercase();
 
+    if let Some(duration) = parse_duration(&s) {
+        return Ok(Some(Utc::now() - duration));
+    }
+
     if let Ok(date) = NaiveDate::parse_from_str(&s, "%Y-%m-%d") {
         return date
             .and_hms_opt(23, 59, 59)
@@ -73,7 +77,8 @@ pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
         .map(|naive| Some(DateTime::from_naive_utc_and_offset(naive, Utc)))
         .map_err(|_| {
             anyhow!(
-                "Invalid --until format: {}. Use '2026-01-13' or '2026-01-13T10:00:00'",
+                "Invalid --until format: {}. Use '1h', '24h', '7d', '2026-01-13', or \
+                 '2026-01-13T10:00:00'",
                 s
             )
         })

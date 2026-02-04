@@ -9,17 +9,25 @@
 - `ToolVisibility` enum for controlling tool visibility (model/app)
 - `McpCspDomains` builder for Content Security Policy domain configuration
 - `StreamStorageParams` struct to reduce function parameter count
+- `TraceSummaries` struct for grouping trace summary parameters
 
 ### Changed
 - Refactor secrets loading to use method references instead of closures
 - Move CSP tests from source file to dedicated test crate
 - Improve code quality across workspace for clippy pedantic compliance
 - Refactor `DatabaseSessionManager` to take `&DbPool` reference
+- CLI commands refactored to fix underscore-prefixed binding warnings
+- Replace `map().unwrap_or()` with idiomatic `map_or()` patterns
+- Replace `map().unwrap_or_else()` with `map_or_else()` on Result types
+- Use `let...else` syntax instead of match for single-pattern destructuring
+- Remove redundant clones in early return paths
 
 ### Fixed
 - Fix redundant closure warnings in secrets and capabilities modules
 - Fix unused self parameter in CSP policy extraction
 - Fix branch code duplication in OAuth challenge builder
+- Fix `TraceEvent` missing `latency_ms` field error in trace output builder
+- Fix type mismatches in CLI command execute functions
 
 ## [0.1.2] - 2026-02-03
 

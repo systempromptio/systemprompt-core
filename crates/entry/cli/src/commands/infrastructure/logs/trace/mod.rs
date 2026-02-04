@@ -16,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -180,7 +181,11 @@ pub struct AiLookupOutput {
 pub async fn execute(command: TraceCommands, config: &CliConfig) -> Result<()> {
     match command {
         TraceCommands::List(args) => list::execute(args, config).await,
-        TraceCommands::Show(args) => show::execute(args).await,
+        TraceCommands::Show(args) => {
+            let result = show::execute(args).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -191,6 +196,10 @@ pub async fn execute_with_pool(
 ) -> Result<()> {
     match command {
         TraceCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
-        TraceCommands::Show(args) => show::execute_with_pool(args, db_ctx).await,
+        TraceCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

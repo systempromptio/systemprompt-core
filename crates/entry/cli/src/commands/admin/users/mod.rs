@@ -16,6 +16,7 @@ mod update;
 mod webauthn;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 use anyhow::{bail, Result};
 use clap::Subcommand;
 use systemprompt_runtime::DatabaseContext;
@@ -72,16 +73,56 @@ pub enum UsersCommands {
 
 pub async fn execute(cmd: UsersCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        UsersCommands::List(args) => list::execute(args, config).await,
-        UsersCommands::Show(args) => show::execute(args, config).await,
-        UsersCommands::Search(args) => search::execute(args, config).await,
-        UsersCommands::Create(args) => create::execute(args, config).await,
-        UsersCommands::Update(args) => update::execute(args, config).await,
-        UsersCommands::Delete(args) => delete::execute(args, config).await,
-        UsersCommands::Count(args) => count::execute(args, config).await,
-        UsersCommands::Export(args) => export::execute(args, config).await,
-        UsersCommands::Stats => stats::execute(config).await,
-        UsersCommands::Merge(args) => merge::execute(args, config).await,
+        UsersCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Show(args) => {
+            let result = show::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Search(args) => {
+            let result = search::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Create(args) => {
+            let result = create::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Update(args) => {
+            let result = update::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Delete(args) => {
+            let result = delete::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Count(args) => {
+            let result = count::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Export(args) => {
+            let result = export::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Stats => {
+            let result = stats::execute(config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Merge(args) => {
+            let result = merge::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         UsersCommands::Bulk(cmd) => bulk::execute(cmd, config).await,
         UsersCommands::Role(cmd) => role::execute(cmd, config).await,
         UsersCommands::Session(cmd) => session::execute(cmd, config).await,
@@ -96,18 +137,36 @@ pub async fn execute_with_db(
     config: &CliConfig,
 ) -> Result<()> {
     match cmd {
-        UsersCommands::List(args) => list::execute_with_pool(args, db_ctx.db_pool(), config).await,
-        UsersCommands::Show(args) => show::execute_with_pool(args, db_ctx.db_pool(), config).await,
+        UsersCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        UsersCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
+        },
         UsersCommands::Search(args) => {
-            search::execute_with_pool(args, db_ctx.db_pool(), config).await
+            let result = search::execute_with_pool(args, db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
         },
         UsersCommands::Count(args) => {
-            count::execute_with_pool(args, db_ctx.db_pool(), config).await
+            let result = count::execute_with_pool(args, db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
         },
         UsersCommands::Export(args) => {
-            export::execute_with_pool(args, db_ctx.db_pool(), config).await
+            let result = export::execute_with_pool(args, db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
         },
-        UsersCommands::Stats => stats::execute_with_pool(db_ctx.db_pool(), config).await,
+        UsersCommands::Stats => {
+            let result = stats::execute_with_pool(db_ctx.db_pool(), config).await?;
+            render_result(&result);
+            Ok(())
+        },
         UsersCommands::Session(cmd) => {
             session::execute_with_pool(cmd, db_ctx.db_pool(), config).await
         },

@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{RequestListOutput, RequestListRow};
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::commands::infrastructure::logs::shared::truncate_id;
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -47,7 +47,10 @@ struct AiRequestRow {
     status: String,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ListArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<RequestListOutput>> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
@@ -57,7 +60,7 @@ pub async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<RequestListOutput>> {
     let pool = db_ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
 }
@@ -66,7 +69,7 @@ async fn execute_with_pool_inner(
     args: ListArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<RequestListOutput>> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
     let rows = if let Some(since_ts) = since_timestamp {
@@ -119,7 +122,6 @@ async fn execute_with_pool_inner(
         .await?
     };
 
-    // Store trace_id for single-result hint
     let single_trace_id = if args.limit == 1 && rows.len() == 1 {
         rows[0].trace_id.clone()
     } else {
@@ -164,30 +166,32 @@ async fn execute_with_pool_inner(
         requests,
     };
 
-    if output.requests.is_empty() {
-        CliService::warning("No AI requests found");
-        return Ok(());
+    let result = CommandResult::table(output)
+        .with_title("AI Requests")
+        .with_columns(vec![
+            "request_id".to_string(),
+            "timestamp".to_string(),
+            "provider".to_string(),
+            "model".to_string(),
+            "tokens".to_string(),
+            "cost".to_string(),
+            "latency_ms".to_string(),
+            "status".to_string(),
+        ]);
+
+    if result.data.requests.is_empty() {
+        if !config.is_json_output() {
+            CliService::warning("No AI requests found");
+        }
+        return Ok(result.with_skip_render());
     }
 
     if config.is_json_output() {
-        let result = CommandResult::table(output)
-            .with_title("AI Requests")
-            .with_columns(vec![
-                "request_id".to_string(),
-                "timestamp".to_string(),
-                "provider".to_string(),
-                "model".to_string(),
-                "tokens".to_string(),
-                "cost".to_string(),
-                "latency_ms".to_string(),
-                "status".to_string(),
-            ]);
-        render_result(&result);
-    } else {
-        render_text_output(&output, single_trace_id.as_deref());
+        return Ok(result);
     }
 
-    Ok(())
+    render_text_output(&result.data, single_trace_id.as_deref());
+    Ok(result.with_skip_render())
 }
 
 fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
@@ -218,7 +222,6 @@ fn render_text_output(output: &RequestListOutput, trace_hint: Option<&str>) {
 
     CliService::info(&format!("Total: {} requests", output.total));
 
-    // Show trace hint for single-result queries
     if let Some(trace_id) = trace_hint {
         CliService::info(&format!(
             "For full trace: systemprompt infra logs trace show {} --all",

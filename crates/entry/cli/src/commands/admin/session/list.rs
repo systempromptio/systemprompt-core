@@ -1,28 +1,32 @@
 //! List available profiles with session status.
 
+use anyhow::Result;
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
-use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-use crate::cli_settings::CliConfig;
+use super::types::{ProfileInfo, ProfileListOutput};
 use crate::paths::ResolvedPaths;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
-pub fn execute(config: &CliConfig) {
+pub fn execute(_config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
     let project_ctx = ProjectContext::discover();
     let profiles_dir = project_ctx.profiles_dir();
 
     if !profiles_dir.exists() {
-        CliService::warning("No profiles directory found");
-        CliService::info("Create a profile with: systemprompt cloud profile create <name>");
-        return;
+        return Ok(CommandResult::table(ProfileListOutput {
+            profiles: Vec::new(),
+        })
+        .with_title("Available Profiles"));
     }
 
-    let profiles = discover_profiles(&profiles_dir);
+    let discovered = discover_profiles(&profiles_dir);
 
-    if profiles.is_empty() {
-        CliService::warning("No profiles found");
-        CliService::info("Create a profile with: systemprompt cloud profile create <name>");
-        return;
+    if discovered.is_empty() {
+        return Ok(CommandResult::table(ProfileListOutput {
+            profiles: Vec::new(),
+        })
+        .with_title("Available Profiles"));
     }
 
     let store = ResolvedPaths::discover()
@@ -30,21 +34,29 @@ pub fn execute(config: &CliConfig) {
         .ok()
         .and_then(|dir| SessionStore::load_or_create(&dir).ok());
 
-    if config.is_interactive() {
-        CliService::section("Available Profiles");
-    }
+    let profiles = discovered
+        .into_iter()
+        .map(|info| build_profile_info(&info, store.as_ref()))
+        .collect();
 
-    for profile_info in profiles {
-        print_profile_info(&profile_info, store.as_ref(), config);
-    }
+    let output = ProfileListOutput { profiles };
+
+    Ok(CommandResult::table(output)
+        .with_title("Available Profiles")
+        .with_columns(vec![
+            "name".to_string(),
+            "routing".to_string(),
+            "is_active".to_string(),
+            "session_status".to_string(),
+        ]))
 }
 
-struct ProfileInfo {
+struct DiscoveredProfile {
     name: String,
     tenant_id: Option<String>,
 }
 
-fn discover_profiles(dir: &std::path::Path) -> Vec<ProfileInfo> {
+fn discover_profiles(dir: &std::path::Path) -> Vec<DiscoveredProfile> {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(e) => {
@@ -65,9 +77,9 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<ProfileInfo> {
             }
 
             let name = e.file_name().to_str()?.to_string();
-            let profile = load_profile_info(&config_path);
+            let profile = load_profile_config(&config_path);
 
-            Some(ProfileInfo {
+            Some(DiscoveredProfile {
                 name,
                 tenant_id: profile
                     .as_ref()
@@ -78,44 +90,43 @@ fn discover_profiles(dir: &std::path::Path) -> Vec<ProfileInfo> {
         .collect()
 }
 
-fn load_profile_info(config_path: &std::path::Path) -> Option<Profile> {
+fn load_profile_config(config_path: &std::path::Path) -> Option<Profile> {
     let content = std::fs::read_to_string(config_path).ok()?;
     Profile::parse(&content, config_path).ok()
 }
 
-fn print_profile_info(info: &ProfileInfo, store: Option<&SessionStore>, config: &CliConfig) {
-    if config.is_interactive() {
-        let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
+fn build_profile_info(info: &DiscoveredProfile, store: Option<&SessionStore>) -> ProfileInfo {
+    let session_key = SessionKey::from_tenant_id(info.tenant_id.as_deref());
 
-        let is_active = store.is_some_and(|s| {
-            s.active_profile_name.as_deref() == Some(info.name.as_str())
-                || (s.active_profile_name.is_none()
-                    && s.active_key.as_ref() == Some(&session_key.as_storage_key()))
-        });
+    let is_active = store.is_some_and(|s| {
+        s.active_profile_name.as_deref() == Some(info.name.as_str())
+            || (s.active_profile_name.is_none()
+                && s.active_key.as_ref() == Some(&session_key.as_storage_key()))
+    });
 
-        let active_marker = if is_active { " (active)" } else { "" };
-
-        let session_info = store.map_or_else(String::new, |s| match s.get_session(&session_key) {
-            Some(session) if session.is_expired() => "  [expired]".to_string(),
+    let session_status = store.map_or_else(
+        || "unknown".to_string(),
+        |s| match s.get_session(&session_key) {
+            Some(session) if session.is_expired() => "expired".to_string(),
             Some(session) => {
                 let remaining = session.expires_at - chrono::Utc::now();
                 let hours = remaining.num_hours();
                 let minutes = remaining.num_minutes() % 60;
-                format!("  [session: {}h {}m remaining]", hours, minutes)
+                format!("{}h {}m remaining", hours, minutes)
             },
-            None => "  [no session]".to_string(),
-        });
+            None => "no session".to_string(),
+        },
+    );
 
-        let routing = info
-            .tenant_id
-            .as_ref()
-            .map_or_else(|| "local".to_string(), |_| "remote".to_string());
+    let routing = info
+        .tenant_id
+        .as_ref()
+        .map_or_else(|| "local".to_string(), |_| "remote".to_string());
 
-        CliService::output(&format!(
-            "  {:<16} {:<8}{}{}",
-            info.name, routing, active_marker, session_info
-        ));
-    } else {
-        CliService::output(&info.name);
+    ProfileInfo {
+        name: info.name.clone(),
+        routing,
+        is_active,
+        session_status,
     }
 }

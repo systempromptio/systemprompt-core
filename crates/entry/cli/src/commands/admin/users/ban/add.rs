@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
 use crate::commands::admin::users::types::BanAddOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 const CLI_BAN_SOURCE: &str = "cli";
 
@@ -23,7 +23,7 @@ pub struct AddArgs {
     pub permanent: bool,
 }
 
-pub async fn execute(args: AddArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: AddArgs, _config: &CliConfig) -> Result<CommandResult<BanAddOutput>> {
     let ctx = AppContext::new().await?;
     let ban_repository = BannedIpRepository::new(ctx.db_pool())?;
 
@@ -47,19 +47,7 @@ pub async fn execute(args: AddArgs, config: &CliConfig) -> Result<()> {
         message: format!("IP address '{}' has been banned", args.ip),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-        CliService::key_value("IP", &output.ip_address);
-        CliService::key_value("Reason", &output.reason);
-        match output.expires_at {
-            Some(expires) => CliService::key_value("Expires", &expires.to_rfc3339()),
-            None => CliService::key_value("Expires", "Never (permanent)"),
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("IP Banned"))
 }
 
 fn parse_duration(duration_str: Option<&str>) -> Result<BanDuration> {

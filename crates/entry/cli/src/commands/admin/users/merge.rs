@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::UserMergeOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct MergeArgs {
@@ -19,13 +19,15 @@ pub struct MergeArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: MergeArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserMergeOutput>> {
     if !args.yes {
-        CliService::warning(
+        return Err(anyhow!(
             "This will merge the source user into the target user and DELETE the source. Use \
-             --yes to confirm.",
-        );
-        return Err(anyhow!("Operation cancelled - confirmation required"));
+             --yes to confirm."
+        ));
     }
 
     let ctx = AppContext::new().await?;
@@ -64,18 +66,5 @@ pub async fn execute(args: MergeArgs, config: &CliConfig) -> Result<()> {
         ),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-        CliService::key_value("Source (deleted)", &source_user.name);
-        CliService::key_value("Target", &target_user.name);
-        CliService::key_value(
-            "Sessions transferred",
-            &output.sessions_transferred.to_string(),
-        );
-        CliService::key_value("Tasks transferred", &output.tasks_transferred.to_string());
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Users Merged"))
 }

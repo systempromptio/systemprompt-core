@@ -4,12 +4,11 @@ use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -64,26 +63,28 @@ struct LogRow {
     metadata: Option<String>,
 }
 
-pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ExportArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<LogExportOutput>> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
+    execute_with_pool_inner(args, &pool).await
 }
 
 pub async fn execute_with_pool(
     args: ExportArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<LogExportOutput>> {
     let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
+    execute_with_pool_inner(args, &pool).await
 }
 
 async fn execute_with_pool_inner(
     args: ExportArgs,
     pool: &Arc<sqlx::PgPool>,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<LogExportOutput>> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
 
@@ -141,21 +142,21 @@ async fn execute_with_pool_inner(
             file_path: Some(path.display().to_string()),
         };
 
-        if config.is_json_output() {
-            let result = CommandResult::card(output).with_title("Logs Exported");
-            render_result(&result);
-        } else {
-            CliService::success(&format!(
-                "Exported {} logs to {}",
-                exported_count,
-                path.display()
-            ));
-        }
+        Ok(CommandResult::card(output).with_title("Logs Exported"))
     } else {
-        CliService::output(&content);
-    }
+        std::io::stdout().write_all(content.as_bytes())?;
+        std::io::stdout().write_all(b"\n")?;
 
-    Ok(())
+        let output = LogExportOutput {
+            exported_count,
+            format: format_str.to_string(),
+            file_path: None,
+        };
+
+        Ok(CommandResult::text(output)
+            .with_title("Logs Exported")
+            .with_skip_render())
+    }
 }
 
 async fn fetch_logs(

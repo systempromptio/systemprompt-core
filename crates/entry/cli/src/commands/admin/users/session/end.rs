@@ -1,12 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_identifiers::SessionId;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use crate::commands::admin::users::types::SessionEndOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {
@@ -29,10 +29,14 @@ pub struct EndArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: EndArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<SessionEndOutput>> {
     if !args.yes {
-        CliService::warning("This will end user session(s). Use --yes to confirm.");
-        return Err(anyhow!("Operation cancelled - confirmation required"));
+        return Err(anyhow!(
+            "This will end user session(s). Use --yes to confirm."
+        ));
     }
 
     let ctx = AppContext::new().await?;
@@ -57,15 +61,7 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
             message: format!("{} session(s) ended for user '{}'", count, user.name),
         };
 
-        if config.is_json_output() {
-            CliService::json(&output);
-        } else if count > 0 {
-            CliService::success(&output.message);
-        } else {
-            CliService::info("No active sessions to end");
-        }
-
-        return Ok(());
+        return Ok(CommandResult::text(output).with_title("Sessions Ended"));
     }
 
     let session_id_str = args.session_id.ok_or_else(|| {
@@ -92,13 +88,5 @@ pub async fn execute(args: EndArgs, config: &CliConfig) -> Result<()> {
         },
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else if ended {
-        CliService::success(&output.message);
-    } else {
-        CliService::warning(&output.message);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Sessions Ended"))
 }

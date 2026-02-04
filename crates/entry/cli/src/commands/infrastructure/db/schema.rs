@@ -5,6 +5,7 @@ use systemprompt_logging::CliService;
 use tabled::{Table, Tabled};
 
 use crate::cli_settings::CliConfig;
+use crate::shared::{render_result, CommandResult};
 
 use super::helpers::format_bytes;
 use super::types::{
@@ -53,7 +54,10 @@ pub async fn execute_tables(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::table(output)
+            .with_title("Schema")
+            .with_columns(vec!["name".into(), "row_count".into(), "size_bytes".into()]);
+        render_result(&result);
     } else {
         CliService::section("Tables");
 
@@ -124,7 +128,15 @@ pub async fn execute_describe(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::table(output)
+            .with_title("Schema")
+            .with_columns(vec![
+                "name".into(),
+                "data_type".into(),
+                "nullable".into(),
+                "primary_key".into(),
+            ]);
+        render_result(&result);
     } else {
         CliService::section(&format!("Table: {} ({} rows)", table_name, row_count));
         CliService::subsection("Columns");
@@ -164,7 +176,8 @@ pub async fn execute_info(admin: &DatabaseAdminService, config: &CliConfig) -> R
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::card(output).with_title("Database Schema");
+        render_result(&result);
     } else {
         CliService::section("Database Info");
         CliService::key_value("Database", &output.database);
@@ -218,7 +231,8 @@ pub async fn execute_validate(admin: &DatabaseAdminService, config: &CliConfig) 
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::text(output).with_title("Schema Validation");
+        render_result(&result);
     } else {
         CliService::section("Schema Validation");
 
@@ -268,7 +282,8 @@ pub async fn execute_count(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::text(output).with_title("Row Count");
+        render_result(&result);
     } else {
         CliService::info(&format!("{}: {} rows", table_name, count));
     }

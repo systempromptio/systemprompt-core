@@ -6,8 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TopContentOutput, TopContentRow};
-use crate::commands::analytics::shared::{export_to_csv, format_number, parse_time_range};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -30,26 +30,28 @@ pub struct TopArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: TopArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: TopArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<TopContentOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ContentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: TopArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<TopContentOutput>> {
     let repo = ContentAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: TopArgs,
     repo: &ContentAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<TopContentOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_top_content(start, end, args.limit).await?;
@@ -71,42 +73,28 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.content, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.content, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "content_id".to_string(),
-                "views".to_string(),
-                "unique_visitors".to_string(),
-                "avg_time_seconds".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Top Content")
-            .with_hints(hints);
-        render_result(&result);
-    } else if output.content.is_empty() {
+    if output.content.is_empty() {
         CliService::warning("No content found");
-    } else {
-        render_top(&output);
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    Ok(())
-}
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "content_id".to_string(),
+            "views".to_string(),
+            "unique_visitors".to_string(),
+            "avg_time_seconds".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-fn render_top(output: &TopContentOutput) {
-    CliService::section(&format!("Top Content ({})", output.period));
-
-    for item in &output.content {
-        CliService::subsection(&item.content_id);
-        CliService::key_value("Views", &format_number(item.views));
-        CliService::key_value("Unique Visitors", &format_number(item.unique_visitors));
-        CliService::key_value("Avg Time", &format!("{}s", item.avg_time_seconds));
-        CliService::key_value("Trend", &item.trend);
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Top Content")
+        .with_hints(hints))
 }

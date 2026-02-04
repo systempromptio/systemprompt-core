@@ -13,78 +13,113 @@ use super::docker::{
 use super::select::{get_credentials, select_tenant};
 use crate::cli_settings::CliConfig;
 use crate::cloud::tenant::{TenantCancelArgs, TenantDeleteArgs};
+use crate::cloud::types::{TenantDetailOutput, TenantListOutput, TenantSummary};
+use crate::shared::{CommandResult, SuccessOutput};
 
-pub async fn list_tenants(config: &CliConfig) -> Result<()> {
+pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantListOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
     let store = sync_and_load_tenants(&tenants_path).await;
 
-    if store.tenants.is_empty() {
-        CliService::section("Tenants");
-        CliService::info("No tenants configured.");
-        CliService::info(
-            "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
-        );
-        return Ok(());
-    }
-
-    if !config.is_interactive() {
-        CliService::section("Tenants");
-        CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
-        CliService::info("");
-        for tenant in &store.tenants {
-            let type_str = match tenant.tenant_type {
-                TenantType::Local => "local",
-                TenantType::Cloud => "cloud",
-            };
-            let db_status = if tenant.has_database_url() {
-                "✓ db"
-            } else {
-                "✗ db"
-            };
-            CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
-        }
-        return Ok(());
-    }
-
-    let options: Vec<String> = store
+    let summaries: Vec<TenantSummary> = store
         .tenants
         .iter()
-        .map(|t| {
-            let type_str = match t.tenant_type {
-                TenantType::Local => "local",
-                TenantType::Cloud => "cloud",
-            };
-            let db_status = if t.has_database_url() {
-                "✓ db"
-            } else {
-                "✗ db"
-            };
-            format!("{} ({}) [{}]", t.name, type_str, db_status)
+        .map(|t| TenantSummary {
+            id: t.id.clone(),
+            name: t.name.clone(),
+            tenant_type: format!("{:?}", t.tenant_type).to_lowercase(),
+            has_database: t.has_database_url(),
         })
-        .chain(std::iter::once("Back".to_string()))
         .collect();
 
-    loop {
-        CliService::section("Tenants");
-        CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
-        CliService::info("");
+    let output = TenantListOutput {
+        total: summaries.len(),
+        tenants: summaries,
+    };
 
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("Select tenant")
-            .items(&options)
-            .default(0)
-            .interact()?;
-
-        if selection == store.tenants.len() {
-            break;
+    if store.tenants.is_empty() {
+        if !config.is_json_output() {
+            CliService::section("Tenants");
+            CliService::info("No tenants configured.");
+            CliService::info(
+                "Run 'systemprompt cloud tenant create' (or 'just tenant') to create one.",
+            );
         }
-
-        display_tenant_details(&store.tenants[selection]);
+        return Ok(CommandResult::table(output)
+            .with_title("Tenants")
+            .with_columns(vec![
+                "id".to_string(),
+                "name".to_string(),
+                "tenant_type".to_string(),
+                "has_database".to_string(),
+            ]));
     }
 
-    Ok(())
+    if !config.is_json_output() {
+        if !config.is_interactive() {
+            CliService::section("Tenants");
+            CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+            CliService::info("");
+            for tenant in &store.tenants {
+                let type_str = match tenant.tenant_type {
+                    TenantType::Local => "local",
+                    TenantType::Cloud => "cloud",
+                };
+                let db_status = if tenant.has_database_url() {
+                    "✓ db"
+                } else {
+                    "✗ db"
+                };
+                CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
+            }
+        } else {
+            let options: Vec<String> = store
+                .tenants
+                .iter()
+                .map(|t| {
+                    let type_str = match t.tenant_type {
+                        TenantType::Local => "local",
+                        TenantType::Cloud => "cloud",
+                    };
+                    let db_status = if t.has_database_url() {
+                        "✓ db"
+                    } else {
+                        "✗ db"
+                    };
+                    format!("{} ({}) [{}]", t.name, type_str, db_status)
+                })
+                .chain(std::iter::once("Back".to_string()))
+                .collect();
+
+            loop {
+                CliService::section("Tenants");
+                CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+                CliService::info("");
+
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select tenant")
+                    .items(&options)
+                    .default(0)
+                    .interact()?;
+
+                if selection == store.tenants.len() {
+                    break;
+                }
+
+                display_tenant_details(&store.tenants[selection]);
+            }
+        }
+    }
+
+    Ok(CommandResult::table(output)
+        .with_title("Tenants")
+        .with_columns(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "tenant_type".to_string(),
+            "has_database".to_string(),
+        ]))
 }
 
 fn display_tenant_details(tenant: &StoredTenant) {
@@ -114,11 +149,16 @@ fn display_tenant_details(tenant: &StoredTenant) {
     );
 }
 
-pub async fn show_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
+pub async fn show_tenant(
+    id: Option<String>,
+    config: &CliConfig,
+) -> Result<CommandResult<TenantDetailOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        if !config.is_json_output() {
+            CliService::warning(&format!("Failed to load tenant store: {}", e));
+        }
         TenantStore::default()
     });
 
@@ -135,36 +175,53 @@ pub async fn show_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
         None => bail!("--id is required in non-interactive mode for tenant show"),
     };
 
-    CliService::section(&format!("Tenant: {}", tenant.name));
-    CliService::key_value("ID", &tenant.id);
-    CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
+    let output = TenantDetailOutput {
+        id: tenant.id.clone(),
+        name: tenant.name.clone(),
+        tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
+        app_id: tenant.app_id.clone(),
+        hostname: tenant.hostname.clone(),
+        region: tenant.region.clone(),
+        has_database: tenant.has_database_url(),
+    };
 
-    if let Some(ref app_id) = tenant.app_id {
-        CliService::key_value("App ID", app_id);
+    if !config.is_json_output() {
+        CliService::section(&format!("Tenant: {}", tenant.name));
+        CliService::key_value("ID", &tenant.id);
+        CliService::key_value("Type", &format!("{:?}", tenant.tenant_type));
+
+        if let Some(ref app_id) = tenant.app_id {
+            CliService::key_value("App ID", app_id);
+        }
+
+        if let Some(ref hostname) = tenant.hostname {
+            CliService::key_value("Hostname", hostname);
+        }
+
+        if let Some(ref region) = tenant.region {
+            CliService::key_value("Region", region);
+        }
+
+        if tenant.has_database_url() {
+            CliService::key_value("Database", "configured");
+        } else {
+            CliService::key_value("Database", "not configured");
+        }
     }
 
-    if let Some(ref hostname) = tenant.hostname {
-        CliService::key_value("Hostname", hostname);
-    }
-
-    if let Some(ref region) = tenant.region {
-        CliService::key_value("Region", region);
-    }
-
-    if tenant.has_database_url() {
-        CliService::key_value("Database", "configured");
-    } else {
-        CliService::key_value("Database", "not configured");
-    }
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title(format!("Tenant: {}", tenant.name)))
 }
 
-pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result<()> {
+pub async fn delete_tenant(
+    args: TenantDeleteArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<SuccessOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        if !config.is_json_output() {
+            CliService::warning(&format!("Failed to load tenant store: {}", e));
+        }
         TenantStore::default()
     });
 
@@ -213,8 +270,11 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
             .interact()?;
 
         if !confirm {
-            CliService::info("Cancelled");
-            return Ok(());
+            let output = SuccessOutput::new("Cancelled");
+            if !config.is_json_output() {
+                CliService::info("Cancelled");
+            }
+            return Ok(CommandResult::text(output).with_title("Delete Tenant"));
         }
     }
 
@@ -222,9 +282,13 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
         let creds = get_credentials()?;
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-        let spinner = CliService::spinner("Deleting cloud tenant...");
-        client.delete_tenant(&tenant_id).await?;
-        spinner.finish_and_clear();
+        if !config.is_json_output() {
+            let spinner = CliService::spinner("Deleting cloud tenant...");
+            client.delete_tenant(&tenant_id).await?;
+            spinner.finish_and_clear();
+        } else {
+            client.delete_tenant(&tenant_id).await?;
+        }
     } else if tenant.uses_shared_container() {
         cleanup_shared_container_tenant(&tenant, config).await?;
     }
@@ -232,9 +296,13 @@ pub async fn delete_tenant(args: TenantDeleteArgs, config: &CliConfig) -> Result
     store.tenants.retain(|t| t.id != tenant_id);
     store.save_to_path(&tenants_path)?;
 
-    CliService::success(&format!("Deleted tenant: {}", tenant_id));
+    let output = SuccessOutput::new(format!("Deleted tenant: {}", tenant_id));
 
-    Ok(())
+    if !config.is_json_output() {
+        CliService::success(&format!("Deleted tenant: {}", tenant_id));
+    }
+
+    Ok(CommandResult::text(output).with_title("Delete Tenant"))
 }
 
 async fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {
@@ -286,7 +354,10 @@ async fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConf
     Ok(())
 }
 
-pub async fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
+pub async fn edit_tenant(
+    id: Option<String>,
+    config: &CliConfig,
+) -> Result<CommandResult<TenantDetailOutput>> {
     if !config.is_interactive() {
         return Err(anyhow::anyhow!(
             "Tenant edit requires interactive mode.\nUse specific commands to modify tenant \
@@ -336,10 +407,22 @@ pub async fn edit_tenant(id: Option<String>, config: &CliConfig) -> Result<()> {
         display_readonly_cloud_fields(tenant);
     }
 
+    let output = TenantDetailOutput {
+        id: tenant.id.clone(),
+        name: tenant.name.clone(),
+        tenant_type: format!("{:?}", tenant.tenant_type).to_lowercase(),
+        app_id: tenant.app_id.clone(),
+        hostname: tenant.hostname.clone(),
+        region: tenant.region.clone(),
+        has_database: tenant.has_database_url(),
+    };
+
     store.save_to_path(&tenants_path)?;
     CliService::success(&format!("Tenant '{}' updated", new_name));
 
-    Ok(())
+    Ok(CommandResult::card(output)
+        .with_title(format!("Tenant: {}", new_name))
+        .with_skip_render())
 }
 
 fn edit_local_tenant_database(tenant: &mut StoredTenant) -> Result<()> {
@@ -414,7 +497,10 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
     local_store
 }
 
-pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> Result<()> {
+pub async fn cancel_subscription(
+    args: TenantCancelArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<crate::cloud::types::CancelSubscriptionOutput>> {
     if !config.is_interactive() {
         bail!(
             "Subscription cancellation requires interactive mode for safety.\nThis is an \
@@ -483,7 +569,14 @@ pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> 
 
     if confirmation != tenant.name {
         CliService::info("Cancellation aborted. Tenant name did not match.");
-        return Ok(());
+        let output = crate::cloud::types::CancelSubscriptionOutput {
+            tenant_id: tenant.id.clone(),
+            tenant_name: tenant.name.clone(),
+            message: "Cancellation aborted. Tenant name did not match.".to_string(),
+        };
+        return Ok(CommandResult::text(output)
+            .with_title("Cancel Subscription")
+            .with_skip_render());
     }
 
     let creds = get_credentials()?;
@@ -501,5 +594,15 @@ pub async fn cancel_subscription(args: TenantCancelArgs, config: &CliConfig) -> 
         "Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f",
     );
 
-    Ok(())
+    let output = crate::cloud::types::CancelSubscriptionOutput {
+        tenant_id: tenant.id.clone(),
+        tenant_name: tenant.name.clone(),
+        message: "Subscription cancelled. Your tenant will be suspended and all data will be \
+                  destroyed."
+            .to_string(),
+    };
+
+    Ok(CommandResult::text(output)
+        .with_title("Cancel Subscription")
+        .with_skip_render())
 }

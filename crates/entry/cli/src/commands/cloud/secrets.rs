@@ -7,7 +7,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use super::tenant::get_credentials;
+use super::types::SecretsOutput;
 use crate::cli_settings::CliConfig;
+use crate::shared::{render_result, CommandResult};
 
 #[derive(Debug, Subcommand)]
 pub enum SecretsCommands {
@@ -30,54 +32,97 @@ pub enum SecretsCommands {
     Cleanup,
 }
 
-pub async fn execute(cmd: SecretsCommands, _config: &CliConfig) -> Result<()> {
+pub async fn execute(cmd: SecretsCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        SecretsCommands::Sync => sync_secrets().await,
-        SecretsCommands::Set { key_values } => set_secrets(key_values).await,
-        SecretsCommands::Unset { keys } => unset_secrets(keys).await,
-        SecretsCommands::Cleanup => cleanup_secrets().await,
+        SecretsCommands::Sync => {
+            let result = sync_secrets(config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SecretsCommands::Set { key_values } => {
+            let result = set_secrets(key_values, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SecretsCommands::Unset { keys } => {
+            let result = unset_secrets(keys, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SecretsCommands::Cleanup => {
+            let result = cleanup_secrets(config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
-async fn sync_secrets() -> Result<()> {
-    CliService::section("Sync Secrets");
+async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+    if !config.is_json_output() {
+        CliService::section("Sync Secrets");
+    }
 
     let (tenant_id, secrets_path) = get_tenant_and_secrets_path()?;
     let secrets = load_secrets_json(&secrets_path)?;
 
     if secrets.is_empty() {
-        CliService::warning("No secrets found in secrets.json");
-        return Ok(());
+        let output = SecretsOutput {
+            operation: "sync".to_string(),
+            keys: Vec::new(),
+            rejected_keys: None,
+        };
+        if !config.is_json_output() {
+            CliService::warning("No secrets found in secrets.json");
+        }
+        return Ok(CommandResult::list(output).with_title("Sync Secrets"));
     }
 
     let env_secrets = map_secrets_to_env_vars(secrets);
-    CliService::info(&format!("Found {} secrets to sync", env_secrets.len()));
+    if !config.is_json_output() {
+        CliService::info(&format!("Found {} secrets to sync", env_secrets.len()));
+    }
 
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let spinner = CliService::spinner("Syncing secrets...");
-    match client.set_secrets(&tenant_id, env_secrets).await {
-        Ok(keys) => {
-            spinner.finish_and_clear();
-            CliService::success(&format!("Synced {} secrets", keys.len()));
-            for key in &keys {
-                CliService::info(&format!("  - {key}"));
-            }
-        },
-        Err(e) => {
-            spinner.finish_and_clear();
-            bail!("Failed to sync secrets: {e}");
-        },
-    }
+    let keys = if !config.is_json_output() {
+        let spinner = CliService::spinner("Syncing secrets...");
+        match client.set_secrets(&tenant_id, env_secrets).await {
+            Ok(keys) => {
+                spinner.finish_and_clear();
+                CliService::success(&format!("Synced {} secrets", keys.len()));
+                for key in &keys {
+                    CliService::info(&format!("  - {key}"));
+                }
+                keys
+            },
+            Err(e) => {
+                spinner.finish_and_clear();
+                bail!("Failed to sync secrets: {e}");
+            },
+        }
+    } else {
+        client.set_secrets(&tenant_id, env_secrets).await?
+    };
 
-    Ok(())
+    let output = SecretsOutput {
+        operation: "sync".to_string(),
+        keys,
+        rejected_keys: None,
+    };
+
+    Ok(CommandResult::list(output).with_title("Sync Secrets"))
 }
 
-async fn set_secrets(key_values: Vec<String>) -> Result<()> {
+async fn set_secrets(
+    key_values: Vec<String>,
+    config: &CliConfig,
+) -> Result<CommandResult<SecretsOutput>> {
     use systemprompt_cloud::constants::env_vars;
 
-    CliService::section("Set Secrets");
+    if !config.is_json_output() {
+        CliService::section("Set Secrets");
+    }
 
     let tenant_id = get_tenant_id()?;
     let mut secrets = HashMap::new();
@@ -98,7 +143,7 @@ async fn set_secrets(key_values: Vec<String>) -> Result<()> {
         secrets.insert(key, value);
     }
 
-    if !rejected.is_empty() {
+    if !rejected.is_empty() && !config.is_json_output() {
         for key in &rejected {
             CliService::warning(&format!("Skipping system-managed variable: {key}"));
         }
@@ -111,26 +156,46 @@ async fn set_secrets(key_values: Vec<String>) -> Result<()> {
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let spinner = CliService::spinner("Setting secrets...");
-    match client.set_secrets(&tenant_id, secrets).await {
-        Ok(keys) => {
-            spinner.finish_and_clear();
-            CliService::success(&format!("Set {} secrets", keys.len()));
-            for key in &keys {
-                CliService::info(&format!("  - {key}"));
-            }
-        },
-        Err(e) => {
-            spinner.finish_and_clear();
-            bail!("Failed to set secrets: {e}");
-        },
-    }
+    let keys = if !config.is_json_output() {
+        let spinner = CliService::spinner("Setting secrets...");
+        match client.set_secrets(&tenant_id, secrets).await {
+            Ok(keys) => {
+                spinner.finish_and_clear();
+                CliService::success(&format!("Set {} secrets", keys.len()));
+                for key in &keys {
+                    CliService::info(&format!("  - {key}"));
+                }
+                keys
+            },
+            Err(e) => {
+                spinner.finish_and_clear();
+                bail!("Failed to set secrets: {e}");
+            },
+        }
+    } else {
+        client.set_secrets(&tenant_id, secrets).await?
+    };
 
-    Ok(())
+    let output = SecretsOutput {
+        operation: "set".to_string(),
+        keys,
+        rejected_keys: if rejected.is_empty() {
+            None
+        } else {
+            Some(rejected)
+        },
+    };
+
+    Ok(CommandResult::list(output).with_title("Set Secrets"))
 }
 
-async fn unset_secrets(keys: Vec<String>) -> Result<()> {
-    CliService::section("Remove Secrets");
+async fn unset_secrets(
+    keys: Vec<String>,
+    config: &CliConfig,
+) -> Result<CommandResult<SecretsOutput>> {
+    if !config.is_json_output() {
+        CliService::section("Remove Secrets");
+    }
 
     if keys.is_empty() {
         bail!("No keys provided");
@@ -146,36 +211,51 @@ async fn unset_secrets(keys: Vec<String>) -> Result<()> {
     let mut errors = Vec::new();
 
     for key in &uppercase_keys {
-        let spinner = CliService::spinner(&format!("Removing {key}..."));
-        match client.unset_secret(&tenant_id, key).await {
-            Ok(()) => {
-                spinner.finish_and_clear();
-                removed.push(key.clone());
-            },
-            Err(e) => {
-                spinner.finish_and_clear();
-                errors.push((key.clone(), e.to_string()));
-            },
+        if !config.is_json_output() {
+            let spinner = CliService::spinner(&format!("Removing {key}..."));
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => {
+                    spinner.finish_and_clear();
+                    removed.push(key.clone());
+                },
+                Err(e) => {
+                    spinner.finish_and_clear();
+                    errors.push((key.clone(), e.to_string()));
+                },
+            }
+        } else {
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => removed.push(key.clone()),
+                Err(e) => errors.push((key.clone(), e.to_string())),
+            }
         }
     }
 
-    if !removed.is_empty() {
-        CliService::success(&format!("Removed {} secrets", removed.len()));
-        for key in &removed {
-            CliService::info(&format!("  - {key}"));
+    if !config.is_json_output() {
+        if !removed.is_empty() {
+            CliService::success(&format!("Removed {} secrets", removed.len()));
+            for key in &removed {
+                CliService::info(&format!("  - {key}"));
+            }
+        }
+
+        if !errors.is_empty() {
+            for (key, err) in &errors {
+                CliService::error(&format!("Failed to remove {key}: {err}"));
+            }
+            if removed.is_empty() {
+                bail!("Failed to remove any secrets");
+            }
         }
     }
 
-    if !errors.is_empty() {
-        for (key, err) in &errors {
-            CliService::error(&format!("Failed to remove {key}: {err}"));
-        }
-        if removed.is_empty() {
-            bail!("Failed to remove any secrets");
-        }
-    }
+    let output = SecretsOutput {
+        operation: "unset".to_string(),
+        keys: removed,
+        rejected_keys: None,
+    };
 
-    Ok(())
+    Ok(CommandResult::list(output).with_title("Remove Secrets"))
 }
 
 fn get_tenant_id() -> Result<String> {
@@ -292,8 +372,10 @@ pub async fn sync_cloud_credentials(
     api_client.set_secrets(tenant_id, secrets).await
 }
 
-async fn cleanup_secrets() -> Result<()> {
-    CliService::section("Cleanup System-Managed Secrets");
+async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>> {
+    if !config.is_json_output() {
+        CliService::section("Cleanup System-Managed Secrets");
+    }
 
     let tenant_id = get_tenant_id()?;
     let creds = get_credentials()?;
@@ -304,38 +386,53 @@ async fn cleanup_secrets() -> Result<()> {
     let mut errors = Vec::new();
 
     for key in keys_to_remove {
-        let spinner = CliService::spinner(&format!("Removing {key}..."));
-        match client.unset_secret(&tenant_id, key).await {
-            Ok(()) => {
-                spinner.finish_and_clear();
-                removed.push(key);
-            },
-            Err(e) => {
-                spinner.finish_and_clear();
-                errors.push((key, e.to_string()));
-            },
+        if !config.is_json_output() {
+            let spinner = CliService::spinner(&format!("Removing {key}..."));
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => {
+                    spinner.finish_and_clear();
+                    removed.push(key.to_string());
+                },
+                Err(e) => {
+                    spinner.finish_and_clear();
+                    errors.push((key, e.to_string()));
+                },
+            }
+        } else {
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => removed.push(key.to_string()),
+                Err(e) => errors.push((key, e.to_string())),
+            }
         }
     }
 
-    if !removed.is_empty() {
-        CliService::success(&format!(
-            "Removed {} system-managed variables",
-            removed.len()
-        ));
-        for key in &removed {
-            CliService::info(&format!("  - {key}"));
+    if !config.is_json_output() {
+        if !removed.is_empty() {
+            CliService::success(&format!(
+                "Removed {} system-managed variables",
+                removed.len()
+            ));
+            for key in &removed {
+                CliService::info(&format!("  - {key}"));
+            }
+        }
+
+        if !errors.is_empty() {
+            for (key, err) in &errors {
+                CliService::warning(&format!("Could not remove {key}: {err}"));
+            }
+        }
+
+        if removed.is_empty() && errors.is_empty() {
+            CliService::info("No system-managed variables to clean up");
         }
     }
 
-    if !errors.is_empty() {
-        for (key, err) in &errors {
-            CliService::warning(&format!("Could not remove {key}: {err}"));
-        }
-    }
+    let output = SecretsOutput {
+        operation: "cleanup".to_string(),
+        keys: removed,
+        rejected_keys: None,
+    };
 
-    if removed.is_empty() && errors.is_empty() {
-        CliService::info("No system-managed variables to clean up");
-    }
-
-    Ok(())
+    Ok(CommandResult::list(output).with_title("Cleanup Secrets"))
 }

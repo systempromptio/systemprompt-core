@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -65,9 +66,21 @@ pub struct ConversationListOutput {
 
 pub async fn execute(command: ConversationsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        ConversationsCommands::Stats(args) => stats::execute(args, config).await,
-        ConversationsCommands::Trends(args) => trends::execute(args, config).await,
-        ConversationsCommands::List(args) => list::execute(args, config).await,
+        ConversationsCommands::Stats(args) => {
+            let result = stats::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ConversationsCommands::Trends(args) => {
+            let result = trends::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ConversationsCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -77,10 +90,20 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        ConversationsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
-        ConversationsCommands::Trends(args) => {
-            trends::execute_with_pool(args, db_ctx, config).await
+        ConversationsCommands::Stats(args) => {
+            let result = stats::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
         },
-        ConversationsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
+        ConversationsCommands::Trends(args) => {
+            let result = trends::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ConversationsCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

@@ -1,10 +1,40 @@
 use anyhow::{Context, Result};
 use serde::Serialize;
-use std::fs::File;
+use std::fs::{self, File};
 use std::io::Write;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+use systemprompt_models::AppPaths;
+
+pub fn resolve_export_path(user_path: &Path) -> Result<PathBuf> {
+    if user_path.is_absolute()
+        || user_path
+            .parent()
+            .is_some_and(|p| !p.as_os_str().is_empty())
+    {
+        return Ok(user_path.to_path_buf());
+    }
+
+    let exports_dir = AppPaths::get()
+        .context("AppPaths not initialized - use an absolute path for export")?
+        .storage()
+        .exports()
+        .to_path_buf();
+
+    Ok(exports_dir.join(user_path))
+}
+
+pub fn ensure_export_dir(path: &Path) -> Result<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.exists() {
+            fs::create_dir_all(parent).context("Failed to create export directory")?;
+        }
+    }
+    Ok(())
+}
 
 pub fn export_to_csv<T: Serialize>(data: &[T], path: &Path) -> Result<()> {
+    ensure_export_dir(path)?;
     let file = File::create(path).context("Failed to create export file")?;
     let mut writer = std::io::BufWriter::new(file);
 
@@ -38,6 +68,7 @@ pub fn export_to_csv<T: Serialize>(data: &[T], path: &Path) -> Result<()> {
 }
 
 pub fn export_single_to_csv<T: Serialize>(data: &T, path: &Path) -> Result<()> {
+    ensure_export_dir(path)?;
     let file = File::create(path).context("Failed to create export file")?;
     let mut writer = std::io::BufWriter::new(file);
 
@@ -93,6 +124,7 @@ impl CsvBuilder {
     }
 
     pub fn write_to_file(&self, path: &Path) -> Result<()> {
+        ensure_export_dir(path)?;
         let mut file = File::create(path).context("Failed to create export file")?;
 
         writeln!(file, "{}", self.headers.join(","))?;

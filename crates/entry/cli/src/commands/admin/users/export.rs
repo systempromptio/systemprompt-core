@@ -1,15 +1,15 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use chrono::Utc;
 use clap::Args;
 use std::fs::File;
 use std::io::Write;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::{UserExportItem, UserExportOutput};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ExportArgs {
@@ -34,12 +34,19 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: ExportArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ExportArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<UserExportOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: ExportArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: ExportArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserExportOutput>> {
     let user_service = UserService::new(pool)?;
 
     let users = user_service
@@ -75,20 +82,14 @@ pub async fn execute_with_pool(args: ExportArgs, pool: &DbPool, config: &CliConf
         exported_at: Utc::now(),
     };
 
-    let json = serde_json::to_string_pretty(&output)?;
-
     if let Some(path) = args.output {
+        let json = serde_json::to_string_pretty(&output)?;
         let mut file = File::create(&path)?;
         file.write_all(json.as_bytes())?;
 
-        if !config.is_json_output() {
-            CliService::success(&format!("Exported {} users to {}", output.total, path));
-        }
-    } else if config.is_json_output() {
-        CliService::json(&output);
+        let total = output.total;
+        Ok(CommandResult::text(output).with_title(format!("Exported {total} users to {path}")))
     } else {
-        CliService::output(&json);
+        Ok(CommandResult::copy_paste(output).with_title("User Export"))
     }
-
-    Ok(())
 }

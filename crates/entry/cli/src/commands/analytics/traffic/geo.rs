@@ -6,10 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{GeoOutput, GeoRow};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_number, format_percent, parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -27,26 +25,25 @@ pub struct GeoArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: GeoArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: GeoArgs, _config: &CliConfig) -> Result<CommandResult<GeoOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: GeoArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<GeoOutput>> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: GeoArgs,
     repo: &TrafficAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<GeoOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_geo_breakdown(start, end, args.limit).await?;
@@ -76,43 +73,22 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.countries, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.countries, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "country".to_string(),
-                "session_count".to_string(),
-                "percentage".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Geographic Distribution")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_geo(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "country".to_string(),
+            "session_count".to_string(),
+            "percentage".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_geo(output: &GeoOutput) {
-    CliService::section(&format!("Geographic Distribution ({})", output.period));
-    CliService::key_value("Total Sessions", &format_number(output.total_sessions));
-
-    for geo in &output.countries {
-        CliService::key_value(
-            &geo.country,
-            &format!(
-                "{} ({})",
-                format_number(geo.session_count),
-                format_percent(geo.percentage)
-            ),
-        );
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Geographic Distribution")
+        .with_hints(hints))
 }

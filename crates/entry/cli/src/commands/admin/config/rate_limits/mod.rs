@@ -10,6 +10,7 @@ mod validate;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -169,8 +170,16 @@ pub fn execute(command: RateLimitsCommands, config: &CliConfig) -> Result<()> {
         RateLimitsCommands::Compare => validate::execute_compare(config),
         RateLimitsCommands::Reset(args) => reset::execute_reset(&args, config),
         RateLimitsCommands::Preset(cmd) => preset::execute_preset(cmd, config),
-        RateLimitsCommands::Export(args) => import_export::execute_export(&args, config),
-        RateLimitsCommands::Import(args) => import_export::execute_import(&args, config),
+        RateLimitsCommands::Export(args) => {
+            let result = import_export::execute_export(&args, config)?;
+            render_result(&result);
+            Ok(())
+        },
+        RateLimitsCommands::Import(args) => {
+            let result = import_export::execute_import(&args, config)?;
+            render_result(&result);
+            Ok(())
+        },
         RateLimitsCommands::Diff(args) => diff::execute_diff(&args, config),
     }
 }

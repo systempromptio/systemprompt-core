@@ -4,8 +4,10 @@ pub mod serve;
 mod start;
 mod status;
 mod stop;
+mod types;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 use std::sync::Arc;
@@ -206,10 +208,16 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 );
                 return match individual {
                     StopTarget::Agent { agent_id, force } => {
-                        stop::execute_individual_agent(&ctx, &agent_id, force, config).await
+                        let result =
+                            stop::execute_individual_agent(&ctx, &agent_id, force, config).await?;
+                        render_result(&result);
+                        Ok(())
                     },
                     StopTarget::Mcp { server_name, force } => {
-                        stop::execute_individual_mcp(&ctx, &server_name, force, config).await
+                        let result =
+                            stop::execute_individual_mcp(&ctx, &server_name, force, config).await?;
+                        render_result(&result);
+                        Ok(())
                     },
                 };
             }
@@ -219,7 +227,9 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                 targets: start::ServiceTargetFlags { api, agents, mcp },
             };
             let service_target = start::ServiceTarget::from_flags(flags);
-            stop::execute(service_target, force, config).await
+            let result = stop::execute(service_target, force, config).await?;
+            render_result(&result);
+            Ok(())
         },
 
         ServicesCommands::Restart {
@@ -234,35 +244,48 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                     .context("Failed to initialize application context")?,
             );
 
-            if failed {
-                restart::execute_failed(&ctx, config).await
+            let result = if failed {
+                restart::execute_failed(&ctx, config).await?
             } else if agents {
-                restart::execute_all_agents(&ctx, config).await
+                restart::execute_all_agents(&ctx, config).await?
             } else if mcp {
-                restart::execute_all_mcp(&ctx, config).await
+                restart::execute_all_mcp(&ctx, config).await?
             } else {
                 match target {
-                    Some(RestartTarget::Api) => restart::execute_api(config).await,
+                    Some(RestartTarget::Api) => restart::execute_api(config).await?,
                     Some(RestartTarget::Agent { agent_id }) => {
-                        restart::execute_agent(&ctx, &agent_id, config).await
+                        restart::execute_agent(&ctx, &agent_id, config).await?
                     },
                     Some(RestartTarget::Mcp { server_name, build }) => {
-                        restart::execute_mcp(&ctx, &server_name, build, config).await
+                        restart::execute_mcp(&ctx, &server_name, build, config).await?
                     },
-                    None => Err(anyhow::anyhow!(
-                        "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp flag"
-                    )),
+                    None => {
+                        return Err(anyhow::anyhow!(
+                            "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp \
+                             flag"
+                        ))
+                    },
                 }
-            }
+            };
+            render_result(&result);
+            Ok(())
         },
 
         ServicesCommands::Status {
             detailed,
             json,
             health,
-        } => status::execute(detailed, json, health, config).await,
+        } => {
+            let result = status::execute(detailed, json, health, config).await?;
+            render_result(&result);
+            Ok(())
+        },
 
-        ServicesCommands::Cleanup { yes, dry_run } => cleanup::execute(yes, dry_run, config).await,
+        ServicesCommands::Cleanup { yes, dry_run } => {
+            let result = cleanup::execute(yes, dry_run, config).await?;
+            render_result(&result);
+            Ok(())
+        },
 
         ServicesCommands::Serve {
             foreground,

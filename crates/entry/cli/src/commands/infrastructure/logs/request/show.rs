@@ -6,7 +6,7 @@ use systemprompt_logging::{AiTraceService, CliService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -43,7 +43,10 @@ struct LinkedMcpRow {
     execution_time_ms: Option<i32>,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<RequestShowOutput>> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
@@ -53,7 +56,7 @@ pub async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<RequestShowOutput>> {
     let pool = db_ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
 }
@@ -62,7 +65,7 @@ async fn execute_with_pool_inner(
     args: ShowArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<RequestShowOutput>> {
     let partial_match = format!("{}%", args.request_id);
     let Some(row) = sqlx::query_as!(
         AiRequestRow,
@@ -87,9 +90,28 @@ async fn execute_with_pool_inner(
     .fetch_optional(pool.as_ref())
     .await?
     else {
-        CliService::warning(&format!("AI request not found: {}", args.request_id));
-        CliService::info("Tip: Use 'systemprompt infra logs request list' to see recent requests");
-        return Ok(());
+        if !config.is_json_output() {
+            CliService::warning(&format!("AI request not found: {}", args.request_id));
+            CliService::info(
+                "Tip: Use 'systemprompt infra logs request list' to see recent requests",
+            );
+        }
+        let empty_output = RequestShowOutput {
+            request_id: args.request_id,
+            provider: String::new(),
+            model: String::new(),
+            input_tokens: 0,
+            output_tokens: 0,
+            cost_dollars: 0.0,
+            latency_ms: 0,
+            status: "not_found".to_string(),
+            error_message: Some("Request not found".to_string()),
+            messages: Vec::new(),
+            linked_mcp_calls: Vec::new(),
+        };
+        return Ok(CommandResult::card(empty_output)
+            .with_title("AI Request Details")
+            .with_skip_render());
     };
 
     let request_id = row.id.clone();
@@ -121,14 +143,14 @@ async fn execute_with_pool_inner(
         linked_mcp_calls,
     };
 
+    let result = CommandResult::card(output).with_title("AI Request Details");
+
     if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("AI Request Details");
-        render_result(&result);
-    } else {
-        render_text_output(&output, args.full);
+        return Ok(result);
     }
 
-    Ok(())
+    render_text_output(&result.data, args.full);
+    Ok(result.with_skip_render())
 }
 
 async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<MessageRow> {

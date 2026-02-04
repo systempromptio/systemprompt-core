@@ -7,14 +7,24 @@ use systemprompt_models::modules::ApiPaths;
 
 use super::LogoutArgs;
 use crate::cli_settings::CliConfig;
+use crate::cloud::types::LogoutOutput;
+use crate::shared::CommandResult;
 
-pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandResult<LogoutOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
     if !creds_path.exists() {
-        CliService::success("Already logged out (no credentials found)");
-        return Ok(());
+        let output = LogoutOutput {
+            message: "Already logged out (no credentials found)".to_string(),
+            credentials_path: None,
+        };
+
+        if !config.is_json_output() {
+            CliService::success("Already logged out (no credentials found)");
+        }
+
+        return Ok(CommandResult::text(output).with_title("Logout"));
     }
 
     if !args.yes {
@@ -30,8 +40,16 @@ pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<()> {
             .interact()?;
 
         if !confirmed {
-            CliService::info("Cancelled.");
-            return Ok(());
+            let output = LogoutOutput {
+                message: "Cancelled".to_string(),
+                credentials_path: None,
+            };
+
+            if !config.is_json_output() {
+                CliService::info("Cancelled.");
+            }
+
+            return Ok(CommandResult::text(output).with_title("Logout"));
         }
     }
 
@@ -39,11 +57,19 @@ pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<()> {
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
     std::fs::remove_file(&creds_path)?;
-    CliService::key_value(
-        "Removed credentials from",
-        &creds_path.display().to_string(),
-    );
-    CliService::success("Logged out of systemprompt.io Cloud");
+
+    let output = LogoutOutput {
+        message: "Logged out of systemprompt.io Cloud".to_string(),
+        credentials_path: Some(creds_path.display().to_string()),
+    };
+
+    if !config.is_json_output() {
+        CliService::key_value(
+            "Removed credentials from",
+            &creds_path.display().to_string(),
+        );
+        CliService::success("Logged out of systemprompt.io Cloud");
+    }
 
     if let Err(e) = client
         .report_activity(ApiPaths::ACTIVITY_EVENT_LOGOUT, &creds.user_email)
@@ -52,5 +78,5 @@ pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<()> {
         tracing::debug!(error = %e, "Failed to report logout activity");
     }
 
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Logout"))
 }

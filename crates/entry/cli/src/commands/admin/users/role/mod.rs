@@ -3,6 +3,7 @@ mod demote;
 mod promote;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 use anyhow::{bail, Result};
 use clap::Subcommand;
 use systemprompt_database::DbPool;
@@ -21,9 +22,21 @@ pub enum RoleCommands {
 
 pub async fn execute(cmd: RoleCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        RoleCommands::Assign(args) => assign::execute(args, config).await,
-        RoleCommands::Promote(args) => promote::execute(args, config).await,
-        RoleCommands::Demote(args) => demote::execute(args, config).await,
+        RoleCommands::Assign(args) => {
+            let result = assign::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        RoleCommands::Promote(args) => {
+            let result = promote::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        RoleCommands::Demote(args) => {
+            let result = demote::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 

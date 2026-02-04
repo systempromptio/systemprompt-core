@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use crate::commands::admin::users::types::SessionCleanupOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {
@@ -16,16 +16,18 @@ pub struct CleanupArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: CleanupArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<SessionCleanupOutput>> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
     if !args.yes {
-        CliService::warning(&format!(
+        return Err(anyhow!(
             "This will delete anonymous users older than {} days. Use --yes to confirm.",
             args.days
         ));
-        return Err(anyhow!("Operation cancelled - confirmation required"));
     }
 
     let cleaned = user_service.cleanup_old_anonymous(args.days).await?;
@@ -38,11 +40,5 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
         ),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Session Cleanup"))
 }

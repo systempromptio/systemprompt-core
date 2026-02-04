@@ -7,9 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::ConversationStatsOutput;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_duration_ms, format_number, parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -24,26 +24,28 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: StatsArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<ConversationStatsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = ConversationAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: StatsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<ConversationStatsOutput>> {
     let repo = ConversationAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
     repo: &ConversationAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<ConversationStatsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let total_contexts = repo.get_context_count(start, end).await?;
@@ -70,33 +72,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Conversation Statistics");
-        render_result(&result);
-    } else {
-        render_stats(&output);
-    }
-
-    Ok(())
-}
-
-fn render_stats(output: &ConversationStatsOutput) {
-    CliService::section(&format!("Conversation Statistics ({})", output.period));
-
-    CliService::key_value("Total Contexts", &format_number(output.total_contexts));
-    CliService::key_value("Total Tasks", &format_number(output.total_tasks));
-    CliService::key_value("Total Messages", &format_number(output.total_messages));
-    CliService::key_value(
-        "Avg Messages/Task",
-        &format!("{:.1}", output.avg_messages_per_task),
-    );
-    CliService::key_value(
-        "Avg Task Duration",
-        &format_duration_ms(output.avg_task_duration_ms),
-    );
+    Ok(CommandResult::card(output).with_title("Conversation Statistics"))
 }

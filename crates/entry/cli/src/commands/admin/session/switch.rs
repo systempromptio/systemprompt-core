@@ -6,11 +6,15 @@ use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use super::login::{self, LoginArgs};
-use crate::cli_settings::CliConfig;
+use super::types::SwitchOutput;
 use crate::paths::ResolvedPaths;
-use crate::shared::render_result;
+use crate::shared::{render_result, CommandResult};
+use crate::CliConfig;
 
-pub async fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    profile_name: &str,
+    config: &CliConfig,
+) -> Result<CommandResult<SwitchOutput>> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
 
@@ -31,6 +35,8 @@ pub async fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
 
     let sessions_dir = paths.sessions_dir()?;
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
+
+    let previous_profile = store.active_profile_name.clone();
 
     store.set_active_with_profile(&session_key, profile_name);
     store.save(&sessions_dir)?;
@@ -55,17 +61,15 @@ pub async fn execute(profile_name: &str, config: &CliConfig) -> Result<()> {
         render_result(&result);
     }
 
-    CliService::success(&format!("Switched to profile '{}'", profile_name));
+    let output = SwitchOutput {
+        previous_profile,
+        new_profile: profile_name.to_string(),
+        session_key: session_key.as_storage_key(),
+        tenant_id: new_tenant_id,
+        message: format!("Switched to profile '{}'", profile_name),
+    };
 
-    if config.is_interactive() {
-        CliService::key_value("Profile path", &profile_config_path.display().to_string());
-        CliService::key_value("Session key", &session_key.as_storage_key());
-        if let Some(tid) = &new_tenant_id {
-            CliService::key_value("Tenant", tid);
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Switch Profile"))
 }
 
 fn load_profile(path: &std::path::Path) -> Result<Profile> {

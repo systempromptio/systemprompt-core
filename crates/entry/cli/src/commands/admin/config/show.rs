@@ -5,10 +5,10 @@ use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
     ServerOverview,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
-pub fn execute(_config: &CliConfig) -> Result<()> {
+pub fn execute(_config: &CliConfig) -> Result<CommandResult<ConfigOverviewOutput>> {
     let profile = ProfileBootstrap::get()?;
     let profile_path = ProfileBootstrap::get_path()?;
 
@@ -47,7 +47,5 @@ pub fn execute(_config: &CliConfig) -> Result<()> {
         },
     };
 
-    render_result(&CommandResult::card(output).with_title("Configuration Overview"));
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title("Configuration Overview"))
 }

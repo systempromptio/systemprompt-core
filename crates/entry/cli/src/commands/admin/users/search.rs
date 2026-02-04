@@ -1,13 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
-use tabled::{Table, Tabled};
 
 use super::types::{UserListOutput, UserSummary};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {
@@ -17,26 +16,19 @@ pub struct SearchArgs {
     pub limit: i64,
 }
 
-#[derive(Tabled)]
-struct UserRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Name")]
-    name: String,
-    #[tabled(rename = "Email")]
-    email: String,
-    #[tabled(rename = "Status")]
-    status: String,
-    #[tabled(rename = "Roles")]
-    roles: String,
-}
-
-pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: SearchArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<UserListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: SearchArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: SearchArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserListOutput>> {
     let user_service = UserService::new(pool)?;
 
     let users = user_service.search(&args.query, args.limit).await?;
@@ -59,31 +51,13 @@ pub async fn execute_with_pool(args: SearchArgs, pool: &DbPool, config: &CliConf
         offset: 0,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section(&format!("Search Results for '{}'", args.query));
-
-        if users.is_empty() {
-            CliService::info("No users found");
-        } else {
-            let rows: Vec<UserRow> = users
-                .iter()
-                .map(|u| UserRow {
-                    id: u.id.to_string(),
-                    name: u.name.clone(),
-                    email: u.email.clone(),
-                    status: u.status.clone().unwrap_or_else(|| "unknown".to_string()),
-                    roles: u.roles.join(", "),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
-
-            CliService::info(&format!("Found {} user(s)", total));
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::table(output)
+        .with_title("User Search Results")
+        .with_columns(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "email".to_string(),
+            "status".to_string(),
+            "roles".to_string(),
+        ]))
 }

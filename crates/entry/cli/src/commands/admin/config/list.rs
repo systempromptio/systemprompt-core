@@ -5,7 +5,7 @@ use super::types::{read_yaml_file, ConfigFileInfo, ConfigListOutput, ConfigSecti
 use crate::shared::CommandResult;
 use crate::CliConfig;
 
-#[derive(Debug, Clone, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {
     #[arg(long, short = 'e')]
     pub errors_only: bool,

@@ -1,14 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::SessionId;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
-use tabled::{Table, Tabled};
 
 use crate::commands::admin::users::types::{SessionListOutput, SessionSummary};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -21,33 +19,25 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-#[derive(Tabled)]
-struct SessionRow {
-    #[tabled(rename = "Session ID")]
-    id: SessionId,
-    #[tabled(rename = "Status")]
-    status: String,
-    #[tabled(rename = "IP Address")]
-    ip: String,
-    #[tabled(rename = "Device")]
-    device: String,
-    #[tabled(rename = "Started")]
-    started: String,
-}
-
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ListArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<SessionListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: ListArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<SessionListOutput>> {
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user_id).await?;
     let Some(user) = existing else {
-        CliService::error(&format!("User not found: {}", args.user_id));
-        return Err(anyhow!("User not found"));
+        return Err(anyhow!("User not found: {}", args.user_id));
     };
 
     let sessions = if args.active {
@@ -76,41 +66,13 @@ pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig
         sessions: summaries,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section(&format!("Sessions for user '{}'", args.user_id));
-
-        if output.sessions.is_empty() {
-            CliService::info("No sessions found");
-        } else {
-            let rows: Vec<SessionRow> = output
-                .sessions
-                .iter()
-                .map(|s| SessionRow {
-                    id: s.session_id.clone(),
-                    status: if s.is_active { "active" } else { "ended" }.to_string(),
-                    ip: s
-                        .ip_address
-                        .clone()
-                        .unwrap_or_else(|| "unknown".to_string()),
-                    device: s
-                        .device_type
-                        .clone()
-                        .unwrap_or_else(|| "unknown".to_string()),
-                    started: s.started_at.map_or_else(
-                        || "unknown".to_string(),
-                        |t| t.format("%Y-%m-%d %H:%M").to_string(),
-                    ),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
-
-            CliService::info(&format!("Total: {} session(s)", output.total));
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::table(output)
+        .with_title("User Sessions")
+        .with_columns(vec![
+            "session_id".to_string(),
+            "ip_address".to_string(),
+            "device_type".to_string(),
+            "started_at".to_string(),
+            "is_active".to_string(),
+        ]))
 }

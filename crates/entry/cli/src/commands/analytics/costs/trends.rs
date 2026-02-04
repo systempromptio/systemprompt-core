@@ -8,10 +8,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{CostTrendPoint, CostTrendsOutput};
 use crate::commands::analytics::shared::{
-    export_to_csv, format_cost, format_number, format_period_label, format_tokens,
-    parse_time_range, truncate_to_period,
+    export_to_csv, format_period_label, parse_time_range, resolve_export_path, truncate_to_period,
 };
-use crate::shared::{render_result, ChartType, CommandResult};
+use crate::shared::{ChartType, CommandResult};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -37,26 +36,28 @@ pub struct TrendsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: TrendsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: TrendsArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<CostTrendsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: TrendsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<CostTrendsOutput>> {
     let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: TrendsArgs,
     repo: &CostAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<CostTrendsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_costs_for_trends(start, end).await?;
@@ -97,38 +98,16 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.points, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.points, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::chart(output, ChartType::Area).with_skip_render());
     }
 
     if output.points.is_empty() {
         CliService::warning("No data found in the specified time range");
-        return Ok(());
+        return Ok(CommandResult::chart(output, ChartType::Area).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::chart(output, ChartType::Area).with_title("Cost Trends");
-        render_result(&result);
-    } else {
-        render_trends(&output);
-    }
-
-    Ok(())
-}
-
-fn render_trends(output: &CostTrendsOutput) {
-    CliService::section(&format!("Cost Trends ({})", output.period));
-    CliService::key_value("Total", &format_cost(output.total_cost_microdollars));
-    CliService::key_value("Grouped by", &output.group_by);
-
-    for point in &output.points {
-        CliService::info(&format!(
-            "{}: {} ({} requests, {} tokens)",
-            point.timestamp,
-            format_cost(point.cost_microdollars),
-            format_number(point.request_count),
-            format_tokens(point.tokens)
-        ));
-    }
+    Ok(CommandResult::chart(output, ChartType::Area).with_title("Cost Trends"))
 }

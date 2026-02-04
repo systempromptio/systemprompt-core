@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use crate::commands::admin::users::types::RoleAssignOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct AssignArgs {
@@ -15,7 +15,10 @@ pub struct AssignArgs {
     pub roles: Vec<String>,
 }
 
-pub async fn execute(args: AssignArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: AssignArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<RoleAssignOutput>> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
@@ -26,8 +29,7 @@ pub async fn execute(args: AssignArgs, config: &CliConfig) -> Result<()> {
 
     let existing = admin_service.find_user(&args.user_id).await?;
     let Some(existing_user) = existing else {
-        CliService::error(&format!("User not found: {}", args.user_id));
-        return Err(anyhow!("User not found"));
+        return Err(anyhow!("User not found: {}", args.user_id));
     };
 
     let user = user_service
@@ -41,13 +43,5 @@ pub async fn execute(args: AssignArgs, config: &CliConfig) -> Result<()> {
         message: format!("Roles assigned to user '{}'", user.name),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-        CliService::key_value("User", &output.name);
-        CliService::key_value("Roles", &output.roles.join(", "));
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Roles Assigned"))
 }

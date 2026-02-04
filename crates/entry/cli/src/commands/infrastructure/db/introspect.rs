@@ -3,6 +3,7 @@ use systemprompt_database::DatabaseAdminService;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::{render_result, CommandResult};
 
 use super::helpers::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};
@@ -46,7 +47,15 @@ pub async fn execute_indexes(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::table(output)
+            .with_title("Database Schema")
+            .with_columns(vec![
+                "table".into(),
+                "name".into(),
+                "columns".into(),
+                "unique".into(),
+            ]);
+        render_result(&result);
     } else {
         CliService::section("Indexes");
 
@@ -100,7 +109,8 @@ pub async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> R
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::dashboard(output).with_title("Database Size");
+        render_result(&result);
     } else {
         CliService::section("Database Size");
         CliService::key_value("Total Size", &output.database_size);

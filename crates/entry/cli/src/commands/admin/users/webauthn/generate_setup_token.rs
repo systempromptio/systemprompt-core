@@ -1,13 +1,14 @@
-use crate::cli_settings::CliConfig;
-use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_runtime::AppContext;
+
+use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, ClapArgs)]
 pub struct Args {
@@ -18,7 +19,10 @@ pub struct Args {
     pub expires_minutes: u32,
 }
 
-pub async fn execute(args: Args, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: Args,
+    _config: &CliConfig,
+) -> Result<CommandResult<WebauthnSetupTokenOutput>> {
     let ctx = AppContext::new().await?;
     let oauth_repo = OAuthRepository::new(Arc::clone(ctx.db_pool()))?;
 
@@ -50,27 +54,5 @@ pub async fn execute(args: Args, config: &CliConfig) -> Result<()> {
         expires_minutes: args.expires_minutes,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success("Setup token generated successfully");
-        CliService::output("");
-        CliService::key_value("User", &output.user_email);
-        CliService::key_value("Expires", &format!("{} minutes", output.expires_minutes));
-        CliService::output("");
-        CliService::subsection("Token");
-        CliService::output(&format!("  {}", output.token));
-        CliService::output("");
-        CliService::subsection("Registration URL");
-        CliService::output(&format!("  {}", output.registration_url));
-        CliService::output("");
-        CliService::subsection("Instructions");
-        CliService::output("  1. Open the URL above in a browser");
-        CliService::output(
-            "  2. Complete the WebAuthn registration (fingerprint, security key, etc.)",
-        );
-        CliService::output("  3. Your passkey will be linked to your account");
-    }
-
-    Ok(())
+    Ok(CommandResult::copy_paste(output).with_title("WebAuthn Setup Token"))
 }

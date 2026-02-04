@@ -10,9 +10,9 @@ use super::{
     StatusBreakdownItem,
 };
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_duration_ms, format_number, format_percent, parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -34,26 +34,28 @@ pub struct ShowArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ShowArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentShowOutput>> {
     let ctx = AppContext::new().await?;
     let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: ShowArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentShowOutput>> {
     let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: ShowArgs,
     repo: &AgentAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<AgentShowOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let count = repo.agent_exists(&args.agent, start, end).await?;
@@ -135,50 +137,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title(format!("Agent: {}", args.agent));
-        render_result(&result);
-    } else {
-        render_agent_details(&output);
-    }
-
-    Ok(())
-}
-
-fn render_agent_details(output: &AgentShowOutput) {
-    CliService::section(&format!("Agent: {} ({})", output.agent_name, output.period));
-
-    CliService::subsection("Summary");
-    CliService::key_value("Total Tasks", &format_number(output.summary.total_tasks));
-    CliService::key_value("Success Rate", &format_percent(output.summary.success_rate));
-    CliService::key_value(
-        "Avg Execution Time",
-        &format_duration_ms(output.summary.avg_execution_time_ms),
-    );
-
-    if !output.status_breakdown.is_empty() {
-        CliService::subsection("Status Breakdown");
-        for item in &output.status_breakdown {
-            CliService::key_value(
-                &item.status,
-                &format!(
-                    "{} ({})",
-                    format_number(item.count),
-                    format_percent(item.percentage)
-                ),
-            );
-        }
-    }
-
-    if !output.top_errors.is_empty() {
-        CliService::subsection("Top Errors");
-        for item in &output.top_errors {
-            CliService::key_value(&item.error_type, &format_number(item.count));
-        }
-    }
+    Ok(CommandResult::card(output).with_title(format!("Agent: {}", args.agent)))
 }

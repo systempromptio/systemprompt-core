@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::BannedIpRepository;
 
 use crate::commands::admin::users::types::BanRemoveOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct RemoveArgs {
@@ -15,10 +15,14 @@ pub struct RemoveArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: RemoveArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: RemoveArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<BanRemoveOutput>> {
     if !args.yes {
-        CliService::warning("This will remove the IP ban. Use --yes to confirm.");
-        return Err(anyhow!("Operation cancelled - confirmation required"));
+        return Err(anyhow!(
+            "This will remove the IP ban. Use --yes to confirm."
+        ));
     }
 
     let ctx = AppContext::new().await?;
@@ -36,13 +40,5 @@ pub async fn execute(args: RemoveArgs, config: &CliConfig) -> Result<()> {
         },
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else if removed {
-        CliService::success(&output.message);
-    } else {
-        CliService::warning(&output.message);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Ban Removed"))
 }

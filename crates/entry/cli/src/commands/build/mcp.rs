@@ -31,7 +31,9 @@ pub fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildO
             successful: 0,
             release_mode: args.release,
         };
-        return Ok(CommandResult::list(output).with_title("Build MCP Extensions"));
+        return Ok(CommandResult::table(output)
+            .with_title("Build MCP Extensions")
+            .with_columns(vec!["name".into(), "build_type".into(), "status".into()]));
     }
 
     if !config.is_json_output() {
@@ -94,7 +96,9 @@ pub fn execute(args: McpArgs, config: &CliConfig) -> Result<CommandResult<BuildO
         }
     }
 
-    Ok(CommandResult::table(output).with_title("Build MCP Extensions"))
+    Ok(CommandResult::table(output)
+        .with_title("Build MCP Extensions")
+        .with_columns(vec!["name".into(), "build_type".into(), "status".into()]))
 }
 
 fn build_workspace_crate(

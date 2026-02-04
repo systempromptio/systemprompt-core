@@ -1,24 +1,28 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::BannedIpRepository;
 
 use crate::commands::admin::users::types::{BanCheckOutput, BanSummary};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {
     pub ip: String,
 }
 
-pub async fn execute(args: CheckArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: CheckArgs, config: &CliConfig) -> Result<CommandResult<BanCheckOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: CheckArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: CheckArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<BanCheckOutput>> {
     let ban_repository = BannedIpRepository::new(pool)?;
 
     let is_banned = ban_repository.is_banned(&args.ip).await?;
@@ -45,25 +49,5 @@ pub async fn execute_with_pool(args: CheckArgs, pool: &DbPool, config: &CliConfi
         ban_info,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else if is_banned {
-        CliService::warning(&format!("IP address '{}' is BANNED", args.ip));
-        if let Some(ref info) = output.ban_info {
-            CliService::key_value("Reason", &info.reason);
-            CliService::key_value("Ban Count", &info.ban_count.to_string());
-            CliService::key_value("Banned At", &info.banned_at.to_rfc3339());
-            match info.expires_at {
-                Some(ref expires) => CliService::key_value("Expires", &expires.to_rfc3339()),
-                None => CliService::key_value("Expires", "Never (permanent)"),
-            }
-            if let Some(ref source) = info.ban_source {
-                CliService::key_value("Source", source);
-            }
-        }
-    } else {
-        CliService::success(&format!("IP address '{}' is NOT banned", args.ip));
-    }
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title("Ban Check"))
 }

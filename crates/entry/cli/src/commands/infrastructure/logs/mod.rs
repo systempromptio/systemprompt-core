@@ -28,6 +28,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -154,10 +155,22 @@ pub struct LogExportOutput {
 
 pub async fn execute(command: LogsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        LogsCommands::View(args) => view::execute(args, config).await,
-        LogsCommands::Search(args) => search::execute(args, config).await,
+        LogsCommands::View(args) => {
+            let result = view::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        LogsCommands::Search(args) => {
+            let result = search::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         LogsCommands::Stream(args) => stream::execute(args, config).await,
-        LogsCommands::Export(args) => export::execute(args, config).await,
+        LogsCommands::Export(args) => {
+            let result = export::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         LogsCommands::Cleanup(args) => cleanup::execute(args, config).await,
         LogsCommands::Delete(args) => delete::execute(args, config).await,
         LogsCommands::Summary(args) => summary::execute(args, config).await,
@@ -175,10 +188,22 @@ pub async fn execute_with_db(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        LogsCommands::View(args) => view::execute_with_pool(args, db_ctx, config).await,
-        LogsCommands::Search(args) => search::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::View(args) => {
+            let result = view::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        LogsCommands::Search(args) => {
+            let result = search::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         LogsCommands::Summary(args) => summary::execute_with_pool(args, db_ctx, config).await,
-        LogsCommands::Export(args) => export::execute_with_pool(args, db_ctx, config).await,
+        LogsCommands::Export(args) => {
+            let result = export::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         LogsCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
         LogsCommands::Trace(cmd) => trace::execute_with_pool(cmd, db_ctx, config).await,
         LogsCommands::Request(cmd) => request::execute_with_pool(cmd, db_ctx, config).await,

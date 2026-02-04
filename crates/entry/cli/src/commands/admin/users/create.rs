@@ -1,11 +1,11 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::UserCreatedOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct CreateArgs {
@@ -22,7 +22,10 @@ pub struct CreateArgs {
     pub display_name: Option<String>,
 }
 
-pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: CreateArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserCreatedOutput>> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
 
@@ -50,14 +53,5 @@ pub async fn execute(args: CreateArgs, config: &CliConfig) -> Result<()> {
         message: format!("User '{}' created successfully", user.name),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-        CliService::key_value("ID", output.id.as_str());
-        CliService::key_value("Name", &output.name);
-        CliService::key_value("Email", &output.email);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("User Created"))
 }

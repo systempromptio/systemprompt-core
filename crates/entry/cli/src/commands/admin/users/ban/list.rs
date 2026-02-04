@@ -1,13 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::BannedIpRepository;
-use tabled::{Table, Tabled};
 
 use crate::commands::admin::users::types::{BanListOutput, BanSummary};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -18,26 +17,16 @@ pub struct ListArgs {
     pub source: Option<String>,
 }
 
-#[derive(Tabled)]
-struct BanRow {
-    #[tabled(rename = "IP Address")]
-    ip: String,
-    #[tabled(rename = "Reason")]
-    reason: String,
-    #[tabled(rename = "Permanent")]
-    permanent: String,
-    #[tabled(rename = "Count")]
-    count: i32,
-    #[tabled(rename = "Banned At")]
-    banned_at: String,
-}
-
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandResult<BanListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: ListArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<BanListOutput>> {
     let ban_repository = BannedIpRepository::new(pool)?;
 
     let bans = match args.source {
@@ -67,40 +56,13 @@ pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig
         bans: summaries,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section("Active IP Bans");
-
-        if output.bans.is_empty() {
-            CliService::info("No active bans found");
-        } else {
-            let rows: Vec<BanRow> = output
-                .bans
-                .iter()
-                .map(|b| BanRow {
-                    ip: b.ip_address.clone(),
-                    reason: truncate_string(&b.reason, 30),
-                    permanent: if b.is_permanent { "yes" } else { "no" }.to_string(),
-                    count: b.ban_count,
-                    banned_at: b.banned_at.format("%Y-%m-%d %H:%M").to_string(),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
-
-            CliService::info(&format!("Total: {} ban(s)", output.total));
-        }
-    }
-
-    Ok(())
-}
-
-fn truncate_string(s: &str, max_len: usize) -> String {
-    if s.len() > max_len {
-        format!("{}...", &s[..max_len - 3])
-    } else {
-        s.to_string()
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Banned IPs")
+        .with_columns(vec![
+            "ip_address".to_string(),
+            "reason".to_string(),
+            "banned_at".to_string(),
+            "expires_at".to_string(),
+            "is_permanent".to_string(),
+        ]))
 }

@@ -70,8 +70,9 @@ pub use api::{
 };
 pub use artifacts::{
     Alignment, Artifact, ArtifactSchema, ArtifactType, AudioArtifact, AxisType, ChartArtifact,
-    ChartDataset, ChartType, Column, ColumnType, ExecutionMetadata, ImageArtifact,
-    SortOrder as ArtifactSortOrder, TableArtifact, TableHints, VideoArtifact,
+    ChartDataset, ChartType, CliArtifact, CliArtifactType, Column, ColumnType, CommandResultRaw,
+    ConversionError, ExecutionMetadata, ImageArtifact, RenderingHints,
+    SortOrder as ArtifactSortOrder, TableArtifact, TableHints, ToolResponse, VideoArtifact,
 };
 pub use auth::{
     AuthError, AuthenticatedUser, BaseRole, BaseRoles, GrantType, PkceMethod, ResponseType,
