@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "SELECT user_id, scope, expires_at, redirect_uri, used_at, code_challenge,\n             code_challenge_method\n             FROM oauth_auth_codes WHERE code = $1",
+  "query": "SELECT user_id, scope, expires_at, redirect_uri, used_at, code_challenge,\n             code_challenge_method, resource\n             FROM oauth_auth_codes WHERE code = $1",
   "describe": {
     "columns": [
       {
@@ -37,6 +37,11 @@
         "ordinal": 6,
         "name": "code_challenge_method",
         "type_info": "Text"
+      },
+      {
+        "ordinal": 7,
+        "name": "resource",
+        "type_info": "Text"
       }
     ],
     "parameters": {
@@ -51,8 +56,9 @@
       false,
       true,
       true,
+      true,
       true
     ]
   },
-  "hash": "f82ad67d2de3be12a5a8a862bbca9e6a43e4c2b347160fa8861a3af928a98fda"
+  "hash": "ffb9cbafee0d13929c71da93b42e10f786f3158268736735d27541915840d03b"
 }
