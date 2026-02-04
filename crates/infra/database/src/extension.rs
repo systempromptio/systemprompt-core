@@ -17,10 +17,16 @@ impl Extension for DatabaseExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::inline(
-            "functions",
-            include_str!("../schema/functions.sql"),
-        )]
+        vec![
+            SchemaDefinition::inline(
+                "extension_migrations",
+                include_str!("../schema/extension_migrations.sql"),
+            ),
+            SchemaDefinition::inline(
+                "functions",
+                include_str!("../schema/functions.sql"),
+            ),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

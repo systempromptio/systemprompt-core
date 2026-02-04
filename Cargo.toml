@@ -281,3 +281,4 @@ panic = "abort"
 strip = true
 debug-assertions = false
 overflow-checks = false
+opt-level = "z"
