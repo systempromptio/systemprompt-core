@@ -7,6 +7,16 @@ use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::RequestStatus;
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
 
+pub struct StreamStorageParams {
+    pub inner: Pin<Box<dyn Stream<Item = anyhow::Result<String>> + Send>>,
+    pub storage: RequestStorage,
+    pub request: AiRequest,
+    pub request_id: Uuid,
+    pub start: std::time::Instant,
+    pub provider: String,
+    pub model: String,
+}
+
 pub struct StreamStorageWrapper {
     inner: Pin<Box<dyn Stream<Item = anyhow::Result<String>> + Send>>,
     storage: RequestStorage,
@@ -20,23 +30,15 @@ pub struct StreamStorageWrapper {
 }
 
 impl StreamStorageWrapper {
-    pub fn new(
-        inner: Pin<Box<dyn Stream<Item = anyhow::Result<String>> + Send>>,
-        storage: RequestStorage,
-        request: AiRequest,
-        request_id: Uuid,
-        start: std::time::Instant,
-        provider: String,
-        model: String,
-    ) -> Self {
+    pub fn new(params: StreamStorageParams) -> Self {
         Self {
-            inner,
-            storage,
-            request,
-            request_id,
-            start,
-            provider,
-            model,
+            inner: params.inner,
+            storage: params.storage,
+            request: params.request,
+            request_id: params.request_id,
+            start: params.start,
+            provider: params.provider,
+            model: params.model,
             accumulated: String::new(),
             completed: false,
         }

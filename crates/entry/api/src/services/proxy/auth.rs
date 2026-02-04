@@ -24,31 +24,12 @@ impl AuthValidator {
         _ctx: &AppContext,
         req_context: Option<&RequestContext>,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let debug_auth = std::env::var("DEBUG_AUTH_LOGGING")
-            .map(|v| v.to_lowercase() == "true")
-            .unwrap_or(false);
-
-        if debug_auth {
-            let trace_id =
-                req_context.map_or_else(|| "unknown".to_string(), |rc| rc.trace_id().to_string());
-            tracing::info!(service = %service_name, trace_id = %trace_id, "auth validation starting");
-        }
-
         let result = AuthService::authorize_service_access(headers, service_name);
 
-        match &result {
-            Ok(user) => {
-                if debug_auth {
-                    let trace_id = req_context
-                        .map_or_else(|| "unknown".to_string(), |rc| rc.trace_id().to_string());
-                    tracing::info!(service = %service_name, username = %user.username, trace_id = %trace_id, "auth success");
-                }
-            },
-            Err(status) => {
-                let trace_id = req_context
-                    .map_or_else(|| "unknown".to_string(), |rc| rc.trace_id().to_string());
-                tracing::warn!(service = %service_name, status = %status, trace_id = %trace_id, "auth failed");
-            },
+        if let Err(status) = &result {
+            let trace_id =
+                req_context.map_or_else(|| "unknown".to_string(), |rc| rc.trace_id().to_string());
+            tracing::warn!(service = %service_name, status = %status, trace_id = %trace_id, "auth failed");
         }
 
         result
@@ -63,33 +44,42 @@ impl OAuthChallengeBuilder {
         service_name: &str,
         ctx: &AppContext,
         status_code: StatusCode,
+        required_scopes: &[String],
     ) -> Result<Response<Body>, StatusCode> {
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
         let oauth_base_url = &ctx.config().api_server_url;
 
+        let scope_param = if required_scopes.is_empty() {
+            String::new()
+        } else {
+            format!(", scope=\"{}\"", required_scopes.join(" "))
+        };
+
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
             let header = format!(
-                "Bearer realm=\"{service_name}\", \
-                 as_uri=\"{oauth_base_url}/.well-known/oauth-authorization-server\", \
+                "Bearer realm=\"{service_name}\"{scope_param}, \
+                 resource_metadata=\"{oauth_base_url}/.well-known/oauth-protected-resource\", \
                  error=\"invalid_token\""
             );
             let body = json!({
                 "error": "invalid_token",
                 "error_description": "The access token is missing or invalid",
                 "server": service_name,
-                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server")
+                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server"),
+                "scope": required_scopes.join(" ")
             });
             (header, body)
         } else {
             let header = format!(
-                "Bearer realm=\"{service_name}\", error=\"insufficient_scope\", \
+                "Bearer realm=\"{service_name}\", error=\"insufficient_scope\"{scope_param}, \
                  error_description=\"The access token lacks required scope\""
             );
             let body = json!({
                 "error": "insufficient_scope",
                 "error_description": "The access token does not have the required scope for this resource",
-                "server": service_name
+                "server": service_name,
+                "scope": required_scopes.join(" ")
             });
             (header, body)
         };
@@ -177,6 +167,7 @@ impl AccessValidator {
                         service_name,
                         ctx,
                         status_code,
+                        &required_scopes,
                     )
                     .await
                     {

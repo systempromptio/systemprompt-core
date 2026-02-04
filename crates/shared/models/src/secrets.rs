@@ -68,7 +68,14 @@ impl Secrets {
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
             "openai" | "OPENAI_API_KEY" => self.openai.as_ref(),
             "github" | "GITHUB_TOKEN" => self.github.as_ref(),
-            other => self.custom.get(other),
+            other => self.custom.get(other).or_else(|| {
+                let alternate = if other.chars().any(char::is_uppercase) {
+                    other.to_lowercase()
+                } else {
+                    other.to_uppercase()
+                };
+                self.custom.get(&alternate)
+            }),
         }
     }
 

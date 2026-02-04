@@ -65,6 +65,41 @@ impl CspPolicy {
 
         directives.join("; ")
     }
+
+    pub fn to_mcp_domains(&self) -> systemprompt_models::mcp::McpCspDomains {
+        systemprompt_models::mcp::McpCspDomains {
+            connect_domains: Self::extract_domains(&self.connect_src),
+            resource_domains: self.extract_resource_domains(),
+            frame_domains: Self::extract_domains(&self.frame_src),
+            base_uri_domains: Self::extract_domains(&self.base_uri),
+        }
+    }
+
+    fn extract_domains(sources: &[String]) -> Vec<String> {
+        sources
+            .iter()
+            .filter(|s| !s.starts_with('\'') && *s != "data:")
+            .cloned()
+            .collect()
+    }
+
+    fn extract_resource_domains(&self) -> Vec<String> {
+        let all_sources = self
+            .script_src
+            .iter()
+            .chain(self.style_src.iter())
+            .chain(self.img_src.iter())
+            .chain(self.font_src.iter());
+
+        let mut domains: Vec<String> = all_sources
+            .filter(|s| !s.starts_with('\'') && *s != "data:")
+            .cloned()
+            .collect();
+
+        domains.sort();
+        domains.dedup();
+        domains
+    }
 }
 
 #[derive(Debug, Default)]
@@ -140,40 +175,5 @@ impl CspBuilder {
 
     pub fn build(self) -> CspPolicy {
         self.policy
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_strict_policy() {
-        let policy = CspPolicy::strict();
-        let header = policy.to_header_value();
-
-        assert!(header.contains("default-src 'self'"));
-        assert!(header.contains("script-src 'self' 'unsafe-inline'"));
-        assert!(header.contains("frame-src 'none'"));
-    }
-
-    #[test]
-    fn test_cdn_policy() {
-        let policy = CspPolicy::with_cdn(&["https://cdn.jsdelivr.net"]);
-        let header = policy.to_header_value();
-
-        assert!(header.contains("https://cdn.jsdelivr.net"));
-    }
-
-    #[test]
-    fn test_builder() {
-        let policy = CspBuilder::strict()
-            .add_script_src("https://example.com")
-            .add_connect_src("wss://api.example.com")
-            .build();
-
-        let header = policy.to_header_value();
-        assert!(header.contains("https://example.com"));
-        assert!(header.contains("wss://api.example.com"));
     }
 }

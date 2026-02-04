@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4] - 2026-02-04
+
+### Added
+- `capabilities` module with MCP UI extension types
+- `McpExtensionId` enum for extension identification
+- `McpAppsUiConfig` struct for MCP Apps UI configuration
+- `ToolVisibility` enum with `Model` and `App` variants
+- `McpCspDomains` struct with builder pattern for CSP domain configuration
+- `McpResourceUiMeta` struct for resource UI metadata
+
+### Changed
+- Refactor `Secrets::get()` to use `char::is_uppercase` method reference
+- Remove doc comments from `ToolUiConfig` methods per standards
+
 ## [0.1.3] - 2026-02-03
 
 ### Added

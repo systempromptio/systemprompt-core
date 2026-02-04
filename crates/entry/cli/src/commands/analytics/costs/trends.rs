@@ -70,7 +70,7 @@ async fn execute_internal(
             &args.group_by,
         );
         let entry = buckets.entry(period_key).or_insert((0, 0, 0));
-        let cost = i64::from(row.cost_microdollars.unwrap_or(0));
+        let cost = row.cost_microdollars.unwrap_or(0);
         entry.0 += cost;
         entry.1 += 1;
         entry.2 += i64::from(row.tokens_used.unwrap_or(0));

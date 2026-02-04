@@ -1,4 +1,5 @@
 use crate::error::McpError;
+use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use crate::services::ui_renderer::UiMetadata;
 use rmcp::model::{CallToolResult, Content};
 use schemars::JsonSchema;
@@ -62,6 +63,67 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
 
         Ok(CallToolResult {
             content: vec![Content::text(summary.into())],
+            structured_content: Some(structured_content),
+            is_error: Some(false),
+            meta,
+        })
+    }
+
+    pub async fn build_and_persist(
+        self,
+        summary: impl Into<String>,
+        repo: &McpArtifactRepository,
+        artifact_type: impl Into<String>,
+        title: Option<String>,
+    ) -> Result<CallToolResult, McpError> {
+        let artifact_id = ArtifactId::generate();
+        let summary_str = summary.into();
+        let artifact_type_str = artifact_type.into();
+
+        let metadata = ExecutionMetadata::builder(&self.ctx)
+            .with_tool(self.tool_name.clone())
+            .with_execution(self.mcp_execution_id.to_string())
+            .build();
+
+        let tool_response = ToolResponse::new(
+            artifact_id.clone(),
+            self.mcp_execution_id.clone(),
+            self.output,
+            metadata.clone(),
+        );
+
+        let structured_content = tool_response.to_json().map_err(|e| {
+            tracing::error!(error = %e, tool = %self.tool_name, "Failed to serialize tool response");
+            McpError::Serialization(e)
+        })?;
+
+        let create_artifact = CreateMcpArtifact {
+            artifact_id: artifact_id.clone(),
+            mcp_execution_id: self.mcp_execution_id.clone(),
+            context_id: (!self.ctx.context_id().is_empty())
+                .then(|| self.ctx.context_id().to_string()),
+            user_id: (!self.ctx.user_id().is_anonymous()).then(|| self.ctx.user_id().to_string()),
+            server_name: self.tool_name.clone(),
+            artifact_type: artifact_type_str,
+            title,
+            data: structured_content.clone(),
+            metadata: metadata
+                .to_meta()
+                .and_then(|m| serde_json::to_value(m.0).ok()),
+            expires_at: None,
+        };
+
+        repo.save(&create_artifact).await.map_err(|e| {
+            tracing::error!(error = %e, artifact_id = %artifact_id, "Failed to persist artifact");
+            McpError::Internal(format!("Failed to persist artifact: {e}"))
+        })?;
+
+        tracing::info!(artifact_id = %artifact_id, server = %self.tool_name, "Artifact persisted");
+
+        let meta = Self::build_meta_with_ui(&metadata, &artifact_id);
+
+        Ok(CallToolResult {
+            content: vec![Content::text(summary_str)],
             structured_content: Some(structured_content),
             is_error: Some(false),
             meta,

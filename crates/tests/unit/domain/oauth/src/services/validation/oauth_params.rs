@@ -6,22 +6,18 @@ use systemprompt_oauth::services::validation::{
 };
 use systemprompt_models::{AuthError, GrantType, ResponseType};
 
-// ============================================================================
-// required_param Tests
-// ============================================================================
-
 #[test]
 fn test_required_param_success() {
     let result = required_param(Some("value"), "param_name");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "value");
+    assert_eq!(result.expect("should succeed"), "value");
 }
 
 #[test]
 fn test_required_param_none() {
     let result = required_param(None, "client_id");
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("client_id"));
             assert!(reason.contains("required"));
@@ -34,7 +30,7 @@ fn test_required_param_none() {
 fn test_required_param_empty_string() {
     let result = required_param(Some(""), "scope");
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
@@ -45,22 +41,17 @@ fn test_required_param_empty_string() {
 
 #[test]
 fn test_required_param_whitespace() {
-    // Whitespace-only string should be treated as valid content
     let result = required_param(Some("  "), "param");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "  ");
+    assert_eq!(result.expect("should succeed"), "  ");
 }
 
 #[test]
 fn test_required_param_preserves_value() {
     let result = required_param(Some("test_value_123"), "test_param");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "test_value_123");
+    assert_eq!(result.expect("should succeed"), "test_value_123");
 }
-
-// ============================================================================
-// optional_param Tests
-// ============================================================================
 
 #[test]
 fn test_optional_param_with_value() {
@@ -82,7 +73,6 @@ fn test_optional_param_empty_string() {
 
 #[test]
 fn test_optional_param_whitespace() {
-    // Whitespace-only should be treated as valid value
     let result = optional_param(Some("  "));
     assert_eq!(result, Some("  ".to_string()));
 }
@@ -93,15 +83,11 @@ fn test_optional_param_special_chars() {
     assert_eq!(result, Some("value!@#$%".to_string()));
 }
 
-// ============================================================================
-// scope_param Tests
-// ============================================================================
-
 #[test]
 fn test_scope_param_single_scope() {
     let result = scope_param(Some("openid"));
     assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes = result.expect("should succeed");
     assert_eq!(scopes.len(), 1);
     assert_eq!(scopes[0], "openid");
 }
@@ -110,7 +96,7 @@ fn test_scope_param_single_scope() {
 fn test_scope_param_multiple_scopes() {
     let result = scope_param(Some("openid profile email"));
     assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes = result.expect("should succeed");
     assert_eq!(scopes.len(), 3);
     assert!(scopes.contains(&"openid".to_string()));
     assert!(scopes.contains(&"profile".to_string()));
@@ -121,7 +107,7 @@ fn test_scope_param_multiple_scopes() {
 fn test_scope_param_extra_whitespace() {
     let result = scope_param(Some("  openid   profile   "));
     assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes = result.expect("should succeed");
     assert_eq!(scopes.len(), 2);
     assert!(scopes.contains(&"openid".to_string()));
     assert!(scopes.contains(&"profile".to_string()));
@@ -131,7 +117,7 @@ fn test_scope_param_extra_whitespace() {
 fn test_scope_param_none() {
     let result = scope_param(None);
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("scope"));
             assert!(reason.contains("required"));
@@ -150,7 +136,7 @@ fn test_scope_param_empty_string() {
 fn test_scope_param_whitespace_only() {
     let result = scope_param(Some("   "));
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidScope { scope } => {
             assert_eq!(scope.trim(), "");
         }
@@ -162,27 +148,22 @@ fn test_scope_param_whitespace_only() {
 fn test_scope_param_tabs_and_newlines() {
     let result = scope_param(Some("openid\tprofile\nemail"));
     assert!(result.is_ok());
-    let scopes = result.unwrap();
+    let scopes = result.expect("should succeed");
     assert_eq!(scopes.len(), 3);
 }
-
-
-// ============================================================================
-// get_audit_user Tests
-// ============================================================================
 
 #[test]
 fn test_get_audit_user_success() {
     let result = get_audit_user(Some("user_123"));
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "user_123");
+    assert_eq!(result.expect("should succeed"), "user_123");
 }
 
 #[test]
 fn test_get_audit_user_none() {
     let result = get_audit_user(None);
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
         }
@@ -194,7 +175,7 @@ fn test_get_audit_user_none() {
 fn test_get_audit_user_empty() {
     let result = get_audit_user(Some(""));
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("Authenticated user required"));
         }
@@ -204,22 +185,17 @@ fn test_get_audit_user_empty() {
 
 #[test]
 fn test_get_audit_user_whitespace() {
-    // Whitespace-only is valid because it's not empty after the filter check
     let result = get_audit_user(Some("  "));
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "  ");
+    assert_eq!(result.expect("should succeed"), "  ");
 }
 
 #[test]
 fn test_get_audit_user_uuid_format() {
     let result = get_audit_user(Some("550e8400-e29b-41d4-a716-446655440000"));
     assert!(result.is_ok());
-    assert_eq!(result.unwrap(), "550e8400-e29b-41d4-a716-446655440000");
+    assert_eq!(result.expect("should succeed"), "550e8400-e29b-41d4-a716-446655440000");
 }
-
-// ============================================================================
-// CsrfToken Tests
-// ============================================================================
 
 #[test]
 fn test_csrf_token_new_success() {
@@ -229,13 +205,13 @@ fn test_csrf_token_new_success() {
 
 #[test]
 fn test_csrf_token_as_str() {
-    let token = CsrfToken::new("my_state_is_valid").unwrap();
+    let token = CsrfToken::new("my_state_is_valid").expect("should create token");
     assert_eq!(token.as_str(), "my_state_is_valid");
 }
 
 #[test]
 fn test_csrf_token_into_string() {
-    let token = CsrfToken::new("state_to_consume_123").unwrap();
+    let token = CsrfToken::new("state_to_consume_123").expect("should create token");
     let s: String = token.into_string();
     assert_eq!(s, "state_to_consume_123");
 }
@@ -244,14 +220,14 @@ fn test_csrf_token_into_string() {
 fn test_csrf_token_empty() {
     let result = CsrfToken::new("");
     assert!(result.is_err());
-    assert!(matches!(result.unwrap_err(), AuthError::MissingState));
+    assert!(matches!(result.expect_err("should fail"), AuthError::MissingState));
 }
 
 #[test]
 fn test_csrf_token_too_short() {
     let result = CsrfToken::new("short");
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
             assert!(reason.contains("16 characters"));
         }
@@ -263,14 +239,14 @@ fn test_csrf_token_too_short() {
 fn test_csrf_token_with_hyphen() {
     let result = CsrfToken::new("state-with-hyphens-ok");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().as_str(), "state-with-hyphens-ok");
+    assert_eq!(result.expect("should create token").as_str(), "state-with-hyphens-ok");
 }
 
 #[test]
 fn test_csrf_token_with_underscore() {
     let result = CsrfToken::new("state_with_underscores");
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().as_str(), "state_with_underscores");
+    assert_eq!(result.expect("should create token").as_str(), "state_with_underscores");
 }
 
 #[test]
@@ -280,12 +256,18 @@ fn test_csrf_token_alphanumeric_only() {
 }
 
 #[test]
-fn test_csrf_token_invalid_special_chars() {
-    let result = CsrfToken::new("state_invalid_!@#$");
+fn test_csrf_token_special_chars_valid() {
+    let result = CsrfToken::new("state_valid_!@#$%^");
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_csrf_token_control_chars_invalid() {
+    let result = CsrfToken::new("state_with_\x00_null");
     assert!(result.is_err());
-    match result.unwrap_err() {
+    match result.expect_err("should fail") {
         AuthError::InvalidRequest { reason } => {
-            assert!(reason.contains("alphanumeric"));
+            assert!(reason.contains("printable ASCII"));
         }
         _ => panic!("Expected InvalidRequest error"),
     }
@@ -300,7 +282,14 @@ fn test_csrf_token_with_space() {
 #[test]
 fn test_csrf_token_with_dot() {
     let result = CsrfToken::new("state.with.dot.here");
-    assert!(result.is_err());
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_csrf_token_mcp_inspector_format() {
+    let result = CsrfToken::new("~.RooIuIZ7Pn_SyRij7KTQLTZvx00Cxy");
+    assert!(result.is_ok());
+    assert_eq!(result.expect("should create token").as_str(), "~.RooIuIZ7Pn_SyRij7KTQLTZvx00Cxy");
 }
 
 #[test]
@@ -308,20 +297,16 @@ fn test_csrf_token_from_string() {
     let state = String::from("string_state_valid");
     let result = CsrfToken::new(state);
     assert!(result.is_ok());
-    assert_eq!(result.unwrap().as_str(), "string_state_valid");
+    assert_eq!(result.expect("should create token").as_str(), "string_state_valid");
 }
 
 #[test]
 fn test_csrf_token_debug() {
-    let token = CsrfToken::new("debug_state_valid").unwrap();
+    let token = CsrfToken::new("debug_state_valid").expect("should create token");
     let debug_str = format!("{:?}", token);
     assert!(debug_str.contains("CsrfToken"));
     assert!(debug_str.contains("debug_state_valid"));
 }
-
-// ============================================================================
-// ValidatedClientRegistration Tests
-// ============================================================================
 
 #[test]
 fn test_validated_client_registration_creation() {
