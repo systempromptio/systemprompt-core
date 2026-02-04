@@ -54,6 +54,9 @@ inventory = { workspace = true }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true }
+
 [dev-dependencies]
 wiremock = { workspace = true }
 tokio-test = { workspace = true }

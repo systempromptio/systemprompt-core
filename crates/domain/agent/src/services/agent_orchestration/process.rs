@@ -158,6 +158,7 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
     Ok(pid)
 }
 
+#[cfg(unix)]
 fn verify_process_started(pid: u32) -> bool {
     use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
     use nix::unistd::Pid;
@@ -169,10 +170,31 @@ fn verify_process_started(pid: u32) -> bool {
     }
 }
 
-pub fn process_exists(pid: u32) -> bool {
-    Path::new(&format!("/proc/{}", pid)).exists()
+#[cfg(windows)]
+fn verify_process_started(pid: u32) -> bool {
+    process_exists(pid)
 }
 
+#[cfg(unix)]
+pub fn process_exists(pid: u32) -> bool {
+    use nix::sys::signal;
+    use nix::unistd::Pid;
+    signal::kill(Pid::from_raw(pid as i32), None).is_ok()
+}
+
+#[cfg(windows)]
+pub fn process_exists(pid: u32) -> bool {
+    Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {}", pid), "/NH"])
+        .output()
+        .map(|o| {
+            let stdout = String::from_utf8_lossy(&o.stdout);
+            !stdout.contains("INFO: No tasks") && !stdout.trim().is_empty()
+        })
+        .unwrap_or(false)
+}
+
+#[cfg(unix)]
 pub fn terminate_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
@@ -183,6 +205,20 @@ pub fn terminate_process(pid: u32) -> Result<()> {
     Ok(())
 }
 
+#[cfg(windows)]
+pub fn terminate_process(pid: u32) -> Result<()> {
+    let output = Command::new("taskkill")
+        .args(["/PID", &pid.to_string()])
+        .output()
+        .with_context(|| format!("Failed to run taskkill for PID {pid}"))?;
+
+    if !output.status.success() {
+        anyhow::bail!("taskkill failed for PID {pid}");
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
 pub fn force_kill_process(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
@@ -190,6 +226,19 @@ pub fn force_kill_process(pid: u32) -> Result<()> {
     signal::kill(Pid::from_raw(pid as i32), Signal::SIGKILL)
         .with_context(|| format!("Failed to send SIGKILL to PID {pid}"))?;
 
+    Ok(())
+}
+
+#[cfg(windows)]
+pub fn force_kill_process(pid: u32) -> Result<()> {
+    let output = Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/F"])
+        .output()
+        .with_context(|| format!("Failed to force-kill PID {pid}"))?;
+
+    if !output.status.success() {
+        anyhow::bail!("taskkill /F failed for PID {pid}");
+    }
     Ok(())
 }
 

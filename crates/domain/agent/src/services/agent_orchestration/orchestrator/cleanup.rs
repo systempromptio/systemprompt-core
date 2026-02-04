@@ -50,6 +50,7 @@ impl AgentOrchestrator {
         Ok(deleted_count)
     }
 
+    #[cfg(unix)]
     pub async fn cleanup_orphaned_processes(&self) -> OrchestrationResult<()> {
         tracing::debug!("Scanning for orphaned agent processes");
 
@@ -67,6 +68,42 @@ impl AgentOrchestrator {
         }
 
         let pids_str = String::from_utf8_lossy(&output.stdout);
+        self.process_orphaned_pids(&pids_str).await
+    }
+
+    #[cfg(windows)]
+    pub async fn cleanup_orphaned_processes(&self) -> OrchestrationResult<()> {
+        tracing::debug!("Scanning for orphaned agent processes");
+
+        let output = std::process::Command::new("tasklist")
+            .args(["/FI", "IMAGENAME eq systemprompt*", "/FO", "CSV", "/NH"])
+            .output()
+            .map_err(|e| {
+                OrchestrationError::ProcessSpawnFailed(format!("Failed to run tasklist: {e}"))
+            })?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+
+        if stdout.contains("INFO: No tasks") || stdout.trim().is_empty() {
+            tracing::debug!("No orphaned agent processes found");
+            return Ok(());
+        }
+
+        let mut pids = Vec::new();
+        for line in stdout.lines() {
+            let parts: Vec<&str> = line.split(',').collect();
+            if parts.len() >= 2 {
+                if let Ok(pid) = parts[1].trim_matches('"').parse::<u32>() {
+                    pids.push(pid.to_string());
+                }
+            }
+        }
+
+        let pids_str = pids.join("\n");
+        self.process_orphaned_pids(&pids_str).await
+    }
+
+    async fn process_orphaned_pids(&self, pids_str: &str) -> OrchestrationResult<()> {
         let mut registered = 0;
         let mut failed = 0;
 
@@ -141,6 +178,7 @@ impl AgentOrchestrator {
         Ok(false)
     }
 
+    #[cfg(target_os = "linux")]
     pub(super) async fn identify_orphaned_process(
         &self,
         pid: u32,
@@ -163,6 +201,44 @@ impl AgentOrchestrator {
 
             if let (Some(id), Some(p)) = (agent_id, port) {
                 return Ok(Some((id, p)));
+            }
+        }
+
+        Ok(None)
+    }
+
+    #[cfg(not(target_os = "linux"))]
+    pub(super) async fn identify_orphaned_process(
+        &self,
+        pid: u32,
+    ) -> OrchestrationResult<Option<(String, u16)>> {
+        let output = std::process::Command::new("ps")
+            .args(["-p", &pid.to_string(), "-o", "args="])
+            .output()
+            .ok();
+
+        if let Some(output) = output {
+            let cmd = String::from_utf8_lossy(&output.stdout);
+            let mut agent_name = None;
+            let mut port = None;
+
+            let args: Vec<&str> = cmd.split_whitespace().collect();
+            let mut iter = args.iter().peekable();
+
+            while let Some(arg) = iter.next() {
+                match *arg {
+                    "--agent-name" => {
+                        agent_name = iter.next().map(|s| s.to_string());
+                    },
+                    "--port" => {
+                        port = iter.next().and_then(|s| s.parse::<u16>().ok());
+                    },
+                    _ => {},
+                }
+            }
+
+            if let (Some(name), Some(p)) = (agent_name, port) {
+                return Ok(Some((name, p)));
             }
         }
 

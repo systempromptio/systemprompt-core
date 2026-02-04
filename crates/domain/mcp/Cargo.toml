@@ -66,6 +66,9 @@ uuid = { workspace = true }
 rand = { workspace = true }
 url = { workspace = true }
 
+[target.'cfg(unix)'.dependencies]
+nix = { workspace = true }
+
 [features]
 default = ["cli"]
 cli = []

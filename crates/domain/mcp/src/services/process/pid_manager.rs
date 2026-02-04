@@ -1,7 +1,10 @@
 use anyhow::Result;
-use std::os::unix::fs::MetadataExt;
 use std::process::Command;
 
+#[cfg(target_os = "linux")]
+use std::os::unix::fs::MetadataExt;
+
+#[cfg(target_os = "linux")]
 fn find_pid_by_port_proc(port: u16) -> Option<u32> {
     let Ok(tcp_content) = std::fs::read_to_string("/proc/net/tcp") else {
         return None;
@@ -35,6 +38,7 @@ fn find_pid_by_port_proc(port: u16) -> Option<u32> {
     None
 }
 
+#[cfg(target_os = "linux")]
 fn find_pid_by_inode(target_inode: u64) -> Option<u32> {
     let Ok(proc_dir) = std::fs::read_dir("/proc") else {
         return None;
@@ -63,6 +67,7 @@ fn find_pid_by_inode(target_inode: u64) -> Option<u32> {
     None
 }
 
+#[cfg(target_os = "linux")]
 fn check_process_fd_for_inode(pid: u32, target_inode: u64) -> Option<u32> {
     let fd_path = format!("/proc/{pid}/fd");
     let Ok(fd_dir) = std::fs::read_dir(&fd_path) else {
@@ -81,11 +86,22 @@ fn check_process_fd_for_inode(pid: u32, target_inode: u64) -> Option<u32> {
     None
 }
 
+#[cfg(target_os = "linux")]
 pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
     if let Some(pid) = find_pid_by_port_proc(port) {
         return Ok(Some(pid));
     }
 
+    find_pid_by_port_lsof(port)
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
+    find_pid_by_port_lsof(port)
+}
+
+#[cfg(unix)]
+fn find_pid_by_port_lsof(port: u16) -> Result<Option<u32>> {
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()?;
@@ -94,14 +110,36 @@ pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
         return Ok(None);
     }
 
-    String::from_utf8_lossy(&output.stdout)
+    Ok(String::from_utf8_lossy(&output.stdout)
         .lines()
         .next()
-        .and_then(|line| line.trim().parse::<u32>().ok())
-        .map(Some)
-        .map_or(Ok(None), Ok)
+        .and_then(|line| line.trim().parse::<u32>().ok()))
 }
 
+#[cfg(windows)]
+pub fn find_pid_by_port(port: u16) -> Result<Option<u32>> {
+    let output = Command::new("netstat")
+        .args(["-ano", "-p", "TCP"])
+        .output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let port_pattern = format!(":{port} ");
+    let port_pattern_tab = format!(":{port}\t");
+
+    for line in stdout.lines() {
+        if line.contains(&port_pattern) || line.contains(&port_pattern_tab) {
+            if let Some(pid_str) = line.split_whitespace().last() {
+                if let Ok(pid) = pid_str.parse::<u32>() {
+                    return Ok(Some(pid));
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[cfg(unix)]
 pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
     let output = Command::new("pgrep").args(["-f", process_name]).output()?;
 
@@ -117,6 +155,30 @@ pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
     Ok(pids)
 }
 
+#[cfg(windows)]
+pub fn find_pids_by_name(process_name: &str) -> Result<Vec<u32>> {
+    let output = Command::new("tasklist")
+        .args(["/FO", "CSV", "/NH"])
+        .output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let mut pids = Vec::new();
+
+    for line in stdout.lines() {
+        if line.to_lowercase().contains(&process_name.to_lowercase()) {
+            let parts: Vec<&str> = line.split(',').collect();
+            if parts.len() >= 2 {
+                if let Ok(pid) = parts[1].trim_matches('"').parse::<u32>() {
+                    pids.push(pid);
+                }
+            }
+        }
+    }
+
+    Ok(pids)
+}
+
+#[cfg(target_os = "linux")]
 fn get_port_by_pid_proc(pid: u32) -> Option<u16> {
     let Ok(tcp_content) = std::fs::read_to_string("/proc/net/tcp") else {
         return None;
@@ -162,11 +224,22 @@ fn get_port_by_pid_proc(pid: u32) -> Option<u16> {
     None
 }
 
+#[cfg(target_os = "linux")]
 pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
     if let Some(port) = get_port_by_pid_proc(pid) {
         return Ok(Some(port));
     }
 
+    get_port_by_pid_lsof(pid)
+}
+
+#[cfg(all(unix, not(target_os = "linux")))]
+pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
+    get_port_by_pid_lsof(pid)
+}
+
+#[cfg(unix)]
+fn get_port_by_pid_lsof(pid: u32) -> Result<Option<u16>> {
     let output = Command::new("lsof")
         .args(["-p", &pid.to_string(), "-P", "-n"])
         .output()?;
@@ -188,17 +261,70 @@ pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
     Ok(port)
 }
 
-pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
-    let cmdline_path = format!("/proc/{pid}/cmdline");
-    let Ok(content) = std::fs::read_to_string(&cmdline_path) else {
-        return None;
-    };
+#[cfg(windows)]
+pub fn get_port_by_pid(pid: u32) -> Result<Option<u16>> {
+    let output = Command::new("netstat")
+        .args(["-ano", "-p", "TCP"])
+        .output()?;
 
-    content
-        .split('\0')
-        .next()
-        .and_then(|cmd| std::path::Path::new(cmd).file_name())
-        .map(|name| name.to_string_lossy().to_string())
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let pid_str = pid.to_string();
+
+    for line in stdout.lines() {
+        if line.contains("LISTENING") && line.ends_with(&pid_str) {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 2 {
+                if let Some(port_str) = parts[1].split(':').last() {
+                    if let Ok(port) = port_str.parse::<u16>() {
+                        return Ok(Some(port));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
+}
+
+#[cfg(unix)]
+pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
+    let output = Command::new("ps")
+        .args(["-p", &pid.to_string(), "-o", "comm="])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if name.is_empty() {
+        None
+    } else {
+        Some(name)
+    }
+}
+
+#[cfg(windows)]
+pub fn get_process_name_by_pid(pid: u32) -> Option<String> {
+    let output = Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
+        .output()
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.trim();
+
+    if line.is_empty() || line.contains("INFO: No tasks") {
+        return None;
+    }
+
+    let parts: Vec<&str> = line.split(',').collect();
+    if parts.is_empty() {
+        return None;
+    }
+
+    Some(parts[0].trim_matches('"').to_string())
 }
 
 pub fn find_process_on_port_with_name(port: u16, expected_name: &str) -> Result<Option<u32>> {
