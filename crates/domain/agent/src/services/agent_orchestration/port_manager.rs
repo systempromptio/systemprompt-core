@@ -13,6 +13,7 @@ impl PortManager {
         Self
     }
 
+    #[cfg(unix)]
     pub fn find_process_using_port(&self, port: u16) -> Result<Option<u32>> {
         let output = Command::new("lsof")
             .arg("-ti")
@@ -38,13 +39,37 @@ impl PortManager {
         Ok(Some(pid))
     }
 
+    #[cfg(windows)]
+    pub fn find_process_using_port(&self, port: u16) -> Result<Option<u32>> {
+        let output = Command::new("netstat")
+            .args(["-ano", "-p", "TCP"])
+            .output()
+            .context("Failed to run netstat command")?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let port_pattern = format!(":{port} ");
+        let port_pattern_tab = format!(":{port}\t");
+
+        for line in stdout.lines() {
+            if line.contains(&port_pattern) || line.contains(&port_pattern_tab) {
+                if let Some(pid_str) = line.split_whitespace().last() {
+                    if let Ok(pid) = pid_str.parse::<u32>() {
+                        return Ok(Some(pid));
+                    }
+                }
+            }
+        }
+
+        Ok(None)
+    }
+
+    #[cfg(unix)]
     pub fn get_process_info(&self, pid: u32) -> Result<Option<ProcessInfo>> {
         let output = Command::new("ps")
             .arg("-p")
             .arg(pid.to_string())
             .arg("-o")
             .arg("pid,comm,args")
-            .arg("--no-headers")
             .output()
             .context("Failed to run ps command")?;
 
@@ -53,13 +78,18 @@ impl PortManager {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let line = stdout.trim();
+        let lines: Vec<&str> = stdout.lines().collect();
 
+        if lines.len() < 2 {
+            return Ok(None);
+        }
+
+        let line = lines[1].trim();
         if line.is_empty() {
             return Ok(None);
         }
 
-        let parts: Vec<&str> = line.splitn(3, ' ').collect();
+        let parts: Vec<&str> = line.splitn(3, char::is_whitespace).collect();
         if parts.len() < 3 {
             return Ok(None);
         }
@@ -70,6 +100,30 @@ impl PortManager {
             pid,
             command: command_line.to_string(),
         }))
+    }
+
+    #[cfg(windows)]
+    pub fn get_process_info(&self, pid: u32) -> Result<Option<ProcessInfo>> {
+        let output = Command::new("tasklist")
+            .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
+            .output()
+            .context("Failed to run tasklist command")?;
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let line = stdout.trim();
+
+        if line.is_empty() || line.contains("INFO: No tasks") {
+            return Ok(None);
+        }
+
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.is_empty() {
+            return Ok(None);
+        }
+
+        let command = parts[0].trim_matches('"').to_string();
+
+        Ok(Some(ProcessInfo { pid, command }))
     }
 
     pub fn is_agent_process(&self, pid: u32) -> Result<bool, String> {

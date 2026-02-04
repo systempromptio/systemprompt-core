@@ -25,27 +25,65 @@ pub fn is_port_responsive(port: u16) -> bool {
     is_port_in_use(port)
 }
 
+#[cfg(unix)]
 pub async fn cleanup_port_processes(port: u16) -> Result<()> {
+    use nix::sys::signal::{self, Signal};
+    use nix::unistd::Pid;
+
     let output = Command::new("lsof")
         .args(["-ti", &format!(":{port}")])
         .output()?;
 
     if !output.stdout.is_empty() {
         let pids = String::from_utf8_lossy(&output.stdout);
-        for pid in pids.lines() {
-            if !pid.is_empty() {
-                tracing::debug!(port = port, pid = %pid, "Stopping process on port");
+        for pid_str in pids.lines() {
+            if let Ok(pid) = pid_str.trim().parse::<i32>() {
+                tracing::debug!(port = port, pid = pid, "Stopping process on port");
 
-                let _ = Command::new("kill").args(["-15", pid]).output();
+                let _ = signal::kill(Pid::from_raw(pid), Signal::SIGTERM);
 
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-                let _ = Command::new("kill").args(["-9", pid]).output();
+                let _ = signal::kill(Pid::from_raw(pid), Signal::SIGKILL);
             }
         }
 
         tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
     }
+
+    Ok(())
+}
+
+#[cfg(windows)]
+pub async fn cleanup_port_processes(port: u16) -> Result<()> {
+    let output = Command::new("netstat")
+        .args(["-ano", "-p", "TCP"])
+        .output()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let port_pattern = format!(":{port} ");
+
+    for line in stdout.lines() {
+        if line.contains(&port_pattern) {
+            if let Some(pid_str) = line.split_whitespace().last() {
+                if pid_str.parse::<u32>().is_ok() {
+                    tracing::debug!(port = port, pid = %pid_str, "Stopping process on port");
+
+                    let _ = Command::new("taskkill")
+                        .args(["/PID", pid_str])
+                        .output();
+
+                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+                    let _ = Command::new("taskkill")
+                        .args(["/PID", pid_str, "/F"])
+                        .output();
+                }
+            }
+        }
+    }
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
 
     Ok(())
 }

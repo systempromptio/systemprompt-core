@@ -202,6 +202,7 @@ pub async fn handle_root_discovery(
     Json(SingleResponse::new(data))
 }
 
+#[cfg(target_os = "linux")]
 fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
     content
         .lines()
@@ -213,6 +214,7 @@ fn parse_proc_status_kb(content: &str, key: &str) -> Option<u64> {
         })
 }
 
+#[cfg(target_os = "linux")]
 fn get_process_memory() -> Option<serde_json::Value> {
     let content = std::fs::read_to_string("/proc/self/status").ok()?;
 
@@ -225,6 +227,11 @@ fn get_process_memory() -> Option<serde_json::Value> {
         "virtual_mb": virt_kb.map(|kb| kb / 1024),
         "peak_mb": peak_kb.map(|kb| kb / 1024)
     }))
+}
+
+#[cfg(not(target_os = "linux"))]
+fn get_process_memory() -> Option<serde_json::Value> {
+    None
 }
 
 pub async fn handle_health(
