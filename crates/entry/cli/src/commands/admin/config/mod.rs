@@ -59,7 +59,7 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         ConfigCommands::Validate(args) => {
-            let result = validate::execute(args, config)?;
+            let result = validate::execute(&args, config)?;
             render_result(&result);
             Ok(())
         },

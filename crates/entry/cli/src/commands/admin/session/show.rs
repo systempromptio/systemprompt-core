@@ -6,6 +6,7 @@ use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn execute(_config: &CliConfig) -> Result<CommandResult<SessionShowOutput>> {
     let paths = ResolvedPaths::discover();
 

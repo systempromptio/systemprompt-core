@@ -54,7 +54,33 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
 
             let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-            if !config.is_json_output() {
+            if config.is_json_output() {
+                match api_client.list_tenants().await {
+                    Ok(tenants) => {
+                        for tenant in &tenants {
+                            let mut status_info = TenantStatusInfo {
+                                id: tenant.id.clone(),
+                                name: tenant.name.clone(),
+                                status: "unknown".to_string(),
+                                url: None,
+                                message: None,
+                                configured_in_profile: tenant_id_from_profile.as_deref()
+                                    == Some(tenant.id.as_str()),
+                            };
+
+                            if let Ok(status) = api_client.get_tenant_status(&tenant.id).await {
+                                status_info.status = status.status;
+                                status_info.url = status.app_url;
+                                status_info.message = status.message;
+                            }
+                            tenant_statuses.push(status_info);
+                        }
+                    },
+                    Err(e) => {
+                        tracing::warn!(error = %e, "Could not fetch tenants");
+                    },
+                }
+            } else {
                 let spinner = CliService::spinner("Fetching tenants...");
                 match api_client.list_tenants().await {
                     Ok(tenants) => {
@@ -85,32 +111,6 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
                     },
                     Err(e) => {
                         spinner.finish_and_clear();
-                        tracing::warn!(error = %e, "Could not fetch tenants");
-                    },
-                }
-            } else {
-                match api_client.list_tenants().await {
-                    Ok(tenants) => {
-                        for tenant in &tenants {
-                            let mut status_info = TenantStatusInfo {
-                                id: tenant.id.clone(),
-                                name: tenant.name.clone(),
-                                status: "unknown".to_string(),
-                                url: None,
-                                message: None,
-                                configured_in_profile: tenant_id_from_profile.as_deref()
-                                    == Some(tenant.id.as_str()),
-                            };
-
-                            if let Ok(status) = api_client.get_tenant_status(&tenant.id).await {
-                                status_info.status = status.status;
-                                status_info.url = status.app_url;
-                                status_info.message = status.message;
-                            }
-                            tenant_statuses.push(status_info);
-                        }
-                    },
-                    Err(e) => {
                         tracing::warn!(error = %e, "Could not fetch tenants");
                     },
                 }

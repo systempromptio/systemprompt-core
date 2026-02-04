@@ -107,18 +107,7 @@ pub fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
 
 
     if !config.is_json_output() {
-        if !config.is_interactive() {
-            CliService::section("Profiles");
-            for (name, has_secrets, _) in &profiles {
-                let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
-                let current_marker = if is_current { " (active)" } else { "" };
-                let secrets_marker = if *has_secrets { "✓" } else { "✗" };
-                CliService::info(&format!(
-                    "{}{} [secrets: {}]",
-                    name, current_marker, secrets_marker
-                ));
-            }
-        } else {
+        if config.is_interactive() {
             let options: Vec<String> = profiles
                 .iter()
                 .map(|(name, has_secrets, _)| {
@@ -145,6 +134,17 @@ pub fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
 
                 let (profile_name, _, _) = &profiles[selection];
                 show::execute(Some(profile_name), ShowFilter::All, false, false, config)?;
+            }
+        } else {
+            CliService::section("Profiles");
+            for (name, has_secrets, _) in &profiles {
+                let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
+                let current_marker = if is_current { " (active)" } else { "" };
+                let secrets_marker = if *has_secrets { "✓" } else { "✗" };
+                CliService::info(&format!(
+                    "{}{} [secrets: {}]",
+                    name, current_marker, secrets_marker
+                ));
             }
         }
     }

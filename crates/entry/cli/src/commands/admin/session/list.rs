@@ -9,6 +9,7 @@ use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn execute(_config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
     let project_ctx = ProjectContext::discover();
     let profiles_dir = project_ctx.profiles_dir();

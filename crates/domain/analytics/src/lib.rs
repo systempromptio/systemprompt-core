@@ -31,6 +31,7 @@ pub use repository::{
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, MAX_SESSIONS_PER_FINGERPRINT,
     SUSTAINED_VELOCITY_MINUTES,
 };
+pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{
     detection, AnalyticsAiSessionProvider, AnalyticsService, AnomalyCheckResult,
     AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,

@@ -23,6 +23,7 @@ fn get_api_port() -> u16 {
         .unwrap_or(DEFAULT_API_PORT)
 }
 
+#[allow(clippy::useless_let_if_seq)]
 pub async fn execute(
     target: ServiceTarget,
     force: bool,

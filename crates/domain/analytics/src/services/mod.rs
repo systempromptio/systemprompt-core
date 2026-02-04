@@ -1,7 +1,7 @@
 mod ai_provider;
 mod anomaly_detection;
 mod behavioral_detector;
-mod bot_keywords;
+pub mod bot_keywords;
 pub mod detection;
 mod extractor;
 mod providers;

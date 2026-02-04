@@ -71,13 +71,13 @@ pub async fn rotate_credentials(
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let response = if !config.is_json_output() {
+    let response = if config.is_json_output() {
+        client.rotate_credentials(&tenant_id).await?
+    } else {
         let spinner = CliService::spinner("Rotating database credentials...");
         let resp = client.rotate_credentials(&tenant_id).await?;
         spinner.finish_and_clear();
         resp
-    } else {
-        client.rotate_credentials(&tenant_id).await?
     };
 
     let tenant = store
@@ -174,13 +174,13 @@ pub async fn rotate_sync_token(
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let response = if !config.is_json_output() {
+    let response = if config.is_json_output() {
+        client.rotate_sync_token(&tenant_id).await?
+    } else {
         let spinner = CliService::spinner("Rotating sync token...");
         let resp = client.rotate_sync_token(&tenant_id).await?;
         spinner.finish_and_clear();
         resp
-    } else {
-        client.rotate_sync_token(&tenant_id).await?
     };
 
     let tenant = store

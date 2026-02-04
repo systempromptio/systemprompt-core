@@ -57,23 +57,7 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
     }
 
     if !config.is_json_output() {
-        if !config.is_interactive() {
-            CliService::section("Tenants");
-            CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
-            CliService::info("");
-            for tenant in &store.tenants {
-                let type_str = match tenant.tenant_type {
-                    TenantType::Local => "local",
-                    TenantType::Cloud => "cloud",
-                };
-                let db_status = if tenant.has_database_url() {
-                    "✓ db"
-                } else {
-                    "✗ db"
-                };
-                CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
-            }
-        } else {
+        if config.is_interactive() {
             let options: Vec<String> = store
                 .tenants
                 .iter()
@@ -108,6 +92,22 @@ pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantList
                 }
 
                 display_tenant_details(&store.tenants[selection]);
+            }
+        } else {
+            CliService::section("Tenants");
+            CliService::info("Manage subscriptions: https://customer-portal.paddle.com/cpl_01j80s3z6crr7zj96htce0kr0f");
+            CliService::info("");
+            for tenant in &store.tenants {
+                let type_str = match tenant.tenant_type {
+                    TenantType::Local => "local",
+                    TenantType::Cloud => "cloud",
+                };
+                let db_status = if tenant.has_database_url() {
+                    "✓ db"
+                } else {
+                    "✗ db"
+                };
+                CliService::info(&format!("{} ({}) [{}]", tenant.name, type_str, db_status));
             }
         }
     }
@@ -282,12 +282,12 @@ pub async fn delete_tenant(
         let creds = get_credentials()?;
         let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-        if !config.is_json_output() {
+        if config.is_json_output() {
+            client.delete_tenant(&tenant_id).await?;
+        } else {
             let spinner = CliService::spinner("Deleting cloud tenant...");
             client.delete_tenant(&tenant_id).await?;
             spinner.finish_and_clear();
-        } else {
-            client.delete_tenant(&tenant_id).await?;
         }
     } else if tenant.uses_shared_container() {
         cleanup_shared_container_tenant(&tenant, config).await?;
