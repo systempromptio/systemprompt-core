@@ -117,7 +117,14 @@ impl ExtensionLoader {
         None
     }
 
-    pub fn resolve_bin_directory(project_root: &Path) -> std::path::PathBuf {
+    pub fn resolve_bin_directory(
+        project_root: &Path,
+        override_path: Option<&Path>,
+    ) -> std::path::PathBuf {
+        if let Some(path) = override_path {
+            return path.to_path_buf();
+        }
+
         let release_dir = project_root.join(CARGO_TARGET).join("release");
         let debug_dir = project_root.join(CARGO_TARGET).join("debug");
 

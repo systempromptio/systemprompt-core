@@ -60,7 +60,7 @@ impl AuthorizationService {
         let required_aud =
             JwtAudience::from_str(required_audience).map_err(|_| StatusCode::BAD_REQUEST)?;
 
-        if !audience::validate_required_audience(&claims.aud, required_aud) {
+        if !audience::validate_required_audience(&claims.aud, &required_aud) {
             return Err(StatusCode::FORBIDDEN);
         }
 

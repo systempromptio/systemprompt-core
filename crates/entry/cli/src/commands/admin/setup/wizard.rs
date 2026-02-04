@@ -103,7 +103,7 @@ pub async fn execute(args: SetupArgs, config: &CliConfig) -> Result<CommandResul
     secrets::save(&secrets_data, &secrets_path)?;
 
     let relative_secrets_path = format!("../secrets/{}.secrets.json", env_name);
-    let profile_data = profile::build(&env_name, &relative_secrets_path, &project_root)?;
+    let profile_data = profile::build(&env_name, &relative_secrets_path, &project_root, None)?;
     let profile_path = profile::default_path(&systemprompt_dir, &env_name);
     profile::save(&profile_data, &profile_path)?;
 

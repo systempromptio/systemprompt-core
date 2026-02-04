@@ -23,6 +23,14 @@ use systemprompt_runtime::DatabaseContext;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
+fn has_local_export_flag(command: Option<&args::Commands>) -> bool {
+    let is_analytics = matches!(command, Some(args::Commands::Analytics(_)));
+    if !is_analytics {
+        return false;
+    }
+    std::env::args().any(|arg| arg == "--export" || arg.starts_with("--export="))
+}
+
 pub async fn run() -> Result<()> {
     let cli = args::Cli::parse();
 
@@ -74,9 +82,16 @@ async fn init_profile_and_route(
 
     let is_cloud = profile.target.is_cloud();
     let env = environment::ExecutionEnvironment::detect();
+    let has_export = has_local_export_flag(cli.command.as_ref());
 
-    if !env.is_fly && desc.remote_eligible {
+    if !env.is_fly && desc.remote_eligible && !has_export {
         try_remote_routing(cli, profile).await?;
+    } else if has_export && is_cloud && !profile.database.external_db_access {
+        bail!(
+            "Export with cloud profile '{}' requires external database access.\nEnable \
+             external_db_access in the profile or use a local profile.",
+            profile.name
+        );
     } else if is_cloud
         && !env.is_fly
         && !profile.database.external_db_access

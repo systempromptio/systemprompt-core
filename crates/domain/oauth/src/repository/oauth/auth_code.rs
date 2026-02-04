@@ -14,6 +14,7 @@ pub struct AuthCodeParams<'a> {
     pub scope: &'a str,
     pub code_challenge: Option<&'a str>,
     pub code_challenge_method: Option<&'a str>,
+    pub resource: Option<&'a str>,
 }
 
 #[derive(Debug)]
@@ -25,6 +26,7 @@ pub struct AuthCodeParamsBuilder<'a> {
     scope: &'a str,
     code_challenge: Option<&'a str>,
     code_challenge_method: Option<&'a str>,
+    resource: Option<&'a str>,
 }
 
 impl<'a> AuthCodeParamsBuilder<'a> {
@@ -43,12 +45,18 @@ impl<'a> AuthCodeParamsBuilder<'a> {
             scope,
             code_challenge: None,
             code_challenge_method: None,
+            resource: None,
         }
     }
 
     pub const fn with_pkce(mut self, challenge: &'a str, method: &'a str) -> Self {
         self.code_challenge = Some(challenge);
         self.code_challenge_method = Some(method);
+        self
+    }
+
+    pub const fn with_resource(mut self, resource: &'a str) -> Self {
+        self.resource = Some(resource);
         self
     }
 
@@ -61,6 +69,7 @@ impl<'a> AuthCodeParamsBuilder<'a> {
             scope: self.scope,
             code_challenge: self.code_challenge,
             code_challenge_method: self.code_challenge_method,
+            resource: self.resource,
         }
     }
 }
@@ -88,8 +97,8 @@ impl OAuthRepository {
         sqlx::query!(
             "INSERT INTO oauth_auth_codes
              (code, client_id, user_id, redirect_uri, scope, expires_at, code_challenge,
-             code_challenge_method, created_at)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)",
+             code_challenge_method, resource, created_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)",
             code,
             client_id,
             user_id,
@@ -98,6 +107,7 @@ impl OAuthRepository {
             expires_at,
             params.code_challenge,
             params.code_challenge_method,
+            params.resource,
             now
         )
         .execute(self.pool_ref())
@@ -127,13 +137,13 @@ impl OAuthRepository {
         _client_id: &ClientId,
         redirect_uri: Option<&str>,
         code_verifier: Option<&str>,
-    ) -> Result<(UserId, String)> {
+    ) -> Result<AuthCodeValidationResult> {
         let now = Utc::now();
         let code_str = code.as_str();
 
         let row = sqlx::query!(
             "SELECT user_id, scope, expires_at, redirect_uri, used_at, code_challenge,
-             code_challenge_method
+             code_challenge_method, resource
              FROM oauth_auth_codes WHERE code = $1",
             code_str
         )
@@ -204,6 +214,17 @@ impl OAuthRepository {
         .execute(self.pool_ref())
         .await?;
 
-        Ok((UserId::new(row.user_id), row.scope))
+        Ok(AuthCodeValidationResult {
+            user_id: UserId::new(row.user_id),
+            scope: row.scope,
+            resource: row.resource,
+        })
     }
+}
+
+#[derive(Debug)]
+pub struct AuthCodeValidationResult {
+    pub user_id: UserId,
+    pub scope: String,
+    pub resource: Option<String>,
 }

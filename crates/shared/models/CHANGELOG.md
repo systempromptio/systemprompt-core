@@ -9,10 +9,14 @@
 - `ToolVisibility` enum with `Model` and `App` variants
 - `McpCspDomains` struct with builder pattern for CSP domain configuration
 - `McpResourceUiMeta` struct for resource UI metadata
+- `JwtAudience::Resource(String)` variant for RFC 8707 resource indicator support
+- `WWW-Authenticate` header with `resource_metadata` on all 401 responses (MCP OAuth 2.1 compliance)
 
 ### Changed
 - Refactor `Secrets::get()` to use `char::is_uppercase` method reference
 - Remove doc comments from `ToolUiConfig` methods per standards
+- `JwtAudience` is no longer `Copy` (now contains `Resource(String)` variant)
+- `JwtClaims::has_audience()` now takes `&JwtAudience` instead of `JwtAudience`
 
 ## [0.1.3] - 2026-02-03
 

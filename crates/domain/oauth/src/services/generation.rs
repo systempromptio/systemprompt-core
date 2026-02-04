@@ -17,6 +17,8 @@ pub struct JwtConfig {
     pub permissions: Vec<Permission>,
     pub audience: Vec<JwtAudience>,
     pub expires_in_hours: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -31,6 +33,7 @@ impl Default for JwtConfig {
             permissions: vec![Permission::User],
             audience: JwtAudience::standard(),
             expires_in_hours: Some(24),
+            resource: None,
         }
     }
 }
@@ -68,12 +71,17 @@ pub fn generate_jwt(
     let now = Utc::now().timestamp();
     let user_type = user.user_type();
 
+    let mut audience = config.audience.clone();
+    if let Some(ref resource) = config.resource {
+        audience.push(JwtAudience::Resource(resource.clone()));
+    }
+
     let claims = JwtClaims {
         sub: user.id.to_string(),
         iat: now,
         exp: expiration,
         iss: signing.issuer.to_string(),
-        aud: config.audience.clone(),
+        aud: audience,
         jti,
         scope: config.permissions,
         username: user.username.clone(),

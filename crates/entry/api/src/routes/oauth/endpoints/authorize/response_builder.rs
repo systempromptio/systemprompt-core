@@ -20,6 +20,7 @@ pub fn convert_form_to_query(form: &AuthorizeRequest) -> AuthorizeQuery {
         prompt: None,
         max_age: None,
         ui_locales: None,
+        resource: form.resource.clone(),
     }
 }
 
@@ -75,6 +76,7 @@ pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> 
     let state = params.state.as_deref().unwrap_or("");
     let code_challenge = params.code_challenge.as_deref().unwrap_or("");
     let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or("");
+    let resource = params.resource.as_deref().unwrap_or("");
     let api_external_url = Config::get()
         .map(|c| c.api_external_url.as_str())
         .unwrap_or("");
@@ -86,6 +88,7 @@ pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> 
     context.insert("state", state);
     context.insert("code_challenge", code_challenge);
     context.insert("code_challenge_method", code_challenge_method);
+    context.insert("resource", resource);
     context.insert("api_external_url", api_external_url);
 
     TemplateEngine::render(template, context)

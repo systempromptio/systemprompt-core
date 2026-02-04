@@ -3,7 +3,7 @@ mod refresh_token;
 mod scopes;
 mod user;
 
-pub use auth_code::AuthCodeParams;
+pub use auth_code::{AuthCodeParams, AuthCodeValidationResult};
 pub use refresh_token::RefreshTokenParams;
 
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};

@@ -110,8 +110,8 @@ impl JwtClaims {
         self.has_permission(Permission::Anonymous)
     }
 
-    pub fn has_audience(&self, aud: JwtAudience) -> bool {
-        self.aud.contains(&aud)
+    pub fn has_audience(&self, aud: &JwtAudience) -> bool {
+        self.aud.contains(aud)
     }
 
     pub fn has_role(&self, role: &str) -> bool {

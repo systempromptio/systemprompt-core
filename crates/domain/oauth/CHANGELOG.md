@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4] - 2026-02-04
+
+### Added
+- RFC 8707 Resource Indicators support for MCP OAuth 2.1 compliance
+- `resource` column in `oauth_auth_codes` table with migration
+- `AuthCodeValidationResult` struct for richer auth code validation responses
+- `AuthCodeParamsBuilder::with_resource()` builder method
+- `JwtConfig.resource` field for resource-scoped token generation
+
+### Changed
+- `validate_authorization_code()` now returns `AuthCodeValidationResult` instead of tuple
+- `JwtAudience` enum now includes `Resource(String)` variant for RFC 8707 audience binding
+- Token generation adds resource URI to JWT audience claim when present
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed

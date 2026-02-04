@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS oauth_auth_codes (
     code_challenge TEXT,
     code_challenge_method TEXT,
     nonce TEXT,
+    resource TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     used_at TIMESTAMPTZ,
     FOREIGN KEY (client_id) REFERENCES oauth_clients(client_id) ON DELETE CASCADE,

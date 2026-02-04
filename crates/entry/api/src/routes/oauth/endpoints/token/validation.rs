@@ -1,7 +1,7 @@
 use super::{TokenError, TokenResult};
 use anyhow::Result;
-use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
-use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_identifiers::{AuthorizationCode, ClientId};
+use systemprompt_oauth::repository::{AuthCodeValidationResult, OAuthRepository};
 use systemprompt_oauth::services::validation::validate_client_credentials as validate_client_credentials_shared;
 
 pub fn extract_required_field<'a>(
@@ -28,9 +28,23 @@ pub async fn validate_authorization_code(
     client_id: &ClientId,
     redirect_uri: Option<&str>,
     code_verifier: Option<&str>,
-) -> Result<(UserId, String)> {
-    let (user_id, scope) = repo
+    request_resource: Option<&str>,
+) -> Result<AuthCodeValidationResult> {
+    let result = repo
         .validate_authorization_code(code, client_id, redirect_uri, code_verifier)
         .await?;
-    Ok((user_id, scope))
+
+    if let Some(req_resource) = request_resource {
+        if let Some(ref stored_resource) = result.resource {
+            if req_resource != stored_resource {
+                return Err(anyhow::anyhow!(
+                    "Resource parameter mismatch: expected '{}', got '{}'",
+                    stored_resource,
+                    req_resource
+                ));
+            }
+        }
+    }
+
+    Ok(result)
 }

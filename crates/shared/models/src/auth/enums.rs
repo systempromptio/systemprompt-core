@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JwtAudience {
     Web,
@@ -11,16 +11,19 @@ pub enum JwtAudience {
     A2a,
     Mcp,
     Internal,
+    #[serde(untagged)]
+    Resource(String),
 }
 
 impl JwtAudience {
-    pub const fn as_str(&self) -> &'static str {
+    pub fn as_str(&self) -> &str {
         match self {
             Self::Web => "web",
             Self::Api => "api",
             Self::A2a => "a2a",
             Self::Mcp => "mcp",
             Self::Internal => "internal",
+            Self::Resource(s) => s.as_str(),
         }
     }
 
@@ -48,7 +51,7 @@ impl FromStr for JwtAudience {
             "a2a" => Ok(Self::A2a),
             "mcp" => Ok(Self::Mcp),
             "internal" => Ok(Self::Internal),
-            _ => Err(anyhow!("Invalid JWT audience: {s}")),
+            _ => Ok(Self::Resource(s.to_string())),
         }
     }
 }
