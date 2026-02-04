@@ -72,6 +72,14 @@ tests/validator
 .DS_Store
 Thumbs.db
 
+# Audit files
+*.audit
+audit.md
+audit.log
+audit.json
+audit/
+.audit/
+
 # Service implementations (moved to implementation repos)
 /crates/services/
 
