@@ -19,15 +19,27 @@ impl AnalyticsProvider for AnalyticsService {
         TraitSessionAnalytics {
             ip_address: local.ip_address.clone(),
             user_agent: local.user_agent.clone(),
+            device_type: local.device_type.clone(),
+            browser: local.browser.clone(),
+            os: local.os.clone(),
+            fingerprint_hash: local.fingerprint_hash.clone(),
             referer: local.referrer_url.clone(),
+            referrer_url: local.referrer_url.clone(),
+            referrer_source: local.referrer_source.clone(),
             accept_language: local.preferred_locale.clone(),
+            preferred_locale: local.preferred_locale.clone(),
             screen_width: None,
             screen_height: None,
             timezone: None,
-            page_url: local.entry_url,
+            page_url: local.entry_url.clone(),
+            landing_page: local.landing_page.clone(),
+            entry_url: local.entry_url,
             country: local.country.clone(),
             region: local.region.clone(),
             city: local.city,
+            utm_source: local.utm_source,
+            utm_medium: local.utm_medium,
+            utm_campaign: local.utm_campaign,
         }
     }
 
@@ -35,13 +47,33 @@ impl AnalyticsProvider for AnalyticsService {
         let local_analytics = SessionAnalytics {
             ip_address: input.analytics.ip_address.clone(),
             user_agent: input.analytics.user_agent.clone(),
-            referrer_url: input.analytics.referer.clone(),
-            preferred_locale: input.analytics.accept_language.clone(),
-            entry_url: input.analytics.page_url.clone(),
+            device_type: input.analytics.device_type.clone(),
+            browser: input.analytics.browser.clone(),
+            os: input.analytics.os.clone(),
+            fingerprint_hash: input.analytics.fingerprint_hash.clone(),
+            referrer_url: input
+                .analytics
+                .referrer_url
+                .clone()
+                .or_else(|| input.analytics.referer.clone()),
+            referrer_source: input.analytics.referrer_source.clone(),
+            preferred_locale: input
+                .analytics
+                .preferred_locale
+                .clone()
+                .or_else(|| input.analytics.accept_language.clone()),
+            landing_page: input.analytics.landing_page.clone(),
+            entry_url: input
+                .analytics
+                .entry_url
+                .clone()
+                .or_else(|| input.analytics.page_url.clone()),
             country: input.analytics.country.clone(),
             region: input.analytics.region.clone(),
             city: input.analytics.city.clone(),
-            ..Default::default()
+            utm_source: input.analytics.utm_source.clone(),
+            utm_medium: input.analytics.utm_medium.clone(),
+            utm_campaign: input.analytics.utm_campaign.clone(),
         };
 
         let local_input = super::service::CreateAnalyticsSessionInput {

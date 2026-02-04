@@ -7,6 +7,7 @@ use crate::profile::PathsConfig;
 pub struct StoragePaths {
     root: PathBuf,
     files: PathBuf,
+    exports: PathBuf,
     css: PathBuf,
     js: PathBuf,
     fonts: PathBuf,
@@ -30,6 +31,7 @@ impl StoragePaths {
         let files = root.join("files");
 
         Ok(Self {
+            exports: root.join("exports"),
             css: files.join("css"),
             js: files.join("js"),
             fonts: files.join("fonts"),
@@ -51,6 +53,10 @@ impl StoragePaths {
 
     pub fn files(&self) -> &Path {
         &self.files
+    }
+
+    pub fn exports(&self) -> &Path {
+        &self.exports
     }
 
     pub fn css(&self) -> &Path {

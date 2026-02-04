@@ -1,42 +1,23 @@
 use anyhow::{anyhow, Result};
-use systemprompt_database::{DatabaseCliDisplay, QueryExecutor, QueryResult};
-use systemprompt_logging::CliService;
+use systemprompt_database::{QueryExecutor, QueryResult};
 
-use crate::cli_settings::{CliConfig, OutputFormat};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
-use super::helpers::{extract_relation_name, suggest_table_name, JsonError};
+use super::helpers::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;
-
-fn get_output_format(format_arg: Option<&str>, config: &CliConfig) -> OutputFormat {
-    match format_arg {
-        Some("json") => OutputFormat::Json,
-        Some("yaml") => OutputFormat::Yaml,
-        _ => config.output_format,
-    }
-}
 
 pub struct QueryParams<'a> {
     pub sql: &'a str,
     pub limit: Option<u32>,
     pub offset: Option<u32>,
-    pub format: Option<&'a str>,
-}
-
-fn print_query_result(result: &QueryResult, output_format: OutputFormat) {
-    match output_format {
-        OutputFormat::Json => CliService::json(result),
-        OutputFormat::Yaml => CliService::yaml(result),
-        OutputFormat::Table => result.display_with_cli(),
-    }
 }
 
 pub async fn execute_query(
     executor: &QueryExecutor,
     params: &QueryParams<'_>,
-    config: &CliConfig,
-) -> Result<()> {
-    let output_format = get_output_format(params.format, config);
-
+    _config: &CliConfig,
+) -> Result<CommandResult<QueryResult>> {
     let final_sql = match (params.limit, params.offset) {
         (None, None) => params.sql.to_string(),
         (limit, offset) => {
@@ -58,16 +39,16 @@ pub async fn execute_query(
             let msg = e.to_string();
             if msg.contains("does not exist") {
                 let table_name = extract_relation_name(&msg);
-                let json_err = JsonError::table_not_found(&table_name);
-                if config.is_json_output() {
-                    CliService::json(&json_err);
-                }
-                match suggest_table_name(&table_name) {
-                    Some(suggestion) => {
-                        anyhow!("{}\nHint: Did you mean '{}'?", json_err.message, suggestion)
+                suggest_table_name(&table_name).map_or_else(
+                    || anyhow!("Table or relation '{}' does not exist", table_name),
+                    |suggestion| {
+                        anyhow!(
+                            "Table or relation '{}' does not exist\nHint: Did you mean '{}'?",
+                            table_name,
+                            suggestion
+                        )
                     },
-                    None => anyhow!("{}", json_err.message),
-                }
+                )
             } else if msg.contains("syntax error") {
                 anyhow!("SQL syntax error: {}", msg)
             } else {
@@ -75,25 +56,18 @@ pub async fn execute_query(
             }
         })?;
 
-    if config.should_show_verbose() {
-        CliService::verbose(&format!(
-            "Query returned {} rows in {}ms",
-            result.row_count, result.execution_time_ms
-        ));
-    }
+    let columns = result.columns.clone();
 
-    print_query_result(&result, output_format);
-    Ok(())
+    Ok(CommandResult::table(result)
+        .with_title("Query Results")
+        .with_columns(columns))
 }
 
 pub async fn execute_write(
     executor: &QueryExecutor,
     sql: &str,
-    format: Option<&str>,
-    config: &CliConfig,
-) -> Result<()> {
-    let output_format = get_output_format(format, config);
-
+    _config: &CliConfig,
+) -> Result<CommandResult<DbExecuteOutput>> {
     let result = executor.execute_query(sql, false).await.map_err(|e| {
         let msg = e.to_string();
         if msg.contains("does not exist") {
@@ -116,19 +90,5 @@ pub async fn execute_write(
         ),
     };
 
-    if matches!(output_format, OutputFormat::Json) {
-        CliService::json(&output);
-    } else if matches!(output_format, OutputFormat::Yaml) {
-        CliService::yaml(&output);
-    } else {
-        CliService::success(&output.message);
-        if config.should_show_verbose() {
-            CliService::verbose(&format!(
-                "Execution completed in {}ms",
-                result.execution_time_ms
-            ));
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("Query Executed"))
 }

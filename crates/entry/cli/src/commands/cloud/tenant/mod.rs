@@ -22,6 +22,7 @@ use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum TenantCommands {
@@ -99,21 +100,43 @@ pub async fn execute(cmd: Option<TenantCommands>, config: &CliConfig) -> Result<
 async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool> {
     match cmd {
         TenantCommands::Create { region } => tenant_create(&region, config).await.map(|()| true),
-        TenantCommands::List => list_tenants(config).await.map(|()| false),
-        TenantCommands::Show { id } => show_tenant(id, config).await.map(|()| false),
-        TenantCommands::Delete(args) => delete_tenant(args, config).await.map(|()| false),
-        TenantCommands::Edit { id } => edit_tenant(id, config).await.map(|()| false),
+        TenantCommands::List => {
+            let result = list_tenants(config).await?;
+            render_result(&result);
+            Ok(false)
+        },
+        TenantCommands::Show { id } => {
+            let result = show_tenant(id, config).await?;
+            render_result(&result);
+            Ok(false)
+        },
+        TenantCommands::Delete(args) => {
+            let result = delete_tenant(args, config).await?;
+            render_result(&result);
+            Ok(false)
+        },
+        TenantCommands::Edit { id } => {
+            let result = edit_tenant(id, config).await?;
+            render_result(&result);
+            Ok(false)
+        },
         TenantCommands::RotateCredentials(args) => {
-            rotate_credentials(args.id, args.yes || !config.is_interactive())
-                .await
-                .map(|()| false)
+            let result =
+                rotate_credentials(args.id, args.yes || !config.is_interactive(), config).await?;
+            render_result(&result);
+            Ok(false)
         },
         TenantCommands::RotateSyncToken(args) => {
-            rotate_sync_token(args.id, args.yes || !config.is_interactive())
-                .await
-                .map(|()| false)
+            let result =
+                rotate_sync_token(args.id, args.yes || !config.is_interactive(), config).await?;
+            render_result(&result);
+            Ok(false)
         },
-        TenantCommands::Cancel(args) => cancel_subscription(args, config).await.map(|()| false),
+        TenantCommands::Cancel(args) => {
+            let result = cancel_subscription(args, config).await?;
+            render_result(&result);
+            Ok(false)
+        },
     }
 }
 

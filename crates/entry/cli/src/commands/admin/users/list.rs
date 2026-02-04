@@ -1,13 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserRole, UserService, UserStatus};
-use tabled::{Table, Tabled};
 
 use super::types::{UserListOutput, UserSummary};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum RoleFilter {
@@ -64,26 +63,16 @@ pub struct ListArgs {
     pub status: Option<StatusFilter>,
 }
 
-#[derive(Tabled)]
-struct UserRow {
-    #[tabled(rename = "ID")]
-    id: String,
-    #[tabled(rename = "Name")]
-    name: String,
-    #[tabled(rename = "Email")]
-    email: String,
-    #[tabled(rename = "Status")]
-    status: String,
-    #[tabled(rename = "Roles")]
-    roles: String,
-}
-
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<CommandResult<UserListOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: ListArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserListOutput>> {
     let user_service = UserService::new(pool)?;
 
     let users = if let Some(role_filter) = args.role {
@@ -123,34 +112,13 @@ pub async fn execute_with_pool(args: ListArgs, pool: &DbPool, config: &CliConfig
         offset: args.offset,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section("Users");
-
-        if users.is_empty() {
-            CliService::info("No users found");
-        } else {
-            let rows: Vec<UserRow> = users
-                .iter()
-                .map(|u| UserRow {
-                    id: u.id.to_string(),
-                    name: u.name.clone(),
-                    email: u.email.clone(),
-                    status: u.status.clone().unwrap_or_else(|| "unknown".to_string()),
-                    roles: u.roles.join(", "),
-                })
-                .collect();
-
-            let table = Table::new(rows).to_string();
-            CliService::output(&table);
-
-            CliService::info(&format!(
-                "Showing {} user(s) (offset: {}, limit: {})",
-                total, args.offset, args.limit
-            ));
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::table(output)
+        .with_title("Users")
+        .with_columns(vec![
+            "id".to_string(),
+            "name".to_string(),
+            "email".to_string(),
+            "status".to_string(),
+            "roles".to_string(),
+        ]))
 }

@@ -7,16 +7,33 @@ use systemprompt_logging::CliService;
 
 use super::{show, ShowFilter};
 use crate::cli_settings::CliConfig;
+use crate::cloud::types::{ProfileListOutput, ProfileSummary};
+use crate::shared::CommandResult;
 
-pub fn execute(config: &CliConfig) -> Result<()> {
+pub fn execute(config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
 
     if !profiles_dir.exists() {
-        CliService::section("Profiles");
-        CliService::warning("No profiles found.");
-        CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
-        return Ok(());
+        let output = ProfileListOutput {
+            profiles: Vec::new(),
+            total: 0,
+            active_profile: None,
+        };
+
+        if !config.is_json_output() {
+            CliService::section("Profiles");
+            CliService::warning("No profiles found.");
+            CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
+        }
+
+        return Ok(CommandResult::table(output)
+            .with_title("Profiles")
+            .with_columns(vec![
+                "name".to_string(),
+                "has_secrets".to_string(),
+                "is_active".to_string(),
+            ]));
     }
 
     let current_profile = std::env::var("SYSTEMPROMPT_PROFILE").ok();
@@ -50,55 +67,93 @@ pub fn execute(config: &CliConfig) -> Result<()> {
     }
 
     if profiles.is_empty() {
-        CliService::section("Profiles");
-        CliService::warning("No profiles found.");
-        CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
-        return Ok(());
+        let output = ProfileListOutput {
+            profiles: Vec::new(),
+            total: 0,
+            active_profile: current_profile_name,
+        };
+
+        if !config.is_json_output() {
+            CliService::section("Profiles");
+            CliService::warning("No profiles found.");
+            CliService::info("Run 'systemprompt cloud profile create <name>' to create a profile.");
+        }
+
+        return Ok(CommandResult::table(output)
+            .with_title("Profiles")
+            .with_columns(vec![
+                "name".to_string(),
+                "has_secrets".to_string(),
+                "is_active".to_string(),
+            ]));
     }
 
     profiles.sort_by(|a, b| a.0.cmp(&b.0));
 
-    if !config.is_interactive() {
-        CliService::section("Profiles");
-        for (name, has_secrets, _) in &profiles {
-            let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
-            let current_marker = if is_current { " (active)" } else { "" };
-            let secrets_marker = if *has_secrets { "✓" } else { "✗" };
-            CliService::info(&format!(
-                "{}{} [secrets: {}]",
-                name, current_marker, secrets_marker
-            ));
-        }
-        return Ok(());
-    }
-
-    let options: Vec<String> = profiles
+    let summaries: Vec<ProfileSummary> = profiles
         .iter()
-        .map(|(name, has_secrets, _)| {
-            let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
-            let current_marker = if is_current { " (active)" } else { "" };
-            let secrets_marker = if *has_secrets { "✓" } else { "✗" };
-            format!("{}{} [secrets: {}]", name, current_marker, secrets_marker)
+        .map(|(name, has_secrets, _)| ProfileSummary {
+            name: name.clone(),
+            has_secrets: *has_secrets,
+            is_active: current_profile_name.as_ref().is_some_and(|c| c == name),
         })
-        .chain(std::iter::once("Back".to_string()))
         .collect();
 
-    loop {
-        CliService::section("Profiles");
+    let output = ProfileListOutput {
+        total: summaries.len(),
+        profiles: summaries,
+        active_profile: current_profile_name.clone(),
+    };
 
-        let selection = Select::with_theme(&ColorfulTheme::default())
-            .with_prompt("Select profile")
-            .items(&options)
-            .default(0)
-            .interact()?;
 
-        if selection == profiles.len() {
-            break;
+    if !config.is_json_output() {
+        if !config.is_interactive() {
+            CliService::section("Profiles");
+            for (name, has_secrets, _) in &profiles {
+                let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
+                let current_marker = if is_current { " (active)" } else { "" };
+                let secrets_marker = if *has_secrets { "✓" } else { "✗" };
+                CliService::info(&format!(
+                    "{}{} [secrets: {}]",
+                    name, current_marker, secrets_marker
+                ));
+            }
+        } else {
+            let options: Vec<String> = profiles
+                .iter()
+                .map(|(name, has_secrets, _)| {
+                    let is_current = current_profile_name.as_ref().is_some_and(|c| c == name);
+                    let current_marker = if is_current { " (active)" } else { "" };
+                    let secrets_marker = if *has_secrets { "✓" } else { "✗" };
+                    format!("{}{} [secrets: {}]", name, current_marker, secrets_marker)
+                })
+                .chain(std::iter::once("Back".to_string()))
+                .collect();
+
+            loop {
+                CliService::section("Profiles");
+
+                let selection = Select::with_theme(&ColorfulTheme::default())
+                    .with_prompt("Select profile")
+                    .items(&options)
+                    .default(0)
+                    .interact()?;
+
+                if selection == profiles.len() {
+                    break;
+                }
+
+                let (profile_name, _, _) = &profiles[selection];
+                show::execute(Some(profile_name), ShowFilter::All, false, false, config)?;
+            }
         }
-
-        let (profile_name, _, _) = &profiles[selection];
-        show::execute(Some(profile_name), ShowFilter::All, false, false, config)?;
     }
 
-    Ok(())
+    Ok(CommandResult::table(output)
+        .with_title("Profiles")
+        .with_columns(vec![
+            "name".to_string(),
+            "has_secrets".to_string(),
+            "is_active".to_string(),
+        ]))
 }

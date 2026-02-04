@@ -12,6 +12,7 @@ use systemprompt_database::{DatabaseAdminService, QueryExecutor};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 
 pub use types::*;
 
@@ -111,18 +112,21 @@ pub async fn execute(cmd: DbCommands, config: &CliConfig) -> Result<()> {
             sql,
             limit,
             offset,
-            format,
+            format: _,
         } => {
             let params = query::QueryParams {
                 sql: &sql,
                 limit,
                 offset,
-                format: format.as_deref(),
             };
-            query::execute_query(&db.query_executor, &params, config).await
+            let result = query::execute_query(&db.query_executor, &params, config).await?;
+            render_result(&result);
+            Ok(())
         },
-        DbCommands::Execute { sql, format } => {
-            query::execute_write(&db.query_executor, &sql, format.as_deref(), config).await
+        DbCommands::Execute { sql, format: _ } => {
+            let result = query::execute_write(&db.query_executor, &sql, config).await?;
+            render_result(&result);
+            Ok(())
         },
         DbCommands::Tables { filter } => {
             schema::execute_tables(&db.admin_service, filter, config).await
@@ -165,18 +169,21 @@ pub async fn execute_with_db(
             sql,
             limit,
             offset,
-            format,
+            format: _,
         } => {
             let params = query::QueryParams {
                 sql: &sql,
                 limit,
                 offset,
-                format: format.as_deref(),
             };
-            query::execute_query(&query_executor, &params, config).await
+            let result = query::execute_query(&query_executor, &params, config).await?;
+            render_result(&result);
+            Ok(())
         },
-        DbCommands::Execute { sql, format } => {
-            query::execute_write(&query_executor, &sql, format.as_deref(), config).await
+        DbCommands::Execute { sql, format: _ } => {
+            let result = query::execute_write(&query_executor, &sql, config).await?;
+            render_result(&result);
+            Ok(())
         },
         DbCommands::Tables { filter } => {
             schema::execute_tables(&admin_service, filter, config).await

@@ -18,6 +18,7 @@ pub use create::create_profile_for_tenant;
 pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
 use dialoguer::theme::ColorfulTheme;
@@ -181,14 +182,22 @@ pub async fn execute(cmd: Option<ProfileCommands>, config: &CliConfig) -> Result
 async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<bool> {
     match cmd {
         ProfileCommands::Create(args) => create::execute(&args, config).await.map(|()| true),
-        ProfileCommands::List => list::execute(config).map(|()| false),
+        ProfileCommands::List => {
+            let result = list::execute(config)?;
+            render_result(&result);
+            Ok(false)
+        },
         ProfileCommands::Show {
             name,
             filter,
             json,
             yaml,
         } => show::execute(name.as_deref(), filter, json, yaml, config).map(|()| false),
-        ProfileCommands::Delete(args) => delete::execute(&args, config).map(|()| false),
+        ProfileCommands::Delete(args) => {
+            let result = delete::execute(&args, config)?;
+            render_result(&result);
+            Ok(false)
+        },
         ProfileCommands::Edit(args) => edit::execute(&args, config).await.map(|()| false),
     }
 }

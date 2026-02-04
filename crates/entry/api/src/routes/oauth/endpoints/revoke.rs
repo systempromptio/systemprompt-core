@@ -6,6 +6,7 @@ use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::sync::Arc;
+use systemprompt_analytics::SessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
@@ -93,6 +94,20 @@ pub async fn handle_revoke(
                 revoked_by = %audit_user,
                 "Token revoked"
             );
+
+            let session_repo = SessionRepository::new(Arc::clone(state.db_pool()));
+            if let Err(e) = session_repo.end_session(req_ctx.session_id()).await {
+                tracing::warn!(
+                    session_id = %req_ctx.session_id(),
+                    error = %e,
+                    "Failed to end session after token revocation"
+                );
+            } else {
+                tracing::debug!(
+                    session_id = %req_ctx.session_id(),
+                    "Session ended after token revocation"
+                );
+            }
 
             StatusCode::OK.into_response()
         },

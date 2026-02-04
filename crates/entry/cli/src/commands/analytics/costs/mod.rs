@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -67,9 +68,21 @@ pub struct CostBreakdownOutput {
 
 pub async fn execute(command: CostsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        CostsCommands::Summary(args) => summary::execute(args, config).await,
-        CostsCommands::Trends(args) => trends::execute(args, config).await,
-        CostsCommands::Breakdown(args) => breakdown::execute(args, config).await,
+        CostsCommands::Summary(args) => {
+            let result = summary::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        CostsCommands::Trends(args) => {
+            let result = trends::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        CostsCommands::Breakdown(args) => {
+            let result = breakdown::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -79,8 +92,20 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        CostsCommands::Summary(args) => summary::execute_with_pool(args, db_ctx, config).await,
-        CostsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
-        CostsCommands::Breakdown(args) => breakdown::execute_with_pool(args, db_ctx, config).await,
+        CostsCommands::Summary(args) => {
+            let result = summary::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        CostsCommands::Trends(args) => {
+            let result = trends::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        CostsCommands::Breakdown(args) => {
+            let result = breakdown::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

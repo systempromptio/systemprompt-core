@@ -3,11 +3,12 @@ use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
-use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
-use crate::cli_settings::CliConfig;
+use super::types::LogoutOutput;
 use crate::paths::ResolvedPaths;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {
@@ -21,14 +22,18 @@ pub struct LogoutArgs {
     pub all: bool,
 }
 
-pub fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<()> {
+pub fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandResult<LogoutOutput>> {
     let paths = ResolvedPaths::discover();
     let sessions_dir = paths.sessions_dir()?;
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     if store.is_empty() {
-        CliService::success("No sessions to remove");
-        return Ok(());
+        return Ok(CommandResult::text(LogoutOutput {
+            action: "none".to_string(),
+            target: "all".to_string(),
+            message: "No sessions to remove".to_string(),
+        })
+        .with_title("Logout"));
     }
 
     if args.all {
@@ -45,20 +50,32 @@ pub fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<()> {
             .interact()?;
 
         if !confirmed {
-            CliService::info("Cancelled.");
-            return Ok(());
+            return Ok(CommandResult::text(LogoutOutput {
+                action: "cancelled".to_string(),
+                target: display_name,
+                message: "Operation cancelled".to_string(),
+            })
+            .with_title("Logout"));
         }
     }
 
     let removed = store.remove_session(&session_key);
     if removed.is_some() {
         store.save(&sessions_dir)?;
-        CliService::success(&format!("Session removed for '{}'", display_name));
+        Ok(CommandResult::text(LogoutOutput {
+            action: "removed".to_string(),
+            target: display_name.clone(),
+            message: format!("Session removed for '{}'", display_name),
+        })
+        .with_title("Logout"))
     } else {
-        CliService::warning(&format!("No session found for '{}'", display_name));
+        Ok(CommandResult::text(LogoutOutput {
+            action: "not_found".to_string(),
+            target: display_name.clone(),
+            message: format!("No session found for '{}'", display_name),
+        })
+        .with_title("Logout"))
     }
-
-    Ok(())
 }
 
 fn remove_all_sessions(
@@ -66,7 +83,7 @@ fn remove_all_sessions(
     sessions_dir: &std::path::Path,
     args: &LogoutArgs,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<LogoutOutput>> {
     let count = store.len();
 
     if !args.yes {
@@ -80,15 +97,24 @@ fn remove_all_sessions(
             .interact()?;
 
         if !confirmed {
-            CliService::info("Cancelled.");
-            return Ok(());
+            return Ok(CommandResult::text(LogoutOutput {
+                action: "cancelled".to_string(),
+                target: "all".to_string(),
+                message: "Operation cancelled".to_string(),
+            })
+            .with_title("Logout"));
         }
     }
 
     let new_store = SessionStore::new();
     new_store.save(sessions_dir)?;
-    CliService::success(&format!("Removed {} session(s)", count));
-    Ok(())
+
+    Ok(CommandResult::text(LogoutOutput {
+        action: "removed_all".to_string(),
+        target: "all".to_string(),
+        message: format!("Removed {} session(s)", count),
+    })
+    .with_title("Logout"))
 }
 
 fn resolve_target_key(

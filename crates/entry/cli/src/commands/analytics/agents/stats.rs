@@ -7,10 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::AgentStatsOutput;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_cost, format_duration_ms, format_number, format_percent,
-    parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -32,26 +31,28 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: StatsArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentStatsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: StatsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentStatsOutput>> {
     let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
     repo: &AgentAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<AgentStatsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let stats = repo.get_stats(start, end, args.agent.as_deref()).await?;
@@ -80,33 +81,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Agent Statistics");
-        render_result(&result);
-    } else {
-        render_stats(&output);
-    }
-
-    Ok(())
-}
-
-fn render_stats(output: &AgentStatsOutput) {
-    CliService::section(&format!("Agent Statistics ({})", output.period));
-
-    CliService::key_value("Active Agents", &format_number(output.total_agents));
-    CliService::key_value("Total Tasks", &format_number(output.total_tasks));
-    CliService::key_value("Completed", &format_number(output.completed_tasks));
-    CliService::key_value("Failed", &format_number(output.failed_tasks));
-    CliService::key_value("Success Rate", &format_percent(output.success_rate));
-    CliService::key_value(
-        "Avg Execution Time",
-        &format_duration_ms(output.avg_execution_time_ms),
-    );
-    CliService::key_value("AI Requests", &format_number(output.total_ai_requests));
-    CliService::key_value("Total Cost", &format_cost(output.total_cost_microdollars));
+    Ok(CommandResult::card(output).with_title("Agent Statistics"))
 }

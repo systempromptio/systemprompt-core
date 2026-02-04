@@ -98,7 +98,12 @@ pub fn execute_command(
         })
 }
 
-pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    detailed: bool,
+    json: bool,
+    health: bool,
+    config: &CliConfig,
+) -> Result<CommandResult<ServiceStatusOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
 
     let Ok(configs) = super::load_service_configs(&ctx) else {
@@ -115,16 +120,19 @@ pub async fn execute(detailed: bool, json: bool, health: bool, config: &CliConfi
 
     let states = state_manager.get_verified_states(&configs).await?;
 
+    let result = execute_command(&states, health);
+
     if json || config.is_json_output() {
-        let result = execute_command(&states, health);
-        CliService::json(&result);
-    } else if detailed {
+        return Ok(result);
+    }
+
+    if detailed {
         output_detailed(&states, health);
     } else {
         render_table_output(&states, health);
     }
 
-    Ok(())
+    Ok(result.with_skip_render())
 }
 
 fn render_table_output(states: &[VerifiedServiceState], include_health: bool) {

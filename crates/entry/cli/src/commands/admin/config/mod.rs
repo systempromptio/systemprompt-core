@@ -1,3 +1,4 @@
+pub mod list;
 pub mod paths;
 pub mod provider;
 pub mod rate_limits;
@@ -6,17 +7,25 @@ pub mod security;
 pub mod server;
 pub mod show;
 pub mod types;
+pub mod validate;
 
 use anyhow::Result;
 use clap::Subcommand;
 
 use crate::cli_settings::get_global_config;
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum ConfigCommands {
     #[command(about = "Show configuration overview")]
     Show,
+
+    #[command(about = "List all configuration files")]
+    List(list::ListArgs),
+
+    #[command(about = "Validate configuration files")]
+    Validate(validate::ValidateArgs),
 
     #[command(subcommand, about = "Rate limit configuration")]
     RateLimits(rate_limits::RateLimitsCommands),
@@ -39,7 +48,21 @@ pub enum ConfigCommands {
 
 pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
     match command {
-        ConfigCommands::Show => show::execute(config),
+        ConfigCommands::Show => {
+            let result = show::execute(config)?;
+            render_result(&result);
+            Ok(())
+        },
+        ConfigCommands::List(args) => {
+            let result = list::execute(args, config)?;
+            render_result(&result);
+            Ok(())
+        },
+        ConfigCommands::Validate(args) => {
+            let result = validate::execute(args, config)?;
+            render_result(&result);
+            Ok(())
+        },
         ConfigCommands::RateLimits(cmd) => rate_limits::execute(cmd, config),
         ConfigCommands::Server(ref cmd) => server::execute(cmd, config),
         ConfigCommands::Runtime(cmd) => runtime::execute(cmd, config),
@@ -51,5 +74,7 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
 
 pub fn execute_default() -> Result<()> {
     let config = get_global_config();
-    show::execute(&config)
+    let result = show::execute(&config)?;
+    render_result(&result);
+    Ok(())
 }

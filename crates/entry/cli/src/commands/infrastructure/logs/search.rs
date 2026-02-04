@@ -10,7 +10,7 @@ use super::duration::parse_since;
 use super::search_queries::{search_logs, search_tools};
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -57,7 +57,10 @@ pub struct CombinedSearchOutput {
     pub filters: LogFilters,
 }
 
-pub async fn execute(args: SearchArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: SearchArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<CombinedSearchOutput>> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
@@ -67,7 +70,7 @@ pub async fn execute_with_pool(
     args: SearchArgs,
     db_ctx: &DatabaseContext,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<CombinedSearchOutput>> {
     let pool = db_ctx.db_pool().pool_arc()?;
     execute_with_pool_inner(args, &pool, config).await
 }
@@ -76,7 +79,7 @@ async fn execute_with_pool_inner(
     args: SearchArgs,
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<CombinedSearchOutput>> {
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
     let pattern = format!("%{}%", args.pattern);
@@ -144,21 +147,27 @@ async fn execute_with_pool_inner(
         tail: args.limit,
     };
 
+    let output = CombinedSearchOutput {
+        log_count: logs.len() as u64,
+        logs,
+        tool_count: tools.len() as u64,
+        tools,
+        filters,
+    };
+
+    let result = CommandResult::table(output).with_title("Search Results");
+
     if config.is_json_output() {
-        let output = CombinedSearchOutput {
-            log_count: logs.len() as u64,
-            logs,
-            tool_count: tools.len() as u64,
-            tools,
-            filters,
-        };
-        let result = CommandResult::table(output).with_title("Search Results");
-        render_result(&result);
-    } else {
-        render_combined_results(&logs, &tools, &args.pattern, &filters);
+        return Ok(result);
     }
 
-    Ok(())
+    render_combined_results(
+        &result.data.logs,
+        &result.data.tools,
+        &args.pattern,
+        &result.data.filters,
+    );
+    Ok(result.with_skip_render())
 }
 
 fn render_combined_results(

@@ -6,11 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ModelUsageRow, ModelsOutput};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_cost, format_duration_ms, format_number, format_percent, format_tokens,
-    parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -37,26 +34,25 @@ pub struct ModelsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: ModelsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: ModelsArgs, _config: &CliConfig) -> Result<CommandResult<ModelsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = RequestAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: ModelsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<ModelsOutput>> {
     let repo = RequestAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: ModelsArgs,
     repo: &RequestAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<ModelsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.list_models(start, end, args.limit).await?;
@@ -95,58 +91,29 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.models, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.models, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
     if output.models.is_empty() {
         CliService::warning("No models found in the specified time range");
-        return Ok(());
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "provider".to_string(),
-                "model".to_string(),
-                "request_count".to_string(),
-                "total_tokens".to_string(),
-                "total_cost_microdollars".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Model Usage")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_models(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "provider".to_string(),
+            "model".to_string(),
+            "request_count".to_string(),
+            "total_tokens".to_string(),
+            "total_cost_microdollars".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_models(output: &ModelsOutput) {
-    CliService::section(&format!("Model Usage ({})", output.period));
-
-    for model in &output.models {
-        CliService::subsection(&format!("{}/{}", model.provider, model.model));
-        CliService::key_value(
-            "Requests",
-            &format!(
-                "{} ({})",
-                format_number(model.request_count),
-                format_percent(model.percentage)
-            ),
-        );
-        CliService::key_value("Tokens", &format_tokens(model.total_tokens));
-        CliService::key_value("Cost", &format_cost(model.total_cost_microdollars));
-        CliService::key_value("Avg Latency", &format_duration_ms(model.avg_latency_ms));
-    }
-
-    CliService::info(&format!(
-        "Total: {} requests",
-        format_number(output.total_requests)
-    ));
+    Ok(CommandResult::table(output)
+        .with_title("Model Usage")
+        .with_hints(hints))
 }

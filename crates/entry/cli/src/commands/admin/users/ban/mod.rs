@@ -5,6 +5,7 @@ mod list;
 mod remove;
 
 use crate::cli_settings::CliConfig;
+use crate::shared::render_result;
 use anyhow::{bail, Result};
 use clap::Subcommand;
 use systemprompt_database::DbPool;
@@ -29,18 +30,46 @@ pub enum BanCommands {
 
 pub async fn execute(cmd: BanCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        BanCommands::List(args) => list::execute(args, config).await,
-        BanCommands::Add(args) => add::execute(args, config).await,
-        BanCommands::Remove(args) => remove::execute(args, config).await,
-        BanCommands::Check(args) => check::execute(args, config).await,
-        BanCommands::Cleanup(args) => cleanup::execute(args, config).await,
+        BanCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        BanCommands::Add(args) => {
+            let result = add::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        BanCommands::Remove(args) => {
+            let result = remove::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        BanCommands::Check(args) => {
+            let result = check::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        BanCommands::Cleanup(args) => {
+            let result = cleanup::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
 pub async fn execute_with_pool(cmd: BanCommands, pool: &DbPool, config: &CliConfig) -> Result<()> {
     match cmd {
-        BanCommands::List(args) => list::execute_with_pool(args, pool, config).await,
-        BanCommands::Check(args) => check::execute_with_pool(args, pool, config).await,
+        BanCommands::List(args) => {
+            let result = list::execute_with_pool(args, pool, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        BanCommands::Check(args) => {
+            let result = check::execute_with_pool(args, pool, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         BanCommands::Add(_) | BanCommands::Remove(_) | BanCommands::Cleanup(_) => {
             bail!("Write operations require full profile context")
         },

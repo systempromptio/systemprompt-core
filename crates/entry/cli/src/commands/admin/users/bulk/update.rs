@@ -1,11 +1,13 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use crate::commands::admin::users::types::BulkUpdateOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
@@ -38,12 +40,26 @@ pub struct UpdateArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DryRunOutput {
+    pub dry_run: bool,
+    pub would_update: usize,
+    pub new_status: String,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum UpdateResult {
+    DryRun(DryRunOutput),
+    Executed(BulkUpdateOutput),
+}
+
+pub async fn execute(args: UpdateArgs, _config: &CliConfig) -> Result<CommandResult<UpdateResult>> {
     if !args.yes && !args.dry_run {
-        CliService::warning(
-            "This will update multiple users. Use --yes to confirm or --dry-run to preview.",
-        );
-        return Err(anyhow!("Operation cancelled - confirmation required"));
+        return Err(anyhow!(
+            "This will update multiple users. Use --yes to confirm or --dry-run to preview."
+        ));
     }
 
     if args.role.is_none() && args.status.is_none() && args.older_than.is_none() {
@@ -74,45 +90,27 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         .await?;
 
     if users.is_empty() {
-        if config.is_json_output() {
-            CliService::json(&BulkUpdateOutput {
-                updated: 0,
-                message: "No users match the specified filters".to_string(),
-            });
-        } else {
-            CliService::info("No users match the specified filters");
-        }
-        return Ok(());
+        let output = BulkUpdateOutput {
+            updated: 0,
+            message: "No users match the specified filters".to_string(),
+        };
+        return Ok(CommandResult::text(UpdateResult::Executed(output)).with_title("Bulk Update"));
     }
 
     if args.dry_run {
-        if config.is_json_output() {
-            CliService::json(&serde_json::json!({
-                "dry_run": true,
-                "would_update": users.len(),
-                "new_status": args.set_status,
-                "users": users.iter().map(|u| {
-                    serde_json::json!({
-                        "id": u.id.to_string(),
-                        "name": u.name,
-                        "current_status": u.status,
-                    })
-                }).collect::<Vec<_>>()
-            }));
-        } else {
-            CliService::section(&format!(
-                "Dry Run: Would update {} users to status '{}'",
+        let output = DryRunOutput {
+            dry_run: true,
+            would_update: users.len(),
+            new_status: args.set_status.clone(),
+            message: format!(
+                "Would update {} user(s) to status '{}'",
                 users.len(),
                 args.set_status
-            ));
-            for user in &users {
-                CliService::info(&format!(
-                    "  {} ({:?} -> {})",
-                    user.name, user.status, args.set_status
-                ));
-            }
-        }
-        return Ok(());
+            ),
+        };
+        return Ok(
+            CommandResult::text(UpdateResult::DryRun(output)).with_title("Bulk Update (Dry Run)")
+        );
     }
 
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
@@ -128,11 +126,5 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         ),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(UpdateResult::Executed(output)).with_title("Bulk Update"))
 }

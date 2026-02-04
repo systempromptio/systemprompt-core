@@ -6,10 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{AgentListOutput, AgentListRow};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_cost, format_duration_ms, format_number, format_percent, parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -64,26 +62,28 @@ pub struct ListArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ListArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentListOutput>> {
     let ctx = AppContext::new().await?;
     let repo = AgentAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: ListArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<AgentListOutput>> {
     let repo = AgentAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: ListArgs,
     repo: &AgentAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<AgentListOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let rows = repo
         .list_agents(start, end, args.limit, args.sort_by.as_str())
@@ -115,49 +115,29 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.agents, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.agents, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
     if output.agents.is_empty() {
         CliService::warning("No agents found in the specified time range");
-        return Ok(());
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "agent_name".to_string(),
-                "task_count".to_string(),
-                "success_rate".to_string(),
-                "avg_execution_time_ms".to_string(),
-                "total_cost_microdollars".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Agent List")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_list(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "agent_name".to_string(),
+            "task_count".to_string(),
+            "success_rate".to_string(),
+            "avg_execution_time_ms".to_string(),
+            "total_cost_microdollars".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_list(output: &AgentListOutput) {
-    CliService::section("Agents");
-
-    for agent in &output.agents {
-        CliService::subsection(&agent.agent_name);
-        CliService::key_value("Tasks", &format_number(agent.task_count));
-        CliService::key_value("Success Rate", &format_percent(agent.success_rate));
-        CliService::key_value("Avg Time", &format_duration_ms(agent.avg_execution_time_ms));
-        CliService::key_value("Cost", &format_cost(agent.total_cost_microdollars));
-        CliService::key_value("Last Active", &agent.last_active);
-    }
-
-    CliService::info(&format!("Showing {} agents", output.total));
+    Ok(CommandResult::table(output)
+        .with_title("Agent List")
+        .with_hints(hints))
 }

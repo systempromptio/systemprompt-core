@@ -1,5 +1,3 @@
-use serde::Serialize;
-
 const KNOWN_TABLES: &[&str] = &[
     "logs",
     "ai_requests",
@@ -95,30 +93,4 @@ fn levenshtein_distance(s1: &str, s2: &str) -> usize {
     }
 
     prev_row[len2]
-}
-
-#[derive(Debug, Clone, Serialize)]
-pub struct JsonError {
-    pub error: bool,
-    pub code: String,
-    pub message: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hint: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub available_tables: Option<Vec<String>>,
-}
-
-impl JsonError {
-    pub fn table_not_found(table: &str) -> Self {
-        let suggestion = suggest_table_name(table);
-        let hint = suggestion.map(|s| format!("Did you mean '{}'?", s));
-
-        Self {
-            error: true,
-            code: "TABLE_NOT_FOUND".to_string(),
-            message: format!("Table '{}' not found", table),
-            hint,
-            available_tables: Some(KNOWN_TABLES.iter().map(|s| (*s).to_string()).collect()),
-        }
-    }
 }

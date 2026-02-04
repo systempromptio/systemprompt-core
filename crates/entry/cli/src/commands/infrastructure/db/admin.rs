@@ -7,6 +7,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 use crate::cli_settings::CliConfig;
+use crate::shared::{render_result, CommandResult};
 
 use super::helpers::format_bytes;
 use super::types::{
@@ -60,7 +61,8 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::text(output).with_title("Database Admin");
+        render_result(&result);
     } else {
         CliService::success(&output.message);
     }
@@ -103,7 +105,8 @@ pub async fn execute_migrate_standalone(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::text(output).with_title("Database Admin");
+        render_result(&result);
     } else {
         CliService::success(&output.message);
     }
@@ -131,7 +134,8 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
             };
 
             if config.is_json_output() {
-                CliService::json(&output);
+                let result = CommandResult::text(output).with_title("Database Admin");
+                render_result(&result);
             } else {
                 CliService::success(&output.message);
                 CliService::info(&format!("   Roles: {:?}", new_roles));
@@ -148,7 +152,8 @@ pub async fn execute_assign_admin(ctx: &AppContext, user: &str, config: &CliConf
             };
 
             if config.is_json_output() {
-                CliService::json(&output);
+                let result = CommandResult::text(output).with_title("Database Admin");
+                render_result(&result);
             } else {
                 CliService::warning(&output.message);
             }
@@ -175,7 +180,8 @@ pub async fn execute_status(admin: &DatabaseAdminService, config: &CliConfig) ->
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::text(output).with_title("Database Admin");
+        render_result(&result);
     } else {
         CliService::success("Database connection: OK");
         CliService::key_value("  Version", &output.version);
@@ -258,7 +264,15 @@ async fn execute_migrations_status(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::table(output)
+            .with_title("Migration Status")
+            .with_columns(vec![
+                "extension_id".into(),
+                "total_defined".into(),
+                "total_applied".into(),
+                "pending_count".into(),
+            ]);
+        render_result(&result);
     } else {
         if total_pending == 0 {
             CliService::success("All migrations are up to date");
@@ -317,7 +331,10 @@ async fn execute_migrations_history(
     };
 
     if config.is_json_output() {
-        CliService::json(&output);
+        let result = CommandResult::table(output)
+            .with_title("Migration History")
+            .with_columns(vec!["version".into(), "name".into(), "checksum".into()]);
+        render_result(&result);
     } else {
         CliService::info(&format!("Migration history for '{}':", extension_id));
         CliService::info(&format!("  Version: {}", ext.version()));

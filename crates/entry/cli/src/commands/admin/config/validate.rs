@@ -18,23 +18,20 @@ pub fn execute(
     args: ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ConfigValidateOutput>> {
-    let files_to_validate = match &args.target {
-        Some(target) => {
-            if let Ok(section) = target.parse::<ConfigSection>() {
-                section.all_files()?
-            } else {
-                vec![std::path::PathBuf::from(target)]
+    let files_to_validate = if let Some(target) = &args.target {
+        if let Ok(section) = target.parse::<ConfigSection>() {
+            section.all_files()?
+        } else {
+            vec![std::path::PathBuf::from(target)]
+        }
+    } else {
+        let mut all_files = Vec::new();
+        for section in ConfigSection::all() {
+            if let Ok(files) = section.all_files() {
+                all_files.extend(files);
             }
-        },
-        None => {
-            let mut all_files = Vec::new();
-            for section in ConfigSection::all() {
-                if let Ok(files) = section.all_files() {
-                    all_files.extend(files);
-                }
-            }
-            all_files
-        },
+        }
+        all_files
     };
 
     let mut results = Vec::new();

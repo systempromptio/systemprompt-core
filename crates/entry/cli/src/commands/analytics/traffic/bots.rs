@@ -7,9 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{BotRow, BotsOutput};
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_number, format_percent, parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -24,26 +24,25 @@ pub struct BotsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: BotsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(args: BotsArgs, _config: &CliConfig) -> Result<CommandResult<BotsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: BotsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<BotsOutput>> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: BotsArgs,
     repo: &TrafficAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<BotsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let totals = repo.get_bot_totals(start, end).await?;
@@ -81,39 +80,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Bot Traffic Analysis");
-        render_result(&result);
-    } else {
-        render_bots(&output);
-    }
-
-    Ok(())
-}
-
-fn render_bots(output: &BotsOutput) {
-    CliService::section(&format!("Bot Traffic Analysis ({})", output.period));
-
-    CliService::key_value("Human Sessions", &format_number(output.human_sessions));
-    CliService::key_value("Bot Sessions", &format_number(output.bot_sessions));
-    CliService::key_value("Bot Percentage", &format_percent(output.bot_percentage));
-
-    if !output.bot_breakdown.is_empty() {
-        CliService::subsection("Bot Breakdown");
-        for bot in &output.bot_breakdown {
-            CliService::key_value(
-                &bot.bot_type,
-                &format!(
-                    "{} ({})",
-                    format_number(bot.request_count),
-                    format_percent(bot.percentage)
-                ),
-            );
-        }
-    }
+    Ok(CommandResult::card(output).with_title("Bot Traffic Analysis"))
 }

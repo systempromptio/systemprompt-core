@@ -8,7 +8,7 @@ use super::show_display::print_formatted_config;
 use super::show_types::{build_env_config, FullConfig, SettingsOutput};
 use super::ShowFilter;
 use crate::cli_settings::CliConfig;
-use crate::shared::resolve_profile_path;
+use crate::shared::{render_result, resolve_profile_path, CommandResult};
 
 pub fn execute(
     name: Option<&str>,
@@ -189,7 +189,8 @@ fn load_content_config() -> Option<ContentConfigRaw> {
 
 fn output_config(config: &FullConfig, json_output: bool, yaml_output: bool) {
     if json_output {
-        CliService::json(config);
+        let result = CommandResult::card(config).with_title("Profile Configuration");
+        render_result(&result);
     } else if yaml_output {
         CliService::yaml(config);
     } else {

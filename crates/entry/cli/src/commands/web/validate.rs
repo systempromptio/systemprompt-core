@@ -81,7 +81,7 @@ pub fn execute(
         warnings,
     };
 
-    Ok(CommandResult::table(output).with_title("Web Configuration Validation"))
+    Ok(CommandResult::card(output).with_title("Web Configuration Validation"))
 }
 
 fn validate_config(

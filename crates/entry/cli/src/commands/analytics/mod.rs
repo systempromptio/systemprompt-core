@@ -13,6 +13,7 @@ use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -47,7 +48,11 @@ pub enum AnalyticsCommands {
 
 pub async fn execute(command: AnalyticsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        AnalyticsCommands::Overview(args) => overview::execute(args, config).await,
+        AnalyticsCommands::Overview(args) => {
+            let result = overview::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         AnalyticsCommands::Conversations(cmd) => conversations::execute(cmd, config).await,
         AnalyticsCommands::Agents(cmd) => agents::execute(cmd, config).await,
         AnalyticsCommands::Tools(cmd) => tools::execute(cmd, config).await,
@@ -66,7 +71,9 @@ pub async fn execute_with_db(
 ) -> Result<()> {
     match command {
         AnalyticsCommands::Overview(args) => {
-            overview::execute_with_pool(args, db_ctx, config).await
+            let result = overview::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
         },
         AnalyticsCommands::Conversations(cmd) => {
             conversations::execute_with_pool(cmd, db_ctx, config).await

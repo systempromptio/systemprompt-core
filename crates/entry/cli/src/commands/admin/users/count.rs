@@ -1,12 +1,14 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use clap::Args;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CountArgs {
@@ -14,12 +16,23 @@ pub struct CountArgs {
     pub breakdown: bool,
 }
 
-pub async fn execute(args: CountArgs, config: &CliConfig) -> Result<()> {
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum CountResult {
+    Simple(UserCountOutput),
+    Breakdown(UserCountBreakdownOutput),
+}
+
+pub async fn execute(args: CountArgs, config: &CliConfig) -> Result<CommandResult<CountResult>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: CountArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: CountArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<CountResult>> {
     let user_service = UserService::new(pool)?;
 
     if args.breakdown {
@@ -31,33 +44,11 @@ pub async fn execute_with_pool(args: CountArgs, pool: &DbPool, config: &CliConfi
             by_role: breakdown.by_role,
         };
 
-        if config.is_json_output() {
-            CliService::json(&output);
-        } else {
-            CliService::section("User Count");
-            CliService::key_value("Total Users", &output.total.to_string());
-
-            CliService::section("By Status");
-            for (status, count) in &output.by_status {
-                CliService::key_value(status, &count.to_string());
-            }
-
-            CliService::section("By Role");
-            for (role, count) in &output.by_role {
-                CliService::key_value(role, &count.to_string());
-            }
-        }
+        Ok(CommandResult::card(CountResult::Breakdown(output)).with_title("User Count Breakdown"))
     } else {
         let count = user_service.count().await?;
         let output = UserCountOutput { count };
 
-        if config.is_json_output() {
-            CliService::json(&output);
-        } else {
-            CliService::section("User Count");
-            CliService::key_value("Total Users", &count.to_string());
-        }
+        Ok(CommandResult::text(CountResult::Simple(output)).with_title("User Count"))
     }
-
-    Ok(())
 }

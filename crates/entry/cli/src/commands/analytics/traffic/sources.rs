@@ -6,10 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TrafficSourceRow, TrafficSourcesOutput};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_number, format_percent, parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -27,26 +25,28 @@ pub struct SourcesArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: SourcesArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: SourcesArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<TrafficSourcesOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: SourcesArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<TrafficSourcesOutput>> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: SourcesArgs,
     repo: &TrafficAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<TrafficSourcesOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_sources(start, end, args.limit).await?;
@@ -76,43 +76,22 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.sources, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.sources, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "source".to_string(),
-                "session_count".to_string(),
-                "percentage".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Traffic Sources")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_sources(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "source".to_string(),
+            "session_count".to_string(),
+            "percentage".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_sources(output: &TrafficSourcesOutput) {
-    CliService::section(&format!("Traffic Sources ({})", output.period));
-    CliService::key_value("Total Sessions", &format_number(output.total_sessions));
-
-    for source in &output.sources {
-        CliService::key_value(
-            &source.source,
-            &format!(
-                "{} ({})",
-                format_number(source.session_count),
-                format_percent(source.percentage)
-            ),
-        );
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Traffic Sources")
+        .with_hints(hints))
 }

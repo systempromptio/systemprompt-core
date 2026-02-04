@@ -1,54 +1,35 @@
 use anyhow::Result;
 use systemprompt_cloud::{SessionKey, SessionStore, TenantStore, LOCAL_SESSION_KEY};
-use systemprompt_logging::CliService;
 
-use crate::cli_settings::CliConfig;
+use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
 use crate::paths::ResolvedPaths;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
-#[allow(clippy::unnecessary_wraps)]
-pub fn execute(config: &CliConfig) -> Result<()> {
+pub fn execute(_config: &CliConfig) -> Result<CommandResult<SessionShowOutput>> {
     let paths = ResolvedPaths::discover();
 
-    if config.is_interactive() {
-        CliService::section("Sessions");
-    }
+    let sessions = collect_sessions(&paths);
+    let routing = collect_routing_info(&paths);
 
-    display_all_sessions(&paths);
+    let output = SessionShowOutput { sessions, routing };
 
-    CliService::output("");
-
-    if config.is_interactive() {
-        CliService::section("Routing Info");
-    }
-
-    if let Some((hostname, target_type)) = display_routing_info(&paths) {
-        CliService::key_value("Target", target_type);
-        CliService::key_value("Hostname", &hostname);
-        CliService::info("Commands will be forwarded to the remote tenant");
-    }
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title("Session Info"))
 }
 
-fn display_all_sessions(paths: &ResolvedPaths) {
+fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
     let Ok(sessions_dir) = paths.sessions_dir() else {
-        CliService::warning("No sessions found");
-        return;
+        return Vec::new();
     };
 
     let Ok(store) = SessionStore::load_or_create(&sessions_dir) else {
-        CliService::warning("No sessions found");
-        return;
+        return Vec::new();
     };
 
     let active_key = store.active_key.clone();
     let active_profile = store.active_profile_name.clone();
 
-    if store.is_empty() && active_key.is_none() {
-        CliService::warning("No sessions found");
-        return;
-    }
-
+    let mut results = Vec::new();
     let mut displayed_active = false;
 
     for (key, session) in store.all_sessions() {
@@ -56,12 +37,6 @@ fn display_all_sessions(paths: &ResolvedPaths) {
         if is_active {
             displayed_active = true;
         }
-        let status_marker = if is_active { " (active)" } else { "" };
-        let expired_marker = if session.is_expired() {
-            " [expired]"
-        } else {
-            ""
-        };
 
         let display_key = if key == LOCAL_SESSION_KEY {
             "local".to_string()
@@ -70,32 +45,39 @@ fn display_all_sessions(paths: &ResolvedPaths) {
                 .map_or_else(|| key.clone(), String::from)
         };
 
-        CliService::output(&format!(
-            "\n  {}{}{}",
-            display_key, status_marker, expired_marker
-        ));
-        CliService::key_value("    Profile", session.profile_name.as_str());
-        CliService::key_value("    User", session.user_email.as_str());
-        CliService::key_value("    Session ID", session.session_id.as_str());
-        CliService::key_value("    Context ID", session.context_id.as_str());
-
-        if session.is_expired() {
-            CliService::warning("    Session has expired");
+        let expires_in = if session.is_expired() {
+            None
         } else {
-            let expires_in = session.expires_at - chrono::Utc::now();
-            let hours = expires_in.num_hours();
-            let minutes = expires_in.num_minutes() % 60;
-            CliService::key_value("    Expires in", &format!("{}h {}m", hours, minutes));
-        }
+            let remaining = session.expires_at - chrono::Utc::now();
+            let hours = remaining.num_hours();
+            let minutes = remaining.num_minutes() % 60;
+            Some(format!("{}h {}m", hours, minutes))
+        };
 
-        let context_age = chrono::Utc::now() - session.last_used;
-        if context_age.num_hours() > 24 {
-            CliService::warning(&format!(
-                "    Context may be stale (last used {}h ago). Re-login with --force-new if \
-                 commands fail.",
-                context_age.num_hours()
-            ));
-        }
+        let stale_warning = {
+            let context_age = chrono::Utc::now() - session.last_used;
+            if context_age.num_hours() > 24 {
+                Some(format!(
+                    "Context may be stale (last used {}h ago). Re-login with --force-new if \
+                     commands fail.",
+                    context_age.num_hours()
+                ))
+            } else {
+                None
+            }
+        };
+
+        results.push(SessionInfo {
+            key: display_key,
+            profile_name: session.profile_name.as_str().to_string(),
+            user_email: session.user_email.as_str().to_string(),
+            session_id: session.session_id.as_str().to_string(),
+            context_id: session.context_id.as_str().to_string(),
+            is_active,
+            is_expired: session.is_expired(),
+            expires_in,
+            stale_warning,
+        });
     }
 
     if !displayed_active && (active_key.is_some() || active_profile.is_some()) {
@@ -108,14 +90,27 @@ fn display_all_sessions(paths: &ResolvedPaths) {
                 }
             })
         });
-        CliService::output(&format!("\n  {} (active) - no session", display_name));
-        CliService::warning(
-            "    Run 'systemprompt admin session login' to create a session for this profile.",
-        );
+
+        results.push(SessionInfo {
+            key: display_name.to_string(),
+            profile_name: display_name.to_string(),
+            user_email: String::new(),
+            session_id: String::new(),
+            context_id: String::new(),
+            is_active: true,
+            is_expired: false,
+            expires_in: None,
+            stale_warning: Some(
+                "No session. Run 'systemprompt admin session login' to create a session."
+                    .to_string(),
+            ),
+        });
     }
+
+    results
 }
 
-fn display_routing_info(paths: &ResolvedPaths) -> Option<(String, &'static str)> {
+fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
     let sessions_dir = paths.sessions_dir().ok()?;
     let store = SessionStore::load_or_create(&sessions_dir).ok()?;
     let active_key = store.active_session_key()?;
@@ -127,25 +122,32 @@ fn display_routing_info(paths: &ResolvedPaths) -> Option<(String, &'static str)>
         .or_else(|| store.active_profile_name.clone())
         .unwrap_or_else(|| "unknown".to_string());
 
-    CliService::key_value("Profile name", &profile_name);
-
     match &active_key {
-        SessionKey::Local => {
-            CliService::key_value("Target", "Local");
-            None
-        },
+        SessionKey::Local => Some(RoutingInfo {
+            profile_name,
+            target: "Local".to_string(),
+            tenant_id: None,
+            hostname: None,
+        }),
         SessionKey::Tenant(tenant_id) => {
-            CliService::key_value("Tenant ID", tenant_id.as_str());
-            resolve_remote_target(paths, tenant_id.as_str())
+            let hostname = resolve_remote_hostname(paths, tenant_id.as_str());
+            Some(RoutingInfo {
+                profile_name,
+                target: if hostname.is_some() {
+                    "Remote".to_string()
+                } else {
+                    "Tenant".to_string()
+                },
+                tenant_id: Some(tenant_id.as_str().to_string()),
+                hostname,
+            })
         },
     }
 }
 
-fn resolve_remote_target(paths: &ResolvedPaths, tenant_id: &str) -> Option<(String, &'static str)> {
+fn resolve_remote_hostname(paths: &ResolvedPaths, tenant_id: &str) -> Option<String> {
     let tenants_path = paths.tenants_path().ok()?;
-
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
     let tenant = store.find_tenant(tenant_id)?;
-
-    tenant.hostname.as_ref().map(|h| (h.clone(), "Remote"))
+    tenant.hostname.clone()
 }

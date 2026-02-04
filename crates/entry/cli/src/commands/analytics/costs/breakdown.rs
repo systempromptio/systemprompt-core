@@ -6,10 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{CostBreakdownItem, CostBreakdownOutput};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_cost, format_number, format_percent, format_tokens, parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
@@ -46,26 +44,28 @@ pub struct BreakdownArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: BreakdownArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: BreakdownArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<CostBreakdownOutput>> {
     let ctx = AppContext::new().await?;
     let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: BreakdownArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<CostBreakdownOutput>> {
     let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: BreakdownArgs,
     repo: &CostAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<CostBreakdownOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = match args.by {
@@ -110,56 +110,29 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.items, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.items, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
     if output.items.is_empty() {
         CliService::warning("No data found in the specified time range");
-        return Ok(());
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "name".to_string(),
-                "cost_microdollars".to_string(),
-                "request_count".to_string(),
-                "tokens".to_string(),
-                "percentage".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Cost Breakdown")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_breakdown(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "name".to_string(),
+            "cost_microdollars".to_string(),
+            "request_count".to_string(),
+            "tokens".to_string(),
+            "percentage".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_breakdown(output: &CostBreakdownOutput) {
-    CliService::section(&format!(
-        "Cost Breakdown by {} ({})",
-        output.breakdown_by, output.period
-    ));
-    CliService::key_value("Total", &format_cost(output.total_cost_microdollars));
-
-    for item in &output.items {
-        CliService::subsection(&item.name);
-        CliService::key_value(
-            "Cost",
-            &format!(
-                "{} ({})",
-                format_cost(item.cost_microdollars),
-                format_percent(item.percentage)
-            ),
-        );
-        CliService::key_value("Requests", &format_number(item.request_count));
-        CliService::key_value("Tokens", &format_tokens(item.tokens));
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Cost Breakdown")
+        .with_hints(hints))
 }

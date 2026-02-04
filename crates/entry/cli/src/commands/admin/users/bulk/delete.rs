@@ -1,11 +1,13 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use crate::commands::admin::users::types::BulkDeleteOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {
@@ -35,12 +37,25 @@ pub struct DeleteArgs {
     pub yes: bool,
 }
 
-pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct DryRunOutput {
+    pub dry_run: bool,
+    pub would_delete: usize,
+    pub message: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[serde(untagged)]
+pub enum DeleteResult {
+    DryRun(DryRunOutput),
+    Executed(BulkDeleteOutput),
+}
+
+pub async fn execute(args: DeleteArgs, _config: &CliConfig) -> Result<CommandResult<DeleteResult>> {
     if !args.yes && !args.dry_run {
-        CliService::warning(
-            "This will permanently delete users. Use --yes to confirm or --dry-run to preview.",
-        );
-        return Err(anyhow!("Operation cancelled - confirmation required"));
+        return Err(anyhow!(
+            "This will permanently delete users. Use --yes to confirm or --dry-run to preview."
+        ));
     }
 
     if args.role.is_none() && args.status.is_none() && args.older_than.is_none() {
@@ -62,43 +77,22 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
         .await?;
 
     if users.is_empty() {
-        if config.is_json_output() {
-            CliService::json(&BulkDeleteOutput {
-                deleted: 0,
-                message: "No users match the specified filters".to_string(),
-            });
-        } else {
-            CliService::info("No users match the specified filters");
-        }
-        return Ok(());
+        let output = BulkDeleteOutput {
+            deleted: 0,
+            message: "No users match the specified filters".to_string(),
+        };
+        return Ok(CommandResult::text(DeleteResult::Executed(output)).with_title("Bulk Delete"));
     }
 
     if args.dry_run {
-        if config.is_json_output() {
-            CliService::json(&serde_json::json!({
-                "dry_run": true,
-                "would_delete": users.len(),
-                "users": users.iter().map(|u| {
-                    serde_json::json!({
-                        "id": u.id.to_string(),
-                        "name": u.name,
-                        "email": u.email,
-                        "status": u.status,
-                        "roles": u.roles,
-                        "created_at": u.created_at,
-                    })
-                }).collect::<Vec<_>>()
-            }));
-        } else {
-            CliService::section(&format!("Dry Run: Would delete {} users", users.len()));
-            for user in &users {
-                CliService::info(&format!(
-                    "  {} ({}) - {:?}",
-                    user.name, user.email, user.roles
-                ));
-            }
-        }
-        return Ok(());
+        let output = DryRunOutput {
+            dry_run: true,
+            would_delete: users.len(),
+            message: format!("Would delete {} user(s)", users.len()),
+        };
+        return Ok(
+            CommandResult::text(DeleteResult::DryRun(output)).with_title("Bulk Delete (Dry Run)")
+        );
     }
 
     let user_ids: Vec<_> = users.iter().map(|u| u.id.clone()).collect();
@@ -109,11 +103,5 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
         message: format!("Deleted {} user(s)", deleted),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(DeleteResult::Executed(output)).with_title("Bulk Delete"))
 }

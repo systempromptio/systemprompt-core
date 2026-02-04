@@ -5,6 +5,7 @@ mod login;
 mod logout;
 mod show;
 mod switch;
+pub mod types;
 
 use anyhow::Result;
 use clap::Subcommand;
@@ -42,10 +43,19 @@ impl DescribeCommand for SessionCommands {
 
 pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
     match cmd {
-        SessionCommands::Show => show::execute(config),
-        SessionCommands::Switch { profile_name } => switch::execute(&profile_name, config).await,
+        SessionCommands::Show => {
+            let result = show::execute(config)?;
+            render_result(&result);
+            Ok(())
+        },
+        SessionCommands::Switch { profile_name } => {
+            let result = switch::execute(&profile_name, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         SessionCommands::List => {
-            list::execute(config);
+            let result = list::execute(config)?;
+            render_result(&result);
             Ok(())
         },
         SessionCommands::Login(args) => {
@@ -53,6 +63,10 @@ pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
             render_result(&result);
             Ok(())
         },
-        SessionCommands::Logout(ref args) => logout::execute(args, config),
+        SessionCommands::Logout(ref args) => {
+            let result = logout::execute(args, config)?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

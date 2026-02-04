@@ -10,9 +10,16 @@ use systemprompt_models::modules::ApiPaths;
 
 use crate::cli_settings::CliConfig;
 use crate::cloud::templates::{AUTH_ERROR_HTML, AUTH_SUCCESS_HTML};
+use crate::cloud::types::{
+    LoginCustomerInfo, LoginOutput, LoginTenantInfo, LoginUserInfo, TenantPlanInfo,
+};
 use crate::cloud::{Environment, OAuthProvider};
+use crate::shared::CommandResult;
 
-pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    environment: Environment,
+    config: &CliConfig,
+) -> Result<CommandResult<LoginOutput>> {
     if !config.is_interactive() {
         return Err(anyhow!(
             "OAuth login requires interactive mode.\n\nAlternatives:\n- Set \
@@ -88,7 +95,53 @@ pub async fn execute(environment: Environment, config: &CliConfig) -> Result<()>
 
     print_login_result(&response);
 
-    Ok(())
+    let output = build_login_output(&response, &save_path, &tenants_path);
+
+    Ok(CommandResult::card(output)
+        .with_title("Cloud Login")
+        .with_skip_render())
+}
+
+fn build_login_output(
+    response: &UserMeResponse,
+    credentials_path: &std::path::Path,
+    tenants_path: &std::path::Path,
+) -> LoginOutput {
+    let user = LoginUserInfo {
+        id: response.user.id.clone(),
+        email: response.user.email.clone(),
+        name: response.user.name.clone(),
+    };
+
+    let customer = response
+        .customer
+        .as_ref()
+        .map(|c| LoginCustomerInfo { id: c.id.clone() });
+
+    let tenants: Vec<LoginTenantInfo> = response
+        .tenants
+        .iter()
+        .map(|t| LoginTenantInfo {
+            id: t.id.clone(),
+            name: t.name.clone(),
+            subscription_status: t.subscription_status.map(|s| format!("{s:?}")),
+            plan: t.plan.as_ref().map(|p| TenantPlanInfo {
+                name: p.name.clone(),
+                memory_mb: p.memory_mb,
+                volume_gb: p.volume_gb,
+            }),
+            region: t.region.clone(),
+            hostname: t.hostname.clone(),
+        })
+        .collect();
+
+    LoginOutput {
+        user,
+        customer,
+        tenants,
+        credentials_path: credentials_path.display().to_string(),
+        tenants_path: tenants_path.display().to_string(),
+    }
 }
 
 fn print_login_result(response: &UserMeResponse) {

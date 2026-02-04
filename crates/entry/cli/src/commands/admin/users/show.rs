@@ -1,12 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
 use super::types::{SessionSummary, UserActivityOutput, UserDetailOutput};
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -19,20 +19,26 @@ pub struct ShowArgs {
     pub activity: bool,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: ShowArgs,
+    config: &CliConfig,
+) -> Result<CommandResult<UserDetailOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(args, ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(args: ShowArgs, pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    args: ShowArgs,
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserDetailOutput>> {
     let user_service = UserService::new(pool)?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let user = admin_service.find_user(&args.identifier).await?;
 
     let Some(user) = user else {
-        CliService::error(&format!("User not found: {}", args.identifier));
-        return Err(anyhow!("User not found"));
+        return Err(anyhow!("User not found: {}", args.identifier));
     };
 
     let sessions = if args.sessions {
@@ -85,69 +91,5 @@ pub async fn execute_with_pool(args: ShowArgs, pool: &DbPool, config: &CliConfig
         activity,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section("User Details");
-        CliService::key_value("ID", output.id.as_str());
-        CliService::key_value("Name", &output.name);
-        CliService::key_value("Email", &output.email);
-
-        if let Some(ref full_name) = output.full_name {
-            CliService::key_value("Full Name", full_name);
-        }
-
-        if let Some(ref display_name) = output.display_name {
-            CliService::key_value("Display Name", display_name);
-        }
-
-        CliService::key_value("Status", output.status.as_deref().unwrap_or("unknown"));
-        CliService::key_value("Roles", &output.roles.join(", "));
-        CliService::key_value(
-            "Email Verified",
-            &output.email_verified.unwrap_or(false).to_string(),
-        );
-        CliService::key_value("Is Bot", &output.is_bot.to_string());
-        CliService::key_value("Is Scanner", &output.is_scanner.to_string());
-
-        if let Some(ref created_at) = output.created_at {
-            CliService::key_value("Created", &created_at.to_rfc3339());
-        }
-
-        if let Some(ref updated_at) = output.updated_at {
-            CliService::key_value("Updated", &updated_at.to_rfc3339());
-        }
-
-        if let Some(ref sessions) = output.sessions {
-            CliService::section("Sessions");
-            if sessions.is_empty() {
-                CliService::info("No sessions found");
-            } else {
-                for session in sessions {
-                    let status = if session.is_active { "active" } else { "ended" };
-                    CliService::key_value(
-                        session.session_id.as_str(),
-                        &format!(
-                            "{} | {} | {}",
-                            status,
-                            session.ip_address.as_deref().unwrap_or("unknown"),
-                            session.device_type.as_deref().unwrap_or("unknown")
-                        ),
-                    );
-                }
-            }
-        }
-
-        if let Some(ref activity) = output.activity {
-            CliService::section("Activity");
-            CliService::key_value("Sessions", &activity.session_count.to_string());
-            CliService::key_value("Tasks", &activity.task_count.to_string());
-            CliService::key_value("Messages", &activity.message_count.to_string());
-            if let Some(ref last_active) = activity.last_active {
-                CliService::key_value("Last Active", &last_active.to_rfc3339());
-            }
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title(format!("User: {}", user.name)))
 }

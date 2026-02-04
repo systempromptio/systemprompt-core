@@ -8,6 +8,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -25,7 +26,9 @@ pub enum SessionsCommands {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SessionStatsOutput {
     pub period: String,
+    #[serde(rename = "sessions_created_in_period")]
     pub total_sessions: i64,
+    #[serde(rename = "sessions_currently_active")]
     pub active_sessions: i64,
     pub unique_users: i64,
     pub avg_duration_seconds: i64,
@@ -67,9 +70,21 @@ pub struct LiveSessionsOutput {
 
 pub async fn execute(command: SessionsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        SessionsCommands::Stats(args) => stats::execute(args, config).await,
-        SessionsCommands::Trends(args) => trends::execute(args, config).await,
-        SessionsCommands::Live(args) => live::execute(args, config).await,
+        SessionsCommands::Stats(args) => {
+            let result = stats::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SessionsCommands::Trends(args) => {
+            let result = trends::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SessionsCommands::Live(args) => {
+            let result = live::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -79,8 +94,20 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        SessionsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
-        SessionsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
-        SessionsCommands::Live(args) => live::execute_with_pool(args, db_ctx, config).await,
+        SessionsCommands::Stats(args) => {
+            let result = stats::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SessionsCommands::Trends(args) => {
+            let result = trends::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        SessionsCommands::Live(args) => {
+            let result = live::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

@@ -1,18 +1,21 @@
-use crate::cli_settings::CliConfig;
 use anyhow::Result;
 use systemprompt_database::DbPool;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::UserStatsOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
-pub async fn execute(config: &CliConfig) -> Result<()> {
+pub async fn execute(config: &CliConfig) -> Result<CommandResult<UserStatsOutput>> {
     let ctx = AppContext::new().await?;
     execute_with_pool(ctx.db_pool(), config).await
 }
 
-pub async fn execute_with_pool(pool: &DbPool, config: &CliConfig) -> Result<()> {
+pub async fn execute_with_pool(
+    pool: &DbPool,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserStatsOutput>> {
     let user_service = UserService::new(pool)?;
 
     let stats = user_service.get_stats().await?;
@@ -31,33 +34,5 @@ pub async fn execute_with_pool(pool: &DbPool, config: &CliConfig) -> Result<()> 
         newest_user: stats.newest_user,
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::section("User Statistics");
-
-        CliService::section("Total Users");
-        CliService::key_value("Total", &output.total.to_string());
-        CliService::key_value("Active", &output.active.to_string());
-        CliService::key_value("Suspended", &output.suspended.to_string());
-
-        CliService::section("Growth");
-        CliService::key_value("Created (24h)", &output.created_24h.to_string());
-        CliService::key_value("Created (7d)", &output.created_7d.to_string());
-        CliService::key_value("Created (30d)", &output.created_30d.to_string());
-
-        CliService::section("User Types");
-        CliService::key_value("Admins", &output.admins.to_string());
-        CliService::key_value("Anonymous", &output.anonymous.to_string());
-        CliService::key_value("Bots", &output.bots.to_string());
-
-        if let Some(oldest) = output.oldest_user {
-            CliService::key_value("Oldest User", &oldest.format("%Y-%m-%d %H:%M").to_string());
-        }
-        if let Some(newest) = output.newest_user {
-            CliService::key_value("Newest User", &newest.format("%Y-%m-%d %H:%M").to_string());
-        }
-    }
-
-    Ok(())
+    Ok(CommandResult::card(output).with_title("User Statistics"))
 }

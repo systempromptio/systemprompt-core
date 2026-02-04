@@ -6,9 +6,12 @@ use systemprompt_logging::CliService;
 
 use super::DeleteArgs;
 use crate::cli_settings::CliConfig;
+use crate::shared::{CommandResult, SuccessOutput};
 
-pub fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<()> {
-    CliService::section(&format!("Delete Profile: {}", args.name));
+pub fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<CommandResult<SuccessOutput>> {
+    if !config.is_json_output() {
+        CliService::section(&format!("Delete Profile: {}", args.name));
+    }
 
     let ctx = ProjectContext::discover();
     let profile_dir = ctx.profile_dir(&args.name);
@@ -25,12 +28,14 @@ pub fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<()> {
         );
     }
 
-    CliService::warning("The following will be deleted:");
-    CliService::info(&format!("  {}", profile_dir.display()));
+    if !config.is_json_output() {
+        CliService::warning("The following will be deleted:");
+        CliService::info(&format!("  {}", profile_dir.display()));
 
-    for entry in std::fs::read_dir(&profile_dir)? {
-        let entry = entry?;
-        CliService::info(&format!("    - {}", entry.file_name().to_string_lossy()));
+        for entry in std::fs::read_dir(&profile_dir)? {
+            let entry = entry?;
+            CliService::info(&format!("    - {}", entry.file_name().to_string_lossy()));
+        }
     }
 
     if !args.yes {
@@ -46,15 +51,22 @@ pub fn execute(args: &DeleteArgs, config: &CliConfig) -> Result<()> {
             .interact()?;
 
         if !confirmed {
-            CliService::info("Cancelled.");
-            return Ok(());
+            if !config.is_json_output() {
+                CliService::info("Cancelled.");
+            }
+            let output = SuccessOutput::new("Cancelled");
+            return Ok(CommandResult::text(output).with_title("Delete Profile"));
         }
     }
 
     std::fs::remove_dir_all(&profile_dir)
         .with_context(|| format!("Failed to delete {}", profile_dir.display()))?;
 
-    CliService::success(&format!("Deleted profile: {}", args.name));
+    let output = SuccessOutput::new(format!("Deleted profile: {}", args.name));
 
-    Ok(())
+    if !config.is_json_output() {
+        CliService::success(&format!("Deleted profile: {}", args.name));
+    }
+
+    Ok(CommandResult::text(output).with_title("Delete Profile"))
 }

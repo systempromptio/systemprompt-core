@@ -6,10 +6,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{DeviceRow, DevicesOutput};
-use crate::commands::analytics::shared::{
-    export_to_csv, format_number, format_percent, parse_time_range,
-};
-use crate::shared::{render_result, CommandResult, RenderingHints};
+use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -27,26 +25,28 @@ pub struct DevicesArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: DevicesArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: DevicesArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<DevicesOutput>> {
     let ctx = AppContext::new().await?;
     let repo = TrafficAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: DevicesArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<DevicesOutput>> {
     let repo = TrafficAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: DevicesArgs,
     repo: &TrafficAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<DevicesOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo.get_device_breakdown(start, end, args.limit).await?;
@@ -77,43 +77,22 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_to_csv(&output.devices, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_to_csv(&output.devices, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::table(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let hints = RenderingHints {
-            columns: Some(vec![
-                "device_type".to_string(),
-                "browser".to_string(),
-                "session_count".to_string(),
-            ]),
-            ..Default::default()
-        };
-        let result = CommandResult::table(output)
-            .with_title("Device Breakdown")
-            .with_hints(hints);
-        render_result(&result);
-    } else {
-        render_devices(&output);
-    }
+    let hints = RenderingHints {
+        columns: Some(vec![
+            "device_type".to_string(),
+            "browser".to_string(),
+            "session_count".to_string(),
+        ]),
+        ..Default::default()
+    };
 
-    Ok(())
-}
-
-fn render_devices(output: &DevicesOutput) {
-    CliService::section(&format!("Device Breakdown ({})", output.period));
-    CliService::key_value("Total Sessions", &format_number(output.total_sessions));
-
-    for device in &output.devices {
-        CliService::key_value(
-            &format!("{} / {}", device.device_type, device.browser),
-            &format!(
-                "{} ({})",
-                format_number(device.session_count),
-                format_percent(device.percentage)
-            ),
-        );
-    }
+    Ok(CommandResult::table(output)
+        .with_title("Device Breakdown")
+        .with_hints(hints))
 }

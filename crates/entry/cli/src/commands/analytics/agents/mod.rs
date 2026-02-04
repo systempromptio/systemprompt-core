@@ -9,6 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -102,10 +103,26 @@ pub struct HourlyDistributionItem {
 
 pub async fn execute(command: AgentsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        AgentsCommands::Stats(args) => stats::execute(args, config).await,
-        AgentsCommands::List(args) => list::execute(args, config).await,
-        AgentsCommands::Trends(args) => trends::execute(args, config).await,
-        AgentsCommands::Show(args) => show::execute(args, config).await,
+        AgentsCommands::Stats(args) => {
+            let result = stats::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Trends(args) => {
+            let result = trends::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Show(args) => {
+            let result = show::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -115,9 +132,25 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        AgentsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
-        AgentsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
-        AgentsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
-        AgentsCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
+        AgentsCommands::Stats(args) => {
+            let result = stats::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Trends(args) => {
+            let result = trends::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        AgentsCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

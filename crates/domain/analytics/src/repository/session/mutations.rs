@@ -73,7 +73,12 @@ pub async fn end_session(pool: &DbPool, session_id: &SessionId) -> Result<()> {
     let pool = pool.pool_arc().context("Failed to get database pool")?;
     let id = session_id.as_str();
     sqlx::query!(
-        "UPDATE user_sessions SET ended_at = CURRENT_TIMESTAMP WHERE session_id = $1",
+        r#"
+        UPDATE user_sessions
+        SET ended_at = CURRENT_TIMESTAMP,
+            duration_seconds = EXTRACT(EPOCH FROM (CURRENT_TIMESTAMP - started_at))::INTEGER
+        WHERE session_id = $1
+        "#,
         id
     )
     .execute(pool.as_ref())

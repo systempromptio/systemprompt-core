@@ -1,12 +1,12 @@
-use crate::cli_settings::CliConfig;
 use anyhow::{anyhow, Result};
 use clap::Args;
-use systemprompt_logging::CliService;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService, UserStatus};
 
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
+use crate::shared::CommandResult;
+use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {
@@ -28,15 +28,17 @@ pub struct UpdateArgs {
     pub email_verified: Option<bool>,
 }
 
-pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: UpdateArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<UserUpdatedOutput>> {
     let ctx = AppContext::new().await?;
     let user_service = UserService::new(ctx.db_pool())?;
     let admin_service = UserAdminService::new(user_service.clone());
 
     let existing = admin_service.find_user(&args.user_id).await?;
     let Some(mut user) = existing else {
-        CliService::error(&format!("User not found: {}", args.user_id));
-        return Err(anyhow!("User not found"));
+        return Err(anyhow!("User not found: {}", args.user_id));
     };
     let user_id = user.id.clone();
 
@@ -47,8 +49,7 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         || args.email_verified.is_some();
 
     if !has_updates {
-        CliService::warning("No fields to update");
-        return Ok(());
+        return Err(anyhow!("No fields to update"));
     }
 
     if let Some(ref email) = args.email {
@@ -83,14 +84,5 @@ pub async fn execute(args: UpdateArgs, config: &CliConfig) -> Result<()> {
         message: format!("User '{}' updated successfully", user.name),
     };
 
-    if config.is_json_output() {
-        CliService::json(&output);
-    } else {
-        CliService::success(&output.message);
-        CliService::key_value("ID", output.id.as_str());
-        CliService::key_value("Name", &output.name);
-        CliService::key_value("Email", &output.email);
-    }
-
-    Ok(())
+    Ok(CommandResult::text(output).with_title("User Updated"))
 }

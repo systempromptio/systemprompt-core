@@ -29,15 +29,27 @@ impl From<anyhow::Error> for AnalyticsProviderError {
 pub struct SessionAnalytics {
     pub ip_address: Option<String>,
     pub user_agent: Option<String>,
+    pub device_type: Option<String>,
+    pub browser: Option<String>,
+    pub os: Option<String>,
+    pub fingerprint_hash: Option<String>,
     pub referer: Option<String>,
+    pub referrer_url: Option<String>,
+    pub referrer_source: Option<String>,
     pub accept_language: Option<String>,
+    pub preferred_locale: Option<String>,
     pub screen_width: Option<i32>,
     pub screen_height: Option<i32>,
     pub timezone: Option<String>,
     pub page_url: Option<String>,
+    pub landing_page: Option<String>,
+    pub entry_url: Option<String>,
     pub country: Option<String>,
     pub region: Option<String>,
     pub city: Option<String>,
+    pub utm_source: Option<String>,
+    pub utm_medium: Option<String>,
+    pub utm_campaign: Option<String>,
 }
 
 impl SessionAnalytics {
@@ -54,10 +66,17 @@ impl SessionAnalytics {
     pub fn compute_fingerprint(&self) -> String {
         use xxhash_rust::xxh64::xxh64;
 
+        if let Some(hash) = &self.fingerprint_hash {
+            return hash.clone();
+        }
+
         let data = format!(
             "{}|{}",
             self.user_agent.as_deref().unwrap_or(""),
-            self.accept_language.as_deref().unwrap_or("")
+            self.accept_language
+                .as_deref()
+                .or(self.preferred_locale.as_deref())
+                .unwrap_or("")
         );
 
         format!("fp_{:016x}", xxh64(data.as_bytes(), 0))

@@ -9,6 +9,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -103,10 +104,26 @@ pub struct AgentUsageItem {
 
 pub async fn execute(command: ToolsCommands, config: &CliConfig) -> Result<()> {
     match command {
-        ToolsCommands::Stats(args) => stats::execute(args, config).await,
-        ToolsCommands::List(args) => list::execute(args, config).await,
-        ToolsCommands::Trends(args) => trends::execute(args, config).await,
-        ToolsCommands::Show(args) => show::execute(args, config).await,
+        ToolsCommands::Stats(args) => {
+            let result = stats::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::Trends(args) => {
+            let result = trends::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::Show(args) => {
+            let result = show::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }
 
@@ -116,9 +133,25 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        ToolsCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
-        ToolsCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
-        ToolsCommands::Trends(args) => trends::execute_with_pool(args, db_ctx, config).await,
-        ToolsCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
+        ToolsCommands::Stats(args) => {
+            let result = stats::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::Trends(args) => {
+            let result = trends::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        ToolsCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
     }
 }

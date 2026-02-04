@@ -7,9 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::SessionStatsOutput;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_number, format_percent, parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -28,26 +28,28 @@ pub struct StatsArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: StatsArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<SessionStatsOutput>> {
     let ctx = AppContext::new().await?;
     let repo = CliSessionAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: StatsArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<SessionStatsOutput>> {
     let repo = CliSessionAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: StatsArgs,
     repo: &CliSessionAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<SessionStatsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let stats = repo.get_stats(start, end).await?;
@@ -74,31 +76,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Session Statistics");
-        render_result(&result);
-    } else {
-        render_stats(&output);
-    }
-
-    Ok(())
-}
-
-fn render_stats(output: &SessionStatsOutput) {
-    CliService::section(&format!("Session Statistics ({})", output.period));
-
-    CliService::key_value("Total Sessions", &format_number(output.total_sessions));
-    CliService::key_value("Active Sessions", &format_number(output.active_sessions));
-    CliService::key_value("Unique Users", &format_number(output.unique_users));
-    CliService::key_value("Avg Duration", &format!("{}s", output.avg_duration_seconds));
-    CliService::key_value(
-        "Avg Requests/Session",
-        &format!("{:.1}", output.avg_requests_per_session),
-    );
-    CliService::key_value("Conversion Rate", &format_percent(output.conversion_rate));
+    Ok(CommandResult::card(output).with_title("Session Statistics"))
 }

@@ -7,10 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::CostSummaryOutput;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, format_cost, format_number, format_percent, format_tokens,
-    parse_time_range,
+    export_single_to_csv, parse_time_range, resolve_export_path,
 };
-use crate::shared::{render_result, CommandResult};
+use crate::shared::CommandResult;
 use crate::CliConfig;
 
 #[derive(Debug, Args)]
@@ -29,26 +28,28 @@ pub struct SummaryArgs {
     pub export: Option<PathBuf>,
 }
 
-pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
+pub async fn execute(
+    args: SummaryArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<CostSummaryOutput>> {
     let ctx = AppContext::new().await?;
     let repo = CostAnalyticsRepository::new(ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 pub async fn execute_with_pool(
     args: SummaryArgs,
     db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
+    _config: &CliConfig,
+) -> Result<CommandResult<CostSummaryOutput>> {
     let repo = CostAnalyticsRepository::new(db_ctx.db_pool())?;
-    execute_internal(args, &repo, config).await
+    execute_internal(args, &repo).await
 }
 
 async fn execute_internal(
     args: SummaryArgs,
     repo: &CostAnalyticsRepository,
-    config: &CliConfig,
-) -> Result<()> {
+) -> Result<CommandResult<CostSummaryOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let period_duration = end - start;
@@ -85,37 +86,11 @@ async fn execute_internal(
     };
 
     if let Some(ref path) = args.export {
-        export_single_to_csv(&output, path)?;
-        CliService::success(&format!("Exported to {}", path.display()));
-        return Ok(());
+        let resolved_path = resolve_export_path(path)?;
+        export_single_to_csv(&output, &resolved_path)?;
+        CliService::success(&format!("Exported to {}", resolved_path.display()));
+        return Ok(CommandResult::card(output).with_skip_render());
     }
 
-    if config.is_json_output() {
-        let result = CommandResult::card(output).with_title("Cost Summary");
-        render_result(&result);
-    } else {
-        render_summary(&output);
-    }
-
-    Ok(())
-}
-
-fn render_summary(output: &CostSummaryOutput) {
-    CliService::section(&format!("Cost Summary ({})", output.period));
-
-    CliService::key_value("Total Cost", &format_cost(output.total_cost_microdollars));
-    CliService::key_value("Total Requests", &format_number(output.total_requests));
-    CliService::key_value("Total Tokens", &format_tokens(output.total_tokens));
-    CliService::key_value(
-        "Avg Cost/Request",
-        &format_cost(output.avg_cost_per_request_cents as i64),
-    );
-
-    if let Some(change) = output.change_percent {
-        let sign = if change >= 0.0 { "+" } else { "" };
-        CliService::key_value(
-            "vs Previous Period",
-            &format!("{}{}", sign, format_percent(change)),
-        );
-    }
+    Ok(CommandResult::card(output).with_title("Cost Summary"))
 }

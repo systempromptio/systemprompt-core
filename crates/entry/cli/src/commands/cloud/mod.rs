@@ -11,6 +11,7 @@ mod status;
 pub mod sync;
 pub mod templates;
 pub mod tenant;
+pub mod types;
 
 pub use systemprompt_cloud::{Environment, OAuthProvider};
 
@@ -157,20 +158,42 @@ pub async fn execute(cmd: CloudCommands, config: &CliConfig) -> Result<()> {
             )
             .await
         },
-        CloudCommands::Status => status::execute().await,
-        CloudCommands::Restart { tenant, yes } => restart::execute(tenant, yes, config).await,
+        CloudCommands::Status => {
+            let result = status::execute(config).await?;
+            crate::shared::render_result(&result);
+            Ok(())
+        },
+        CloudCommands::Restart { tenant, yes } => {
+            let result = restart::execute(tenant, yes, config).await?;
+            crate::shared::render_result(&result);
+            Ok(())
+        },
         CloudCommands::Sync { command } => sync::execute(command, config).await,
         CloudCommands::Secrets(cmd) => secrets::execute(cmd, config).await,
-        CloudCommands::Dockerfile => execute_dockerfile(),
+        CloudCommands::Dockerfile => execute_dockerfile(config),
         CloudCommands::Db(cmd) => db::execute(cmd, config).await,
         CloudCommands::Domain(cmd) => domain::execute(cmd, config).await,
     }
 }
 
-fn execute_dockerfile() -> Result<()> {
+fn execute_dockerfile(config: &CliConfig) -> Result<()> {
     use crate::shared::project::ProjectRoot;
+    use types::DockerfileOutput;
 
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
-    dockerfile::print_dockerfile_suggestion(project.as_path());
+    let content = dockerfile::generate_dockerfile_content(project.as_path());
+
+    let output = DockerfileOutput {
+        content: content.clone(),
+    };
+
+    if config.is_json_output() {
+        crate::shared::render_result(
+            &crate::shared::CommandResult::copy_paste(output).with_title("Dockerfile"),
+        );
+    } else {
+        systemprompt_logging::CliService::info(&content);
+    }
+
     Ok(())
 }

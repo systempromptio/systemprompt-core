@@ -5,12 +5,21 @@ use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore
 use systemprompt_logging::CliService;
 
 use super::select::{get_credentials, select_tenant};
+use crate::cli_settings::CliConfig;
+use crate::cloud::types::{RotateCredentialsOutput, RotateSyncTokenOutput};
+use crate::shared::CommandResult;
 
-pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Result<()> {
+pub async fn rotate_credentials(
+    id: Option<String>,
+    skip_confirm: bool,
+    config: &CliConfig,
+) -> Result<CommandResult<RotateCredentialsOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        if !config.is_json_output() {
+            CliService::warning(&format!("Failed to load tenant store: {}", e));
+        }
         TenantStore::default()
     });
 
@@ -46,17 +55,30 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
             .interact()?;
 
         if !confirm {
-            CliService::info("Cancelled");
-            return Ok(());
+            if !config.is_json_output() {
+                CliService::info("Cancelled");
+            }
+            let output = RotateCredentialsOutput {
+                tenant_id: tenant_id.clone(),
+                status: "cancelled".to_string(),
+                internal_database_url: String::new(),
+                external_database_url: String::new(),
+            };
+            return Ok(CommandResult::card(output).with_title("Rotate Credentials"));
         }
     }
 
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let spinner = CliService::spinner("Rotating database credentials...");
-    let response = client.rotate_credentials(&tenant_id).await?;
-    spinner.finish_and_clear();
+    let response = if !config.is_json_output() {
+        let spinner = CliService::spinner("Rotating database credentials...");
+        let resp = client.rotate_credentials(&tenant_id).await?;
+        spinner.finish_and_clear();
+        resp
+    } else {
+        client.rotate_credentials(&tenant_id).await?
+    };
 
     let tenant = store
         .tenants
@@ -71,21 +93,36 @@ pub async fn rotate_credentials(id: Option<String>, skip_confirm: bool) -> Resul
 
     store.save_to_path(&tenants_path)?;
 
-    CliService::success("Database credentials rotated");
-    CliService::key_value("Status", &response.status);
+    let output = RotateCredentialsOutput {
+        tenant_id: tenant_id.clone(),
+        status: response.status.clone(),
+        internal_database_url: response.internal_database_url.clone(),
+        external_database_url: response.external_database_url.clone(),
+    };
 
-    CliService::section("New Database Connection");
-    CliService::key_value("Internal URL", &response.internal_database_url);
-    CliService::key_value("External URL", &response.external_database_url);
+    if !config.is_json_output() {
+        CliService::success("Database credentials rotated");
+        CliService::key_value("Status", &response.status);
 
-    Ok(())
+        CliService::section("New Database Connection");
+        CliService::key_value("Internal URL", &response.internal_database_url);
+        CliService::key_value("External URL", &response.external_database_url);
+    }
+
+    Ok(CommandResult::card(output).with_title("Rotate Credentials"))
 }
 
-pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result<()> {
+pub async fn rotate_sync_token(
+    id: Option<String>,
+    skip_confirm: bool,
+    config: &CliConfig,
+) -> Result<CommandResult<RotateSyncTokenOutput>> {
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
-        CliService::warning(&format!("Failed to load tenant store: {}", e));
+        if !config.is_json_output() {
+            CliService::warning(&format!("Failed to load tenant store: {}", e));
+        }
         TenantStore::default()
     });
 
@@ -122,17 +159,29 @@ pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result
             .interact()?;
 
         if !confirm {
-            CliService::info("Cancelled");
-            return Ok(());
+            if !config.is_json_output() {
+                CliService::info("Cancelled");
+            }
+            let output = RotateSyncTokenOutput {
+                tenant_id: tenant_id.clone(),
+                status: "cancelled".to_string(),
+                message: "Cancelled".to_string(),
+            };
+            return Ok(CommandResult::card(output).with_title("Rotate Sync Token"));
         }
     }
 
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let spinner = CliService::spinner("Rotating sync token...");
-    let response = client.rotate_sync_token(&tenant_id).await?;
-    spinner.finish_and_clear();
+    let response = if !config.is_json_output() {
+        let spinner = CliService::spinner("Rotating sync token...");
+        let resp = client.rotate_sync_token(&tenant_id).await?;
+        spinner.finish_and_clear();
+        resp
+    } else {
+        client.rotate_sync_token(&tenant_id).await?
+    };
 
     let tenant = store
         .tenants
@@ -144,9 +193,17 @@ pub async fn rotate_sync_token(id: Option<String>, skip_confirm: bool) -> Result
 
     store.save_to_path(&tenants_path)?;
 
-    CliService::success("Sync token rotated");
-    CliService::key_value("Status", &response.status);
-    CliService::info("New sync token has been saved locally.");
+    let output = RotateSyncTokenOutput {
+        tenant_id: tenant_id.clone(),
+        status: response.status.clone(),
+        message: "New sync token has been saved locally.".to_string(),
+    };
 
-    Ok(())
+    if !config.is_json_output() {
+        CliService::success("Sync token rotated");
+        CliService::key_value("Status", &response.status);
+        CliService::info("New sync token has been saved locally.");
+    }
+
+    Ok(CommandResult::card(output).with_title("Rotate Sync Token"))
 }

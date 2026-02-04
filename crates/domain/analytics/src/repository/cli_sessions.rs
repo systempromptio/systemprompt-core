@@ -29,7 +29,10 @@ impl CliSessionAnalyticsRepository {
             SELECT
                 COUNT(*)::bigint as "total_sessions!",
                 COUNT(DISTINCT user_id)::bigint as "unique_users!",
-                AVG(duration_seconds)::float8 as "avg_duration",
+                AVG(COALESCE(
+                    duration_seconds,
+                    EXTRACT(EPOCH FROM (COALESCE(ended_at, last_activity_at) - started_at))::INTEGER
+                ))::float8 as "avg_duration",
                 AVG(request_count)::float8 as "avg_requests",
                 COUNT(*) FILTER (WHERE converted_at IS NOT NULL)::bigint as "conversions!"
             FROM user_sessions

@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
+use crate::shared::render_result;
 use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
@@ -72,8 +73,16 @@ pub struct RequestShowOutput {
 
 pub async fn execute(command: RequestCommands, config: &CliConfig) -> Result<()> {
     match command {
-        RequestCommands::List(args) => list::execute(args, config).await,
-        RequestCommands::Show(args) => show::execute(args, config).await,
+        RequestCommands::List(args) => {
+            let result = list::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        RequestCommands::Show(args) => {
+            let result = show::execute(args, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         RequestCommands::Stats(args) => stats::execute(args, config).await,
     }
 }
@@ -84,8 +93,16 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<()> {
     match command {
-        RequestCommands::List(args) => list::execute_with_pool(args, db_ctx, config).await,
-        RequestCommands::Show(args) => show::execute_with_pool(args, db_ctx, config).await,
+        RequestCommands::List(args) => {
+            let result = list::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
+        RequestCommands::Show(args) => {
+            let result = show::execute_with_pool(args, db_ctx, config).await?;
+            render_result(&result);
+            Ok(())
+        },
         RequestCommands::Stats(args) => stats::execute_with_pool(args, db_ctx, config).await,
     }
 }
