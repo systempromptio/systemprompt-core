@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.4] - 2026-02-04
+
+### Added
+- RFC 8707 `resource` parameter support in authorize endpoint
+- RFC 8707 `resource` parameter support in token endpoint
+- Resource URI validation (must be valid HTTPS/HTTP URI without fragment)
+- `TokenGenerationParams.resource` field for resource-scoped tokens
+
+### Changed
+- `AuthorizeQuery` and `AuthorizeRequest` now include `resource` field
+- `TokenRequest` now includes `resource` field
+- `WebAuthnCompleteQuery` now includes `resource` field
+- WebAuthn form template context now includes `resource` parameter
+
 ## [0.1.3] - 2026-02-03
 
 ### Changed

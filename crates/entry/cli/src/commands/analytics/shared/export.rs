@@ -134,6 +134,7 @@ impl CsvBuilder {
             writeln!(file, "{}", escaped.join(","))?;
         }
 
+        file.flush().context("Failed to flush export file")?;
         Ok(())
     }
 }

@@ -19,7 +19,8 @@ pub use capabilities::{
     build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json, WEBSITE_URL,
 };
-// NOTE: result_ui_meta was removed - MCP Apps spec uses static templates with ui/notifications/tool-result
+// NOTE: result_ui_meta was removed - MCP Apps spec uses static templates with
+// ui/notifications/tool-result
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use response::McpResponseBuilder;
 pub use schema::McpOutputSchema;

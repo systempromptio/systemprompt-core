@@ -71,7 +71,7 @@ impl LocalProfileBuilder {
             paths: PathsConfig {
                 system: system_path,
                 services: self.services_path,
-                bin: ExtensionLoader::resolve_bin_directory(root)
+                bin: ExtensionLoader::resolve_bin_directory(root, None)
                     .to_string_lossy()
                     .to_string(),
                 storage: Some(ctx.storage_dir().to_string_lossy().to_string()),

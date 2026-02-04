@@ -21,6 +21,7 @@ pub struct AuthorizeQuery {
     pub prompt: Option<String>,
     pub max_age: Option<i64>,
     pub ui_locales: Option<String>,
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -43,4 +44,5 @@ pub struct AuthorizeRequest {
     pub user_consent: Option<String>,
     pub username: Option<String>,
     pub password: Option<String>,
+    pub resource: Option<String>,
 }

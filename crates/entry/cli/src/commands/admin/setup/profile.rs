@@ -22,7 +22,12 @@ fn determine_environment(env_name: &str) -> Environment {
     }
 }
 
-pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<Profile> {
+pub fn build(
+    env_name: &str,
+    secrets_path: &str,
+    project_root: &Path,
+    bin_path: Option<&Path>,
+) -> Result<Profile> {
     let ctx = ProjectContext::new(project_root.to_path_buf());
     let system_path = project_root.to_string_lossy().to_string();
     let services_path = project_root.join("services").to_string_lossy().to_string();
@@ -62,9 +67,14 @@ pub fn build(env_name: &str, secrets_path: &str, project_root: &Path) -> Result<
         paths: PathsConfig {
             system: system_path,
             services: services_path,
-            bin: ExtensionLoader::resolve_bin_directory(project_root)
-                .to_string_lossy()
-                .to_string(),
+            bin: bin_path.map_or_else(
+                || {
+                    ExtensionLoader::resolve_bin_directory(project_root, None)
+                        .to_string_lossy()
+                        .to_string()
+                },
+                |p| p.to_string_lossy().to_string(),
+            ),
             storage: Some(ctx.storage_dir().to_string_lossy().to_string()),
             geoip_database: None,
             web_path: None,

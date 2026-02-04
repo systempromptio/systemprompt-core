@@ -19,6 +19,7 @@ pub struct TokenGenerationParams<'a> {
     pub user_id: &'a UserId,
     pub scope: Option<&'a str>,
     pub headers: &'a HeaderMap,
+    pub resource: Option<&'a str>,
 }
 
 pub async fn generate_tokens_by_user_id(
@@ -58,6 +59,7 @@ pub async fn generate_tokens_by_user_id(
     let config = JwtConfig {
         permissions: final_permissions,
         audience: global_config.jwt_audiences.clone(),
+        resource: params.resource.map(String::from),
         ..Default::default()
     };
     let signing = JwtSigningParams {

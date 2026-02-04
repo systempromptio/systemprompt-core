@@ -22,6 +22,7 @@ pub struct WebAuthnCompleteQuery {
     pub code_challenge: Option<String>,
     pub code_challenge_method: Option<String>,
     pub response_mode: Option<String>,
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
@@ -159,6 +160,10 @@ async fn store_authorization_code(
             .filter(|s| !s.is_empty()),
     ) {
         builder = builder.with_pkce(challenge, method);
+    }
+
+    if let Some(resource) = query.resource.as_deref() {
+        builder = builder.with_resource(resource);
     }
 
     repo.store_authorization_code(builder.build()).await

@@ -18,6 +18,7 @@ pub struct TokenRequest {
     pub refresh_token: Option<String>,
     pub scope: Option<String>,
     pub code_verifier: Option<String>,
+    pub resource: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

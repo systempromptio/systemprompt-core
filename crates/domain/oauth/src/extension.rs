@@ -1,5 +1,9 @@
 use systemprompt_extension::prelude::*;
 
+const MIGRATION_001_RFC8707_RESOURCE: &str = r"
+ALTER TABLE oauth_auth_codes ADD COLUMN IF NOT EXISTS resource TEXT;
+";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct OauthExtension;
 
@@ -95,6 +99,14 @@ impl Extension for OauthExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "add_rfc8707_resource_column",
+            MIGRATION_001_RFC8707_RESOURCE,
+        )]
     }
 }
 

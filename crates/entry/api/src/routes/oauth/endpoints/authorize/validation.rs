@@ -155,6 +155,28 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
         }
     }
 
+    if let Some(resource) = &params.resource {
+        validate_resource_uri(resource)?;
+    }
+
+    Ok(())
+}
+
+fn validate_resource_uri(resource: &str) -> Result<(), String> {
+    let url = reqwest::Url::parse(resource)
+        .map_err(|_| format!("Invalid resource URI: '{resource}' is not a valid absolute URI"))?;
+
+    if url.scheme() != "https" && url.scheme() != "http" {
+        return Err(format!(
+            "Resource URI must use https or http scheme, got '{}'",
+            url.scheme()
+        ));
+    }
+
+    if url.fragment().is_some() {
+        return Err("Resource URI must not contain a fragment".to_string());
+    }
+
     Ok(())
 }
 

@@ -95,15 +95,16 @@ async fn handle_authorization_code_grant(
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let (user_id, authorized_scope) = validate_authorization_code(
+        let validation_result = validate_authorization_code(
             &repo,
             &code,
             &client_id,
             request.redirect_uri.as_deref(),
             request.code_verifier.as_deref(),
+            request.resource.as_deref(),
         )
         .await
-        .map_err(|e| TokenError::InvalidGrant {
+        .map_err(|e: anyhow::Error| TokenError::InvalidGrant {
             reason: e.to_string(),
         })?;
 
@@ -111,9 +112,10 @@ async fn handle_authorization_code_grant(
             &repo,
             TokenGenerationParams {
                 client_id: &client_id,
-                user_id: &user_id,
-                scope: Some(&authorized_scope),
+                user_id: &validation_result.user_id,
+                scope: Some(&validation_result.scope),
                 headers,
+                resource: validation_result.resource.as_deref(),
             },
             state,
         )
@@ -125,8 +127,9 @@ async fn handle_authorization_code_grant(
         tracing::info!(
             grant_type = "authorization_code",
             client_id = %client_id,
-            user_id = %user_id,
-            scope = %authorized_scope,
+            user_id = %validation_result.user_id,
+            scope = %validation_result.scope,
+            resource = ?validation_result.resource,
             token_type = %token_response.token_type,
             expires_in = token_response.expires_in,
             "Token issued"
@@ -207,6 +210,7 @@ async fn handle_refresh_token_grant(
                 user_id: &user_id,
                 scope: Some(effective_scope),
                 headers,
+                resource: request.resource.as_deref(),
             },
             state,
         )

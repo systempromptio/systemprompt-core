@@ -134,7 +134,7 @@ async fn exchange_code_for_token(
         generate_access_token_jti, generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams,
     };
 
-    let (user_id, scope) = repo
+    let validation_result = repo
         .validate_authorization_code(
             params.code,
             params.client_id,
@@ -143,9 +143,9 @@ async fn exchange_code_for_token(
         )
         .await?;
 
-    let user = load_authenticated_user(&user_id, state.user_provider()).await?;
+    let user = load_authenticated_user(&validation_result.user_id, state.user_provider()).await?;
 
-    let permissions = parse_permissions(&scope)?;
+    let permissions = parse_permissions(&validation_result.scope)?;
 
     let mut session_service = systemprompt_oauth::services::SessionCreationService::new(
         Arc::clone(state.analytics_provider()),
@@ -155,7 +155,11 @@ async fn exchange_code_for_token(
         session_service = session_service.with_event_publisher(Arc::clone(publisher));
     }
     let session_id = session_service
-        .create_authenticated_session(&user_id, params.headers, SessionSource::Oauth)
+        .create_authenticated_session(
+            &validation_result.user_id,
+            params.headers,
+            SessionSource::Oauth,
+        )
         .await?;
 
     let access_token_jti = generate_access_token_jti();
@@ -181,8 +185,8 @@ async fn exchange_code_for_token(
     let refresh_params = RefreshTokenParams::builder(
         &refresh_token_id,
         params.client_id,
-        &user_id,
-        &scope,
+        &validation_result.user_id,
+        &validation_result.scope,
         refresh_expires_at,
     )
     .build();

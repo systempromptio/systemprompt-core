@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[cfg(feature = "web")]
-use axum::http::StatusCode;
+use axum::http::{header, StatusCode};
 #[cfg(feature = "web")]
 use axum::response::IntoResponse;
 #[cfg(feature = "web")]
@@ -334,7 +334,19 @@ impl IntoResponse for ApiError {
             );
         }
 
-        (status, Json(self)).into_response()
+        let mut response = (status, Json(self)).into_response();
+
+        if status == StatusCode::UNAUTHORIZED {
+            if let Ok(header_value) =
+                "Bearer resource_metadata=\"/.well-known/oauth-protected-resource\"".parse()
+            {
+                response
+                    .headers_mut()
+                    .insert(header::WWW_AUTHENTICATE, header_value);
+            }
+        }
+
+        response
     }
 }
 

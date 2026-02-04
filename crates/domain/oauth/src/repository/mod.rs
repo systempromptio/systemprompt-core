@@ -6,7 +6,7 @@ pub mod webauthn;
 pub use client::{
     ClientRepository, ClientSummary, ClientUsageSummary, CreateClientParams, UpdateClientParams,
 };
-pub use oauth::{AuthCodeParams, OAuthRepository, RefreshTokenParams};
+pub use oauth::{AuthCodeParams, AuthCodeValidationResult, OAuthRepository, RefreshTokenParams};
 pub use setup_token::{
     CreateSetupTokenParams, SetupTokenPurpose, SetupTokenRecord, TokenValidationResult,
 };
