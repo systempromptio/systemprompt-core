@@ -53,7 +53,8 @@ pub async fn run() -> Result<()> {
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
 
     if !desc.database {
-        systemprompt_logging::init_console_logging();
+        let effective_level = resolve_log_level(&cli_config);
+        systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
     }
 
     if desc.profile {
@@ -184,6 +185,24 @@ fn require_external_db_access(profile: &systemprompt_models::Profile, reason: &s
             reason
         )
     }
+}
+
+fn resolve_log_level(cli_config: &CliConfig) -> Option<String> {
+    if std::env::var("RUST_LOG").is_ok() {
+        return None;
+    }
+
+    if let Some(level) = cli_config.verbosity.as_tracing_filter() {
+        return Some(level.to_string());
+    }
+
+    if let Ok(profile_path) = bootstrap::resolve_profile(cli_config.profile_override.as_deref()) {
+        if let Some(log_level) = bootstrap::try_load_log_level(&profile_path) {
+            return Some(log_level.as_tracing_filter().to_string());
+        }
+    }
+
+    None
 }
 
 async fn dispatch_command(command: Option<args::Commands>, config: &CliConfig) -> Result<()> {

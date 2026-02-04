@@ -15,6 +15,17 @@ pub enum VerbosityLevel {
     Debug,
 }
 
+impl VerbosityLevel {
+    pub const fn as_tracing_filter(&self) -> Option<&'static str> {
+        match self {
+            Self::Quiet => Some("error"),
+            Self::Normal => None,
+            Self::Verbose => Some("debug"),
+            Self::Debug => Some("trace"),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColorMode {
     Auto,

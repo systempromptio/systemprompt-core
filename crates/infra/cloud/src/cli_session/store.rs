@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use systemprompt_identifiers::TenantId;
 
 use super::{CliSession, SessionKey, LOCAL_SESSION_KEY};
@@ -78,6 +78,22 @@ impl SessionStore {
     pub fn set_active_with_profile(&mut self, key: &SessionKey, profile_name: &str) {
         self.active_key = Some(key.as_storage_key());
         self.active_profile_name = Some(profile_name.to_string());
+        self.updated_at = Utc::now();
+    }
+
+    pub fn set_active_with_profile_path(
+        &mut self,
+        key: &SessionKey,
+        profile_name: &str,
+        profile_path: PathBuf,
+    ) {
+        self.active_key = Some(key.as_storage_key());
+        self.active_profile_name = Some(profile_name.to_string());
+
+        if let Some(session) = self.sessions.get_mut(&key.as_storage_key()) {
+            session.update_profile_path(profile_path);
+        }
+
         self.updated_at = Utc::now();
     }
 

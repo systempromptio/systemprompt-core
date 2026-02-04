@@ -59,12 +59,20 @@ pub fn init_logging(db_pool: DbPool) {
 }
 
 pub fn init_console_logging() {
+    init_console_logging_with_level(None);
+}
+
+pub fn init_console_logging_with_level(level: Option<&str>) {
     if LOGGING_INITIALIZED.set(()).is_err() {
         return;
     }
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        EnvFilter::new("info,tokio_cron_scheduler=warn,sqlx::postgres::notice=warn")
+        let base = level.unwrap_or("info");
+        EnvFilter::new(format!(
+            "{},tokio_cron_scheduler=warn,sqlx::postgres::notice=warn",
+            base
+        ))
     });
 
     tracing_subscriber::fmt().with_env_filter(env_filter).init();

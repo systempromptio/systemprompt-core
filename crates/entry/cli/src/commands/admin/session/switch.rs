@@ -38,7 +38,7 @@ pub async fn execute(
 
     let previous_profile = store.active_profile_name.clone();
 
-    store.set_active_with_profile(&session_key, profile_name);
+    store.set_active_with_profile_path(&session_key, profile_name, profile_config_path.clone());
     store.save(&sessions_dir)?;
 
     let has_session = store.get_valid_session(&session_key).is_some();

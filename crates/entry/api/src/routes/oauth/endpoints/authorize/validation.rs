@@ -1,6 +1,8 @@
 use super::AuthorizeQuery;
 use anyhow::Result;
+use systemprompt_mcp::McpServerRegistry;
 use systemprompt_oauth::repository::OAuthRepository;
+use systemprompt_traits::McpRegistryProvider;
 
 pub async fn validate_authorize_request(
     params: &AuthorizeQuery,
@@ -31,6 +33,16 @@ pub async fn validate_authorize_request(
 
     let scope = if let Some(scope_param) = params.scope.as_deref() {
         scope_param.to_string()
+    } else if let Some(resource) = &params.resource {
+        if let Some(resource_scopes) = resolve_resource_scopes(resource).await {
+            resource_scopes
+        } else if client.scopes.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Client has no registered scopes and none provided in request"
+            ));
+        } else {
+            client.scopes.join(" ")
+        }
     } else {
         if client.scopes.is_empty() {
             return Err(anyhow::anyhow!(
@@ -267,4 +279,45 @@ fn has_low_diversity(challenge: &str) -> bool {
 
     let min_unique_for_length = challenge.len() / 2;
     unique_chars.len() < min_unique_for_length.min(MIN_UNIQUE_CHARS)
+}
+
+async fn resolve_resource_scopes(resource: &str) -> Option<String> {
+    let url = match reqwest::Url::parse(resource) {
+        Ok(u) => u,
+        Err(e) => {
+            tracing::debug!(resource = %resource, error = %e, "Failed to parse resource URI");
+            return None;
+        },
+    };
+    let path = url.path();
+
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
+        return None;
+    }
+
+    let server_name = parts[4];
+
+    if let Err(e) = McpServerRegistry::validate() {
+        tracing::debug!(error = %e, "MCP registry validation failed");
+        return None;
+    }
+
+    let registry = systemprompt_mcp::services::registry::RegistryManager;
+    match McpRegistryProvider::get_server(&registry, server_name).await {
+        Ok(server_info) if server_info.oauth.required && !server_info.oauth.scopes.is_empty() => {
+            let scope_strings: Vec<String> = server_info
+                .oauth
+                .scopes
+                .iter()
+                .map(ToString::to_string)
+                .collect();
+            Some(scope_strings.join(" "))
+        },
+        Ok(_) => None,
+        Err(e) => {
+            tracing::debug!(server = %server_name, error = %e, "Failed to get MCP server info");
+            None
+        },
+    }
 }

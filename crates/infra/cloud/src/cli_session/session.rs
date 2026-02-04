@@ -151,6 +151,11 @@ impl CliSession {
         self.last_used = Utc::now();
     }
 
+    pub fn update_profile_path(&mut self, profile_path: PathBuf) {
+        self.profile_path = Some(profile_path);
+        self.last_used = Utc::now();
+    }
+
     #[must_use]
     pub fn is_expired(&self) -> bool {
         Utc::now() >= self.expires_at

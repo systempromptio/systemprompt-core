@@ -290,6 +290,10 @@ impl SessionMiddleware {
             return false;
         }
 
+        if path.starts_with(ApiPaths::MCP_BASE) {
+            return true;
+        }
+
         if path.starts_with(ApiPaths::API_BASE) {
             return true;
         }
