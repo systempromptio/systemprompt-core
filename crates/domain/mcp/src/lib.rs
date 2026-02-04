@@ -17,8 +17,9 @@ pub use error::{McpError, McpResult};
 
 pub use capabilities::{
     build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
-    model_only_visibility, result_ui_meta, tool_ui_meta, visibility_to_json, WEBSITE_URL,
+    model_only_visibility, tool_ui_meta, visibility_to_json, WEBSITE_URL,
 };
+// NOTE: result_ui_meta was removed - MCP Apps spec uses static templates with ui/notifications/tool-result
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use response::McpResponseBuilder;
 pub use schema::McpOutputSchema;
