@@ -12,7 +12,6 @@ use systemprompt_models::artifacts::ArtifactType;
 use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
 
 pub const MCP_APP_MIME_TYPE: &str = "text/html;profile=mcp-app";
-const ARTIFACT_ID_PLACEHOLDER: &str = "{artifact_id}";
 
 #[derive(Debug, Clone)]
 pub struct UiResource {
@@ -47,10 +46,9 @@ pub struct UiMetadata {
 }
 
 impl UiMetadata {
-    pub fn for_artifact(artifact_id: &str, source: Option<&str>) -> Self {
-        let server = source.unwrap_or("systemprompt");
+    pub fn for_static_template(server_name: &str) -> Self {
         Self {
-            resource_uri: format!("ui://{server}/{artifact_id}"),
+            resource_uri: format!("ui://{server_name}/artifact-viewer"),
             csp: None,
             visibility: vec![ToolVisibility::Model, ToolVisibility::App],
             prefers_border: true,
@@ -59,7 +57,7 @@ impl UiMetadata {
 
     pub fn for_tool_definition(server_name: &str) -> Self {
         Self {
-            resource_uri: format!("ui://{server_name}/{{artifact_id}}"),
+            resource_uri: format!("ui://{server_name}/artifact-viewer"),
             csp: None,
             visibility: vec![ToolVisibility::Model, ToolVisibility::App],
             prefers_border: true,
@@ -102,16 +100,6 @@ impl UiMetadata {
     pub fn to_tool_meta(&self) -> serde_json::Map<String, serde_json::Value> {
         let mut meta = serde_json::Map::new();
         meta.insert("ui".to_string(), self.to_json());
-        meta
-    }
-
-    pub fn to_result_meta(&self, artifact_id: &str) -> serde_json::Map<String, serde_json::Value> {
-        let mut meta = serde_json::Map::new();
-        let ui_with_id = serde_json::json!({
-            "resourceUri": self.resource_uri.replace(ARTIFACT_ID_PLACEHOLDER, artifact_id),
-            "visibility": self.visibility
-        });
-        meta.insert("ui".to_string(), ui_with_id);
         meta
     }
 

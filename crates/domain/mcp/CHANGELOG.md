@@ -8,13 +8,20 @@
 - `CreateMcpArtifact` and `McpArtifactRecord` structs for artifact data
 - `capabilities` module with MCP Apps UI extension helpers
 - `mcp_apps_ui_extension()` function for experimental capabilities
-- `tool_ui_meta()` and `result_ui_meta()` helpers for UI metadata generation
+- `tool_ui_meta()` helper for UI metadata generation
 
 ### Changed
 - `DatabaseSessionManager::new()` now takes `&DbPool` reference instead of owned value
 - Move CSP tests to `crates/tests/unit/domain/mcp/src/services/ui_renderer/`
 - Refactor `CspPolicy::extract_domains()` to associated function
 - Add `const fn` to `UiMetadata::with_prefers_border()`
+- Simplify UI metadata to use static `/artifact-viewer` template path instead of dynamic artifact ID substitution
+- Rename `UiMetadata::for_artifact()` to `for_static_template()` for clarity
+
+### Removed
+- Remove `result_ui_meta()` helper - MCP Apps spec uses static templates via `ui/notifications/tool-result`
+- Remove `UiMetadata::to_result_meta()` method - no longer needed with static templates
+- Remove `ARTIFACT_ID_PLACEHOLDER` constant from ui_renderer
 
 ### Fixed
 - Fix session resumption errors when SSE channel closes: stale sessions now cleaned up and `SessionNeedsReconnect` returned instead of internal error

@@ -40,23 +40,7 @@ pub fn tool_ui_meta(
     meta.insert(
         "ui".to_string(),
         serde_json::json!({
-            "resourceUri": format!("ui://{server_name}/{{artifact_id}}"),
-            "visibility": visibility
-        }),
-    );
-    meta
-}
-
-pub fn result_ui_meta(
-    server_name: &str,
-    artifact_id: &str,
-    visibility: &[ToolVisibility],
-) -> serde_json::Map<String, serde_json::Value> {
-    let mut meta = serde_json::Map::new();
-    meta.insert(
-        "ui".to_string(),
-        serde_json::json!({
-            "resourceUri": format!("ui://{server_name}/{artifact_id}"),
+            "resourceUri": format!("ui://{server_name}/artifact-viewer"),
             "visibility": visibility
         }),
     );
