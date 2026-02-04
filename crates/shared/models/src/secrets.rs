@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
+use crate::paths::constants::env_vars;
 use crate::profile::{resolve_with_home, SecretsSource, SecretsValidationMode};
 use crate::profile_bootstrap::ProfileBootstrap;
 
@@ -189,7 +190,7 @@ impl SecretsBootstrap {
             .filter(|s| !s.is_empty())
             .ok_or(SecretsBootstrapError::DatabaseUrlRequired)?;
 
-        let custom = std::env::var("SYSTEMPROMPT_CUSTOM_SECRETS")
+        let custom = std::env::var(env_vars::CUSTOM_SECRETS)
             .ok()
             .filter(|s| !s.is_empty())
             .map_or_else(HashMap::new, |keys| {

@@ -50,3 +50,7 @@ pub mod build {
     pub const CARGO_TARGET: &str = "target";
     pub const BINARY_NAME: &str = "systemprompt";
 }
+
+pub mod env_vars {
+    pub const CUSTOM_SECRETS: &str = "SYSTEMPROMPT_CUSTOM_SECRETS";
+}
