@@ -4,6 +4,7 @@ use std::process::Command;
 use super::utils::process_exists;
 
 #[cfg(unix)]
+#[allow(clippy::unnecessary_wraps)]
 pub fn terminate_gracefully(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
@@ -44,6 +45,7 @@ pub fn terminate_gracefully(pid: u32) -> Result<()> {
 }
 
 #[cfg(unix)]
+#[allow(clippy::unnecessary_wraps)]
 pub fn force_kill(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
