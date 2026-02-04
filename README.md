@@ -1,6 +1,10 @@
 <div align="center">
 
-<img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://systemprompt.io/files/images/logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://systemprompt.io/files/images/logo-dark.svg">
+  <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
+</picture>
 
 ### Production infrastructure for AI agents
 
@@ -16,9 +20,9 @@
 
 ---
 
-AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK—complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
+AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK. Complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
 
-**Playbooks** provide deterministic instruction rails that eliminate hallucination—your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
+**Playbooks** provide deterministic instruction rails that eliminate hallucination. Your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
 
 ## Table of Contents
 
@@ -33,7 +37,7 @@ AI infrastructure built for AI agents. Purpose-built in Rust for reliable orches
 
 AI frameworks get you to a demo. Production requires everything else: auth, permissions, observability, multi-agent coordination. You shouldn't rebuild this infrastructure for every project.
 
-systemprompt.io is the missing layer—a library you own, not a platform you rent:
+systemprompt.io is the missing layer. A library you own, not a platform you rent:
 
 - **Auth that works**: OAuth2/OIDC + WebAuthn, production-ready from day one
 - **Permissions that scale**: Per-user, per-agent, per-tool scopes
@@ -64,8 +68,8 @@ A complete platform with built-in:
 ## Quick Start
 
 ```bash
-# 1. Clone the template
-git clone https://github.com/systempromptio/systemprompt-template my-project
+# 1. Create from template
+gh repo create my-project --template systempromptio/systemprompt-template --clone
 cd my-project
 
 # 2. Build
@@ -251,7 +255,7 @@ FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [Discord](https://discord.gg/wkAbSuPWpr) — Get help and connect with the community
-- [Documentation](https://systemprompt.io/documentation) — Full guides and API reference
-- [GitHub](https://github.com/systempromptio/systemprompt-core) — Source code and issues
-- [Website](https://systemprompt.io) — Learn more about systemprompt.io
+- [Discord](https://discord.gg/wkAbSuPWpr): Get help and connect with the community
+- [Documentation](https://systemprompt.io/documentation): Full guides and API reference
+- [GitHub](https://github.com/systempromptio/systemprompt-core): Source code and issues
+- [Website](https://systemprompt.io): Learn more about systemprompt.io
