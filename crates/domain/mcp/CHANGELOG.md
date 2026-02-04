@@ -17,6 +17,8 @@
 - Add `const fn` to `UiMetadata::with_prefers_border()`
 
 ### Fixed
+- Fix session resumption errors when SSE channel closes: stale sessions now cleaned up and `SessionNeedsReconnect` returned instead of internal error
+- Fix redundant `artifact_id.clone()` in `McpResponseBuilder::build()`
 - Fix redundant closure in UI metadata CSP conversion
 - Fix `map().flatten()` pattern replaced with `and_then()` in response builder
 

@@ -85,7 +85,9 @@ async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let keys = if !config.is_json_output() {
+    let keys = if config.is_json_output() {
+        client.set_secrets(&tenant_id, env_secrets).await?
+    } else {
         let spinner = CliService::spinner("Syncing secrets...");
         match client.set_secrets(&tenant_id, env_secrets).await {
             Ok(keys) => {
@@ -101,8 +103,6 @@ async fn sync_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutput>
                 bail!("Failed to sync secrets: {e}");
             },
         }
-    } else {
-        client.set_secrets(&tenant_id, env_secrets).await?
     };
 
     let output = SecretsOutput {
@@ -156,7 +156,9 @@ async fn set_secrets(
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let keys = if !config.is_json_output() {
+    let keys = if config.is_json_output() {
+        client.set_secrets(&tenant_id, secrets).await?
+    } else {
         let spinner = CliService::spinner("Setting secrets...");
         match client.set_secrets(&tenant_id, secrets).await {
             Ok(keys) => {
@@ -172,8 +174,6 @@ async fn set_secrets(
                 bail!("Failed to set secrets: {e}");
             },
         }
-    } else {
-        client.set_secrets(&tenant_id, secrets).await?
     };
 
     let output = SecretsOutput {
@@ -211,7 +211,12 @@ async fn unset_secrets(
     let mut errors = Vec::new();
 
     for key in &uppercase_keys {
-        if !config.is_json_output() {
+        if config.is_json_output() {
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => removed.push(key.clone()),
+                Err(e) => errors.push((key.clone(), e.to_string())),
+            }
+        } else {
             let spinner = CliService::spinner(&format!("Removing {key}..."));
             match client.unset_secret(&tenant_id, key).await {
                 Ok(()) => {
@@ -222,11 +227,6 @@ async fn unset_secrets(
                     spinner.finish_and_clear();
                     errors.push((key.clone(), e.to_string()));
                 },
-            }
-        } else {
-            match client.unset_secret(&tenant_id, key).await {
-                Ok(()) => removed.push(key.clone()),
-                Err(e) => errors.push((key.clone(), e.to_string())),
             }
         }
     }
@@ -386,7 +386,12 @@ async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutp
     let mut errors = Vec::new();
 
     for key in keys_to_remove {
-        if !config.is_json_output() {
+        if config.is_json_output() {
+            match client.unset_secret(&tenant_id, key).await {
+                Ok(()) => removed.push(key.to_string()),
+                Err(e) => errors.push((key, e.to_string())),
+            }
+        } else {
             let spinner = CliService::spinner(&format!("Removing {key}..."));
             match client.unset_secret(&tenant_id, key).await {
                 Ok(()) => {
@@ -397,11 +402,6 @@ async fn cleanup_secrets(config: &CliConfig) -> Result<CommandResult<SecretsOutp
                     spinner.finish_and_clear();
                     errors.push((key, e.to_string()));
                 },
-            }
-        } else {
-            match client.unset_secret(&tenant_id, key).await {
-                Ok(()) => removed.push(key.to_string()),
-                Err(e) => errors.push((key, e.to_string())),
             }
         }
     }

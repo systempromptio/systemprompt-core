@@ -15,7 +15,7 @@ pub struct ValidateArgs {
 }
 
 pub fn execute(
-    args: ValidateArgs,
+    args: &ValidateArgs,
     _config: &CliConfig,
 ) -> Result<CommandResult<ConfigValidateOutput>> {
     let files_to_validate = if let Some(target) = &args.target {

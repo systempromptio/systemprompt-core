@@ -2,6 +2,7 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::Response;
 use std::sync::Arc;
+use systemprompt_analytics::matches_bot_pattern;
 
 const DATACENTER_IP_PREFIXES: &[&str] = &["47.79.", "47.82."];
 
@@ -102,39 +103,7 @@ fn is_datacenter_ip(ip: Option<&str>) -> bool {
 }
 
 fn is_known_bot(user_agent: &str) -> bool {
-    let bot_patterns = [
-        "Googlebot",
-        "bingbot",
-        "Slurp",
-        "DuckDuckBot",
-        "Baiduspider",
-        "YandexBot",
-        "facebookexternalhit",
-        "Twitterbot",
-        "LinkedInBot",
-        "WhatsApp",
-        "TelegramBot",
-        "Discordbot",
-        "ia_archiver",
-        "curl",
-        "wget",
-        "python",
-        "java",
-        "perl",
-        "ruby",
-        "go-http-client",
-        "Node",
-        "scrapy",
-        "urllib",
-        "requests",
-        "okhttp",
-        "httpclient",
-    ];
-
-    let ua_lower = user_agent.to_lowercase();
-    bot_patterns
-        .iter()
-        .any(|pattern| ua_lower.contains(&pattern.to_lowercase()))
+    matches_bot_pattern(user_agent)
 }
 
 fn is_scanner_request(path: &str, user_agent: &str) -> bool {

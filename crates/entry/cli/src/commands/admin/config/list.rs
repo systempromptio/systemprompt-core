@@ -11,6 +11,7 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
+#[allow(clippy::unnecessary_wraps)]
 pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ConfigListOutput>> {
     let mut files = Vec::new();
     let mut valid_count = 0;

@@ -88,6 +88,11 @@ pub const BOT_KEYWORDS: &[&str] = &[
     "java/",
     "perl/",
     "ruby/",
+    "playstore-google",
+    "google-read-aloud",
+    "prefetch proxy",
+    "surf/",
+    "amazon-quick",
 ];
 
 pub const BOT_IP_PREFIXES: &[&str] = &[

@@ -409,7 +409,7 @@ pub enum ConfigSection {
 }
 
 impl ConfigSection {
-    pub fn all() -> &'static [Self] {
+    pub const fn all() -> &'static [Self] {
         &[
             Self::Profile,
             Self::Services,

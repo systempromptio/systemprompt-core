@@ -193,11 +193,21 @@ impl SessionManager for DatabaseSessionManager {
         last_event_id: String,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
         if self.local_manager.has_session(id).await.unwrap_or(false) {
-            return self
-                .local_manager
-                .resume(id, last_event_id)
-                .await
-                .map_err(Into::into);
+            match self.local_manager.resume(id, last_event_id).await {
+                Ok(stream) => return Ok(stream),
+                Err(e) => {
+                    tracing::info!(
+                        session_id = %id,
+                        error = %e,
+                        "Session channel closed - cleaning up stale session"
+                    );
+                    let _ = self.local_manager.close_session(id).await;
+                    self.persist_close(id).await;
+                    return Err(DatabaseSessionManagerError::SessionNeedsReconnect(
+                        id.to_string(),
+                    ));
+                },
+            }
         }
 
         match self.check_db_session(id).await {
@@ -211,10 +221,7 @@ impl SessionManager for DatabaseSessionManager {
                 ))
             },
             Some(false) => {
-                tracing::debug!(
-                    session_id = %id,
-                    "Session not found in database"
-                );
+                tracing::debug!(session_id = %id, "Session not found in database");
                 Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
             },
             None => self

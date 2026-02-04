@@ -65,7 +65,9 @@ pub async fn execute(
     let creds = get_credentials()?;
     let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
 
-    let response = if !config.is_json_output() {
+    let response = if config.is_json_output() {
+        client.restart_tenant(&resolved_tenant_id).await?
+    } else {
         let spinner = CliService::spinner(&format!("Restarting tenant {}...", tenant_name));
         match client.restart_tenant(&resolved_tenant_id).await {
             Ok(response) => {
@@ -77,8 +79,6 @@ pub async fn execute(
                 bail!("Failed to restart tenant: {}", e);
             },
         }
-    } else {
-        client.restart_tenant(&resolved_tenant_id).await?
     };
 
     let output = RestartOutput {
