@@ -22,12 +22,9 @@ impl CsrfToken {
             });
         }
 
-        if !state
-            .chars()
-            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
-        {
+        if !state.chars().all(|c| c.is_ascii_graphic()) {
             return Err(AuthError::InvalidRequest {
-                reason: "State must be alphanumeric".to_string(),
+                reason: "State must contain only printable ASCII characters".to_string(),
             });
         }
 

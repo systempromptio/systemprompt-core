@@ -161,7 +161,7 @@ fn render_list(output: &RequestListOutput) {
                 format_tokens(i64::from(req.output_tokens))
             ),
         );
-        CliService::key_value("Cost", &format_cost(i64::from(req.cost_microdollars)));
+        CliService::key_value("Cost", &format_cost(req.cost_microdollars));
         CliService::key_value("Latency", &format_duration_ms(i64::from(req.latency_ms)));
         CliService::key_value("Time", &req.created_at);
     }

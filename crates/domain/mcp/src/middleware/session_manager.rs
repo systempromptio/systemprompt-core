@@ -57,8 +57,8 @@ pub struct DatabaseSessionManager {
 }
 
 impl DatabaseSessionManager {
-    pub fn new(db_pool: DbPool) -> Self {
-        let repository = McpSessionRepository::new(&db_pool).ok();
+    pub fn new(db_pool: &DbPool) -> Self {
+        let repository = McpSessionRepository::new(db_pool).ok();
         Self {
             local_manager: LocalSessionManager::default(),
             repository: Arc::new(RwLock::new(repository)),

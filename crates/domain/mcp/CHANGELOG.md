@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.4] - 2026-02-04
+
+### Added
+- `mcp_artifacts` table schema for persisting MCP tool execution artifacts
+- `McpArtifactRepository` with save, find, list, delete, and cleanup operations
+- `CreateMcpArtifact` and `McpArtifactRecord` structs for artifact data
+- `capabilities` module with MCP Apps UI extension helpers
+- `mcp_apps_ui_extension()` function for experimental capabilities
+- `tool_ui_meta()` and `result_ui_meta()` helpers for UI metadata generation
+
+### Changed
+- `DatabaseSessionManager::new()` now takes `&DbPool` reference instead of owned value
+- Move CSP tests to `crates/tests/unit/domain/mcp/src/services/ui_renderer/`
+- Refactor `CspPolicy::extract_domains()` to associated function
+- Add `const fn` to `UiMetadata::with_prefers_border()`
+
+### Fixed
+- Fix redundant closure in UI metadata CSP conversion
+- Fix `map().flatten()` pattern replaced with `and_then()` in response builder
+
 ## [0.1.2] - 2026-02-03
 
 ### Added

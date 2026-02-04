@@ -9,6 +9,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_models::a2a::Artifact;
 use systemprompt_models::artifacts::ArtifactType;
+use systemprompt_models::mcp::{McpResourceUiMeta, ToolVisibility};
 
 pub const MCP_APP_MIME_TYPE: &str = "text/html;profile=mcp-app";
 const ARTIFACT_ID_PLACEHOLDER: &str = "{artifact_id}";
@@ -41,7 +42,8 @@ impl UiResource {
 pub struct UiMetadata {
     pub resource_uri: String,
     pub csp: Option<CspPolicy>,
-    pub visibility: Vec<String>,
+    pub visibility: Vec<ToolVisibility>,
+    pub prefers_border: bool,
 }
 
 impl UiMetadata {
@@ -50,7 +52,8 @@ impl UiMetadata {
         Self {
             resource_uri: format!("ui://{server}/{artifact_id}"),
             csp: None,
-            visibility: vec!["model".to_string()],
+            visibility: vec![ToolVisibility::Model, ToolVisibility::App],
+            prefers_border: true,
         }
     }
 
@@ -58,8 +61,29 @@ impl UiMetadata {
         Self {
             resource_uri: format!("ui://{server_name}/{{artifact_id}}"),
             csp: None,
-            visibility: vec!["model".to_string()],
+            visibility: vec![ToolVisibility::Model, ToolVisibility::App],
+            prefers_border: true,
         }
+    }
+
+    pub fn with_csp(mut self, csp: CspPolicy) -> Self {
+        self.csp = Some(csp);
+        self
+    }
+
+    pub const fn with_prefers_border(mut self, prefers: bool) -> Self {
+        self.prefers_border = prefers;
+        self
+    }
+
+    pub fn with_visibility(mut self, visibility: Vec<ToolVisibility>) -> Self {
+        self.visibility = visibility;
+        self
+    }
+
+    pub fn model_only(mut self) -> Self {
+        self.visibility = vec![ToolVisibility::Model];
+        self
     }
 
     pub fn to_json(&self) -> serde_json::Value {
@@ -89,6 +113,13 @@ impl UiMetadata {
         });
         meta.insert("ui".to_string(), ui_with_id);
         meta
+    }
+
+    pub fn to_resource_meta(&self) -> McpResourceUiMeta {
+        let csp_domains = self.csp.as_ref().map(CspPolicy::to_mcp_domains);
+        McpResourceUiMeta::new()
+            .with_prefers_border(self.prefers_border)
+            .with_csp_opt(csp_domains)
     }
 }
 

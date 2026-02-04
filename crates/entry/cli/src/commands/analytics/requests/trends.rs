@@ -71,7 +71,7 @@ async fn execute_internal(
         let entry = buckets.entry(period_key).or_insert((0, 0, 0, 0));
         entry.0 += 1;
         entry.1 += i64::from(row.tokens_used.unwrap_or(0));
-        entry.2 += i64::from(row.cost_microdollars.unwrap_or(0));
+        entry.2 += row.cost_microdollars.unwrap_or(0);
         entry.3 += i64::from(row.latency_ms.unwrap_or(0));
     }
 

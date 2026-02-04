@@ -8,7 +8,7 @@ use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse};
 use crate::services::providers::{GenerationParams, SearchGenerationParams, ToolGenerationParams};
 
 use super::service::AiService;
-use super::stream_wrapper::StreamStorageWrapper;
+use super::stream_wrapper::{StreamStorageParams, StreamStorageWrapper};
 
 impl AiService {
     pub async fn generate_stream(
@@ -37,15 +37,15 @@ impl AiService {
 
         let inner_stream = provider.generate_stream(params).await?;
 
-        let wrapped_stream = StreamStorageWrapper::new(
-            inner_stream,
-            self.storage.clone(),
-            request.clone(),
+        let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
+            inner: inner_stream,
+            storage: self.storage.clone(),
+            request: request.clone(),
             request_id,
             start,
-            request.provider().to_string(),
-            request.model().to_string(),
-        );
+            provider: request.provider().to_string(),
+            model: request.model().to_string(),
+        });
 
         Ok(Box::pin(wrapped_stream))
     }
@@ -78,15 +78,15 @@ impl AiService {
 
         let inner_stream = provider.generate_with_tools_stream(params).await?;
 
-        let wrapped_stream = StreamStorageWrapper::new(
-            inner_stream,
-            self.storage.clone(),
-            request.clone(),
+        let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
+            inner: inner_stream,
+            storage: self.storage.clone(),
+            request: request.clone(),
             request_id,
             start,
-            request.provider().to_string(),
-            request.model().to_string(),
-        );
+            provider: request.provider().to_string(),
+            model: request.model().to_string(),
+        });
 
         Ok(Box::pin(wrapped_stream))
     }

@@ -34,6 +34,15 @@ impl Extension for McpExtension {
                     "status".into(),
                     "created_at".into(),
                 ]),
+            SchemaDefinition::inline("mcp_artifacts", include_str!("../schema/mcp_artifacts.sql"))
+                .with_required_columns(vec![
+                    "artifact_id".into(),
+                    "mcp_execution_id".into(),
+                    "server_name".into(),
+                    "artifact_type".into(),
+                    "data".into(),
+                    "created_at".into(),
+                ]),
         ]
     }
 

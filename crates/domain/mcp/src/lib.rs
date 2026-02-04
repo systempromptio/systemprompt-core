@@ -1,3 +1,4 @@
+pub mod capabilities;
 pub mod cli;
 pub mod error;
 pub mod extension;
@@ -14,6 +15,11 @@ pub use extension::McpExtension;
 
 pub use error::{McpError, McpResult};
 
+pub use capabilities::{
+    build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
+    model_only_visibility, result_ui_meta, tool_ui_meta, visibility_to_json, WEBSITE_URL,
+};
+pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use response::McpResponseBuilder;
 pub use schema::McpOutputSchema;
 pub use tool::{call_tool, McpToolHandler};
@@ -55,7 +61,6 @@ pub use rmcp::model::ProtocolVersion;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
 use rmcp::transport::StreamableHttpService;
 use rmcp::ServerHandler;
-use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_database::DbPool;
 use tokio_util::sync::CancellationToken;
@@ -75,7 +80,7 @@ where
         cancellation_token: CancellationToken::new(),
     };
 
-    let session_manager = DatabaseSessionManager::new(Arc::clone(db_pool));
+    let session_manager = DatabaseSessionManager::new(db_pool);
 
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);

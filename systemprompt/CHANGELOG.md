@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.4] - 2026-02-04
+
+### Added
+- MCP artifacts persistence with `mcp_artifacts` table for storing tool execution results
+- `McpArtifactRepository` with CRUD operations for artifact storage and retrieval
+- MCP Apps UI extension support (`io.modelcontextprotocol/ui`) for rich tool responses
+- `ToolVisibility` enum for controlling tool visibility (model/app)
+- `McpCspDomains` builder for Content Security Policy domain configuration
+- `StreamStorageParams` struct to reduce function parameter count
+
+### Changed
+- Refactor secrets loading to use method references instead of closures
+- Move CSP tests from source file to dedicated test crate
+- Improve code quality across workspace for clippy pedantic compliance
+- Refactor `DatabaseSessionManager` to take `&DbPool` reference
+
+### Fixed
+- Fix redundant closure warnings in secrets and capabilities modules
+- Fix unused self parameter in CSP policy extraction
+- Fix branch code duplication in OAuth challenge builder
+
 ## [0.1.2] - 2026-02-03
 
 ### Added
