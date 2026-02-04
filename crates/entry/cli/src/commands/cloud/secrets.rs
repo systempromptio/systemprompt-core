@@ -322,7 +322,7 @@ pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<Stri
 
     let has_internal = secrets.contains_key("internal_database_url");
 
-    secrets
+    let mut result: HashMap<String, String> = secrets
         .into_iter()
         .filter_map(|(k, v)| {
             let env_key = to_env_var_name(&k, has_internal)?;
@@ -332,7 +332,19 @@ pub fn map_secrets_to_env_vars(secrets: HashMap<String, String>) -> HashMap<Stri
             }
             Some((env_key, v))
         })
-        .collect()
+        .collect();
+
+    let custom_keys: Vec<String> = result
+        .keys()
+        .filter(|k| !is_standard_env_var(k))
+        .cloned()
+        .collect();
+
+    if !custom_keys.is_empty() {
+        result.insert(env_vars::CUSTOM_SECRETS.to_string(), custom_keys.join(","));
+    }
+
+    result
 }
 
 fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
@@ -344,6 +356,19 @@ fn to_env_var_name(key: &str, has_internal_db_url: bool) -> Option<String> {
         "database_url" if has_internal_db_url => None,
         _ => Some(key.to_uppercase()),
     }
+}
+
+fn is_standard_env_var(key: &str) -> bool {
+    matches!(
+        key,
+        "JWT_SECRET"
+            | "DATABASE_URL"
+            | "SYNC_TOKEN"
+            | "GEMINI_API_KEY"
+            | "ANTHROPIC_API_KEY"
+            | "OPENAI_API_KEY"
+            | "GITHUB_TOKEN"
+    )
 }
 
 /// Syncs cloud credentials to the deployment environment.
