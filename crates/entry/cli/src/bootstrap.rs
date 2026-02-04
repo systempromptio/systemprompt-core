@@ -4,7 +4,8 @@ use std::path::{Path, PathBuf};
 use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
-use systemprompt_models::{AppPaths, Config, ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::profile::LogLevel;
+use systemprompt_models::{AppPaths, Config, Profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
@@ -34,17 +35,18 @@ fn get_active_session_profile_path() -> Option<PathBuf> {
 
     let store = SessionStore::load(&sessions_dir)?;
 
-    if let Some(session) = store.active_session() {
-        if let Some(expected) = store.active_profile_name.as_deref() {
-            if session.profile_name.as_str() != expected {
-                return resolve_profile_path_by_name(&paths, expected);
-            }
+    if let Some(profile_name) = store.active_profile_name.as_deref() {
+        if let Some(path) = resolve_profile_path_by_name(&paths, profile_name) {
+            return Some(path);
         }
-        return session.profile_path.clone();
     }
 
-    if let Some(profile_name) = store.active_profile_name.as_deref() {
-        return resolve_profile_path_by_name(&paths, profile_name);
+    if let Some(session) = store.active_session() {
+        if let Some(path) = &session.profile_path {
+            if path.exists() {
+                return Some(path.clone());
+            }
+        }
     }
 
     None
@@ -60,6 +62,12 @@ pub fn init_profile(path: &Path) -> Result<()> {
     ProfileBootstrap::init_from_path(path)
         .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
     Ok(())
+}
+
+pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
+    let content = std::fs::read_to_string(profile_path).ok()?;
+    let profile: Profile = serde_yaml::from_str(&content).ok()?;
+    Some(profile.runtime.log_level)
 }
 
 pub async fn init_credentials() -> Result<()> {
