@@ -3,17 +3,17 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use systemprompt_content::{ContentError, SearchRequest, SearchService};
-use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
+use systemprompt_runtime::AppContext;
 
 pub async fn query_handler(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Json(request): Json<SearchRequest>,
 ) -> Response {
     log_search_start(&request.query);
 
-    let search_service = match SearchService::new(&db_pool) {
+    let search_service = match SearchService::new(ctx.db_pool()) {
         Ok(service) => service,
         Err(e) => return handle_service_error(&e),
     };

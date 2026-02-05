@@ -36,12 +36,12 @@ impl EngagementRepository {
                 time_to_first_interaction_ms, time_to_first_scroll_ms,
                 scroll_velocity_avg, scroll_direction_changes,
                 mouse_move_distance_px, keyboard_events, copy_events,
-                focus_time_ms, blur_count, visible_time_ms, hidden_time_ms,
+                focus_time_ms, blur_count, tab_switches, visible_time_ms, hidden_time_ms,
                 is_rage_click, is_dead_click, reading_pattern
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12,
-                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22
+                $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23
             )
             "#,
             id.as_str(),
@@ -59,10 +59,11 @@ impl EngagementRepository {
             input.optional_metrics.mouse_move_distance_px,
             input.optional_metrics.keyboard_events,
             input.optional_metrics.copy_events,
-            input.optional_metrics.focus_time_ms,
-            input.optional_metrics.blur_count,
-            input.optional_metrics.visible_time_ms,
-            input.optional_metrics.hidden_time_ms,
+            input.optional_metrics.focus_time_ms.unwrap_or(0),
+            input.optional_metrics.blur_count.unwrap_or(0),
+            input.optional_metrics.tab_switches.unwrap_or(0),
+            input.optional_metrics.visible_time_ms.unwrap_or(0),
+            input.optional_metrics.hidden_time_ms.unwrap_or(0),
             input.optional_metrics.is_rage_click,
             input.optional_metrics.is_dead_click,
             input.optional_metrics.reading_pattern

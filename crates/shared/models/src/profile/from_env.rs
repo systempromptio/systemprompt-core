@@ -6,9 +6,9 @@
 use super::{
     default_agent_registry, default_agents, default_artifacts, default_burst, default_content,
     default_contexts, default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public,
-    default_stream, default_tasks, DatabaseConfig, ExtensionsConfig, PathsConfig, Profile,
-    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
-    TierMultipliers,
+    default_stream, default_tasks, ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig,
+    PathsConfig, Profile, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
+    ServerConfig, SiteConfig, TierMultipliers,
 };
 use anyhow::{Context, Result};
 
@@ -69,6 +69,11 @@ fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Resul
         cors_allowed_origins: get_env("CORS_ALLOWED_ORIGINS").map_or_else(Vec::new, |s| {
             s.split(',').map(|s| s.trim().to_string()).collect()
         }),
+        content_negotiation: ContentNegotiationConfig {
+            enabled: get_env("CONTENT_NEGOTIATION_ENABLED")
+                .is_some_and(|v| v.to_lowercase() == "true"),
+            ..Default::default()
+        },
     })
 }
 

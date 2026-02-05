@@ -26,5 +26,6 @@ pub use pagination::{
 };
 pub use responses::{
     AcceptedResponse, ApiResponse, CollectionResponse, CreatedResponse, DiscoveryResponse, Link,
-    ResponseLinks, ResponseMeta, SingleResponse, SuccessResponse,
+    MarkdownFrontmatter, MarkdownResponse, ResponseLinks, ResponseMeta, SingleResponse,
+    SuccessResponse,
 };

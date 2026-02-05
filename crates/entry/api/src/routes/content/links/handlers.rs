@@ -9,6 +9,7 @@ use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId};
 use systemprompt_models::{Config, RequestContext};
+use systemprompt_runtime::AppContext;
 use tracing::error;
 
 pub async fn redirect_handler(
@@ -56,7 +57,7 @@ pub async fn redirect_handler(
 }
 
 pub async fn generate_link_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Json(payload): Json<GenerateLinkRequest>,
 ) -> impl IntoResponse {
@@ -88,7 +89,7 @@ pub async fn generate_link_handler(
         None
     };
 
-    let link_gen_service = match LinkGenerationService::new(&db_pool) {
+    let link_gen_service = match LinkGenerationService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };
@@ -135,11 +136,11 @@ pub async fn generate_link_handler(
 }
 
 pub async fn get_link_performance_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(link_id): Path<String>,
 ) -> impl IntoResponse {
-    let analytics_service = match LinkAnalyticsService::new(&db_pool) {
+    let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };
@@ -157,11 +158,11 @@ pub async fn get_link_performance_handler(
 }
 
 pub async fn get_campaign_performance_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(campaign_id): Path<String>,
 ) -> impl IntoResponse {
-    let analytics_service = match LinkAnalyticsService::new(&db_pool) {
+    let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };
@@ -182,11 +183,11 @@ pub async fn get_campaign_performance_handler(
 }
 
 pub async fn get_content_journey_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(query): Query<AnalyticsQuery>,
 ) -> impl IntoResponse {
-    let analytics_service = match LinkAnalyticsService::new(&db_pool) {
+    let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };
@@ -201,11 +202,11 @@ pub async fn get_content_journey_handler(
 }
 
 pub async fn list_links_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Query(query): Query<ListLinksQuery>,
 ) -> impl IntoResponse {
-    let analytics_service = match LinkAnalyticsService::new(&db_pool) {
+    let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };
@@ -235,12 +236,12 @@ pub async fn list_links_handler(
 }
 
 pub async fn get_link_clicks_handler(
-    State(db_pool): State<DbPool>,
+    State(ctx): State<AppContext>,
     Extension(_req_ctx): Extension<RequestContext>,
     Path(link_id): Path<String>,
     Query(query): Query<AnalyticsQuery>,
 ) -> impl IntoResponse {
-    let analytics_service = match LinkAnalyticsService::new(&db_pool) {
+    let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
         Err(e) => return internal_error(&e.to_string()).into_response(),
     };

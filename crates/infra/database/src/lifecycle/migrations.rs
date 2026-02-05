@@ -32,6 +32,16 @@ impl<'a> MigrationService<'a> {
         Self { db }
     }
 
+    async fn ensure_migrations_table_exists(&self) -> Result<(), LoaderError> {
+        let sql = include_str!("../../schema/extension_migrations.sql");
+        SqlExecutor::execute_statements_parsed(self.db, sql)
+            .await
+            .map_err(|e| LoaderError::MigrationFailed {
+                extension: "database".to_string(),
+                message: format!("Failed to ensure migrations table exists: {e}"),
+            })
+    }
+
     pub async fn get_applied_migrations(
         &self,
         extension_id: &str,
@@ -75,6 +85,8 @@ impl<'a> MigrationService<'a> {
         if migrations.is_empty() {
             return Ok(MigrationResult::default());
         }
+
+        self.ensure_migrations_table_exists().await?;
 
         let applied = self.get_applied_migrations(ext_id).await?;
         let applied_versions: HashSet<u32> = applied.iter().map(|m| m.version).collect();
@@ -186,6 +198,8 @@ impl<'a> MigrationService<'a> {
         &self,
         extension: &dyn Extension,
     ) -> Result<MigrationStatus, LoaderError> {
+        self.ensure_migrations_table_exists().await?;
+
         let ext_id = extension.metadata().id;
         let defined_migrations = extension.migrations();
         let applied = self.get_applied_migrations(ext_id).await?;

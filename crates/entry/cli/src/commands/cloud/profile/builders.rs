@@ -7,9 +7,9 @@ use systemprompt_loader::ExtensionLoader;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
-    CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, LogLevel, OutputFormat,
-    PathsConfig, Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig, RuntimeConfig,
-    SecurityConfig, ServerConfig, SiteConfig,
+    CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
+    LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType,
+    RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
 };
 
 use super::templates::generate_display_name;
@@ -67,6 +67,7 @@ impl LocalProfileBuilder {
                 api_external_url: local_url.clone(),
                 use_https: false,
                 cors_allowed_origins: vec![local_url, "http://localhost:5173".to_string()],
+                content_negotiation: ContentNegotiationConfig::default(),
             },
             paths: PathsConfig {
                 system: system_path,
@@ -180,6 +181,7 @@ impl CloudProfileBuilder {
                 api_external_url: external.clone(),
                 use_https: true,
                 cors_allowed_origins: vec![external],
+                content_negotiation: ContentNegotiationConfig::default(),
             },
             paths: PathsConfig {
                 system: container::APP.to_string(),

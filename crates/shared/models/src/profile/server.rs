@@ -19,4 +19,29 @@ pub struct ServerConfig {
 
     #[serde(default)]
     pub cors_allowed_origins: Vec<String>,
+
+    #[serde(default)]
+    pub content_negotiation: ContentNegotiationConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ContentNegotiationConfig {
+    #[serde(default)]
+    pub enabled: bool,
+
+    #[serde(default = "default_markdown_suffix")]
+    pub markdown_suffix: String,
+}
+
+impl Default for ContentNegotiationConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            markdown_suffix: default_markdown_suffix(),
+        }
+    }
+}
+
+fn default_markdown_suffix() -> String {
+    ".md".to_string()
 }

@@ -16,6 +16,8 @@
 
 [Website](https://systemprompt.io) · [Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Playbooks](https://systemprompt.io/documentation/playbooks) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions)
 
+**Platform Support:** Working and tested on Unix (macOS and Linux). Windows support coming later.
+
 </div>
 
 ---

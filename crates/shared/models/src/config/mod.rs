@@ -3,7 +3,7 @@ use std::sync::OnceLock;
 use systemprompt_traits::ConfigProvider;
 
 use crate::auth::JwtAudience;
-use crate::profile::Profile;
+use crate::profile::{ContentNegotiationConfig, Profile};
 use crate::profile_bootstrap::ProfileBootstrap;
 use crate::secrets::SecretsBootstrap;
 
@@ -65,6 +65,7 @@ pub struct Config {
     pub rate_limits: RateLimitConfig,
     pub cors_allowed_origins: Vec<String>,
     pub is_cloud: bool,
+    pub content_negotiation: ContentNegotiationConfig,
 }
 
 impl Config {
@@ -221,6 +222,7 @@ impl Config {
             rate_limits: (&profile.rate_limits).into(),
             cors_allowed_origins: profile.server.cors_allowed_origins.clone(),
             is_cloud: profile.target.is_cloud(),
+            content_negotiation: profile.server.content_negotiation.clone(),
         })
     }
 
