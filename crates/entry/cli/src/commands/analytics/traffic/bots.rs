@@ -45,7 +45,7 @@ async fn execute_internal(
 ) -> Result<CommandResult<BotsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let totals = repo.get_bot_totals(start, end).await?;
+    let totals = repo.get_bot_totals(start, end, false).await?;
     let bot_types = repo.get_bot_breakdown(start, end).await?;
 
     let total = totals.human + totals.bot;

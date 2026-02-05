@@ -23,6 +23,9 @@ pub struct GeoArgs {
 
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
+
+    #[arg(long, help = "Include all sessions (ghost sessions, suspected bots that evaded detection)")]
+    pub include_all: bool,
 }
 
 pub async fn execute(args: GeoArgs, _config: &CliConfig) -> Result<CommandResult<GeoOutput>> {
@@ -45,8 +48,9 @@ async fn execute_internal(
     repo: &TrafficAnalyticsRepository,
 ) -> Result<CommandResult<GeoOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
+    let engaged_only = !args.include_all;
 
-    let rows = repo.get_geo_breakdown(start, end, args.limit).await?;
+    let rows = repo.get_geo_breakdown(start, end, args.limit, engaged_only).await?;
 
     let total: i64 = rows.iter().map(|r| r.count).sum();
 

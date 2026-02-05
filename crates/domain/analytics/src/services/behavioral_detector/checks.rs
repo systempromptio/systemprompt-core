@@ -176,6 +176,30 @@ impl BehavioralBotDetector {
             });
         }
     }
+
+    pub(super) fn check_ghost_session(
+        input: &BehavioralAnalysisInput,
+        score: &mut i32,
+        signals: &mut Vec<BehavioralSignal>,
+    ) {
+        let session_age = (input.last_activity_at - input.started_at).num_seconds();
+
+        if input.landing_page.is_none()
+            && input.entry_url.is_none()
+            && input.request_count == 0
+            && session_age >= thresholds::GHOST_SESSION_MIN_AGE_SECONDS
+        {
+            *score += scoring::GHOST_SESSION;
+            signals.push(BehavioralSignal {
+                signal_type: SignalType::GhostSession,
+                points: scoring::GHOST_SESSION,
+                details: format!(
+                    "Ghost session: no landing page, no entry URL, 0 requests after {}s",
+                    session_age
+                ),
+            });
+        }
+    }
 }
 
 fn is_sequential_crawl(endpoints: &[String]) -> bool {

@@ -69,9 +69,7 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
                 if pid_str.parse::<u32>().is_ok() {
                     tracing::debug!(port = port, pid = %pid_str, "Stopping process on port");
 
-                    let _ = Command::new("taskkill")
-                        .args(["/PID", pid_str])
-                        .output();
+                    let _ = Command::new("taskkill").args(["/PID", pid_str]).output();
 
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 

@@ -93,6 +93,15 @@ impl ProfilePath {
     }
 }
 
+fn is_valid_project_root(path: &Path) -> bool {
+    if !path.join(paths::ROOT_DIR).is_dir() {
+        return false;
+    }
+    path.join("Cargo.toml").exists()
+        || path.join("services").is_dir()
+        || path.join("storage").is_dir()
+}
+
 #[derive(Debug, Clone)]
 pub struct ProjectContext {
     root: PathBuf,
@@ -120,7 +129,7 @@ impl ProjectContext {
     pub fn discover_from(start: &Path) -> Self {
         let mut current = start.to_path_buf();
         loop {
-            if current.join(paths::ROOT_DIR).is_dir() {
+            if is_valid_project_root(&current) {
                 return Self::new(current);
             }
             if !current.pop() {
