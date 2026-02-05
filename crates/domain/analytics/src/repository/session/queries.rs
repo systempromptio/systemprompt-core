@@ -236,7 +236,9 @@ pub async fn get_session_for_behavioral_analysis(
             user_agent,
             request_count,
             started_at as "started_at!",
-            last_activity_at as "last_activity_at!"
+            last_activity_at as "last_activity_at!",
+            landing_page,
+            entry_url
         FROM user_sessions
         WHERE session_id = $1
         "#,

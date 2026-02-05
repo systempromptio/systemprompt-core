@@ -23,6 +23,9 @@ pub struct SourcesArgs {
 
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
+
+    #[arg(long, help = "Include all sessions (ghost sessions, suspected bots that evaded detection)")]
+    pub include_all: bool,
 }
 
 pub async fn execute(
@@ -48,8 +51,9 @@ async fn execute_internal(
     repo: &TrafficAnalyticsRepository,
 ) -> Result<CommandResult<TrafficSourcesOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
+    let engaged_only = !args.include_all;
 
-    let rows = repo.get_sources(start, end, args.limit).await?;
+    let rows = repo.get_sources(start, end, args.limit, engaged_only).await?;
 
     let total: i64 = rows.iter().map(|r| r.count).sum();
 

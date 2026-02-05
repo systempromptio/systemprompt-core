@@ -4,7 +4,17 @@ use axum::response::Response;
 use std::sync::Arc;
 use systemprompt_analytics::matches_bot_pattern;
 
-const DATACENTER_IP_PREFIXES: &[&str] = &["47.79.", "47.82."];
+const DATACENTER_IP_PREFIXES: &[&str] = &[
+    "47.79.", "47.82.",
+    "47.88.", "47.89.", "47.90.", "47.91.", "47.92.", "47.93.", "47.94.", "47.95.",
+    "47.96.", "47.97.", "47.98.", "47.99.", "47.100.", "47.101.", "47.102.", "47.103.",
+    "47.104.", "47.105.", "47.106.", "47.107.", "47.108.", "47.109.", "47.110.", "47.111.",
+    "47.112.", "47.113.", "47.114.", "47.115.", "47.116.", "47.117.", "47.118.", "47.119.",
+    "119.29.", "129.28.", "162.14.",
+    "119.3.", "122.112.",
+];
+
+const CHROME_MIN_VERSION: i32 = 120;
 
 #[derive(Clone, Debug)]
 pub struct BotMarker {
@@ -47,7 +57,7 @@ pub async fn detect_bots_early(mut req: Request, next: Next) -> Response {
             user_agent: user_agent.clone(),
             ip_address: ip_address.clone(),
         }
-    } else if is_datacenter_ip(ip_address.as_deref()) {
+    } else if is_datacenter_ip(ip_address.as_deref()) || is_outdated_browser(&user_agent) {
         BotMarker {
             is_bot: true,
             bot_type: BotType::Suspicious,
@@ -104,6 +114,21 @@ fn is_datacenter_ip(ip: Option<&str>) -> bool {
 
 fn is_known_bot(user_agent: &str) -> bool {
     matches_bot_pattern(user_agent)
+}
+
+fn is_outdated_browser(user_agent: &str) -> bool {
+    let ua_lower = user_agent.to_lowercase();
+
+    if let Some(pos) = ua_lower.find("chrome/") {
+        let version_str = &ua_lower[pos + 7..];
+        if let Some(dot_pos) = version_str.find('.') {
+            if let Ok(major) = version_str[..dot_pos].parse::<i32>() {
+                return major < CHROME_MIN_VERSION;
+            }
+        }
+    }
+
+    false
 }
 
 fn is_scanner_request(path: &str, user_agent: &str) -> bool {

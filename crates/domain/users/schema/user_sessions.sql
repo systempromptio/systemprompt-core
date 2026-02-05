@@ -192,6 +192,25 @@ WHERE is_bot = false
   AND (is_behavioral_bot IS NULL OR is_behavioral_bot = false)
   AND throttle_level < 3;
 
+DROP VIEW IF EXISTS v_engaged_traffic CASCADE;
+CREATE VIEW v_engaged_traffic AS
+SELECT * FROM user_sessions
+WHERE is_bot = false
+  AND is_scanner = false
+  AND is_behavioral_bot = false
+  AND landing_page IS NOT NULL
+  AND request_count > 0;
+
+COMMENT ON VIEW v_engaged_traffic IS 'Human traffic with actual page engagement (excludes ghost sessions with no landing page or zero requests)';
+
+CREATE INDEX IF NOT EXISTS idx_user_sessions_engaged_traffic
+ON user_sessions(started_at)
+WHERE is_bot = false
+  AND is_scanner = false
+  AND is_behavioral_bot = false
+  AND landing_page IS NOT NULL
+  AND request_count > 0;
+
 DROP VIEW IF EXISTS v_security_threats CASCADE;
 CREATE VIEW v_security_threats AS
 SELECT

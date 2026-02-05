@@ -14,6 +14,7 @@ pub mod scoring {
     pub const HIGH_PAGES_PER_MINUTE: i32 = 15;
     pub const OUTDATED_BROWSER: i32 = 25;
     pub const NO_JAVASCRIPT_EVENTS: i32 = 20;
+    pub const GHOST_SESSION: i32 = 35;
 }
 
 pub mod thresholds {
@@ -25,6 +26,7 @@ pub mod thresholds {
     pub const CHROME_MIN_VERSION: i32 = 120;
     pub const FIREFOX_MIN_VERSION: i32 = 120;
     pub const NO_JS_MIN_REQUESTS: i64 = 3;
+    pub const GHOST_SESSION_MIN_AGE_SECONDS: i64 = 30;
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -47,6 +49,7 @@ impl BehavioralBotDetector {
         Self::check_high_pages_per_minute(input, &mut score, &mut signals);
         Self::check_outdated_browser(input, &mut score, &mut signals);
         Self::check_no_javascript_events(input, &mut score, &mut signals);
+        Self::check_ghost_session(input, &mut score, &mut signals);
 
         let is_suspicious = score >= BEHAVIORAL_BOT_THRESHOLD;
         let reason = is_suspicious.then(|| {

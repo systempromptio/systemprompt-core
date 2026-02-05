@@ -42,6 +42,8 @@ pub struct SessionBehavioralData {
     pub request_count: Option<i32>,
     pub started_at: DateTime<Utc>,
     pub last_activity_at: DateTime<Utc>,
+    pub landing_page: Option<String>,
+    pub entry_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Copy)]

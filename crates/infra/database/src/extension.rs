@@ -22,10 +22,7 @@ impl Extension for DatabaseExtension {
                 "extension_migrations",
                 include_str!("../schema/extension_migrations.sql"),
             ),
-            SchemaDefinition::inline(
-                "functions",
-                include_str!("../schema/functions.sql"),
-            ),
+            SchemaDefinition::inline("functions", include_str!("../schema/functions.sql")),
         ]
     }
 

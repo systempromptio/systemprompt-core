@@ -29,6 +29,8 @@ mod behavioral_analysis_input_tests {
             fingerprint_session_count: fingerprint_sessions,
             request_timestamps: vec![],
             has_javascript_events: true,
+            landing_page: Some("/".to_string()),
+            entry_url: Some("/".to_string()),
         }
     }
 
@@ -212,6 +214,8 @@ mod behavioral_bot_detector_tests {
             fingerprint_session_count: fingerprint_sessions,
             request_timestamps: vec![],
             has_javascript_events: true,
+            landing_page: Some("/".to_string()),
+            entry_url: Some("/".to_string()),
         }
     }
 
@@ -232,6 +236,8 @@ mod behavioral_bot_detector_tests {
             fingerprint_session_count: 1,
             request_timestamps: timestamps,
             has_javascript_events: true,
+            landing_page: Some("/".to_string()),
+            entry_url: Some("/".to_string()),
         }
     }
 
@@ -249,6 +255,8 @@ mod behavioral_bot_detector_tests {
             fingerprint_session_count: 1,
             request_timestamps: vec![],
             has_javascript_events: true,
+            landing_page: Some("/".to_string()),
+            entry_url: Some("/".to_string()),
         }
     }
 
@@ -469,6 +477,8 @@ mod behavioral_bot_detector_tests {
             fingerprint_session_count: 1,
             request_timestamps: vec![],
             has_javascript_events: true,
+            landing_page: Some("/".to_string()),
+            entry_url: Some("/".to_string()),
         };
         let result = BehavioralBotDetector::analyze(&input);
 

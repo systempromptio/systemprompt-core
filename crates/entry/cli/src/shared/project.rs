@@ -3,7 +3,7 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ProjectError {
-    #[error("Not a systemprompt.io project: {path}\n\nLooking for .systemprompt directory")]
+    #[error("Not a systemprompt.io project: {path}\n\nLooking for .systemprompt directory alongside Cargo.toml, services/, or storage/")]
     ProjectNotFound { path: PathBuf },
 
     #[error("Failed to resolve path {path}: {source}")]
@@ -12,6 +12,15 @@ pub enum ProjectError {
         #[source]
         source: std::io::Error,
     },
+}
+
+fn is_valid_project_root(path: &Path) -> bool {
+    if !path.join(".systemprompt").is_dir() {
+        return false;
+    }
+    path.join("Cargo.toml").exists()
+        || path.join("services").is_dir()
+        || path.join("storage").is_dir()
 }
 
 #[derive(Debug, Clone)]
@@ -24,13 +33,13 @@ impl ProjectRoot {
             source: e,
         })?;
 
-        if current.join(".systemprompt").is_dir() {
+        if is_valid_project_root(&current) {
             return Ok(Self(current));
         }
 
         let mut search = current.as_path();
         while let Some(parent) = search.parent() {
-            if parent.join(".systemprompt").is_dir() {
+            if is_valid_project_root(parent) {
                 return Ok(Self(parent.to_path_buf()));
             }
             search = parent;

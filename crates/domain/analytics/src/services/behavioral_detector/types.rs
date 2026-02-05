@@ -15,6 +15,8 @@ pub struct BehavioralAnalysisInput {
     pub fingerprint_session_count: i64,
     pub request_timestamps: Vec<DateTime<Utc>>,
     pub has_javascript_events: bool,
+    pub landing_page: Option<String>,
+    pub entry_url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,6 +44,7 @@ pub enum SignalType {
     HighPagesPerMinute,
     OutdatedBrowser,
     NoJavaScriptEvents,
+    GhostSession,
 }
 
 impl std::fmt::Display for SignalType {
@@ -55,6 +58,7 @@ impl std::fmt::Display for SignalType {
             Self::HighPagesPerMinute => write!(f, "high_pages_per_minute"),
             Self::OutdatedBrowser => write!(f, "outdated_browser"),
             Self::NoJavaScriptEvents => write!(f, "no_javascript_events"),
+            Self::GhostSession => write!(f, "ghost_session"),
         }
     }
 }
