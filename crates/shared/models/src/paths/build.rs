@@ -16,15 +16,28 @@ impl BuildPaths {
     }
 
     pub fn resolve_binary(&self, name: &str) -> Result<PathBuf, PathError> {
-        let path = self.bin.join(name);
-        if path.exists() {
-            Self::ensure_absolute(path)
-        } else {
-            Err(PathError::BinaryNotFound {
-                name: name.to_string(),
-                searched: vec![path],
-            })
+        let mut searched = Vec::new();
+
+        let exe_name = format!("{}{}", name, std::env::consts::EXE_SUFFIX);
+        let exe_path = self.bin.join(&exe_name);
+        searched.push(exe_path.clone());
+
+        if exe_path.exists() {
+            return Self::ensure_absolute(exe_path);
         }
+
+        if !std::env::consts::EXE_SUFFIX.is_empty() {
+            let path = self.bin.join(name);
+            searched.push(path.clone());
+            if path.exists() {
+                return Self::ensure_absolute(path);
+            }
+        }
+
+        Err(PathError::BinaryNotFound {
+            name: name.to_string(),
+            searched,
+        })
     }
 
     fn ensure_absolute(path: PathBuf) -> Result<PathBuf, PathError> {

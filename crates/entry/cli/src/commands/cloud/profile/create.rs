@@ -18,7 +18,7 @@ use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::templates::{
     get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
-    save_secrets, DatabaseUrls,
+    save_secrets, update_ai_config_default_provider, DatabaseUrls,
 };
 use super::{CreateArgs, TenantTypeArg};
 use crate::cli_settings::CliConfig;
@@ -113,6 +113,8 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
         tenant.tenant_type == TenantType::Cloud,
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
+
+    update_ai_config_default_provider(api_keys.selected_provider())?;
 
     let services_path = get_services_path()?;
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
@@ -240,6 +242,8 @@ pub fn create_profile_for_tenant(
         tenant.tenant_type == TenantType::Cloud,
     )?;
     CliService::success(&format!("Created: {}", secrets_path.display()));
+
+    update_ai_config_default_provider(api_keys.selected_provider())?;
 
     let profile_path = ProfilePath::Config.resolve(&profile_dir);
 

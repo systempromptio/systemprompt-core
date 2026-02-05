@@ -75,9 +75,10 @@ oauth:
     .to_string()
 }
 
-pub fn ai_config() -> String {
-    r#"# AI Configuration
-default_provider: "anthropic"
+pub fn ai_config(default_provider: &str) -> String {
+    format!(
+        r#"# AI Configuration
+default_provider: "{}"
 
 providers:
   anthropic:
@@ -91,8 +92,9 @@ providers:
   gemini:
     enabled: true
     default_model: "gemini-2.0-flash"
-"#
-    .to_string()
+"#,
+        default_provider
+    )
 }
 
 pub fn content_config() -> String {

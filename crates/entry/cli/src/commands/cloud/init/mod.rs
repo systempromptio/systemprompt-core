@@ -5,7 +5,7 @@ use systemprompt_cloud::ProjectContext;
 use systemprompt_logging::CliService;
 use systemprompt_models::CliPaths;
 
-mod templates;
+pub mod templates;
 
 use super::dockerfile;
 use crate::cli_settings::CliConfig;
@@ -186,7 +186,10 @@ fn write_config_files(services_dir: &Path, project_name: &str) -> Result<()> {
         &services_dir.join("mcp/systemprompt-admin.yaml"),
         &admin_mcp_config(),
     )?;
-    write_file(&services_dir.join("ai/config.yaml"), &ai_config())?;
+    write_file(
+        &services_dir.join("ai/config.yaml"),
+        &ai_config("anthropic"),
+    )?;
     write_file(&services_dir.join("content/config.yaml"), &content_config())?;
     write_file(
         &services_dir.join("web/config.yaml"),

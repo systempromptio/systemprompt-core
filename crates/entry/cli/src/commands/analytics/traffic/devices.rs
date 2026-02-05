@@ -24,7 +24,10 @@ pub struct DevicesArgs {
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
 
-    #[arg(long, help = "Include all sessions (ghost sessions, suspected bots that evaded detection)")]
+    #[arg(
+        long,
+        help = "Include all sessions (ghost sessions, suspected bots that evaded detection)"
+    )]
     pub include_all: bool,
 }
 
@@ -53,7 +56,9 @@ async fn execute_internal(
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
     let engaged_only = !args.include_all;
 
-    let rows = repo.get_device_breakdown(start, end, args.limit, engaged_only).await?;
+    let rows = repo
+        .get_device_breakdown(start, end, args.limit, engaged_only)
+        .await?;
 
     let total: i64 = rows.iter().map(|r| r.count).sum();
 
