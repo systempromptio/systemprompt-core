@@ -23,7 +23,7 @@ pub enum PathError {
         source: std::io::Error,
     },
 
-    #[error("Binary not found: {name}")]
+    #[error("Binary not found: {name} (searched: {searched:?})")]
     BinaryNotFound {
         name: String,
         searched: Vec<PathBuf>,

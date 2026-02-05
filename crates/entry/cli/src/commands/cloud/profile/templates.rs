@@ -1,8 +1,11 @@
 use anyhow::{Context, Result};
+use regex::Regex;
 use std::path::Path;
 use systemprompt_cloud::constants::container;
 use systemprompt_logging::CliService;
 use systemprompt_models::{CliPaths, Profile};
+
+use crate::commands::cloud::init::templates::ai_config;
 
 use crate::cloud::dockerfile::DockerfileBuilder;
 
@@ -235,4 +238,35 @@ pub async fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
     };
 
     anyhow::bail!("Migration failed: {}", error_output)
+}
+
+pub fn update_ai_config_default_provider(provider: &str) -> Result<()> {
+    let services_path = get_services_path()?;
+    let ai_dir = Path::new(&services_path).join("ai");
+    let ai_config_path = ai_dir.join("config.yaml");
+
+    if !ai_config_path.exists() {
+        CliService::warning("AI config not found. Creating services/ai/config.yaml");
+        CliService::info("Run 'systemprompt cloud init' for full project setup");
+
+        std::fs::create_dir_all(&ai_dir)
+            .with_context(|| format!("Failed to create directory {}", ai_dir.display()))?;
+        std::fs::write(&ai_config_path, ai_config(provider))
+            .with_context(|| format!("Failed to write {}", ai_config_path.display()))?;
+        CliService::success(&format!("Created: {}", ai_config_path.display()));
+        return Ok(());
+    }
+
+    let content = std::fs::read_to_string(&ai_config_path)
+        .with_context(|| format!("Failed to read {}", ai_config_path.display()))?;
+    let re = Regex::new(r#"default_provider:\s*"?\w+"?"#).context("Failed to compile regex")?;
+    let updated = re.replace(&content, format!(r#"default_provider: "{}""#, provider));
+
+    std::fs::write(&ai_config_path, updated.as_ref())
+        .with_context(|| format!("Failed to write {}", ai_config_path.display()))?;
+    CliService::success(&format!(
+        "Updated default_provider to '{}' in AI config",
+        provider
+    ));
+    Ok(())
 }

@@ -213,10 +213,7 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
     let build_result = check_build_ready();
     let cloud_option = match &build_result {
         Ok(()) => "Cloud (requires subscription at systemprompt.io)".to_string(),
-        Err(e) => {
-            tracing::debug!(error = %e, "Build requirements check failed");
-            "Cloud (unavailable - build requirements not met)".to_string()
-        },
+        Err(_) => "Cloud (unavailable - release build required)".to_string(),
     };
 
     let options = vec![
@@ -249,9 +246,14 @@ async fn tenant_create(default_region: &str, config: &CliConfig) -> Result<()> {
             }
         },
         _ if build_result.is_err() => {
-            CliService::warning("Cloud tenant requires a built project");
-            if let Err(err) = build_result {
-                CliService::error(&err);
+            CliService::warning("Cloud tenant creation requires a release build.");
+            CliService::info("");
+            CliService::info("Run the following command to build:");
+            CliService::info("  cargo build --release --workspace");
+            CliService::info("");
+            if let Err(err) = &build_result {
+                CliService::info("Specific issue:");
+                CliService::error(err);
             }
             return Ok(());
         },

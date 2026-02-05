@@ -28,6 +28,18 @@ impl ApiKeys {
             openai,
         })
     }
+
+    pub const fn selected_provider(&self) -> &'static str {
+        if self.anthropic.is_some() {
+            "anthropic"
+        } else if self.openai.is_some() {
+            "openai"
+        } else if self.gemini.is_some() {
+            "gemini"
+        } else {
+            "anthropic"
+        }
+    }
 }
 
 pub fn collect_api_keys() -> Result<ApiKeys> {

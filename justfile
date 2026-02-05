@@ -115,45 +115,65 @@ clean:
 # =============================================================================
 
 # Start API server (checks if already running)
+[unix]
 api:
     #!/usr/bin/env bash
-    # Check if server is already running on port 8080
     if lsof -ti :8080 >/dev/null 2>&1; then
         echo "✅ Server already running on port 8080"
         echo ""
         echo "💡 To restart with latest code: just api-rebuild"
         exit 0
     fi
-
     echo "🚀 Starting API server..."
     ./target/debug/systemprompt serve api --foreground
 
+[windows]
+api:
+    #!powershell
+    $port = netstat -ano | Select-String ":8080.*LISTENING"
+    if ($port) {
+        Write-Host "✅ Server already running on port 8080"
+        Write-Host ""
+        Write-Host "💡 To restart with latest code: just api-rebuild"
+        exit 0
+    }
+    Write-Host "🚀 Starting API server..."
+    .\target\debug\systemprompt.exe serve api --foreground
+
 # Rebuild and restart entire system (API + agents + MCP)
+[unix]
 api-rebuild:
     #!/usr/bin/env bash
     set -e
-
     echo "🔨 Building..."
     cargo build --bin systemprompt
-
     echo "🧹 Cleaning up services..."
     ./target/debug/systemprompt cleanup-services
-
     echo "✅ Starting fresh API server..."
     ./target/debug/systemprompt serve api --foreground
+
+[windows]
+api-rebuild:
+    #!powershell
+    $ErrorActionPreference = "Stop"
+    Write-Host "🔨 Building..."
+    cargo build --bin systemprompt
+    Write-Host "🧹 Cleaning up services..."
+    .\target\debug\systemprompt.exe cleanup-services
+    Write-Host "✅ Starting fresh API server..."
+    .\target\debug\systemprompt.exe serve api --foreground
 
 # Convenient alias for api-rebuild
 restart:
     just api-rebuild
 
 # Build and start API server with TEST database (for integration tests)
+[unix]
 api-test-rebuild:
     #!/usr/bin/env bash
     set -e
-
     echo "🔨 Building..."
     cargo build --bin systemprompt
-
     echo "🧹 Cleaning up services..."
     ./target/debug/systemprompt cleanup-services
 
@@ -161,7 +181,20 @@ api-test-rebuild:
     export DATABASE_URL="database/test.db"
     ./target/debug/systemprompt serve api --foreground
 
+[windows]
+api-test-rebuild:
+    #!powershell
+    $ErrorActionPreference = "Stop"
+    Write-Host "🔨 Building..."
+    cargo build --bin systemprompt
+    Write-Host "🧹 Cleaning up services..."
+    .\target\debug\systemprompt.exe cleanup-services
+    Write-Host "✅ Starting fresh API server with TEST database..."
+    $env:DATABASE_URL = "database/test.db"
+    .\target\debug\systemprompt.exe serve api --foreground
+
 # Reload agents with latest binary (keeps API server running)
+[unix]
 agents-reload:
     #!/usr/bin/env bash
     set +e  # Don't exit on errors
@@ -194,42 +227,72 @@ agents-reload:
     echo ""
     echo "💡 Check status: just agents"
 
+[windows]
+agents-reload:
+    #!powershell
+    Write-Host "🔨 Building latest binary..."
+    cargo build --bin systemprompt
+    Write-Host "🧹 Stopping old agent processes..."
+    # Kill agent processes on known ports
+    foreach ($port in 9000, 9001, 9002, 9003) {
+        $pids = netstat -ano | Select-String ":$port.*LISTENING" | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique
+        foreach ($pid in $pids) {
+            if ($pid -and $pid -ne "0") { taskkill /PID $pid /F 2>$null }
+        }
+    }
+    # Kill agent processes by name pattern
+    taskkill /IM "systemprompt*" /F 2>$null
+    Write-Host "⏳ Waiting for processes to terminate..."
+    Start-Sleep -Seconds 2
+    Write-Host "🚀 Starting agents with new binary via API reconciliation..."
+    & .\target\debug\systemprompt.exe admin agents restart --all 2>$null
+    if (-not $?) { Write-Host "Note: Agents will auto-start with API" }
+    Write-Host "✅ Agents reloaded with latest binary"
+    Write-Host ""
+    Write-Host "💡 Check status: just agents"
+
 # Nuclear option: kill everything and reset (API, agents, MCP servers, database)
+[unix]
 api-nuke:
     #!/usr/bin/env bash
-    set +e  # Don't exit on errors
-
+    set +e
     echo "🔨 Building..."
     cargo build --bin systemprompt
-
     echo "💥 NUKING ALL PROCESSES..."
-
-    # Kill all processes on service ports (API, agents, MCP servers)
     for port in 8080 9000 9001 9002 9003 5000 5001 5002 5003 5004 5005; do
         lsof -ti :$port 2>/dev/null | xargs -r kill -9 2>/dev/null || true
     done
-
-    # Kill any remaining systemprompt service processes by name
     pkill -9 -f "systemprompt serve api" 2>/dev/null || true
     pkill -9 -f "systemprompt admin agents run" 2>/dev/null || true
     pkill -9 -f "systemprompt-admin" 2>/dev/null || true
     pkill -9 -f "systemprompt-introduction" 2>/dev/null || true
     pkill -9 -f "systemprompt-helper" 2>/dev/null || true
-
-    # Clean up any zombie processes
     pkill -9 -f "systemprompt" 2>/dev/null || true
-
-    # Give processes time to fully terminate
     sleep 1
-
-    # Clean up services database (remove crashed/orphaned entries)
     ./target/debug/systemprompt infra db execute "DELETE FROM services" 2>/dev/null || true
-
     echo "✅ Nuclear cleanup complete, starting fresh API server..."
-
-    # Start fresh
     ./target/debug/systemprompt serve api --foreground
 
+[windows]
+api-nuke:
+    #!powershell
+    Write-Host "🔨 Building..."
+    cargo build --bin systemprompt
+    Write-Host "💥 NUKING ALL PROCESSES..."
+    # Kill processes on service ports
+    foreach ($port in 8080, 9000, 9001, 9002, 9003, 5000, 5001, 5002, 5003, 5004, 5005) {
+        $pids = netstat -ano | Select-String ":$port.*LISTENING" | ForEach-Object { ($_ -split '\s+')[-1] } | Sort-Object -Unique
+        foreach ($pid in $pids) {
+            if ($pid -and $pid -ne "0") { taskkill /PID $pid /F 2>$null }
+        }
+    }
+    # Kill all systemprompt processes
+    taskkill /IM "systemprompt*" /F 2>$null
+    Start-Sleep -Seconds 1
+    # Clean up services database
+    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM services" 2>$null
+    Write-Host "✅ Nuclear cleanup complete, starting fresh API server..."
+    .\target\debug\systemprompt.exe serve api --foreground
 
 # =============================================================================
 # TESTING
@@ -259,6 +322,7 @@ test-run:
     npm test
 
 # Start API server with test database (for integration tests)
+[unix]
 api-test:
     #!/usr/bin/env bash
     echo "🧪 Starting API server with TEST database..."
@@ -267,7 +331,17 @@ api-test:
     export DATABASE_URL="database/test.db"
     ./target/debug/systemprompt serve api --foreground
 
+[windows]
+api-test:
+    #!powershell
+    Write-Host "🧪 Starting API server with TEST database..."
+    Write-Host "📝 Database: database/test.db"
+    Write-Host ""
+    $env:DATABASE_URL = "database/test.db"
+    .\target\debug\systemprompt.exe serve api --foreground
+
 # Run full test workflow: setup DB → start API → run tests
+[unix]
 test-full:
     #!/usr/bin/env bash
     set -e
@@ -326,7 +400,51 @@ test-full:
         exit $TEST_EXIT
     fi
 
+[windows]
+test-full:
+    #!powershell
+    $ErrorActionPreference = "Stop"
+    Write-Host "🧪 FULL TEST WORKFLOW"
+    Write-Host "═══════════════════════════════════════════════════════════"
+    Write-Host ""
+    Write-Host "Step 1️⃣  Building project..."
+    cargo build --bin systemprompt
+    Write-Host ""
+    Write-Host "⚠️  Step 2️⃣  Starting API in background with test database..."
+    $env:DATABASE_URL = "database/test.db"
+    $apiJob = Start-Job -ScriptBlock { & .\target\debug\systemprompt.exe serve api --foreground }
+    Write-Host "   Waiting for API to start..."
+    Start-Sleep -Seconds 3
+    $port = netstat -ano | Select-String ":8080.*LISTENING"
+    if (-not $port) {
+        Write-Host "❌ API failed to start!"
+        Stop-Job $apiJob -ErrorAction SilentlyContinue
+        exit 1
+    }
+    Write-Host "✅ API started"
+    Write-Host ""
+    Write-Host "Step 3️⃣  Running tests..."
+    Push-Location tests/integration
+    $env:DATABASE_URL = "database/test.db"
+    $testResult = 0
+    try { npm test } catch { $testResult = 1 }
+    Pop-Location
+    Write-Host ""
+    Write-Host "🧹 Cleaning up..."
+    Stop-Job $apiJob -ErrorAction SilentlyContinue
+    Remove-Job $apiJob -ErrorAction SilentlyContinue
+    Start-Sleep -Seconds 1
+    Write-Host "═══════════════════════════════════════════════════════════"
+    if ($testResult -eq 0) {
+        Write-Host "✅ All tests passed!"
+        exit 0
+    } else {
+        Write-Host "❌ Tests failed!"
+        exit 1
+    }
+
 # Clean test database (remove test data)
+[unix]
 test-clean:
     #!/usr/bin/env bash
     echo "🧹 Cleaning test database..."
@@ -338,7 +456,20 @@ test-clean:
     ./target/debug/systemprompt infra db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
     echo "✅ Test data cleaned!"
 
+[windows]
+test-clean:
+    #!powershell
+    Write-Host "🧹 Cleaning test database..."
+    Write-Host ""
+    $env:DATABASE_URL = "database/test.db"
+    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM task_artifacts WHERE artifact_id LIKE 'test-%' OR created_by LIKE 'test-%'"
+    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM user_contexts WHERE context_id LIKE 'test-%'"
+    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM user_sessions WHERE session_id LIKE 'test-%'"
+    & .\target\debug\systemprompt.exe infra db execute "DELETE FROM ai_requests WHERE session_id LIKE 'test-%'"
+    Write-Host "✅ Test data cleaned!"
+
 # Reset test database completely (use with caution!)
+[unix]
 test-reset:
     #!/usr/bin/env bash
     echo "🧹 Resetting test database completely..."
@@ -346,6 +477,16 @@ test-reset:
     echo "Press Enter to continue or Ctrl+C to abort..."
     read
     rm -f database/test.db
+    just test-setup
+
+[windows]
+test-reset:
+    #!powershell
+    Write-Host "🧹 Resetting test database completely..."
+    Write-Host "⚠️  This will delete ALL data from test database!"
+    Write-Host "Press Enter to continue or Ctrl+C to abort..."
+    Read-Host
+    Remove-Item -Path database/test.db -ErrorAction SilentlyContinue
     just test-setup
 
 # Show test database info
