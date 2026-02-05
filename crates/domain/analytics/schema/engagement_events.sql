@@ -30,12 +30,9 @@ CREATE TABLE IF NOT EXISTS engagement_events (
     reading_pattern VARCHAR(50),
 
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT engagement_events_session_fkey
-        FOREIGN KEY (session_id)
-        REFERENCES user_sessions(session_id)
-        ON DELETE CASCADE
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+    -- FK removed: session tracking doesn't require session to exist in user_sessions
+    -- (allows engagement tracking for anonymous visitors before session is fully established)
 );
 
 CREATE INDEX IF NOT EXISTS idx_engagement_events_session
