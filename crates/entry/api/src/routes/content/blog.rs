@@ -69,9 +69,12 @@ pub async fn get_content_handler(
             } else {
                 let config = ctx.config();
                 if config.content_negotiation.enabled {
-                    let suffix = config.content_negotiation.markdown_suffix.as_str();
+                    let suffix = config
+                        .content_negotiation
+                        .markdown_suffix
+                        .trim_start_matches('.');
                     let link_value = format!(
-                        "</api/v1/content/{}/{}{}>; rel=\"alternate\"; type=\"text/markdown\"",
+                        "</api/v1/content/{}/{}/{}>; rel=\"alternate\"; type=\"text/markdown\"",
                         source_id, slug, suffix
                     );
                     let mut response = Json(&content).into_response();

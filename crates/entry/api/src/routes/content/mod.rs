@@ -41,8 +41,9 @@ pub fn router(ctx: &AppContext) -> Router {
         .route("/links/journey", get(get_content_journey_handler));
 
     if ctx.config().content_negotiation.enabled {
+        // Use separate path segment for format since axum doesn't support {param}.suffix
         router = router.route(
-            &format!("/{{source_id}}/{{slug}}.{}", suffix),
+            &format!("/{{source_id}}/{{slug}}/{}", suffix),
             get(get_content_markdown_handler),
         );
     }
