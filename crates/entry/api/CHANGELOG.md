@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.9] - 2026-02-05
+
+### Added
+- Content negotiation middleware with `Accept` header parsing
+- `AcceptedFormat` extractor for determining requested response format
+- `AcceptedMediaType` enum supporting JSON and Markdown formats
+- Support for `.md` URL suffix as alternate markdown format request
+- HTTP `Link` header with alternate format URLs in content responses
+- Markdown response format for blog/content endpoints
+
+### Changed
+- Content handlers now use `AppContext` instead of direct `DbPool` injection
+- Blog content endpoint returns markdown when `Accept: text/markdown` or `.md` suffix used
+
 ## [0.1.4] - 2026-02-04
 
 ### Added

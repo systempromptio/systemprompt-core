@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.9] - 2026-02-05
+
+### Fixed
+- Fix `MigrationService` to ensure `extension_migrations` table exists before querying
+  - Adds `ensure_migrations_table_exists()` method using `CREATE TABLE IF NOT EXISTS`
+  - Called in `run_pending_migrations()` and `get_migration_status()` before table queries
+  - Prevents "relation does not exist" errors on fresh database initialization
+  - Handles edge cases: disabled database extension, direct API usage, registration failures
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

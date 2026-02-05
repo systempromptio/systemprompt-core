@@ -1,5 +1,24 @@
 # Changelog
 
+## [0.1.9] - 2026-02-05
+
+### Added
+- Content negotiation middleware with `Accept` header parsing for format selection
+- Support for markdown responses via `text/markdown` Accept header or `.md` URL suffix
+- `MarkdownFrontmatter` and `MarkdownResponse` types for structured markdown output
+- `ContentNegotiationConfig` in server profile for configuring negotiation behavior
+- `AcceptedFormat` and `AcceptedMediaType` types for content type handling
+- HTTP `Link` header with alternate format URLs when content negotiation is enabled
+
+### Fixed
+- Fix `MigrationService` to ensure `extension_migrations` table exists before querying
+  - Prevents "relation does not exist" errors on fresh database initialization
+  - Adds defensive `ensure_migrations_table_exists()` check using `CREATE TABLE IF NOT EXISTS`
+
+### Changed
+- Content handlers now use `AppContext` instead of direct `DbPool` injection
+- Refactor engagement analytics repository for improved type safety
+
 ## [0.1.4] - 2026-02-04
 
 ### Added

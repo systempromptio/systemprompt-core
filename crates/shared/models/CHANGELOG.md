@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.9] - 2026-02-05
+
+### Added
+- `MarkdownFrontmatter` struct for YAML frontmatter in markdown responses
+- `MarkdownResponse` struct for content with frontmatter and body
+- `ContentNegotiationConfig` struct for server content negotiation settings
+- Builder methods for `MarkdownFrontmatter` (description, author, published_at, tags, url)
+
+### Changed
+- `ServerConfig` now includes `content_negotiation` configuration field
+
 ## [0.1.4] - 2026-02-04
 
 ### Added
