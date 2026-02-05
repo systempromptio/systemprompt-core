@@ -11,12 +11,12 @@
       {
         "ordinal": 1,
         "name": "user_id",
-        "type_info": "Text"
+        "type_info": "Varchar"
       },
       {
         "ordinal": 2,
         "name": "purpose",
-        "type_info": "Text"
+        "type_info": "Varchar"
       },
       {
         "ordinal": 3,
