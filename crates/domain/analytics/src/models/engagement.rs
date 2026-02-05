@@ -32,11 +32,16 @@ pub struct EngagementEvent {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Default)]
+#[serde(default)]
 pub struct CreateEngagementEventInput {
+    #[serde(default)]
     pub page_url: String,
+    #[serde(default)]
     pub time_on_page_ms: i32,
+    #[serde(default)]
     pub max_scroll_depth: i32,
+    #[serde(default)]
     pub click_count: i32,
     #[serde(flatten)]
     pub optional_metrics: EngagementOptionalMetrics,
@@ -53,6 +58,7 @@ pub struct EngagementOptionalMetrics {
     pub copy_events: Option<i32>,
     pub focus_time_ms: Option<i32>,
     pub blur_count: Option<i32>,
+    pub tab_switches: Option<i32>,
     pub visible_time_ms: Option<i32>,
     pub hidden_time_ms: Option<i32>,
     pub is_rage_click: Option<bool>,

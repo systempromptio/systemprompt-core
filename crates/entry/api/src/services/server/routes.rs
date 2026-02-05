@@ -138,7 +138,7 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::CONTENT_BASE,
-        crate::routes::content::router(ctx.db_pool())
+        crate::routes::content::router(ctx)
             .with_rate_limit(rate_config, rate_config.content_per_second)
             .with_auth_middleware(public_middleware.clone()),
     );

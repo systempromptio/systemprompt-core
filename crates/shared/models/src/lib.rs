@@ -113,9 +113,10 @@ pub use paths::{
     SystemPaths, WebPaths,
 };
 pub use profile::{
-    CloudConfig, CloudValidationMode, DatabaseConfig as ProfileDatabaseConfig, Environment,
-    ExtensionsConfig, LogLevel, OutputFormat, PathsConfig, Profile, ProfileStyle, ProfileType,
-    RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
+    CloudConfig, CloudValidationMode, ContentNegotiationConfig,
+    DatabaseConfig as ProfileDatabaseConfig, Environment, ExtensionsConfig, LogLevel, OutputFormat,
+    PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
+    SecurityConfig, ServerConfig, SiteConfig,
 };
 pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};

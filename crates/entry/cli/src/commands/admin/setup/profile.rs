@@ -6,9 +6,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::auth::JwtAudience;
 use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidationMode};
 use systemprompt_models::{
-    CliPaths, CloudConfig, CloudValidationMode, Environment, ExtensionsConfig, LogLevel,
-    OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType, RateLimitsConfig,
-    RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
+    CliPaths, CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment,
+    ExtensionsConfig, LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig,
+    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
 };
 
 use crate::shared::profile::generate_display_name;
@@ -63,6 +63,7 @@ pub fn build(
                 "http://localhost:5173".to_string(),
                 "http://127.0.0.1:8080".to_string(),
             ],
+            content_negotiation: ContentNegotiationConfig::default(),
         },
         paths: PathsConfig {
             system: system_path,

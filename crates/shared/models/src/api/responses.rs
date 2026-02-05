@@ -9,6 +9,8 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 #[cfg(feature = "web")]
 use axum::Json;
+#[cfg(feature = "web")]
+use http::header;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResponseLinks {
@@ -304,5 +306,96 @@ impl<T: Serialize + 'static> IntoResponse for CreatedResponse<T> {
 impl IntoResponse for AcceptedResponse {
     fn into_response(self) -> axum::response::Response {
         (StatusCode::ACCEPTED, Json(self)).into_response()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MarkdownFrontmatter {
+    pub title: String,
+    pub slug: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub author: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub published_at: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+}
+
+impl MarkdownFrontmatter {
+    pub fn new(title: impl Into<String>, slug: impl Into<String>) -> Self {
+        Self {
+            title: title.into(),
+            slug: slug.into(),
+            description: None,
+            author: None,
+            published_at: None,
+            tags: Vec::new(),
+            url: None,
+        }
+    }
+
+    pub fn with_description(mut self, description: impl Into<String>) -> Self {
+        self.description = Some(description.into());
+        self
+    }
+
+    pub fn with_author(mut self, author: impl Into<String>) -> Self {
+        self.author = Some(author.into());
+        self
+    }
+
+    pub fn with_published_at(mut self, published_at: impl Into<String>) -> Self {
+        self.published_at = Some(published_at.into());
+        self
+    }
+
+    pub fn with_tags(mut self, tags: Vec<String>) -> Self {
+        self.tags = tags;
+        self
+    }
+
+    pub fn with_url(mut self, url: impl Into<String>) -> Self {
+        self.url = Some(url.into());
+        self
+    }
+
+    pub fn to_yaml(&self) -> String {
+        serde_yaml::to_string(self).unwrap_or_default()
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct MarkdownResponse {
+    pub frontmatter: MarkdownFrontmatter,
+    pub body: String,
+}
+
+impl MarkdownResponse {
+    pub fn new(frontmatter: MarkdownFrontmatter, body: impl Into<String>) -> Self {
+        Self {
+            frontmatter,
+            body: body.into(),
+        }
+    }
+
+    pub fn to_markdown(&self) -> String {
+        format!("---\n{}---\n\n{}", self.frontmatter.to_yaml(), self.body)
+    }
+}
+
+#[cfg(feature = "web")]
+impl IntoResponse for MarkdownResponse {
+    fn into_response(self) -> axum::response::Response {
+        let body = self.to_markdown();
+        (
+            StatusCode::OK,
+            [(header::CONTENT_TYPE, "text/markdown; charset=utf-8")],
+            body,
+        )
+            .into_response()
     }
 }

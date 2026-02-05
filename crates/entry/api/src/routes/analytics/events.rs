@@ -152,6 +152,7 @@ async fn fan_out_engagement(
             copy_events: get_i32("copy_events"),
             focus_time_ms: get_i32("focus_time_ms"),
             blur_count: get_i32("blur_count"),
+            tab_switches: get_i32("tab_switches"),
             visible_time_ms: get_i32("visible_time_ms"),
             hidden_time_ms: get_i32("hidden_time_ms"),
             is_rage_click: get_bool("is_rage_click"),
