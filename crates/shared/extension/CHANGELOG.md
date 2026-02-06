@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.10] - 2026-02-06
+
+### Added
+- `SiteAuthConfig` type for declaring site-wide authentication requirements
+- `site_auth()` method on `Extension` trait (default returns `None`)
+- `has_site_auth()` predicate method on `Extension` trait
+- `SiteAuthConfig` exported from prelude
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

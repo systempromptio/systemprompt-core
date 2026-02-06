@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.10] - 2026-02-06
+
+### Added
+- Site-wide authentication gate middleware (`site_auth_gate`)
+- Extensions can now declare site auth requirements via `site_auth()` trait method
+- Unauthenticated static content requests redirect to configured login path
+- Static assets (CSS, JS, images, fonts) bypass the auth gate
+- Extension-declared public prefixes bypass the auth gate
+
 ## [0.1.9] - 2026-02-05
 
 ### Added

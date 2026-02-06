@@ -160,6 +160,12 @@ impl ExtensionRouterConfig {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct SiteAuthConfig {
+    pub login_path: &'static str,
+    pub public_prefixes: &'static [&'static str],
+}
+
 #[cfg(feature = "web")]
 #[derive(Debug, Clone)]
 pub struct ExtensionRouter {
@@ -215,6 +221,10 @@ pub trait Extension: Send + Sync + 'static {
     }
 
     fn router_config(&self) -> Option<ExtensionRouterConfig> {
+        None
+    }
+
+    fn site_auth(&self) -> Option<SiteAuthConfig> {
         None
     }
 
@@ -381,6 +391,10 @@ pub trait Extension: Send + Sync + 'static {
         !self.sitemap_providers().is_empty()
     }
 
+    fn has_site_auth(&self) -> bool {
+        self.site_auth().is_some()
+    }
+
     fn has_storage_paths(&self) -> bool {
         !self.required_storage_paths().is_empty()
     }
@@ -427,7 +441,7 @@ pub mod prelude {
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
         register_extension, Extension, ExtensionMetadata, ExtensionRole, Migration,
-        SchemaDefinition, SchemaSource,
+        SchemaDefinition, SchemaSource, SiteAuthConfig,
     };
 
     #[cfg(feature = "web")]

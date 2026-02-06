@@ -4,7 +4,7 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::{
-    ip_ban_middleware, ContextMiddleware, JwtContextExtractor, RouterExt,
+    ip_ban_middleware, site_auth_gate, ContextMiddleware, JwtContextExtractor, RouterExt,
 };
 use crate::services::static_content::{
     serve_homepage, smart_fallback_handler, StaticContentMatcher, StaticContentState,
@@ -257,6 +257,25 @@ pub fn configure_routes(
         .fallback(smart_fallback_handler)
         .with_state(static_state)
         .with_auth_middleware(public_middleware.clone());
+
+    let site_auth_config = ctx
+        .extension_registry()
+        .extensions()
+        .iter()
+        .find_map(|ext| ext.site_auth());
+
+    let static_router = if let Some(auth_config) = site_auth_config {
+        let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
+            .unwrap_or_default()
+            .to_string();
+        static_router.layer(axum::middleware::from_fn(move |req, next| {
+            let config = auth_config;
+            let secret = secret.clone();
+            async move { site_auth_gate(req, next, config, secret).await }
+        }))
+    } else {
+        static_router
+    };
 
     router = router.merge(static_router);
 
