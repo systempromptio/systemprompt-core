@@ -12,6 +12,7 @@ pub const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
 pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
 pub const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
 pub const SHARED_PORT: u16 = 5432;
+const POSTGRES_SUPERUSER: &str = "postgres";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedContainerConfig {
@@ -412,4 +413,84 @@ pub async fn wait_for_postgres_healthy(compose_path: &Path, timeout_secs: u64) -
 
         tokio::time::sleep(Duration::from_secs(2)).await;
     }
+}
+
+pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
+    let role_check_query = format!(
+        "SELECT 1 FROM pg_roles WHERE rolname = '{}'",
+        SHARED_ADMIN_USER
+    );
+    let check_output = Command::new("docker")
+        .args([
+            "exec",
+            SHARED_CONTAINER_NAME,
+            "psql",
+            "-U",
+            POSTGRES_SUPERUSER,
+            "-d",
+            "postgres",
+            "-tAc",
+            &role_check_query,
+        ])
+        .output()
+        .context("Failed to check if admin role exists")?;
+
+    let role_exists = !String::from_utf8_lossy(&check_output.stdout)
+        .trim()
+        .is_empty();
+
+    if role_exists {
+        let alter_password_sql = format!(
+            "ALTER ROLE \"{}\" WITH PASSWORD '{}'",
+            SHARED_ADMIN_USER,
+            admin_password.replace('\'', "''")
+        );
+        let status = Command::new("docker")
+            .args([
+                "exec",
+                SHARED_CONTAINER_NAME,
+                "psql",
+                "-U",
+                POSTGRES_SUPERUSER,
+                "-d",
+                "postgres",
+                "-c",
+                &alter_password_sql,
+            ])
+            .status()
+            .context("Failed to update admin role password")?;
+
+        if !status.success() {
+            bail!("Failed to update password for role '{}'", SHARED_ADMIN_USER);
+        }
+
+        return Ok(());
+    }
+
+    let create_role_sql = format!(
+        "CREATE ROLE \"{}\" WITH LOGIN CREATEDB SUPERUSER PASSWORD '{}'",
+        SHARED_ADMIN_USER,
+        admin_password.replace('\'', "''")
+    );
+    let status = Command::new("docker")
+        .args([
+            "exec",
+            SHARED_CONTAINER_NAME,
+            "psql",
+            "-U",
+            POSTGRES_SUPERUSER,
+            "-d",
+            "postgres",
+            "-c",
+            &create_role_sql,
+        ])
+        .status()
+        .context("Failed to create admin role")?;
+
+    if !status.success() {
+        bail!("Failed to create role '{}'", SHARED_ADMIN_USER);
+    }
+
+    CliService::success(&format!("Created PostgreSQL role '{}'", SHARED_ADMIN_USER));
+    Ok(())
 }

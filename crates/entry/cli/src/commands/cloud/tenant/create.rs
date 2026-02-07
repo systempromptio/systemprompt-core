@@ -19,7 +19,7 @@ use crate::cloud::profile::{
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
-    check_volume_exists, create_database_for_tenant, generate_admin_password,
+    check_volume_exists, create_database_for_tenant, ensure_admin_role, generate_admin_password,
     generate_shared_postgres_compose, get_container_password, is_shared_container_running,
     load_shared_config, nanoid, remove_shared_volume, save_shared_config,
     wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
@@ -146,6 +146,10 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
         spinner.finish_and_clear();
         CliService::success("Shared PostgreSQL container is ready");
     }
+
+    let spinner = CliService::spinner("Verifying admin role...");
+    ensure_admin_role(&config.admin_password)?;
+    spinner.finish_and_clear();
 
     let spinner = CliService::spinner(&format!("Creating database '{}'...", db_name));
     create_database_for_tenant(&config.admin_password, config.port, &db_name).await?;
