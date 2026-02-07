@@ -65,11 +65,15 @@ impl FileSyncService {
 
         let data = Self::create_tarball(&services_path, &bundle.manifest)?;
 
-        self.api_client
+        let upload = self
+            .api_client
             .upload_files(&self.config.tenant_id, data)
             .await?;
 
-        Ok(SyncOperationResult::success("files_push", file_count))
+        Ok(SyncOperationResult::success(
+            "files_push",
+            upload.files_uploaded,
+        ))
     }
 
     async fn pull(&self) -> SyncResult<SyncOperationResult> {

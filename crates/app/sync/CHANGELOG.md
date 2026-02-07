@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.3] - 2026-02-07
+
+### Fixed
+- Cloud proxy sync now forwards `Authorization: Bearer` header to tenant VMs (was missing, causing all proxied sync requests to fail with 401)
+- Align upload response type (`files_uploaded`) between tenant API and cloud proxy (field name mismatch caused deserialization failures)
+- Upload handler now returns parsed server response instead of discarding it
+- Increase retry resilience: 5 attempts with 2s initial delay (was 3 attempts / 500ms) for better handling of transient Fly.io 502 errors
+
+### Removed
+- Remove unused `handle_empty_response` method from `SyncApiClient`
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed
