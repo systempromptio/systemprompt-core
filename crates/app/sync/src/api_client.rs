@@ -18,9 +18,9 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
     fn default() -> Self {
         Self {
-            max_attempts: 3,
-            initial_delay: Duration::from_millis(500),
-            max_delay: Duration::from_secs(10),
+            max_attempts: 5,
+            initial_delay: Duration::from_secs(2),
+            max_delay: Duration::from_secs(30),
             exponential_base: 2,
         }
     }
@@ -41,6 +41,11 @@ pub struct RegistryToken {
     pub registry: String,
     pub username: String,
     pub token: String,
+}
+
+#[derive(Debug, Clone, Copy, Deserialize)]
+pub struct UploadResponse {
+    pub files_uploaded: usize,
 }
 
 #[derive(Debug, Deserialize)]
@@ -87,7 +92,7 @@ impl SyncApiClient {
             .min(self.retry_config.max_delay)
     }
 
-    pub async fn upload_files(&self, tenant_id: &str, data: Vec<u8>) -> SyncResult<()> {
+    pub async fn upload_files(&self, tenant_id: &str, data: Vec<u8>) -> SyncResult<UploadResponse> {
         let (url, token) = self.direct_sync_credentials().unwrap_or_else(|| {
             (
                 format!("{}/api/v1/cloud/tenants/{}/files", self.api_url, tenant_id),
@@ -107,8 +112,8 @@ impl SyncApiClient {
                 .send()
                 .await?;
 
-            match self.handle_empty_response(response).await {
-                Ok(()) => return Ok(()),
+            match self.handle_json_response::<UploadResponse>(response).await {
+                Ok(upload) => return Ok(upload),
                 Err(error) if error.is_retryable() && attempt < self.retry_config.max_attempts => {
                     tracing::warn!(
                         attempt = attempt,
@@ -254,18 +259,6 @@ impl SyncApiClient {
             });
         }
         Ok(response.json().await?)
-    }
-
-    async fn handle_empty_response(&self, response: reqwest::Response) -> SyncResult<()> {
-        let status = response.status();
-        if !status.is_success() {
-            let message = response.text().await?;
-            return Err(SyncError::ApiError {
-                status: status.as_u16(),
-                message,
-            });
-        }
-        Ok(())
     }
 
     async fn handle_binary_response(&self, response: reqwest::Response) -> SyncResult<Vec<u8>> {
