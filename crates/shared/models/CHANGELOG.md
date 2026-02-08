@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.10] - 2026-02-08
+
+### Added
+- `resolve_slug()` method on `ContentRouting` trait (with default `None` impl)
+- `ContentRouting` implementation for `ContentConfigRaw`
+- `extract_slug_from_pattern` helper for URL pattern slug extraction
+- `ContentRouting` blanket impl for `Arc<T>` where `T: ContentRouting`
+
+### Changed
+- `RouteClassifier` now accepts optional `ContentRouting` provider
+
 ## [0.1.9] - 2026-02-05
 
 ### Added

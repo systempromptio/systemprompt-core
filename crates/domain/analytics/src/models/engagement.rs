@@ -10,6 +10,7 @@ pub struct EngagementEvent {
     pub user_id: UserId,
     pub page_url: String,
     pub content_id: Option<ContentId>,
+    pub event_type: String,
     pub time_on_page_ms: i32,
     pub time_to_first_interaction_ms: Option<i32>,
     pub time_to_first_scroll_ms: Option<i32>,
@@ -32,11 +33,13 @@ pub struct EngagementEvent {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Deserialize)]
 #[serde(default)]
 pub struct CreateEngagementEventInput {
     #[serde(default)]
     pub page_url: String,
+    #[serde(default = "default_event_type")]
+    pub event_type: String,
     #[serde(default)]
     pub time_on_page_ms: i32,
     #[serde(default)]
@@ -45,6 +48,19 @@ pub struct CreateEngagementEventInput {
     pub click_count: i32,
     #[serde(flatten)]
     pub optional_metrics: EngagementOptionalMetrics,
+}
+
+impl Default for CreateEngagementEventInput {
+    fn default() -> Self {
+        Self {
+            page_url: String::new(),
+            event_type: default_event_type(),
+            time_on_page_ms: 0,
+            max_scroll_depth: 0,
+            click_count: 0,
+            optional_metrics: EngagementOptionalMetrics::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Default, Deserialize)]
@@ -64,4 +80,8 @@ pub struct EngagementOptionalMetrics {
     pub is_rage_click: Option<bool>,
     pub is_dead_click: Option<bool>,
     pub reading_pattern: Option<String>,
+}
+
+fn default_event_type() -> String {
+    "page_exit".to_string()
 }

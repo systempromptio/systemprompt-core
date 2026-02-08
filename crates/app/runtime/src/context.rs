@@ -206,6 +206,13 @@ impl AppContext {
         self.content_config.as_ref().map(AsRef::as_ref)
     }
 
+    #[allow(trivial_casts)]
+    pub fn content_routing(&self) -> Option<Arc<dyn ContentRouting>> {
+        self.content_config
+            .clone()
+            .map(|c| c as Arc<dyn ContentRouting>)
+    }
+
     pub const fn db_pool(&self) -> &DbPool {
         &self.database
     }

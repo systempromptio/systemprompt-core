@@ -14,6 +14,7 @@ pub fn router(ctx: &AppContext) -> Result<Router> {
     let state = EngagementState {
         repo: Arc::new(EngagementRepository::new(ctx.db_pool())?),
         content_repo: Arc::new(ContentRepository::new(ctx.db_pool())?),
+        content_routing: ctx.content_routing(),
     };
 
     Ok(Router::new()

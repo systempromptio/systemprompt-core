@@ -1,5 +1,10 @@
 use systemprompt_extension::prelude::*;
 
+const MIGRATION_001_EVENT_TYPE: &str = r"
+ALTER TABLE engagement_events ADD COLUMN IF NOT EXISTS event_type VARCHAR(50) NOT NULL DEFAULT 'page_exit';
+CREATE INDEX IF NOT EXISTS idx_engagement_events_event_type ON engagement_events(event_type);
+";
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct AnalyticsExtension;
 
@@ -53,6 +58,14 @@ impl Extension for AnalyticsExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users"]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "add_engagement_event_type",
+            MIGRATION_001_EVENT_TYPE,
+        )]
     }
 }
 
