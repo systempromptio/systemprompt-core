@@ -16,6 +16,7 @@ pub fn router(ctx: &AppContext) -> Result<Router> {
         events: Arc::new(AnalyticsEventsRepository::new(ctx.db_pool())?),
         content: Arc::new(ContentRepository::new(ctx.db_pool())?),
         engagement: Arc::new(EngagementRepository::new(ctx.db_pool())?),
+        content_routing: ctx.content_routing(),
     };
 
     Ok(Router::new()

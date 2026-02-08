@@ -99,7 +99,7 @@ mod create_engagement_event_input_tests {
             time_on_page_ms: time_ms,
             max_scroll_depth: scroll,
             click_count: clicks,
-            optional_metrics: EngagementOptionalMetrics::default(),
+            ..Default::default()
         }
     }
 
@@ -125,6 +125,7 @@ mod create_engagement_event_input_tests {
                 is_dead_click: Some(true),
                 ..Default::default()
             },
+            ..Default::default()
         };
 
         assert_eq!(input.optional_metrics.time_to_first_interaction_ms, Some(200));

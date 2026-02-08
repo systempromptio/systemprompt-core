@@ -10,6 +10,7 @@ use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::ContentId;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
+use systemprompt_models::ContentRouting;
 
 #[derive(Debug, Deserialize)]
 pub struct EngagementBatchInput {
@@ -21,29 +22,30 @@ pub struct BatchResponse {
     pub recorded: usize,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct EngagementState {
     pub repo: Arc<EngagementRepository>,
     pub content_repo: Arc<ContentRepository>,
+    pub content_routing: Option<Arc<dyn ContentRouting>>,
 }
 
-fn extract_slug_from_url(page_url: &str) -> Option<&str> {
-    page_url
-        .strip_prefix("/blog/")
-        .or_else(|| page_url.strip_prefix("/article/"))
-        .or_else(|| page_url.strip_prefix("/guide/"))
-        .or_else(|| page_url.strip_prefix("/paper/"))
-        .or_else(|| page_url.strip_prefix("/docs/"))
-        .map(|s| s.split('?').next().unwrap_or(s))
-        .map(|s| s.split('#').next().unwrap_or(s))
-        .map(|s| s.trim_end_matches('/'))
+impl std::fmt::Debug for EngagementState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EngagementState")
+            .field("content_routing", &self.content_routing.is_some())
+            .finish()
+    }
 }
 
-async fn resolve_content_id(content_repo: &ContentRepository, page_url: &str) -> Option<ContentId> {
-    let slug = extract_slug_from_url(page_url)?;
+async fn resolve_content_id(
+    content_repo: &ContentRepository,
+    content_routing: Option<&dyn ContentRouting>,
+    page_url: &str,
+) -> Option<ContentId> {
+    let slug = content_routing.and_then(|r| r.resolve_slug(page_url))?;
 
     content_repo
-        .get_by_slug(slug)
+        .get_by_slug(&slug)
         .await
         .map_err(|e| {
             tracing::warn!(error = %e, slug = %slug, "Failed to lookup content by slug");
@@ -59,7 +61,12 @@ pub async fn record_engagement(
     Extension(req_ctx): Extension<RequestContext>,
     Json(input): Json<CreateEngagementEventInput>,
 ) -> Result<StatusCode, ApiError> {
-    let content_id = resolve_content_id(&state.content_repo, &input.page_url).await;
+    let content_id = resolve_content_id(
+        &state.content_repo,
+        state.content_routing.as_deref(),
+        &input.page_url,
+    )
+    .await;
 
     state
         .repo
@@ -88,7 +95,12 @@ pub async fn record_engagement_batch(
 
     let mut success_count = 0;
     for event in input.events {
-        let content_id = resolve_content_id(&state.content_repo, &event.page_url).await;
+        let content_id = resolve_content_id(
+            &state.content_repo,
+            state.content_routing.as_deref(),
+            &event.page_url,
+        )
+        .await;
 
         match state
             .repo

@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.10] - 2026-02-08
+
+### Changed
+- Version bump for workspace consistency with analytics and content routing changes
+
+## [0.1.4] - 2026-02-07
+
+### Fixed
+- Ensure `systemprompt_admin` PostgreSQL role exists during local tenant creation
+- Docker `POSTGRES_USER` only creates the role on first volume initialization; reusing an existing container or volume would fail with `role "systemprompt_admin" does not exist`
+- Tenant creation now explicitly verifies and creates the admin role via the `postgres` superuser before any database operations
+
 ## [0.1.3] - 2026-02-03
 
 ### Added

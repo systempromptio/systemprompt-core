@@ -164,6 +164,7 @@ impl ExtensionRouterConfig {
 pub struct SiteAuthConfig {
     pub login_path: &'static str,
     pub public_prefixes: &'static [&'static str],
+    pub required_scope: &'static str,
 }
 
 #[cfg(feature = "web")]

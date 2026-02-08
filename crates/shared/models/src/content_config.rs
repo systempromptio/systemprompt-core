@@ -8,6 +8,9 @@ use thiserror::Error;
 pub trait ContentRouting: Send + Sync {
     fn is_html_page(&self, path: &str) -> bool;
     fn determine_source(&self, path: &str) -> String;
+    fn resolve_slug(&self, _path: &str) -> Option<String> {
+        None
+    }
 }
 
 impl<T: ContentRouting + ?Sized> ContentRouting for Arc<T> {
@@ -17,6 +20,10 @@ impl<T: ContentRouting + ?Sized> ContentRouting for Arc<T> {
 
     fn determine_source(&self, path: &str) -> String {
         (**self).determine_source(path)
+    }
+
+    fn resolve_slug(&self, path: &str) -> Option<String> {
+        (**self).resolve_slug(path)
     }
 }
 
@@ -137,6 +144,23 @@ impl ContentRouting for ContentConfigRaw {
             })
             .unwrap_or_else(|| "unknown".to_string())
     }
+
+    fn resolve_slug(&self, path: &str) -> Option<String> {
+        self.content_sources
+            .values()
+            .filter(|source| source.enabled)
+            .filter_map(|source| source.sitemap.as_ref())
+            .filter(|sitemap| sitemap.enabled)
+            .find_map(|sitemap| extract_slug_from_pattern(path, &sitemap.url_pattern))
+    }
+}
+
+fn extract_slug_from_pattern(path: &str, pattern: &str) -> Option<String> {
+    let prefix = pattern.split('{').next()?;
+    let raw = path.strip_prefix(prefix)?.trim_end_matches('/');
+    let raw = raw.split('?').next().unwrap_or(raw);
+    let raw = raw.split('#').next().unwrap_or(raw);
+    (!raw.is_empty()).then(|| raw.to_string())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

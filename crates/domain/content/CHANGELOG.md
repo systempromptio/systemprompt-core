@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.10] - 2026-02-08
+
+### Added
+- `ContentRouting` trait implementation for `ContentConfigValidated`
+- `resolve_slug()` method for extracting content slugs from URL patterns
+- `determine_source()` method for identifying content sources from paths
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed

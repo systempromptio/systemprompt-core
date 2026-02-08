@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.10] - 2026-02-08
+
+### Added
+- `content_routing()` accessor on `AppContext` returning `Option<Arc<dyn ContentRouting>>`
+- `RouteClassifier` integration with content routing for URL classification
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

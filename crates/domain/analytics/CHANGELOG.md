@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.10] - 2026-02-08
+
+### Added
+- `event_type` column to engagement_events schema with migration
+- `content_id` column and index on engagement_events table
+- Content ID resolution via slug for engagement tracking
+- `EngagementOptionalMetrics` struct with serde flatten for optional fields
+- Default event type helper for backwards-compatible deserialization
+
+### Changed
+- `CreateEngagementEventInput` restructured with required/optional field separation
+- Engagement repository queries now include `event_type` and `content_id` fields
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed

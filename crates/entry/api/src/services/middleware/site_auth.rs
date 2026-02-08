@@ -2,6 +2,7 @@ use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Redirect, Response};
 use systemprompt_extension::SiteAuthConfig;
+use systemprompt_models::auth::Permission;
 use systemprompt_security::TokenExtractor;
 
 use super::jwt::JwtExtractor;
@@ -39,8 +40,13 @@ pub async fn site_auth_gate(
     }
 
     if let Ok(token) = TokenExtractor::browser_only().extract(request.headers()) {
-        if JwtExtractor::new(&jwt_secret).validate_token(&token).is_ok() {
-            return next.run(request).await;
+        let extractor = JwtExtractor::new(&jwt_secret);
+        if let Ok(required) = config.required_scope.parse::<Permission>() {
+            if let Ok(user_ctx) = extractor.extract_user_context(&token) {
+                if user_ctx.role == required {
+                    return next.run(request).await;
+                }
+            }
         }
     }
 

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.11] - 2026-02-08
+
+### Added
+- Content routing integration for analytics and engagement routes
+- Automatic content ID resolution from URL slugs in analytics events
+- Content routing passed through `AnalyticsState` and `EngagementState`
+
+### Fixed
+- `record_events_batch` now correctly passes content routing to `resolve_content_id`
+
 ## [0.1.10] - 2026-02-06
 
 ### Added

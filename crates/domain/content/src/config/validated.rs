@@ -106,6 +106,23 @@ impl ContentConfigValidated {
             })
             .unwrap_or_else(|| SOURCE_UNKNOWN.to_string())
     }
+
+    pub fn resolve_slug(&self, path: &str) -> Option<String> {
+        self.content_sources
+            .values()
+            .filter(|source| source.enabled)
+            .filter_map(|source| source.sitemap.as_ref())
+            .filter(|sitemap| sitemap.enabled)
+            .find_map(|sitemap| extract_slug_from_pattern(path, &sitemap.url_pattern))
+    }
+}
+
+fn extract_slug_from_pattern(path: &str, pattern: &str) -> Option<String> {
+    let prefix = pattern.split('{').next()?;
+    let raw = path.strip_prefix(prefix)?.trim_end_matches('/');
+    let raw = raw.split('?').next().unwrap_or(raw);
+    let raw = raw.split('#').next().unwrap_or(raw);
+    (!raw.is_empty()).then(|| raw.to_string())
 }
 
 impl ContentRouting for ContentConfigValidated {
@@ -115,6 +132,10 @@ impl ContentRouting for ContentConfigValidated {
 
     fn determine_source(&self, path: &str) -> String {
         ContentConfigValidated::determine_source(self, path)
+    }
+
+    fn resolve_slug(&self, path: &str) -> Option<String> {
+        ContentConfigValidated::resolve_slug(self, path)
     }
 }
 
