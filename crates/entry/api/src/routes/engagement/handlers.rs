@@ -33,7 +33,7 @@ impl std::fmt::Debug for EngagementState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("EngagementState")
             .field("content_routing", &self.content_routing.is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 

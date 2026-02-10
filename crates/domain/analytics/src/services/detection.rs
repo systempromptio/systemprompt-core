@@ -7,11 +7,29 @@ pub const SPAM_REFERRER_PATTERNS: &[&str] = &[
     "get-free-traffic-now",
 ];
 
-pub const DATACENTER_IP_PREFIXES: &[&str] = &["47.79.", "47.82."];
+pub const DATACENTER_IP_PREFIXES: &[&str] = &[
+    "47.79.",
+    "47.82.",
+    "14.22.49.",
+    "47.88.",
+    "47.89.",
+    "47.90.",
+    "47.91.",
+    "47.74.",
+    "47.75.",
+    "47.76.",
+    "119.29.",
+    "129.28.",
+    "49.51.",
+    "119.3.",
+    "114.116.",
+    "122.112.",
+];
 
 pub const HIGH_RISK_COUNTRIES: &[&str] = &[
     "BR", "VN", "AR", "IQ", "BD", "PK", "RU", "VE", "TH", "UA", "ID", "MY", "PH", "NG", "KE", "EG",
     "MA", "DZ", "TN", "LY", "SY", "IR", "AF", "MM", "KH", "LA", "NP", "LK", "KZ", "UZ", "AZ", "GE",
+    "CN", "SG",
 ];
 
 pub fn is_datacenter_ip(ip: &str) -> bool {

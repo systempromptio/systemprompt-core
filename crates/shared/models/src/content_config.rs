@@ -120,12 +120,22 @@ impl ContentRouting for ContentConfigRaw {
             return true;
         }
 
-        self.content_sources
+        let matches_sitemap = self
+            .content_sources
             .values()
             .filter(|source| source.enabled)
             .filter_map(|source| source.sitemap.as_ref())
             .filter(|sitemap| sitemap.enabled)
-            .any(|sitemap| Self::matches_url_pattern(&sitemap.url_pattern, path))
+            .any(|sitemap| Self::matches_url_pattern(&sitemap.url_pattern, path));
+
+        if matches_sitemap {
+            return true;
+        }
+
+        !path.contains('.')
+            && !path.starts_with("/api/")
+            && !path.starts_with("/track/")
+            && !path.starts_with("/.well-known/")
     }
 
     fn determine_source(&self, path: &str) -> String {

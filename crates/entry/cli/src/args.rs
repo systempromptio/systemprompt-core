@@ -167,6 +167,10 @@ impl DescribeCommand for Commands {
             Self::Core(core::CoreCommands::Skills(core::skills::SkillsCommands::Create(_))) => {
                 CommandDescriptor::FULL.with_skip_validation()
             },
+            Self::Infra(infrastructure::InfraCommands::Jobs(
+                infrastructure::jobs::JobsCommands::Run(_)
+                | infrastructure::jobs::JobsCommands::List,
+            )) => CommandDescriptor::FULL.with_skip_validation(),
             _ => CommandDescriptor::FULL,
         }
     }

@@ -163,6 +163,7 @@ impl ExtensionRouterConfig {
 #[derive(Debug, Clone, Copy)]
 pub struct SiteAuthConfig {
     pub login_path: &'static str,
+    pub protected_prefixes: &'static [&'static str],
     pub public_prefixes: &'static [&'static str],
     pub required_scope: &'static str,
 }
