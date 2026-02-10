@@ -77,7 +77,7 @@ impl crate::repository::OAuthRepository {
             params.purpose.as_str(),
             params.expires_at
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(id)
@@ -127,7 +127,7 @@ impl crate::repository::OAuthRepository {
             "#,
             token_id
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?
         .rows_affected();
 
@@ -142,7 +142,7 @@ impl crate::repository::OAuthRepository {
                OR (used_at IS NOT NULL AND used_at < CURRENT_TIMESTAMP - INTERVAL '24 hours')
             "#
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?
         .rows_affected();
 
@@ -158,7 +158,7 @@ impl crate::repository::OAuthRepository {
             "#,
             user_id
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?
         .rows_affected();
 

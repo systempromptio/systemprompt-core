@@ -17,9 +17,9 @@ pub struct LogCleanupArgs {
 
 pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
-    let pool = ctx.db_pool().pool_arc()?;
 
     if args.dry_run {
+        let pool = ctx.db_pool().pool_arc()?;
         let count: i64 = sqlx::query_scalar::<_, i64>(
             r"
             SELECT COUNT(*)
@@ -45,6 +45,7 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
         return Ok(CommandResult::text(output).with_title("Log Cleanup (Dry Run)"));
     }
 
+    let write_pool = ctx.db_pool().write_pool_arc()?;
     let deleted_count = sqlx::query(
         r"
         DELETE FROM application_logs
@@ -52,7 +53,7 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
         ",
     )
     .bind(args.days.to_string())
-    .execute(&*pool)
+    .execute(&*write_pool)
     .await?
     .rows_affected() as i64;
 

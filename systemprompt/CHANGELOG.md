@@ -18,6 +18,8 @@
 
 ### Fixed
 - Migrations failing with "cannot execute CREATE FUNCTION in a read-only transaction" when DATABASE_URL points to a read replica
+- WebAuthn operations (credential storage, counter updates, setup tokens) failing with "cannot execute UPDATE/INSERT in a read-only transaction" on read replicas
+- Log flush, scheduler jobs, CLI job commands, and notification handlers using read pool for mutations
 
 ## [0.1.9] - 2026-02-05
 

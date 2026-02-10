@@ -27,7 +27,7 @@ pub async fn execute(args: EnableArgs) -> Result<CommandResult<JobEnableOutput>>
     }
 
     let ctx = Arc::new(AppContext::new().await?);
-    let pool = ctx.db_pool().pool_arc()?;
+    let pool = ctx.db_pool().write_pool_arc()?;
 
     sqlx::query!(
         "UPDATE scheduled_jobs SET enabled = true, updated_at = NOW() WHERE job_name = $1",

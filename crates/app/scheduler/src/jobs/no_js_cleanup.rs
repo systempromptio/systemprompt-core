@@ -29,7 +29,7 @@ impl Job for NoJsCleanupJob {
                 .ok_or_else(|| anyhow::anyhow!("DbPool not available in job context"))?,
         );
 
-        let pool = db_pool.pool_arc()?;
+        let pool = db_pool.write_pool_arc()?;
 
         let result = sqlx::query_scalar::<_, i64>(
             r"

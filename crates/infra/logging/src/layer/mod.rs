@@ -84,7 +84,7 @@ impl DatabaseLayer {
     }
 
     async fn batch_insert(db_pool: &DbPool, entries: &[LogEntry]) -> anyhow::Result<()> {
-        let pool = db_pool.pool_arc()?;
+        let pool = db_pool.write_pool_arc()?;
         for entry in entries {
             let metadata_json: Option<String> = entry
                 .metadata
