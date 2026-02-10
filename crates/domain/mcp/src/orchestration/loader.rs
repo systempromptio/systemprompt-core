@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_database::DbPool;
@@ -21,7 +22,7 @@ impl McpToolLoader {
     pub fn new(db_pool: &DbPool) -> Result<Self> {
         Ok(Self {
             service_manager: ServiceStateManager::new(db_pool)?,
-            _db_pool: db_pool.clone(),
+            _db_pool: Arc::clone(db_pool),
         })
     }
 

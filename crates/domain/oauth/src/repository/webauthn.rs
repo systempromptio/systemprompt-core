@@ -126,7 +126,7 @@ impl crate::repository::OAuthRepository {
             transports_json,
             now
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(())
@@ -179,7 +179,7 @@ impl crate::repository::OAuthRepository {
             now,
             credential_id
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(())

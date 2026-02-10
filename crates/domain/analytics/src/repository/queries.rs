@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use serde::Serialize;
+use std::sync::Arc;
 use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
 
 #[derive(Debug, Clone)]
@@ -8,8 +9,9 @@ pub struct AnalyticsQueryRepository {
 }
 
 impl AnalyticsQueryRepository {
+    #[allow(clippy::unnecessary_wraps)]
     pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Ok(Self { db_pool: db_pool.clone() })
+        Ok(Self { db_pool: Arc::clone(db_pool) })
     }
 
     pub async fn get_ai_provider_usage(

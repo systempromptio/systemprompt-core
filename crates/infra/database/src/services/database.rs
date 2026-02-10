@@ -93,7 +93,7 @@ impl Database {
     pub fn write_provider(&self) -> &dyn DatabaseProvider {
         self.write_provider
             .as_deref()
-            .unwrap_or(self.provider.as_ref())
+            .unwrap_or_else(|| self.provider.as_ref())
     }
 
     pub async fn query(&self, sql: &dyn crate::models::QuerySelector) -> Result<QueryResult> {

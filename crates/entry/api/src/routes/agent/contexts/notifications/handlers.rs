@@ -13,7 +13,7 @@ pub async fn persist_notification(
     agent_id: &str,
     notification: &A2aNotification,
 ) -> Result<i32, anyhow::Error> {
-    let pool = db.pool_arc()?;
+    let pool = db.write_pool_arc()?;
     let notification_data =
         serde_json::to_value(notification).map_err(|e| anyhow::anyhow!("{}", e))?;
 
@@ -37,7 +37,7 @@ pub async fn process_notification(
     notification: &A2aNotification,
 ) -> Result<(), anyhow::Error> {
     let db = app_context.db_pool();
-    let pool = db.pool_arc()?;
+    let pool = db.write_pool_arc()?;
 
     match notification.method.as_str() {
         "notifications/taskStatusUpdate" => {
@@ -151,7 +151,7 @@ pub async fn mark_notification_broadcasted(
     db: systemprompt_database::DbPool,
     notification_id: i32,
 ) -> Result<(), anyhow::Error> {
-    let pool = db.pool_arc()?;
+    let pool = db.write_pool_arc()?;
     sqlx::query!(
         "UPDATE context_notifications SET broadcasted = true WHERE id = $1",
         notification_id
