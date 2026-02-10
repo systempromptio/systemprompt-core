@@ -1,6 +1,10 @@
 # Changelog
 
-## [0.1.10] - 2026-02-08
+## [0.1.10] - 2026-02-10
+
+### Fixed
+- Fix cloud tenant creation failing to retrieve database credentials after checkout
+- CLI now waits for backend provisioning to complete (via SSE with polling fallback) before fetching secrets, instead of making a single immediate call that races with async infrastructure setup
 
 ### Changed
 - Version bump for workspace consistency with analytics and content routing changes

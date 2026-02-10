@@ -6,8 +6,8 @@ use std::process::Command;
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
-    run_checkout_callback_flow, CheckoutTemplates, CloudApiClient, CloudCredentials,
-    ProjectContext, StoredTenant, TenantType,
+    run_checkout_callback_flow, wait_for_provisioning, CheckoutTemplates, CloudApiClient,
+    CloudCredentials, ProjectContext, StoredTenant, TenantType,
 };
 use systemprompt_logging::CliService;
 use url::Url;
@@ -331,34 +331,25 @@ pub async fn create_cloud_tenant(
         result.tenant_id
     ));
 
+    let spinner = CliService::spinner("Waiting for infrastructure provisioning...");
+    wait_for_provisioning(&client, &result.tenant_id, |event| {
+        if let Some(msg) = &event.message {
+            CliService::info(msg);
+        }
+    })
+    .await?;
+    spinner.finish_and_clear();
     CliService::success("Tenant provisioned successfully");
 
     let spinner = CliService::spinner("Fetching database credentials...");
-    let (database_url, sync_token) = match client.get_tenant_status(&result.tenant_id).await {
-        Ok(status) => {
-            if let Some(secrets_url) = status.secrets_url {
-                match client.fetch_secrets(&secrets_url).await {
-                    Ok(secrets) => (Some(secrets.database_url), secrets.sync_token),
-                    Err(e) => {
-                        tracing::warn!(error = %e, "Failed to fetch secrets");
-                        (None, None)
-                    },
-                }
-            } else {
-                tracing::warn!("No secrets URL available for tenant {}", result.tenant_id);
-                (None, None)
-            }
-        },
-        Err(e) => {
-            tracing::warn!(error = %e, "Failed to get tenant status");
-            (None, None)
-        },
-    };
+    let status = client.get_tenant_status(&result.tenant_id).await?;
+    let secrets_url = status
+        .secrets_url
+        .ok_or_else(|| anyhow!("Tenant is ready but secrets URL is missing"))?;
+    let secrets = client.fetch_secrets(&secrets_url).await?;
+    let internal_database_url = secrets.database_url;
+    let sync_token = secrets.sync_token;
     spinner.finish_and_clear();
-
-    let Some(internal_database_url) = database_url else {
-        bail!("Could not retrieve database credentials. Tenant creation incomplete.")
-    };
     CliService::success("Database credentials retrieved");
 
     CliService::section("Database Access");
