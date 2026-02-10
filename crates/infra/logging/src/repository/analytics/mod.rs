@@ -22,19 +22,13 @@ impl AnalyticsRepository {
     }
 }
 
-async fn execute_insert(
-    pool: &PgPool,
-    event: &AnalyticsEvent,
-) -> anyhow::Result<u64> {
+async fn execute_insert(pool: &PgPool, event: &AnalyticsEvent) -> anyhow::Result<u64> {
     let params = EventParams::from(event);
     run_insert_query(pool, params).await
 }
 
 #[allow(clippy::cognitive_complexity)]
-async fn run_insert_query(
-    pool: &PgPool,
-    p: EventParams<'_>,
-) -> anyhow::Result<u64> {
+async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> anyhow::Result<u64> {
     sqlx::query!(
         r"
         INSERT INTO analytics_events

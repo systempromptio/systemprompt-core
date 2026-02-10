@@ -83,8 +83,12 @@ impl SessionRepository {
         session_id: &SessionId,
         request_count_threshold: i32,
     ) -> Result<bool> {
-        behavioral::check_and_mark_behavioral_bot(&self.write_pool, session_id, request_count_threshold)
-            .await
+        behavioral::check_and_mark_behavioral_bot(
+            &self.write_pool,
+            session_id,
+            request_count_threshold,
+        )
+        .await
     }
 
     pub async fn cleanup_inactive(&self, inactive_hours: i32) -> Result<u64> {

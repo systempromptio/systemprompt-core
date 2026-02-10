@@ -8,7 +8,8 @@ use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidati
 use systemprompt_models::{
     CliPaths, CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment,
     ExtensionsConfig, LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig,
-    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
+    ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig,
+    ServerConfig, SiteConfig,
 };
 
 use crate::shared::profile::generate_display_name;
@@ -64,6 +65,7 @@ pub fn build(
                 "http://127.0.0.1:8080".to_string(),
             ],
             content_negotiation: ContentNegotiationConfig::default(),
+            security_headers: SecurityHeadersConfig::default(),
         },
         paths: PathsConfig {
             system: system_path,

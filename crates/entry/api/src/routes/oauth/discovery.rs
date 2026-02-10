@@ -2,8 +2,11 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::Json;
 use serde::Serialize;
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::OAuthServerConfig;
 use systemprompt_models::Config;
+
+use crate::routes::proxy::mcp::get_mcp_server_scopes;
 
 #[derive(Debug, Serialize)]
 pub struct WellKnownResponse {
@@ -102,7 +105,59 @@ pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
         authorization_servers: vec![config.issuer.clone()],
         scopes_supported: config.supported_scopes,
         bearer_methods_supported: vec!["header".to_string(), "body".to_string()],
-        resource_documentation: Some(format!("{}/docs", config.issuer)),
+        resource_documentation: Some(config.issuer.clone()),
+    };
+
+    (StatusCode::OK, Json(response)).into_response()
+}
+
+pub async fn handle_oauth_protected_resource_with_path(
+    axum::extract::Path(path): axum::extract::Path<String>,
+) -> impl IntoResponse {
+    let mcp_prefix = ApiPaths::MCP_BASE.trim_start_matches('/');
+    let normalized = path.trim_start_matches('/');
+
+    let service_name = normalized
+        .strip_prefix(mcp_prefix)
+        .and_then(|rest| rest.strip_prefix('/'))
+        .and_then(|rest| {
+            rest.strip_suffix("/mcp")
+                .or_else(|| rest.strip_suffix("/mcp/"))
+        })
+        .filter(|name| !name.is_empty() && !name.contains('/'));
+
+    let service_name = match service_name {
+        Some(name) => name.to_owned(),
+        None => return handle_oauth_protected_resource().await.into_response(),
+    };
+
+    let base_url = match Config::get() {
+        Ok(c) => c.api_external_url.clone(),
+        Err(e) => {
+            tracing::error!(error = %e, "Failed to get config");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(serde_json::json!({"error": "Configuration unavailable"})),
+            )
+                .into_response();
+        },
+    };
+
+    let scopes = get_mcp_server_scopes(&service_name)
+        .await
+        .unwrap_or_else(|| vec!["user".to_string()]);
+    let resource_url = format!(
+        "{}{}",
+        base_url,
+        ApiPaths::mcp_server_endpoint(&service_name)
+    );
+
+    let response = OAuthProtectedResourceResponse {
+        resource: resource_url,
+        authorization_servers: vec![base_url.clone()],
+        scopes_supported: scopes,
+        bearer_methods_supported: vec!["header".to_string()],
+        resource_documentation: Some(base_url),
     };
 
     (StatusCode::OK, Json(response)).into_response()

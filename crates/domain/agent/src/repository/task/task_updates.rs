@@ -15,7 +15,8 @@ impl TaskRepository {
         session_id: &systemprompt_identifiers::SessionId,
         trace_id: &systemprompt_identifiers::TraceId,
     ) -> Result<Task, RepositoryError> {
-        let mut tx = self.write_pool
+        let mut tx = self
+            .write_pool
             .begin()
             .await
             .map_err(|e| RepositoryError::database(e))?;

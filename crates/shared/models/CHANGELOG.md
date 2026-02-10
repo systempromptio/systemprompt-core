@@ -2,6 +2,11 @@
 
 ## [0.1.12] - 2026-02-10
 
+### Added
+- `SecurityHeadersConfig` struct with configurable HSTS, frame options, content type options, referrer policy, permissions policy, and CSP
+- `security_headers` field on `ServerConfig` and `Config`
+- `refresh_token` grant type in `OAuthServerConfig::supported_grant_types`
+
 ### Changed
 - Remove `/vite.svg` special case from `RouteClassifier` static asset detection
 

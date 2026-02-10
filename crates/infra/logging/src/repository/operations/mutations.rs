@@ -51,11 +51,7 @@ pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingEr
     Ok(())
 }
 
-pub async fn update_log(
-    pool: &PgPool,
-    id: &LogId,
-    entry: &LogEntry,
-) -> Result<bool, LoggingError> {
+pub async fn update_log(pool: &PgPool, id: &LogId, entry: &LogEntry) -> Result<bool, LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -133,10 +129,7 @@ pub async fn cleanup_logs_before(
     Ok(result.rows_affected())
 }
 
-pub async fn count_logs_before(
-    pool: &PgPool,
-    cutoff: DateTime<Utc>,
-) -> Result<u64, LoggingError> {
+pub async fn count_logs_before(pool: &PgPool, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
     let count = sqlx::query_scalar!(
         r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
         cutoff

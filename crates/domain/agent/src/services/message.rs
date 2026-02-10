@@ -77,7 +77,12 @@ impl MessageService {
             return Ok(Vec::new());
         }
 
-        let mut tx = self.task_repo.db_pool().as_ref().begin_transaction().await?;
+        let mut tx = self
+            .task_repo
+            .db_pool()
+            .as_ref()
+            .begin_transaction()
+            .await?;
         let mut sequence_numbers = Vec::new();
 
         tracing::info!(
@@ -147,7 +152,12 @@ impl MessageService {
             reference_task_ids: None,
         };
 
-        let mut tx = self.task_repo.db_pool().as_ref().begin_transaction().await?;
+        let mut tx = self
+            .task_repo
+            .db_pool()
+            .as_ref()
+            .begin_transaction()
+            .await?;
 
         let sequence_number = self
             .persist_message_in_tx(

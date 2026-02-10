@@ -81,7 +81,15 @@ impl TaskRepository {
         trace_id: &systemprompt_identifiers::TraceId,
         agent_name: &str,
     ) -> Result<String, RepositoryError> {
-        let result = create_task(&self.write_pool, task, user_id, session_id, trace_id, agent_name).await?;
+        let result = create_task(
+            &self.write_pool,
+            task,
+            user_id,
+            session_id,
+            trace_id,
+            agent_name,
+        )
+        .await?;
 
         if let Some(ref provider) = self.session_analytics_provider {
             if let Err(e) = provider.increment_task_count(session_id).await {
@@ -193,4 +201,3 @@ impl TaskRepository {
         get_task_context_info(&self.pool, task_id).await
     }
 }
-

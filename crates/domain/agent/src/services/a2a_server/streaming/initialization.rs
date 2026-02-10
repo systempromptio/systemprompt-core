@@ -290,8 +290,8 @@ pub async fn setup_stream(
     let agent_runtime =
         load_agent_runtime(&agent_name, &task_id, &task_repo, tx, &request_id).await?;
 
-    let processor = MessageProcessor::new(&state.db_pool, state.ai_service.clone())
-        .map_err(|e| {
+    let processor =
+        MessageProcessor::new(&state.db_pool, state.ai_service.clone()).map_err(|e| {
             tracing::error!(error = %e, "Failed to create MessageProcessor");
             if tx
                 .send(create_jsonrpc_error_event(
