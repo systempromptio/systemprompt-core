@@ -1,6 +1,9 @@
 # Changelog
 
-## [0.1.12] - 2026-02-10
+## [0.1.12] - 2026-02-11
+
+### Fixed
+- Fix Claude Code authentication flow by removing `Accept` header check that blocked programmatic OAuth clients
 
 ### Added
 - Security headers middleware (`inject_security_headers`) with configurable HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and CSP
