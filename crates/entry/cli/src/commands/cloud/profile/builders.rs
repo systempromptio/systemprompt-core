@@ -9,7 +9,8 @@ use systemprompt_models::profile::{SecretsConfig, SecretsSource, SecretsValidati
 use systemprompt_models::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig, Environment, ExtensionsConfig,
     LogLevel, OutputFormat, PathsConfig, Profile, ProfileDatabaseConfig, ProfileType,
-    RateLimitsConfig, RuntimeConfig, SecurityConfig, ServerConfig, SiteConfig,
+    RateLimitsConfig, RuntimeConfig, SecurityConfig, SecurityHeadersConfig, ServerConfig,
+    SiteConfig,
 };
 
 use super::templates::generate_display_name;
@@ -68,6 +69,7 @@ impl LocalProfileBuilder {
                 use_https: false,
                 cors_allowed_origins: vec![local_url, "http://localhost:5173".to_string()],
                 content_negotiation: ContentNegotiationConfig::default(),
+                security_headers: SecurityHeadersConfig::default(),
             },
             paths: PathsConfig {
                 system: system_path,
@@ -182,6 +184,7 @@ impl CloudProfileBuilder {
                 use_https: true,
                 cors_allowed_origins: vec![external],
                 content_negotiation: ContentNegotiationConfig::default(),
+                security_headers: SecurityHeadersConfig::default(),
             },
             paths: PathsConfig {
                 system: container::APP.to_string(),

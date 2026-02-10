@@ -26,7 +26,7 @@ pub use rate_limits::{
 pub use runtime::{Environment, LogLevel, OutputFormat, RuntimeConfig};
 pub use secrets::{SecretsConfig, SecretsSource, SecretsValidationMode};
 pub use security::SecurityConfig;
-pub use server::{ContentNegotiationConfig, ServerConfig};
+pub use server::{ContentNegotiationConfig, SecurityHeadersConfig, ServerConfig};
 pub use site::SiteConfig;
 pub use style::ProfileStyle;
 

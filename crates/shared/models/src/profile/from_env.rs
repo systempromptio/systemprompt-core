@@ -8,7 +8,7 @@ use super::{
     default_contexts, default_mcp, default_mcp_registry, default_oauth_auth, default_oauth_public,
     default_stream, default_tasks, ContentNegotiationConfig, DatabaseConfig, ExtensionsConfig,
     PathsConfig, Profile, ProfileType, RateLimitsConfig, RuntimeConfig, SecurityConfig,
-    ServerConfig, SiteConfig, TierMultipliers,
+    SecurityHeadersConfig, ServerConfig, SiteConfig, TierMultipliers,
 };
 use anyhow::{Context, Result};
 
@@ -74,6 +74,7 @@ fn server_config_from_env(require_env: &dyn Fn(&str) -> Result<String>) -> Resul
                 .is_some_and(|v| v.to_lowercase() == "true"),
             ..Default::default()
         },
+        security_headers: SecurityHeadersConfig::default(),
     })
 }
 

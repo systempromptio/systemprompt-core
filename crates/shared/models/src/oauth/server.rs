@@ -63,7 +63,10 @@ impl OAuthServerConfig {
             registration_endpoint: format!("{api_server_url}/api/v1/core/oauth/clients"),
             supported_scopes: vec!["user".to_owned()],
             supported_response_types: vec!["code".to_owned()],
-            supported_grant_types: vec!["authorization_code".to_owned()],
+            supported_grant_types: vec![
+                "authorization_code".to_owned(),
+                "refresh_token".to_owned(),
+            ],
             supported_code_challenge_methods: vec!["S256".to_owned()],
             token_endpoint_auth_method: "client_secret_post".to_owned(),
             default_scope: "user".to_owned(),

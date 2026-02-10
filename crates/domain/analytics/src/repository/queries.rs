@@ -11,7 +11,9 @@ pub struct AnalyticsQueryRepository {
 impl AnalyticsQueryRepository {
     #[allow(clippy::unnecessary_wraps)]
     pub fn new(db_pool: &DbPool) -> Result<Self> {
-        Ok(Self { db_pool: Arc::clone(db_pool) })
+        Ok(Self {
+            db_pool: Arc::clone(db_pool),
+        })
     }
 
     pub async fn get_ai_provider_usage(

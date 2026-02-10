@@ -116,7 +116,7 @@ pub use profile::{
     CloudConfig, CloudValidationMode, ContentNegotiationConfig,
     DatabaseConfig as ProfileDatabaseConfig, Environment, ExtensionsConfig, LogLevel, OutputFormat,
     PathsConfig, Profile, ProfileStyle, ProfileType, RateLimitsConfig, RuntimeConfig,
-    SecurityConfig, ServerConfig, SiteConfig,
+    SecurityConfig, SecurityHeadersConfig, ServerConfig, SiteConfig,
 };
 pub use profile_bootstrap::{ProfileBootstrap, ProfileBootstrapError};
 pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};

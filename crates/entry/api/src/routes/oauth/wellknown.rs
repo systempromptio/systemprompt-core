@@ -31,4 +31,9 @@ pub fn wellknown_routes() -> Router {
             get(super::discovery::handle_oauth_protected_resource)
                 .options(|| async { StatusCode::OK }),
         )
+        .route(
+            "/.well-known/oauth-protected-resource/{*path}",
+            get(super::discovery::handle_oauth_protected_resource_with_path)
+                .options(|| async { StatusCode::OK }),
+        )
 }

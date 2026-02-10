@@ -11,6 +11,7 @@ use systemprompt_mcp::repository::ToolUsageRepository;
 use systemprompt_mcp::McpServerRegistry;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::{ApiError, Config};
+use systemprompt_oauth::{GrantType, PkceMethod, ResponseType, TokenAuthMethod};
 use systemprompt_runtime::{AppContext, ServiceCategory};
 use systemprompt_traits::McpRegistryProvider;
 
@@ -132,7 +133,7 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
         authorization_servers: vec![base_url.clone()],
         scopes_supported: scopes,
         bearer_methods_supported: vec!["header".to_string()],
-        resource_documentation: Some(format!("{}/docs", base_url)),
+        resource_documentation: Some(base_url.clone()),
     };
 
     (StatusCode::OK, Json(metadata)).into_response()
@@ -159,19 +160,22 @@ pub async fn handle_mcp_authorization_server(
         token_endpoint: format!("{}/api/v1/core/oauth/token", base_url),
         registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", base_url)),
         scopes_supported: vec!["user".to_string(), "admin".to_string()],
-        response_types_supported: vec!["code".to_string()],
-        grant_types_supported: vec!["authorization_code".to_string()],
-        code_challenge_methods_supported: vec!["S256".to_string()],
+        response_types_supported: vec![ResponseType::Code.to_string()],
+        grant_types_supported: vec![
+            GrantType::AuthorizationCode.to_string(),
+            GrantType::RefreshToken.to_string(),
+        ],
+        code_challenge_methods_supported: vec![PkceMethod::S256.to_string()],
         token_endpoint_auth_methods_supported: vec![
-            "client_secret_post".to_string(),
-            "client_secret_basic".to_string(),
+            TokenAuthMethod::ClientSecretPost.to_string(),
+            TokenAuthMethod::ClientSecretBasic.to_string(),
         ],
     };
 
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
-async fn get_mcp_server_scopes(service_name: &str) -> Option<Vec<String>> {
+pub(crate) async fn get_mcp_server_scopes(service_name: &str) -> Option<Vec<String>> {
     if McpServerRegistry::validate().is_err() {
         return None;
     }

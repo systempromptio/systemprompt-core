@@ -30,7 +30,11 @@ impl OAuthRepository {
         let pool = db.pool_arc()?;
         let write_pool = db.write_pool_arc()?;
         let client_repo = ClientRepository::new(db)?;
-        Ok(Self { pool, write_pool, client_repo })
+        Ok(Self {
+            pool,
+            write_pool,
+            client_repo,
+        })
     }
 
     pub fn pool_ref(&self) -> &PgPool {

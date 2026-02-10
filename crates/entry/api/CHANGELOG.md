@@ -3,11 +3,17 @@
 ## [0.1.12] - 2026-02-10
 
 ### Added
+- Security headers middleware (`inject_security_headers`) with configurable HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and CSP
+- System stats in health endpoint: database size, top tables, disk usage, audit log metrics
+- Path-based `/.well-known/oauth-protected-resource/{*path}` endpoint for per-MCP-server resource metadata
+- `refresh_token` grant type in MCP authorization server metadata
 - ETag support with `If-None-Match` → `304 Not Modified` on all static file responses
 - `Cache-Control: no-cache` headers on HTML page responses (previously missing entirely)
 - `Cache-Control: public, max-age=3600` headers on metadata files (sitemap, robots, feed)
 
 ### Changed
+- Use typed OAuth enums (`ResponseType`, `GrantType`, `PkceMethod`, `TokenAuthMethod`) instead of raw strings in MCP OAuth metadata
+- `resource_documentation` in protected resource responses now uses base URL instead of `/docs` suffix
 - Rename `vite.rs` → `static_files.rs` (no Vite dependency exists)
 - Replace blocking `std::fs::read()` with `tokio::fs::read()` in all static file handlers
 - Refactor `serve_static_content` into focused functions under 75-line limit

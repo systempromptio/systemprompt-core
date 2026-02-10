@@ -14,7 +14,9 @@ pub struct PlaybookRepository {
 impl PlaybookRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc().context("PostgreSQL pool not available")?;
-        let write_pool = db.write_pool_arc().context("Write PostgreSQL pool not available")?;
+        let write_pool = db
+            .write_pool_arc()
+            .context("Write PostgreSQL pool not available")?;
         Ok(Self { pool, write_pool })
     }
 

@@ -13,11 +13,28 @@ use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
-    inject_trace_header, remove_trailing_slash, AnalyticsMiddleware, ContextMiddleware,
-    CorsMiddleware, JwtContextExtractor, SessionMiddleware,
+    inject_security_headers, inject_trace_header, remove_trailing_slash, AnalyticsMiddleware,
+    ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
 };
 
 const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");
+
+const DB_SIZE_QUERY: DatabaseQuery = DatabaseQuery::new(
+    "SELECT pg_database_size(current_database()) as size_bytes, current_database() as db_name",
+);
+
+const TABLE_SIZES_QUERY: DatabaseQuery = DatabaseQuery::new(
+    "SELECT relname as table_name, pg_total_relation_size(relid) as total_bytes, n_live_tup as \
+     row_estimate FROM pg_stat_user_tables ORDER BY pg_total_relation_size(relid) DESC LIMIT 15",
+);
+
+const TABLE_COUNT_QUERY: DatabaseQuery =
+    DatabaseQuery::new("SELECT COUNT(*) as count FROM pg_stat_user_tables");
+
+const AUDIT_LOG_QUERY: DatabaseQuery = DatabaseQuery::new(
+    "SELECT COUNT(*) as row_count, pg_total_relation_size('audit_log') as size_bytes, \
+     MIN(created_at) as oldest, MAX(created_at) as newest FROM audit_log",
+);
 
 #[derive(Debug)]
 pub struct ApiServer {
@@ -141,6 +158,14 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
         ));
     }
 
+    if ctx.config().security_headers.enabled {
+        let security_config = ctx.config().security_headers.clone();
+        router = router.layer(axum::middleware::from_fn(move |req, next| {
+            let config = security_config.clone();
+            inject_security_headers(config, req, next)
+        }));
+    }
+
     Ok(router)
 }
 
@@ -240,6 +265,144 @@ fn get_process_memory() -> Option<serde_json::Value> {
     None
 }
 
+#[allow(clippy::cast_precision_loss)]
+fn human_bytes(bytes: i64) -> String {
+    const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
+    let mut size = bytes as f64;
+    let mut idx = 0;
+    while size >= 1024.0 && idx < UNITS.len() - 1 {
+        size /= 1024.0;
+        idx += 1;
+    }
+    format!("{size:.1} {}", UNITS[idx])
+}
+
+async fn get_disk_usage() -> Option<serde_json::Value> {
+    let output = tokio::process::Command::new("df")
+        .args(["-B1", "--output=size,used,avail", "."])
+        .output()
+        .await
+        .ok()?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let line = stdout.lines().nth(1)?;
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 3 {
+        return None;
+    }
+
+    let total: u64 = parts[0].parse().ok()?;
+    let used: u64 = parts[1].parse().ok()?;
+    let available: u64 = parts[2].parse().ok()?;
+
+    #[allow(clippy::cast_precision_loss)]
+    let usage_pct = if total > 0 {
+        (used as f64 / total as f64) * 100.0
+    } else {
+        0.0
+    };
+
+    #[allow(clippy::cast_possible_wrap)]
+    Some(json!({
+        "total": human_bytes(total as i64),
+        "used": human_bytes(used as i64),
+        "available": human_bytes(available as i64),
+        "usage_percent": (usage_pct * 10.0).round() / 10.0
+    }))
+}
+
+async fn get_system_stats(
+    db: &dyn systemprompt_database::DatabaseProvider,
+) -> Option<serde_json::Value> {
+    let db_size_fut = db.fetch_one(&DB_SIZE_QUERY, &[]);
+    let table_sizes_fut = db.fetch_all(&TABLE_SIZES_QUERY, &[]);
+    let table_count_fut = db.fetch_one(&TABLE_COUNT_QUERY, &[]);
+    let audit_fut = db.fetch_optional(&AUDIT_LOG_QUERY, &[]);
+    let disk_fut = get_disk_usage();
+
+    let (db_size, table_sizes, table_count, audit, disk) = tokio::join!(
+        db_size_fut,
+        table_sizes_fut,
+        table_count_fut,
+        audit_fut,
+        disk_fut
+    );
+
+    let database =
+        if let (Ok(size_row), Ok(tables), Ok(count_row)) = (&db_size, &table_sizes, &table_count) {
+            let size_bytes = size_row
+                .get("size_bytes")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+            let db_name = size_row
+                .get("db_name")
+                .and_then(serde_json::Value::as_str)
+                .unwrap_or("unknown");
+            let tbl_count = count_row
+                .get("count")
+                .and_then(serde_json::Value::as_i64)
+                .unwrap_or(0);
+
+            let top_tables: Vec<serde_json::Value> = tables
+                .iter()
+                .map(|row| {
+                    let name = row
+                        .get("table_name")
+                        .and_then(serde_json::Value::as_str)
+                        .unwrap_or("?");
+                    let total = row
+                        .get("total_bytes")
+                        .and_then(serde_json::Value::as_i64)
+                        .unwrap_or(0);
+                    let rows = row
+                        .get("row_estimate")
+                        .and_then(serde_json::Value::as_i64)
+                        .unwrap_or(0);
+                    json!({
+                        "table_name": name,
+                        "total_size": human_bytes(total),
+                        "total_size_bytes": total,
+                        "row_estimate": rows
+                    })
+                })
+                .collect();
+
+            Some(json!({
+                "name": db_name,
+                "total_size": human_bytes(size_bytes),
+                "total_size_bytes": size_bytes,
+                "table_count": tbl_count,
+                "top_tables": top_tables
+            }))
+        } else {
+            None
+        };
+
+    let logs = audit.ok().flatten().map(|row| {
+        let row_count = row
+            .get("row_count")
+            .and_then(serde_json::Value::as_i64)
+            .unwrap_or(0);
+        let size_bytes = row
+            .get("size_bytes")
+            .and_then(serde_json::Value::as_i64)
+            .unwrap_or(0);
+        json!({
+            "audit_rows": row_count,
+            "audit_size": human_bytes(size_bytes),
+            "audit_size_bytes": size_bytes,
+            "oldest": row.get("oldest"),
+            "newest": row.get("newest")
+        })
+    });
+
+    Some(json!({
+        "database": database,
+        "disk": disk,
+        "logs": logs
+    }))
+}
+
 pub async fn handle_health(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
 ) -> impl axum::response::IntoResponse {
@@ -294,6 +457,8 @@ pub async fn handle_health(
         (true, true) => ("healthy", StatusCode::OK),
     };
 
+    let system_stats = get_system_stats(ctx.db_pool().as_ref()).await;
+
     let check_duration_ms = start.elapsed().as_millis();
     let memory = get_process_memory();
 
@@ -321,6 +486,7 @@ pub async fn handle_health(
             }
         },
         "memory": memory,
+        "system": system_stats,
         "response_time_ms": check_duration_ms
     });
 

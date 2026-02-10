@@ -1,4 +1,3 @@
-
 use anyhow::{bail, Context, Result};
 use clap::Args;
 use systemprompt_agent::repository::context::ContextRepository;
