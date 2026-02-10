@@ -75,7 +75,10 @@ impl DatabaseLayer {
 
     async fn flush(db_pool: &DbPool, buffer: &mut Vec<LogEntry>) {
         if let Err(e) = Self::batch_insert(db_pool, buffer).await {
-            eprintln!("Failed to flush logs: {e}");
+            let msg = e.to_string();
+            if !msg.contains("does not exist") {
+                eprintln!("Failed to flush logs: {e}");
+            }
         }
         buffer.clear();
     }

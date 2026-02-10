@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.12] - 2026-02-10
+
+### Changed
+- Remove `/vite.svg` special case from `RouteClassifier` static asset detection
+
 ## [0.1.10] - 2026-02-08
 
 ### Added

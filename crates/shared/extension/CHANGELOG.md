@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.12] - 2026-02-10
+
+### Added
+- `AssetType::Html` variant for declaring HTML assets
+- `AssetDefinition::html()` convenience constructor
+
 ## [0.1.10] - 2026-02-06
 
 ### Added

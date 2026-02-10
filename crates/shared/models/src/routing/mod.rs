@@ -169,8 +169,7 @@ impl RouteClassifier {
                     | "ico"
                     | "webp"
             )
-        ) || path == "/vite.svg"
-            || path == "/favicon.ico"
+        ) || path == "/favicon.ico"
     }
 
     fn determine_asset_type(path: &str) -> AssetType {

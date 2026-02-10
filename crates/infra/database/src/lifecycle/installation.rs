@@ -189,33 +189,59 @@ async fn install_extension_schema(
         ext.migration_weight()
     );
 
+    let mut all_sql = Vec::new();
+    let mut schemas_to_validate = Vec::new();
+
     for schema in &schemas {
-        install_single_schema(db, schema, &extension_id).await?;
+        if !schema.table.is_empty()
+            && check_table_exists_for_extension(db, &schema.table, &extension_id).await?
+        {
+            debug!("  Table '{}' already exists, skipping", schema.table);
+            continue;
+        }
+
+        let sql = read_schema_sql(schema, &extension_id)?;
+        all_sql.push(sql);
+
+        if !schema.required_columns.is_empty() {
+            schemas_to_validate.push(schema);
+        }
     }
 
-    Ok(())
-}
-
-async fn install_single_schema(
-    db: &dyn DatabaseProvider,
-    schema: &systemprompt_extension::SchemaDefinition,
-    extension_id: &str,
-) -> std::result::Result<(), LoaderError> {
-    if check_table_exists_for_extension(db, &schema.table, extension_id).await? {
-        debug!("  Table '{}' already exists, skipping", schema.table);
+    if all_sql.is_empty() {
         return Ok(());
     }
 
-    let sql = read_schema_sql(schema, extension_id)?;
-    execute_schema_sql(db, &sql, &schema.table, extension_id).await?;
+    let combined = all_sql.join("\n");
+    let statements = SqlExecutor::parse_sql_statements(&combined);
 
-    if !schema.required_columns.is_empty() {
-        validate_extension_columns(db, &schema.table, &schema.required_columns, extension_id)
+    if !statements.is_empty() {
+        let batch = statements.join("\n");
+        if let Err(batch_err) = db.execute_raw(&batch).await {
+            debug!(
+                extension = %extension_id,
+                error = %batch_err,
+                "Batch execution failed, falling back to per-statement execution"
+            );
+            for statement in &statements {
+                db.execute_raw(statement).await.map_err(|e| {
+                    LoaderError::SchemaInstallationFailed {
+                        extension: extension_id.clone(),
+                        message: format!("Failed to execute SQL statement: {e}\n{statement}"),
+                    }
+                })?;
+            }
+        }
+    }
+
+    for schema in schemas_to_validate {
+        validate_extension_columns(db, &schema.table, &schema.required_columns, &extension_id)
             .await?;
     }
 
     Ok(())
 }
+
 
 async fn check_table_exists_for_extension(
     db: &dyn DatabaseProvider,
@@ -245,20 +271,6 @@ fn read_schema_sql(
     }
 }
 
-async fn execute_schema_sql(
-    db: &dyn DatabaseProvider,
-    sql: &str,
-    table: &str,
-    extension_id: &str,
-) -> std::result::Result<(), LoaderError> {
-    debug!("  Creating table '{}'", table);
-    SqlExecutor::execute_statements_parsed(db, sql)
-        .await
-        .map_err(|e| LoaderError::SchemaInstallationFailed {
-            extension: extension_id.to_string(),
-            message: format!("Failed to create table '{}': {e}", table),
-        })
-}
 
 async fn validate_extension_columns(
     db: &dyn DatabaseProvider,

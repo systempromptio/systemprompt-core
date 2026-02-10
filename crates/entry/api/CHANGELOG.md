@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.12] - 2026-02-10
+
+### Added
+- ETag support with `If-None-Match` → `304 Not Modified` on all static file responses
+- `Cache-Control: no-cache` headers on HTML page responses (previously missing entirely)
+- `Cache-Control: public, max-age=3600` headers on metadata files (sitemap, robots, feed)
+
+### Changed
+- Rename `vite.rs` → `static_files.rs` (no Vite dependency exists)
+- Replace blocking `std::fs::read()` with `tokio::fs::read()` in all static file handlers
+- Refactor `serve_static_content` into focused functions under 75-line limit
+- Remove dead `serve_html_with_analytics` function (analytics handled by middleware + client JS)
+
 ## [0.1.11] - 2026-02-08
 
 ### Added
