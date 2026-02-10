@@ -39,6 +39,19 @@ pub async fn site_auth_gate(
         return next.run(request).await;
     }
 
+    let needs_auth = if config.protected_prefixes.is_empty() {
+        true
+    } else {
+        config
+            .protected_prefixes
+            .iter()
+            .any(|prefix| path.starts_with(prefix))
+    };
+
+    if !needs_auth {
+        return next.run(request).await;
+    }
+
     if let Ok(token) = TokenExtractor::browser_only().extract(request.headers()) {
         let extractor = JwtExtractor::new(&jwt_secret);
         if let Ok(required) = config.required_scope.parse::<Permission>() {

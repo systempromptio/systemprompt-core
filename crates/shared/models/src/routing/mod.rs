@@ -93,6 +93,12 @@ impl RouteClassifier {
             };
         }
 
+        if path.starts_with(ApiPaths::TRACK_BASE) {
+            return RouteType::ApiEndpoint {
+                category: ApiCategory::Other,
+            };
+        }
+
         if let Some(routing) = &self.content_routing {
             if routing.is_html_page(path) {
                 return RouteType::HtmlContent {
@@ -116,7 +122,10 @@ impl RouteClassifier {
         match self.classify(path, method) {
             RouteType::HtmlContent { .. } => true,
             RouteType::ApiEndpoint { category } => {
-                matches!(category, ApiCategory::Core | ApiCategory::Content)
+                matches!(
+                    category,
+                    ApiCategory::Core | ApiCategory::Content | ApiCategory::Other
+                )
             },
             RouteType::StaticAsset { .. } | RouteType::NotFound => false,
         }

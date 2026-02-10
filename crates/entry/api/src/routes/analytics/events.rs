@@ -27,7 +27,7 @@ impl std::fmt::Debug for AnalyticsState {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("AnalyticsState")
             .field("content_routing", &self.content_routing.is_some())
-            .finish()
+            .finish_non_exhaustive()
     }
 }
 
@@ -63,14 +63,13 @@ pub async fn record_event(
     Json(mut input): Json<CreateAnalyticsEventInput>,
 ) -> Result<impl IntoResponse, ApiError> {
     if input.content_id.is_none() {
-        input.content_id =
-            resolve_content_id(
-                &state.content,
-                state.content_routing.as_deref(),
-                &input.page_url,
-                input.slug.as_deref(),
-            )
-            .await;
+        input.content_id = resolve_content_id(
+            &state.content,
+            state.content_routing.as_deref(),
+            &input.page_url,
+            input.slug.as_deref(),
+        )
+        .await;
     }
 
     let created = state
@@ -100,8 +99,13 @@ pub async fn record_events_batch(
 ) -> Result<impl IntoResponse, ApiError> {
     for event in &mut input.events {
         if event.content_id.is_none() {
-            event.content_id =
-                resolve_content_id(&state.content, state.content_routing.as_deref(), &event.page_url, event.slug.as_deref()).await;
+            event.content_id = resolve_content_id(
+                &state.content,
+                state.content_routing.as_deref(),
+                &event.page_url,
+                event.slug.as_deref(),
+            )
+            .await;
         }
     }
 
@@ -148,10 +152,15 @@ async fn fan_out_engagement(
     let get_string =
         |key: &str| -> Option<String> { data.get(key).and_then(|v| v.as_str()).map(String::from) };
 
+    let time_on_page = get_i32("time_on_page_ms").unwrap_or(0);
+    if time_on_page == 0 {
+        return;
+    }
+
     let engagement_input = CreateEngagementEventInput {
         page_url: input.page_url.clone(),
         event_type: input.event_type.as_str().to_string(),
-        time_on_page_ms: get_i32("time_on_page_ms").unwrap_or(0),
+        time_on_page_ms: time_on_page,
         max_scroll_depth: get_i32("max_scroll_depth").unwrap_or(0),
         click_count: get_i32("click_count").unwrap_or(0),
         optional_metrics: EngagementOptionalMetrics {
