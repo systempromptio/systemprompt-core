@@ -11,32 +11,28 @@ impl TaskRepository {
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<i32, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_next_sequence_number(&pool, task_id).await
+        get_next_sequence_number(&self.pool, task_id).await
     }
 
     pub async fn get_messages_by_task(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Vec<Message>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_messages_by_task(&pool, task_id).await
+        get_messages_by_task(&self.pool, task_id).await
     }
 
     pub async fn get_message_parts(
         &self,
         message_id: &systemprompt_identifiers::MessageId,
     ) -> Result<Vec<Part>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_message_parts(&pool, message_id).await
+        get_message_parts(&self.pool, message_id).await
     }
 
     pub async fn get_messages_by_context(
         &self,
         context_id: &systemprompt_identifiers::ContextId,
     ) -> Result<Vec<Message>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_messages_by_context(&pool, context_id).await
+        get_messages_by_context(&self.pool, context_id).await
     }
 
     pub async fn get_next_sequence_number_in_tx(

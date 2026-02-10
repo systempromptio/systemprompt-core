@@ -43,15 +43,15 @@ impl std::fmt::Debug for AnalyticsService {
 
 impl AnalyticsService {
     pub fn new(
-        db_pool: DbPool,
+        db_pool: &DbPool,
         geoip_reader: Option<GeoIpReader>,
         content_routing: Option<Arc<dyn ContentRouting>>,
-    ) -> Self {
-        Self {
+    ) -> Result<Self> {
+        Ok(Self {
             geoip_reader,
             content_routing,
-            session_repo: SessionRepository::new(db_pool),
-        }
+            session_repo: SessionRepository::new(db_pool)?,
+        })
     }
 
     pub fn extract_analytics(&self, headers: &HeaderMap, uri: Option<&Uri>) -> SessionAnalytics {

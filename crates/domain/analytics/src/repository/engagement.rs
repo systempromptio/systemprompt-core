@@ -10,12 +10,14 @@ use crate::models::{CreateEngagementEventInput, EngagementEvent};
 #[derive(Clone, Debug)]
 pub struct EngagementRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl EngagementRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     #[allow(clippy::cognitive_complexity)]
@@ -69,7 +71,7 @@ impl EngagementRepository {
             input.optional_metrics.is_dead_click,
             input.optional_metrics.reading_pattern
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(id)

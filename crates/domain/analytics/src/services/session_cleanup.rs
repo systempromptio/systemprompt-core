@@ -9,11 +9,10 @@ pub struct SessionCleanupService {
 }
 
 impl SessionCleanupService {
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            session_repo: SessionRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            session_repo: SessionRepository::new(db_pool)?,
+        })
     }
 
     pub async fn cleanup_inactive_sessions(&self, inactive_hours: i32) -> Result<u64> {

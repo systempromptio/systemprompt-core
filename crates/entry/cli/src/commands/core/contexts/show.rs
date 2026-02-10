@@ -32,7 +32,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandResult<ContextDetailOutput>> {
-    let repo = ContextRepository::new(Clone::clone(pool));
+    let repo = ContextRepository::new(pool)?;
 
     let context_id = resolve_context(&args.context, &session.user_id, &repo).await?;
     let active_context_id = &session.context_id;

@@ -7,7 +7,7 @@ use std::sync::Arc;
 use super::types::PlaybookSyncOutput;
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_database::{Database, DatabaseProvider};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, PlaybooksDiffResult, PlaybooksLocalSync};
@@ -174,7 +174,7 @@ fn get_playbooks_path() -> Result<std::path::PathBuf> {
     )))
 }
 
-async fn create_db_provider() -> Result<Arc<dyn DatabaseProvider>> {
+async fn create_db_provider() -> Result<DbPool> {
     let url = SecretsBootstrap::database_url()
         .context("Database URL not configured")?
         .to_string();

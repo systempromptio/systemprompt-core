@@ -19,6 +19,7 @@ pub struct McpSessionRecord {
 #[derive(Debug)]
 pub struct McpSessionRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl McpSessionRepository {
@@ -26,7 +27,10 @@ impl McpSessionRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create(
@@ -45,7 +49,7 @@ impl McpSessionRepository {
             user_id,
             mcp_server_id,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -106,7 +110,7 @@ impl McpSessionRepository {
             session_id,
             last_event_id,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -121,7 +125,7 @@ impl McpSessionRepository {
             "#,
             session_id,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -136,7 +140,7 @@ impl McpSessionRepository {
             "#,
             session_id,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -150,7 +154,7 @@ impl McpSessionRepository {
             WHERE status = 'active' AND expires_at < NOW()
             "#,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

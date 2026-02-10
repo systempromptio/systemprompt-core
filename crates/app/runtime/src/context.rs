@@ -63,8 +63,20 @@ impl AppContext {
         AppPaths::init(&profile.paths)?;
         systemprompt_files::FilesConfig::init()?;
         let config = Arc::new(Config::get()?.clone());
-        let database =
-            Arc::new(Database::from_config(&config.database_type, &config.database_url).await?);
+        let database = Arc::new(
+            Database::from_config_with_write(
+                &config.database_type,
+                &config.database_url,
+                config.database_write_url.as_deref(),
+            )
+            .await?,
+        );
+
+        if config.database_write_url.is_some() {
+            tracing::info!(
+                "Database read/write separation enabled: reads from replica, writes to primary"
+            );
+        }
 
         let api_registry = Arc::new(ModuleApiRegistry::new());
 
@@ -83,10 +95,10 @@ impl AppContext {
         let route_classifier = Arc::new(RouteClassifier::new(content_routing.clone()));
 
         let analytics_service = Arc::new(AnalyticsService::new(
-            Arc::clone(&database),
+            &database,
             geoip_reader.clone(),
             content_routing,
-        ));
+        )?);
 
         let fingerprint_repo = FingerprintRepository::new(&database).ok().map(Arc::new);
 

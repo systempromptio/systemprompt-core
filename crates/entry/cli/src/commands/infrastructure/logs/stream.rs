@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
-use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_logging::models::{LogEntry, LogLevel};
 use systemprompt_logging::{CliService, LoggingMaintenanceService};
@@ -35,7 +34,7 @@ pub async fn execute(args: StreamArgs, config: &CliConfig) -> Result<()> {
     }
 
     let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
 
     let mut last_timestamp: Option<DateTime<Utc>> = None;
 

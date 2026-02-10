@@ -19,6 +19,7 @@ pub struct CreateAiRequest<'a> {
 #[derive(Debug, Clone)]
 pub struct AiRequestRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl AiRequestRepository {
@@ -26,10 +27,17 @@ impl AiRequestRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| RepositoryError::PoolInitialization(e.to_string()))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub(super) fn pool(&self) -> &PgPool {
         &self.pool
+    }
+
+    pub(super) fn write_pool(&self) -> &PgPool {
+        &self.write_pool
     }
 }

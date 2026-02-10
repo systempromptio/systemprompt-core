@@ -9,10 +9,10 @@ pub struct ProxyHealthCheck {
 }
 
 impl ProxyHealthCheck {
-    pub const fn new(db_pool: systemprompt_database::DbPool) -> Self {
-        Self {
-            service_repo: ServiceRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &systemprompt_database::DbPool) -> Result<Self> {
+        Ok(Self {
+            service_repo: ServiceRepository::new(db_pool)?,
+        })
     }
 
     pub async fn can_route_traffic(&self, service_name: &str, port: u16) -> Result<bool> {

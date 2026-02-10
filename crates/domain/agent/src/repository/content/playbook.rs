@@ -2,27 +2,24 @@ use crate::models::{Playbook, PlaybookRow};
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{PlaybookId, SourceId};
 
 #[derive(Debug)]
 pub struct PlaybookRepository {
-    db: Arc<dyn DatabaseProvider>,
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl PlaybookRepository {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self { db }
-    }
-
-    fn get_pg_pool(&self) -> Result<Arc<PgPool>> {
-        self.db
-            .get_postgres_pool()
-            .context("PostgreSQL pool not available")
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc().context("PostgreSQL pool not available")?;
+        let write_pool = db.write_pool_arc().context("Write PostgreSQL pool not available")?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create(&self, playbook: &Playbook) -> Result<()> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.write_pool;
         let playbook_id_str = playbook.playbook_id.as_str();
         let source_id_str = playbook.source_id.as_str();
 
@@ -49,7 +46,7 @@ impl PlaybookRepository {
     }
 
     pub async fn get_by_playbook_id(&self, playbook_id: &PlaybookId) -> Result<Option<Playbook>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
         let playbook_id_str = playbook_id.as_str();
 
         let row = sqlx::query_as!(
@@ -78,7 +75,7 @@ impl PlaybookRepository {
     }
 
     pub async fn get_by_file_path(&self, file_path: &str) -> Result<Option<Playbook>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let row = sqlx::query_as!(
             PlaybookRow,
@@ -106,7 +103,7 @@ impl PlaybookRepository {
     }
 
     pub async fn list_enabled(&self) -> Result<Vec<Playbook>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let rows = sqlx::query_as!(
             PlaybookRow,
@@ -135,7 +132,7 @@ impl PlaybookRepository {
     }
 
     pub async fn list_all(&self) -> Result<Vec<Playbook>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let rows = sqlx::query_as!(
             PlaybookRow,
@@ -164,7 +161,7 @@ impl PlaybookRepository {
     }
 
     pub async fn list_by_category(&self, category: &str) -> Result<Vec<Playbook>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let rows = sqlx::query_as!(
             PlaybookRow,
@@ -194,7 +191,7 @@ impl PlaybookRepository {
     }
 
     pub async fn update(&self, playbook_id: &PlaybookId, playbook: &Playbook) -> Result<()> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.write_pool;
         let playbook_id_str = playbook_id.as_str();
 
         sqlx::query!(
@@ -217,7 +214,7 @@ impl PlaybookRepository {
     }
 
     pub async fn delete(&self, playbook_id: &PlaybookId) -> Result<()> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.write_pool;
         let playbook_id_str = playbook_id.as_str();
 
         sqlx::query!(

@@ -110,7 +110,7 @@ impl OAuthRepository {
             params.resource,
             now
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(())
@@ -211,7 +211,7 @@ impl OAuthRepository {
             now,
             code_str
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(AuthCodeValidationResult {

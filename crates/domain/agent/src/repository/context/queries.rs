@@ -12,8 +12,6 @@ impl ContextRepository {
         context_id: &ContextId,
         user_id: &UserId,
     ) -> Result<UserContext, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let row = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -25,7 +23,7 @@ impl ContextRepository {
             context_id.as_str(),
             user_id.as_str()
         )
-        .fetch_one(pool.as_ref())
+        .fetch_one(&*self.pool)
         .await
         .map_err(|e| match e {
             sqlx::Error::RowNotFound => RepositoryError::NotFound(format!(
@@ -48,8 +46,6 @@ impl ContextRepository {
         &self,
         user_id: &UserId,
     ) -> Result<Vec<UserContext>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let rows = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -60,7 +56,7 @@ impl ContextRepository {
             FROM user_contexts WHERE user_id = $1 ORDER BY updated_at DESC"#,
             user_id.as_str()
         )
-        .fetch_all(pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
@@ -80,8 +76,6 @@ impl ContextRepository {
         &self,
         user_id: &UserId,
     ) -> Result<Vec<UserContextWithStats>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let rows = sqlx::query!(
             r#"SELECT
                 c.context_id as "context_id!",
@@ -100,7 +94,7 @@ impl ContextRepository {
             ORDER BY c.updated_at DESC"#,
             user_id.as_str()
         )
-        .fetch_all(pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
@@ -123,8 +117,6 @@ impl ContextRepository {
         &self,
         session_id: &SessionId,
     ) -> Result<Option<UserContext>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let row = sqlx::query!(
             r#"SELECT
                 context_id as "context_id!",
@@ -136,7 +128,7 @@ impl ContextRepository {
             ORDER BY created_at DESC LIMIT 1"#,
             session_id.as_str()
         )
-        .fetch_optional(pool.as_ref())
+        .fetch_optional(&*self.pool)
         .await
         .map_err(RepositoryError::database)?;
 
@@ -155,7 +147,6 @@ impl ContextRepository {
         last_seen: DateTime<Utc>,
     ) -> Result<Vec<ContextStateEvent>, RepositoryError> {
         let mut events = Vec::new();
-        let pool = self.get_pg_pool()?;
 
         let task_ids: Vec<String> = sqlx::query_scalar!(
             r#"SELECT t.task_id as "task_id!" FROM agent_tasks t
@@ -164,12 +155,12 @@ impl ContextRepository {
             context_id.as_str(),
             last_seen
         )
-        .fetch_all(pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
         if !task_ids.is_empty() {
-            let constructor = TaskConstructor::new(self.db_pool.clone());
+            let constructor = TaskConstructor::new(&self.db_pool)?;
             let task_ids_typed: Vec<TaskId> = task_ids.iter().map(|id| TaskId::new(id)).collect();
             let tasks = constructor.construct_tasks_batch(&task_ids_typed).await?;
 
@@ -193,7 +184,7 @@ impl ContextRepository {
             context_id.as_str(),
             last_seen
         )
-        .fetch_all(pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 

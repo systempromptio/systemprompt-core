@@ -88,7 +88,19 @@ pub async fn validate_context(
     tx: &UnboundedSender<Event>,
     request_id: &NumberOrString,
 ) -> Result<(), ()> {
-    let context_repo = ContextRepository::new(state.db_pool.clone());
+    let context_repo = ContextRepository::new(&state.db_pool).map_err(|e| {
+        tracing::error!(error = %e, "Failed to create ContextRepository");
+        if tx
+            .send(create_jsonrpc_error_event(
+                -32603,
+                &format!("Failed to initialize context repository: {e}"),
+                request_id,
+            ))
+            .is_err()
+        {
+            tracing::trace!("Failed to send error event, channel closed");
+        }
+    })?;
 
     context_repo
         .get_context(context_id, user_id)
@@ -132,7 +144,19 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
         request_id,
     } = input;
 
-    let task_repo = TaskRepository::new(state.db_pool.clone());
+    let task_repo = TaskRepository::new(&state.db_pool).map_err(|e| {
+        tracing::error!(error = %e, "Failed to create TaskRepository");
+        if tx
+            .send(create_jsonrpc_error_event(
+                -32603,
+                &format!("Failed to initialize task repository: {e}"),
+                request_id,
+            ))
+            .is_err()
+        {
+            tracing::trace!("Failed to send error event, channel closed");
+        }
+    })?;
     let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
 
     let task = Task {
@@ -266,7 +290,7 @@ pub async fn setup_stream(
     let agent_runtime =
         load_agent_runtime(&agent_name, &task_id, &task_repo, tx, &request_id).await?;
 
-    let processor = MessageProcessor::new(state.db_pool.clone(), state.ai_service.clone())
+    let processor = MessageProcessor::new(&state.db_pool, state.ai_service.clone())
         .map_err(|e| {
             tracing::error!(error = %e, "Failed to create MessageProcessor");
             if tx

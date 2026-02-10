@@ -4,7 +4,6 @@ use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Redirect};
 use axum::Json;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
@@ -37,7 +36,7 @@ pub async fn handle_webauthn_complete(
     Query(params): Query<WebAuthnCompleteQuery>,
     State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

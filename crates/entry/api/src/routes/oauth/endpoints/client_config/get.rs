@@ -1,7 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
-use std::sync::Arc;
 use systemprompt_models::Config;
 
 use systemprompt_oauth::oauth::dynamic_registration::DynamicRegistrationResponse;
@@ -13,7 +12,7 @@ pub async fn get_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

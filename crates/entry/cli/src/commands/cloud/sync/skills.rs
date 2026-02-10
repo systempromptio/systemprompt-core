@@ -3,7 +3,7 @@ use crate::cli_settings::CliConfig;
 use anyhow::{Context, Result};
 use dialoguer::{Confirm, Select};
 use std::sync::Arc;
-use systemprompt_database::{Database, DatabaseProvider};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
 use systemprompt_models::{AppPaths, SecretsBootstrap};
 use systemprompt_sync::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult, SkillsLocalSync};
@@ -13,7 +13,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(paths.system().skills().to_path_buf())
 }
 
-async fn create_db_provider(database_url: Option<&str>) -> Result<Arc<dyn DatabaseProvider>> {
+async fn create_db_provider(database_url: Option<&str>) -> Result<DbPool> {
     let url = match database_url {
         Some(url) => url.to_string(),
         None => SecretsBootstrap::database_url()?.to_string(),

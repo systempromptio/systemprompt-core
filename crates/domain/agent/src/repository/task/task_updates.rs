@@ -15,8 +15,7 @@ impl TaskRepository {
         session_id: &systemprompt_identifiers::SessionId,
         trace_id: &systemprompt_identifiers::TraceId,
     ) -> Result<Task, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        let mut tx = pool
+        let mut tx = self.write_pool
             .begin()
             .await
             .map_err(|e| RepositoryError::database(e))?;
@@ -137,7 +136,6 @@ impl TaskRepository {
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
         let task_id_str = task_id.as_str();
 
         sqlx::query!(
@@ -145,12 +143,12 @@ impl TaskRepository {
              WHERE task_id = $1)",
             task_id_str
         )
-        .execute(&*pool)
+        .execute(&*self.write_pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
         sqlx::query!("DELETE FROM task_messages WHERE task_id = $1", task_id_str)
-            .execute(&*pool)
+            .execute(&*self.write_pool)
             .await
             .map_err(|e| RepositoryError::database(e))?;
 
@@ -158,12 +156,12 @@ impl TaskRepository {
             "DELETE FROM task_execution_steps WHERE task_id = $1",
             task_id_str
         )
-        .execute(&*pool)
+        .execute(&*self.write_pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
         sqlx::query!("DELETE FROM agent_tasks WHERE task_id = $1", task_id_str)
-            .execute(&*pool)
+            .execute(&*self.write_pool)
             .await
             .map_err(|e| RepositoryError::database(e))?;
 

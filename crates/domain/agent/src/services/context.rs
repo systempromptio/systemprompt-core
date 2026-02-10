@@ -15,10 +15,10 @@ pub struct ContextService {
 }
 
 impl ContextService {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            task_repo: TaskRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            task_repo: TaskRepository::new(db_pool)?,
+        })
     }
 
     pub async fn load_conversation_history(&self, context_id: &str) -> Result<Vec<AiMessage>> {

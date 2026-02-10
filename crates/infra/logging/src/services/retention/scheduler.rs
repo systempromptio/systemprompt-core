@@ -64,16 +64,16 @@ fn create_retention_job(config: RetentionConfig, db_pool: DbPool) -> anyhow::Res
 
 async fn execute_retention_cleanup(config: RetentionConfig, db_pool: DbPool) -> anyhow::Result<()> {
     log_cleanup_starting();
-    let repo = create_logging_repository(&db_pool);
+    let repo = create_logging_repository(&db_pool)?;
     let total_deleted = apply_all_policies(&repo, &config.policies).await;
     log_cleanup_completed(total_deleted);
     Ok(())
 }
 
-fn create_logging_repository(db_pool: &DbPool) -> LoggingRepository {
-    LoggingRepository::new(Arc::clone(db_pool))
+fn create_logging_repository(db_pool: &DbPool) -> anyhow::Result<LoggingRepository> {
+    Ok(LoggingRepository::new(db_pool)?
         .with_database(true)
-        .with_terminal(false)
+        .with_terminal(false))
 }
 
 async fn apply_all_policies(

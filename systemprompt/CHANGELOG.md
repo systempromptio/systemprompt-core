@@ -1,5 +1,24 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Read/write database pool separation for multi-region Postgres deployments
+- `DATABASE_WRITE_URL` support in secrets (env var and secrets.json)
+- `Database::from_config_with_write()` constructor for dual-pool setup
+- `Database::write_pool_arc()`, `write_pool()`, `write_provider()`, `has_write_pool()` methods
+- `ConfigProvider::database_write_url()` trait method with backward-compatible default
+- `DatabaseContext::from_urls()` for explicit read/write URL configuration
+
+### Changed
+- All 37 repositories migrated to use write pool for mutations (INSERT/UPDATE/DELETE)
+- Migrations and schema installations now use write pool to prevent failures on read replicas
+- `Database::begin()` now uses write pool for transactions
+- `Database::test_connection()` validates both read and write pools
+
+### Fixed
+- Migrations failing with "cannot execute CREATE FUNCTION in a read-only transaction" when DATABASE_URL points to a read replica
+
 ## [0.1.9] - 2026-02-05
 
 ### Added

@@ -14,22 +14,24 @@ use systemprompt_traits::RepositoryError;
 
 #[derive(Debug, Clone)]
 pub struct TaskConstructor {
+    pool: Arc<PgPool>,
     db_pool: DbPool,
     artifact_repo: ArtifactRepository,
 }
 
 impl TaskConstructor {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            artifact_repo: ArtifactRepository::new(db_pool.clone()),
-            db_pool,
-        }
+    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+        let pool = db.pool_arc()?;
+        let artifact_repo = ArtifactRepository::new(db)?;
+        Ok(Self {
+            pool,
+            db_pool: db.clone(),
+            artifact_repo,
+        })
     }
 
-    pub(crate) fn get_pg_pool(&self) -> Result<Arc<PgPool>, RepositoryError> {
-        self.db_pool.as_ref().get_postgres_pool().ok_or_else(|| {
-            RepositoryError::InvalidData("PostgreSQL pool not available".to_string())
-        })
+    pub(crate) fn pool(&self) -> &Arc<PgPool> {
+        &self.pool
     }
 
     pub(crate) const fn artifact_repo(&self) -> &ArtifactRepository {

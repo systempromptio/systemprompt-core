@@ -12,7 +12,7 @@ impl ArtifactRepository {
         &self,
         task_id: &TaskId,
     ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.pool.clone();
         let task_id_str = task_id.as_str();
 
         let rows = sqlx::query_as!(
@@ -54,7 +54,7 @@ impl ArtifactRepository {
         &self,
         context_id: &ContextId,
     ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.pool.clone();
         let context_id_str = context_id.as_str();
 
         let rows = sqlx::query_as!(
@@ -97,7 +97,7 @@ impl ArtifactRepository {
         user_id: &UserId,
         limit: Option<i32>,
     ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.pool.clone();
         let limit = i64::from(limit.unwrap_or(100));
         let user_id_str = user_id.as_str();
 
@@ -143,7 +143,7 @@ impl ArtifactRepository {
         &self,
         artifact_id: &ArtifactId,
     ) -> Result<Option<Artifact>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.pool.clone();
         let artifact_id_str = artifact_id.as_str();
 
         let row = sqlx::query_as!(
@@ -184,7 +184,7 @@ impl ArtifactRepository {
         &self,
         limit: Option<i32>,
     ) -> Result<Vec<Artifact>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.pool.clone();
         let limit = i64::from(limit.unwrap_or(100));
 
         let rows = sqlx::query_as!(

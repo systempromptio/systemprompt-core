@@ -6,6 +6,7 @@ use std::sync::Arc;
 
 pub struct Database {
     provider: Arc<dyn DatabaseProvider>,
+    write_provider: Option<Arc<dyn DatabaseProvider>>,
 }
 
 impl std::fmt::Debug for Database {
@@ -21,6 +22,7 @@ impl Database {
         let provider = PostgresProvider::new(url).await?;
         Ok(Self {
             provider: Arc::new(provider),
+            write_provider: None,
         })
     }
 
@@ -33,10 +35,65 @@ impl Database {
         }
     }
 
+    pub async fn from_config_with_write(
+        db_type: &str,
+        read_url: &str,
+        write_url: Option<&str>,
+    ) -> Result<Self> {
+        let provider: Arc<dyn DatabaseProvider> = match db_type.to_lowercase().as_str() {
+            "postgres" | "postgresql" | "" => Arc::new(PostgresProvider::new(read_url).await?),
+            other => {
+                return Err(anyhow::anyhow!(
+                    "Unsupported database type: {other}. Only PostgreSQL is supported."
+                ))
+            },
+        };
+
+        let write_provider: Option<Arc<dyn DatabaseProvider>> = match write_url {
+            Some(url) => Some(Arc::new(PostgresProvider::new(url).await?)),
+            None => None,
+        };
+
+        Ok(Self {
+            provider,
+            write_provider,
+        })
+    }
+
     pub fn get_postgres_pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
         self.provider
             .get_postgres_pool()
             .ok_or_else(|| anyhow::anyhow!("Database is not PostgreSQL"))
+    }
+
+    pub fn write_pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
+        self.write_provider.as_ref().map_or_else(
+            || self.get_postgres_pool_arc(),
+            |wp| {
+                wp.get_postgres_pool()
+                    .ok_or_else(|| anyhow::anyhow!("Write database is not PostgreSQL"))
+            },
+        )
+    }
+
+    #[must_use]
+    pub fn write_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+        self.write_provider
+            .as_ref()
+            .and_then(|wp| wp.get_postgres_pool())
+            .or_else(|| self.provider.get_postgres_pool())
+    }
+
+    #[must_use]
+    pub fn has_write_pool(&self) -> bool {
+        self.write_provider.is_some()
+    }
+
+    #[must_use]
+    pub fn write_provider(&self) -> &dyn DatabaseProvider {
+        self.write_provider
+            .as_deref()
+            .unwrap_or(self.provider.as_ref())
     }
 
     pub async fn query(&self, sql: &dyn crate::models::QuerySelector) -> Result<QueryResult> {
@@ -60,7 +117,11 @@ impl Database {
     }
 
     pub async fn test_connection(&self) -> Result<()> {
-        self.provider.test_connection().await
+        self.provider.test_connection().await?;
+        if let Some(wp) = &self.write_provider {
+            wp.test_connection().await?;
+        }
+        Ok(())
     }
 
     #[must_use]
@@ -78,7 +139,7 @@ impl Database {
     }
 
     pub async fn begin(&self) -> Result<sqlx::Transaction<'_, sqlx::Postgres>> {
-        let pool = self.pool_arc()?;
+        let pool = self.write_pool_arc()?;
         pool.begin().await.map_err(Into::into)
     }
 }

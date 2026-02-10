@@ -1,8 +1,6 @@
 pub mod state;
 pub mod sync;
 
-use std::sync::Arc;
-
 use crate::McpServerConfig;
 use anyhow::Result;
 use systemprompt_database::ServiceRepository;
@@ -39,12 +37,12 @@ impl DatabaseManager {
     }
 
     pub async fn update_service_status(&self, name: &str, status: &str) -> Result<()> {
-        let repo = ServiceRepository::new(Arc::clone(&self.db_pool));
+        let repo = ServiceRepository::new(&self.db_pool)?;
         repo.update_service_status(name, status).await
     }
 
     pub async fn clear_service_pid(&self, name: &str) -> Result<()> {
-        let repo = ServiceRepository::new(Arc::clone(&self.db_pool));
+        let repo = ServiceRepository::new(&self.db_pool)?;
         repo.clear_service_pid(name).await
     }
 

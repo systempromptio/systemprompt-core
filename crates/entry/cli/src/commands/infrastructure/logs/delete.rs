@@ -1,6 +1,5 @@
 use anyhow::{anyhow, Result};
 use clap::Args;
-use std::sync::Arc;
 use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
@@ -23,7 +22,7 @@ pub async fn execute(args: DeleteArgs, config: &CliConfig) -> Result<()> {
     )?;
 
     let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
 
     let deleted_count = service
         .clear_all_logs()

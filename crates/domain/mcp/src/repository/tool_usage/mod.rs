@@ -19,6 +19,7 @@ fn extract_trace_id(ctx: &RequestContext) -> Option<String> {
 #[derive(Debug)]
 pub struct ToolUsageRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl ToolUsageRepository {
@@ -26,7 +27,10 @@ impl ToolUsageRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn start_execution(&self, request: &ToolExecutionRequest) -> Result<McpExecutionId> {
@@ -66,7 +70,7 @@ impl ToolUsageRepository {
             input_str,
             request.started_at
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(mcp_execution_id)
@@ -105,7 +109,7 @@ impl ToolUsageRepository {
             result.completed_at,
             id
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -156,7 +160,7 @@ impl ToolUsageRepository {
             request.started_at,
             result.completed_at
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(mcp_execution_id)
@@ -288,7 +292,7 @@ impl ToolUsageRepository {
             now,
             context_id_str
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(())
     }

@@ -3,10 +3,9 @@ use crate::models::{DiffStatus, DiskSkill, SkillDiffItem, SkillsDiffResult};
 use anyhow::{anyhow, Result};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use systemprompt_agent::models::Skill;
 use systemprompt_agent::repository::content::SkillRepository;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use tracing::warn;
 
 #[derive(Debug)]
@@ -15,10 +14,10 @@ pub struct SkillsDiffCalculator {
 }
 
 impl SkillsDiffCalculator {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self {
-            skill_repo: SkillRepository::new(db),
-        }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            skill_repo: SkillRepository::new(db)?,
+        })
     }
 
     pub async fn calculate_diff(&self, skills_path: &Path) -> Result<SkillsDiffResult> {

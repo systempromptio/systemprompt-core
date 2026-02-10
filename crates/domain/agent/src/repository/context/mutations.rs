@@ -12,7 +12,6 @@ impl ContextRepository {
         name: &str,
     ) -> Result<ContextId, RepositoryError> {
         let context_id = ContextId::generate();
-        let pool = self.get_pg_pool()?;
         let now = Utc::now();
         let session_id_str = session_id.map(SessionId::as_str);
 
@@ -26,7 +25,7 @@ impl ContextRepository {
             name,
             now
         )
-        .execute(pool.as_ref())
+        .execute(&*self.write_pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
@@ -38,14 +37,12 @@ impl ContextRepository {
         context_id: &ContextId,
         user_id: &UserId,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let result = sqlx::query_scalar!(
             "SELECT context_id FROM user_contexts WHERE context_id = $1 AND user_id = $2",
             context_id.as_str(),
             user_id.as_str()
         )
-        .fetch_optional(pool.as_ref())
+        .fetch_optional(&*self.pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
@@ -64,7 +61,6 @@ impl ContextRepository {
         user_id: &UserId,
         name: &str,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
         let now = Utc::now();
 
         let result = sqlx::query!(
@@ -75,7 +71,7 @@ impl ContextRepository {
             context_id.as_str(),
             user_id.as_str()
         )
-        .execute(pool.as_ref())
+        .execute(&*self.write_pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 
@@ -94,14 +90,12 @@ impl ContextRepository {
         context_id: &ContextId,
         user_id: &UserId,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
-
         let result = sqlx::query!(
             "DELETE FROM user_contexts WHERE context_id = $1 AND user_id = $2",
             context_id.as_str(),
             user_id.as_str()
         )
-        .execute(pool.as_ref())
+        .execute(&*self.write_pool)
         .await
         .map_err(|e| RepositoryError::database(e))?;
 

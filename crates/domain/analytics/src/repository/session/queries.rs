@@ -1,14 +1,13 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{DateTime, Duration, Utc};
-use systemprompt_database::DbPool;
+use sqlx::PgPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::models::AnalyticsSession;
 
 use super::types::{SessionBehavioralData, SessionRecord};
 
-pub async fn find_by_id(pool: &DbPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn find_by_id(pool: &PgPool, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
     let id = session_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -25,17 +24,16 @@ pub async fn find_by_id(pool: &DbPool, session_id: &SessionId) -> Result<Option<
         "#,
         id
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await
     .map_err(Into::into)
 }
 
 pub async fn find_by_fingerprint(
-    pool: &DbPool,
+    pool: &PgPool,
     fingerprint_hash: &str,
     user_id: &UserId,
 ) -> Result<Option<AnalyticsSession>> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
     let uid = user_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -55,13 +53,12 @@ pub async fn find_by_fingerprint(
         fingerprint_hash,
         uid
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await
     .map_err(Into::into)
 }
 
-pub async fn list_active_by_user(pool: &DbPool, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn list_active_by_user(pool: &PgPool, user_id: &UserId) -> Result<Vec<AnalyticsSession>> {
     let uid = user_id.as_str();
     sqlx::query_as!(
         AnalyticsSession,
@@ -79,17 +76,16 @@ pub async fn list_active_by_user(pool: &DbPool, user_id: &UserId) -> Result<Vec<
         "#,
         uid
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await
     .map_err(Into::into)
 }
 
 pub async fn find_recent_by_fingerprint(
-    pool: &DbPool,
+    pool: &PgPool,
     fingerprint_hash: &str,
     max_age_seconds: i64,
 ) -> Result<Option<SessionRecord>> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
     let cutoff = Utc::now() - Duration::seconds(max_age_seconds);
     sqlx::query_as!(
         SessionRecord,
@@ -108,44 +104,40 @@ pub async fn find_recent_by_fingerprint(
         fingerprint_hash,
         cutoff
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await
     .map_err(Into::into)
 }
 
-pub async fn exists(pool: &DbPool, session_id: &SessionId) -> Result<bool> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
+pub async fn exists(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
     let result = sqlx::query_scalar!(
         r#"SELECT 1 as "exists" FROM user_sessions WHERE session_id = $1 LIMIT 1"#,
         id
     )
-    .fetch_optional(&*pool)
+    .fetch_optional(pool)
     .await?;
     Ok(result.is_some())
 }
 
-pub async fn get_throttle_level(pool: &DbPool, session_id: &SessionId) -> Result<i32> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
+pub async fn get_throttle_level(pool: &PgPool, session_id: &SessionId) -> Result<i32> {
     let id = session_id.as_str();
 
     let result = sqlx::query_scalar!(
         r#"SELECT throttle_level FROM user_sessions WHERE session_id = $1"#,
         id
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await?;
 
     Ok(result.unwrap_or(0))
 }
 
 pub async fn count_sessions_by_fingerprint(
-    pool: &DbPool,
+    pool: &PgPool,
     fingerprint_hash: &str,
     window_hours: i64,
 ) -> Result<i64> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
-
     let count = sqlx::query_scalar!(
         r#"
         SELECT COUNT(*)::BIGINT as "count!"
@@ -156,14 +148,13 @@ pub async fn count_sessions_by_fingerprint(
         fingerprint_hash,
         window_hours as i32
     )
-    .fetch_one(pool.as_ref())
+    .fetch_one(pool)
     .await?;
 
     Ok(count)
 }
 
-pub async fn get_endpoint_sequence(pool: &DbPool, session_id: &SessionId) -> Result<Vec<String>> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
+pub async fn get_endpoint_sequence(pool: &PgPool, session_id: &SessionId) -> Result<Vec<String>> {
     let id = session_id.as_str();
 
     let endpoints = sqlx::query_scalar!(
@@ -176,17 +167,16 @@ pub async fn get_endpoint_sequence(pool: &DbPool, session_id: &SessionId) -> Res
         "#,
         id
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await?;
 
     Ok(endpoints.into_iter().flatten().collect())
 }
 
 pub async fn get_request_timestamps(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Vec<DateTime<Utc>>> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
 
     let timestamps = sqlx::query_scalar!(
@@ -198,15 +188,13 @@ pub async fn get_request_timestamps(
         "#,
         id
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await?;
 
     Ok(timestamps)
 }
 
-pub async fn get_total_content_pages(pool: &DbPool) -> Result<i64> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
-
+pub async fn get_total_content_pages(pool: &PgPool) -> Result<i64> {
     let count = sqlx::query_scalar!(
         r#"
         SELECT COUNT(*)::BIGINT as "count!"
@@ -214,17 +202,16 @@ pub async fn get_total_content_pages(pool: &DbPool) -> Result<i64> {
         WHERE public = true
         "#
     )
-    .fetch_one(pool.as_ref())
+    .fetch_one(pool)
     .await?;
 
     Ok(count)
 }
 
 pub async fn get_session_for_behavioral_analysis(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<Option<SessionBehavioralData>> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
 
     sqlx::query_as!(
@@ -244,13 +231,12 @@ pub async fn get_session_for_behavioral_analysis(
         "#,
         id
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await
     .map_err(Into::into)
 }
 
-pub async fn has_analytics_events(pool: &DbPool, session_id: &SessionId) -> Result<bool> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
+pub async fn has_analytics_events(pool: &PgPool, session_id: &SessionId) -> Result<bool> {
     let id = session_id.as_str();
 
     let result = sqlx::query_scalar!(
@@ -261,17 +247,16 @@ pub async fn has_analytics_events(pool: &DbPool, session_id: &SessionId) -> Resu
         "#,
         id
     )
-    .fetch_one(pool.as_ref())
+    .fetch_one(pool)
     .await?;
 
     Ok(result)
 }
 
 pub async fn get_session_velocity(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
 ) -> Result<(Option<i64>, Option<i64>)> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
 
     let row = sqlx::query!(
@@ -284,7 +269,7 @@ pub async fn get_session_velocity(
         "#,
         id
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await?;
 
     Ok(row.map_or((None, None), |r| (r.request_count, r.duration_seconds)))

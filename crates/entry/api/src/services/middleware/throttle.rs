@@ -14,10 +14,10 @@ pub struct ThrottleMiddleware {
 }
 
 impl ThrottleMiddleware {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            session_repo: Arc::new(SessionRepository::new(db_pool)),
-        }
+    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+        Ok(Self {
+            session_repo: Arc::new(SessionRepository::new(db_pool)?),
+        })
     }
 
     pub async fn check_throttle(&self, request: Request, next: Next) -> Result<Response, ApiError> {

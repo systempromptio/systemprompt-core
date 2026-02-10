@@ -55,7 +55,7 @@ pub async fn generate_anonymous_token(
 ) -> impl IntoResponse {
     let expires_in = systemprompt_oauth::constants::token::ANONYMOUS_TOKEN_EXPIRY_SECONDS;
     let client_id = ClientId::new(req.client_id.clone());
-    let validator = match ClientValidator::new(Arc::clone(state.db_pool())) {
+    let validator = match ClientValidator::new(state.db_pool()) {
         Ok(v) => v,
         Err(e) => {
             return (

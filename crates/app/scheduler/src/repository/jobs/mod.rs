@@ -8,12 +8,14 @@ use systemprompt_identifiers::ScheduledJobId;
 #[derive(Debug, Clone)]
 pub struct JobRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl JobRepository {
     pub fn new(db: &DbPool) -> anyhow::Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn upsert_job(
@@ -41,7 +43,7 @@ impl JobRepository {
             now,
             now
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -106,7 +108,7 @@ impl JobRepository {
             now,
             job_name
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -117,7 +119,7 @@ impl JobRepository {
             "UPDATE scheduled_jobs SET run_count = run_count + 1 WHERE job_name = $1",
             job_name
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(())
     }

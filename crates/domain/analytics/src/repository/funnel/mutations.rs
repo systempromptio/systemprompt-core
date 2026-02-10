@@ -20,7 +20,7 @@ impl FunnelRepository {
             input.description,
             now
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         let mut steps = Vec::with_capacity(input.steps.len());
@@ -39,7 +39,7 @@ impl FunnelRepository {
                 step_input.match_pattern,
                 match_type
             )
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
 
             steps.push(FunnelStep {
@@ -71,7 +71,7 @@ impl FunnelRepository {
             id.as_str(),
             Utc::now()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -79,7 +79,7 @@ impl FunnelRepository {
 
     pub async fn delete(&self, id: &FunnelId) -> Result<bool> {
         let result = sqlx::query!(r#"DELETE FROM funnels WHERE id = $1"#, id.as_str())
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
 
         Ok(result.rows_affected() > 0)
@@ -118,7 +118,7 @@ impl FunnelRepository {
                     serde_json::Value::Array(timestamps.clone()),
                     now
                 )
-                .execute(&*self.pool)
+                .execute(&*self.write_pool)
                 .await?;
 
                 progress.current_step = step;
@@ -145,7 +145,7 @@ impl FunnelRepository {
             timestamps,
             now
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(FunnelProgress {
@@ -177,7 +177,7 @@ impl FunnelRepository {
             session_id.as_str(),
             now
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)

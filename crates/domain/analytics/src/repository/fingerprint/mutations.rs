@@ -58,7 +58,7 @@ impl FingerprintRepository {
             user_agent,
             &user_ids[..],
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(row)
@@ -86,7 +86,7 @@ impl FingerprintRepository {
             reason.as_str(),
             new_score,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -114,7 +114,7 @@ impl FingerprintRepository {
             peak_requests_per_minute,
             sustained_high_velocity_minutes,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -135,7 +135,7 @@ impl FingerprintRepository {
             fingerprint_hash,
             active_count,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -151,7 +151,7 @@ impl FingerprintRepository {
             "#,
             fingerprint_hash,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -169,7 +169,7 @@ impl FingerprintRepository {
             "#,
             fingerprint_hash,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -187,7 +187,7 @@ impl FingerprintRepository {
             fingerprint_hash,
             delta,
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(row)

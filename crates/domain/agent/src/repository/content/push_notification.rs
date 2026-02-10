@@ -10,6 +10,7 @@ use crate::models::database_rows::PushNotificationConfigRow;
 
 pub struct PushNotificationConfigRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl std::fmt::Debug for PushNotificationConfigRepository {
@@ -23,7 +24,8 @@ impl std::fmt::Debug for PushNotificationConfigRepository {
 impl PushNotificationConfigRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn add_config(
@@ -59,7 +61,7 @@ impl PushNotificationConfigRepository {
             now,
             now
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(config_id)
@@ -129,7 +131,7 @@ impl PushNotificationConfigRepository {
             task_id_str,
             config_id_str
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -141,7 +143,7 @@ impl PushNotificationConfigRepository {
             "DELETE FROM task_push_notification_configs WHERE task_id = $1",
             task_id_str
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

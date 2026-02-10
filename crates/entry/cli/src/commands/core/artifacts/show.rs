@@ -36,7 +36,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactDetailOutput>> {
-    let repo = ArtifactRepository::new(Clone::clone(pool));
+    let repo = ArtifactRepository::new(pool)?;
 
     let artifact_id = resolve_artifact_id(&args.artifact_id, &repo).await?;
 

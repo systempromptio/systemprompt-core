@@ -68,7 +68,7 @@ impl MessageValidationService {
         message: &Message,
         context: &RequestContext,
     ) -> Result<()> {
-        let context_repo = ContextRepository::new(self.db_pool.clone());
+        let context_repo = ContextRepository::new(&self.db_pool)?;
 
         context_repo
             .get_context(&message.context_id, context.user_id())

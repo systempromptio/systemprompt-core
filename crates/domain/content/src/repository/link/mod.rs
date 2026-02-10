@@ -13,6 +13,7 @@ use systemprompt_identifiers::{CampaignId, ContentId, LinkId};
 #[derive(Debug)]
 pub struct LinkRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl LinkRepository {
@@ -20,7 +21,10 @@ impl LinkRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| ContentError::InvalidRequest(format!("Database write pool error: {e}")))?;
+        Ok(Self { pool, write_pool })
     }
 
     #[allow(clippy::cognitive_complexity)]
@@ -76,7 +80,7 @@ impl LinkRepository {
             params.expires_at,
             now
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await
     }
 
@@ -169,7 +173,7 @@ impl LinkRepository {
 
     pub async fn delete_link(&self, id: &LinkId) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!("DELETE FROM campaign_links WHERE id = $1", id.as_str())
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected() > 0)
     }

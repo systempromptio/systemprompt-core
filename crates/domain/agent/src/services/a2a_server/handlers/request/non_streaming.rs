@@ -29,7 +29,7 @@ pub async fn handle_non_streaming_request(
             .await?;
 
             let message_processor =
-                MessageProcessor::new(state.db_pool.clone(), state.ai_service.clone())?;
+                MessageProcessor::new(&state.db_pool, state.ai_service.clone())?;
 
             message_processor
                 .handle_message(params.message, &agent_name, context)
@@ -47,7 +47,7 @@ pub async fn handle_non_streaming_request(
             .await?;
 
             let message_processor =
-                MessageProcessor::new(state.db_pool.clone(), state.ai_service.clone())?;
+                MessageProcessor::new(&state.db_pool, state.ai_service.clone())?;
 
             message_processor
                 .handle_message(params.message, &agent_name, context)
@@ -58,7 +58,7 @@ pub async fn handle_non_streaming_request(
             tracing::info!(task_id = %params.id, "Handling tasks/get request");
 
             use crate::repository::task::TaskRepository;
-            let task_repo = TaskRepository::new(state.db_pool.clone());
+            let task_repo = TaskRepository::new(&state.db_pool)?;
 
             match task_repo.get_task_by_str(&params.id).await {
                 Ok(Some(task)) => Ok(task),
@@ -70,7 +70,7 @@ pub async fn handle_non_streaming_request(
             tracing::info!(task_id = %params.id, "Handling tasks/cancel request");
 
             use crate::repository::task::TaskRepository;
-            let task_repo = TaskRepository::new(state.db_pool.clone());
+            let task_repo = TaskRepository::new(&state.db_pool)?;
 
             match task_repo.get_task_by_str(&params.id).await {
                 Ok(Some(task)) => Ok(build_canceled_task(params.id.into(), task.context_id)),

@@ -3,8 +3,7 @@ use crate::repository::content::SkillRepository;
 use anyhow::{anyhow, Result};
 use std::collections::HashSet;
 use std::path::Path;
-use std::sync::Arc;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_models::IngestionReport;
 
@@ -14,10 +13,10 @@ pub struct SkillIngestionService {
 }
 
 impl SkillIngestionService {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self {
-            skill_repo: SkillRepository::new(db),
-        }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            skill_repo: SkillRepository::new(db)?,
+        })
     }
 
     pub async fn ingest_directory(

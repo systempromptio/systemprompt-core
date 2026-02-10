@@ -34,6 +34,7 @@ pub trait Entity: for<'r> FromRow<'r, PgRow> + Send + Sync + Unpin + 'static {
 #[derive(Clone)]
 pub struct GenericRepository<E: Entity> {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
     _phantom: std::marker::PhantomData<E>,
 }
 
@@ -47,9 +48,20 @@ impl<E: Entity> std::fmt::Debug for GenericRepository<E> {
 
 impl<E: Entity> GenericRepository<E> {
     #[must_use]
-    pub const fn new(pool: Arc<PgPool>) -> Self {
+    pub fn new(pool: Arc<PgPool>) -> Self {
+        let write_pool = Arc::clone(&pool);
         Self {
             pool,
+            write_pool,
+            _phantom: std::marker::PhantomData,
+        }
+    }
+
+    #[must_use]
+    pub const fn new_with_write_pool(pool: Arc<PgPool>, write_pool: Arc<PgPool>) -> Self {
+        Self {
+            pool,
+            write_pool,
             _phantom: std::marker::PhantomData,
         }
     }
@@ -57,6 +69,11 @@ impl<E: Entity> GenericRepository<E> {
     #[must_use]
     pub fn pool(&self) -> &PgPool {
         &self.pool
+    }
+
+    #[must_use]
+    pub fn write_pool(&self) -> &PgPool {
+        &self.write_pool
     }
 
     pub async fn get(&self, id: &E::Id) -> Result<Option<E>, sqlx::Error> {
@@ -98,7 +115,7 @@ impl<E: Entity> GenericRepository<E> {
         let query = format!("DELETE FROM {} WHERE {} = $1", E::TABLE, E::ID_COLUMN);
         let result = sqlx::query(&query)
             .bind(id.as_str())
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected() > 0)
     }

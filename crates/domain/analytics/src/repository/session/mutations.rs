@@ -1,12 +1,11 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use chrono::{Duration, Utc};
-use systemprompt_database::DbPool;
+use sqlx::PgPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
 use super::types::CreateSessionParams;
 
-pub async fn update_activity(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn update_activity(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -17,13 +16,12 @@ pub async fn update_activity(pool: &DbPool, session_id: &SessionId) -> Result<()
         "#,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn increment_request_count(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn increment_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -35,52 +33,48 @@ pub async fn increment_request_count(pool: &DbPool, session_id: &SessionId) -> R
         "#,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn increment_task_count(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn increment_task_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET task_count = task_count + 1, last_activity_at = \
          CURRENT_TIMESTAMP WHERE session_id = $1",
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn increment_ai_request_count(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn increment_ai_request_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET ai_request_count = ai_request_count + 1, last_activity_at = \
          CURRENT_TIMESTAMP WHERE session_id = $1",
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn increment_message_count(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn increment_message_count(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET message_count = message_count + 1, last_activity_at = \
          CURRENT_TIMESTAMP WHERE session_id = $1",
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn end_session(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn end_session(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -91,25 +85,23 @@ pub async fn end_session(pool: &DbPool, session_id: &SessionId) -> Result<()> {
         "#,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn mark_as_scanner(pool: &DbPool, session_id: &SessionId) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn mark_as_scanner(pool: &PgPool, session_id: &SessionId) -> Result<()> {
     let id = session_id.as_str();
     sqlx::query!(
         "UPDATE user_sessions SET is_scanner = true WHERE session_id = $1",
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
-pub async fn cleanup_inactive(pool: &DbPool, inactive_hours: i32) -> Result<u64> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn cleanup_inactive(pool: &PgPool, inactive_hours: i32) -> Result<u64> {
     let cutoff = Utc::now() - Duration::hours(i64::from(inactive_hours));
     let result = sqlx::query!(
         r#"
@@ -119,17 +111,16 @@ pub async fn cleanup_inactive(pool: &DbPool, inactive_hours: i32) -> Result<u64>
         "#,
         cutoff
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(result.rows_affected())
 }
 
 pub async fn migrate_user_sessions(
-    pool: &DbPool,
+    pool: &PgPool,
     old_user_id: &UserId,
     new_user_id: &UserId,
 ) -> Result<u64> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
     let old_id = old_user_id.as_str();
     let new_id = new_user_id.as_str();
     let result = sqlx::query!(
@@ -137,14 +128,13 @@ pub async fn migrate_user_sessions(
         new_id,
         old_id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(result.rows_affected())
 }
 
 #[allow(clippy::cognitive_complexity)]
-pub async fn create_session(pool: &DbPool, params: &CreateSessionParams<'_>) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
+pub async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
     let session_id = params.session_id.as_str();
     let user_id = params.user_id.map(UserId::as_str);
     let session_source = params.session_source.as_str();
@@ -182,18 +172,17 @@ pub async fn create_session(pool: &DbPool, params: &CreateSessionParams<'_>) -> 
         params.is_bot,
         params.expires_at
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
 pub async fn increment_ai_usage(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
     tokens: i32,
     cost_microdollars: i64,
 ) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -208,17 +197,16 @@ pub async fn increment_ai_usage(
         cost_microdollars,
         id
     )
-    .execute(&*pool)
+    .execute(pool)
     .await?;
     Ok(())
 }
 
 pub async fn escalate_throttle(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
     new_level: i32,
 ) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
 
     sqlx::query!(
@@ -231,7 +219,7 @@ pub async fn escalate_throttle(
         new_level,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
 
     Ok(())

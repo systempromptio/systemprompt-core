@@ -12,7 +12,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_agent::services::skills::SkillIngestionService;
-use systemprompt_database::Database;
+use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::SourceId;
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
@@ -367,7 +367,8 @@ async fn sync_skill_to_db(skill_dir: &Path) -> Result<()> {
         .await
         .context("Failed to connect to database")?;
 
-    let ingestion_service = SkillIngestionService::new(Arc::new(database));
+    let db: DbPool = Arc::new(database);
+    let ingestion_service = SkillIngestionService::new(&db)?;
 
     ingestion_service
         .ingest_directory(skill_dir, SourceId::new("cli"), false)

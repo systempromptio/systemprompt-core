@@ -20,7 +20,19 @@ pub async fn forward_event(
     let user_id = request_context.user_id();
     let context_id_typed = ContextId::new(&context_id);
 
-    let context_repo = ContextRepository::new(db.clone());
+    let context_repo = match ContextRepository::new(db) {
+        Ok(repo) => repo,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Database error",
+                    "message": format!("{e}")
+                })),
+            )
+                .into_response();
+        },
+    };
     if let Err(e) = context_repo
         .validate_context_ownership(&context_id_typed, user_id)
         .await

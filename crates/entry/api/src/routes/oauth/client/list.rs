@@ -1,6 +1,5 @@
 #![allow(unused_qualifications)]
 
-use std::sync::Arc;
 
 use axum::extract::{Extension, Query, State};
 use axum::http::StatusCode;
@@ -54,7 +53,7 @@ pub async fn list_clients(
     State(state): State<OAuthState>,
     Query(query): Query<ListClientsQuery>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => return init_error(e),
     };

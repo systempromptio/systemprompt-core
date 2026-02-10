@@ -3,8 +3,11 @@ mod mutations;
 mod queries;
 mod types;
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
+use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, UserId};
 
@@ -16,12 +19,15 @@ pub use types::{
 
 #[derive(Clone, Debug)]
 pub struct SessionRepository {
-    pool: DbPool,
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl SessionRepository {
-    pub const fn new(pool: DbPool) -> Self {
-        Self { pool }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc()?;
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn find_by_id(&self, session_id: &SessionId) -> Result<Option<AnalyticsSession>> {
@@ -41,35 +47,35 @@ impl SessionRepository {
     }
 
     pub async fn update_activity(&self, session_id: &SessionId) -> Result<()> {
-        mutations::update_activity(&self.pool, session_id).await
+        mutations::update_activity(&self.write_pool, session_id).await
     }
 
     pub async fn increment_request_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_request_count(&self.pool, session_id).await
+        mutations::increment_request_count(&self.write_pool, session_id).await
     }
 
     pub async fn increment_task_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_task_count(&self.pool, session_id).await
+        mutations::increment_task_count(&self.write_pool, session_id).await
     }
 
     pub async fn increment_ai_request_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_ai_request_count(&self.pool, session_id).await
+        mutations::increment_ai_request_count(&self.write_pool, session_id).await
     }
 
     pub async fn increment_message_count(&self, session_id: &SessionId) -> Result<()> {
-        mutations::increment_message_count(&self.pool, session_id).await
+        mutations::increment_message_count(&self.write_pool, session_id).await
     }
 
     pub async fn end_session(&self, session_id: &SessionId) -> Result<()> {
-        mutations::end_session(&self.pool, session_id).await
+        mutations::end_session(&self.write_pool, session_id).await
     }
 
     pub async fn mark_as_scanner(&self, session_id: &SessionId) -> Result<()> {
-        mutations::mark_as_scanner(&self.pool, session_id).await
+        mutations::mark_as_scanner(&self.write_pool, session_id).await
     }
 
     pub async fn mark_as_behavioral_bot(&self, session_id: &SessionId, reason: &str) -> Result<()> {
-        behavioral::mark_as_behavioral_bot(&self.pool, session_id, reason).await
+        behavioral::mark_as_behavioral_bot(&self.write_pool, session_id, reason).await
     }
 
     pub async fn check_and_mark_behavioral_bot(
@@ -77,12 +83,12 @@ impl SessionRepository {
         session_id: &SessionId,
         request_count_threshold: i32,
     ) -> Result<bool> {
-        behavioral::check_and_mark_behavioral_bot(&self.pool, session_id, request_count_threshold)
+        behavioral::check_and_mark_behavioral_bot(&self.write_pool, session_id, request_count_threshold)
             .await
     }
 
     pub async fn cleanup_inactive(&self, inactive_hours: i32) -> Result<u64> {
-        mutations::cleanup_inactive(&self.pool, inactive_hours).await
+        mutations::cleanup_inactive(&self.write_pool, inactive_hours).await
     }
 
     pub async fn migrate_user_sessions(
@@ -90,11 +96,11 @@ impl SessionRepository {
         old_user_id: &UserId,
         new_user_id: &UserId,
     ) -> Result<u64> {
-        mutations::migrate_user_sessions(&self.pool, old_user_id, new_user_id).await
+        mutations::migrate_user_sessions(&self.write_pool, old_user_id, new_user_id).await
     }
 
     pub async fn create_session(&self, params: &CreateSessionParams<'_>) -> Result<()> {
-        mutations::create_session(&self.pool, params).await
+        mutations::create_session(&self.write_pool, params).await
     }
 
     pub async fn find_recent_by_fingerprint(
@@ -115,7 +121,7 @@ impl SessionRepository {
         tokens: i32,
         cost_microdollars: i64,
     ) -> Result<()> {
-        mutations::increment_ai_usage(&self.pool, session_id, tokens, cost_microdollars).await
+        mutations::increment_ai_usage(&self.write_pool, session_id, tokens, cost_microdollars).await
     }
 
     pub async fn update_behavioral_detection(
@@ -126,7 +132,7 @@ impl SessionRepository {
         reason: Option<&str>,
     ) -> Result<()> {
         behavioral::update_behavioral_detection(
-            &self.pool,
+            &self.write_pool,
             session_id,
             score,
             is_behavioral_bot,
@@ -136,7 +142,7 @@ impl SessionRepository {
     }
 
     pub async fn escalate_throttle(&self, session_id: &SessionId, new_level: i32) -> Result<()> {
-        mutations::escalate_throttle(&self.pool, session_id, new_level).await
+        mutations::escalate_throttle(&self.write_pool, session_id, new_level).await
     }
 
     pub async fn get_throttle_level(&self, session_id: &SessionId) -> Result<i32> {

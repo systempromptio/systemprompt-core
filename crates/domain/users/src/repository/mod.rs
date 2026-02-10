@@ -16,11 +16,13 @@ pub(crate) const MAX_PAGE_SIZE: i64 = 100;
 #[derive(Debug, Clone)]
 pub struct UserRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl UserRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 }

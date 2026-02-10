@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
@@ -28,7 +27,7 @@ pub async fn create_client(
     State(state): State<OAuthState>,
     Json(request): Json<CreateOAuthClientRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => return init_error(e),
     };

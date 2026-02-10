@@ -23,7 +23,7 @@ impl PersistenceService {
         context: &RequestContext,
         agent_name: &str,
     ) -> Result<()> {
-        let task_repo = TaskRepository::new(self.db_pool.clone());
+        let task_repo = TaskRepository::new(&self.db_pool)?;
 
         task_repo
             .create_task(
@@ -47,7 +47,7 @@ impl PersistenceService {
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<()> {
-        let task_repo = TaskRepository::new(self.db_pool.clone());
+        let task_repo = TaskRepository::new(&self.db_pool)?;
         task_repo
             .update_task_state(task_id, state, timestamp)
             .await
@@ -62,7 +62,7 @@ impl PersistenceService {
         context: &RequestContext,
         artifacts_already_published: bool,
     ) -> Result<Task> {
-        let task_repo = TaskRepository::new(self.db_pool.clone());
+        let task_repo = TaskRepository::new(&self.db_pool)?;
 
         let updated_task = task_repo
             .update_task_and_save_messages(
@@ -78,7 +78,7 @@ impl PersistenceService {
 
         if !artifacts_already_published {
             if let Some(ref artifacts) = task.artifacts {
-                let publishing_service = ArtifactPublishingService::new(self.db_pool.clone());
+                let publishing_service = ArtifactPublishingService::new(&self.db_pool)?;
                 for artifact in artifacts {
                     publishing_service
                         .publish_from_a2a(artifact, &task.id, &task.context_id)

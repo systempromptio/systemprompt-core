@@ -81,7 +81,7 @@ impl OAuthRepository {
             expires_at_dt,
             now
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(())
@@ -125,7 +125,7 @@ impl OAuthRepository {
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_str
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok((user_id, scope))
@@ -137,7 +137,7 @@ impl OAuthRepository {
             "DELETE FROM oauth_refresh_tokens WHERE token_id = $1",
             token_id_str
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -150,7 +150,7 @@ impl OAuthRepository {
             "DELETE FROM oauth_refresh_tokens WHERE expires_at < $1",
             now
         )
-        .execute(self.pool_ref())
+        .execute(self.write_pool_ref())
         .await?;
 
         Ok(result.rows_affected())

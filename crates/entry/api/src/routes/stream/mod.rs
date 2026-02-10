@@ -24,7 +24,7 @@ pub struct StreamState {
 
 pub fn stream_router(ctx: &AppContext) -> Router {
     let state = StreamState {
-        context_provider: Arc::new(ContextProviderService::new(ctx.db_pool().clone())),
+        context_provider: Arc::new(ContextProviderService::new(ctx.db_pool()).expect("Failed to create ContextProviderService")),
     };
 
     Router::new()

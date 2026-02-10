@@ -24,7 +24,8 @@ pub async fn list_tasks_by_context(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(context_id = %context_id, "Listing tasks");
 
-    let task_repo = TaskRepository::new(app_context.db_pool().clone());
+    let task_repo = TaskRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let context_id_typed = ContextId::new(&context_id);
     let tasks = task_repo
@@ -46,7 +47,8 @@ pub async fn get_task(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(task_id = %task_id, "Retrieving task");
 
-    let task_repo = TaskRepository::new(app_context.db_pool().clone());
+    let task_repo = TaskRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let task_id_typed = TaskId::new(&task_id);
     match task_repo.get_task(&task_id_typed).await {
@@ -74,7 +76,8 @@ pub async fn list_tasks_by_user(
 
     tracing::debug!(user_id = %user_id, "Listing tasks");
 
-    let task_repo = TaskRepository::new(app_context.db_pool().clone());
+    let task_repo = TaskRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let task_state = params.status.as_ref().and_then(|s| match s.as_str() {
         "submitted" => Some(TaskState::Submitted),
@@ -112,7 +115,8 @@ pub async fn get_messages_by_task(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(task_id = %task_id, "Retrieving messages");
 
-    let task_repo = TaskRepository::new(app_context.db_pool().clone());
+    let task_repo = TaskRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let task_id_typed = TaskId::new(&task_id);
     let messages = task_repo
@@ -134,7 +138,8 @@ pub async fn delete_task(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(task_id = %task_id, "Deleting task");
 
-    let task_repo = TaskRepository::new(app_context.db_pool().clone());
+    let task_repo = TaskRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let task_id_typed = TaskId::new(&task_id);
     task_repo.delete_task(&task_id_typed).await.map_err(|e| {

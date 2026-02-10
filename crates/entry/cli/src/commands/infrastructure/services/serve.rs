@@ -207,7 +207,7 @@ fn register_modules(events: Option<&StartupEventSender>) {
 async fn run_migrations(ctx: &AppContext, events: Option<&StartupEventSender>) -> Result<()> {
     let registry = ExtensionRegistry::discover();
 
-    install_extension_schemas(&registry, ctx.db_pool().as_ref())
+    install_extension_schemas(&registry, ctx.db_pool().write_provider())
         .await
         .context("Failed to install extension schemas")?;
 

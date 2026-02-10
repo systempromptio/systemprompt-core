@@ -4,7 +4,6 @@ use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
@@ -48,7 +47,7 @@ pub async fn handle_introspect(
     State(state): State<OAuthState>,
     Form(request): Form<IntrospectRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

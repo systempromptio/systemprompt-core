@@ -67,7 +67,7 @@ pub async fn start_register(
             .into_response();
     }
 
-    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

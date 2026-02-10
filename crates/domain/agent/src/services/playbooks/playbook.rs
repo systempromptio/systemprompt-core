@@ -27,10 +27,10 @@ impl std::fmt::Debug for PlaybookService {
 }
 
 impl PlaybookService {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            playbook_repo: Arc::new(PlaybookRepository::new(db_pool)),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            playbook_repo: Arc::new(PlaybookRepository::new(db_pool)?),
+        })
     }
 
     pub async fn load_playbook(&self, playbook_id: &str) -> Result<String> {

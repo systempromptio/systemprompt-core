@@ -11,13 +11,12 @@ pub struct DatabaseLogService {
 }
 
 impl DatabaseLogService {
-    #[must_use]
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self {
-            repository: LoggingRepository::new(db_pool)
+    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+        Ok(Self {
+            repository: LoggingRepository::new(db_pool)?
                 .with_terminal(false)
                 .with_database(true),
-        }
+        })
     }
 
     #[must_use]

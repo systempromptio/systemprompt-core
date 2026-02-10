@@ -59,7 +59,7 @@ impl AgentOrchestrator {
         let db_pool = agent_state.db_pool();
 
         use crate::repository::agent_service::AgentServiceRepository;
-        let agent_repo = AgentServiceRepository::new(db_pool.clone());
+        let agent_repo = AgentServiceRepository::new(&db_pool)?;
 
         let event_bus = Arc::new(AgentEventBus::new(100));
 

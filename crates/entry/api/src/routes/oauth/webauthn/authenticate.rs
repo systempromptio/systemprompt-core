@@ -35,7 +35,7 @@ pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
     State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -145,7 +145,7 @@ pub async fn finish_auth(
     State(state): State<OAuthState>,
     Json(request): Json<FinishAuthRequest>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

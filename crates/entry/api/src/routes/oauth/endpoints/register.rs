@@ -3,7 +3,6 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
 use bcrypt::{hash, DEFAULT_COST};
 use chrono::Utc;
-use std::sync::Arc;
 use systemprompt_models::Config;
 use uuid::Uuid;
 
@@ -17,7 +16,7 @@ pub async fn register_client(
     State(state): State<OAuthState>,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

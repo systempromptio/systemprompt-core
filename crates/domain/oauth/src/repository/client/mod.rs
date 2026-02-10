@@ -13,12 +13,14 @@ use systemprompt_identifiers::ClientId;
 #[derive(Clone, Debug)]
 pub struct ClientRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl ClientRepository {
     pub fn new(db: &DbPool) -> anyhow::Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 }
 

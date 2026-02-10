@@ -1,7 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
-use std::sync::Arc;
 
 use super::validation::validate_registration_token;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -12,7 +11,7 @@ pub async fn delete_client_configuration(
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

@@ -28,7 +28,8 @@ pub async fn ensure_task_exists(
     }
 
     let context_id = request_context.context_id();
-    let context_repo = ContextRepository::new(db_pool.clone());
+    let context_repo = ContextRepository::new(db_pool)
+        .map_err(|e| McpError::internal_error(format!("Failed to create context repository: {e}"), None))?;
 
     let context_id = if context_id.is_empty() {
         match context_repo
@@ -104,7 +105,8 @@ pub async fn ensure_task_exists(
         }
     };
 
-    let task_repo = TaskRepository::new(db_pool.clone());
+    let task_repo = TaskRepository::new(db_pool)
+        .map_err(|e| McpError::internal_error(format!("Failed to create task repository: {e}"), None))?;
 
     let task_id = TaskId::generate();
 
@@ -177,7 +179,8 @@ async fn trigger_task_completion_broadcast(
     task_id: &TaskId,
     jwt_token: &str,
 ) -> Result<(), McpError> {
-    let task_repo = TaskRepository::new(db_pool.clone());
+    let task_repo = TaskRepository::new(db_pool)
+        .map_err(|e| McpError::internal_error(format!("Failed to create task repository: {e}"), None))?;
 
     let task_info = task_repo
         .get_task_context_info(task_id)
@@ -253,7 +256,8 @@ pub async fn save_messages_for_tool_execution(
     session_id: &SessionId,
     trace_id: &TraceId,
 ) -> Result<(), McpError> {
-    let message_service = MessageService::new(db_pool.clone());
+    let message_service = MessageService::new(db_pool)
+        .map_err(|e| McpError::internal_error(format!("Failed to create message service: {e}"), None))?;
 
     let user_message = Message {
         role: "user".to_string(),

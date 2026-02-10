@@ -30,8 +30,8 @@ pub use lifecycle::{
     AppliedMigration, MigrationResult, MigrationService, MigrationStatus, ModuleInstaller,
 };
 pub use repository::{
-    CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PaginatedRepository, PgDbPool,
-    Repository, ServiceConfig, ServiceRepository,
+    CleanupRepository, CreateServiceInput, DatabaseInfoRepository, PgDbPool, ServiceConfig,
+    ServiceRepository,
 };
 
 pub use admin::{DatabaseAdminService, QueryExecutor, QueryExecutorError};

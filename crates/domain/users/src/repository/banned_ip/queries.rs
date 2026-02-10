@@ -78,7 +78,7 @@ impl BannedIpRepository {
             params.source_fingerprint,
             params.ban_source
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -125,7 +125,7 @@ impl BannedIpRepository {
             params.user_agent,
             session_ids.as_deref()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -139,7 +139,7 @@ impl BannedIpRepository {
             "#,
             ip_address
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -154,7 +154,7 @@ impl BannedIpRepository {
               AND NOT is_permanent
             "#
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

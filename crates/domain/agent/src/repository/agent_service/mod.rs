@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
+use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
 pub struct AgentServiceRow {
@@ -25,28 +25,15 @@ pub struct AgentServerIdPidRow {
 
 #[derive(Debug, Clone)]
 pub struct AgentServiceRepository {
-    db_pool: DbPool,
-}
-
-impl RepositoryTrait for AgentServiceRepository {
-    type Pool = DbPool;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.db_pool
-    }
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl AgentServiceRepository {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
-    }
-
-    fn get_pg_pool(&self) -> Result<Arc<PgPool>> {
-        self.db_pool
-            .as_ref()
-            .get_postgres_pool()
-            .context("PostgreSQL pool not available")
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc().context("PostgreSQL pool not available")?;
+        let write_pool = db.write_pool_arc().context("Write PostgreSQL pool not available")?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn register_agent(
@@ -57,7 +44,7 @@ impl AgentServiceRepository {
     ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
         let pid_i32 = pid as i32;
         let port_i32 = i32::from(port);
 
@@ -86,7 +73,7 @@ impl AgentServiceRepository {
     ) -> Result<String, RepositoryError> {
         self.remove_agent_service(name).await?;
 
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
         let pid_i32 = pid as i32;
         let port_i32 = i32::from(port);
 
@@ -108,7 +95,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn mark_running(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!(
             "UPDATE services SET status = 'running', updated_at = CURRENT_TIMESTAMP WHERE name = \
@@ -127,7 +114,7 @@ impl AgentServiceRepository {
         &self,
         agent_name: &str,
     ) -> Result<Option<AgentServiceRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.pool;
 
         let row = sqlx::query!(
             "SELECT name, pid, port, status FROM services WHERE name = $1",
@@ -147,7 +134,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn mark_crashed(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!(
             "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -163,7 +150,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn mark_stopped(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!(
             "UPDATE services SET status = 'stopped', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -179,7 +166,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn mark_error(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!(
             "UPDATE services SET status = 'error', pid = NULL, updated_at = CURRENT_TIMESTAMP \
@@ -195,7 +182,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn list_running_agents(&self) -> Result<Vec<AgentServerIdRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.pool;
 
         let rows = sqlx::query!("SELECT name FROM services WHERE status = 'running'")
             .fetch_all(pool.as_ref())
@@ -212,7 +199,7 @@ impl AgentServiceRepository {
     pub async fn list_running_agent_pids(
         &self,
     ) -> Result<Vec<AgentServerIdPidRow>, RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.pool;
 
         let rows = sqlx::query!(
             "SELECT name, pid FROM services WHERE status = 'running' AND pid IS NOT NULL"
@@ -229,7 +216,7 @@ impl AgentServiceRepository {
     }
 
     pub async fn remove_agent_service(&self, agent_name: &str) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!("DELETE FROM services WHERE name = $1", agent_name)
             .execute(pool.as_ref())
@@ -245,7 +232,7 @@ impl AgentServiceRepository {
         agent_name: &str,
         health_status: &str,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool().map_err(RepositoryError::Other)?;
+        let pool = &self.write_pool;
 
         sqlx::query!(
             "UPDATE services SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE name = $2",

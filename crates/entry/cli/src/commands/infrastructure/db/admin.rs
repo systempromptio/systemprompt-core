@@ -30,9 +30,13 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
     }
 
     let database = Arc::new(
-        Database::from_config(&sys_config.database_type, &sys_config.database_url)
-            .await
-            .context("Failed to connect to database")?,
+        Database::from_config_with_write(
+            &sys_config.database_type,
+            &sys_config.database_url,
+            sys_config.database_write_url.as_deref(),
+        )
+        .await
+        .context("Failed to connect to database")?,
     );
 
     let registry = ExtensionRegistry::discover();
@@ -45,7 +49,7 @@ pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
         ));
     }
 
-    install_extension_schemas(&registry, database.as_ref())
+    install_extension_schemas(&registry, database.write_provider())
         .await
         .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
 
@@ -89,7 +93,7 @@ pub async fn execute_migrate_standalone(
         ));
     }
 
-    install_extension_schemas(&registry, database.as_ref())
+    install_extension_schemas(&registry, database.write_provider())
         .await
         .map_err(|e| anyhow!("Schema installation failed: {}", e))?;
 

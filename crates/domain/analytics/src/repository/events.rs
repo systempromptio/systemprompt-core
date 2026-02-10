@@ -10,12 +10,14 @@ use crate::models::{AnalyticsEventCreated, AnalyticsEventType, CreateAnalyticsEv
 #[derive(Clone, Debug)]
 pub struct AnalyticsEventsRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsEventsRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create_event(
@@ -47,7 +49,7 @@ impl AnalyticsEventsRepository {
             input.page_url,
             event_data
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(AnalyticsEventCreated {

@@ -25,7 +25,7 @@ impl ConversationService {
         &self,
         context_id: &ContextId,
     ) -> Result<Vec<AiMessage>> {
-        let task_repo = TaskRepository::new(self.db_pool.clone());
+        let task_repo = TaskRepository::new(&self.db_pool)?;
         let tasks = task_repo
             .list_tasks_by_context(context_id)
             .await

@@ -12,7 +12,7 @@ impl ArtifactRepository {
         context_id: &ContextId,
         artifact: &Artifact,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.write_pool.clone();
         let now = Utc::now();
 
         let metadata_json = serde_json::json!({
@@ -86,7 +86,7 @@ impl ArtifactRepository {
     }
 
     pub async fn delete_artifact(&self, artifact_id: &ArtifactId) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
+        let pool = self.write_pool.clone();
         let artifact_id_str = artifact_id.as_str();
 
         sqlx::query!(

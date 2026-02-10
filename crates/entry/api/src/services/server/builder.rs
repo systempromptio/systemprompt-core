@@ -97,7 +97,7 @@ fn apply_global_middleware(router: Router, ctx: &AppContext) -> Result<Router> {
 
     router = router.layer(DefaultBodyLimit::max(100 * 1024 * 1024));
 
-    let analytics_middleware = AnalyticsMiddleware::new(ctx);
+    let analytics_middleware = AnalyticsMiddleware::new(ctx)?;
     router = router.layer(axum::middleware::from_fn({
         let middleware = analytics_middleware;
         move |req, next| {
@@ -257,19 +257,23 @@ pub async fn handle_health(
         (status, db_start.elapsed().as_millis())
     };
 
-    let service_repo = ServiceRepository::new(ctx.db_pool().clone());
-
-    let (agent_count, agent_status) = match service_repo.count_running_services("agent").await {
-        Ok(count) if count > 0 => (count, "healthy"),
-        Ok(_) => (0, "none"),
-        Err(_) => (0, "error"),
-    };
-
-    let (mcp_count, mcp_status) = match service_repo.count_running_services("mcp").await {
-        Ok(count) if count > 0 => (count, "healthy"),
-        Ok(_) => (0, "none"),
-        Err(_) => (0, "error"),
-    };
+    let (agent_count, agent_status, mcp_count, mcp_status) =
+        match ServiceRepository::new(ctx.db_pool()) {
+            Ok(service_repo) => {
+                let (ac, as_) = match service_repo.count_running_services("agent").await {
+                    Ok(count) if count > 0 => (count, "healthy"),
+                    Ok(_) => (0, "none"),
+                    Err(_) => (0, "error"),
+                };
+                let (mc, ms) = match service_repo.count_running_services("mcp").await {
+                    Ok(count) if count > 0 => (count, "healthy"),
+                    Ok(_) => (0, "none"),
+                    Err(_) => (0, "error"),
+                };
+                (ac, as_, mc, ms)
+            },
+            Err(_) => (0, "error", 0, "error"),
+        };
 
     let web_dir = AppPaths::get()
         .map(|p| p.web().dist().to_path_buf())

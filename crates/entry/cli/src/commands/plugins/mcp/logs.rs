@@ -103,7 +103,7 @@ async fn execute_db_mode(
             .await
             .context("Failed to initialize app context")?,
     );
-    let repo = LoggingRepository::new(Arc::clone(ctx.db_pool()));
+    let repo = LoggingRepository::new(ctx.db_pool())?;
 
     let patterns = match &args.service {
         Some(service) => build_service_patterns(service),

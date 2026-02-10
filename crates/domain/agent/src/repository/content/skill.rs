@@ -2,27 +2,24 @@ use crate::models::{Skill, SkillRow};
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
 #[derive(Debug)]
 pub struct SkillRepository {
-    db: Arc<dyn DatabaseProvider>,
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl SkillRepository {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self { db }
-    }
-
-    fn get_pg_pool(&self) -> Result<Arc<PgPool>> {
-        self.db
-            .get_postgres_pool()
-            .context("PostgreSQL pool not available")
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc().context("PostgreSQL pool not available")?;
+        let write_pool = db.write_pool_arc().context("Write PostgreSQL pool not available")?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create(&self, skill: &Skill) -> Result<()> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.write_pool;
         let skill_id_str = skill.skill_id.as_str();
         let category_id = skill.category_id.as_ref().map(|c| c.to_string());
         let source_id_str = skill.source_id.as_str();
@@ -49,7 +46,7 @@ impl SkillRepository {
     }
 
     pub async fn get_by_skill_id(&self, skill_id: &SkillId) -> Result<Option<Skill>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
         let skill_id_str = skill_id.as_str();
 
         let row = sqlx::query_as!(
@@ -77,7 +74,7 @@ impl SkillRepository {
     }
 
     pub async fn get_by_file_path(&self, file_path: &str) -> Result<Option<Skill>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let row = sqlx::query_as!(
             SkillRow,
@@ -104,7 +101,7 @@ impl SkillRepository {
     }
 
     pub async fn list_enabled(&self) -> Result<Vec<Skill>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let rows = sqlx::query_as!(
             SkillRow,
@@ -132,7 +129,7 @@ impl SkillRepository {
     }
 
     pub async fn list_all(&self) -> Result<Vec<Skill>> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.pool;
 
         let rows = sqlx::query_as!(
             SkillRow,
@@ -160,7 +157,7 @@ impl SkillRepository {
     }
 
     pub async fn update(&self, skill_id: &SkillId, skill: &Skill) -> Result<()> {
-        let pool = self.get_pg_pool()?;
+        let pool = &self.write_pool;
         let skill_id_str = skill_id.as_str();
 
         sqlx::query!(

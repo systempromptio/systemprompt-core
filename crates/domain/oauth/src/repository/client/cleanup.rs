@@ -5,7 +5,7 @@ use chrono::Utc;
 impl ClientRepository {
     pub async fn cleanup_inactive(&self) -> Result<u64> {
         let result = sqlx::query!("DELETE FROM oauth_clients WHERE is_active = false")
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
@@ -17,7 +17,7 @@ impl ClientRepository {
             "test_%",
             cutoff
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -32,7 +32,7 @@ impl ClientRepository {
             "test_%",
             cutoff
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -43,7 +43,7 @@ impl ClientRepository {
             "DELETE FROM oauth_clients WHERE last_used_at IS NULL AND created_at < $1",
             cutoff
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -51,7 +51,7 @@ impl ClientRepository {
     pub async fn delete_stale(&self, last_used_before: i64) -> Result<u64> {
         let cutoff = Utc::now() - chrono::Duration::seconds(last_used_before);
         let result = sqlx::query!("DELETE FROM oauth_clients WHERE last_used_at < $1", cutoff)
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
@@ -119,7 +119,7 @@ impl ClientRepository {
             dt,
             client_id
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(())
     }

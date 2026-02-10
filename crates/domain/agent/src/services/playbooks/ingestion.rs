@@ -2,8 +2,7 @@ use crate::models::Playbook;
 use crate::repository::content::PlaybookRepository;
 use anyhow::{anyhow, Result};
 use std::path::Path;
-use std::sync::Arc;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{PlaybookId, SourceId};
 use systemprompt_models::IngestionReport;
 
@@ -13,10 +12,10 @@ pub struct PlaybookIngestionService {
 }
 
 impl PlaybookIngestionService {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self {
-            playbook_repo: PlaybookRepository::new(db),
-        }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            playbook_repo: PlaybookRepository::new(db)?,
+        })
     }
 
     pub async fn ingest_directory(

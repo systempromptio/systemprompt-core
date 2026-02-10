@@ -16,7 +16,7 @@ impl AgentMonitor {
     pub async fn new(db_pool: DbPool) -> OrchestrationResult<Self> {
         use crate::repository::agent_service::AgentServiceRepository;
 
-        let agent_service_repo = AgentServiceRepository::new(db_pool);
+        let agent_service_repo = AgentServiceRepository::new(&db_pool)?;
         let db_service = AgentDatabaseService::new(agent_service_repo).await?;
 
         Ok(Self { db_service })

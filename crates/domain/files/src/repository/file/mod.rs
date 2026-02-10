@@ -17,12 +17,14 @@ use crate::models::{File, FileMetadata};
 #[derive(Debug, Clone)]
 pub struct FileRepository {
     pub(crate) pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl FileRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn insert(&self, request: InsertFileRequest) -> Result<FileId> {
@@ -62,7 +64,7 @@ impl FileRepository {
             context_id_str,
             now
         )
-        .fetch_one(self.pool.as_ref())
+        .fetch_one(&*self.write_pool)
         .await
         .with_context(|| {
             format!(
@@ -123,7 +125,7 @@ impl FileRepository {
             "#,
             id_uuid
         )
-        .fetch_optional(self.pool.as_ref())
+        .fetch_optional(&*self.pool)
         .await
         .context(format!("Failed to find file by id: {id}"))
     }
@@ -138,7 +140,7 @@ impl FileRepository {
             "#,
             path
         )
-        .fetch_optional(self.pool.as_ref())
+        .fetch_optional(&*self.pool)
         .await
         .context(format!("Failed to find file by path: {path}"))
     }
@@ -163,7 +165,7 @@ impl FileRepository {
             limit,
             offset
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .context(format!("Failed to list files for user: {user_id}"))
     }
@@ -181,7 +183,7 @@ impl FileRepository {
             limit,
             offset
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .context("Failed to list all files")
     }
@@ -196,7 +198,7 @@ impl FileRepository {
             "#,
             id_uuid
         )
-        .execute(self.pool.as_ref())
+        .execute(&*self.write_pool)
         .await
         .context(format!("Failed to delete file: {id}"))?;
 
@@ -218,7 +220,7 @@ impl FileRepository {
             now,
             id_uuid
         )
-        .execute(self.pool.as_ref())
+        .execute(&*self.write_pool)
         .await
         .context(format!("Failed to update metadata for file: {id}"))?;
 
@@ -242,7 +244,7 @@ impl FileRepository {
             pattern,
             limit
         )
-        .fetch_all(self.pool.as_ref())
+        .fetch_all(&*self.pool)
         .await
         .context(format!("Failed to search files by path: {query}"))
     }

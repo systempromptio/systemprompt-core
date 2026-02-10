@@ -44,7 +44,19 @@ pub async fn broadcast_context_event(
     }
 
     let context_id = request.context_id.clone();
-    let context_repo = ContextRepository::new(db.clone());
+    let context_repo = match ContextRepository::new(db) {
+        Ok(repo) => repo,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(json!({
+                    "error": "Database error",
+                    "message": format!("{e}")
+                })),
+            )
+                .into_response();
+        },
+    };
     if let Err(e) = context_repo
         .validate_context_ownership(&context_id, authenticated_user_id)
         .await

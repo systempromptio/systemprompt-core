@@ -1,7 +1,6 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
 use clap::Args as ClapArgs;
-use std::sync::Arc;
 use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, SetupTokenPurpose};
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_runtime::AppContext;
@@ -24,7 +23,7 @@ pub async fn execute(
     _config: &CliConfig,
 ) -> Result<CommandResult<WebauthnSetupTokenOutput>> {
     let ctx = AppContext::new().await?;
-    let oauth_repo = OAuthRepository::new(Arc::clone(ctx.db_pool()))?;
+    let oauth_repo = OAuthRepository::new(ctx.db_pool())?;
 
     let user = oauth_repo
         .find_user_by_email(&args.email)

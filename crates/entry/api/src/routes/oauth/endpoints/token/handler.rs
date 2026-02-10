@@ -10,7 +10,6 @@ use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
 use axum::Form;
-use std::sync::Arc;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -24,7 +23,7 @@ pub async fn handle_token(
     headers: HeaderMap,
     Form(request): Form<TokenRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

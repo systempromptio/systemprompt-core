@@ -24,7 +24,7 @@ pub async fn handle_callback(
     State(state): State<OAuthState>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

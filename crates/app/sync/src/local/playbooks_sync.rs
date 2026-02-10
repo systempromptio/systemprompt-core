@@ -3,26 +3,25 @@ use crate::export::export_playbook_to_disk;
 use crate::models::{LocalSyncResult, PlaybooksDiffResult};
 use anyhow::Result;
 use std::path::PathBuf;
-use std::sync::Arc;
 use systemprompt_agent::repository::content::PlaybookRepository;
 use systemprompt_agent::services::PlaybookIngestionService;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{PlaybookId, SourceId};
 use tracing::info;
 
 #[derive(Debug)]
 pub struct PlaybooksLocalSync {
-    db: Arc<dyn DatabaseProvider>,
+    db: DbPool,
     playbooks_path: PathBuf,
 }
 
 impl PlaybooksLocalSync {
-    pub fn new(db: Arc<dyn DatabaseProvider>, playbooks_path: PathBuf) -> Self {
+    pub const fn new(db: DbPool, playbooks_path: PathBuf) -> Self {
         Self { db, playbooks_path }
     }
 
     pub async fn calculate_diff(&self) -> Result<PlaybooksDiffResult> {
-        let calculator = PlaybooksDiffCalculator::new(Arc::clone(&self.db));
+        let calculator = PlaybooksDiffCalculator::new(&self.db)?;
         calculator.calculate_diff(&self.playbooks_path).await
     }
 
@@ -31,7 +30,7 @@ impl PlaybooksLocalSync {
         diff: &PlaybooksDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let playbook_repo = PlaybookRepository::new(Arc::clone(&self.db));
+        let playbook_repo = PlaybookRepository::new(&self.db)?;
         let mut result = LocalSyncResult {
             direction: "to_disk".to_string(),
             ..Default::default()
@@ -118,7 +117,7 @@ impl PlaybooksLocalSync {
         diff: &PlaybooksDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let ingestion_service = PlaybookIngestionService::new(Arc::clone(&self.db));
+        let ingestion_service = PlaybookIngestionService::new(&self.db)?;
         let mut result = LocalSyncResult {
             direction: "to_database".to_string(),
             ..Default::default()
