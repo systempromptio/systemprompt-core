@@ -38,7 +38,8 @@ impl PostgresProvider {
         connect_options = connect_options
             .application_name("systemprompt")
             .statement_cache_capacity(0)
-            .ssl_mode(ssl_mode);
+            .ssl_mode(ssl_mode)
+            .options([("client_min_messages", "warning")]);
 
         if let Some(ca_cert_path) = Self::get_cert_path() {
             connect_options = connect_options.ssl_root_cert(&ca_cert_path);

@@ -8,6 +8,7 @@ pub trait AssetPaths: Send + Sync {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum AssetType {
     Css,
+    Html,
     Image,
     Font,
     JavaScript,
@@ -72,6 +73,11 @@ impl AssetDefinition {
     #[must_use]
     pub fn css(source: impl Into<PathBuf>, destination: &'static str) -> Self {
         Self::builder(source, destination, AssetType::Css).build()
+    }
+
+    #[must_use]
+    pub fn html(source: impl Into<PathBuf>, destination: &'static str) -> Self {
+        Self::builder(source, destination, AssetType::Html).build()
     }
 
     #[must_use]

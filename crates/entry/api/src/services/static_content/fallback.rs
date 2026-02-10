@@ -1,15 +1,16 @@
 use axum::extract::State;
-use axum::http::{Method, StatusCode, Uri};
+use axum::http::{HeaderMap, Method, StatusCode, Uri};
 use axum::response::{IntoResponse, Json};
 use serde_json::json;
 use systemprompt_models::modules::ApiPaths;
 
-use super::vite::StaticContentState;
+use super::static_files::StaticContentState;
 
 pub async fn smart_fallback_handler(
     State(state): State<StaticContentState>,
     uri: Uri,
     method: Method,
+    headers: HeaderMap,
     req_ctx: Option<axum::Extension<systemprompt_models::RequestContext>>,
 ) -> impl IntoResponse {
     let path = uri.path();
@@ -27,7 +28,7 @@ pub async fn smart_fallback_handler(
             .into_response();
     }
 
-    super::serve_static_content(State(state), uri, req_ctx)
+    super::serve_static_content(State(state), uri, headers, req_ctx)
         .await
         .into_response()
 }
