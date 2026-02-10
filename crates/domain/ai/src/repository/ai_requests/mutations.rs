@@ -45,7 +45,7 @@ impl AiRequestRepository {
             request.max_tokens,
             RequestStatus::Pending.as_str()
         )
-        .fetch_one(self.pool())
+        .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
     }
@@ -77,7 +77,7 @@ impl AiRequestRepository {
             RequestStatus::Completed.as_str(),
             params.id.as_str()
         )
-        .fetch_one(self.pool())
+        .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
     }
@@ -105,7 +105,7 @@ impl AiRequestRepository {
             error_message,
             id.as_str()
         )
-        .fetch_one(self.pool())
+        .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
     }
@@ -162,7 +162,7 @@ impl AiRequestRepository {
             record.error_message.as_deref(),
             use_completed_at
         )
-        .execute(self.pool())
+        .execute(self.write_pool())
         .await?;
         Ok(id)
     }

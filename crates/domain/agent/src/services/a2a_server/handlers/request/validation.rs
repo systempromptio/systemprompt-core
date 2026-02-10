@@ -21,7 +21,8 @@ pub async fn validate_message_context(
     }
 
     let user_id = UserId::new(user_id_str.to_string());
-    let context_repo = crate::repository::ContextRepository::new(db_pool.clone());
+    let context_repo = crate::repository::ContextRepository::new(db_pool)
+        .map_err(|e| format!("Failed to create context repository: {e}"))?;
     context_repo
         .validate_context_ownership(context_id, &user_id)
         .await

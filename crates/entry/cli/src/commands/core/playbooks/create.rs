@@ -12,7 +12,7 @@ use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
 use crate::CliConfig;
 use systemprompt_agent::services::playbooks::PlaybookIngestionService;
-use systemprompt_database::Database;
+use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::SourceId;
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
@@ -367,7 +367,8 @@ async fn sync_playbook_to_db(playbook_file: &Path) -> Result<()> {
         .parent()
         .ok_or_else(|| anyhow!("Invalid playbook file path"))?;
 
-    let ingestion_service = PlaybookIngestionService::new(Arc::new(database));
+    let db: DbPool = Arc::new(database);
+    let ingestion_service = PlaybookIngestionService::new(&db)?;
 
     ingestion_service
         .ingest_directory(parent_dir, SourceId::new("cli"), false)

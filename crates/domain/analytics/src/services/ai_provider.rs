@@ -13,10 +13,10 @@ pub struct AnalyticsAiSessionProvider {
 }
 
 impl AnalyticsAiSessionProvider {
-    pub const fn new(pool: DbPool) -> Self {
-        Self {
-            session_repo: SessionRepository::new(pool),
-        }
+    pub fn new(pool: &DbPool) -> anyhow::Result<Self> {
+        Ok(Self {
+            session_repo: SessionRepository::new(pool)?,
+        })
     }
 
     pub const fn from_repository(session_repo: SessionRepository) -> Self {

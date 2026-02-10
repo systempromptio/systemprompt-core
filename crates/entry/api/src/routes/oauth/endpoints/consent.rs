@@ -6,7 +6,6 @@ use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use axum::Json;
 use serde::{Deserialize, Serialize};
-use std::sync::Arc;
 use systemprompt_identifiers::ClientId;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::OAuthState;
@@ -35,7 +34,7 @@ pub async fn handle_consent_get(
     Query(params): Query<ConsentQuery>,
     State(state): State<OAuthState>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

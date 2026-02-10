@@ -132,7 +132,7 @@ pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResu
         .and_then(|d| d.file_name())
         .and_then(|n| n.to_str())
         .unwrap_or("unknown");
-    let context_repo = ContextRepository::new(db_pool);
+    let context_repo = ContextRepository::new(&db_pool)?;
     let context_id = context_repo
         .create_context(
             &admin_user.id,

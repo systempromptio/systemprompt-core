@@ -1,13 +1,12 @@
-use anyhow::{Context, Result};
-use systemprompt_database::DbPool;
+use anyhow::Result;
+use sqlx::PgPool;
 use systemprompt_identifiers::SessionId;
 
 pub async fn mark_as_behavioral_bot(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
     reason: &str,
 ) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
     let id = session_id.as_str();
     sqlx::query!(
         r#"
@@ -19,17 +18,16 @@ pub async fn mark_as_behavioral_bot(
         reason,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
     Ok(())
 }
 
 pub async fn check_and_mark_behavioral_bot(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
     request_count_threshold: i32,
 ) -> Result<bool> {
-    let pool = pool.pool_arc().context("Failed to get database pool")?;
     let id = session_id.as_str();
     let result = sqlx::query!(
         r#"
@@ -46,19 +44,18 @@ pub async fn check_and_mark_behavioral_bot(
         id,
         request_count_threshold
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await?;
     Ok(result.is_some())
 }
 
 pub async fn update_behavioral_detection(
-    pool: &DbPool,
+    pool: &PgPool,
     session_id: &SessionId,
     score: i32,
     is_behavioral_bot: bool,
     reason: Option<&str>,
 ) -> Result<()> {
-    let pool = pool.pool_arc().context("Failed to get pool")?;
     let id = session_id.as_str();
 
     sqlx::query!(
@@ -75,7 +72,7 @@ pub async fn update_behavioral_detection(
         reason,
         id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await?;
 
     Ok(())

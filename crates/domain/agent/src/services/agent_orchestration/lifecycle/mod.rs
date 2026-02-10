@@ -20,7 +20,7 @@ impl AgentLifecycle {
     pub async fn new(db_pool: DbPool) -> anyhow::Result<Self> {
         use crate::repository::agent_service::AgentServiceRepository;
 
-        let agent_service_repo = AgentServiceRepository::new(db_pool.clone());
+        let agent_service_repo = AgentServiceRepository::new(&db_pool)?;
         let db_service = AgentDatabaseService::new(agent_service_repo).await?;
 
         Ok(Self {

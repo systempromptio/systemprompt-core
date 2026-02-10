@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::types::{SkillStatusOutput, SkillStatusRow, SkillStatusSummary, SyncStatus};
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_database::{Database, DatabaseProvider};
+use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_sync::diff::SkillsDiffCalculator;
@@ -25,7 +25,7 @@ pub async fn execute(
     let db = create_db_provider().await?;
     let skills_path = get_skills_path()?;
 
-    let calculator = SkillsDiffCalculator::new(db);
+    let calculator = SkillsDiffCalculator::new(&db)?;
     let diff = calculator
         .calculate_diff(&skills_path)
         .await
@@ -114,7 +114,7 @@ fn get_skills_path() -> Result<std::path::PathBuf> {
     Ok(std::path::PathBuf::from(profile.paths.skills()))
 }
 
-async fn create_db_provider() -> Result<Arc<dyn DatabaseProvider>> {
+async fn create_db_provider() -> Result<DbPool> {
     let url = SecretsBootstrap::database_url()
         .context("Database URL not configured")?
         .to_string();

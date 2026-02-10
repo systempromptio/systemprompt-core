@@ -24,7 +24,8 @@ pub async fn list_artifacts_by_context(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(context_id = %context_id, "Listing artifacts by context");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool().clone());
+    let artifact_repo = ArtifactRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let context_id_typed = ContextId::new(&context_id);
     let artifacts = artifact_repo
@@ -50,7 +51,8 @@ pub async fn list_artifacts_by_task(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(task_id = %task_id, "Listing artifacts by task");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool().clone());
+    let artifact_repo = ArtifactRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let task_id_typed = TaskId::new(&task_id);
     let artifacts = artifact_repo
@@ -76,7 +78,8 @@ pub async fn get_artifact(
 ) -> Result<impl IntoResponse, ApiError> {
     tracing::debug!(artifact_id = %artifact_id, "Retrieving artifact");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool().clone());
+    let artifact_repo = ArtifactRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let artifact_id_typed = ArtifactId::new(&artifact_id);
     match artifact_repo.get_artifact_by_id(&artifact_id_typed).await {
@@ -107,7 +110,8 @@ pub async fn list_artifacts_by_user(
 
     tracing::debug!(user_id = %user_id, "Listing artifacts by user");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool().clone());
+    let artifact_repo = ArtifactRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
 
     let user_id_typed = UserId::new(user_id);
     let artifacts = artifact_repo
@@ -133,7 +137,8 @@ pub async fn get_artifact_ui(
 ) -> Result<Response, ApiError> {
     tracing::debug!(artifact_id = %artifact_id, "Rendering artifact as MCP App UI");
 
-    let artifact_repo = ArtifactRepository::new(app_context.db_pool().clone());
+    let artifact_repo = ArtifactRepository::new(app_context.db_pool())
+        .map_err(|e| ApiError::internal_error(format!("Database error: {e}")))?;
     let artifact_id_typed = ArtifactId::new(&artifact_id);
 
     let artifact = artifact_repo

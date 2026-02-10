@@ -8,7 +8,6 @@ use axum::extract::{Extension, Form, Query, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{Html, IntoResponse, Redirect};
 use axum::Json;
-use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::CsrfToken;
@@ -50,7 +49,7 @@ pub async fn handle_authorize_get(
             .into_response();
     }
 
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -186,7 +185,7 @@ pub async fn handle_authorize_post(
     State(state): State<OAuthState>,
     Form(form): Form<AuthorizeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

@@ -4,13 +4,13 @@ use systemprompt_database::DbPool;
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
-    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsRepository {
     pub fn new(db: &DbPool) -> anyhow::Result<Self> {
-        let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { write_pool })
     }
 
     pub async fn cleanup_empty_contexts(&self, hours_old: i64) -> anyhow::Result<u64> {
@@ -27,7 +27,7 @@ impl AnalyticsRepository {
             "#,
             hours_old.to_string()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

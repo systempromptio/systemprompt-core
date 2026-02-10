@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use clap::Args;
@@ -28,7 +27,7 @@ pub async fn execute(
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
-    let repo = ContextRepository::new(Arc::clone(ctx.db_pool()));
+    let repo = ContextRepository::new(ctx.db_pool())?;
 
     let context_id = resolve_context(&args.context, &session_ctx.session.user_id, &repo).await?;
 

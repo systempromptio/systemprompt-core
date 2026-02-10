@@ -40,6 +40,7 @@ pub struct Config {
     pub sitename: String,
     pub database_type: String,
     pub database_url: String,
+    pub database_write_url: Option<String>,
     pub github_link: String,
     pub github_token: Option<String>,
     pub system_path: String,
@@ -193,6 +194,7 @@ impl Config {
             sitename: profile.site.name.clone(),
             database_type: profile.database.db_type.clone(),
             database_url: secrets.database_url.clone(),
+            database_write_url: secrets.database_write_url.clone(),
             github_link: profile
                 .site
                 .github_link
@@ -245,6 +247,9 @@ impl Config {
         }
 
         validate_postgres_url(&self.database_url)?;
+        if let Some(write_url) = &self.database_write_url {
+            validate_postgres_url(write_url)?;
+        }
         Ok(())
     }
 }
@@ -254,6 +259,7 @@ impl ConfigProvider for Config {
         match key {
             "database_type" => Some(self.database_type.clone()),
             "database_url" => Some(self.database_url.clone()),
+            "database_write_url" => self.database_write_url.clone(),
             "host" => Some(self.host.clone()),
             "port" => Some(self.port.to_string()),
             "system_path" => Some(self.system_path.clone()),
@@ -278,6 +284,10 @@ impl ConfigProvider for Config {
 
     fn database_url(&self) -> &str {
         &self.database_url
+    }
+
+    fn database_write_url(&self) -> Option<&str> {
+        self.database_write_url.as_deref()
     }
 
     fn system_path(&self) -> &str {

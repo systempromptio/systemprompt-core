@@ -10,12 +10,10 @@ pub struct LoggingMaintenanceService {
 }
 
 impl LoggingMaintenanceService {
-    #[must_use]
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            repo: LoggingRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+        Ok(Self {
+            repo: LoggingRepository::new(db_pool)?,
+        })
     }
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {

@@ -23,7 +23,15 @@ pub async fn get_context(
     }
 
     let db_pool = ctx.db_pool().clone();
-    let context_repo = ContextRepository::new(db_pool.clone());
+    let context_repo = match ContextRepository::new(&db_pool) {
+        Ok(repo) => repo,
+        Err(e) => {
+            return api_error_response(
+                ApiError::internal_error(format!("Database error: {e}"))
+                    .with_request_context(&req_ctx),
+            )
+        },
+    };
     let user_id = &req_ctx.auth.user_id;
     let context_id = ContextId::new(&context_id_str);
 

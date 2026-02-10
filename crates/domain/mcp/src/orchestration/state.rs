@@ -9,10 +9,10 @@ pub struct ServiceStateManager {
 }
 
 impl ServiceStateManager {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self {
-            service_repo: ServiceRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            service_repo: ServiceRepository::new(db_pool)?,
+        })
     }
 
     pub async fn get_mcp_service(&self, name: &str) -> Result<Option<McpServiceState>> {

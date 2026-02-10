@@ -146,7 +146,7 @@ async fn verify_database_registration(
     events: Option<&StartupEventSender>,
 ) -> Result<()> {
     use systemprompt_database::ServiceRepository;
-    let service_repo = ServiceRepository::new(ctx.db_pool().clone());
+    let service_repo = ServiceRepository::new(ctx.db_pool())?;
 
     let mut verification_failed = Vec::new();
 
@@ -212,7 +212,7 @@ async fn cleanup_stale_service_entries(
     use systemprompt_database::ServiceRepository;
     use systemprompt_scheduler::ProcessCleanup;
 
-    let repo = ServiceRepository::new(ctx.db_pool().clone());
+    let repo = ServiceRepository::new(ctx.db_pool())?;
     let mut deleted_count = 0u64;
 
     let mcp_services = repo.get_mcp_services().await?;

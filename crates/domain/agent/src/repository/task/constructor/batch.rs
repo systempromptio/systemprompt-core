@@ -17,7 +17,7 @@ pub async fn construct_tasks_batch(
         return Ok(Vec::new());
     }
 
-    let pool = constructor.get_pg_pool()?;
+    let pool = constructor.pool().clone();
     let task_id_strings: Vec<String> = task_ids.iter().map(|id| id.to_string()).collect();
 
     let task_rows = super::batch_queries::fetch_task_rows(&pool, &task_id_strings).await?;

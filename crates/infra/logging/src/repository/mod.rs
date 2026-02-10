@@ -1,6 +1,9 @@
 #![allow(clippy::print_stdout)]
 
+use std::sync::Arc;
+
 use chrono::{DateTime, Utc};
+use sqlx::PgPool;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::LogId;
 
@@ -13,19 +16,22 @@ pub use analytics::{AnalyticsEvent, AnalyticsRepository};
 
 #[derive(Clone, Debug)]
 pub struct LoggingRepository {
-    db_pool: DbPool,
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
     terminal_output: bool,
     db_output: bool,
 }
 
 impl LoggingRepository {
-    #[must_use]
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self {
-            db_pool,
+    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+        let pool = db.pool_arc()?;
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self {
+            pool,
+            write_pool,
             terminal_output: true,
             db_output: false,
-        }
+        })
     }
 
     #[must_use]
@@ -48,7 +54,7 @@ impl LoggingRepository {
         }
 
         if self.db_output {
-            operations::create_log(&self.db_pool, &entry).await?;
+            operations::create_log(&self.write_pool, &entry).await?;
         }
 
         Ok(())
@@ -96,7 +102,7 @@ impl LoggingRepository {
     }
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
-        operations::list_logs(&self.db_pool, limit).await
+        operations::list_logs(&self.pool, limit).await
     }
 
     pub async fn get_logs_by_module_patterns(
@@ -104,30 +110,30 @@ impl LoggingRepository {
         patterns: &[String],
         limit: i64,
     ) -> Result<Vec<LogEntry>, LoggingError> {
-        operations::list_logs_by_module_patterns(&self.db_pool, patterns, limit).await
+        operations::list_logs_by_module_patterns(&self.pool, patterns, limit).await
     }
 
     pub async fn cleanup_old_logs(&self, older_than: DateTime<Utc>) -> Result<u64, LoggingError> {
-        operations::cleanup_logs_before(&self.db_pool, older_than).await
+        operations::cleanup_logs_before(&self.write_pool, older_than).await
     }
 
     pub async fn count_logs_before(&self, cutoff: DateTime<Utc>) -> Result<u64, LoggingError> {
-        operations::count_logs_before(&self.db_pool, cutoff).await
+        operations::count_logs_before(&self.pool, cutoff).await
     }
 
     pub async fn clear_all_logs(&self) -> Result<u64, LoggingError> {
-        operations::clear_all_logs(&self.db_pool).await
+        operations::clear_all_logs(&self.write_pool).await
     }
 
     pub async fn get_logs_paginated(
         &self,
         filter: &LogFilter,
     ) -> Result<(Vec<LogEntry>, i64), LoggingError> {
-        operations::list_logs_paginated(&self.db_pool, filter).await
+        operations::list_logs_paginated(&self.pool, filter).await
     }
 
     pub async fn get_by_id(&self, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
-        operations::get_log(&self.db_pool, id).await
+        operations::get_log(&self.pool, id).await
     }
 
     pub async fn update_log_entry(
@@ -135,14 +141,14 @@ impl LoggingRepository {
         id: &LogId,
         entry: &LogEntry,
     ) -> Result<bool, LoggingError> {
-        operations::update_log(&self.db_pool, id, entry).await
+        operations::update_log(&self.write_pool, id, entry).await
     }
 
     pub async fn delete_log_entry(&self, id: &LogId) -> Result<bool, LoggingError> {
-        operations::delete_log(&self.db_pool, id).await
+        operations::delete_log(&self.write_pool, id).await
     }
 
     pub async fn delete_log_entries(&self, ids: &[LogId]) -> Result<u64, LoggingError> {
-        operations::delete_logs_multiple(&self.db_pool, ids).await
+        operations::delete_logs_multiple(&self.write_pool, ids).await
     }
 }

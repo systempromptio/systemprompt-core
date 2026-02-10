@@ -76,7 +76,7 @@ impl ProcessMonitor {
     }
 
     async fn perform_monitoring_cycle(db_pool: &DbPool) -> Result<()> {
-        let repository = ServiceRepository::new(std::sync::Arc::clone(db_pool));
+        let repository = ServiceRepository::new(db_pool)?;
         let services = repository.get_running_services_with_pid().await?;
 
         if services.is_empty() {
@@ -126,7 +126,7 @@ impl ProcessMonitor {
     pub async fn health_check_all(&self) -> Result<HealthSummary> {
         info!("Running health check on all services");
 
-        let repository = ServiceRepository::new(std::sync::Arc::clone(&self.db_pool));
+        let repository = ServiceRepository::new(&self.db_pool)?;
         let services = repository.get_running_services_with_pid().await?;
 
         let mut summary = HealthSummary::default();

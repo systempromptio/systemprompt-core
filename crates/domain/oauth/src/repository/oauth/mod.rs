@@ -15,33 +15,30 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use std::time::Instant;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 use tracing::instrument;
 use uuid::Uuid;
 
 #[derive(Clone, Debug)]
 pub struct OAuthRepository {
     pool: Arc<PgPool>,
-    db_pool: DbPool,
-}
-
-impl RepositoryTrait for OAuthRepository {
-    type Pool = Arc<PgPool>;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.pool
-    }
+    write_pool: Arc<PgPool>,
+    client_repo: ClientRepository,
 }
 
 impl OAuthRepository {
-    pub fn new(db_pool: DbPool) -> Result<Self> {
-        let pool = db_pool.pool_arc()?;
-        Ok(Self { pool, db_pool })
+    pub fn new(db: &DbPool) -> Result<Self> {
+        let pool = db.pool_arc()?;
+        let write_pool = db.write_pool_arc()?;
+        let client_repo = ClientRepository::new(db)?;
+        Ok(Self { pool, write_pool, client_repo })
     }
 
     pub fn pool_ref(&self) -> &PgPool {
         &self.pool
+    }
+
+    pub fn write_pool_ref(&self) -> &PgPool {
+        &self.write_pool
     }
 
     #[instrument(skip(self, params), fields(client_id = %params.client_id, client_name = %params.client_name))]
@@ -50,7 +47,7 @@ impl OAuthRepository {
 
         tracing::info!("Creating OAuth client");
 
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         let client_id = params.client_id.clone();
         let client_name = params.client_name.clone();
         let scopes = params.scopes.clone();
@@ -93,7 +90,7 @@ impl OAuthRepository {
     }
 
     pub async fn list_clients(&self) -> Result<Vec<OAuthClient>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list().await
     }
 
@@ -102,17 +99,17 @@ impl OAuthRepository {
         limit: i32,
         offset: i32,
     ) -> Result<Vec<OAuthClient>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list_paginated(limit, offset).await
     }
 
     pub async fn count_clients(&self) -> Result<i64> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.count().await
     }
 
     pub async fn find_client_by_id(&self, client_id: &str) -> Result<Option<OAuthClient>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.get_by_client_id(client_id).await
     }
 
@@ -120,7 +117,7 @@ impl OAuthRepository {
         &self,
         redirect_uri: &str,
     ) -> Result<Option<OAuthClient>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.find_by_redirect_uri(redirect_uri).await
     }
 
@@ -129,7 +126,7 @@ impl OAuthRepository {
         redirect_uri: &str,
         required_scopes: &[&str],
     ) -> Result<Option<OAuthClient>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo
             .find_by_redirect_uri_with_scope(redirect_uri, required_scopes)
             .await
@@ -163,7 +160,7 @@ impl OAuthRepository {
             .await?
             .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         let params = UpdateClientParams {
             client_id: client_id.into(),
             client_name: updated_name,
@@ -182,7 +179,7 @@ impl OAuthRepository {
     }
 
     pub async fn update_client_full(&self, client: &OAuthClient) -> Result<OAuthClient> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         let params = UpdateClientParams {
             client_id: client.client_id.clone(),
             client_name: client.client_name.clone(),
@@ -201,7 +198,7 @@ impl OAuthRepository {
     }
 
     pub async fn delete_client(&self, client_id: &str) -> Result<bool> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         let rows_affected = client_repo.delete(client_id).await?;
         Ok(rows_affected > 0)
     }
@@ -217,24 +214,24 @@ impl OAuthRepository {
     }
 
     pub async fn cleanup_inactive_clients(&self) -> Result<u64> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.cleanup_inactive().await
     }
 
     pub async fn cleanup_old_test_clients(&self, days_old: u32) -> Result<u64> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.cleanup_old_test(days_old).await
     }
 
     pub async fn cleanup_unused_clients(&self, days_old: u32) -> Result<u64> {
         let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.delete_unused(cutoff_timestamp).await
     }
 
     pub async fn cleanup_stale_clients(&self, days_unused: u32) -> Result<u64> {
         let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_unused) * 24 * 60 * 60);
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.delete_stale(cutoff_timestamp).await
     }
 
@@ -243,7 +240,7 @@ impl OAuthRepository {
         days_old: u32,
     ) -> Result<Vec<super::ClientUsageSummary>> {
         let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list_unused(cutoff_timestamp).await
     }
 
@@ -252,29 +249,29 @@ impl OAuthRepository {
         days_unused: u32,
     ) -> Result<Vec<super::ClientUsageSummary>> {
         let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_unused) * 24 * 60 * 60);
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list_stale(cutoff_timestamp).await
     }
 
     pub async fn deactivate_old_test_clients(&self, days_old: u32) -> Result<u64> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.deactivate_old_test(days_old).await
     }
 
     pub async fn list_inactive_clients(&self) -> Result<Vec<super::ClientSummary>> {
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list_inactive().await
     }
 
     pub async fn list_old_clients(&self, days_old: u32) -> Result<Vec<super::ClientSummary>> {
         let cutoff_timestamp = Utc::now().timestamp() - (i64::from(days_old) * 24 * 60 * 60);
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.list_old(cutoff_timestamp).await
     }
 
     pub async fn update_client_last_used(&self, client_id: &str) -> Result<()> {
         let now = Utc::now().timestamp();
-        let client_repo = ClientRepository::new(&self.db_pool)?;
+        let client_repo = &self.client_repo;
         client_repo.update_last_used(client_id, now).await
     }
 }

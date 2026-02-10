@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::Utc;
 use clap::Args;
-use std::sync::Arc;
 use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
@@ -54,7 +53,7 @@ pub async fn execute(args: CleanupArgs, config: &CliConfig) -> Result<()> {
     let cutoff_str = cutoff_date.format("%Y-%m-%d %H:%M:%S UTC").to_string();
 
     let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
 
     if args.dry_run {
         let count = service

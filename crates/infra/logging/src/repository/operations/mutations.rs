@@ -1,13 +1,13 @@
 #![allow(clippy::print_stdout)]
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use chrono::{DateTime, Utc};
-use systemprompt_database::DbPool;
+use sqlx::PgPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, TaskId};
 
 use crate::models::{LogEntry, LoggingError};
 
-pub async fn create_log(db_pool: &DbPool, entry: &LogEntry) -> Result<(), LoggingError> {
+pub async fn create_log(pool: &PgPool, entry: &LogEntry) -> Result<(), LoggingError> {
     let metadata_json = entry
         .metadata
         .as_ref()
@@ -16,7 +16,6 @@ pub async fn create_log(db_pool: &DbPool, entry: &LogEntry) -> Result<(), Loggin
         .context("Failed to serialize log metadata")?;
 
     let level_str = entry.level.to_string();
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
 
     let user_id = entry.user_id.as_str();
     let session_id = entry.session_id.as_str();
@@ -45,7 +44,7 @@ pub async fn create_log(db_pool: &DbPool, entry: &LogEntry) -> Result<(), Loggin
         context_id,
         client_id
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await
     .context("Failed to create log entry")?;
 
@@ -53,7 +52,7 @@ pub async fn create_log(db_pool: &DbPool, entry: &LogEntry) -> Result<(), Loggin
 }
 
 pub async fn update_log(
-    db_pool: &DbPool,
+    pool: &PgPool,
     id: &LogId,
     entry: &LogEntry,
 ) -> Result<bool, LoggingError> {
@@ -65,7 +64,6 @@ pub async fn update_log(
         .context("Failed to serialize log metadata")?;
 
     let level_str = entry.level.to_string();
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
 
     let id_str = id.as_str();
 
@@ -81,46 +79,42 @@ pub async fn update_log(
         metadata_json,
         id_str
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await
     .context("Failed to update log entry")?;
 
     Ok(result.rows_affected() > 0)
 }
 
-pub async fn delete_log(db_pool: &DbPool, id: &LogId) -> Result<bool, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
+pub async fn delete_log(pool: &PgPool, id: &LogId) -> Result<bool, LoggingError> {
     let id_str = id.as_str();
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = $1", id_str)
-        .execute(pool.as_ref())
+        .execute(pool)
         .await
         .context("Failed to delete log entry")?;
 
     Ok(result.rows_affected() > 0)
 }
 
-pub async fn delete_logs_multiple(db_pool: &DbPool, ids: &[LogId]) -> Result<u64, LoggingError> {
+pub async fn delete_logs_multiple(pool: &PgPool, ids: &[LogId]) -> Result<u64, LoggingError> {
     if ids.is_empty() {
         return Ok(0);
     }
 
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
     let id_strs: Vec<String> = ids.iter().map(ToString::to_string).collect();
 
     let result = sqlx::query!("DELETE FROM logs WHERE id = ANY($1)", &id_strs)
-        .execute(pool.as_ref())
+        .execute(pool)
         .await
         .context("Failed to delete multiple log entries")?;
 
     Ok(result.rows_affected())
 }
 
-pub async fn clear_all_logs(db_pool: &DbPool) -> Result<u64, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
-
+pub async fn clear_all_logs(pool: &PgPool) -> Result<u64, LoggingError> {
     let result = sqlx::query!("DELETE FROM logs")
-        .execute(pool.as_ref())
+        .execute(pool)
         .await
         .context("Failed to clear all logs")?;
 
@@ -128,13 +122,11 @@ pub async fn clear_all_logs(db_pool: &DbPool) -> Result<u64, LoggingError> {
 }
 
 pub async fn cleanup_logs_before(
-    db_pool: &DbPool,
+    pool: &PgPool,
     cutoff: DateTime<Utc>,
 ) -> Result<u64, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
-
     let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
-        .execute(pool.as_ref())
+        .execute(pool)
         .await
         .context("Failed to cleanup old logs")?;
 
@@ -142,16 +134,14 @@ pub async fn cleanup_logs_before(
 }
 
 pub async fn count_logs_before(
-    db_pool: &DbPool,
+    pool: &PgPool,
     cutoff: DateTime<Utc>,
 ) -> Result<u64, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
-
     let count = sqlx::query_scalar!(
         r#"SELECT COUNT(*) as "count!" FROM logs WHERE timestamp < $1"#,
         cutoff
     )
-    .fetch_one(pool.as_ref())
+    .fetch_one(pool)
     .await
     .context("Failed to count logs before cutoff")?;
 

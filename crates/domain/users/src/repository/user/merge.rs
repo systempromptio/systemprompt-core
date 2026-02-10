@@ -20,7 +20,7 @@ impl UserRepository {
             target_id.as_str(),
             source_id.as_str()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         let tasks_result = sqlx::query!(
@@ -32,11 +32,11 @@ impl UserRepository {
             target_id.as_str(),
             source_id.as_str()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, source_id.as_str())
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
 
         Ok(MergeResult {

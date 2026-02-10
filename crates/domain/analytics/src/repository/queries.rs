@@ -1,25 +1,15 @@
 use anyhow::{anyhow, Result};
 use serde::Serialize;
 use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug, Clone)]
 pub struct AnalyticsQueryRepository {
     db_pool: DbPool,
 }
 
-impl RepositoryTrait for AnalyticsQueryRepository {
-    type Pool = DbPool;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.db_pool
-    }
-}
-
 impl AnalyticsQueryRepository {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self { db_pool: db_pool.clone() })
     }
 
     pub async fn get_ai_provider_usage(

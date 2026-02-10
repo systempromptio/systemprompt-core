@@ -17,6 +17,9 @@ pub struct Secrets {
     pub database_url: String,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub database_write_url: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync_token: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -64,6 +67,7 @@ impl Secrets {
         match key {
             "jwt_secret" | "JWT_SECRET" => Some(&self.jwt_secret),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
+            "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
             "sync_token" | "SYNC_TOKEN" => self.sync_token.as_ref(),
             "gemini" | "GEMINI_API_KEY" => self.gemini.as_ref(),
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
@@ -179,6 +183,10 @@ impl SecretsBootstrap {
         Ok(&Self::get()?.database_url)
     }
 
+    pub fn database_write_url() -> Result<Option<&'static str>, SecretsBootstrapError> {
+        Ok(Self::get()?.database_write_url.as_deref())
+    }
+
     fn load_from_env() -> Result<Secrets> {
         let jwt_secret = std::env::var("JWT_SECRET")
             .ok()
@@ -208,6 +216,9 @@ impl SecretsBootstrap {
         let secrets = Secrets {
             jwt_secret,
             database_url,
+            database_write_url: std::env::var("DATABASE_WRITE_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
             sync_token: std::env::var("SYNC_TOKEN").ok().filter(|s| !s.is_empty()),
             gemini: std::env::var("GEMINI_API_KEY")
                 .ok()
@@ -355,6 +366,10 @@ fn log_secrets_skip(e: &anyhow::Error) {
 fn build_loaded_secrets_message(secrets: &Secrets) -> String {
     let base = ["jwt_secret", "database_url"];
     let optional_providers = [
+        secrets
+            .database_write_url
+            .as_ref()
+            .map(|_| "database_write_url"),
         secrets.gemini.as_ref().map(|_| "gemini"),
         secrets.anthropic.as_ref().map(|_| "anthropic"),
         secrets.openai.as_ref().map(|_| "openai"),

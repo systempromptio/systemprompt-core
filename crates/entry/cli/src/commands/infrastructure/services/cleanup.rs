@@ -30,7 +30,7 @@ pub async fn execute(
     }
 
     let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
+    let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
     let api_port = get_api_port();
 
     if !quiet {

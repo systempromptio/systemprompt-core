@@ -52,7 +52,7 @@ pub async fn execute(args: CleanupSessionsArgs) -> Result<CommandResult<SessionC
         return Ok(CommandResult::text(output).with_title("Session Cleanup (Dry Run)"));
     }
 
-    let cleanup_service = SessionCleanupService::new(Arc::clone(ctx.db_pool()));
+    let cleanup_service = SessionCleanupService::new(ctx.db_pool())?;
     let closed_count = cleanup_service
         .cleanup_inactive_sessions(args.hours)
         .await?;

@@ -10,10 +10,10 @@ pub struct ServiceManagementService {
 }
 
 impl ServiceManagementService {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self {
-            service_repo: ServiceRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            service_repo: ServiceRepository::new(db_pool)?,
+        })
     }
 
     pub async fn get_services_by_type(&self, module_name: &str) -> Result<Vec<ServiceConfig>> {

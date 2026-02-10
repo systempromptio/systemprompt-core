@@ -7,7 +7,6 @@ use crate::repository::task::TaskRepository;
 use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::RequestContext;
-use systemprompt_traits::Repository;
 
 pub struct MessageService {
     task_repo: TaskRepository,
@@ -20,10 +19,10 @@ impl std::fmt::Debug for MessageService {
 }
 
 impl MessageService {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            task_repo: TaskRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            task_repo: TaskRepository::new(db_pool)?,
+        })
     }
 
     pub async fn persist_message_in_tx(
@@ -78,7 +77,7 @@ impl MessageService {
             return Ok(Vec::new());
         }
 
-        let mut tx = self.task_repo.pool().as_ref().begin_transaction().await?;
+        let mut tx = self.task_repo.db_pool().as_ref().begin_transaction().await?;
         let mut sequence_numbers = Vec::new();
 
         tracing::info!(
@@ -148,7 +147,7 @@ impl MessageService {
             reference_task_ids: None,
         };
 
-        let mut tx = self.task_repo.pool().as_ref().begin_transaction().await?;
+        let mut tx = self.task_repo.db_pool().as_ref().begin_transaction().await?;
 
         let sequence_number = self
             .persist_message_in_tx(

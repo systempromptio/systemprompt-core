@@ -32,7 +32,7 @@ pub async fn persist_completed_task(
 
     if !artifacts_already_published {
         if let Some(ref artifacts) = task.artifacts {
-            let publishing_service = ArtifactPublishingService::new(db_pool.clone());
+            let publishing_service = ArtifactPublishingService::new(db_pool)?;
             for artifact in artifacts {
                 publishing_service
                     .publish_from_a2a(artifact, &task.id, &task.context_id)

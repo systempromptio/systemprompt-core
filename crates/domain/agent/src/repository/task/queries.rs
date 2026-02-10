@@ -43,7 +43,7 @@ pub async fn get_task(
         return Ok(None);
     };
 
-    let constructor = TaskConstructor::new(db_pool.clone());
+    let constructor = TaskConstructor::new(db_pool)?;
     let task = constructor.construct_task_from_task_id(task_id).await?;
 
     Ok(Some(task))
@@ -80,7 +80,7 @@ pub async fn list_tasks_by_context(
     .await
     .map_err(|e| RepositoryError::database(e))?;
 
-    let constructor = TaskConstructor::new(db_pool.clone());
+    let constructor = TaskConstructor::new(db_pool)?;
     let mut tasks = Vec::new();
 
     for row in rows {
@@ -132,7 +132,7 @@ pub async fn get_tasks_by_user_id(
     .await
     .map_err(|e| RepositoryError::database(e))?;
 
-    let constructor = TaskConstructor::new(db_pool.clone());
+    let constructor = TaskConstructor::new(db_pool)?;
     let mut tasks = Vec::new();
 
     for row in &rows {

@@ -16,11 +16,13 @@ pub const ABUSE_THRESHOLD_FOR_BAN: i32 = 3;
 #[derive(Clone, Debug)]
 pub struct FingerprintRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl FingerprintRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 }

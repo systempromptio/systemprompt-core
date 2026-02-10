@@ -144,7 +144,7 @@ impl UserRepository {
             new_status,
             &ids[..]
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())
@@ -162,7 +162,7 @@ impl UserRepository {
             deleted_status,
             &ids[..]
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

@@ -34,8 +34,8 @@ async fn load_task_completed(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
-    let task_repo = TaskRepository::new(db.clone());
-    let artifact_repo = ArtifactRepository::new(db.clone());
+    let task_repo = TaskRepository::new(db)?;
+    let artifact_repo = ArtifactRepository::new(db)?;
     let step_repo = ExecutionStepRepository::new(db)?;
 
     use systemprompt_agent::models::a2a::TaskState;
@@ -104,7 +104,7 @@ async fn load_artifact_created(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
-    let artifact_repo = ArtifactRepository::new(db.clone());
+    let artifact_repo = ArtifactRepository::new(db)?;
 
     let artifact_id = systemprompt_identifiers::ArtifactId::new(&request.entity_id);
     let artifact = artifact_repo
@@ -159,7 +159,7 @@ async fn load_context_updated(
     db: &systemprompt_database::DbPool,
     request: &WebhookRequest,
 ) -> Result<AgUiWebhookData, anyhow::Error> {
-    let context_repo = ContextRepository::new(db.clone());
+    let context_repo = ContextRepository::new(db)?;
     let context_id = request.context_id.clone();
     let user_id = UserId::new(request.user_id.clone());
 

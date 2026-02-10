@@ -42,7 +42,7 @@ pub use systemprompt_identifiers::{
     parse_database_datetime, DbValue, FromDbValue, JsonRow, ToDbValue,
 };
 
-pub use repository::{CrudRepository, Repository, RepositoryError};
+pub use repository::RepositoryError;
 
 pub use service::{AsyncService, Service};
 

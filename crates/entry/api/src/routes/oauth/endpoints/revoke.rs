@@ -5,7 +5,6 @@ use axum::response::IntoResponse;
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::sync::Arc;
 use systemprompt_analytics::SessionRepository;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;
@@ -33,7 +32,7 @@ pub async fn handle_revoke(
     State(state): State<OAuthState>,
     Form(request): Form<RevokeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (
@@ -95,18 +94,24 @@ pub async fn handle_revoke(
                 "Token revoked"
             );
 
-            let session_repo = SessionRepository::new(Arc::clone(state.db_pool()));
-            if let Err(e) = session_repo.end_session(req_ctx.session_id()).await {
-                tracing::warn!(
-                    session_id = %req_ctx.session_id(),
-                    error = %e,
-                    "Failed to end session after token revocation"
-                );
-            } else {
-                tracing::debug!(
-                    session_id = %req_ctx.session_id(),
-                    "Session ended after token revocation"
-                );
+            match SessionRepository::new(state.db_pool()) {
+                Ok(session_repo) => {
+                    if let Err(e) = session_repo.end_session(req_ctx.session_id()).await {
+                        tracing::warn!(
+                            session_id = %req_ctx.session_id(),
+                            error = %e,
+                            "Failed to end session after token revocation"
+                        );
+                    } else {
+                        tracing::debug!(
+                            session_id = %req_ctx.session_id(),
+                            "Session ended after token revocation"
+                        );
+                    }
+                },
+                Err(e) => {
+                    tracing::warn!(error = %e, "Failed to create session repository");
+                },
             }
 
             StatusCode::OK.into_response()

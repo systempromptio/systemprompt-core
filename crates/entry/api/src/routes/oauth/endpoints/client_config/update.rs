@@ -1,7 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
-use std::sync::Arc;
 use systemprompt_models::Config;
 
 use super::validation::validate_registration_token;
@@ -17,7 +16,7 @@ pub async fn update_client_configuration(
     headers: HeaderMap,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let repository = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             return (

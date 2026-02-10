@@ -26,8 +26,8 @@ impl std::fmt::Debug for ArtifactPublishingService {
 }
 
 impl ArtifactPublishingService {
-    pub fn new(db_pool: DbPool) -> Self {
-        let execution_repo = ExecutionStepRepository::new(&db_pool)
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        let execution_repo = ExecutionStepRepository::new(db_pool)
             .map(Arc::new)
             .map_err(|e| {
                 tracing::debug!(error = %e, "ExecutionStepRepository not available, FK validation disabled");
@@ -35,12 +35,12 @@ impl ArtifactPublishingService {
             })
             .ok();
 
-        Self {
-            artifact_repo: ArtifactRepository::new(db_pool.clone()),
-            skill_repo: SkillRepository::new(db_pool.clone()),
-            message_service: MessageService::new(db_pool),
+        Ok(Self {
+            artifact_repo: ArtifactRepository::new(db_pool)?,
+            skill_repo: SkillRepository::new(db_pool)?,
+            message_service: MessageService::new(db_pool)?,
             execution_repo,
-        }
+        })
     }
 
     async fn execution_id_exists(&self, mcp_execution_id: &str) -> bool {

@@ -12,7 +12,7 @@ impl ClientRepository {
             .unwrap_or(TokenAuthMethod::default().as_str());
         let now = Utc::now();
 
-        let mut tx = self.pool.as_ref().begin().await?;
+        let mut tx = self.write_pool.as_ref().begin().await?;
 
         sqlx::query!(
             "INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
@@ -57,7 +57,7 @@ impl ClientRepository {
             .unwrap_or(TokenAuthMethod::default().as_str());
         let now = Utc::now();
 
-        let mut tx = self.pool.as_ref().begin().await?;
+        let mut tx = self.write_pool.as_ref().begin().await?;
 
         let result = sqlx::query!(
             "UPDATE oauth_clients SET client_name = $1, token_endpoint_auth_method = $2,
@@ -109,7 +109,7 @@ impl ClientRepository {
             now,
             client_id
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         if result.rows_affected() == 0 {
@@ -121,7 +121,7 @@ impl ClientRepository {
 
     pub async fn delete(&self, client_id: &str) -> Result<u64> {
         let result = sqlx::query!("DELETE FROM oauth_clients WHERE client_id = $1", client_id)
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
@@ -133,7 +133,7 @@ impl ClientRepository {
             now,
             client_id
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -145,7 +145,7 @@ impl ClientRepository {
             now,
             client_id
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }

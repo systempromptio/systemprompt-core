@@ -3,10 +3,9 @@ use anyhow::{anyhow, Result};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::path::Path;
-use std::sync::Arc;
 use systemprompt_agent::models::Playbook;
 use systemprompt_agent::repository::content::PlaybookRepository;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use tracing::warn;
 
 #[derive(Debug)]
@@ -15,10 +14,10 @@ pub struct PlaybooksDiffCalculator {
 }
 
 impl PlaybooksDiffCalculator {
-    pub fn new(db: Arc<dyn DatabaseProvider>) -> Self {
-        Self {
-            playbook_repo: PlaybookRepository::new(db),
-        }
+    pub fn new(db: &DbPool) -> Result<Self> {
+        Ok(Self {
+            playbook_repo: PlaybookRepository::new(db)?,
+        })
     }
 
     pub async fn calculate_diff(&self, playbooks_path: &Path) -> Result<PlaybooksDiffResult> {

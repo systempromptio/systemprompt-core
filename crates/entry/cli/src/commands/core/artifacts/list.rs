@@ -55,7 +55,7 @@ pub async fn execute_with_pool(
     pool: &DbPool,
     config: &CliConfig,
 ) -> Result<CommandResult<ArtifactListOutput>> {
-    let repo = ArtifactRepository::new(Clone::clone(pool));
+    let repo = ArtifactRepository::new(pool)?;
 
     let artifacts = if let Some(ref ctx_id) = args.context_id {
         let context_id = ContextId::new(ctx_id);

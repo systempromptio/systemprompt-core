@@ -3,12 +3,19 @@ use sqlx::PgPool;
 
 #[derive(Debug)]
 pub struct CleanupRepository {
+    #[allow(dead_code)]
     pool: PgPool,
+    write_pool: PgPool,
 }
 
 impl CleanupRepository {
-    pub const fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(pool: PgPool) -> Self {
+        let write_pool = pool.clone();
+        Self { pool, write_pool }
+    }
+
+    pub const fn new_with_write_pool(pool: PgPool, write_pool: PgPool) -> Self {
+        Self { pool, write_pool }
     }
 
     pub async fn delete_orphaned_logs(&self) -> Result<u64> {
@@ -19,7 +26,7 @@ impl CleanupRepository {
               AND user_id NOT IN (SELECT id FROM users)
             "#
         )
-        .execute(&self.pool)
+        .execute(&self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -32,7 +39,7 @@ impl CleanupRepository {
               AND context_id NOT IN (SELECT context_id FROM user_contexts)
             "#
         )
-        .execute(&self.pool)
+        .execute(&self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }
@@ -40,14 +47,14 @@ impl CleanupRepository {
     pub async fn delete_old_logs(&self, days: i32) -> Result<u64> {
         let cutoff = chrono::Utc::now() - chrono::Duration::days(i64::from(days));
         let result = sqlx::query!("DELETE FROM logs WHERE timestamp < $1", cutoff)
-            .execute(&self.pool)
+            .execute(&self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
 
     pub async fn delete_expired_oauth_tokens(&self) -> Result<u64> {
         let result = sqlx::query!("DELETE FROM oauth_refresh_tokens WHERE expires_at < NOW()")
-            .execute(&self.pool)
+            .execute(&self.write_pool)
             .await?;
         Ok(result.rows_affected())
     }
@@ -56,7 +63,7 @@ impl CleanupRepository {
         let result = sqlx::query!(
             "DELETE FROM oauth_auth_codes WHERE expires_at < NOW() OR used_at IS NOT NULL"
         )
-        .execute(&self.pool)
+        .execute(&self.write_pool)
         .await?;
         Ok(result.rows_affected())
     }

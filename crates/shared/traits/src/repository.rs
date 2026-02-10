@@ -1,24 +1,3 @@
-use async_trait::async_trait;
-
-#[async_trait]
-pub trait Repository: Send + Sync {
-    type Pool;
-    type Error: std::error::Error + Send + Sync + 'static;
-
-    fn pool(&self) -> &Self::Pool;
-}
-
-#[async_trait]
-pub trait CrudRepository<T>: Repository {
-    type Id;
-
-    async fn create(&self, entity: T) -> Result<T, Self::Error>;
-    async fn get(&self, id: Self::Id) -> Result<Option<T>, Self::Error>;
-    async fn update(&self, entity: T) -> Result<T, Self::Error>;
-    async fn delete(&self, id: Self::Id) -> Result<(), Self::Error>;
-    async fn list(&self) -> Result<Vec<T>, Self::Error>;
-}
-
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum RepositoryError {

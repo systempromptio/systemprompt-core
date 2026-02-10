@@ -30,7 +30,7 @@ pub async fn execute(
     config: &CliConfig,
 ) -> Result<CommandResult<StopServiceOutput>> {
     let ctx = Arc::new(AppContext::new().await?);
-    let service_mgmt = ServiceManagementService::new(Arc::clone(ctx.db_pool()));
+    let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
 
     let mut api_stopped = false;
     let mut agents_stopped = 0usize;

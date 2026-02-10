@@ -11,7 +11,12 @@ pub async fn list_contexts(
     State(ctx): State<AppContext>,
 ) -> Response {
     let db_pool = ctx.db_pool().clone();
-    let context_repo = ContextRepository::new(db_pool.clone());
+    let context_repo = match ContextRepository::new(&db_pool) {
+        Ok(repo) => repo,
+        Err(e) => {
+            return api_error_response(ApiError::internal_error(format!("Database error: {e}")))
+        },
+    };
     let user_id = &req_ctx.auth.user_id;
 
     match context_repo.list_contexts_with_stats(user_id).await {

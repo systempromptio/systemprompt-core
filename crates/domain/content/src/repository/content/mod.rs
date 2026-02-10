@@ -11,6 +11,7 @@ use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 #[derive(Debug)]
 pub struct ContentRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl ContentRepository {
@@ -18,11 +19,14 @@ impl ContentRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| ContentError::InvalidRequest(format!("Database write pool error: {e}")))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create(&self, params: &CreateContentParams) -> Result<Content, sqlx::Error> {
-        mutations::create(&self.pool, params).await
+        mutations::create(&self.write_pool, params).await
     }
 
     pub async fn get_by_id(&self, id: &ContentId) -> Result<Option<Content>, sqlx::Error> {
@@ -58,7 +62,7 @@ impl ContentRepository {
     }
 
     pub async fn update(&self, params: &UpdateContentParams) -> Result<Content, sqlx::Error> {
-        mutations::update(&self.pool, params).await
+        mutations::update(&self.write_pool, params).await
     }
 
     pub async fn category_exists(&self, category_id: &CategoryId) -> Result<bool, sqlx::Error> {
@@ -66,11 +70,11 @@ impl ContentRepository {
     }
 
     pub async fn delete(&self, id: &ContentId) -> Result<(), sqlx::Error> {
-        mutations::delete(&self.pool, id).await
+        mutations::delete(&self.write_pool, id).await
     }
 
     pub async fn delete_by_source(&self, source_id: &SourceId) -> Result<u64, sqlx::Error> {
-        mutations::delete_by_source(&self.pool, source_id).await
+        mutations::delete_by_source(&self.write_pool, source_id).await
     }
 
     pub async fn list_all(&self, limit: i64, offset: i64) -> Result<Vec<Content>, sqlx::Error> {

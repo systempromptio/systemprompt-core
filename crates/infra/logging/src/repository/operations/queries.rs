@@ -1,8 +1,8 @@
 #![allow(clippy::print_stdout)]
 
-use anyhow::{Context, Result};
+use anyhow::Context;
 use chrono::{DateTime, Utc};
-use systemprompt_database::DbPool;
+use sqlx::PgPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
 
 use crate::models::{LogEntry, LogFilter, LogLevel, LoggingError};
@@ -46,8 +46,7 @@ fn row_to_entry(r: LogRow) -> LogEntry {
     }
 }
 
-pub async fn get_log(db_pool: &DbPool, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
+pub async fn get_log(pool: &PgPool, id: &LogId) -> Result<Option<LogEntry>, LoggingError> {
     let id_str = id.as_str();
 
     let row = sqlx::query_as!(
@@ -61,16 +60,14 @@ pub async fn get_log(db_pool: &DbPool, id: &LogId) -> Result<Option<LogEntry>, L
         "#,
         id_str
     )
-    .fetch_optional(pool.as_ref())
+    .fetch_optional(pool)
     .await
     .context("Failed to get log by id")?;
 
     Ok(row.map(row_to_entry))
 }
 
-pub async fn list_logs(db_pool: &DbPool, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
-
+pub async fn list_logs(pool: &PgPool, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
     let rows = sqlx::query_as!(
         LogRow,
         r#"
@@ -82,7 +79,7 @@ pub async fn list_logs(db_pool: &DbPool, limit: i64) -> Result<Vec<LogEntry>, Lo
         "#,
         limit
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await
     .context("Failed to list logs")?;
 
@@ -90,10 +87,9 @@ pub async fn list_logs(db_pool: &DbPool, limit: i64) -> Result<Vec<LogEntry>, Lo
 }
 
 pub async fn list_logs_paginated(
-    db_pool: &DbPool,
+    pool: &PgPool,
     filter: &LogFilter,
 ) -> Result<(Vec<LogEntry>, i64), LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
     let (offset, per_page) = calculate_pagination(filter);
     let level_filter = filter.level();
     let module_filter = filter.module();
@@ -118,12 +114,12 @@ pub async fn list_logs_paginated(
         per_page,
         offset
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await
     .context("Failed to get paginated logs")?;
 
     let count = fetch_filtered_count(
-        &pool,
+        pool,
         level_filter.map(ToString::to_string),
         module_filter.map(ToString::to_string),
         message_pattern,
@@ -146,7 +142,7 @@ fn calculate_pagination(filter: &LogFilter) -> (i64, i64) {
 }
 
 async fn fetch_filtered_count(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &PgPool,
     level: Option<String>,
     module: Option<String>,
     message_pattern: Option<String>,
@@ -162,19 +158,17 @@ async fn fetch_filtered_count(
         module,
         message_pattern
     )
-    .fetch_one(pool.as_ref())
+    .fetch_one(pool)
     .await
     .context("Failed to count logs")
     .map_err(Into::into)
 }
 
 pub async fn list_logs_by_module_patterns(
-    db_pool: &DbPool,
+    pool: &PgPool,
     patterns: &[String],
     limit: i64,
 ) -> Result<Vec<LogEntry>, LoggingError> {
-    let pool = db_pool.pool_arc().context("Failed to get database pool")?;
-
     let rows = sqlx::query_as!(
         LogRow,
         r#"
@@ -189,7 +183,7 @@ pub async fn list_logs_by_module_patterns(
         patterns,
         limit
     )
-    .fetch_all(pool.as_ref())
+    .fetch_all(pool)
     .await
     .context("Failed to list logs by module patterns")?;
 

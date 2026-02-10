@@ -1,7 +1,6 @@
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
-use std::sync::Arc;
 use systemprompt_logging::models::{LogEntry, LogLevel};
 use systemprompt_logging::{CliService, LoggingMaintenanceService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
@@ -38,7 +37,7 @@ pub struct ViewArgs {
 
 pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandResult<LogViewOutput>> {
     let ctx = AppContext::new().await?;
-    let service = LoggingMaintenanceService::new(Arc::clone(ctx.db_pool()));
+    let service = LoggingMaintenanceService::new(ctx.db_pool())?;
 
     let since_timestamp = parse_since(args.since.as_ref())?;
     let logs = get_logs(&service, &args, since_timestamp).await?;
@@ -72,7 +71,7 @@ pub async fn execute_with_pool(
     db_ctx: &DatabaseContext,
     config: &CliConfig,
 ) -> Result<CommandResult<LogViewOutput>> {
-    let service = LoggingMaintenanceService::new(db_ctx.db_pool_arc());
+    let service = LoggingMaintenanceService::new(db_ctx.db_pool())?;
 
     let since_timestamp = parse_since(args.since.as_ref())?;
     let logs = get_logs(&service, &args, since_timestamp).await?;

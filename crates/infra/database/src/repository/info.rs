@@ -2,20 +2,10 @@ use crate::models::{DatabaseInfo, TableInfo};
 use crate::services::Database;
 use anyhow::Result;
 use std::sync::Arc;
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
 
 #[derive(Debug)]
 pub struct DatabaseInfoRepository {
     db: Arc<Database>,
-}
-
-impl RepositoryTrait for DatabaseInfoRepository {
-    type Pool = Arc<Database>;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.db
-    }
 }
 
 impl DatabaseInfoRepository {

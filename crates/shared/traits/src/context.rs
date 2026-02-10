@@ -27,6 +27,9 @@ pub trait ContextPropagation {
 pub trait ConfigProvider: Send + Sync {
     fn get(&self, key: &str) -> Option<String>;
     fn database_url(&self) -> &str;
+    fn database_write_url(&self) -> Option<&str> {
+        None
+    }
     fn system_path(&self) -> &str;
     fn api_port(&self) -> u16;
     fn as_any(&self) -> &dyn std::any::Any;

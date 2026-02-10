@@ -3,26 +3,25 @@ use crate::export::export_skill_to_disk;
 use crate::models::{LocalSyncResult, SkillsDiffResult};
 use anyhow::Result;
 use std::path::PathBuf;
-use std::sync::Arc;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_agent::services::SkillIngestionService;
-use systemprompt_database::DatabaseProvider;
+use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, SourceId};
 use tracing::info;
 
 #[derive(Debug)]
 pub struct SkillsLocalSync {
-    db: Arc<dyn DatabaseProvider>,
+    db: DbPool,
     skills_path: PathBuf,
 }
 
 impl SkillsLocalSync {
-    pub fn new(db: Arc<dyn DatabaseProvider>, skills_path: PathBuf) -> Self {
+    pub const fn new(db: DbPool, skills_path: PathBuf) -> Self {
         Self { db, skills_path }
     }
 
     pub async fn calculate_diff(&self) -> Result<SkillsDiffResult> {
-        let calculator = SkillsDiffCalculator::new(Arc::clone(&self.db));
+        let calculator = SkillsDiffCalculator::new(&self.db)?;
         calculator.calculate_diff(&self.skills_path).await
     }
 
@@ -31,7 +30,7 @@ impl SkillsLocalSync {
         diff: &SkillsDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let skill_repo = SkillRepository::new(Arc::clone(&self.db));
+        let skill_repo = SkillRepository::new(&self.db)?;
         let mut result = LocalSyncResult {
             direction: "to_disk".to_string(),
             ..Default::default()
@@ -92,7 +91,7 @@ impl SkillsLocalSync {
         diff: &SkillsDiffResult,
         delete_orphans: bool,
     ) -> Result<LocalSyncResult> {
-        let ingestion_service = SkillIngestionService::new(Arc::clone(&self.db));
+        let ingestion_service = SkillIngestionService::new(&self.db)?;
         let mut result = LocalSyncResult {
             direction: "to_database".to_string(),
             ..Default::default()

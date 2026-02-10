@@ -17,13 +17,12 @@ use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_traits::{
-    DynFileUploadProvider, DynSessionAnalyticsProvider, Repository as RepositoryTrait,
-    RepositoryError,
-};
+use systemprompt_traits::{DynFileUploadProvider, DynSessionAnalyticsProvider, RepositoryError};
 
 #[derive(Clone)]
 pub struct TaskRepository {
+    pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
     db_pool: DbPool,
     pub(crate) session_analytics_provider: Option<DynSessionAnalyticsProvider>,
     pub(crate) file_upload_provider: Option<DynFileUploadProvider>,
@@ -43,13 +42,16 @@ impl std::fmt::Debug for TaskRepository {
 }
 
 impl TaskRepository {
-    #[must_use]
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            db_pool,
+    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+        let pool = db.pool_arc()?;
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self {
+            pool,
+            write_pool,
+            db_pool: db.clone(),
             session_analytics_provider: None,
             file_upload_provider: None,
-        }
+        })
     }
 
     #[must_use]
@@ -67,10 +69,8 @@ impl TaskRepository {
         self
     }
 
-    pub(crate) fn get_pg_pool(&self) -> Result<Arc<PgPool>, RepositoryError> {
-        self.db_pool.as_ref().get_postgres_pool().ok_or_else(|| {
-            RepositoryError::InvalidData("PostgreSQL pool not available".to_string())
-        })
+    pub(crate) fn db_pool(&self) -> &DbPool {
+        &self.db_pool
     }
 
     pub async fn create_task(
@@ -81,8 +81,7 @@ impl TaskRepository {
         trace_id: &systemprompt_identifiers::TraceId,
         agent_name: &str,
     ) -> Result<String, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        let result = create_task(&pool, task, user_id, session_id, trace_id, agent_name).await?;
+        let result = create_task(&self.write_pool, task, user_id, session_id, trace_id, agent_name).await?;
 
         if let Some(ref provider) = self.session_analytics_provider {
             if let Err(e) = provider.increment_task_count(session_id).await {
@@ -97,8 +96,7 @@ impl TaskRepository {
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<Task>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_task(&pool, &self.db_pool, task_id).await
+        get_task(&self.pool, &self.db_pool, task_id).await
     }
 
     pub async fn get_task_by_str(&self, task_id: &str) -> Result<Option<Task>, RepositoryError> {
@@ -110,8 +108,7 @@ impl TaskRepository {
         &self,
         context_id: &systemprompt_identifiers::ContextId,
     ) -> Result<Vec<Task>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        list_tasks_by_context(&pool, &self.db_pool, context_id).await
+        list_tasks_by_context(&self.pool, &self.db_pool, context_id).await
     }
 
     pub async fn list_tasks_by_context_str(
@@ -128,8 +125,7 @@ impl TaskRepository {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<Task>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_tasks_by_user_id(&pool, &self.db_pool, user_id, limit, offset).await
+        get_tasks_by_user_id(&self.pool, &self.db_pool, user_id, limit, offset).await
     }
 
     pub async fn get_tasks_by_user_id_str(
@@ -148,8 +144,7 @@ impl TaskRepository {
         context_id: &systemprompt_identifiers::ContextId,
         agent_name: &str,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        track_agent_in_context(&pool, context_id, agent_name).await
+        track_agent_in_context(&self.write_pool, context_id, agent_name).await
     }
 
     pub async fn track_agent_in_context_str(
@@ -168,8 +163,7 @@ impl TaskRepository {
         state: TaskState,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        update_task_state(&pool, task_id, state, timestamp).await
+        update_task_state(&self.write_pool, task_id, state, timestamp).await
     }
 
     pub async fn update_task_state_str(
@@ -189,24 +183,14 @@ impl TaskRepository {
         error_message: &str,
         timestamp: &chrono::DateTime<chrono::Utc>,
     ) -> Result<(), RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        update_task_failed_with_error(&pool, task_id, error_message, timestamp).await
+        update_task_failed_with_error(&self.write_pool, task_id, error_message, timestamp).await
     }
 
     pub async fn get_task_context_info(
         &self,
         task_id: &systemprompt_identifiers::TaskId,
     ) -> Result<Option<TaskContextInfo>, RepositoryError> {
-        let pool = self.get_pg_pool()?;
-        get_task_context_info(&pool, task_id).await
+        get_task_context_info(&self.pool, task_id).await
     }
 }
 
-impl RepositoryTrait for TaskRepository {
-    type Pool = DbPool;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.db_pool
-    }
-}

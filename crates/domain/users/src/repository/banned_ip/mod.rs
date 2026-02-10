@@ -13,15 +13,18 @@ pub use types::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
 #[derive(Clone, Debug)]
 pub struct BannedIpRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl BannedIpRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
-    pub const fn from_pool(pool: Arc<PgPool>) -> Self {
-        Self { pool }
+    pub fn from_pool(pool: Arc<PgPool>) -> Self {
+        let write_pool = Arc::clone(&pool);
+        Self { pool, write_pool }
     }
 }

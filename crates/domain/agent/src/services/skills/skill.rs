@@ -31,11 +31,11 @@ impl std::fmt::Debug for SkillService {
 }
 
 impl SkillService {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            skill_repo: Arc::new(SkillRepository::new(db_pool.clone())),
-            db_pool,
-        }
+    pub fn new(db_pool: &DbPool) -> Result<Self> {
+        Ok(Self {
+            skill_repo: Arc::new(SkillRepository::new(db_pool)?),
+            db_pool: db_pool.clone(),
+        })
     }
 
     pub async fn load_skill(&self, skill_id: &str, ctx: &RequestContext) -> Result<String> {

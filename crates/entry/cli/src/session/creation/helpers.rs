@@ -106,7 +106,7 @@ pub(super) async fn create_cli_context(
     session_id: &SessionId,
     profile_name: &str,
 ) -> Result<ContextId> {
-    let context_repo = ContextRepository::new(db_pool);
+    let context_repo = ContextRepository::new(&db_pool)?;
     context_repo
         .create_context(
             &user.id,

@@ -1,4 +1,3 @@
-use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use chrono::Utc;
@@ -27,7 +26,7 @@ pub async fn execute(
     let session_ctx = get_or_create_session(config).await?;
     let ctx = AppContext::new().await?;
 
-    let repo = ContextRepository::new(Arc::clone(ctx.db_pool()));
+    let repo = ContextRepository::new(ctx.db_pool())?;
 
     let name = args
         .name

@@ -181,7 +181,7 @@ pub(super) async fn try_validate_context(
         )
         .ok()?;
     let db_pool = DbPool::from(Arc::new(db));
-    let context_repo = ContextRepository::new(db_pool);
+    let context_repo = ContextRepository::new(&db_pool).ok()?;
 
     let is_valid = context_repo
         .validate_context_ownership(&session.context_id, &session.user_id)

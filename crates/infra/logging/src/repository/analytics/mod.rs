@@ -1,42 +1,29 @@
 use anyhow::Context;
 use chrono::Utc;
 use serde_json::Value;
+use sqlx::PgPool;
+use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, UserId};
-use systemprompt_traits::{Repository as RepositoryTrait, RepositoryError};
-
 #[derive(Debug, Clone)]
 pub struct AnalyticsRepository {
-    db_pool: DbPool,
-}
-
-impl RepositoryTrait for AnalyticsRepository {
-    type Pool = DbPool;
-    type Error = RepositoryError;
-
-    fn pool(&self) -> &Self::Pool {
-        &self.db_pool
-    }
+    write_pool: Arc<PgPool>,
 }
 
 impl AnalyticsRepository {
-    pub const fn new(db_pool: DbPool) -> Self {
-        Self { db_pool }
+    pub fn new(db: &DbPool) -> anyhow::Result<Self> {
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { write_pool })
     }
 
     pub async fn log_event(&self, event: &AnalyticsEvent) -> anyhow::Result<i64> {
-        let pool = self
-            .db_pool
-            .pool_arc()
-            .context("Failed to get database pool")?;
-
-        let result = execute_insert(&pool, event).await?;
+        let result = execute_insert(&self.write_pool, event).await?;
         Ok(i64::try_from(result).unwrap_or(i64::MAX))
     }
 }
 
 async fn execute_insert(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &PgPool,
     event: &AnalyticsEvent,
 ) -> anyhow::Result<u64> {
     let params = EventParams::from(event);
@@ -45,7 +32,7 @@ async fn execute_insert(
 
 #[allow(clippy::cognitive_complexity)]
 async fn run_insert_query(
-    pool: &std::sync::Arc<sqlx::PgPool>,
+    pool: &PgPool,
     p: EventParams<'_>,
 ) -> anyhow::Result<u64> {
     sqlx::query!(
@@ -71,7 +58,7 @@ async fn run_insert_query(
         p.metadata,
         p.timestamp
     )
-    .execute(pool.as_ref())
+    .execute(pool)
     .await
     .map(|r| r.rows_affected())
     .context("Failed to log analytics event")

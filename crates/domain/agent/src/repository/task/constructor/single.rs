@@ -21,7 +21,7 @@ async fn fetch_task_row(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<TaskRow, RepositoryError> {
-    let pool = constructor.get_pg_pool()?;
+    let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
     sqlx::query_as!(
@@ -94,7 +94,7 @@ async fn load_task_messages(
     constructor: &TaskConstructor,
     task_id: &TaskId,
 ) -> Result<Option<Vec<Message>>, RepositoryError> {
-    let pool = constructor.get_pg_pool()?;
+    let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
     let message_rows: Vec<TaskMessage> = sqlx::query_as!(
@@ -140,7 +140,7 @@ async fn load_message_parts(
     message_id: &str,
     task_id: &TaskId,
 ) -> Result<Vec<Part>, RepositoryError> {
-    let pool = constructor.get_pg_pool()?;
+    let pool = constructor.pool();
     let task_id_str = task_id.as_str();
 
     let part_rows: Vec<MessagePart> = sqlx::query_as!(

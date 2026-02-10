@@ -13,10 +13,10 @@ pub struct ContextProviderService {
 }
 
 impl ContextProviderService {
-    pub fn new(db_pool: DbPool) -> Self {
-        Self {
-            repo: ContextRepository::new(db_pool),
-        }
+    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
+        Ok(Self {
+            repo: ContextRepository::new(db_pool)?,
+        })
     }
 }
 

@@ -31,7 +31,7 @@ pub async fn finish_link(
     State(state): State<OAuthState>,
     Json(request): Json<FinishLinkRequest>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(Arc::clone(state.db_pool())) {
+    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
         Ok(r) => r,
         Err(e) => {
             tracing::error!(error = %e, "Failed to initialize repository");

@@ -48,7 +48,7 @@ impl UserRepository {
             role,
             now
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(row)
@@ -82,7 +82,7 @@ impl UserRepository {
             role,
             now
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await?;
 
         Ok(row)
@@ -102,7 +102,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -123,7 +123,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -144,7 +144,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -165,7 +165,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -186,7 +186,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -214,7 +214,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -235,7 +235,7 @@ impl UserRepository {
             Utc::now(),
             id.as_str()
         )
-        .fetch_optional(&*self.pool)
+        .fetch_optional(&*self.write_pool)
         .await?
         .ok_or_else(|| UserError::NotFound(id.clone()))?;
 
@@ -244,7 +244,7 @@ impl UserRepository {
 
     pub async fn delete(&self, id: &UserId) -> Result<()> {
         let result = sqlx::query!(r#"DELETE FROM users WHERE id = $1"#, id.as_str())
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
 
         if result.rows_affected() == 0 {
@@ -272,7 +272,7 @@ impl UserRepository {
             anonymous_role,
             cutoff
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

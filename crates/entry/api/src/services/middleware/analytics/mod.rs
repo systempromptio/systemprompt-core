@@ -24,17 +24,17 @@ pub struct AnalyticsMiddleware {
 }
 
 impl AnalyticsMiddleware {
-    pub fn new(app_context: &AppContext) -> Self {
-        let db_pool = app_context.db_pool().clone();
-        let session_repo = Arc::new(SessionRepository::new(db_pool.clone()));
-        let analytics_repo = Arc::new(AnalyticsRepository::new(db_pool.clone()));
+    pub fn new(app_context: &AppContext) -> anyhow::Result<Self> {
+        let db_pool = app_context.db_pool();
+        let session_repo = Arc::new(SessionRepository::new(db_pool)?);
+        let analytics_repo = Arc::new(AnalyticsRepository::new(db_pool)?);
         let route_classifier = app_context.route_classifier().clone();
 
-        Self {
+        Ok(Self {
             session_repo,
             analytics_repo,
             route_classifier,
-        }
+        })
     }
 
     pub async fn track_request(

@@ -38,7 +38,7 @@ impl AiRequestRepository {
             content,
             sequence_number
         )
-        .fetch_one(self.pool())
+        .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
     }
@@ -97,7 +97,7 @@ impl AiRequestRepository {
             params.tool_input,
             params.sequence_number
         )
-        .fetch_one(self.pool())
+        .fetch_one(self.write_pool())
         .await
         .map_err(RepositoryError::from)
     }
@@ -143,7 +143,7 @@ impl AiRequestRepository {
             content,
             seq
         )
-        .execute(self.pool())
+        .execute(self.write_pool())
         .await?;
         Ok(())
     }
@@ -167,7 +167,7 @@ impl AiRequestRepository {
             "#,
             ai_tool_call_ids
         )
-        .execute(self.pool())
+        .execute(self.write_pool())
         .await?;
 
         Ok(result.rows_affected())

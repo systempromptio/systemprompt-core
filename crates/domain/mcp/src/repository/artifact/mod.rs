@@ -38,6 +38,7 @@ pub struct CreateMcpArtifact {
 #[derive(Debug)]
 pub struct McpArtifactRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl McpArtifactRepository {
@@ -45,7 +46,10 @@ impl McpArtifactRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| anyhow::anyhow!("Database must be PostgreSQL: {e}"))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn save(&self, artifact: &CreateMcpArtifact) -> Result<()> {
@@ -72,7 +76,7 @@ impl McpArtifactRepository {
             artifact.metadata.as_ref(),
             artifact.expires_at,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(())
@@ -179,7 +183,7 @@ impl McpArtifactRepository {
             r#"DELETE FROM mcp_artifacts WHERE artifact_id = $1"#,
             artifact_id.as_str()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -189,7 +193,7 @@ impl McpArtifactRepository {
         let result = sqlx::query!(
             r#"DELETE FROM mcp_artifacts WHERE expires_at IS NOT NULL AND expires_at < NOW()"#,
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

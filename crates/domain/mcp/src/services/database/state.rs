@@ -1,5 +1,4 @@
 use std::path::Path;
-use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_database::{CreateServiceInput, ServiceRepository};
@@ -30,7 +29,7 @@ pub async fn register_service(
     pid: u32,
     _startup_time: Option<i32>,
 ) -> Result<String> {
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
     let binary_mtime = get_binary_mtime_for_service(&config.name);
 
     tracing::debug!(
@@ -67,7 +66,7 @@ pub async fn unregister_service(
     db_pool: &systemprompt_database::DbPool,
     service_name: &str,
 ) -> Result<()> {
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
     repo.delete_service(service_name).await
 }
 
@@ -75,7 +74,7 @@ pub async fn get_service_by_name(
     db_pool: &systemprompt_database::DbPool,
     name: &str,
 ) -> Result<Option<ServiceInfo>> {
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
     let result = repo.get_service_by_name(name).await?;
 
     Ok(result.map(|r| ServiceInfo {
@@ -92,7 +91,7 @@ pub async fn get_running_servers(
 ) -> Result<Vec<McpServerConfig>> {
     use crate::services::registry::RegistryManager;
 
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
     let all_services = repo.get_mcp_services().await?;
 
     RegistryManager::validate()?;
@@ -115,7 +114,7 @@ pub async fn update_service_state(
     status: &str,
     _pid: Option<u32>,
 ) -> Result<()> {
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
     repo.update_service_status(name, status).await
 }
 
@@ -124,7 +123,7 @@ pub async fn register_existing_process(
     config: &McpServerConfig,
     pid: u32,
 ) -> Result<String> {
-    let repo = ServiceRepository::new(Arc::clone(db_pool));
+    let repo = ServiceRepository::new(db_pool)?;
 
     let binary_mtime = get_binary_mtime_for_service(&config.name);
 

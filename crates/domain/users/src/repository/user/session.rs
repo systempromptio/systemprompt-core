@@ -77,7 +77,7 @@ impl UserRepository {
             Utc::now(),
             session_id.as_str()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected() > 0)
@@ -93,7 +93,7 @@ impl UserRepository {
             Utc::now(),
             user_id.as_str()
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
 
         Ok(result.rows_affected())

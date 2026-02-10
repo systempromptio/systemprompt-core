@@ -13,7 +13,7 @@ pub struct ClientValidator {
 }
 
 impl ClientValidator {
-    pub fn new(db_pool: Arc<Database>) -> Result<Self> {
+    pub fn new(db_pool: &Arc<Database>) -> Result<Self> {
         Ok(Self {
             dcr_repo: OAuthRepository::new(db_pool)?,
             cimd_fetcher: CimdFetcher::new()?,

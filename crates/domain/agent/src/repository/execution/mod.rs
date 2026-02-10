@@ -36,12 +36,14 @@ fn parse_step(
 #[derive(Debug, Clone)]
 pub struct ExecutionStepRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl ExecutionStepRepository {
     pub fn new(db: &DbPool) -> Result<Self> {
         let pool = db.pool_arc()?;
-        Ok(Self { pool })
+        let write_pool = db.write_pool_arc()?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn create(&self, step: &ExecutionStep) -> Result<()> {
@@ -67,7 +69,7 @@ impl ExecutionStepRepository {
             step.duration_ms,
             step.error_message
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await
         .context("Failed to create execution step")?;
         Ok(())
@@ -153,7 +155,7 @@ impl ExecutionStepRepository {
                 duration_ms,
                 result
             )
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await
             .context(format!("Failed to complete execution step: {step_id}"))?;
         } else {
@@ -168,7 +170,7 @@ impl ExecutionStepRepository {
                 completed_at,
                 duration_ms
             )
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await
             .context(format!("Failed to complete execution step: {step_id}"))?;
         }
@@ -200,7 +202,7 @@ impl ExecutionStepRepository {
             duration_ms,
             error_message
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await
         .context(format!("Failed to fail execution step: {step_id}"))?;
 
@@ -229,7 +231,7 @@ impl ExecutionStepRepository {
             completed_at,
             error_message
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await
         .context(format!(
             "Failed to fail in-progress steps for task: {}",
@@ -270,7 +272,7 @@ impl ExecutionStepRepository {
             duration_ms,
             content_json
         )
-        .fetch_one(&*self.pool)
+        .fetch_one(&*self.write_pool)
         .await
         .context(format!("Failed to complete planning step: {step_id}"))?;
 

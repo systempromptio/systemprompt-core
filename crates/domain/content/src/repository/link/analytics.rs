@@ -12,6 +12,7 @@ use systemprompt_identifiers::{
 #[derive(Debug)]
 pub struct LinkAnalyticsRepository {
     pool: Arc<PgPool>,
+    write_pool: Arc<PgPool>,
 }
 
 impl LinkAnalyticsRepository {
@@ -19,7 +20,10 @@ impl LinkAnalyticsRepository {
         let pool = db
             .pool_arc()
             .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
-        Ok(Self { pool })
+        let write_pool = db
+            .write_pool_arc()
+            .map_err(|e| ContentError::InvalidRequest(format!("Database write pool error: {e}")))?;
+        Ok(Self { pool, write_pool })
     }
 
     pub async fn get_link_performance(
@@ -75,14 +79,14 @@ impl LinkAnalyticsRepository {
                  unique_click_count + 1 WHERE id = $1",
                 link_id.as_str()
             )
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         } else {
             sqlx::query!(
                 "UPDATE campaign_links SET click_count = click_count + 1 WHERE id = $1",
                 link_id.as_str()
             )
-            .execute(&*self.pool)
+            .execute(&*self.write_pool)
             .await?;
         }
         Ok(())
@@ -197,7 +201,7 @@ impl LinkAnalyticsRepository {
             params.is_first_click,
             params.is_conversion
         )
-        .execute(&*self.pool)
+        .execute(&*self.write_pool)
         .await?;
         Ok(())
     }

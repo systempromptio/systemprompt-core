@@ -15,6 +15,13 @@ impl DatabaseContext {
         })
     }
 
+    pub async fn from_urls(read_url: &str, write_url: Option<&str>) -> Result<Self> {
+        let db = Database::from_config_with_write("postgres", read_url, write_url).await?;
+        Ok(Self {
+            database: Arc::new(db),
+        })
+    }
+
     pub const fn db_pool(&self) -> &DbPool {
         &self.database
     }

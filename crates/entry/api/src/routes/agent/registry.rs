@@ -22,7 +22,13 @@ pub async fn handle_agent_registry(
                 .into_response();
         },
     };
-    let service_repo = ServiceRepository::new(ctx.db_pool().clone());
+    let service_repo = match ServiceRepository::new(ctx.db_pool()) {
+        Ok(repo) => repo,
+        Err(e) => {
+            return ApiError::internal_error(format!("Failed to create service repository: {e}"))
+                .into_response();
+        },
+    };
     let api_external_url = &ctx.config().api_external_url;
 
     match registry.list_agents().await {
