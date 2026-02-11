@@ -44,42 +44,36 @@ impl OAuthChallengeBuilder {
         service_name: &str,
         ctx: &AppContext,
         status_code: StatusCode,
-        required_scopes: &[String],
     ) -> Result<Response<Body>, StatusCode> {
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
         let oauth_base_url = &ctx.config().api_server_url;
-
-        let scope_param = if required_scopes.is_empty() {
-            String::new()
-        } else {
-            format!(", scope=\"{}\"", required_scopes.join(" "))
-        };
+        let resource_metadata_url = format!(
+            "{oauth_base_url}/.well-known/oauth-protected-resource"
+        );
 
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
             let header = format!(
-                "Bearer realm=\"{service_name}\"{scope_param}, \
-                 resource_metadata=\"{oauth_base_url}/.well-known/oauth-protected-resource\", \
+                "Bearer realm=\"{service_name}\", \
+                 resource_metadata=\"{resource_metadata_url}\", \
                  error=\"invalid_token\""
             );
             let body = json!({
                 "error": "invalid_token",
                 "error_description": "The access token is missing or invalid",
                 "server": service_name,
-                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server"),
-                "scope": required_scopes.join(" ")
+                "authorization_url": format!("{oauth_base_url}/.well-known/oauth-authorization-server")
             });
             (header, body)
         } else {
             let header = format!(
-                "Bearer realm=\"{service_name}\", error=\"insufficient_scope\"{scope_param}, \
+                "Bearer realm=\"{service_name}\", error=\"insufficient_scope\", \
                  error_description=\"The access token lacks required scope\""
             );
             let body = json!({
                 "error": "insufficient_scope",
                 "error_description": "The access token does not have the required scope for this resource",
-                "server": service_name,
-                "scope": required_scopes.join(" ")
+                "server": service_name
             });
             (header, body)
         };
@@ -167,7 +161,6 @@ impl AccessValidator {
                         service_name,
                         ctx,
                         status_code,
-                        &required_scopes,
                     )
                     .await
                     {

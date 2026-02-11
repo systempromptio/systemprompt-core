@@ -54,6 +54,7 @@ pub async fn handle_well_known() -> impl IntoResponse {
         response_modes_supported: vec!["query".to_string(), "form_post".to_string()],
         grant_types_supported: config.supported_grant_types,
         token_endpoint_auth_methods_supported: vec![
+            "none".to_string(),
             "client_secret_post".to_string(),
             "client_secret_basic".to_string(),
         ],
