@@ -79,7 +79,7 @@ impl CredentialsBootstrap {
     }
 
     async fn validate_with_api(creds: &CloudCredentials) -> Result<()> {
-        let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+        let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
         client.get_user().await.map_err(|e| {
             anyhow::anyhow!(CredentialsBootstrapError::ApiValidationFailed {
                 message: e.to_string()

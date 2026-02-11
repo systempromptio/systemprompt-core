@@ -186,7 +186,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
     };
     CliService::key_value("Direction", dir_label);
 
-    let service = SyncService::new(config);
+    let service = SyncService::new(config)?;
     let mut results: Vec<SyncOperationResult> = Vec::new();
 
     let spinner = CliService::spinner("Syncing files...");

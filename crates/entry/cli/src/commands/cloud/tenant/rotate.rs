@@ -69,7 +69,7 @@ pub async fn rotate_credentials(
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let response = if config.is_json_output() {
         client.rotate_credentials(&tenant_id).await?
@@ -172,7 +172,7 @@ pub async fn rotate_sync_token(
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let response = if config.is_json_output() {
         client.rotate_sync_token(&tenant_id).await?

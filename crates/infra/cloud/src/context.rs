@@ -43,7 +43,8 @@ impl CloudContext {
         let credentials = CloudCredentials::load_and_validate_from_path(&creds_path)
             .map_err(|_| CloudError::NotAuthenticated)?;
 
-        let api_client = CloudApiClient::new(&credentials.api_url, &credentials.api_token);
+        let api_client = CloudApiClient::new(&credentials.api_url, &credentials.api_token)
+            .map_err(CloudError::Network)?;
 
         Ok(Self {
             credentials,

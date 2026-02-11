@@ -121,7 +121,7 @@ async fn build_sync_config(
     .with_sync_token(sync_token)
     .build();
 
-    let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)
+    let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)?
         .with_direct_sync(sync_config.hostname.clone(), sync_config.sync_token.clone());
 
     Ok((sync_config, api_client))
@@ -165,7 +165,7 @@ async fn setup_sync_token(
             }
         }
 
-        let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+        let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
         let spinner = CliService::spinner("Generating sync token...");
         let response = client.rotate_sync_token(tenant_id).await?;
         spinner.finish_and_clear();

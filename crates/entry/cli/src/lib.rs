@@ -16,12 +16,16 @@ pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins
 
 use anyhow::{bail, Context, Result};
 use clap::Parser;
-use systemprompt_cloud::CredentialsBootstrapError;
-use systemprompt_logging::{set_startup_mode, CliService};
+use systemprompt_logging::set_startup_mode;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
+
+enum RoutingAction {
+    ContinueLocal,
+    ExternalDbUrl(String),
+}
 
 fn has_local_export_flag(command: Option<&args::Commands>) -> bool {
     let is_analytics = matches!(command, Some(args::Commands::Analytics(_)));
@@ -58,7 +62,7 @@ pub async fn run() -> Result<()> {
     }
 
     if desc.profile {
-        if let Some(external_db_url) = init_profile_and_route(&cli, &desc, &cli_config).await? {
+        if let Some(external_db_url) = bootstrap_profile(&cli, &desc, &cli_config).await? {
             return run_with_database_url(cli.command, &cli_config, &external_db_url).await;
         }
     }
@@ -66,75 +70,80 @@ pub async fn run() -> Result<()> {
     dispatch_command(cli.command, &cli_config).await
 }
 
-async fn init_profile_and_route(
+async fn bootstrap_profile(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
 ) -> Result<Option<String>> {
-    let profile_path = bootstrap::resolve_profile(cli_config.profile_override.as_deref())?;
-    bootstrap::init_profile(&profile_path)?;
+    let has_export = has_local_export_flag(cli.command.as_ref());
+    let ctx = bootstrap::resolve_and_display_profile(cli_config, has_export)?;
 
-    let profile = ProfileBootstrap::get()?;
+    enforce_routing_policy(&ctx, cli, desc).await?;
 
-    if cli_config.output_format == OutputFormat::Table
-        && cli_config.verbosity != VerbosityLevel::Quiet
-    {
-        let tenant = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
-        CliService::profile_banner(&profile.name, profile.target.is_cloud(), tenant);
+    match initialize_post_routing(&ctx, desc).await? {
+        RoutingAction::ExternalDbUrl(url) => Ok(Some(url)),
+        RoutingAction::ContinueLocal => Ok(None),
+    }
+}
+
+async fn enforce_routing_policy(
+    ctx: &bootstrap::ProfileContext,
+    cli: &args::Cli,
+    desc: &CommandDescriptor,
+) -> Result<()> {
+    if !ctx.env.is_fly && desc.remote_eligible && !ctx.has_export {
+        let profile = ProfileBootstrap::get()?;
+        try_remote_routing(cli, profile).await?;
+        return Ok(());
     }
 
-    let is_cloud = profile.target.is_cloud();
-    let env = environment::ExecutionEnvironment::detect();
-    let has_export = has_local_export_flag(cli.command.as_ref());
-
-    if !env.is_fly && desc.remote_eligible && !has_export {
-        try_remote_routing(cli, profile).await?;
-    } else if has_export && is_cloud && !profile.database.external_db_access {
+    if ctx.has_export && ctx.is_cloud && !ctx.external_db_access {
         bail!(
             "Export with cloud profile '{}' requires external database access.\nEnable \
              external_db_access in the profile or use a local profile.",
-            profile.name
+            ctx.profile_name
         );
-    } else if is_cloud
-        && !env.is_fly
-        && !profile.database.external_db_access
-        && !matches!(
-            cli.command.as_ref(),
-            Some(
-                args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_))
-            )
-        )
+    }
+
+    if ctx.is_cloud
+        && !ctx.env.is_fly
+        && !ctx.external_db_access
+        && !is_cloud_bypass_command(cli.command.as_ref())
     {
         bail!(
             "Cloud profile '{}' selected but this command doesn't support remote execution.\nUse \
              a local profile with --profile <name> or enable external database access.",
-            profile.name
+            ctx.profile_name
         );
     }
 
-    if !is_cloud || profile.database.external_db_access {
-        if let Err(e) = bootstrap::init_credentials().await {
-            let is_file_not_found = e
-                .downcast_ref::<CredentialsBootstrapError>()
-                .is_some_and(|ce| matches!(ce, CredentialsBootstrapError::FileNotFound { .. }));
+    Ok(())
+}
 
-            if is_file_not_found {
-                tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
-            } else {
-                return Err(e.context("Credential initialization failed"));
-            }
-        }
+const fn is_cloud_bypass_command(command: Option<&args::Commands>) -> bool {
+    matches!(
+        command,
+        Some(args::Commands::Cloud(_) | args::Commands::Admin(admin::AdminCommands::Session(_)))
+    )
+}
+
+async fn initialize_post_routing(
+    ctx: &bootstrap::ProfileContext,
+    desc: &CommandDescriptor,
+) -> Result<RoutingAction> {
+    if !ctx.is_cloud || ctx.external_db_access {
+        bootstrap::init_credentials_gracefully().await?;
     }
 
     if desc.secrets {
         bootstrap::init_secrets()?;
     }
 
-    if is_cloud && profile.database.external_db_access && desc.paths && !env.is_fly {
+    if ctx.is_cloud && ctx.external_db_access && desc.paths && !ctx.env.is_fly {
         let secrets = SecretsBootstrap::get()
             .map_err(|e| anyhow::anyhow!("Secrets required for external DB access: {}", e))?;
         let db_url = secrets.effective_database_url(true).to_string();
-        return Ok(Some(db_url));
+        return Ok(RoutingAction::ExternalDbUrl(db_url));
     }
 
     if desc.paths {
@@ -144,11 +153,11 @@ async fn init_profile_and_route(
         }
     }
 
-    if !is_cloud {
-        bootstrap::validate_cloud_credentials(&env);
+    if !ctx.is_cloud {
+        bootstrap::validate_cloud_credentials(&ctx.env);
     }
 
-    Ok(None)
+    Ok(RoutingAction::ContinueLocal)
 }
 
 async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Profile) -> Result<()> {

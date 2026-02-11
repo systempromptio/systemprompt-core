@@ -55,7 +55,7 @@ async fn set_domain(domain: String) -> Result<()> {
 
     let tenant_id = get_tenant_id()?;
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner(&format!("Configuring domain {}...", domain));
     match client.set_custom_domain(&tenant_id, &domain).await {
@@ -97,7 +97,7 @@ async fn get_status() -> Result<()> {
 
     let tenant_id = get_tenant_id()?;
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Checking domain status...");
     match client.get_custom_domain(&tenant_id).await {
@@ -153,7 +153,7 @@ async fn remove_domain(yes: bool, config: &CliConfig) -> Result<()> {
 
     let tenant_id = get_tenant_id()?;
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let domain_name = match client.get_custom_domain(&tenant_id).await {
         Ok(response) => response.domain,

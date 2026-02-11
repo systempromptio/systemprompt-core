@@ -280,7 +280,7 @@ pub async fn delete_tenant(
 
     if is_cloud {
         let creds = get_credentials()?;
-        let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+        let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
         if config.is_json_output() {
             client.delete_tenant(&tenant_id).await?;
@@ -464,7 +464,9 @@ async fn sync_and_load_tenants(tenants_path: &std::path::Path) -> TenantStore {
         return local_store;
     };
 
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let Ok(client) = CloudApiClient::new(&creds.api_url, &creds.api_token) else {
+        return local_store;
+    };
 
     let cloud_tenant_infos = match client.get_user().await {
         Ok(response) => response.tenants,
@@ -580,7 +582,7 @@ pub async fn cancel_subscription(
     }
 
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Cancelling subscription...");
     client.cancel_subscription(&tenant.id).await?;

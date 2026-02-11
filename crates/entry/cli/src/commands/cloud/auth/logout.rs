@@ -54,7 +54,7 @@ pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandResu
     }
 
     let creds = CloudCredentials::load_from_path(&creds_path)?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     std::fs::remove_file(&creds_path)?;
 

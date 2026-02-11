@@ -253,7 +253,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let services_config = ConfigLoader::load_from_path(&services_config_path)?;
     validate_profile_dockerfile(&config.dockerfile, project.as_path(), &services_config)?;
 
-    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Fetching registry credentials...");
     let registry_token = api_client.get_registry_token(tenant_id).await?;
