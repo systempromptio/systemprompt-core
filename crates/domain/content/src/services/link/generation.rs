@@ -116,6 +116,14 @@ impl LinkGenerationService {
         &self,
         params: GenerateContentLinkParams<'_>,
     ) -> Result<CampaignLink, ContentError> {
+        if let Ok(Some(existing)) = self
+            .link_repo
+            .find_link_by_source_and_target(params.source_page, params.target_url)
+            .await
+        {
+            return Ok(existing);
+        }
+
         let campaign_id =
             CampaignId::new(format!("internal_navigation_{}", Utc::now().date_naive()));
 

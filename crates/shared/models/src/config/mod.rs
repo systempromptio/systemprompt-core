@@ -68,6 +68,7 @@ pub struct Config {
     pub is_cloud: bool,
     pub content_negotiation: ContentNegotiationConfig,
     pub security_headers: SecurityHeadersConfig,
+    pub allow_registration: bool,
 }
 
 impl Config {
@@ -227,6 +228,7 @@ impl Config {
             is_cloud: profile.target.is_cloud(),
             content_negotiation: profile.server.content_negotiation.clone(),
             security_headers: profile.server.security_headers.clone(),
+            allow_registration: profile.security.allow_registration,
         })
     }
 

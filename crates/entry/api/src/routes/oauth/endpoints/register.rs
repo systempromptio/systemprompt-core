@@ -1,7 +1,7 @@
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::hash;
 use chrono::Utc;
 use systemprompt_models::Config;
 use uuid::Uuid;
@@ -43,7 +43,7 @@ pub async fn register_client(
     };
     let registration_client_uri = format!("{base_url}/api/v1/core/oauth/register/{client_id}");
 
-    let client_secret_hash = match hash(&client_secret, DEFAULT_COST) {
+    let client_secret_hash = match hash(&client_secret, 8) {
         Ok(hash) => hash,
         Err(e) => {
             return (

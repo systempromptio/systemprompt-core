@@ -57,6 +57,7 @@ impl CorsMiddleware {
                 http::HeaderName::from_static("x-context-id"),
                 http::HeaderName::from_static("x-trace-id"),
                 http::HeaderName::from_static("x-call-source"),
-            ]))
+            ])
+            .expose_headers([http::header::WWW_AUTHENTICATE]))
     }
 }

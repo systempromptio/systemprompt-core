@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.5] - 2026-02-11
+
+### Changed
+- OAuth login page: fullscreen layout on mobile (100dvh, no border-radius), improved sizing on desktop (480px container)
+- OAuth login page: responsive breakpoints at 480px and 768px with touch-friendly button sizing
+- "Create New Passkey" button and divider now conditionally hidden via `{register_class}` template variable
+- Registration visibility controlled by `Config.allow_registration` (from profile `security.allow_registration`)
+
 ## [0.1.4] - 2026-02-04
 
 ### Added

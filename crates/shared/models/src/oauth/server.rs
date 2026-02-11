@@ -61,7 +61,7 @@ impl OAuthServerConfig {
             authorization_endpoint: format!("{api_server_url}/api/v1/core/oauth/authorize"),
             token_endpoint: format!("{api_server_url}/api/v1/core/oauth/token"),
             registration_endpoint: format!("{api_server_url}/api/v1/core/oauth/clients"),
-            supported_scopes: vec!["user".to_owned()],
+            supported_scopes: vec!["user".to_owned(), "admin".to_owned()],
             supported_response_types: vec!["code".to_owned()],
             supported_grant_types: vec![
                 "authorization_code".to_owned(),

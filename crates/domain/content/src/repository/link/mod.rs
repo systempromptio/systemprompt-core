@@ -171,6 +171,32 @@ impl LinkRepository {
         .await
     }
 
+    pub async fn find_link_by_source_and_target(
+        &self,
+        source_page: &str,
+        target_url: &str,
+    ) -> Result<Option<CampaignLink>, sqlx::Error> {
+        sqlx::query_as!(
+            CampaignLink,
+            r#"
+            SELECT id as "id: LinkId", short_code, target_url, link_type,
+                   campaign_id as "campaign_id: CampaignId", campaign_name,
+                   source_content_id as "source_content_id: ContentId", source_page,
+                   utm_params, link_text, link_position, destination_type,
+                   click_count, unique_click_count, conversion_count,
+                   is_active, expires_at, created_at, updated_at
+            FROM campaign_links
+            WHERE source_page = $1 AND target_url = $2 AND is_active = true
+            ORDER BY created_at DESC
+            LIMIT 1
+            "#,
+            source_page,
+            target_url
+        )
+        .fetch_optional(&*self.pool)
+        .await
+    }
+
     pub async fn delete_link(&self, id: &LinkId) -> Result<bool, sqlx::Error> {
         let result = sqlx::query!("DELETE FROM campaign_links WHERE id = $1", id.as_str())
             .execute(&*self.write_pool)

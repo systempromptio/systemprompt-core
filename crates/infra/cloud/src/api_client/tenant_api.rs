@@ -94,8 +94,10 @@ impl CloudApiClient {
     }
 
     pub async fn rotate_sync_token(&self, tenant_id: &str) -> Result<RotateSyncTokenResponse> {
-        self.post_empty(&ApiPaths::tenant_rotate_sync_token(tenant_id))
-            .await
+        let response: ApiResponse<RotateSyncTokenResponse> = self
+            .post_empty(&ApiPaths::tenant_rotate_sync_token(tenant_id))
+            .await?;
+        Ok(response.data)
     }
 
     pub async fn list_secrets(&self, tenant_id: &str) -> Result<ListSecretsResponse> {

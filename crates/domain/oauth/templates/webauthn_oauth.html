@@ -18,37 +18,39 @@
             font-family: 'OpenSans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0a0a0f;
             min-height: 100vh;
+            min-height: 100dvh;
             display: flex;
             align-items: center;
             justify-content: center;
             color: #e8e8ed;
+            padding: 20px;
         }
 
         .container {
             background: #12121a;
-            border-radius: 12px;
+            border-radius: 16px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             border: 1px solid rgba(255, 255, 255, 0.06);
-            padding: 40px;
-            max-width: 400px;
-            width: 90%;
+            padding: 48px 40px;
+            max-width: 480px;
+            width: 100%;
             text-align: center;
         }
 
         .logo {
-            margin-bottom: 10px;
+            margin-bottom: 12px;
             text-align: center;
         }
 
         .logo svg {
-            height: 40px;
+            height: 44px;
             width: auto;
         }
 
         .subtitle {
             color: #9898a6;
-            margin-bottom: 30px;
-            font-size: 14px;
+            margin-bottom: 32px;
+            font-size: 15px;
         }
 
         .oauth-info {
@@ -74,7 +76,7 @@
 
         .email-input {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             border: 2px solid #c2410c;
             border-radius: 8px;
             font-size: 16px;
@@ -96,7 +98,7 @@
 
         .btn {
             width: 100%;
-            padding: 15px;
+            padding: 16px;
             border: none;
             border-radius: 8px;
             font-size: 16px;
@@ -108,6 +110,7 @@
             align-items: center;
             justify-content: center;
             gap: 10px;
+            min-height: 52px;
         }
 
         .btn-primary {
@@ -196,6 +199,31 @@
             padding: 0 15px;
             position: relative;
         }
+
+        @media (max-width: 480px) {
+            body {
+                padding: 0;
+                align-items: stretch;
+            }
+            .container {
+                max-width: none;
+                min-height: 100vh;
+                min-height: 100dvh;
+                border-radius: 0;
+                border: none;
+                box-shadow: none;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                padding: 32px 24px;
+            }
+        }
+
+        @media (min-width: 481px) and (max-width: 768px) {
+            .container {
+                width: 95%;
+            }
+        }
     </style>
 </head>
 <body>
@@ -258,11 +286,11 @@
                 Sign in with Passkey
             </button>
 
-            <div class="divider">
+            <div class="divider {register_class}">
                 <span>or</span>
             </div>
 
-            <button id="register-btn" class="btn btn-secondary">
+            <button id="register-btn" class="btn btn-secondary {register_class}">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/>
                 </svg>
@@ -587,7 +615,10 @@
         // Event listeners - only if OAuth is valid
         if (isValidOAuth) {
             signInBtn.addEventListener('click', () => authenticateUser());
-            registerBtn.addEventListener('click', registerPasskey);
+
+            if (registerBtn && !registerBtn.classList.contains('hidden')) {
+                registerBtn.addEventListener('click', registerPasskey);
+            }
 
             emailInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {

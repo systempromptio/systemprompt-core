@@ -92,6 +92,7 @@ pub fn build(
                 JwtAudience::A2a,
                 JwtAudience::Mcp,
             ],
+            allow_registration: true,
         },
         rate_limits: RateLimitsConfig {
             disabled: !is_prod,
