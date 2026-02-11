@@ -16,7 +16,7 @@ use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, SessionId};
 use systemprompt_logging::CliService;
 use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
-use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
+use systemprompt_models::{Profile, ProfileBootstrap, Secrets, SecretsBootstrap};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::{User, UserService};
 
@@ -64,55 +64,51 @@ struct SessionResponse {
     session_id: String,
 }
 
-pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResult<LoginOutput>> {
+pub async fn execute(
+    mut args: LoginArgs,
+    _config: &CliConfig,
+) -> Result<CommandResult<LoginOutput>> {
     let profile = ProfileBootstrap::get().context("No profile loaded")?;
     let profile_path = ProfileBootstrap::get_path().context("Profile path not set")?;
+    let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
 
+    if args.email.is_none() {
+        args.email = Some(resolve_email().await?);
+    }
+
+    login_for_profile(profile, profile_path, secrets, &args).await
+}
+
+pub async fn login_for_profile(
+    profile: &Profile,
+    profile_path: &str,
+    secrets: &Secrets,
+    args: &LoginArgs,
+) -> Result<CommandResult<LoginOutput>> {
     let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
-
-    let session_key = if profile.target.is_local() {
-        SessionKey::Local
-    } else {
-        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
-        SessionKey::from_tenant_id(tenant_id)
-    };
+    let session_key = session_key_for_profile(profile);
 
     if !args.force_new {
-        if let Some(output) = try_use_existing_session(&sessions_dir, &session_key, &args)? {
+        if let Some(output) = try_use_existing_session(&sessions_dir, &session_key, args)? {
             return Ok(output);
         }
     }
 
-    let email = if let Some(email) = args.email.clone() {
-        email
-    } else {
-        CredentialsBootstrap::try_init()
-            .await
-            .context("Failed to initialize credentials")?;
-
-        let creds = CredentialsBootstrap::require().map_err(|_| {
-            anyhow::anyhow!(
-                "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
-            )
-        })?;
-        creds.user_email.clone()
-    };
-
-    let secrets = SecretsBootstrap::get().context("Secrets not initialized")?;
-    let database_url = &secrets.database_url;
-    let jwt_secret = &secrets.jwt_secret;
+    let email = args
+        .email
+        .as_deref()
+        .context("Email is required for login")?;
+    let database_url = secrets.effective_database_url(profile.database.external_db_access);
 
     let db = Database::new_postgres(database_url)
         .await
         .context("Failed to connect to database")?;
     let db_pool = DbPool::from(Arc::new(db));
 
-    let is_cloud_profile = profile.target.is_cloud();
-
     if !args.token_only {
         CliService::info(&format!("Fetching admin user: {}", email));
     }
-    let admin_user = fetch_admin_user(&db_pool, &email, is_cloud_profile).await?;
+    let admin_user = fetch_admin_user(&db_pool, email, profile.target.is_cloud()).await?;
 
     if !args.token_only {
         CliService::info("Creating session...");
@@ -145,7 +141,7 @@ pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResu
     if !args.token_only {
         CliService::info("Generating token...");
     }
-    let session_generator = SessionGenerator::new(jwt_secret, &profile.security.issuer);
+    let session_generator = SessionGenerator::new(&secrets.jwt_secret, &profile.security.issuer);
     let duration = ChronoDuration::hours(args.duration_hours);
     let session_token = session_generator
         .generate(&SessionParams {
@@ -189,6 +185,28 @@ pub async fn execute(args: LoginArgs, _config: &CliConfig) -> Result<CommandResu
         sessions_dir.display()
     ));
     Ok(CommandResult::card(output).with_title("Admin Session"))
+}
+
+fn session_key_for_profile(profile: &Profile) -> SessionKey {
+    if profile.target.is_local() {
+        SessionKey::Local
+    } else {
+        let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        SessionKey::from_tenant_id(tenant_id)
+    }
+}
+
+async fn resolve_email() -> Result<String> {
+    CredentialsBootstrap::try_init()
+        .await
+        .context("Failed to initialize credentials")?;
+
+    let creds = CredentialsBootstrap::require().map_err(|_| {
+        anyhow::anyhow!(
+            "No credentials found. Run 'systemprompt cloud auth login' first to authenticate."
+        )
+    })?;
+    Ok(creds.user_email.clone())
 }
 
 fn try_use_existing_session(

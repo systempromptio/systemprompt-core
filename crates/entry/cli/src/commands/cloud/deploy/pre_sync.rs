@@ -1,7 +1,9 @@
+use std::path::Path;
+
 use anyhow::{Context, Result};
-use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
+use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, TenantStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::{Profile, SecretsBootstrap};
+use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{
     FileSyncService, SyncApiClient, SyncConfigBuilder, SyncDirection, SyncOperationResult,
 };
@@ -36,10 +38,10 @@ impl PreSyncResult {
 }
 
 pub async fn execute(
-    profile: &Profile,
     tenant_id: &str,
     config: PreSyncConfig,
     cli_config: &CliConfig,
+    profile_path: &Path,
 ) -> Result<PreSyncResult> {
     if config.no_sync {
         CliService::warning("Pre-deploy sync skipped (--no-sync)");
@@ -61,45 +63,47 @@ pub async fn execute(
         }
     }
 
-    let Some((sync_config, api_client)) = build_sync_config(profile, tenant_id, config.dry_run)?
-    else {
-        CliService::warning("Skipping sync - runtime files on the container may be LOST");
-        return Ok(PreSyncResult::skipped());
-    };
+    let (sync_config, api_client) = build_sync_config(
+        tenant_id,
+        config.dry_run,
+        config.yes,
+        cli_config,
+        profile_path,
+    )
+    .await?;
 
     let result = run_sync(sync_config, api_client).await;
 
     handle_sync_result(result, config.dry_run)
 }
 
-fn build_sync_config(
-    _profile: &Profile,
+async fn build_sync_config(
     tenant_id: &str,
     dry_run: bool,
-) -> Result<Option<(systemprompt_sync::SyncConfig, SyncApiClient)>> {
+    yes: bool,
+    cli_config: &CliConfig,
+    profile_path: &Path,
+) -> Result<(systemprompt_sync::SyncConfig, SyncApiClient)> {
     let secrets = SecretsBootstrap::get().context("Failed to load secrets")?;
-
-    let sync_token = secrets.sync_token.clone();
-    if sync_token.is_none() {
-        CliService::warning("Sync token not configured in profile secrets");
-        CliService::info("  Run: systemprompt cloud tenant rotate-sync-token");
-        CliService::info("  Then recreate profile or update secrets.json manually");
-        return Ok(None);
-    }
-
     let creds = get_credentials()?;
+
     let cloud_paths = get_cloud_paths()?;
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
-    let tenant_store = TenantStore::load_from_path(&tenants_path)
+    let mut tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
 
     let tenant = tenant_store.find_tenant(tenant_id);
     let hostname = tenant.and_then(|t| t.hostname.clone());
 
     if hostname.is_none() {
-        CliService::warning("Hostname not configured for tenant");
-        CliService::info("  Run: systemprompt cloud login");
-        return Ok(None);
+        anyhow::bail!("Hostname not configured for tenant.\nRun: systemprompt cloud login");
+    }
+
+    let mut sync_token = secrets.sync_token.clone();
+
+    if sync_token.is_none() {
+        sync_token =
+            setup_sync_token(tenant_id, yes, cli_config, profile_path, &mut tenant_store).await?;
     }
 
     let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
@@ -120,7 +124,104 @@ fn build_sync_config(
     let api_client = SyncApiClient::new(&creds.api_url, &creds.api_token)
         .with_direct_sync(sync_config.hostname.clone(), sync_config.sync_token.clone());
 
-    Ok(Some((sync_config, api_client)))
+    Ok((sync_config, api_client))
+}
+
+async fn setup_sync_token(
+    tenant_id: &str,
+    yes: bool,
+    cli_config: &CliConfig,
+    profile_path: &Path,
+    tenant_store: &mut TenantStore,
+) -> Result<Option<String>> {
+    let cloud_paths = get_cloud_paths()?;
+    let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
+    let creds = get_credentials()?;
+
+    CliService::section("Sync Token Setup");
+    CliService::warning("Sync token not configured in profile secrets");
+
+    let stored_token = tenant_store
+        .find_tenant(tenant_id)
+        .and_then(|t| t.sync_token.clone());
+
+    let token = if let Some(token) = stored_token {
+        CliService::info("Found existing sync token in local tenant store");
+        token
+    } else {
+        CliService::info("No sync token found - generating a new one...");
+
+        if !yes {
+            let should_generate = confirm_optional(
+                "Generate a new sync token for file synchronization?",
+                true,
+                cli_config,
+            )?;
+            if !should_generate {
+                anyhow::bail!(
+                    "Sync token required for pre-deploy sync.\nUse --no-sync to skip sync \
+                     explicitly."
+                );
+            }
+        }
+
+        let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+        let spinner = CliService::spinner("Generating sync token...");
+        let response = client.rotate_sync_token(tenant_id).await?;
+        spinner.finish_and_clear();
+
+        let token = response.sync_token;
+        CliService::success("Sync token generated");
+
+        if let Some(tenant) = tenant_store.tenants.iter_mut().find(|t| t.id == tenant_id) {
+            tenant.sync_token = Some(token.clone());
+        }
+        tenant_store.save_to_path(&tenants_path)?;
+
+        token
+    };
+
+    save_sync_token_to_secrets(profile_path, &token)?;
+    CliService::success("Sync token saved to profile secrets");
+
+    Ok(Some(token))
+}
+
+fn save_sync_token_to_secrets(profile_path: &Path, token: &str) -> Result<()> {
+    let profile_dir = profile_path
+        .parent()
+        .ok_or_else(|| anyhow::anyhow!("Invalid profile path"))?;
+    let secrets_path = ProfilePath::Secrets.resolve(profile_dir);
+
+    if !secrets_path.exists() {
+        anyhow::bail!(
+            "Secrets file not found: {}\nRun 'systemprompt cloud profile create' first.",
+            secrets_path.display()
+        );
+    }
+
+    let content = std::fs::read_to_string(&secrets_path)
+        .with_context(|| format!("Failed to read {}", secrets_path.display()))?;
+
+    let mut secrets: serde_json::Value =
+        serde_json::from_str(&content).context("Failed to parse secrets.json")?;
+
+    secrets["sync_token"] = serde_json::Value::String(token.to_string());
+
+    let updated = serde_json::to_string_pretty(&secrets).context("Failed to serialize secrets")?;
+
+    std::fs::write(&secrets_path, updated)
+        .with_context(|| format!("Failed to write {}", secrets_path.display()))?;
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let permissions = std::fs::Permissions::from_mode(0o600);
+        std::fs::set_permissions(&secrets_path, permissions)
+            .with_context(|| format!("Failed to set permissions on {}", secrets_path.display()))?;
+    }
+
+    Ok(())
 }
 
 async fn run_sync(

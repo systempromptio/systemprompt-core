@@ -225,7 +225,6 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
     let tenant_name = &tenant.name;
 
     let sync_result = pre_sync::execute(
-        &profile,
         tenant_id,
         pre_sync::PreSyncConfig {
             no_sync: args.no_sync,
@@ -233,6 +232,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
             dry_run: args.dry_run,
         },
         config,
+        &profile_path,
     )
     .await?;
 

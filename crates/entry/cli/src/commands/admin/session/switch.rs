@@ -3,7 +3,7 @@
 use anyhow::{Context, Result};
 use systemprompt_cloud::{CredentialsBootstrap, ProfilePath, SessionKey, SessionStore};
 use systemprompt_logging::CliService;
-use systemprompt_models::Profile;
+use systemprompt_models::{Profile, Secrets};
 
 use super::login::{self, LoginArgs};
 use super::types::SwitchOutput;
@@ -13,7 +13,7 @@ use crate::CliConfig;
 
 pub async fn execute(
     profile_name: &str,
-    config: &CliConfig,
+    _config: &CliConfig,
 ) -> Result<CommandResult<SwitchOutput>> {
     let paths = ResolvedPaths::discover();
     let profiles_dir = paths.profiles_dir();
@@ -50,14 +50,21 @@ pub async fn execute(
             .user_email
             .clone();
 
-        let login_args = LoginArgs {
+        let secrets_path = ProfilePath::Secrets.resolve(&target_dir);
+        let secrets = Secrets::load_from_path(&secrets_path)?;
+        let profile_path_str = profile_config_path
+            .to_str()
+            .context("Invalid profile path")?;
+
+        let args = LoginArgs {
             email: Some(email),
             duration_hours: 24,
             token_only: false,
             force_new: false,
         };
 
-        let result = login::execute(login_args, config).await?;
+        let result =
+            login::login_for_profile(&new_profile, profile_path_str, &secrets, &args).await?;
         render_result(&result);
     }
 

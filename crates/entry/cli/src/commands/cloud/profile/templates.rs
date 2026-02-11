@@ -152,6 +152,7 @@ pub fn save_secrets(
     let mut secrets = json!({
         "jwt_secret": generate_jwt_secret(),
         "database_url": db_urls.external,
+        "external_database_url": db_urls.external,
         "gemini": api_keys.gemini,
         "anthropic": api_keys.anthropic,
         "openai": api_keys.openai

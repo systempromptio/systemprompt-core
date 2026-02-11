@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.12] - 2026-02-11
+
+### Added
+- Auto-generate sync tokens during deploy if not configured, saving to profile secrets
+- `external_database_url` field in generated cloud profile secrets
+- Cloud profiles with `external_db_access` now route CLI commands to the external database URL
+
+### Changed
+- Refactor session login into reusable `login_for_profile()` for profile-specific authentication
+- `admin session switch` now loads secrets directly from target profile instead of relying on global bootstrap
+- `cloud db` commands use `Secrets::load_from_path()` and `effective_database_url()` instead of manual JSON parsing
+
 ## [0.1.11] - 2026-02-11
 
 ### Fixed
