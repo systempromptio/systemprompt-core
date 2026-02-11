@@ -167,6 +167,7 @@ pub async fn handle_mcp_authorization_server(
         ],
         code_challenge_methods_supported: vec![PkceMethod::S256.to_string()],
         token_endpoint_auth_methods_supported: vec![
+            TokenAuthMethod::None.to_string(),
             TokenAuthMethod::ClientSecretPost.to_string(),
             TokenAuthMethod::ClientSecretBasic.to_string(),
         ],
