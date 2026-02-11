@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.13] - 2026-02-11
+
+### Fixed
+- Skip external database URL routing when running on Fly.io (container uses internal URL)
+
 ## [0.1.12] - 2026-02-11
 
 ### Added

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4] - 2026-02-11
+
+### Changed
+- Add connect timeout (10s) and request timeout (30s) to cloud API HTTP client
+
 ## [0.1.3] - 2026-02-03
 
 ### Added
