@@ -189,19 +189,18 @@ pub async fn rotate_sync_token(
         .find(|t| t.id == tenant_id)
         .ok_or_else(|| anyhow!("Tenant not found after rotation"))?;
 
-    tenant.sync_token = Some(response.sync_token.clone());
+    tenant.sync_token = Some(response.sync_token);
 
     store.save_to_path(&tenants_path)?;
 
     let output = RotateSyncTokenOutput {
         tenant_id: tenant_id.clone(),
-        status: response.status.clone(),
+        status: "success".to_string(),
         message: "New sync token has been saved locally.".to_string(),
     };
 
     if !config.is_json_output() {
         CliService::success("Sync token rotated");
-        CliService::key_value("Status", &response.status);
         CliService::info("New sync token has been saved locally.");
     }
 

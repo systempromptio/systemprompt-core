@@ -9,6 +9,7 @@ use systemprompt_sync::{
 use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
 use crate::interactive::confirm_optional;
+use crate::shared::project::ProjectRoot;
 
 pub struct PreSyncConfig {
     pub no_sync: bool,
@@ -72,7 +73,7 @@ pub async fn execute(
 }
 
 fn build_sync_config(
-    profile: &Profile,
+    _profile: &Profile,
     tenant_id: &str,
     dry_run: bool,
 ) -> Result<Option<(systemprompt_sync::SyncConfig, SyncApiClient)>> {
@@ -101,11 +102,14 @@ fn build_sync_config(
         return Ok(None);
     }
 
+    let project = ProjectRoot::discover().map_err(|e| anyhow::anyhow!("{}", e))?;
+    let local_services_path = project.as_path().join("services");
+
     let sync_config = SyncConfigBuilder::new(
         tenant_id,
         &creds.api_url,
         &creds.api_token,
-        &profile.paths.services,
+        local_services_path.to_string_lossy(),
     )
     .with_direction(SyncDirection::Pull)
     .with_dry_run(dry_run)

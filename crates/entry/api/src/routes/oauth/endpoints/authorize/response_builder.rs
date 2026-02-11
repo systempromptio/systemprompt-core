@@ -91,5 +91,9 @@ pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> 
     context.insert("resource", resource);
     context.insert("api_external_url", api_external_url);
 
+    let allow_registration = Config::get().map_or(true, |c| c.allow_registration);
+    let register_class = if allow_registration { "" } else { "hidden" };
+    context.insert("register_class", register_class);
+
     TemplateEngine::render(template, context)
 }

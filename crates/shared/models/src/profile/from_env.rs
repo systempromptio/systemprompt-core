@@ -115,11 +115,15 @@ fn security_config_from_env() -> Result<SecurityConfig> {
         .map(|s| s.trim().parse::<JwtAudience>())
         .collect::<Result<Vec<_>>>()?;
 
+    let allow_registration =
+        get_env("ALLOW_REGISTRATION").is_none_or(|s| s.eq_ignore_ascii_case("true"));
+
     Ok(SecurityConfig {
         issuer,
         access_token_expiration,
         refresh_token_expiration,
         audiences,
+        allow_registration,
     })
 }
 

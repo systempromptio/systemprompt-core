@@ -158,7 +158,6 @@ pub struct RotateCredentialsResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RotateSyncTokenResponse {
-    pub status: String,
     pub sync_token: String,
 }
 

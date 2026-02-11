@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.13] - 2026-02-11
+
+### Changed
+- OAuth authorize endpoint now passes `register_class` template variable based on `Config.allow_registration`
+
 ## [0.1.12] - 2026-02-11
 
 ### Fixed

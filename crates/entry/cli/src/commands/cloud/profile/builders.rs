@@ -91,6 +91,7 @@ impl LocalProfileBuilder {
                     JwtAudience::A2a,
                     JwtAudience::Mcp,
                 ],
+                allow_registration: true,
             },
             rate_limits: RateLimitsConfig {
                 disabled: true,
@@ -204,6 +205,7 @@ impl CloudProfileBuilder {
                     JwtAudience::A2a,
                     JwtAudience::Mcp,
                 ],
+                allow_registration: true,
             },
             rate_limits: RateLimitsConfig::default(),
             runtime: RuntimeConfig {

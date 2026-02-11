@@ -245,6 +245,9 @@ async fn run_with_database_url(
         Some(args::Commands::Analytics(cmd)) => {
             analytics::execute_with_db(cmd, &db_ctx, config).await
         },
+        Some(args::Commands::Cloud(cloud::CloudCommands::Db(cmd))) => {
+            cloud::db::execute_with_database_url(cmd, database_url, config).await
+        },
         Some(_) => {
             bail!("This command requires full profile initialization. Remove --database-url flag.")
         },

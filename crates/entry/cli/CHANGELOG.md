@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.11] - 2026-02-11
+
+### Fixed
+- `cloud db` commands now prefer `external_database_url` from secrets.json, falling back to `database_url`
+- `--database-url` global flag now works with `cloud db` subcommands instead of being rejected
+
 ## [0.1.10] - 2026-02-10
 
 ### Fixed

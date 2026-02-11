@@ -1,6 +1,10 @@
 use crate::auth::JwtAudience;
 use serde::{Deserialize, Serialize};
 
+const fn default_allow_registration() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SecurityConfig {
     #[serde(rename = "jwt_issuer")]
@@ -19,4 +23,7 @@ pub struct SecurityConfig {
 
     #[serde(rename = "jwt_audiences")]
     pub audiences: Vec<JwtAudience>,
+
+    #[serde(default = "default_allow_registration")]
+    pub allow_registration: bool,
 }

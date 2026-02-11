@@ -7,6 +7,7 @@ use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_mcp::McpServerRegistry;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
+use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
@@ -42,20 +43,19 @@ pub struct OAuthChallengeBuilder;
 impl OAuthChallengeBuilder {
     pub async fn build_challenge_response(
         service_name: &str,
+        resource_path: &str,
         ctx: &AppContext,
         status_code: StatusCode,
     ) -> Result<Response<Body>, StatusCode> {
         tracing::warn!(service = %service_name, status = %status_code, "Building OAuth challenge");
 
-        let oauth_base_url = &ctx.config().api_server_url;
-        let resource_metadata_url = format!(
-            "{oauth_base_url}/.well-known/oauth-protected-resource"
-        );
+        let oauth_base_url = &ctx.config().api_external_url;
+        let resource_metadata_url =
+            format!("{oauth_base_url}/.well-known/oauth-protected-resource{resource_path}");
 
         let (auth_header_value, error_body) = if status_code == StatusCode::UNAUTHORIZED {
             let header = format!(
-                "Bearer realm=\"{service_name}\", \
-                 resource_metadata=\"{resource_metadata_url}\", \
+                "Bearer realm=\"{service_name}\", resource_metadata=\"{resource_metadata_url}\", \
                  error=\"invalid_token\""
             );
             let body = json!({
@@ -151,6 +151,14 @@ impl AccessValidator {
             return Ok(());
         }
 
+        let resource_path = if service.module_name == "mcp" {
+            ApiPaths::mcp_server_endpoint(service_name)
+        } else if service.module_name == "agent" {
+            ApiPaths::agent_endpoint(service_name)
+        } else {
+            String::new()
+        };
+
         let authenticated_user =
             match AuthValidator::validate_service_access(headers, service_name, ctx, req_context)
                 .await
@@ -159,6 +167,7 @@ impl AccessValidator {
                 Err(status_code) => {
                     match OAuthChallengeBuilder::build_challenge_response(
                         service_name,
+                        &resource_path,
                         ctx,
                         status_code,
                     )

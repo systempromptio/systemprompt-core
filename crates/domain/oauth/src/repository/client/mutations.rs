@@ -1,8 +1,9 @@
 use super::inserts::InsertRelatedData;
 use super::{ClientRepository, CreateClientParams, UpdateClientParams};
-use crate::models::{OAuthClient, TokenAuthMethod};
+use crate::models::{ClientRelations, OAuthClient, OAuthClientRow, TokenAuthMethod};
 use anyhow::Result;
 use chrono::Utc;
+use systemprompt_identifiers::ClientId;
 
 impl ClientRepository {
     pub async fn create(&self, params: CreateClientParams) -> Result<OAuthClient> {
@@ -12,42 +13,90 @@ impl ClientRepository {
             .unwrap_or(TokenAuthMethod::default().as_str());
         let now = Utc::now();
 
-        let mut tx = self.write_pool.as_ref().begin().await?;
+        let default_grant_types: Vec<String> = crate::models::GrantType::default_grant_types()
+            .iter()
+            .map(|s| (*s).to_string())
+            .collect();
+        let default_response_types = vec![crate::models::ResponseType::Code.to_string()];
+
+        let grant_types_list = params
+            .grant_types
+            .as_deref()
+            .unwrap_or(&default_grant_types);
+        let response_types_list = params
+            .response_types
+            .as_deref()
+            .unwrap_or(&default_response_types);
+        let contacts_list = params.contacts.as_deref().unwrap_or(&[]);
 
         sqlx::query!(
-            "INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
-                                       token_endpoint_auth_method, client_uri, logo_uri,
-                                       is_active, created_at, updated_at)
-             VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)",
+            r#"
+            WITH new_client AS (
+                INSERT INTO oauth_clients (client_id, client_secret_hash, client_name,
+                                           token_endpoint_auth_method, client_uri, logo_uri,
+                                           is_active, created_at, updated_at)
+                VALUES ($1, $2, $3, $4, $5, $6, true, $7, $7)
+            ),
+            new_uris AS (
+                INSERT INTO oauth_client_redirect_uris (client_id, redirect_uri, is_primary)
+                SELECT $1, u.uri, u.ord = 1
+                FROM unnest($8::text[]) WITH ORDINALITY AS u(uri, ord)
+            ),
+            new_grants AS (
+                INSERT INTO oauth_client_grant_types (client_id, grant_type)
+                SELECT $1, unnest($9::text[])
+            ),
+            new_responses AS (
+                INSERT INTO oauth_client_response_types (client_id, response_type)
+                SELECT $1, unnest($10::text[])
+            ),
+            new_scopes AS (
+                INSERT INTO oauth_client_scopes (client_id, scope)
+                SELECT $1, unnest($11::text[])
+            )
+            INSERT INTO oauth_client_contacts (client_id, contact_email)
+            SELECT $1, unnest($12::text[])
+            WHERE cardinality($12::text[]) > 0
+            "#,
             params.client_id.as_str(),
             params.client_secret_hash,
             params.client_name,
             auth_method,
             params.client_uri,
             params.logo_uri,
-            now
+            now,
+            &params.redirect_uris,
+            grant_types_list,
+            response_types_list,
+            &params.scopes,
+            contacts_list,
         )
-        .execute(&mut *tx)
+        .execute(&*self.write_pool)
         .await?;
 
-        Self::insert_related_data(
-            &mut tx,
-            InsertRelatedData {
-                client_id: params.client_id.as_str(),
-                redirect_uris: &params.redirect_uris,
-                grant_types: params.grant_types.as_deref(),
-                response_types: params.response_types.as_deref(),
-                scopes: &params.scopes,
-                contacts: params.contacts.as_deref(),
-            },
-        )
-        .await?;
+        let row = OAuthClientRow {
+            client_id: ClientId::new(params.client_id.as_str()),
+            client_secret_hash: Some(params.client_secret_hash),
+            client_name: params.client_name,
+            name: None,
+            token_endpoint_auth_method: Some(auth_method.to_string()),
+            client_uri: params.client_uri,
+            logo_uri: params.logo_uri,
+            is_active: Some(true),
+            created_at: Some(now),
+            updated_at: Some(now),
+            last_used_at: None,
+        };
 
-        tx.commit().await?;
+        let relations = ClientRelations {
+            redirect_uris: params.redirect_uris,
+            grant_types: params.grant_types.unwrap_or(default_grant_types),
+            response_types: params.response_types.unwrap_or(default_response_types),
+            scopes: params.scopes,
+            contacts: params.contacts,
+        };
 
-        self.get_by_client_id(params.client_id.as_str())
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("Failed to load created client"))
+        Ok(OAuthClient::from_row_with_relations(row, relations))
     }
 
     pub async fn update(&self, params: UpdateClientParams) -> Result<Option<OAuthClient>> {

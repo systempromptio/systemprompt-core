@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.13] - 2026-02-11
+
+### Added
+- `allow_registration` field on `SecurityConfig` (default: `true`) to control WebAuthn passkey registration visibility
+- `allow_registration` field on `Config` struct, wired from profile security settings
+
 ## [0.1.12] - 2026-02-10
 
 ### Added
