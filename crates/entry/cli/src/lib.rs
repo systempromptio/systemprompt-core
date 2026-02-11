@@ -130,7 +130,7 @@ async fn init_profile_and_route(
         bootstrap::init_secrets()?;
     }
 
-    if is_cloud && profile.database.external_db_access && desc.paths {
+    if is_cloud && profile.database.external_db_access && desc.paths && !env.is_fly {
         let secrets = SecretsBootstrap::get()
             .map_err(|e| anyhow::anyhow!("Secrets required for external DB access: {}", e))?;
         let db_url = secrets.effective_database_url(true).to_string();

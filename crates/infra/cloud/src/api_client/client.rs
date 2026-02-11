@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use anyhow::{anyhow, Context, Result};
 use chrono::Utc;
 use reqwest::{Client, StatusCode};
@@ -21,7 +23,11 @@ impl CloudApiClient {
     #[must_use]
     pub fn new(api_url: &str, token: &str) -> Self {
         Self {
-            client: Client::new(),
+            client: Client::builder()
+                .connect_timeout(Duration::from_secs(10))
+                .timeout(Duration::from_secs(30))
+                .build()
+                .expect("Failed to build HTTP client"),
             api_url: api_url.to_string(),
             token: token.to_string(),
         }
