@@ -20,6 +20,12 @@ pub struct Secrets {
     pub database_write_url: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub external_database_url: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub internal_database_url: Option<String>,
+
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub sync_token: Option<String>,
 
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -48,6 +54,15 @@ impl Secrets {
         Ok(secrets)
     }
 
+    pub fn load_from_path(secrets_path: &Path) -> Result<Self> {
+        if !secrets_path.exists() {
+            anyhow::bail!("Secrets file not found: {}", secrets_path.display());
+        }
+        let content = std::fs::read_to_string(secrets_path)
+            .with_context(|| format!("Failed to read secrets: {}", secrets_path.display()))?;
+        Self::parse(&content)
+    }
+
     fn validate(&self) -> Result<()> {
         if self.jwt_secret.len() < JWT_SECRET_MIN_LENGTH {
             anyhow::bail!(
@@ -59,6 +74,15 @@ impl Secrets {
         Ok(())
     }
 
+    pub fn effective_database_url(&self, external_db_access: bool) -> &str {
+        if external_db_access {
+            if let Some(url) = &self.external_database_url {
+                return url;
+            }
+        }
+        &self.database_url
+    }
+
     pub const fn has_ai_provider(&self) -> bool {
         self.gemini.is_some() || self.anthropic.is_some() || self.openai.is_some()
     }
@@ -68,6 +92,12 @@ impl Secrets {
             "jwt_secret" | "JWT_SECRET" => Some(&self.jwt_secret),
             "database_url" | "DATABASE_URL" => Some(&self.database_url),
             "database_write_url" | "DATABASE_WRITE_URL" => self.database_write_url.as_ref(),
+            "external_database_url" | "EXTERNAL_DATABASE_URL" => {
+                self.external_database_url.as_ref()
+            },
+            "internal_database_url" | "INTERNAL_DATABASE_URL" => {
+                self.internal_database_url.as_ref()
+            },
             "sync_token" | "SYNC_TOKEN" => self.sync_token.as_ref(),
             "gemini" | "GEMINI_API_KEY" => self.gemini.as_ref(),
             "anthropic" | "ANTHROPIC_API_KEY" => self.anthropic.as_ref(),
@@ -217,6 +247,12 @@ impl SecretsBootstrap {
             jwt_secret,
             database_url,
             database_write_url: std::env::var("DATABASE_WRITE_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
+            external_database_url: std::env::var("EXTERNAL_DATABASE_URL")
+                .ok()
+                .filter(|s| !s.is_empty()),
+            internal_database_url: std::env::var("INTERNAL_DATABASE_URL")
                 .ok()
                 .filter(|s| !s.is_empty()),
             sync_token: std::env::var("SYNC_TOKEN").ok().filter(|s| !s.is_empty()),
@@ -370,6 +406,14 @@ fn build_loaded_secrets_message(secrets: &Secrets) -> String {
             .database_write_url
             .as_ref()
             .map(|_| "database_write_url"),
+        secrets
+            .external_database_url
+            .as_ref()
+            .map(|_| "external_database_url"),
+        secrets
+            .internal_database_url
+            .as_ref()
+            .map(|_| "internal_database_url"),
         secrets.gemini.as_ref().map(|_| "gemini"),
         secrets.anthropic.as_ref().map(|_| "anthropic"),
         secrets.openai.as_ref().map(|_| "openai"),

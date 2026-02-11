@@ -231,29 +231,10 @@ fn load_cloud_database_url(profile_name: &str) -> Result<String> {
     }
 
     let secrets_path = ProfilePath::Secrets.resolve(&profile_dir);
-    if !secrets_path.exists() {
-        return Err(anyhow!(
-            "No secrets.json found for profile '{}'",
-            profile_name
-        ));
-    }
+    let secrets = systemprompt_models::Secrets::load_from_path(&secrets_path)
+        .with_context(|| format!("Failed to load secrets for profile '{}'", profile_name))?;
 
-    let secrets_content = std::fs::read_to_string(&secrets_path)
-        .with_context(|| format!("Failed to read {}", secrets_path.display()))?;
-
-    let secrets: serde_json::Value =
-        serde_json::from_str(&secrets_content).with_context(|| "Failed to parse secrets.json")?;
-
-    secrets["external_database_url"]
-        .as_str()
-        .or_else(|| secrets["database_url"].as_str())
-        .map(String::from)
-        .ok_or_else(|| {
-            anyhow!(
-                "No database_url or external_database_url in secrets.json for profile '{}'",
-                profile_name
-            )
-        })
+    Ok(secrets.effective_database_url(true).to_string())
 }
 
 fn ensure_pg_tool(tool: &str) -> Result<()> {

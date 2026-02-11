@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.14] - 2026-02-11
+
+### Added
+- `external_database_url` and `internal_database_url` fields on `Secrets`
+- `Secrets::load_from_path()` for loading secrets from an arbitrary file path
+- `Secrets::effective_database_url()` to resolve the correct database URL based on external access flag
+- `external_database_url` and `internal_database_url` support in `SecretsBootstrap` env var loading and key lookup
+
 ## [0.1.13] - 2026-02-11
 
 ### Added

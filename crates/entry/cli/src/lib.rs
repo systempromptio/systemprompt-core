@@ -18,7 +18,7 @@ use anyhow::{bail, Context, Result};
 use clap::Parser;
 use systemprompt_cloud::CredentialsBootstrapError;
 use systemprompt_logging::{set_startup_mode, CliService};
-use systemprompt_models::ProfileBootstrap;
+use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::DatabaseContext;
 
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
@@ -58,7 +58,9 @@ pub async fn run() -> Result<()> {
     }
 
     if desc.profile {
-        init_profile_and_route(&cli, &desc, &cli_config).await?;
+        if let Some(external_db_url) = init_profile_and_route(&cli, &desc, &cli_config).await? {
+            return run_with_database_url(cli.command, &cli_config, &external_db_url).await;
+        }
     }
 
     dispatch_command(cli.command, &cli_config).await
@@ -68,7 +70,7 @@ async fn init_profile_and_route(
     cli: &args::Cli,
     desc: &CommandDescriptor,
     cli_config: &CliConfig,
-) -> Result<()> {
+) -> Result<Option<String>> {
     let profile_path = bootstrap::resolve_profile(cli_config.profile_override.as_deref())?;
     bootstrap::init_profile(&profile_path)?;
 
@@ -128,6 +130,13 @@ async fn init_profile_and_route(
         bootstrap::init_secrets()?;
     }
 
+    if is_cloud && profile.database.external_db_access && desc.paths {
+        let secrets = SecretsBootstrap::get()
+            .map_err(|e| anyhow::anyhow!("Secrets required for external DB access: {}", e))?;
+        let db_url = secrets.effective_database_url(true).to_string();
+        return Ok(Some(db_url));
+    }
+
     if desc.paths {
         bootstrap::init_paths()?;
         if !desc.skip_validation {
@@ -139,7 +148,7 @@ async fn init_profile_and_route(
         bootstrap::validate_cloud_credentials(&env);
     }
 
-    Ok(())
+    Ok(None)
 }
 
 async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Profile) -> Result<()> {
