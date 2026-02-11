@@ -189,10 +189,10 @@ pub struct SyncService {
 }
 
 impl SyncService {
-    pub fn new(config: SyncConfig) -> Self {
-        let api_client = SyncApiClient::new(&config.api_url, &config.api_token)
+    pub fn new(config: SyncConfig) -> SyncResult<Self> {
+        let api_client = SyncApiClient::new(&config.api_url, &config.api_token)?
             .with_direct_sync(config.hostname.clone(), config.sync_token.clone());
-        Self { config, api_client }
+        Ok(Self { config, api_client })
     }
 
     pub async fn sync_files(&self) -> SyncResult<SyncOperationResult> {

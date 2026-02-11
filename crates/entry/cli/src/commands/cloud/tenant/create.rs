@@ -275,7 +275,7 @@ pub async fn create_cloud_tenant(
     CliService::success("Build validation passed");
     CliService::info("Creating cloud tenant via subscription");
 
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     let spinner = CliService::spinner("Fetching available plans...");
     let plans = client.get_plans().await?;

@@ -52,7 +52,7 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
             credentials_info.user_email = Some(creds.user_email.clone());
             credentials_info.token_expired = creds.is_token_expired();
 
-            let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+            let api_client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
             if config.is_json_output() {
                 match api_client.list_tenants().await {

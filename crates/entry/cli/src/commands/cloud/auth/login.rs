@@ -59,7 +59,7 @@ pub async fn execute(
     let token = run_oauth_flow(api_url, provider, templates).await?;
 
     let spinner = CliService::spinner("Verifying token...");
-    let client = CloudApiClient::new(api_url, &token);
+    let client = CloudApiClient::new(api_url, &token)?;
     let response = client.get_user().await?;
     spinner.finish_and_clear();
 

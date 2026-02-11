@@ -89,7 +89,9 @@ async fn fetch_cloud_tenant_count(creds: &CloudCredentials) -> usize {
         return 0;
     }
 
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let Ok(client) = CloudApiClient::new(&creds.api_url, &creds.api_token) else {
+        return 0;
+    };
     client
         .list_tenants()
         .await

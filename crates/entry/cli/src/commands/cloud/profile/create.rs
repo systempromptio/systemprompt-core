@@ -369,7 +369,7 @@ async fn ensure_unmasked_credentials(
 
     CliService::info("Fetching database credentials...");
     let creds = get_credentials()?;
-    let client = CloudApiClient::new(&creds.api_url, &creds.api_token);
+    let client = CloudApiClient::new(&creds.api_url, &creds.api_token)?;
 
     match refresh_tenant_credentials(&client, &tenant.id).await {
         Ok(creds) => {

@@ -68,7 +68,7 @@ pub async fn run_checkout_callback_flow(
         api_client: Arc::new(CloudApiClient::new(
             api_client.api_url(),
             api_client.token(),
-        )),
+        )?),
         success_html: templates.success_html.to_string(),
         error_html: templates.error_html.to_string(),
         waiting_html: templates.waiting_html.to_string(),

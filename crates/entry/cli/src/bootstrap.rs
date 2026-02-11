@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
-use systemprompt_cloud::{CredentialsBootstrap, SessionStore};
+use systemprompt_cloud::{CredentialsBootstrap, CredentialsBootstrapError, SessionStore};
 use systemprompt_files::FilesConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
@@ -10,8 +10,44 @@ use systemprompt_runtime::{
     display_validation_report, display_validation_warnings, StartupValidator,
 };
 
+use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};
 use crate::paths::ResolvedPaths;
 use crate::shared::resolve_profile_path;
+
+pub struct ProfileContext {
+    pub profile_name: String,
+    pub is_cloud: bool,
+    pub external_db_access: bool,
+    pub env: crate::environment::ExecutionEnvironment,
+    pub has_export: bool,
+}
+
+pub fn resolve_and_display_profile(
+    cli_config: &CliConfig,
+    has_export: bool,
+) -> Result<ProfileContext> {
+    let profile_path = resolve_profile(cli_config.profile_override.as_deref())?;
+    init_profile(&profile_path)?;
+
+    let profile = ProfileBootstrap::get()?;
+
+    if cli_config.output_format == OutputFormat::Table
+        && cli_config.verbosity != VerbosityLevel::Quiet
+    {
+        let tenant = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
+        CliService::profile_banner(&profile.name, profile.target.is_cloud(), tenant);
+    }
+
+    let env = crate::environment::ExecutionEnvironment::detect();
+
+    Ok(ProfileContext {
+        profile_name: profile.name.clone(),
+        is_cloud: profile.target.is_cloud(),
+        external_db_access: profile.database.external_db_access,
+        env,
+        has_export,
+    })
+}
 
 pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
     if let Some(profile_input) = cli_profile_override {
@@ -73,6 +109,24 @@ pub fn try_load_log_level(profile_path: &Path) -> Option<LogLevel> {
 pub async fn init_credentials() -> Result<()> {
     CredentialsBootstrap::init().await?;
     Ok(())
+}
+
+pub async fn init_credentials_gracefully() -> Result<()> {
+    match init_credentials().await {
+        Ok(()) => Ok(()),
+        Err(e) => {
+            let is_file_not_found = e
+                .downcast_ref::<CredentialsBootstrapError>()
+                .is_some_and(|ce| matches!(ce, CredentialsBootstrapError::FileNotFound { .. }));
+
+            if is_file_not_found {
+                tracing::debug!(error = %e, "Credentials file not found, continuing in local-only mode");
+                Ok(())
+            } else {
+                Err(e.context("Credential initialization failed"))
+            }
+        },
+    }
 }
 
 pub fn init_secrets() -> Result<()> {

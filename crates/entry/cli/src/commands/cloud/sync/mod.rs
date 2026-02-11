@@ -209,7 +209,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
 
     print_header(&direction, args.dry_run);
 
-    let service = SyncService::new(config);
+    let service = SyncService::new(config)?;
     let mut results = Vec::new();
 
     let spinner = CliService::spinner("Syncing files...");

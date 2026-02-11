@@ -20,17 +20,15 @@ pub struct CloudApiClient {
 }
 
 impl CloudApiClient {
-    #[must_use]
-    pub fn new(api_url: &str, token: &str) -> Self {
-        Self {
+    pub fn new(api_url: &str, token: &str) -> Result<Self, reqwest::Error> {
+        Ok(Self {
             client: Client::builder()
                 .connect_timeout(Duration::from_secs(10))
                 .timeout(Duration::from_secs(30))
-                .build()
-                .expect("Failed to build HTTP client"),
+                .build()?,
             api_url: api_url.to_string(),
             token: token.to_string(),
-        }
+        })
     }
 
     #[must_use]

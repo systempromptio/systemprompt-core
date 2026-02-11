@@ -55,19 +55,18 @@ pub struct DeployResponse {
 }
 
 impl SyncApiClient {
-    pub fn new(api_url: &str, token: &str) -> Self {
-        Self {
+    pub fn new(api_url: &str, token: &str) -> SyncResult<Self> {
+        Ok(Self {
             client: Client::builder()
                 .connect_timeout(Duration::from_secs(10))
                 .timeout(Duration::from_secs(60))
-                .build()
-                .expect("Failed to build HTTP client"),
+                .build()?,
             api_url: api_url.to_string(),
             token: token.to_string(),
             hostname: None,
             sync_token: None,
             retry_config: RetryConfig::default(),
-        }
+        })
     }
 
     pub fn with_direct_sync(
