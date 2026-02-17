@@ -57,16 +57,11 @@ fn edit_skill(
     name: &str,
     args: &EditArgs,
 ) -> Result<CommandResult<SkillEditOutput>> {
-    let index_path = skill_dir.join("index.md");
-    let skill_md_path = skill_dir.join("SKILL.md");
+    let md_path = skill_dir.join("SKILL.md");
 
-    let md_path = if index_path.exists() {
-        index_path
-    } else if skill_md_path.exists() {
-        skill_md_path
-    } else {
-        return Err(anyhow!("Skill '{}' has no index.md or SKILL.md file", name));
-    };
+    if !md_path.exists() {
+        return Err(anyhow!("Skill '{}' has no SKILL.md file", name));
+    }
 
     let content = fs::read_to_string(&md_path)
         .with_context(|| format!("Failed to read {}", md_path.display()))?;
@@ -235,7 +230,7 @@ fn prompt_skill_selection(skills_path: &Path) -> Result<String> {
                 continue;
             }
 
-            let has_skill_file = path.join("index.md").exists() || path.join("SKILL.md").exists();
+            let has_skill_file = path.join("SKILL.md").exists();
 
             if has_skill_file {
                 if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

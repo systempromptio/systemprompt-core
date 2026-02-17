@@ -1,5 +1,26 @@
 # Changelog
 
+## [0.1.14] - 2026-02-17
+
+### Added
+- `systemprompt core plugins list` command with `--enabled`/`--disabled` filters
+- `systemprompt core plugins show <id>` command for plugin details
+- `systemprompt core plugins validate [id]` command for config validation
+- `systemprompt core plugins generate [--id <id>]` command for marketplace artifact generation
+- `systemprompt core hooks list` command to list hooks across plugins
+- `systemprompt core hooks validate` command for hook config validation
+- Marketplace JSON generation in `plugins generate` for Claude Code plugin distribution
+
+### Changed
+- Split `plugins/generate.rs` (571 lines) into 6 focused modules under `generate/`
+- Replace magic string comparisons with `ComponentSource`/`ComponentFilter` enum matching
+- Extract `DEFAULT_AGENT_TOOLS` and `PLUGIN_ROOT_VAR` constants
+- Add `tracing::warn!` for silent error paths in marketplace and hook scanning
+- Introduce `PluginGenerateContext` struct to reduce function parameter count
+
+### Removed
+- Remove `systemprompt core playbooks` subcommand group (create, edit, delete, list, show, sync)
+
 ## [0.1.13] - 2026-02-11
 
 ### Fixed

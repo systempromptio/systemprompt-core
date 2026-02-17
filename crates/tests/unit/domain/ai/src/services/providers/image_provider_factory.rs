@@ -104,7 +104,7 @@ mod create_tests {
         assert!(result.is_ok());
 
         let provider = result.unwrap();
-        assert_eq!(provider.default_model(), "imagen-3.0-generate-001");
+        assert_eq!(provider.default_model(), "gemini-2.5-flash-image");
     }
 
     #[test]
@@ -120,7 +120,7 @@ mod create_tests {
         assert!(result.is_ok());
 
         let provider = result.unwrap();
-        assert_eq!(provider.default_model(), "dall-e-3");
+        assert_eq!(provider.default_model(), "gpt-image-1");
     }
 }
 

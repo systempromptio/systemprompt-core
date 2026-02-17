@@ -33,19 +33,11 @@ fn show_skill_detail(
         return Err(anyhow!("Skill '{}' not found", skill_id));
     }
 
-    let index_path = skill_dir.join("index.md");
-    let skill_md_path = skill_dir.join("SKILL.md");
+    let md_path = skill_dir.join("SKILL.md");
 
-    let md_path = if index_path.exists() {
-        index_path
-    } else if skill_md_path.exists() {
-        skill_md_path
-    } else {
-        return Err(anyhow!(
-            "Skill '{}' has no index.md or SKILL.md file",
-            skill_id
-        ));
-    };
+    if !md_path.exists() {
+        return Err(anyhow!("Skill '{}' has no SKILL.md file", skill_id));
+    }
 
     let parsed = parse_skill_markdown(&md_path)?;
 
@@ -94,37 +86,45 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
     let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])
         .with_context(|| format!("Invalid YAML in {}", md_path.display()))?;
 
-    let name = frontmatter
-        .get("title")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing title in {}", md_path.display()))?
-        .to_string();
-
     let description = frontmatter
         .get("description")
         .and_then(|v| v.as_str())
-        .unwrap_or("")
+        .ok_or_else(|| anyhow!("Missing description in {}", md_path.display()))?
         .to_string();
 
-    let enabled = frontmatter
-        .get("enabled")
-        .and_then(serde_yaml::Value::as_bool)
-        .unwrap_or(true);
+    let instructions = parts[2].trim().to_string();
 
-    let tags = frontmatter
-        .get("keywords")
-        .or_else(|| frontmatter.get("tags"))
-        .and_then(|v| v.as_sequence())
-        .map_or_else(Vec::new, |seq| {
-            seq.iter()
-                .filter_map(|v| v.as_str().map(String::from))
-                .collect()
-        });
+    let skill_dir = md_path.parent();
+    let config_path = skill_dir.map(|d| d.join("config.yaml"));
 
-    let category = frontmatter
-        .get("category")
-        .and_then(|v| v.as_str())
-        .map(String::from);
+    let (name, enabled, tags, category) = match config_path.filter(|p| p.exists()) {
+        Some(cfg_path) => {
+            let cfg_text = std::fs::read_to_string(&cfg_path)
+                .with_context(|| format!("Failed to read {}", cfg_path.display()))?;
+            let cfg: serde_yaml::Value = serde_yaml::from_str(&cfg_text)
+                .with_context(|| format!("Invalid YAML in {}", cfg_path.display()))?;
+
+            let cfg_name = cfg.get("name").and_then(|v| v.as_str()).map(String::from);
+            let cfg_enabled = cfg.get("enabled").and_then(serde_yaml::Value::as_bool);
+            let cfg_tags = cfg.get("tags").and_then(|v| v.as_sequence()).map(|seq| {
+                seq.iter()
+                    .filter_map(|v| v.as_str().map(String::from))
+                    .collect::<Vec<_>>()
+            });
+            let cfg_category = cfg
+                .get("category")
+                .and_then(|v| v.as_str())
+                .map(String::from);
+
+            (
+                cfg_name.unwrap_or_else(|| description.clone()),
+                cfg_enabled.unwrap_or(true),
+                cfg_tags.unwrap_or_else(Vec::new),
+                cfg_category,
+            )
+        },
+        None => (description.clone(), true, Vec::new(), None),
+    };
 
     Ok(ParsedSkill {
         name,
@@ -132,6 +132,6 @@ fn parse_skill_markdown(md_path: &Path) -> Result<ParsedSkill> {
         enabled,
         tags,
         category,
-        instructions: parts[2].trim().to_string(),
+        instructions,
     })
 }

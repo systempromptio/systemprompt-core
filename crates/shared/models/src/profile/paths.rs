@@ -51,6 +51,14 @@ impl PathsConfig {
         format!("{}/web/metadata.yaml", self.services)
     }
 
+    pub fn plugins(&self) -> String {
+        format!("{}/plugins", self.services)
+    }
+
+    pub fn hooks(&self) -> String {
+        format!("{}/hooks", self.services)
+    }
+
     pub fn web_path_resolved(&self) -> String {
         self.web_path
             .clone()

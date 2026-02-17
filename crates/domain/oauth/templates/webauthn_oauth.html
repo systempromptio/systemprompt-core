@@ -263,6 +263,7 @@
             <input type="hidden" id="oauth-state" value="{state}">
             <input type="hidden" id="oauth-code-challenge" value="{code_challenge}">
             <input type="hidden" id="oauth-code-challenge-method" value="{code_challenge_method}">
+            <input type="hidden" id="oauth-resource" value="{resource}">
         </div>
 
         <div id="error-message" class="error hidden"></div>
@@ -313,7 +314,8 @@
             scope: document.getElementById('oauth-scope').value,
             state: document.getElementById('oauth-state').value,
             code_challenge: document.getElementById('oauth-code-challenge').value,
-            code_challenge_method: document.getElementById('oauth-code-challenge-method').value
+            code_challenge_method: document.getElementById('oauth-code-challenge-method').value,
+            resource: document.getElementById('oauth-resource').value
         };
 
         // UI Elements - declare first
@@ -508,6 +510,7 @@
                 if (oauthState.state) completeParams.append('state', oauthState.state);
                 if (oauthState.code_challenge) completeParams.append('code_challenge', oauthState.code_challenge);
                 if (oauthState.code_challenge_method) completeParams.append('code_challenge_method', oauthState.code_challenge_method);
+                if (oauthState.resource) completeParams.append('resource', oauthState.resource);
 
                 setTimeout(() => {
                     window.location.href = `/api/v1/core/oauth/webauthn/complete?${completeParams.toString()}`;
@@ -595,6 +598,7 @@
                 if (oauthState.state) completeParams.append('state', oauthState.state);
                 if (oauthState.code_challenge) completeParams.append('code_challenge', oauthState.code_challenge);
                 if (oauthState.code_challenge_method) completeParams.append('code_challenge_method', oauthState.code_challenge_method);
+                if (oauthState.resource) completeParams.append('resource', oauthState.resource);
 
                 setTimeout(() => {
                     window.location.href = `/api/v1/core/oauth/webauthn/complete?${completeParams.toString()}`;

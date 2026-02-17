@@ -3,6 +3,7 @@ pub mod agent;
 pub mod analytics;
 pub mod content;
 pub mod engagement;
+pub mod marketplace;
 pub mod mcp;
 pub mod oauth;
 pub mod proxy;

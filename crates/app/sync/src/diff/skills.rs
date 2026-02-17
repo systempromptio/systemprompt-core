@@ -6,6 +6,7 @@ use std::path::Path;
 use systemprompt_agent::models::Skill;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::SkillId;
 use tracing::warn;
 
 #[derive(Debug)]
@@ -22,9 +23,9 @@ impl SkillsDiffCalculator {
 
     pub async fn calculate_diff(&self, skills_path: &Path) -> Result<SkillsDiffResult> {
         let db_skills = self.skill_repo.list_all().await?;
-        let db_map: HashMap<String, Skill> = db_skills
+        let db_map: HashMap<SkillId, Skill> = db_skills
             .into_iter()
-            .map(|s| (s.skill_id.as_str().to_string(), s))
+            .map(|s| (s.skill_id.clone(), s))
             .collect();
 
         let disk_skills = Self::scan_disk_skills(skills_path)?;
@@ -64,7 +65,7 @@ impl SkillsDiffCalculator {
         }
 
         for (skill_id, db_skill) in &db_map {
-            if !disk_skills.contains_key(skill_id.as_str()) {
+            if !disk_skills.contains_key(skill_id) {
                 result.removed.push(SkillDiffItem {
                     skill_id: skill_id.clone(),
                     file_path: db_skill.file_path.clone(),
@@ -79,7 +80,7 @@ impl SkillsDiffCalculator {
         Ok(result)
     }
 
-    fn scan_disk_skills(path: &Path) -> Result<HashMap<String, DiskSkill>> {
+    fn scan_disk_skills(path: &Path) -> Result<HashMap<SkillId, DiskSkill>> {
         let mut skills = HashMap::new();
 
         if !path.exists() {
@@ -94,16 +95,10 @@ impl SkillsDiffCalculator {
                 continue;
             }
 
-            let index_path = skill_path.join("index.md");
-            let skill_md_path = skill_path.join("SKILL.md");
-
-            let md_path = if index_path.exists() {
-                index_path
-            } else if skill_md_path.exists() {
-                skill_md_path
-            } else {
+            let md_path = skill_path.join("SKILL.md");
+            if !md_path.exists() {
                 continue;
-            };
+            }
 
             match parse_skill_file(&md_path, &skill_path) {
                 Ok(skill) => {
@@ -135,19 +130,25 @@ fn parse_skill_file(md_path: &Path, skill_dir: &Path) -> Result<DiskSkill> {
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
-    let skill_id = dir_name.replace('-', "_");
-
-    let name = frontmatter
-        .get("title")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing title in frontmatter"))?
-        .to_string();
+    let skill_id = SkillId::new(dir_name.replace('-', "_"));
 
     let description = frontmatter
         .get("description")
         .and_then(|v| v.as_str())
         .ok_or_else(|| anyhow!("Missing description in frontmatter"))?
         .to_string();
+
+    let config_path = skill_dir.join("config.yaml");
+    let name = if config_path.exists() {
+        let config_text = std::fs::read_to_string(&config_path)?;
+        let config: serde_yaml::Value = serde_yaml::from_str(&config_text)?;
+        config
+            .get("name")
+            .and_then(|v| v.as_str())
+            .map_or_else(|| dir_name.replace('_', " "), String::from)
+    } else {
+        dir_name.replace('_', " ")
+    };
 
     Ok(DiskSkill {
         skill_id,

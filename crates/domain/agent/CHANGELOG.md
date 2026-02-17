@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2026-02-17
+
+### Removed
+- Remove playbook domain: `Playbook` model, `PlaybookRow`, `PlaybookMetadata`
+- Remove `PlaybookRepository` and all playbook CRUD operations
+- Remove `PlaybookIngestionService` and `PlaybookService`
+- Remove `agent_playbooks` database schema
+- Add `001_drop_playbooks` migration to drop playbooks table
+
 ## [0.1.1] - 2026-02-03
 
 ### Changed

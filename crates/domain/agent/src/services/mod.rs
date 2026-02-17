@@ -7,7 +7,6 @@ pub mod execution_tracking;
 pub mod external_integrations;
 pub mod mcp;
 pub mod message;
-pub mod playbooks;
 pub mod registry;
 pub mod registry_provider;
 pub mod shared;
@@ -28,8 +27,6 @@ pub use external_integrations::{
 };
 
 pub use skills::{SkillIngestionService, SkillMetadata, SkillService};
-
-pub use playbooks::{PlaybookIngestionService, PlaybookMetadata, PlaybookService};
 
 pub use artifact_publishing::ArtifactPublishingService;
 

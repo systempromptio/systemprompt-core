@@ -83,12 +83,12 @@ fn test_is_process_running_current_process() {
 
 #[test]
 fn test_is_process_running_nonexistent() {
-    assert!(!is_process_running(u32::MAX));
+    assert!(!is_process_running(4_194_305));
 }
 
 #[test]
-fn test_is_process_running_zero() {
-    assert!(!is_process_running(0));
+fn test_is_process_running_very_high_pid() {
+    assert!(!is_process_running(4_194_306));
 }
 
 #[test]

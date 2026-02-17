@@ -5,7 +5,8 @@ use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, ProfilePath
 use systemprompt_logging::CliService;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{
-    FileSyncService, SyncApiClient, SyncConfigBuilder, SyncDirection, SyncOperationResult,
+    FileDiffStatus, FileSyncService, SyncApiClient, SyncConfigBuilder, SyncDiffResult,
+    SyncDirection, SyncOperationResult,
 };
 
 use crate::cli_settings::CliConfig;
@@ -72,9 +73,97 @@ pub async fn execute(
     )
     .await?;
 
-    let result = run_sync(sync_config, api_client).await;
+    let services_path = std::path::PathBuf::from(&sync_config.services_path);
 
-    handle_sync_result(result, config.dry_run)
+    if config.dry_run {
+        let result = run_sync(sync_config, api_client).await;
+        return handle_sync_result(result, true);
+    }
+
+    // Step 1: Download and compute diff
+    let service = FileSyncService::new(sync_config, api_client);
+
+    let spinner = CliService::spinner("Downloading files from cloud...");
+    let download = service
+        .download_and_diff()
+        .await
+        .map_err(|e| anyhow::anyhow!("Download failed: {}", e))?;
+    spinner.finish_and_clear();
+
+    // Step 2: Backup local services to zip
+    let spinner = CliService::spinner("Backing up local services...");
+    let backup_path = FileSyncService::backup_services(&services_path)
+        .map_err(|e| anyhow::anyhow!("Backup failed: {}", e))?;
+    spinner.finish_and_clear();
+    CliService::success(&format!("Backed up to {}", backup_path.display()));
+
+    // Step 3: Display diff
+    display_diff(&download.diff);
+
+    // Step 4: If no changes, we're done
+    if !download.diff.has_changes() {
+        CliService::success("All files are already in sync");
+        return Ok(PreSyncResult::success());
+    }
+
+    // Step 5: Interactive confirmation (skip with --yes)
+    let changes = download.diff.added + download.diff.modified;
+    if !config.yes {
+        let prompt = format!(
+            "Apply {} change{} from cloud? (backup saved)",
+            changes,
+            if changes == 1 { "" } else { "s" }
+        );
+        let should_apply = confirm_optional(&prompt, true, cli_config)?;
+
+        if !should_apply {
+            CliService::warning("Sync cancelled by user. Backup preserved.");
+            return Ok(PreSyncResult::skipped());
+        }
+    }
+
+    // Step 6: Apply only changed files
+    let changed_paths = download.diff.changed_paths();
+    let count = FileSyncService::apply(&download.data, &services_path, Some(&changed_paths))
+        .map_err(|e| anyhow::anyhow!("Apply failed: {}", e))?;
+
+    CliService::success(&format!("Applied {} files from cloud", count));
+    Ok(PreSyncResult::success())
+}
+
+fn display_diff(diff: &SyncDiffResult) {
+    CliService::section("Cloud Sync Diff");
+
+    if diff.added > 0 {
+        CliService::info(&format!("  Added ({}):", diff.added));
+        for entry in &diff.entries {
+            if entry.status == FileDiffStatus::Added {
+                CliService::info(&format!("    + {}", entry.path));
+            }
+        }
+    }
+
+    if diff.modified > 0 {
+        CliService::info(&format!("  Modified ({}):", diff.modified));
+        for entry in &diff.entries {
+            if entry.status == FileDiffStatus::Modified {
+                CliService::info(&format!("    ~ {}", entry.path));
+            }
+        }
+    }
+
+    if diff.deleted > 0 {
+        CliService::info(&format!("  Deleted from cloud ({}):", diff.deleted));
+        for entry in &diff.entries {
+            if entry.status == FileDiffStatus::Deleted {
+                CliService::info(&format!("    - {}", entry.path));
+            }
+        }
+    }
+
+    if diff.unchanged > 0 {
+        CliService::info(&format!("  Unchanged ({} files identical)", diff.unchanged));
+    }
 }
 
 async fn build_sync_config(

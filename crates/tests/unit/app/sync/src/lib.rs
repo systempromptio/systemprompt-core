@@ -5,7 +5,7 @@
 //! - SyncConfig and SyncConfigBuilder
 //! - SyncOperationResult construction
 //! - SyncError types and retryable logic
-//! - Diff models (ContentDiffResult, SkillsDiffResult, PlaybooksDiffResult)
+//! - Diff models (ContentDiffResult, SkillsDiffResult)
 //! - File types (FileBundle, FileManifest, FileEntry)
 //! - Hash computation functions
 

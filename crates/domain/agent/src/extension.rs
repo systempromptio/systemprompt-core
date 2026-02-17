@@ -84,11 +84,6 @@ impl Extension for AgentExtension {
             SchemaDefinition::inline("agent_skills", include_str!("../schema/agent_skills.sql"))
                 .with_required_columns(vec!["skill_id".into(), "name".into()]),
             SchemaDefinition::inline(
-                "agent_playbooks",
-                include_str!("../schema/agent_playbooks.sql"),
-            )
-            .with_required_columns(vec!["playbook_id".into(), "name".into()]),
-            SchemaDefinition::inline(
                 "task_execution_steps",
                 include_str!("../schema/task_execution_steps.sql"),
             )
@@ -108,6 +103,14 @@ impl Extension for AgentExtension {
 
     fn dependencies(&self) -> Vec<&'static str> {
         vec!["users", "oauth", "mcp"]
+    }
+
+    fn migrations(&self) -> Vec<Migration> {
+        vec![Migration::new(
+            1,
+            "drop_playbooks_table",
+            include_str!("../schema/migrations/001_drop_playbooks.sql"),
+        )]
     }
 }
 

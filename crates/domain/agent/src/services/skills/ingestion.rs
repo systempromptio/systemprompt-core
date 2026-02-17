@@ -7,6 +7,24 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_models::IngestionReport;
 
+const SKILL_FILENAME: &str = "SKILL.md";
+const CONFIG_FILENAME: &str = "config.yaml";
+
+#[derive(Debug, serde::Deserialize)]
+struct SkillConfig {
+    id: String,
+    name: String,
+    description: String,
+    #[serde(default = "default_enabled")]
+    enabled: bool,
+    #[serde(default)]
+    tags: Vec<String>,
+}
+
+const fn default_enabled() -> bool {
+    true
+}
+
 #[derive(Debug)]
 pub struct SkillIngestionService {
     skill_repo: SkillRepository,
@@ -55,52 +73,48 @@ impl SkillIngestionService {
         source_id: SourceId,
         override_existing: bool,
     ) -> Result<()> {
-        let index_file = skill_dir.join("index.md");
+        let skill_file = skill_dir.join(SKILL_FILENAME);
 
-        if !index_file.exists() {
-            return Err(anyhow!("No index.md found in skill directory"));
+        if !skill_file.exists() {
+            return Err(anyhow!("No {} found in skill directory", SKILL_FILENAME));
         }
 
-        let markdown_text = std::fs::read_to_string(&index_file)?;
-        let (metadata, instructions) = Self::parse_skill_markdown(&markdown_text)?;
+        let markdown_text = std::fs::read_to_string(&skill_file)?;
+        let instructions = Self::parse_skill_markdown(&markdown_text)?;
 
-        let skill_id = metadata
-            .get("slug")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Skill must have 'slug' in frontmatter"))?
-            .replace('-', "_");
+        let dir_name = skill_dir
+            .file_name()
+            .and_then(|n| n.to_str())
+            .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
-        let name = metadata
-            .get("title")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| anyhow!("Skill must have 'title' in frontmatter"))?
-            .to_string();
+        let config_path = skill_dir.join(CONFIG_FILENAME);
+        let (skill_id_str, name, description, enabled, tags) = if config_path.exists() {
+            let config_text = std::fs::read_to_string(&config_path)?;
+            let config: SkillConfig = serde_yaml::from_str(&config_text)
+                .map_err(|e| anyhow!("Failed to parse {}: {}", CONFIG_FILENAME, e))?;
+            (
+                config.id,
+                config.name,
+                config.description,
+                config.enabled,
+                config.tags,
+            )
+        } else {
+            let md_description = Self::extract_description(&markdown_text);
+            (
+                dir_name.replace('-', "_"),
+                dir_name.replace('_', " "),
+                md_description,
+                true,
+                Vec::new(),
+            )
+        };
 
-        let description = metadata
-            .get("description")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
-
-        let file_path = index_file.to_string_lossy().to_string();
-        let enabled = metadata
-            .get("enabled")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(true);
-
-        let tags = metadata
-            .get("keywords")
-            .and_then(|v| v.as_sequence())
-            .map(|seq| {
-                seq.iter()
-                    .filter_map(|item| item.as_str().map(|s| s.to_string()))
-                    .collect()
-            })
-            .unwrap_or_else(Vec::new);
+        let file_path = skill_file.to_string_lossy().to_string();
 
         let skill = Skill {
-            skill_id: SkillId::new(skill_id),
-            file_path: file_path.clone(),
+            skill_id: SkillId::new(skill_id_str),
+            file_path,
             name,
             description,
             instructions,
@@ -142,8 +156,8 @@ impl SkillIngestionService {
             .ok()
         }) {
             if entry.file_type().is_dir() && entry.file_name() != "." {
-                let index_file = entry.path().join("index.md");
-                if index_file.exists() {
+                let skill_file = entry.path().join(SKILL_FILENAME);
+                if skill_file.exists() {
                     let path = entry.path().to_path_buf();
                     if !seen.contains(&path) {
                         skill_dirs.push(path.clone());
@@ -156,20 +170,33 @@ impl SkillIngestionService {
         Ok(skill_dirs)
     }
 
-    fn parse_skill_markdown(markdown: &str) -> Result<(serde_yaml::Mapping, String)> {
+    fn parse_skill_markdown(markdown: &str) -> Result<String> {
         let parts: Vec<&str> = markdown.splitn(3, "---").collect();
 
         if parts.len() < 3 {
             return Err(anyhow!("Invalid frontmatter format"));
         }
 
-        let metadata = serde_yaml::from_str::<serde_yaml::Value>(parts[1])?
-            .as_mapping()
-            .ok_or_else(|| anyhow!("Invalid YAML in frontmatter"))?
-            .clone();
+        Ok(parts[2].trim().to_string())
+    }
 
-        let instructions = parts[2].trim().to_string();
+    fn extract_description(markdown: &str) -> String {
+        let parts: Vec<&str> = markdown.splitn(3, "---").collect();
+        if parts.len() < 3 {
+            return String::new();
+        }
 
-        Ok((metadata, instructions))
+        serde_yaml::from_str::<serde_yaml::Value>(parts[1])
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to parse skill frontmatter YAML");
+                e
+            })
+            .ok()
+            .and_then(|v| {
+                v.get("description")
+                    .and_then(|d| d.as_str())
+                    .map(String::from)
+            })
+            .unwrap_or_else(String::new)
     }
 }

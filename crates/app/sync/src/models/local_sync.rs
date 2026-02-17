@@ -1,10 +1,22 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
+use std::fmt;
+use systemprompt_identifiers::{SkillId, SourceId};
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub enum LocalSyncDirection {
+    #[default]
     ToDisk,
     ToDatabase,
+}
+
+impl fmt::Display for LocalSyncDirection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ToDisk => write!(f, "to_disk"),
+            Self::ToDatabase => write!(f, "to_database"),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -17,7 +29,7 @@ pub enum DiffStatus {
 #[derive(Clone, Debug, Serialize)]
 pub struct ContentDiffItem {
     pub slug: String,
-    pub source_id: String,
+    pub source_id: SourceId,
     pub status: DiffStatus,
     pub disk_hash: Option<String>,
     pub db_hash: Option<String>,
@@ -28,7 +40,7 @@ pub struct ContentDiffItem {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct SkillDiffItem {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub file_path: String,
     pub status: DiffStatus,
     pub disk_hash: Option<String>,
@@ -36,13 +48,25 @@ pub struct SkillDiffItem {
     pub name: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct ContentDiffResult {
-    pub source_id: String,
+    pub source_id: SourceId,
     pub added: Vec<ContentDiffItem>,
     pub removed: Vec<ContentDiffItem>,
     pub modified: Vec<ContentDiffItem>,
     pub unchanged: usize,
+}
+
+impl Default for ContentDiffResult {
+    fn default() -> Self {
+        Self {
+            source_id: SourceId::new(""),
+            added: Vec::new(),
+            removed: Vec::new(),
+            modified: Vec::new(),
+            unchanged: 0,
+        }
+    }
 }
 
 impl ContentDiffResult {
@@ -72,7 +96,7 @@ pub struct LocalSyncResult {
     pub items_skipped_modified: usize,
     pub items_deleted: usize,
     pub errors: Vec<String>,
-    pub direction: String,
+    pub direction: LocalSyncDirection,
 }
 
 #[derive(Debug)]
@@ -84,46 +108,9 @@ pub struct DiskContent {
 
 #[derive(Debug)]
 pub struct DiskSkill {
-    pub skill_id: String,
+    pub skill_id: SkillId,
     pub name: String,
     pub description: String,
     pub instructions: String,
-    pub file_path: String,
-}
-
-#[derive(Clone, Debug, Serialize)]
-pub struct PlaybookDiffItem {
-    pub playbook_id: String,
-    pub file_path: String,
-    pub category: String,
-    pub domain: String,
-    pub status: DiffStatus,
-    pub disk_hash: Option<String>,
-    pub db_hash: Option<String>,
-    pub name: Option<String>,
-}
-
-#[derive(Clone, Debug, Default, Serialize)]
-pub struct PlaybooksDiffResult {
-    pub added: Vec<PlaybookDiffItem>,
-    pub removed: Vec<PlaybookDiffItem>,
-    pub modified: Vec<PlaybookDiffItem>,
-    pub unchanged: usize,
-}
-
-impl PlaybooksDiffResult {
-    pub fn has_changes(&self) -> bool {
-        !self.added.is_empty() || !self.removed.is_empty() || !self.modified.is_empty()
-    }
-}
-
-#[derive(Debug)]
-pub struct DiskPlaybook {
-    pub playbook_id: String,
-    pub name: String,
-    pub description: String,
-    pub instructions: String,
-    pub category: String,
-    pub domain: String,
     pub file_path: String,
 }

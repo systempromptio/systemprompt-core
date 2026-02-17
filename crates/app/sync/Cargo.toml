@@ -35,6 +35,8 @@ sqlx = { workspace = true }
 flate2 = { workspace = true }
 tar = { workspace = true }
 sha2 = { workspace = true }
+zip = { workspace = true }
+tempfile = { workspace = true }
 
 # File scanning
 walkdir = { workspace = true }

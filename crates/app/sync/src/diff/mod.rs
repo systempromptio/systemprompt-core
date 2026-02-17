@@ -1,9 +1,7 @@
 mod content;
-mod playbooks;
 mod skills;
 
 pub use content::ContentDiffCalculator;
-pub use playbooks::PlaybooksDiffCalculator;
 pub use skills::SkillsDiffCalculator;
 
 use crate::models::DiskSkill;

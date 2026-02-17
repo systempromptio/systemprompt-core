@@ -70,7 +70,7 @@ pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, TaskErro
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,
-    ContextService, PlaybookIngestionService, PlaybookService, SkillIngestionService, SkillService,
+    ContextService, SkillIngestionService, SkillService,
 };
 
 pub use repository::content::ArtifactRepository;

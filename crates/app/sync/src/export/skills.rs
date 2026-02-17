@@ -4,34 +4,10 @@ use std::fs;
 use std::path::Path;
 use systemprompt_agent::models::Skill;
 
-const DEFAULT_SKILL_CATEGORY: &str = "skills";
-
 pub fn generate_skill_markdown(skill: &Skill) -> String {
-    let tags_str = skill.tags.join(", ");
-    let category = skill.category_id.as_ref().map_or(
-        DEFAULT_SKILL_CATEGORY,
-        systemprompt_identifiers::CategoryId::as_str,
-    );
-
     format!(
-        r#"---
-title: "{}"
-slug: "{}"
-description: "{}"
-author: "systemprompt"
-published_at: "{}"
-type: "skill"
-category: "{}"
-keywords: "{}"
----
-
-{}"#,
-        escape_yaml(&skill.name),
-        skill.skill_id.as_str().replace('_', "-"),
+        "---\ndescription: \"{}\"\n---\n\n{}",
         escape_yaml(&skill.description),
-        skill.created_at.format("%Y-%m-%d"),
-        category,
-        tags_str,
         &skill.instructions
     )
 }
@@ -54,7 +30,7 @@ name: "{}"
 description: "{}"
 enabled: {}
 version: "1.0.0"
-file: "index.md"
+file: "SKILL.md"
 assigned_agents:
   - content
 tags:
@@ -72,8 +48,8 @@ pub fn export_skill_to_disk(skill: &Skill, base_path: &Path) -> Result<()> {
     let skill_dir = base_path.join(&skill_dir_name);
     fs::create_dir_all(&skill_dir)?;
 
-    let index_content = generate_skill_markdown(skill);
-    fs::write(skill_dir.join("index.md"), index_content)?;
+    let skill_content = generate_skill_markdown(skill);
+    fs::write(skill_dir.join("SKILL.md"), skill_content)?;
 
     let config_content = generate_skill_config(skill);
     fs::write(skill_dir.join("config.yaml"), config_content)?;

@@ -814,8 +814,7 @@ mod session_analytics_tests {
         let headers = create_headers_with_user_agent("Mozilla/5.0 (X11; Unknown) SomeBrowser/1.0");
         let analytics = SessionAnalytics::from_headers(&headers);
 
-        // Not a known browser
-        assert!(analytics.browser.is_none());
+        assert_eq!(analytics.browser, Some("Other".to_string()));
     }
 
     #[test]
@@ -825,8 +824,7 @@ mod session_analytics_tests {
 
         // Chrome is detected
         assert_eq!(analytics.browser, Some("Chrome".to_string()));
-        // But OS is unknown
-        assert!(analytics.os.is_none());
+        assert_eq!(analytics.os, Some("Other".to_string()));
     }
 
     #[test]

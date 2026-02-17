@@ -12,7 +12,6 @@ pub const SHARED_CONTAINER_NAME: &str = "systemprompt-postgres-shared";
 pub const SHARED_ADMIN_USER: &str = "systemprompt_admin";
 pub const SHARED_VOLUME_NAME: &str = "systemprompt-postgres-shared-data";
 pub const SHARED_PORT: u16 = 5432;
-const POSTGRES_SUPERUSER: &str = "postgres";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SharedContainerConfig {
@@ -96,7 +95,10 @@ pub fn is_shared_container_running() -> bool {
 
     match output {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
-        Err(_) => false,
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to check shared container status");
+            false
+        },
     }
 }
 
@@ -120,7 +122,14 @@ pub fn get_container_password() -> Option<String> {
             }
             None
         },
-        _ => None,
+        Ok(_out) => {
+            tracing::debug!("Docker inspect returned non-success exit code");
+            None
+        },
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to inspect container");
+            None
+        },
     }
 }
 
@@ -137,7 +146,10 @@ pub fn check_volume_exists() -> bool {
 
     match output {
         Ok(out) => !String::from_utf8_lossy(&out.stdout).trim().is_empty(),
-        Err(_) => false,
+        Err(e) => {
+            tracing::debug!(error = %e, "Failed to check volume existence");
+            false
+        },
     }
 }
 
@@ -199,7 +211,7 @@ pub fn generate_admin_password() -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_nanos())
-        .unwrap_or(0);
+        .unwrap_or(1);
     let random_part = format!("{:x}{:x}", timestamp, timestamp.wrapping_mul(31337));
     random_part.chars().take(32).collect()
 }
@@ -278,7 +290,7 @@ pub async fn drop_database_for_tenant(
          pg_backend_pid()",
         safe_db_name
     );
-    let _ = Command::new("docker")
+    if let Err(e) = Command::new("docker")
         .args([
             "exec",
             SHARED_CONTAINER_NAME,
@@ -287,7 +299,10 @@ pub async fn drop_database_for_tenant(
             "-c",
             &terminate_query,
         ])
-        .status();
+        .status()
+    {
+        tracing::debug!(error = %e, "Failed to terminate existing connections");
+    }
 
     let drop_query = format!("DROP DATABASE IF EXISTS \"{}\"", safe_db_name);
     let status = Command::new("docker")
@@ -374,7 +389,7 @@ pub fn nanoid() -> String {
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis())
-        .unwrap_or(0);
+        .unwrap_or(1);
     format!("{:x}", timestamp)
 }
 
@@ -426,7 +441,7 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
             SHARED_CONTAINER_NAME,
             "psql",
             "-U",
-            POSTGRES_SUPERUSER,
+            SHARED_ADMIN_USER,
             "-d",
             "postgres",
             "-tAc",
@@ -451,7 +466,7 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
                 SHARED_CONTAINER_NAME,
                 "psql",
                 "-U",
-                POSTGRES_SUPERUSER,
+                SHARED_ADMIN_USER,
                 "-d",
                 "postgres",
                 "-c",
@@ -478,7 +493,7 @@ pub fn ensure_admin_role(admin_password: &str) -> Result<()> {
             SHARED_CONTAINER_NAME,
             "psql",
             "-U",
-            POSTGRES_SUPERUSER,
+            SHARED_ADMIN_USER,
             "-d",
             "postgres",
             "-c",

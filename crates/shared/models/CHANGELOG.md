@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.15] - 2026-02-17
+
+### Added
+- `ComponentSource` enum (`Instance`, `Explicit`) replacing raw string source fields in `PluginComponentRef`
+- `ComponentFilter` enum (`Enabled`) replacing raw string filter fields in `PluginComponentRef`
+- `PluginConfig`, `PluginConfigFile`, `PluginComponentRef`, `PluginScript`, `PluginAuthor` types for plugin configuration
+- `HookEventsConfig`, `HookMatcher`, `HookAction`, `HookType` types for Claude Code hook configuration
+- `plugins()` path accessor on `ProfilePaths`
+
+### Changed
+- `PluginComponentRef.source` is now `ComponentSource` enum instead of `String`
+- `PluginComponentRef.filter` is now `Option<ComponentFilter>` instead of `Option<String>`
+
 ## [0.1.14] - 2026-02-11
 
 ### Added

@@ -155,6 +155,13 @@ pub fn configure_routes(
     );
 
     router = router.nest(
+        ApiPaths::MARKETPLACE_BASE,
+        crate::routes::marketplace::router()
+            .with_state(ctx.clone())
+            .with_auth_middleware(public_middleware.clone()),
+    );
+
+    router = router.nest(
         "/api/v1/analytics",
         crate::routes::analytics::router(ctx)
             .map_err(|e| LoaderError::InitializationFailed {
@@ -266,7 +273,10 @@ pub fn configure_routes(
 
     let static_router = if let Some(auth_config) = site_auth_config {
         let secret = systemprompt_models::SecretsBootstrap::jwt_secret()
-            .unwrap_or_default()
+            .unwrap_or_else(|e| {
+                tracing::warn!(error = %e, "JWT secret not available for site auth gate");
+                ""
+            })
             .to_string();
         static_router.layer(axum::middleware::from_fn(move |req, next| {
             let config = auth_config;

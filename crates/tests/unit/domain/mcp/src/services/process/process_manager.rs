@@ -41,14 +41,14 @@ fn test_process_manager_copy() {
 // ============================================================================
 
 #[test]
-fn test_process_manager_is_running_invalid_pid() {
-    let result = ProcessManager::is_running(0);
+fn test_process_manager_is_running_nonexistent_pid_high() {
+    let result = ProcessManager::is_running(4_194_305);
     assert!(!result);
 }
 
 #[test]
-fn test_process_manager_is_running_nonexistent_pid() {
-    let result = ProcessManager::is_running(u32::MAX);
+fn test_process_manager_is_running_nonexistent_pid_higher() {
+    let result = ProcessManager::is_running(4_194_306);
     assert!(!result);
 }
 

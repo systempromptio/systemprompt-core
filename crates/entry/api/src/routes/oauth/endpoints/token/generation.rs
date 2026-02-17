@@ -40,9 +40,14 @@ pub async fn generate_tokens_by_user_id(
 
     let requested_permissions = parse_permissions(scope_str)?;
     let user_perms = user.permissions().to_vec();
-    let final_permissions =
-        resolve_user_permissions(repo, &requested_permissions, &user_perms, params.client_id)
-            .await?;
+    let final_permissions = resolve_user_permissions(
+        repo,
+        &requested_permissions,
+        &user_perms,
+        params.client_id,
+        params.resource,
+    )
+    .await?;
     let scope_string = systemprompt_models::auth::permissions_to_string(&final_permissions);
 
     let session_service = systemprompt_oauth::services::SessionCreationService::new(
@@ -227,13 +232,14 @@ pub async fn resolve_user_permissions(
     requested_permissions: &[Permission],
     user_permissions: &[Permission],
     client_id: &ClientId,
+    resource: Option<&str>,
 ) -> Result<Vec<Permission>> {
     let client = repo
         .find_client_by_id(client_id.as_str())
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
-    let client_allowed: Vec<Permission> = client
+    let mut client_allowed: Vec<Permission> = client
         .scopes
         .iter()
         .filter_map(|s| {
@@ -245,6 +251,21 @@ pub async fn resolve_user_permissions(
                 .ok()
         })
         .collect();
+
+    // Include MCP server scopes if resource points to one
+    if let Some(resource_uri) = resource {
+        if let Some(resource_scopes) =
+            crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(resource_uri).await
+        {
+            for scope_str in &resource_scopes {
+                if let Ok(perm) = Permission::from_str(scope_str) {
+                    if !client_allowed.contains(&perm) {
+                        client_allowed.push(perm);
+                    }
+                }
+            }
+        }
+    }
 
     let mut final_permissions = Vec::new();
 

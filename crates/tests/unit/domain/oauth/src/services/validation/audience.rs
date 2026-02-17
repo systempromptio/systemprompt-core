@@ -58,26 +58,26 @@ fn test_validate_service_access_different_service_names() {
 #[test]
 fn test_validate_required_audience_present() {
     let audiences = vec![JwtAudience::Api, JwtAudience::Web];
-    assert!(validate_required_audience(&audiences, JwtAudience::Api));
+    assert!(validate_required_audience(&audiences, &JwtAudience::Api));
 }
 
 #[test]
 fn test_validate_required_audience_missing() {
     let audiences = vec![JwtAudience::Web];
-    assert!(!validate_required_audience(&audiences, JwtAudience::Api));
+    assert!(!validate_required_audience(&audiences, &JwtAudience::Api));
 }
 
 #[test]
 fn test_validate_required_audience_empty() {
     let audiences: Vec<JwtAudience> = vec![];
-    assert!(!validate_required_audience(&audiences, JwtAudience::Api));
+    assert!(!validate_required_audience(&audiences, &JwtAudience::Api));
 }
 
 #[test]
 fn test_validate_required_audience_single() {
     let audiences = vec![JwtAudience::Mcp];
-    assert!(validate_required_audience(&audiences, JwtAudience::Mcp));
-    assert!(!validate_required_audience(&audiences, JwtAudience::Api));
+    assert!(validate_required_audience(&audiences, &JwtAudience::Mcp));
+    assert!(!validate_required_audience(&audiences, &JwtAudience::Api));
 }
 
 #[test]
@@ -89,10 +89,10 @@ fn test_validate_required_audience_all_types() {
         JwtAudience::Web,
     ];
 
-    assert!(validate_required_audience(&audiences, JwtAudience::Api));
-    assert!(validate_required_audience(&audiences, JwtAudience::Mcp));
-    assert!(validate_required_audience(&audiences, JwtAudience::A2a));
-    assert!(validate_required_audience(&audiences, JwtAudience::Web));
+    assert!(validate_required_audience(&audiences, &JwtAudience::Api));
+    assert!(validate_required_audience(&audiences, &JwtAudience::Mcp));
+    assert!(validate_required_audience(&audiences, &JwtAudience::A2a));
+    assert!(validate_required_audience(&audiences, &JwtAudience::Web));
 }
 
 // ============================================================================

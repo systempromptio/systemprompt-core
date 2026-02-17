@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
-    AgentConfig, AiConfig, PartialServicesConfig, SchedulerConfig, ServicesConfig,
+    AgentConfig, AiConfig, PartialServicesConfig, PluginConfig, SchedulerConfig, ServicesConfig,
     Settings as ServicesSettings, WebConfig,
 };
 use systemprompt_models::AppPaths;
@@ -40,6 +40,8 @@ struct PartialServicesRootConfig {
     pub ai: Option<AiConfig>,
     #[serde(default)]
     pub web: Option<WebConfig>,
+    #[serde(default)]
+    pub plugins: HashMap<String, PluginConfig>,
 }
 
 impl EnhancedConfigLoader {
@@ -78,6 +80,7 @@ impl EnhancedConfigLoader {
             scheduler: root.config.scheduler,
             ai: root.config.ai.unwrap_or_else(AiConfig::default),
             web: root.config.web.unwrap_or_else(WebConfig::default),
+            plugins: root.config.plugins,
         };
 
         for include_path in &root.includes {
@@ -209,6 +212,13 @@ impl EnhancedConfigLoader {
 
         if let Some(web) = partial.web {
             target.web = web;
+        }
+
+        for (name, plugin) in partial.plugins {
+            if target.plugins.contains_key(&name) {
+                anyhow::bail!("Duplicate plugin definition: {name}");
+            }
+            target.plugins.insert(name, plugin);
         }
 
         Ok(())

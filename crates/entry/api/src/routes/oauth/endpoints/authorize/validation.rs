@@ -20,28 +20,41 @@ pub async fn validate_authorize_request(
         .ok_or_else(|| anyhow::anyhow!("Invalid client_id"))?;
 
     if let Some(redirect_uri) = &params.redirect_uri {
-        let is_valid = client.redirect_uris.contains(redirect_uri);
+        use systemprompt_oauth::services::validation::validate_redirect_uri;
 
-        if !is_valid {
-            return Err(anyhow::anyhow!(
+        validate_redirect_uri(&client.redirect_uris, Some(redirect_uri)).map_err(|_| {
+            anyhow::anyhow!(
                 "redirect_uri '{}' not registered for client '{}'",
                 redirect_uri,
                 params.client_id
-            ));
-        }
+            )
+        })?;
     }
 
-    let scope = if let Some(scope_param) = params.scope.as_deref() {
-        scope_param.to_string()
+    let (scope, from_resource) = if let Some(scope_param) = params.scope.as_deref() {
+        if let Some(resource) = &params.resource {
+            if let Some(resource_scopes) = resolve_resource_scopes(resource).await {
+                let resource_scope_list = OAuthRepository::parse_scopes(&resource_scopes);
+                let requested_list = OAuthRepository::parse_scopes(scope_param);
+                let all_covered = requested_list
+                    .iter()
+                    .all(|s| resource_scope_list.contains(s));
+                (scope_param.to_string(), all_covered)
+            } else {
+                (scope_param.to_string(), false)
+            }
+        } else {
+            (scope_param.to_string(), false)
+        }
     } else if let Some(resource) = &params.resource {
         if let Some(resource_scopes) = resolve_resource_scopes(resource).await {
-            resource_scopes
+            (resource_scopes, true)
         } else if client.scopes.is_empty() {
             return Err(anyhow::anyhow!(
                 "Client has no registered scopes and none provided in request"
             ));
         } else {
-            client.scopes.join(" ")
+            (client.scopes.join(" "), false)
         }
     } else {
         if client.scopes.is_empty() {
@@ -49,7 +62,7 @@ pub async fn validate_authorize_request(
                 "Client has no registered scopes and none provided in request"
             ));
         }
-        client.scopes.join(" ")
+        (client.scopes.join(" "), false)
     };
 
     let requested_scopes = OAuthRepository::parse_scopes(&scope);
@@ -57,13 +70,15 @@ pub async fn validate_authorize_request(
     let valid_scopes = OAuthRepository::validate_scopes(&requested_scopes)
         .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
 
-    for requested_scope in &valid_scopes {
-        if !client.scopes.contains(requested_scope) {
-            return Err(anyhow::anyhow!(
-                "Scope '{}' not allowed for client '{}'",
-                requested_scope,
-                params.client_id
-            ));
+    if !from_resource {
+        for requested_scope in &valid_scopes {
+            if !client.scopes.contains(requested_scope) {
+                return Err(anyhow::anyhow!(
+                    "Scope '{}' not allowed for client '{}'",
+                    requested_scope,
+                    params.client_id
+                ));
+            }
         }
     }
 

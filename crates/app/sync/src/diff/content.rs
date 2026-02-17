@@ -38,7 +38,7 @@ impl ContentDiffCalculator {
         let disk_items = Self::scan_disk_content(disk_path, allowed_types);
 
         let mut result = ContentDiffResult {
-            source_id: source_id.to_string(),
+            source_id: source_id_typed.clone(),
             ..Default::default()
         };
 
@@ -49,7 +49,7 @@ impl ContentDiffCalculator {
                 None => {
                     result.added.push(ContentDiffItem {
                         slug: slug.clone(),
-                        source_id: source_id.to_string(),
+                        source_id: source_id_typed.clone(),
                         status: DiffStatus::Added,
                         disk_hash: Some(disk_hash),
                         db_hash: None,
@@ -64,7 +64,7 @@ impl ContentDiffCalculator {
                     } else {
                         result.modified.push(ContentDiffItem {
                             slug: slug.clone(),
-                            source_id: source_id.to_string(),
+                            source_id: source_id_typed.clone(),
                             status: DiffStatus::Modified,
                             disk_hash: Some(disk_hash),
                             db_hash: Some(db_item.version_hash.clone()),
@@ -81,7 +81,7 @@ impl ContentDiffCalculator {
             if !disk_items.contains_key(slug) {
                 result.removed.push(ContentDiffItem {
                     slug: slug.clone(),
-                    source_id: source_id.to_string(),
+                    source_id: source_id_typed.clone(),
                     status: DiffStatus::Removed,
                     disk_hash: None,
                     db_hash: Some(db_item.version_hash.clone()),

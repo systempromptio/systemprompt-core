@@ -1,5 +1,7 @@
 pub mod agent_config;
 pub mod ai;
+pub mod hooks;
+pub mod plugin;
 pub mod runtime;
 pub mod scheduler;
 pub mod settings;
@@ -10,6 +12,11 @@ pub use agent_config::*;
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
+};
+pub use hooks::{HookAction, HookEventsConfig, HookMatcher, HookType};
+pub use plugin::{
+    ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
+    PluginConfigFile, PluginScript,
 };
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
@@ -83,6 +90,8 @@ pub struct PartialServicesConfig {
     pub ai: Option<AiConfig>,
     #[serde(default)]
     pub web: Option<WebConfig>,
+    #[serde(default)]
+    pub plugins: HashMap<String, PluginConfig>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -99,6 +108,8 @@ pub struct ServicesConfig {
     pub ai: AiConfig,
     #[serde(default)]
     pub web: WebConfig,
+    #[serde(default)]
+    pub plugins: HashMap<String, PluginConfig>,
 }
 
 impl ServicesConfig {
@@ -110,6 +121,20 @@ impl ServicesConfig {
 
         for (name, agent) in &self.agents {
             agent.validate(name)?;
+        }
+
+        for (name, plugin) in &self.plugins {
+            plugin.validate(name)?;
+
+            for mcp_ref in &plugin.mcp_servers {
+                if !self.mcp_servers.contains_key(mcp_ref) {
+                    tracing::warn!(
+                        plugin = %name,
+                        mcp_server = %mcp_ref,
+                        "Plugin references MCP server that is not defined in services config"
+                    );
+                }
+            }
         }
 
         Ok(())

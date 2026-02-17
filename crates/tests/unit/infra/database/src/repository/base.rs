@@ -1,6 +1,6 @@
-//! Unit tests for Repository and PaginatedRepository traits
+//! Unit tests for repository types and traits
 
-use systemprompt_database::repository::{PgDbPool, Repository, PaginatedRepository};
+use systemprompt_database::repository::{Entity, EntityId, GenericRepository, PgDbPool, RepositoryExt};
 use systemprompt_database::PgPool;
 
 // ============================================================================
@@ -14,45 +14,65 @@ fn test_pg_db_pool_type_alias() {
 }
 
 // ============================================================================
-// Repository Trait Tests
+// EntityId Trait Tests
 // ============================================================================
 
 #[test]
-fn test_repository_trait_is_object_safe() {
-    trait ObjectSafe: Repository {}
-}
-
-#[test]
-fn test_repository_associated_types() {
-    trait CheckTypes: Repository {
-        fn _check(&self)
-        where
-            Self::Entity: Send + Sync,
-            Self::Id: Send + Sync,
-            Self::Error: Send + Sync + std::error::Error,
-        {
-        }
-    }
-}
-
-#[test]
-fn test_repository_requires_send_sync() {
+fn test_entity_id_requires_send_sync() {
     fn assert_send_sync<T: Send + Sync>() {}
-    fn _check_repository<R: Repository>() {
-        assert_send_sync::<R>();
+    fn _check_entity_id<I: EntityId>() {
+        assert_send_sync::<I>();
+    }
+}
+
+#[test]
+fn test_string_implements_entity_id() {
+    let id = String::from_string("test-id".to_string());
+    assert_eq!(id.as_str(), "test-id");
+}
+
+// ============================================================================
+// Entity Trait Tests
+// ============================================================================
+
+#[test]
+fn test_entity_associated_types() {
+    fn _check_entity<E: Entity>()
+    where
+        E::Id: EntityId,
+    {
     }
 }
 
 // ============================================================================
-// PaginatedRepository Trait Tests
+// GenericRepository Tests
 // ============================================================================
 
 #[test]
-fn test_paginated_repository_extends_repository() {
-    trait ExtendCheck: PaginatedRepository {}
-    fn _check_extends_repository<R: PaginatedRepository>()
+fn test_generic_repository_is_send_sync() {
+    fn assert_send_sync<T: Send + Sync>() {}
+    fn _check<E: Entity>() {
+        assert_send_sync::<GenericRepository<E>>();
+    }
+}
+
+#[test]
+fn test_generic_repository_is_clone() {
+    fn assert_clone<T: Clone>() {}
+    fn _check<E: Entity + Clone>() {
+        assert_clone::<GenericRepository<E>>();
+    }
+}
+
+// ============================================================================
+// RepositoryExt Trait Tests
+// ============================================================================
+
+#[test]
+fn test_generic_repository_implements_repository_ext() {
+    fn _check<E: Entity>()
     where
-        R: Repository,
+        GenericRepository<E>: RepositoryExt<E>,
     {
     }
 }

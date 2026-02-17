@@ -19,8 +19,19 @@ pub struct DockerfileBuilder<'a> {
 impl<'a> DockerfileBuilder<'a> {
     pub fn new(project_root: &'a Path) -> Self {
         let services_config = find_services_config(project_root)
+            .map_err(|e| {
+                tracing::debug!(error = %e, "No services config found for dockerfile generation");
+                e
+            })
             .ok()
-            .and_then(|path| ConfigLoader::load_from_path(&path).ok());
+            .and_then(|path| {
+                ConfigLoader::load_from_path(&path)
+                    .map_err(|e| {
+                        tracing::warn!(error = %e, "Failed to load services config");
+                        e
+                    })
+                    .ok()
+            });
         Self {
             project_root,
             profile_name: None,
@@ -74,7 +85,6 @@ COPY services {services_path}
 
 # Copy profiles
 COPY .systemprompt/profiles {profiles}
-
 RUN chmod +x {bin}/* && chown -R app:app {app}
 
 USER app

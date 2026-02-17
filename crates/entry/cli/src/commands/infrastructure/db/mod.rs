@@ -89,7 +89,7 @@ impl DatabaseTool {
         let ctx = AppContext::new()
             .await
             .context("Failed to connect to database. Check your profile configuration.")?;
-        let pool = ctx.db_pool().pool_arc()?;
+        let pool = ctx.db_pool().write_pool_arc()?;
         let admin_service = DatabaseAdminService::new(Arc::clone(&pool));
         let query_executor = QueryExecutor::new(pool);
         Ok(Self {
@@ -159,7 +159,7 @@ pub async fn execute_with_db(
 ) -> Result<()> {
     let pool = db_ctx
         .db_pool()
-        .pool_arc()
+        .write_pool_arc()
         .context("Database must be PostgreSQL")?;
     let admin_service = DatabaseAdminService::new(Arc::clone(&pool));
     let query_executor = QueryExecutor::new(pool);

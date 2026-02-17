@@ -2,6 +2,9 @@
 target/
 **/target/
 **/*.rs.bk
+docs
+docs/
+docs/*
 
 # SQLx workspace cache (development only - per-crate caches are committed)
 /.sqlx/

@@ -73,6 +73,8 @@ impl ApiPaths {
     pub const ADMIN_ANALYTICS: &'static str = "/api/v1/admin/analytics";
     pub const ADMIN_SESSIONS: &'static str = "/api/v1/admin/sessions";
 
+    pub const MARKETPLACE_BASE: &'static str = "/api/v1/marketplace";
+
     pub const CLOUD_TENANTS: &'static str = "/api/v1/tenants";
     pub const CLOUD_CHECKOUT: &'static str = "/api/v1/checkout";
     pub const CLOUD_CHECKOUT_PLANS: &'static str = "/api/v1/checkout/plans";

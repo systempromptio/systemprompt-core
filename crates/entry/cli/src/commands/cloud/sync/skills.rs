@@ -151,7 +151,7 @@ fn prompt_sync_direction() -> Result<Option<LocalSyncDirection>> {
 
 fn display_sync_result(result: &LocalSyncResult) {
     CliService::section("Sync Complete");
-    CliService::key_value("Direction", &result.direction);
+    CliService::key_value("Direction", &result.direction.to_string());
     CliService::key_value("Synced", &result.items_synced.to_string());
     CliService::key_value("Deleted", &result.items_deleted.to_string());
     CliService::key_value("Skipped", &result.items_skipped.to_string());

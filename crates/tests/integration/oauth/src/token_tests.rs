@@ -54,7 +54,7 @@ async fn test_authorization_code_lifecycle() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -73,13 +73,13 @@ async fn test_authorization_code_lifecycle() {
 
     assert_eq!(stored_client_id.as_str(), client_id.as_str());
 
-    let (returned_user_id, returned_scope) = repo
+    let validation = repo
         .validate_authorization_code(&code, &client_id, Some(redirect_uri), None)
         .await
         .expect("Failed to validate authorization code");
 
-    assert_eq!(returned_user_id.as_str(), user_id.as_str());
-    assert_eq!(returned_scope, scopes);
+    assert_eq!(validation.user_id.as_str(), user_id.as_str());
+    assert_eq!(validation.scope, scopes);
 
     let validation_again = repo
         .validate_authorization_code(&code, &client_id, Some(redirect_uri), None)
@@ -101,7 +101,7 @@ async fn test_authorization_code_pkce() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -125,7 +125,7 @@ async fn test_authorization_code_pkce() {
         .await
         .expect("Failed to validate PKCE code");
 
-    assert_eq!(validation.0.as_str(), user_id.as_str());
+    assert_eq!(validation.user_id.as_str(), user_id.as_str());
 
     cleanup_test_client(&db, &client_id).await;
     cleanup_test_user(&db, &user_id).await;
@@ -138,7 +138,7 @@ async fn test_authorization_code_pkce_invalid_verifier() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let code = test_code();
     let redirect_uri = "http://localhost:3000/callback";
@@ -177,7 +177,7 @@ async fn test_refresh_token_lifecycle() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let token_id = test_token_id();
     let scopes = "openid profile";
@@ -223,7 +223,7 @@ async fn test_refresh_token_expiration() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let token_id = test_token_id();
     let scopes = "openid";
@@ -250,7 +250,7 @@ async fn test_refresh_token_revocation() {
     create_test_client(&db, &client_id).await;
     let user_id = create_test_user(&db).await;
 
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let token_id = test_token_id();
     let scopes = "openid";

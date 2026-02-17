@@ -164,3 +164,65 @@ fn test_validate_redirect_uri_whitespace_only() {
 
     assert!(result.is_err());
 }
+
+// ============================================================================
+// Relative URI matching tests
+// ============================================================================
+
+#[test]
+fn test_validate_redirect_uri_relative_path_matches_absolute() {
+    let registered = vec!["/admin/login".to_string()];
+    let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login"));
+
+    assert!(result.is_ok());
+    assert_eq!(result.unwrap(), "https://example.com/admin/login");
+}
+
+#[test]
+fn test_validate_redirect_uri_relative_path_different_host() {
+    let registered = vec!["/admin/login".to_string()];
+    let result = validate_redirect_uri(&registered, Some("https://other-host.io/admin/login"));
+
+    assert!(result.is_ok());
+}
+
+#[test]
+fn test_validate_redirect_uri_relative_path_no_match() {
+    let registered = vec!["/admin/login".to_string()];
+    let result = validate_redirect_uri(&registered, Some("https://example.com/other/path"));
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validate_redirect_uri_relative_path_partial_no_match() {
+    let registered = vec!["/admin/login".to_string()];
+    let result = validate_redirect_uri(&registered, Some("https://example.com/admin/login/extra"));
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validate_redirect_uri_protocol_relative_not_treated_as_path() {
+    // URIs starting with // should NOT be treated as relative paths
+    let registered = vec!["//evil.com/callback".to_string()];
+    let result = validate_redirect_uri(&registered, Some("https://example.com//evil.com/callback"));
+
+    assert!(result.is_err());
+}
+
+#[test]
+fn test_validate_redirect_uri_relative_alongside_absolute() {
+    let registered = vec![
+        "/callback".to_string(),
+        "http://localhost:8080/callback".to_string(),
+    ];
+
+    // Absolute match still works
+    let result = validate_redirect_uri(&registered, Some("http://localhost:8080/callback"));
+    assert!(result.is_ok());
+
+    // Relative match works for any origin
+    let result = validate_redirect_uri(&registered, Some("https://prod.example.com/callback"));
+    assert!(result.is_ok());
+}

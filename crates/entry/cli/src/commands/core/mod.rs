@@ -2,7 +2,8 @@ pub mod artifacts;
 pub mod content;
 pub mod contexts;
 pub mod files;
-pub mod playbooks;
+pub mod hooks;
+pub mod plugins;
 pub mod skills;
 
 use anyhow::Result;
@@ -25,14 +26,14 @@ pub enum CoreCommands {
     #[command(subcommand, about = "Context management")]
     Contexts(contexts::ContextsCommands),
 
-    #[command(
-        subcommand,
-        about = "Workflow playbooks - step-by-step operational guides"
-    )]
-    Playbooks(playbooks::PlaybooksCommands),
-
     #[command(subcommand, about = "Skill management and database sync")]
     Skills(skills::SkillsCommands),
+
+    #[command(subcommand, about = "Plugin management and marketplace generation")]
+    Plugins(plugins::PluginsCommands),
+
+    #[command(subcommand, about = "Hook validation and inspection")]
+    Hooks(hooks::HooksCommands),
 }
 
 pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
@@ -41,8 +42,9 @@ pub async fn execute(cmd: CoreCommands, config: &CliConfig) -> Result<()> {
         CoreCommands::Content(cmd) => content::execute(cmd).await,
         CoreCommands::Files(cmd) => files::execute(cmd, config).await,
         CoreCommands::Contexts(cmd) => contexts::execute(cmd, config).await,
-        CoreCommands::Playbooks(cmd) => playbooks::execute(cmd, config).await,
         CoreCommands::Skills(cmd) => skills::execute(cmd).await,
+        CoreCommands::Plugins(cmd) => plugins::execute(cmd),
+        CoreCommands::Hooks(cmd) => hooks::execute(cmd),
     }
 }
 
@@ -56,8 +58,9 @@ pub async fn execute_with_db(
         CoreCommands::Files(cmd) => files::execute_with_db(cmd, db_ctx, config).await,
         CoreCommands::Artifacts(_)
         | CoreCommands::Contexts(_)
-        | CoreCommands::Playbooks(_)
-        | CoreCommands::Skills(_) => {
+        | CoreCommands::Skills(_)
+        | CoreCommands::Plugins(_)
+        | CoreCommands::Hooks(_) => {
             anyhow::bail!("This command requires full profile context")
         },
     }

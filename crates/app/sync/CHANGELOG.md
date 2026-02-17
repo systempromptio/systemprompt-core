@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.5] - 2026-02-17
+
+### Changed
+- Replace raw `String` IDs with typed `SkillId` and `SourceId` from `systemprompt_identifiers`
+- Replace `direction: String` with `LocalSyncDirection` enum on `LocalSyncResult`
+- Use `SkillId` as HashMap key in `SkillsDiffCalculator` (eliminates wasteful `.as_str().to_string()`)
+- Remove all inline comments and doc comments from `files.rs` per Rust standards
+
+### Removed
+- Remove playbook support: `PlaybooksDiffCalculator`, `PlaybooksLocalSync`, playbook diff models, export functions
+
 ## [0.1.4] - 2026-02-11
 
 ### Changed

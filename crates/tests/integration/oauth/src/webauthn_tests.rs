@@ -8,7 +8,7 @@ use uuid::Uuid;
 async fn test_webauthn_credential_lifecycle() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let id = Uuid::new_v4().to_string();
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
@@ -46,7 +46,7 @@ async fn test_webauthn_credential_lifecycle() {
 async fn test_webauthn_credential_counter_update() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let id = Uuid::new_v4().to_string();
     let credential_id = Uuid::new_v4().as_bytes().to_vec();
@@ -83,7 +83,7 @@ async fn test_webauthn_credential_counter_update() {
 async fn test_webauthn_multiple_credentials_per_user() {
     let db = setup_test_db().await;
     let user_id = create_test_user(&db).await;
-    let repo = OAuthRepository::new(db.clone()).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let transports = vec!["internal".to_string()];
 
@@ -117,7 +117,7 @@ async fn test_webauthn_multiple_credentials_per_user() {
 #[tokio::test]
 async fn test_webauthn_empty_for_new_user() {
     let db = setup_test_db().await;
-    let repo = OAuthRepository::new(db).expect("Failed to create repository");
+    let repo = OAuthRepository::new(&db).expect("Failed to create repository");
 
     let nonexistent_user_id = Uuid::new_v4().to_string();
 

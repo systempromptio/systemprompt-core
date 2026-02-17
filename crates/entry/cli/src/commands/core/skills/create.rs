@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use chrono::Utc;
 use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
@@ -39,15 +38,6 @@ pub struct CreateArgs {
 
     #[arg(long, help = "Enable the skill (default: true)")]
     pub enabled: Option<bool>,
-
-    #[arg(long, help = "Skill author (default: systemprompt)")]
-    pub author: Option<String>,
-
-    #[arg(long, help = "Category for the skill (default: skills)")]
-    pub category: Option<String>,
-
-    #[arg(long, help = "Skill type (default: skill)")]
-    pub skill_type: Option<String>,
 
     #[arg(long, help = "Skip syncing to database after creation")]
     pub no_sync: bool,
@@ -90,9 +80,6 @@ pub async fn execute(
     });
 
     let enabled = args.enabled.unwrap_or(true);
-    let author = args.author.unwrap_or_else(|| "systemprompt".to_string());
-    let category = args.category.unwrap_or_else(|| "skills".to_string());
-    let skill_type = args.skill_type.unwrap_or_else(|| "skill".to_string());
 
     CliService::info(&format!(
         "Creating skill '{}' (display: {})...",
@@ -114,26 +101,21 @@ pub async fn execute(
     fs::create_dir_all(&skill_dir)
         .with_context(|| format!("Failed to create skill directory: {}", skill_dir.display()))?;
 
-    let index_path = skill_dir.join("index.md");
-    let frontmatter_params = SkillFrontmatterParams {
-        title: &display_name,
-        slug: &name,
-        description: &description,
-        author: &author,
-        category: &category,
-        skill_type: &skill_type,
-        enabled,
-        tags: &tags,
-    };
-    let content = build_skill_markdown(&frontmatter_params, &instructions);
+    let skill_path = skill_dir.join("SKILL.md");
+    let content = build_skill_markdown(&description, &instructions);
 
-    fs::write(&index_path, content)
-        .with_context(|| format!("Failed to write skill file: {}", index_path.display()))?;
+    fs::write(&skill_path, &content)
+        .with_context(|| format!("Failed to write skill file: {}", skill_path.display()))?;
+
+    let config_content = build_skill_config(&name, &display_name, &description, enabled, &tags);
+    let config_path = skill_dir.join("config.yaml");
+    fs::write(&config_path, config_content)
+        .with_context(|| format!("Failed to write config: {}", config_path.display()))?;
 
     CliService::success(&format!(
         "Skill '{}' created at {}",
         name,
-        index_path.display()
+        skill_path.display()
     ));
 
     let mut synced_to_db = false;
@@ -156,16 +138,16 @@ pub async fn execute(
         format!(
             "Skill '{}' created and synced to database at {}",
             name,
-            index_path.display()
+            skill_path.display()
         )
     } else {
-        format!("Skill '{}' created at {}", name, index_path.display())
+        format!("Skill '{}' created at {}", name, skill_path.display())
     };
 
     let output = SkillCreateOutput {
         skill_id: name.clone(),
         message,
-        file_path: index_path.to_string_lossy().to_string(),
+        file_path: skill_path.to_string_lossy().to_string(),
     };
 
     Ok(CommandResult::text(output).with_title("Skill Created"))
@@ -267,51 +249,46 @@ fn resolve_instructions(
     Ok(String::new())
 }
 
-struct SkillFrontmatterParams<'a> {
-    title: &'a str,
-    slug: &'a str,
-    description: &'a str,
-    author: &'a str,
-    category: &'a str,
-    skill_type: &'a str,
-    enabled: bool,
-    tags: &'a [String],
+fn build_skill_markdown(description: &str, instructions: &str) -> String {
+    format!(
+        "---\ndescription: \"{description}\"\n---\n\n{instructions}\n",
+        description = description,
+        instructions = instructions
+    )
 }
 
-fn build_skill_markdown(params: &SkillFrontmatterParams<'_>, instructions: &str) -> String {
-    let keywords = if params.tags.is_empty() {
-        String::new()
+fn build_skill_config(
+    name: &str,
+    display_name: &str,
+    description: &str,
+    enabled: bool,
+    tags: &[String],
+) -> String {
+    let tags_yaml = if tags.is_empty() {
+        "[]".to_string()
     } else {
-        params.tags.join(", ")
+        tags.iter()
+            .map(|t| format!("  - {}", t))
+            .collect::<Vec<_>>()
+            .join("\n")
     };
 
-    let today = Utc::now().format("%Y-%m-%d").to_string();
-
     format!(
-        r#"---
-title: "{title}"
-slug: "{slug}"
+        r#"id: {name}
+name: "{display_name}"
 description: "{description}"
-author: "{author}"
-published_at: "{published_at}"
-type: "{skill_type}"
-category: "{category}"
-keywords: "{keywords}"
 enabled: {enabled}
----
-
-{instructions}
-"#,
-        title = params.title,
-        slug = params.slug,
-        description = params.description,
-        author = params.author,
-        published_at = today,
-        skill_type = params.skill_type,
-        category = params.category,
-        keywords = keywords,
-        enabled = params.enabled,
-        instructions = instructions
+version: "1.0.0"
+file: "SKILL.md"
+assigned_agents:
+  - content
+tags:
+{tags_yaml}"#,
+        name = name,
+        display_name = display_name,
+        description = description,
+        enabled = enabled,
+        tags_yaml = tags_yaml
     )
 }
 

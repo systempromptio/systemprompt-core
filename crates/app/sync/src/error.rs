@@ -40,6 +40,9 @@ pub enum SyncError {
 
     #[error("Path error: {0}")]
     StripPrefix(#[from] std::path::StripPrefixError),
+
+    #[error("Zip error: {0}")]
+    Zip(#[from] zip::result::ZipError),
 }
 
 impl SyncError {

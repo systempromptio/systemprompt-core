@@ -236,6 +236,7 @@ fn test_jwt_config_custom() {
         permissions: vec![Permission::Admin, Permission::User],
         audience: vec![JwtAudience::Api],
         expires_in_hours: Some(48),
+        resource: None,
     };
 
     assert_eq!(config.permissions.len(), 2);
@@ -250,6 +251,7 @@ fn test_jwt_config_no_expiry() {
         permissions: vec![Permission::User],
         audience: JwtAudience::standard(),
         expires_in_hours: None,
+        resource: None,
     };
 
     assert!(config.expires_in_hours.is_none());

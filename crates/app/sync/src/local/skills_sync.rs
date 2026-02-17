@@ -1,12 +1,12 @@
 use crate::diff::SkillsDiffCalculator;
 use crate::export::export_skill_to_disk;
-use crate::models::{LocalSyncResult, SkillsDiffResult};
+use crate::models::{LocalSyncDirection, LocalSyncResult, SkillsDiffResult};
 use anyhow::Result;
 use std::path::PathBuf;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_agent::services::SkillIngestionService;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{SkillId, SourceId};
+use systemprompt_identifiers::SourceId;
 use tracing::info;
 
 #[derive(Debug)]
@@ -32,13 +32,12 @@ impl SkillsLocalSync {
     ) -> Result<LocalSyncResult> {
         let skill_repo = SkillRepository::new(&self.db)?;
         let mut result = LocalSyncResult {
-            direction: "to_disk".to_string(),
+            direction: LocalSyncDirection::ToDisk,
             ..Default::default()
         };
 
         for item in &diff.modified {
-            let skill_id = SkillId::new(&item.skill_id);
-            match skill_repo.get_by_skill_id(&skill_id).await? {
+            match skill_repo.get_by_skill_id(&item.skill_id).await? {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
                     result.items_synced += 1;
@@ -53,8 +52,7 @@ impl SkillsLocalSync {
         }
 
         for item in &diff.removed {
-            let skill_id = SkillId::new(&item.skill_id);
-            match skill_repo.get_by_skill_id(&skill_id).await? {
+            match skill_repo.get_by_skill_id(&item.skill_id).await? {
                 Some(skill) => {
                     export_skill_to_disk(&skill, &self.skills_path)?;
                     result.items_synced += 1;
@@ -70,7 +68,7 @@ impl SkillsLocalSync {
 
         if delete_orphans {
             for item in &diff.added {
-                let skill_dir_name = item.skill_id.replace('_', "-");
+                let skill_dir_name = item.skill_id.as_str().replace('_', "-");
                 let skill_dir = self.skills_path.join(&skill_dir_name);
 
                 if skill_dir.exists() {
@@ -93,7 +91,7 @@ impl SkillsLocalSync {
     ) -> Result<LocalSyncResult> {
         let ingestion_service = SkillIngestionService::new(&self.db)?;
         let mut result = LocalSyncResult {
-            direction: "to_database".to_string(),
+            direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
         };
 

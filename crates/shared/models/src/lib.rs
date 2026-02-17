@@ -124,10 +124,12 @@ pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
 pub use secrets::{Secrets, SecretsBootstrap, SecretsBootstrapError};
 pub use services::{
     AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo, AiConfig,
-    AiProviderConfig, CapabilitiesConfig, HistoryConfig, IncludableString, JobConfig, McpConfig,
-    OAuthConfig as AgentOAuthConfig, PartialServicesConfig, RuntimeStatus, SamplingConfig,
-    SchedulerConfig, ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig,
-    SkillsConfig, ToolModelConfig, ToolModelSettings, WebConfig,
+    AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource, HistoryConfig,
+    HookAction, HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, McpConfig,
+    OAuthConfig as AgentOAuthConfig, PartialServicesConfig, PluginAuthor, PluginComponentRef,
+    PluginConfig, PluginConfigFile, PluginScript, RuntimeStatus, SamplingConfig, SchedulerConfig,
+    ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig, SkillsConfig,
+    ToolModelConfig, ToolModelSettings, WebConfig,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 

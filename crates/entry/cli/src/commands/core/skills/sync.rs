@@ -140,7 +140,7 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
     spinner.finish_and_clear();
 
     CliService::section("Sync Complete");
-    CliService::key_value("Direction", &result.direction);
+    CliService::key_value("Direction", &result.direction.to_string());
     CliService::key_value("Synced", &result.items_synced.to_string());
     CliService::key_value("Deleted", &result.items_deleted.to_string());
     CliService::key_value("Skipped", &result.items_skipped.to_string());
@@ -153,7 +153,7 @@ pub async fn execute(args: SyncArgs, config: &CliConfig) -> Result<CommandResult
     }
 
     let output = SkillSyncOutput {
-        direction: result.direction,
+        direction: result.direction.to_string(),
         synced: result.items_synced,
         skipped: result.items_skipped,
         deleted: result.items_deleted,

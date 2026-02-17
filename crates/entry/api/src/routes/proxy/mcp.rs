@@ -199,6 +199,17 @@ pub(crate) async fn get_mcp_server_scopes(service_name: &str) -> Option<Vec<Stri
     }
 }
 
+pub(crate) async fn get_mcp_server_scopes_from_resource(resource_uri: &str) -> Option<Vec<String>> {
+    let url = reqwest::Url::parse(resource_uri).ok()?;
+    let path = url.path();
+    let parts: Vec<&str> = path.split('/').collect();
+    if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
+        return None;
+    }
+    let server_name = parts[4];
+    get_mcp_server_scopes(server_name).await
+}
+
 pub fn router(ctx: &AppContext) -> Router {
     let engine = ProxyEngine::new();
 

@@ -1,6 +1,6 @@
 use crate::diff::ContentDiffCalculator;
 use crate::export::export_content_to_file;
-use crate::models::{ContentDiffResult, LocalSyncResult};
+use crate::models::{ContentDiffResult, LocalSyncDirection, LocalSyncResult};
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 use systemprompt_content::models::{IngestionOptions, IngestionSource};
@@ -49,7 +49,7 @@ impl ContentLocalSync {
     ) -> Result<LocalSyncResult> {
         let content_repo = ContentRepository::new(&self.db)?;
         let mut result = LocalSyncResult {
-            direction: "to_disk".to_string(),
+            direction: LocalSyncDirection::ToDisk,
             ..Default::default()
         };
 
@@ -129,7 +129,7 @@ impl ContentLocalSync {
         let ingestion_service = IngestionService::new(&self.db)?;
         let content_repo = ContentRepository::new(&self.db)?;
         let mut result = LocalSyncResult {
-            direction: "to_database".to_string(),
+            direction: LocalSyncDirection::ToDatabase,
             ..Default::default()
         };
 

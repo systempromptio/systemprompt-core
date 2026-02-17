@@ -120,7 +120,7 @@ fn list_all_skills(skills_path: &Path) -> Result<Vec<String>> {
             continue;
         }
 
-        let has_skill_file = path.join("index.md").exists() || path.join("SKILL.md").exists();
+        let has_skill_file = path.join("SKILL.md").exists();
 
         if has_skill_file {
             if let Some(name) = path.file_name().and_then(|n| n.to_str()) {

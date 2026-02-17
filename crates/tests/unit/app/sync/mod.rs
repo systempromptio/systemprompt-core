@@ -14,6 +14,7 @@
 
 use chrono::{TimeZone, Utc};
 use std::fs;
+use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_sync::{
     compute_content_hash, escape_yaml, export_content_to_file, export_skill_to_disk,
     generate_content_markdown, generate_skill_config, generate_skill_markdown, ContentDiffItem,
@@ -22,10 +23,6 @@ use systemprompt_sync::{
     SkillExport, SkillsDiffResult, SyncConfig, SyncDirection, SyncError, SyncOperationResult,
 };
 use tempfile::TempDir;
-
-// ============================================================================
-// SyncError Tests
-// ============================================================================
 
 #[test]
 fn test_sync_error_api_error() {
@@ -89,10 +86,6 @@ fn test_sync_error_git_sha_unavailable() {
     assert_eq!(error.to_string(), "Git SHA unavailable");
 }
 
-// ============================================================================
-// SyncConfig and Builder Tests
-// ============================================================================
-
 #[test]
 fn test_sync_config_builder_defaults() {
     let config = SyncConfig::builder(
@@ -154,10 +147,6 @@ fn test_sync_config_builder_chain_order_irrelevant() {
     assert_eq!(config1.verbose, config2.verbose);
 }
 
-// ============================================================================
-// SyncDirection Tests
-// ============================================================================
-
 #[test]
 fn test_sync_direction_equality() {
     assert_eq!(SyncDirection::Push, SyncDirection::Push);
@@ -198,10 +187,6 @@ fn test_sync_direction_invalid_deserialization() {
     let result: Result<SyncDirection, _> = serde_json::from_str("\"Invalid\"");
     assert!(result.is_err());
 }
-
-// ============================================================================
-// SyncOperationResult Tests
-// ============================================================================
 
 #[test]
 fn test_sync_operation_result_success() {
@@ -247,7 +232,6 @@ fn test_sync_operation_result_chained_with_details() {
         .with_details(serde_json::json!({"key": "value1"}))
         .with_details(serde_json::json!({"key": "value2"}));
 
-    // Second with_details should override
     assert_eq!(result.details, Some(serde_json::json!({"key": "value2"})));
 }
 
@@ -260,10 +244,6 @@ fn test_sync_operation_result_serialization() {
     assert!(json.contains("\"success\":true"));
     assert!(json.contains("\"items_synced\":5"));
 }
-
-// ============================================================================
-// FileManifest and FileEntry Tests
-// ============================================================================
 
 #[test]
 fn test_file_entry_creation() {
@@ -341,16 +321,12 @@ fn test_file_bundle_creation() {
     assert_eq!(bundle.data.len(), 4);
 }
 
-// ============================================================================
-// DatabaseExport Models Tests
-// ============================================================================
-
 #[test]
 fn test_skill_export_creation() {
     let now = Utc::now();
     let skill = SkillExport {
         skill_id: "test_skill".to_string(),
-        file_path: "/skills/test-skill/index.md".to_string(),
+        file_path: "/skills/test-skill/SKILL.md".to_string(),
         name: "Test Skill".to_string(),
         description: "A skill for testing".to_string(),
         instructions: "Follow these instructions".to_string(),
@@ -373,7 +349,7 @@ fn test_skill_export_no_tags() {
     let now = Utc::now();
     let skill = SkillExport {
         skill_id: "minimal_skill".to_string(),
-        file_path: "/skills/minimal/index.md".to_string(),
+        file_path: "/skills/minimal/SKILL.md".to_string(),
         name: "Minimal Skill".to_string(),
         description: "Minimal description".to_string(),
         instructions: "Instructions".to_string(),
@@ -430,7 +406,7 @@ fn test_database_export_full() {
         users: vec![],
         skills: vec![SkillExport {
             skill_id: "skill_1".to_string(),
-            file_path: "/skills/skill-1/index.md".to_string(),
+            file_path: "/skills/skill-1/SKILL.md".to_string(),
             name: "Skill".to_string(),
             description: "Description".to_string(),
             instructions: "Instructions".to_string(),
@@ -484,10 +460,6 @@ fn test_database_export_serialization() {
     assert!(json.contains("\"contexts\":[]"));
 }
 
-// ============================================================================
-// LocalSync Models Tests
-// ============================================================================
-
 #[test]
 fn test_local_sync_direction_variants() {
     assert_eq!(LocalSyncDirection::ToDisk, LocalSyncDirection::ToDisk);
@@ -521,7 +493,7 @@ fn test_diff_status_serialization() {
 fn test_content_diff_item_added() {
     let item = ContentDiffItem {
         slug: "new-article".to_string(),
-        source_id: "blog".to_string(),
+        source_id: SourceId::new("blog"),
         status: DiffStatus::Added,
         disk_hash: Some("abc123".to_string()),
         db_hash: None,
@@ -540,7 +512,7 @@ fn test_content_diff_item_removed() {
     let now = Utc::now();
     let item = ContentDiffItem {
         slug: "old-article".to_string(),
-        source_id: "blog".to_string(),
+        source_id: SourceId::new("blog"),
         status: DiffStatus::Removed,
         disk_hash: None,
         db_hash: Some("def456".to_string()),
@@ -558,7 +530,7 @@ fn test_content_diff_item_removed() {
 fn test_content_diff_item_modified() {
     let item = ContentDiffItem {
         slug: "updated-article".to_string(),
-        source_id: "blog".to_string(),
+        source_id: SourceId::new("blog"),
         status: DiffStatus::Modified,
         disk_hash: Some("new_hash".to_string()),
         db_hash: Some("old_hash".to_string()),
@@ -574,8 +546,8 @@ fn test_content_diff_item_modified() {
 #[test]
 fn test_skill_diff_item_creation() {
     let item = SkillDiffItem {
-        skill_id: "new_skill".to_string(),
-        file_path: "/skills/new-skill/index.md".to_string(),
+        skill_id: SkillId::new("new_skill"),
+        file_path: "/skills/new-skill/SKILL.md".to_string(),
         status: DiffStatus::Added,
         disk_hash: Some("hash123".to_string()),
         db_hash: None,
@@ -589,7 +561,7 @@ fn test_skill_diff_item_creation() {
 #[test]
 fn test_content_diff_result_no_changes() {
     let result = ContentDiffResult {
-        source_id: "test-source".to_string(),
+        source_id: SourceId::new("test-source"),
         added: vec![],
         removed: vec![],
         modified: vec![],
@@ -603,10 +575,10 @@ fn test_content_diff_result_no_changes() {
 #[test]
 fn test_content_diff_result_with_additions() {
     let result = ContentDiffResult {
-        source_id: "test-source".to_string(),
+        source_id: SourceId::new("test-source"),
         added: vec![ContentDiffItem {
             slug: "new".to_string(),
-            source_id: "test".to_string(),
+            source_id: SourceId::new("test"),
             status: DiffStatus::Added,
             disk_hash: Some("hash".to_string()),
             db_hash: None,
@@ -626,11 +598,11 @@ fn test_content_diff_result_with_additions() {
 #[test]
 fn test_content_diff_result_with_removals() {
     let result = ContentDiffResult {
-        source_id: "test-source".to_string(),
+        source_id: SourceId::new("test-source"),
         added: vec![],
         removed: vec![ContentDiffItem {
             slug: "old".to_string(),
-            source_id: "test".to_string(),
+            source_id: SourceId::new("test"),
             status: DiffStatus::Removed,
             disk_hash: None,
             db_hash: Some("hash".to_string()),
@@ -649,12 +621,12 @@ fn test_content_diff_result_with_removals() {
 #[test]
 fn test_content_diff_result_with_modifications() {
     let result = ContentDiffResult {
-        source_id: "test-source".to_string(),
+        source_id: SourceId::new("test-source"),
         added: vec![],
         removed: vec![],
         modified: vec![ContentDiffItem {
             slug: "changed".to_string(),
-            source_id: "test".to_string(),
+            source_id: SourceId::new("test"),
             status: DiffStatus::Modified,
             disk_hash: Some("new".to_string()),
             db_hash: Some("old".to_string()),
@@ -682,8 +654,8 @@ fn test_skills_diff_result_no_changes() {
 fn test_skills_diff_result_with_changes() {
     let result = SkillsDiffResult {
         added: vec![SkillDiffItem {
-            skill_id: "skill1".to_string(),
-            file_path: "/skills/skill1/index.md".to_string(),
+            skill_id: SkillId::new("skill1"),
+            file_path: "/skills/skill1/SKILL.md".to_string(),
             status: DiffStatus::Added,
             disk_hash: Some("hash".to_string()),
             db_hash: None,
@@ -707,7 +679,7 @@ fn test_local_sync_result_default() {
     assert_eq!(result.items_skipped, 0);
     assert_eq!(result.items_deleted, 0);
     assert!(result.errors.is_empty());
-    assert!(result.direction.is_empty());
+    assert_eq!(result.direction, LocalSyncDirection::ToDisk);
 }
 
 #[test]
@@ -715,16 +687,17 @@ fn test_local_sync_result_with_values() {
     let result = LocalSyncResult {
         items_synced: 10,
         items_skipped: 2,
+        items_skipped_modified: 0,
         items_deleted: 1,
         errors: vec!["Error 1".to_string(), "Error 2".to_string()],
-        direction: "to_disk".to_string(),
+        direction: LocalSyncDirection::ToDisk,
     };
 
     assert_eq!(result.items_synced, 10);
     assert_eq!(result.items_skipped, 2);
     assert_eq!(result.items_deleted, 1);
     assert_eq!(result.errors.len(), 2);
-    assert_eq!(result.direction, "to_disk");
+    assert_eq!(result.direction, LocalSyncDirection::ToDisk);
 }
 
 #[test]
@@ -743,23 +716,19 @@ fn test_disk_content_model() {
 #[test]
 fn test_disk_skill_model() {
     let skill = DiskSkill {
-        skill_id: "test_skill".to_string(),
+        skill_id: SkillId::new("test_skill"),
         name: "Test Skill".to_string(),
         description: "A test skill".to_string(),
         instructions: "Do something useful".to_string(),
-        file_path: "/skills/test-skill/index.md".to_string(),
+        file_path: "/skills/test-skill/SKILL.md".to_string(),
     };
 
     assert_eq!(skill.skill_id, "test_skill");
     assert_eq!(skill.name, "Test Skill");
     assert_eq!(skill.description, "A test skill");
     assert_eq!(skill.instructions, "Do something useful");
-    assert_eq!(skill.file_path, "/skills/test-skill/index.md");
+    assert_eq!(skill.file_path, "/skills/test-skill/SKILL.md");
 }
-
-// ============================================================================
-// Hash Computation Tests
-// ============================================================================
 
 #[test]
 fn test_compute_content_hash_basic() {
@@ -768,7 +737,6 @@ fn test_compute_content_hash_basic() {
 
     let hash = compute_content_hash(body, title);
 
-    // Hash should be a 64-character hex string (SHA256)
     assert_eq!(hash.len(), 64);
     assert!(hash.chars().all(|c| c.is_ascii_hexdigit()));
 }
@@ -846,10 +814,6 @@ fn test_compute_content_hash_order_matters() {
     assert_ne!(hash1, hash2);
 }
 
-// ============================================================================
-// YAML Escape Tests
-// ============================================================================
-
 #[test]
 fn test_escape_yaml_plain_string() {
     let input = "Simple text";
@@ -900,24 +864,11 @@ fn test_escape_yaml_empty() {
 
 #[test]
 fn test_escape_yaml_multiple_escapes() {
-    // Test that escape_yaml handles all character types together
-    // Input: backslash, quote, newline
     let input = "a\\b\"c\nd";
     let output = escape_yaml(input);
 
-    // a stays a
-    // \ becomes \\
-    // b stays b
-    // " becomes \"
-    // c stays c
-    // \n becomes \n (literal backslash-n, not newline)
-    // d stays d
     assert_eq!(output, r#"a\\b\"c\nd"#);
 }
-
-// ============================================================================
-// Export Generation Tests (using tempfile)
-// ============================================================================
 
 #[test]
 fn test_generate_skill_markdown_structure() {
@@ -926,7 +877,7 @@ fn test_generate_skill_markdown_structure() {
 
     let skill = Skill {
         skill_id: SkillId::new("test_skill"),
-        file_path: "/skills/test-skill/index.md".to_string(),
+        file_path: "/skills/test-skill/SKILL.md".to_string(),
         name: "Test Skill".to_string(),
         description: "A test skill description".to_string(),
         instructions: "Follow these instructions carefully.".to_string(),
@@ -941,11 +892,11 @@ fn test_generate_skill_markdown_structure() {
     let markdown = generate_skill_markdown(&skill);
 
     assert!(markdown.starts_with("---\n"));
-    assert!(markdown.contains("title: \"Test Skill\""));
-    assert!(markdown.contains("slug: \"test-skill\"")); // underscore to dash
     assert!(markdown.contains("description: \"A test skill description\""));
-    assert!(markdown.contains("type: \"skill\""));
-    assert!(markdown.contains("keywords: \"tag1, tag2\""));
+    assert!(!markdown.contains("title:"));
+    assert!(!markdown.contains("slug:"));
+    assert!(!markdown.contains("type:"));
+    assert!(!markdown.contains("keywords:"));
     assert!(markdown.contains("Follow these instructions carefully."));
 }
 
@@ -956,7 +907,7 @@ fn test_generate_skill_config_structure() {
 
     let skill = Skill {
         skill_id: SkillId::new("config_test"),
-        file_path: "/skills/config-test/index.md".to_string(),
+        file_path: "/skills/config-test/SKILL.md".to_string(),
         name: "Config Test".to_string(),
         description: "Testing config generation".to_string(),
         instructions: "Instructions here".to_string(),
@@ -974,7 +925,7 @@ fn test_generate_skill_config_structure() {
     assert!(config.contains("name: \"Config Test\""));
     assert!(config.contains("enabled: true"));
     assert!(config.contains("version: \"1.0.0\""));
-    assert!(config.contains("file: \"index.md\""));
+    assert!(config.contains("file: \"SKILL.md\""));
 }
 
 #[test]
@@ -984,7 +935,7 @@ fn test_generate_skill_config_empty_tags() {
 
     let skill = Skill {
         skill_id: SkillId::new("no_tags"),
-        file_path: "/skills/no-tags/index.md".to_string(),
+        file_path: "/skills/no-tags/SKILL.md".to_string(),
         name: "No Tags".to_string(),
         description: "No tags skill".to_string(),
         instructions: "Instructions".to_string(),
@@ -1010,7 +961,7 @@ fn test_export_skill_to_disk_creates_files() {
     let temp_dir = TempDir::new().unwrap();
     let skill = Skill {
         skill_id: SkillId::new("export_test"),
-        file_path: "/skills/export-test/index.md".to_string(),
+        file_path: "/skills/export-test/SKILL.md".to_string(),
         name: "Export Test".to_string(),
         description: "Testing export".to_string(),
         instructions: "Test instructions".to_string(),
@@ -1027,11 +978,11 @@ fn test_export_skill_to_disk_creates_files() {
 
     let skill_dir = temp_dir.path().join("export-test");
     assert!(skill_dir.exists());
-    assert!(skill_dir.join("index.md").exists());
+    assert!(skill_dir.join("SKILL.md").exists());
     assert!(skill_dir.join("config.yaml").exists());
 
-    let index_content = fs::read_to_string(skill_dir.join("index.md")).unwrap();
-    assert!(index_content.contains("title: \"Export Test\""));
+    let skill_content = fs::read_to_string(skill_dir.join("SKILL.md")).unwrap();
+    assert!(skill_content.contains("description: \"Testing export\""));
 
     let config_content = fs::read_to_string(skill_dir.join("config.yaml")).unwrap();
     assert!(config_content.contains("id: export_test"));
@@ -1045,7 +996,7 @@ fn test_export_skill_underscore_to_dash() {
     let temp_dir = TempDir::new().unwrap();
     let skill = Skill {
         skill_id: SkillId::new("my_complex_skill_name"),
-        file_path: "/skills/my-complex-skill-name/index.md".to_string(),
+        file_path: "/skills/my-complex-skill-name/SKILL.md".to_string(),
         name: "Complex Skill".to_string(),
         description: "Complex".to_string(),
         instructions: "Instructions".to_string(),
@@ -1197,10 +1148,6 @@ fn test_export_content_to_file_blog_creates_directory() {
     assert!(file_path.exists());
 }
 
-// ============================================================================
-// Edge Cases and Boundary Tests
-// ============================================================================
-
 #[test]
 fn test_empty_tenant_id() {
     let config = SyncConfig::builder("", "https://api.com", "token", "/services").build();
@@ -1234,7 +1181,7 @@ fn test_special_characters_in_config() {
 fn test_unicode_in_content_diff_item() {
     let item = ContentDiffItem {
         slug: "日本語スラッグ".to_string(),
-        source_id: "ソース".to_string(),
+        source_id: SourceId::new("ソース"),
         status: DiffStatus::Added,
         disk_hash: Some("ハッシュ".to_string()),
         db_hash: None,
@@ -1291,7 +1238,7 @@ fn test_database_export_multiple_skills() {
     let skills: Vec<SkillExport> = (0..100)
         .map(|i| SkillExport {
             skill_id: format!("skill_{}", i),
-            file_path: format!("/skills/skill-{}/index.md", i),
+            file_path: format!("/skills/skill-{}/SKILL.md", i),
             name: format!("Skill {}", i),
             description: format!("Description {}", i),
             instructions: format!("Instructions {}", i),
@@ -1318,10 +1265,10 @@ fn test_database_export_multiple_skills() {
 fn test_content_diff_result_all_types() {
     let now = Utc::now();
     let result = ContentDiffResult {
-        source_id: "mixed".to_string(),
+        source_id: SourceId::new("mixed"),
         added: vec![ContentDiffItem {
             slug: "new".to_string(),
-            source_id: "mixed".to_string(),
+            source_id: SourceId::new("mixed"),
             status: DiffStatus::Added,
             disk_hash: Some("h1".to_string()),
             db_hash: None,
@@ -1331,7 +1278,7 @@ fn test_content_diff_result_all_types() {
         }],
         removed: vec![ContentDiffItem {
             slug: "old".to_string(),
-            source_id: "mixed".to_string(),
+            source_id: SourceId::new("mixed"),
             status: DiffStatus::Removed,
             disk_hash: None,
             db_hash: Some("h2".to_string()),
@@ -1341,7 +1288,7 @@ fn test_content_diff_result_all_types() {
         }],
         modified: vec![ContentDiffItem {
             slug: "changed".to_string(),
-            source_id: "mixed".to_string(),
+            source_id: SourceId::new("mixed"),
             status: DiffStatus::Modified,
             disk_hash: Some("h3".to_string()),
             db_hash: Some("h4".to_string()),
@@ -1359,10 +1306,6 @@ fn test_content_diff_result_all_types() {
     assert_eq!(result.unchanged, 10);
 }
 
-// ============================================================================
-// Serialization Round-Trip Tests
-// ============================================================================
-
 #[test]
 fn test_sync_direction_roundtrip() {
     let original = SyncDirection::Push;
@@ -1374,8 +1317,6 @@ fn test_sync_direction_roundtrip() {
 
 #[test]
 fn test_diff_status_serialize_all_variants() {
-    // DiffStatus only implements Serialize (not Deserialize), so we only test
-    // serialization
     let added_json = serde_json::to_string(&DiffStatus::Added).unwrap();
     let removed_json = serde_json::to_string(&DiffStatus::Removed).unwrap();
     let modified_json = serde_json::to_string(&DiffStatus::Modified).unwrap();
@@ -1412,7 +1353,7 @@ fn test_database_export_roundtrip() {
         users: vec![],
         skills: vec![SkillExport {
             skill_id: "test_skill".to_string(),
-            file_path: "/skills/test/index.md".to_string(),
+            file_path: "/skills/test/SKILL.md".to_string(),
             name: "Test".to_string(),
             description: "Description".to_string(),
             instructions: "Instructions".to_string(),
@@ -1433,10 +1374,6 @@ fn test_database_export_roundtrip() {
     assert_eq!(original.skills.len(), restored.skills.len());
     assert_eq!(original.skills[0].name, restored.skills[0].name);
 }
-
-// ============================================================================
-// SyncError Additional Variant Tests
-// ============================================================================
 
 #[test]
 fn test_sync_error_missing_config() {
@@ -1479,10 +1416,6 @@ fn test_sync_error_debug_format() {
     assert!(debug_str.contains("ApiError"));
     assert!(debug_str.contains("503"));
 }
-
-// ============================================================================
-// SyncConfigBuilder Additional Options Tests
-// ============================================================================
 
 #[test]
 fn test_sync_config_builder_with_hostname() {
@@ -1574,10 +1507,6 @@ fn test_sync_config_debug() {
     assert!(debug_str.contains("SyncConfig"));
     assert!(debug_str.contains("tenant"));
 }
-
-// ============================================================================
-// UserExport Model Tests
-// ============================================================================
 
 #[test]
 fn test_user_export_creation() {
@@ -1692,10 +1621,6 @@ fn test_user_export_roundtrip() {
     assert_eq!(original.full_name, restored.full_name);
 }
 
-// ============================================================================
-// ImportResult Model Tests
-// ============================================================================
-
 #[test]
 fn test_import_result_creation() {
     use systemprompt_sync::database::ImportResult;
@@ -1774,10 +1699,6 @@ fn test_import_result_copy() {
     assert_eq!(result.created, copied.created);
 }
 
-// ============================================================================
-// SyncApiClient Tests
-// ============================================================================
-
 #[test]
 fn test_sync_api_client_new() {
     use systemprompt_sync::SyncApiClient;
@@ -1824,10 +1745,6 @@ fn test_sync_api_client_clone() {
     let debug_cloned = format!("{:?}", cloned);
     assert_eq!(debug_original, debug_cloned);
 }
-
-// ============================================================================
-// RegistryToken and DeployResponse Model Tests
-// ============================================================================
 
 #[test]
 fn test_registry_token_deserialize() {
@@ -1887,10 +1804,6 @@ fn test_deploy_response_debug() {
     assert!(debug_str.contains("deployed"));
 }
 
-// ============================================================================
-// SyncService Tests
-// ============================================================================
-
 #[test]
 fn test_sync_service_creation() {
     use systemprompt_sync::SyncService;
@@ -1919,10 +1832,6 @@ fn test_sync_service_with_full_config() {
     let debug_str = format!("{:?}", service);
     assert!(debug_str.contains("SyncService"));
 }
-
-// ============================================================================
-// DatabaseSyncService Tests
-// ============================================================================
 
 #[test]
 fn test_database_sync_service_creation() {
@@ -1984,10 +1893,6 @@ fn test_database_sync_service_direction_pull() {
     assert!(debug_str.contains("Pull"));
 }
 
-// ============================================================================
-// FileSyncService Tests
-// ============================================================================
-
 #[test]
 fn test_file_sync_service_creation() {
     use systemprompt_sync::{FileSyncService, SyncApiClient};
@@ -2001,10 +1906,6 @@ fn test_file_sync_service_creation() {
     assert!(debug_str.contains("FileSyncService"));
 }
 
-// ============================================================================
-// File Collection Tests (using tempfile)
-// ============================================================================
-
 #[test]
 fn test_file_bundle_manifest_serialization() {
     let now = Utc::now();
@@ -2017,7 +1918,7 @@ fn test_file_bundle_manifest_serialization() {
                     size: 512,
                 },
                 FileEntry {
-                    path: "skills/test-skill/index.md".to_string(),
+                    path: "skills/test-skill/SKILL.md".to_string(),
                     checksum: "def456".to_string(),
                     size: 1024,
                 },
@@ -2030,7 +1931,7 @@ fn test_file_bundle_manifest_serialization() {
 
     let json = serde_json::to_string(&bundle.manifest).unwrap();
     assert!(json.contains("agents/default/config.yaml"));
-    assert!(json.contains("skills/test-skill/index.md"));
+    assert!(json.contains("skills/test-skill/SKILL.md"));
     assert!(json.contains("manifest_checksum"));
 }
 
@@ -2072,10 +1973,6 @@ fn test_file_manifest_with_many_files() {
     assert_eq!(manifest.files.len(), 1000);
     assert_eq!(manifest.files[500].path, "file_500.txt");
 }
-
-// ============================================================================
-// DatabaseExport with Users Tests
-// ============================================================================
 
 #[test]
 fn test_database_export_with_users() {
@@ -2148,7 +2045,7 @@ fn test_database_export_full_roundtrip() {
         }],
         skills: vec![SkillExport {
             skill_id: "sk1".to_string(),
-            file_path: "/skills/sk1/index.md".to_string(),
+            file_path: "/skills/sk1/SKILL.md".to_string(),
             name: "Skill".to_string(),
             description: "Desc".to_string(),
             instructions: "Instr".to_string(),
@@ -2184,17 +2081,13 @@ fn test_database_export_full_roundtrip() {
     );
 }
 
-// ============================================================================
-// ContentDiffEntry Tests
-// ============================================================================
-
 #[test]
 fn test_content_diff_entry_creation() {
     use std::path::PathBuf;
     use systemprompt_sync::ContentDiffEntry;
 
     let diff = ContentDiffResult {
-        source_id: "blog".to_string(),
+        source_id: SourceId::new("blog"),
         added: vec![],
         removed: vec![],
         modified: vec![],
@@ -2234,10 +2127,6 @@ fn test_content_diff_entry_debug() {
     assert!(debug_str.contains("docs"));
 }
 
-// ============================================================================
-// LocalSyncDirection Tests
-// ============================================================================
-
 #[test]
 fn test_local_sync_direction_debug() {
     let to_disk = LocalSyncDirection::ToDisk;
@@ -2258,16 +2147,12 @@ fn test_local_sync_direction_copy() {
     assert_eq!(direction, copied);
 }
 
-// ============================================================================
-// SkillsDiffResult Additional Tests
-// ============================================================================
-
 #[test]
 fn test_skills_diff_result_serialization() {
     let result = SkillsDiffResult {
         added: vec![SkillDiffItem {
-            skill_id: "new_skill".to_string(),
-            file_path: "/skills/new/index.md".to_string(),
+            skill_id: SkillId::new("new_skill"),
+            file_path: "/skills/new/SKILL.md".to_string(),
             status: DiffStatus::Added,
             disk_hash: Some("hash".to_string()),
             db_hash: None,
@@ -2287,24 +2172,24 @@ fn test_skills_diff_result_serialization() {
 fn test_skills_diff_result_all_types() {
     let result = SkillsDiffResult {
         added: vec![SkillDiffItem {
-            skill_id: "added_skill".to_string(),
-            file_path: "/skills/added/index.md".to_string(),
+            skill_id: SkillId::new("added_skill"),
+            file_path: "/skills/added/SKILL.md".to_string(),
             status: DiffStatus::Added,
             disk_hash: Some("h1".to_string()),
             db_hash: None,
             name: Some("Added".to_string()),
         }],
         removed: vec![SkillDiffItem {
-            skill_id: "removed_skill".to_string(),
-            file_path: "/skills/removed/index.md".to_string(),
+            skill_id: SkillId::new("removed_skill"),
+            file_path: "/skills/removed/SKILL.md".to_string(),
             status: DiffStatus::Removed,
             disk_hash: None,
             db_hash: Some("h2".to_string()),
             name: Some("Removed".to_string()),
         }],
         modified: vec![SkillDiffItem {
-            skill_id: "modified_skill".to_string(),
-            file_path: "/skills/modified/index.md".to_string(),
+            skill_id: SkillId::new("modified_skill"),
+            file_path: "/skills/modified/SKILL.md".to_string(),
             status: DiffStatus::Modified,
             disk_hash: Some("h3".to_string()),
             db_hash: Some("h4".to_string()),
@@ -2319,17 +2204,13 @@ fn test_skills_diff_result_all_types() {
     assert_eq!(result.modified.len(), 1);
 }
 
-// ============================================================================
-// ContentDiffResult Serialization Tests
-// ============================================================================
-
 #[test]
 fn test_content_diff_result_serialization() {
     let result = ContentDiffResult {
-        source_id: "blog".to_string(),
+        source_id: SourceId::new("blog"),
         added: vec![ContentDiffItem {
             slug: "new-post".to_string(),
-            source_id: "blog".to_string(),
+            source_id: SourceId::new("blog"),
             status: DiffStatus::Added,
             disk_hash: Some("hash1".to_string()),
             db_hash: None,
@@ -2352,7 +2233,7 @@ fn test_content_diff_result_serialization() {
 fn test_content_diff_result_default() {
     let result = ContentDiffResult::default();
 
-    assert!(result.source_id.is_empty());
+    assert!(result.source_id.as_str().is_empty());
     assert!(result.added.is_empty());
     assert!(result.removed.is_empty());
     assert!(result.modified.is_empty());

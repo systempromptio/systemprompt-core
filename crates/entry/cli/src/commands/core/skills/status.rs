@@ -35,12 +35,12 @@ pub async fn execute(
 
     for item in &diff.added {
         if let Some(ref name) = args.name {
-            if &item.skill_id != name {
+            if item.skill_id.as_ref() != name.as_str() {
                 continue;
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.clone(),
+            skill_id: item.skill_id.to_string(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: false,
@@ -50,12 +50,12 @@ pub async fn execute(
 
     for item in &diff.removed {
         if let Some(ref name) = args.name {
-            if &item.skill_id != name {
+            if item.skill_id.as_ref() != name.as_str() {
                 continue;
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.clone(),
+            skill_id: item.skill_id.to_string(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: false,
             in_db: true,
@@ -65,12 +65,12 @@ pub async fn execute(
 
     for item in &diff.modified {
         if let Some(ref name) = args.name {
-            if &item.skill_id != name {
+            if item.skill_id.as_ref() != name.as_str() {
                 continue;
             }
         }
         skills.push(SkillStatusRow {
-            skill_id: item.skill_id.clone(),
+            skill_id: item.skill_id.to_string(),
             name: item.name.clone().unwrap_or_else(String::new),
             on_disk: true,
             in_db: true,

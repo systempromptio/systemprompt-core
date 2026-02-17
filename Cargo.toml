@@ -197,6 +197,7 @@ tempfile = "3.0"
 walkdir = "2.0"
 flate2 = "1.0"
 tar = "0.4"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 tokio-cron-scheduler = "0.15"
 maxminddb = "0.27"
 

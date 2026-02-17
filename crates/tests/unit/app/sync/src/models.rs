@@ -1,8 +1,9 @@
 //! Tests for sync models
 
+use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_sync::{
     compute_content_hash, ContentDiffItem, ContentDiffResult, DiffStatus, LocalSyncDirection,
-    LocalSyncResult, PlaybookDiffItem, PlaybooksDiffResult, SkillDiffItem, SkillsDiffResult,
+    LocalSyncResult, SkillDiffItem, SkillsDiffResult,
 };
 
 mod diff_status_tests {
@@ -101,7 +102,7 @@ mod content_diff_result_tests {
 
     fn empty_result() -> ContentDiffResult {
         ContentDiffResult {
-            source_id: "blog".to_string(),
+            source_id: SourceId::new("blog"),
             added: vec![],
             removed: vec![],
             modified: vec![],
@@ -112,7 +113,7 @@ mod content_diff_result_tests {
     fn added_item() -> ContentDiffItem {
         ContentDiffItem {
             slug: "new-post".to_string(),
-            source_id: "blog".to_string(),
+            source_id: SourceId::new("blog"),
             status: DiffStatus::Added,
             disk_hash: Some("hash1".to_string()),
             db_hash: None,
@@ -198,7 +199,7 @@ mod skills_diff_result_tests {
 
     fn skill_item() -> SkillDiffItem {
         SkillDiffItem {
-            skill_id: "skill-1".to_string(),
+            skill_id: SkillId::new("skill-1"),
             file_path: "skills/skill.md".to_string(),
             status: DiffStatus::Added,
             disk_hash: Some("hash".to_string()),
@@ -269,93 +270,6 @@ mod skills_diff_result_tests {
     }
 }
 
-mod playbooks_diff_result_tests {
-    use super::*;
-
-    fn empty_result() -> PlaybooksDiffResult {
-        PlaybooksDiffResult {
-            added: vec![],
-            removed: vec![],
-            modified: vec![],
-            unchanged: 0,
-        }
-    }
-
-    fn playbook_item() -> PlaybookDiffItem {
-        PlaybookDiffItem {
-            playbook_id: "pb-1".to_string(),
-            file_path: "playbooks/test.md".to_string(),
-            category: "automation".to_string(),
-            domain: "testing".to_string(),
-            status: DiffStatus::Added,
-            disk_hash: Some("hash".to_string()),
-            db_hash: None,
-            name: Some("Test Playbook".to_string()),
-        }
-    }
-
-    #[test]
-    fn empty_result_has_no_changes() {
-        let result = empty_result();
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn result_with_added_has_changes() {
-        let mut result = empty_result();
-        result.added.push(playbook_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_removed_has_changes() {
-        let mut result = empty_result();
-        result.removed.push(playbook_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_modified_has_changes() {
-        let mut result = empty_result();
-        result.modified.push(playbook_item());
-        assert!(result.has_changes());
-    }
-
-    #[test]
-    fn result_with_unchanged_only_has_no_changes() {
-        let mut result = empty_result();
-        result.unchanged = 3;
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn default_has_no_changes() {
-        let result = PlaybooksDiffResult::default();
-        assert!(!result.has_changes());
-    }
-
-    #[test]
-    fn result_is_serializable() {
-        let result = empty_result();
-        let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains("added"));
-    }
-
-    #[test]
-    fn result_is_clone() {
-        let result = empty_result();
-        let cloned = result.clone();
-        assert_eq!(cloned.unchanged, result.unchanged);
-    }
-
-    #[test]
-    fn result_is_debug() {
-        let result = empty_result();
-        let debug = format!("{:?}", result);
-        assert!(debug.contains("PlaybooksDiffResult"));
-    }
-}
-
 mod local_sync_result_tests {
     use super::*;
 
@@ -366,7 +280,7 @@ mod local_sync_result_tests {
             items_skipped_modified: 1,
             items_deleted: 3,
             errors: vec!["error1".to_string()],
-            direction: "to_disk".to_string(),
+            direction: LocalSyncDirection::ToDisk,
         }
     }
 
@@ -404,7 +318,7 @@ mod local_sync_result_tests {
     #[test]
     fn result_direction() {
         let result = test_result();
-        assert_eq!(result.direction, "to_disk");
+        assert_eq!(result.direction, LocalSyncDirection::ToDisk);
     }
 
     #[test]
