@@ -371,7 +371,11 @@ fn mount_extension_routes(
             }
         }
 
-        router = router.nest(base_path, ext_router);
+        if base_path == "/" {
+            router = router.merge(ext_router);
+        } else {
+            router = router.nest(base_path, ext_router);
+        }
     }
 
     Ok(router)
