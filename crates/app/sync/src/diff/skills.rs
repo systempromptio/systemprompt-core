@@ -7,6 +7,7 @@ use systemprompt_agent::models::Skill;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SkillId;
+use systemprompt_models::{strip_frontmatter, DiskSkillConfig, SKILL_CONFIG_FILENAME};
 use tracing::warn;
 
 #[derive(Debug)]
@@ -95,12 +96,12 @@ impl SkillsDiffCalculator {
                 continue;
             }
 
-            let md_path = skill_path.join("SKILL.md");
-            if !md_path.exists() {
+            let config_path = skill_path.join(SKILL_CONFIG_FILENAME);
+            if !config_path.exists() {
                 continue;
             }
 
-            match parse_skill_file(&md_path, &skill_path) {
+            match parse_skill_file(&config_path, &skill_path) {
                 Ok(skill) => {
                     skills.insert(skill.skill_id.clone(), skill);
                 },
@@ -114,47 +115,42 @@ impl SkillsDiffCalculator {
     }
 }
 
-fn parse_skill_file(md_path: &Path, skill_dir: &Path) -> Result<DiskSkill> {
-    let content = std::fs::read_to_string(md_path)?;
-
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() < 3 {
-        return Err(anyhow!("Invalid frontmatter format"));
-    }
-
-    let frontmatter: serde_yaml::Value = serde_yaml::from_str(parts[1])?;
-    let instructions = parts[2].trim().to_string();
+fn parse_skill_file(config_path: &Path, skill_dir: &Path) -> Result<DiskSkill> {
+    let config_text = std::fs::read_to_string(config_path)?;
+    let config: DiskSkillConfig = serde_yaml::from_str(&config_text)?;
 
     let dir_name = skill_dir
         .file_name()
         .and_then(|n| n.to_str())
         .ok_or_else(|| anyhow!("Invalid skill directory name"))?;
 
-    let skill_id = SkillId::new(dir_name.replace('-', "_"));
+    let content_path = skill_dir.join(config.content_file());
 
-    let description = frontmatter
-        .get("description")
-        .and_then(|v| v.as_str())
-        .ok_or_else(|| anyhow!("Missing description in frontmatter"))?
-        .to_string();
-
-    let config_path = skill_dir.join("config.yaml");
-    let name = if config_path.exists() {
-        let config_text = std::fs::read_to_string(&config_path)?;
-        let config: serde_yaml::Value = serde_yaml::from_str(&config_text)?;
-        config
-            .get("name")
-            .and_then(|v| v.as_str())
-            .map_or_else(|| dir_name.replace('_', " "), String::from)
+    let skill_id_str = if config.id.is_empty() {
+        dir_name.replace('-', "_")
     } else {
+        config.id
+    };
+    let skill_id = SkillId::new(skill_id_str);
+
+    let name = if config.name.is_empty() {
         dir_name.replace('_', " ")
+    } else {
+        config.name
+    };
+
+    let instructions = if content_path.exists() {
+        let raw = std::fs::read_to_string(&content_path)?;
+        strip_frontmatter(&raw)
+    } else {
+        String::new()
     };
 
     Ok(DiskSkill {
         skill_id,
         name,
-        description,
+        description: config.description,
         instructions,
-        file_path: md_path.to_string_lossy().to_string(),
+        file_path: content_path.to_string_lossy().to_string(),
     })
 }

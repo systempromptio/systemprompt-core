@@ -8,6 +8,9 @@ const fn default_true() -> bool {
     true
 }
 
+pub const SKILL_CONFIG_FILENAME: &str = "config.yaml";
+pub const DEFAULT_SKILL_CONTENT_FILE: &str = "index.md";
+
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SkillsConfig {
     #[serde(default = "default_true")]
@@ -46,4 +49,41 @@ pub struct SkillConfig {
 
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model_config: Option<ToolModelConfig>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+pub struct DiskSkillConfig {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub file: String,
+    #[serde(default)]
+    pub tags: Vec<String>,
+    #[serde(default)]
+    pub category: Option<String>,
+}
+
+impl DiskSkillConfig {
+    pub fn content_file(&self) -> &str {
+        if self.file.is_empty() {
+            DEFAULT_SKILL_CONTENT_FILE
+        } else {
+            &self.file
+        }
+    }
+}
+
+pub fn strip_frontmatter(content: &str) -> String {
+    let parts: Vec<&str> = content.splitn(3, "---").collect();
+    if parts.len() >= 3 {
+        parts[2].trim().to_string()
+    } else {
+        content.to_string()
+    }
 }

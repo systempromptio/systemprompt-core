@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.6] - 2026-02-18
+
+### Changed
+- Fix formatting of chained method call in `matches_relative_uri`
+
 ## [0.1.5] - 2026-02-11
 
 ### Changed

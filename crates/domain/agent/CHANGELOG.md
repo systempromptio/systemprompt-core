@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.3] - 2026-02-18
+
+### Changed
+- Replace local `SkillConfig` and `strip_frontmatter` in `SkillIngestionService` with shared `DiskSkillConfig` from `systemprompt_models`
+- Replace `unwrap_or_else(String::new)` in skill registry with meaningful `format!("{skill_id} skill")` fallback
+
 ## [0.1.2] - 2026-02-17
 
 ### Removed

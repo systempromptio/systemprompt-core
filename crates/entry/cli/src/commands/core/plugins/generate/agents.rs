@@ -20,12 +20,12 @@ pub fn generate_agents(
 
     std::fs::create_dir_all(&agents_dir)?;
 
-    let agents_config_path = services_path.join("config").join("config.yaml");
+    let services_agents_dir = services_path.join("agents");
 
     for agent_id in &agent_ids {
-        let agent_md = build_agent_md(agent_id, &agents_config_path)?;
-        let agent_path = agents_dir.join(format!("{}.md", agent_id));
-        std::fs::write(&agent_path, agent_md)?;
+        let agent_md = build_agent_md(agent_id, &services_agents_dir)?;
+        let agent_path = agents_dir.join(format!("{agent_id}.md"));
+        std::fs::write(&agent_path, &agent_md)?;
         files_generated.push(agent_path.to_string_lossy().to_string());
     }
 
@@ -60,43 +60,47 @@ fn resolve_agent_ids(plugin: &PluginConfig, services_path: &Path) -> Result<Vec<
     Ok(ids)
 }
 
-fn build_agent_md(agent_id: &str, config_path: &Path) -> Result<String> {
-    if !config_path.exists() {
-        return Ok(format!(
-            "---\nname: {}\ndescription: \"{} agent\"\ntools: {}\n---\n\nYou are the {} agent.\n",
-            agent_id, agent_id, DEFAULT_AGENT_TOOLS, agent_id
-        ));
+fn build_agent_md(agent_id: &str, services_agents_dir: &Path) -> Result<String> {
+    if services_agents_dir.exists() {
+        for entry in std::fs::read_dir(services_agents_dir)? {
+            let entry = entry?;
+            let path = entry.path();
+            let ext = path.extension().and_then(|e| e.to_str());
+            if ext != Some("yaml") && ext != Some("yml") {
+                continue;
+            }
+            let content = std::fs::read_to_string(&path)?;
+            let config: serde_yaml::Value = match serde_yaml::from_str(&content) {
+                Ok(c) => c,
+                Err(e) => {
+                    tracing::warn!(path = %path.display(), error = %e, "Failed to parse YAML");
+                    continue;
+                },
+            };
+            if let Some(agent_val) = config.get("agents").and_then(|a| a.get(agent_id)) {
+                let description = agent_val
+                    .get("card")
+                    .and_then(|c| c.get("description"))
+                    .and_then(|d| d.as_str())
+                    .map_or_else(|| format!("{agent_id} agent"), ToString::to_string);
+                let system_prompt = agent_val
+                    .get("metadata")
+                    .and_then(|m| m.get("systemPrompt"))
+                    .and_then(|s| s.as_str())
+                    .map_or_else(String::new, ToString::to_string);
+                return Ok(format!(
+                    "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
+                    agent_id,
+                    description.replace('"', "\\\""),
+                    DEFAULT_AGENT_TOOLS,
+                    system_prompt.trim()
+                ));
+            }
+        }
     }
 
-    let content = std::fs::read_to_string(config_path)?;
-    let config: serde_yaml::Value = serde_yaml::from_str(&content)?;
-
-    let agent = config.get("agents").and_then(|a| a.get(agent_id));
-
-    let (description, system_prompt) = agent.map_or_else(
-        || (format!("{} agent", agent_id), String::new()),
-        |agent_val| {
-            let desc = agent_val
-                .get("card")
-                .and_then(|c| c.get("description"))
-                .and_then(|d| d.as_str())
-                .unwrap_or("")
-                .to_string();
-            let prompt = agent_val
-                .get("metadata")
-                .and_then(|m| m.get("systemPrompt"))
-                .and_then(|s| s.as_str())
-                .unwrap_or("")
-                .to_string();
-            (desc, prompt)
-        },
-    );
-
     Ok(format!(
-        "---\nname: {}\ndescription: \"{}\"\ntools: {}\n---\n\n{}\n",
-        agent_id,
-        description.replace('"', "\\\""),
-        DEFAULT_AGENT_TOOLS,
-        system_prompt.trim()
+        "---\nname: {}\ndescription: \"{} agent\"\ntools: {}\n---\n\nYou are the {} agent.\n",
+        agent_id, agent_id, DEFAULT_AGENT_TOOLS, agent_id
     ))
 }

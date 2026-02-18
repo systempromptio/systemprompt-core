@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.6] - 2026-02-18
+
+### Changed
+- Replace local `SkillConfig` and `strip_frontmatter` with shared `DiskSkillConfig` from `systemprompt_models`
+- Replace magic string literals with `SKILL_CONFIG_FILENAME` constant
+- Add `plugins` and `hooks` directories to `INCLUDE_DIRS` for cloud sync
+
 ## [0.1.5] - 2026-02-17
 
 ### Changed

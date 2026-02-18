@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.15] - 2026-02-18
+
+### Changed
+- Consolidate duplicate `SkillConfig`, `ParsedSkill`, `strip_frontmatter`, and `parse_skill_from_config` into shared types
+- Replace `unwrap_or("")` with explicit error handling in skills list and plugin agent generation
+- Add `tracing::warn!` for silently skipped YAML parse errors in agent generation
+- Replace magic `"config.yaml"` and `"index.md"` string literals with shared constants
+
 ## [0.1.14] - 2026-02-17
 
 ### Added

@@ -123,13 +123,14 @@ pub use repository::{ServiceLifecycle, ServiceRecord, WhereClause};
 pub use routing::{ApiCategory, AssetType, RouteClassifier, RouteType};
 pub use secrets::{Secrets, SecretsBootstrap, SecretsBootstrapError};
 pub use services::{
-    AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo, AiConfig,
-    AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource, HistoryConfig,
-    HookAction, HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, McpConfig,
-    OAuthConfig as AgentOAuthConfig, PartialServicesConfig, PluginAuthor, PluginComponentRef,
-    PluginConfig, PluginConfigFile, PluginScript, RuntimeStatus, SamplingConfig, SchedulerConfig,
-    ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig, SkillsConfig,
-    ToolModelConfig, ToolModelSettings, WebConfig,
+    strip_frontmatter, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
+    AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,
+    DiskSkillConfig, HistoryConfig, HookAction, HookEventsConfig, HookMatcher, HookType,
+    IncludableString, JobConfig, McpConfig, OAuthConfig as AgentOAuthConfig, PartialServicesConfig,
+    PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile, PluginScript, RuntimeStatus,
+    SamplingConfig, SchedulerConfig, ServiceType, ServicesConfig, Settings as ServicesSettings,
+    SkillConfig, SkillsConfig, ToolModelConfig, ToolModelSettings, WebConfig,
+    DEFAULT_SKILL_CONTENT_FILE, SKILL_CONFIG_FILENAME,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 

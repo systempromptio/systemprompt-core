@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.14] - 2026-02-18
+
+### Changed
+- Refactor `site_auth_gate` to use iterator chain with `and_then` instead of nested `if let` blocks
+- Add structured `tracing::debug!` and `tracing::warn!` for token extraction and JWT validation failures in site auth
+
 ## [0.1.13] - 2026-02-11
 
 ### Changed

@@ -45,6 +45,19 @@ pub struct PluginConfigFile {
     pub plugin: PluginConfig,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct PluginVariableDef {
+    pub name: String,
+    #[serde(default)]
+    pub description: String,
+    #[serde(default = "default_true")]
+    pub required: bool,
+    #[serde(default)]
+    pub secret: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub example: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginConfig {
     pub id: String,
@@ -64,6 +77,8 @@ pub struct PluginConfig {
     pub hooks: HookEventsConfig,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub variables: Vec<PluginVariableDef>,
 
     #[serde(default)]
     pub roles: Vec<String>,
@@ -74,6 +89,10 @@ pub struct PluginConfig {
     pub category: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub author: Option<PluginAuthor>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub license: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub depends: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]

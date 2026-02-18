@@ -16,12 +16,15 @@ pub use ai::{
 pub use hooks::{HookAction, HookEventsConfig, HookMatcher, HookType};
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
-    PluginConfigFile, PluginScript,
+    PluginConfigFile, PluginScript, PluginVariableDef,
 };
 pub use runtime::{RuntimeStatus, ServiceType};
 pub use scheduler::*;
 pub use settings::*;
-pub use skills::{SkillConfig, SkillsConfig};
+pub use skills::{
+    strip_frontmatter, DiskSkillConfig, SkillConfig, SkillsConfig, DEFAULT_SKILL_CONTENT_FILE,
+    SKILL_CONFIG_FILENAME,
+};
 pub use web::{BrandingConfig, WebConfig};
 
 use crate::mcp::Deployment;

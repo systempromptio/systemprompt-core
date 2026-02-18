@@ -24,7 +24,9 @@ fn matches_relative_uri(registered_uris: &[String], requested_uri: &str) -> bool
     let requested_path = match requested_uri.find("://") {
         Some(scheme_end) => {
             let after_scheme = &requested_uri[scheme_end + 3..];
-            after_scheme.find('/').map_or("/", |slash_pos| &after_scheme[slash_pos..])
+            after_scheme
+                .find('/')
+                .map_or("/", |slash_pos| &after_scheme[slash_pos..])
         },
         None => return false,
     };

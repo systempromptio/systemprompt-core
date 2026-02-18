@@ -15,7 +15,9 @@ use crate::api_client::SyncApiClient;
 use crate::error::SyncResult;
 use crate::{SyncConfig, SyncDirection, SyncOperationResult};
 
-const INCLUDE_DIRS: [&str; 6] = ["agents", "skills", "content", "web", "config", "profiles"];
+const INCLUDE_DIRS: [&str; 8] = [
+    "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
+];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileBundle {
@@ -113,9 +115,7 @@ impl FileSyncService {
     }
 
     pub fn backup_services(services_path: &Path) -> SyncResult<PathBuf> {
-        let project_root = services_path
-            .parent()
-            .unwrap_or(services_path);
+        let project_root = services_path.parent().unwrap_or(services_path);
         let backup_dir = project_root.join("backup");
         fs::create_dir_all(&backup_dir)?;
 

@@ -60,7 +60,7 @@ pub fn load_skill_from_disk(skills_path: &Path, skill_id: &str) -> Result<AgentS
         description: config
             .description
             .or(description)
-            .unwrap_or_else(String::new),
+            .unwrap_or_else(|| format!("{skill_id} skill")),
         tags: config.tags,
         examples: config.examples,
         input_modes: config.input_modes,

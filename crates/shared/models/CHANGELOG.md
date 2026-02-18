@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.16] - 2026-02-18
+
+### Added
+- `DiskSkillConfig` struct for on-disk `config.yaml` skill format with `content_file()` method
+- `strip_frontmatter()` shared utility function for markdown frontmatter stripping
+- `SKILL_CONFIG_FILENAME` and `DEFAULT_SKILL_CONTENT_FILE` constants
+- `PluginVariableDef` struct for plugin variable definitions with name, description, required, secret, and example fields
+- `variables`, `license`, and `depends` fields on `PluginConfig`
+
 ## [0.1.15] - 2026-02-17
 
 ### Added

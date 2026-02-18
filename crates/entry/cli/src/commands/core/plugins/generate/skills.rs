@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
-use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig};
+use systemprompt_models::{strip_frontmatter, ComponentFilter, ComponentSource, PluginConfig};
 
 pub fn generate_skills(
     plugin: &PluginConfig,
@@ -118,13 +118,4 @@ fn build_skill_md(skill_id: &str, skill_dir: &Path) -> Result<String> {
         description.replace('"', "\\\""),
         body.trim()
     ))
-}
-
-fn strip_frontmatter(content: &str) -> String {
-    let parts: Vec<&str> = content.splitn(3, "---").collect();
-    if parts.len() >= 3 {
-        parts[2].trim().to_string()
-    } else {
-        content.to_string()
-    }
 }
