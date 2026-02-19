@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use serde::Serialize;
 use std::fmt;
-use systemprompt_identifiers::{SkillId, SourceId};
+use systemprompt_identifiers::{AgentId, SkillId, SourceId};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
 pub enum LocalSyncDirection {
@@ -113,4 +113,37 @@ pub struct DiskSkill {
     pub description: String,
     pub instructions: String,
     pub file_path: String,
+}
+
+#[derive(Clone, Debug, Serialize)]
+pub struct AgentDiffItem {
+    pub agent_id: AgentId,
+    pub name: String,
+    pub status: DiffStatus,
+    pub disk_hash: Option<String>,
+    pub db_hash: Option<String>,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct AgentsDiffResult {
+    pub added: Vec<AgentDiffItem>,
+    pub removed: Vec<AgentDiffItem>,
+    pub modified: Vec<AgentDiffItem>,
+    pub unchanged: usize,
+}
+
+impl AgentsDiffResult {
+    pub fn has_changes(&self) -> bool {
+        !self.added.is_empty() || !self.removed.is_empty() || !self.modified.is_empty()
+    }
+}
+
+#[derive(Debug)]
+pub struct DiskAgent {
+    pub agent_id: AgentId,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub system_prompt: Option<String>,
+    pub port: u16,
 }

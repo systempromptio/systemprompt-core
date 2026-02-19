@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.18] - 2026-02-19
+
+### Added
+- `DiskAgentConfig` struct for on-disk `services/agents/{name}/config.yaml` parsing with validation and `to_agent_config()` conversion
+- `AGENT_CONFIG_FILENAME` and `DEFAULT_AGENT_SYSTEM_PROMPT_FILE` constants
+- `DiskAgentConfig::validate()` method for agent config validation (name format, port, display_name)
+- `DiskAgentConfig::system_prompt_file()` helper with default fallback
+- `PathsConfig::agents()` path helper for agent directory resolution
+
 ## [0.1.17] - 2026-02-19
 
 ### Added

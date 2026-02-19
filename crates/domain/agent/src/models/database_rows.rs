@@ -2,8 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 use systemprompt_identifiers::{
-    AgentName, ArtifactId, CategoryId, ContextId, ExecutionStepId, McpExecutionId, MessageId,
-    SessionId, SkillId, SourceId, TaskId, TraceId, UserId,
+    AgentId, AgentName, ArtifactId, CategoryId, ContextId, ExecutionStepId, McpExecutionId,
+    MessageId, SessionId, SkillId, SourceId, TaskId, TraceId, UserId,
 };
 use systemprompt_models::{UserContext, UserContextWithStats};
 
@@ -167,6 +167,32 @@ pub struct ExecutionStepBatchRow {
     pub completed_at: Option<DateTime<Utc>>,
     pub duration_ms: Option<i32>,
     pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct AgentRow {
+    pub agent_id: AgentId,
+    pub name: String,
+    pub display_name: String,
+    pub description: String,
+    pub version: String,
+    pub system_prompt: Option<String>,
+    pub enabled: bool,
+    pub port: i32,
+    pub endpoint: String,
+    pub dev_only: bool,
+    pub is_primary: bool,
+    pub is_default: bool,
+    pub tags: Option<Vec<String>>,
+    pub category_id: Option<CategoryId>,
+    pub source_id: SourceId,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub mcp_servers: Option<Vec<String>>,
+    pub skills: Option<Vec<String>>,
+    pub card_json: serde_json::Value,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.7] - 2026-02-19
+
+### Added
+- `AgentsDiffCalculator` for comparing disk agents vs database agents using SHA-256 hashes
+- `AgentsLocalSync` with bidirectional disk-to-database and database-to-disk sync
+- `export_agent_to_disk()`, `generate_agent_config()`, `generate_agent_system_prompt()` export functions
+- `AgentDiffItem`, `AgentsDiffResult`, `DiskAgent` sync model types
+
 ## [0.1.6] - 2026-02-18
 
 ### Changed

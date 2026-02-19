@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.5] - 2026-02-19
+
+### Added
+- `Agent` domain model as first-class entity with `from_json_row()` deserialization
+- `AgentRow` database row struct for sqlx typed queries
+- `agents` database schema with JSONB card storage, indexes on enabled/source/name
+- `AgentRepository` with full CRUD: create, get_by_agent_id, get_by_name, list_all, list_enabled, update, delete
+- `AgentIngestionService` for scanning agent directories and ingesting to database
+- `AgentEntityService` as business logic wrapper around repository
+- Schema registration for `agents` table in extension
+
 ## [0.1.4] - 2026-02-19
 
 ### Changed

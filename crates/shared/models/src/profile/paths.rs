@@ -59,6 +59,10 @@ impl PathsConfig {
         format!("{}/hooks", self.services)
     }
 
+    pub fn agents(&self) -> String {
+        format!("{}/agents", self.services)
+    }
+
     pub fn web_path_resolved(&self) -> String {
         self.web_path
             .clone()

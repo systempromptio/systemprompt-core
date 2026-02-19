@@ -10,7 +10,8 @@ use systemprompt_logging::services::cli::{
 use systemprompt_logging::{is_startup_mode, CliService};
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
-    RateLimitsConfigValidator, ValidationConfigProvider, WebConfigValidator,
+    RateLimitsConfigValidator, SkillConfigValidator, ValidationConfigProvider,
+    WebConfigValidator,
 };
 use systemprompt_models::{Config, ProfileBootstrap};
 use systemprompt_traits::validation_report::ValidationError;
@@ -36,6 +37,7 @@ impl StartupValidator {
         registry.register(Box::new(RateLimitsConfigValidator::new()));
         registry.register(Box::new(WebConfigValidator::new()));
         registry.register(Box::new(ContentConfigValidator::new()));
+        registry.register(Box::new(SkillConfigValidator::new()));
         registry.register(Box::new(AgentConfigValidator::new()));
         registry.register(Box::new(McpConfigValidator::new()));
         registry.register(Box::new(AiConfigValidator::new()));

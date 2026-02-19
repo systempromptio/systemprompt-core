@@ -46,7 +46,7 @@ pub fn generate_marketplace_json(plugins_path: &Path, system_path: &Path) -> Res
 
         plugin_entries.push(serde_json::json!({
             "name": plugin.id,
-            "source": format!("./services/plugins/{}", dir_name),
+            "source": format!("./storage/files/plugins/{}", dir_name),
             "description": plugin.description,
             "version": plugin.version
         }));
@@ -94,14 +94,12 @@ pub fn generate_plugin_json(
         serde_json::Value::String(plugin.version.clone()),
     );
 
-    if let Some(author) = &plugin.author {
-        let mut author_obj = serde_json::Map::new();
-        author_obj.insert(
-            "name".to_string(),
-            serde_json::Value::String(author.name.clone()),
-        );
-        manifest.insert("author".to_string(), serde_json::Value::Object(author_obj));
-    }
+    let mut author_obj = serde_json::Map::new();
+    author_obj.insert(
+        "name".to_string(),
+        serde_json::Value::String(plugin.author.name.clone()),
+    );
+    manifest.insert("author".to_string(), serde_json::Value::Object(author_obj));
 
     if !plugin.keywords.is_empty() {
         let keywords: Vec<serde_json::Value> = plugin

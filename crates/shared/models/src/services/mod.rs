@@ -8,7 +8,11 @@ pub mod settings;
 pub mod skills;
 pub mod web;
 
-pub use agent_config::*;
+pub use agent_config::{
+    AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo, AgentSkillConfig,
+    CapabilitiesConfig, DiskAgentConfig, OAuthConfig, AGENT_CONFIG_FILENAME,
+    DEFAULT_AGENT_SYSTEM_PROMPT_FILE,
+};
 pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,

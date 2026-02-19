@@ -31,8 +31,8 @@ pub struct PluginDetailOutput {
     pub hooks_count: usize,
     pub scripts: Vec<String>,
     pub keywords: Vec<String>,
-    pub category: Option<String>,
-    pub author: Option<String>,
+    pub category: String,
+    pub author: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.17] - 2026-02-19
+
+### Added
+- `systemprompt core agents list` command with `--enabled`/`--disabled` filters
+- `systemprompt core agents show <name>` command for agent details
+- `systemprompt core agents sync` command for bidirectional disk-database sync
+- `systemprompt core agents validate [name]` command for config validation
+
 ## [0.1.16] - 2026-02-19
 
 ### Changed

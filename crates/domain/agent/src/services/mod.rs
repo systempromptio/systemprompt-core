@@ -1,5 +1,6 @@
 pub mod a2a_server;
 pub mod agent_orchestration;
+pub mod agents;
 pub mod artifact_publishing;
 pub mod context;
 pub mod context_provider;
@@ -25,6 +26,8 @@ pub use external_integrations::{
     IntegrationError, IntegrationResult, RegisteredMcpServer, ToolExecutionResult, WebhookEndpoint,
     WebhookService,
 };
+
+pub use agents::{AgentEntityService, AgentIngestionService};
 
 pub use skills::{SkillIngestionService, SkillMetadata, SkillService};
 

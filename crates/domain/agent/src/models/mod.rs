@@ -1,4 +1,5 @@
 pub mod a2a;
+pub mod agent;
 pub mod agent_info;
 pub mod context;
 pub mod database_rows;
@@ -21,6 +22,8 @@ pub use context::{
     UserContextWithStats,
 };
 
+pub use agent::Agent;
+
 pub use skill::{Skill, SkillMetadata};
 
 pub use systemprompt_models::{
@@ -28,8 +31,8 @@ pub use systemprompt_models::{
 };
 
 pub use database_rows::{
-    ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, PushNotificationConfigRow,
-    SkillRow, TaskMessage, TaskRow,
+    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart,
+    PushNotificationConfigRow, SkillRow, TaskMessage, TaskRow,
 };
 
 pub use web::*;

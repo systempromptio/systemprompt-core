@@ -53,11 +53,8 @@ pub struct SkillConfig {
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct DiskSkillConfig {
-    #[serde(default)]
     pub id: String,
-    #[serde(default)]
     pub name: String,
-    #[serde(default)]
     pub description: String,
     #[serde(default = "default_true")]
     pub enabled: bool,

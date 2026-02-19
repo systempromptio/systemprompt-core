@@ -40,7 +40,6 @@ pub fn execute(
     let plugins_path = PathBuf::from(profile.paths.plugins());
     let skills_path = PathBuf::from(profile.paths.skills());
     let services_path = PathBuf::from(&profile.paths.services);
-    let system_path = PathBuf::from(&profile.paths.system);
 
     let plugin_ids = match &args.id {
         Some(id) => {
@@ -67,7 +66,8 @@ pub fn execute(
         results.push(result);
     }
 
-    marketplace::generate_marketplace_json(&plugins_path, &system_path)?;
+    let plugins_output_path = services_path.join("..").join("storage").join("files").join("plugins");
+    marketplace::generate_marketplace_json(&plugins_path, &plugins_output_path)?;
 
     let install_hint = extract_install_command(profile);
 
@@ -108,9 +108,10 @@ fn generate_plugin(
         .with_context(|| format!("Failed to parse {}", config_path.display()))?;
     let plugin = &plugin_file.plugin;
 
-    let output_dir = ctx
-        .output_dir_override
-        .map_or_else(|| ctx.plugins_path.join(plugin_id), PathBuf::from);
+    let output_dir = ctx.output_dir_override.map_or_else(
+        || ctx.services_path.join("..").join("storage").join("files").join("plugins").join(plugin_id),
+        PathBuf::from,
+    );
 
     let mut files_generated = Vec::new();
 

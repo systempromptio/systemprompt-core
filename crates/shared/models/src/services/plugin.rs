@@ -66,10 +66,12 @@ pub struct PluginConfig {
     pub version: String,
     #[serde(default = "default_true")]
     pub enabled: bool,
+    pub author: PluginAuthor,
+    pub keywords: Vec<String>,
+    pub license: String,
+    pub category: String,
 
-    #[serde(default)]
     pub skills: PluginComponentRef,
-    #[serde(default)]
     pub agents: PluginComponentRef,
     #[serde(default)]
     pub mcp_servers: Vec<String>,
@@ -77,22 +79,6 @@ pub struct PluginConfig {
     pub hooks: HookEventsConfig,
     #[serde(default)]
     pub scripts: Vec<PluginScript>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub variables: Vec<PluginVariableDef>,
-
-    #[serde(default)]
-    pub roles: Vec<String>,
-
-    #[serde(default)]
-    pub keywords: Vec<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub category: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub author: Option<PluginAuthor>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub license: Option<String>,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub depends: Vec<String>,
 }
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -116,8 +102,7 @@ pub struct PluginScript {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PluginAuthor {
     pub name: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub email: Option<String>,
+    pub email: String,
 }
 
 impl PluginConfig {

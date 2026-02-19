@@ -87,7 +87,10 @@ impl SkillIngestionService {
             let raw = std::fs::read_to_string(&content_path)?;
             strip_frontmatter(&raw)
         } else {
-            String::new()
+            return Err(anyhow!(
+                "Content file '{}' not found",
+                content_path.display()
+            ));
         };
 
         let file_path = content_path.to_string_lossy().to_string();
@@ -130,7 +133,7 @@ impl SkillIngestionService {
 
         for entry in WalkDir::new(dir).max_depth(2).into_iter().filter_map(|e| {
             e.map_err(|err| {
-                tracing::debug!(error = %err, "Failed to read directory entry, skipping");
+                tracing::warn!(error = %err, "Skipping unreadable directory entry during skill scan");
                 err
             })
             .ok()

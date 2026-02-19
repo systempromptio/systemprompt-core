@@ -13,10 +13,11 @@ use serde::{Deserialize, Serialize};
 
 pub use api_client::SyncApiClient;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
-pub use diff::{compute_content_hash, ContentDiffCalculator, SkillsDiffCalculator};
+pub use diff::{compute_content_hash, AgentsDiffCalculator, ContentDiffCalculator, SkillsDiffCalculator};
 pub use error::{SyncError, SyncResult};
 pub use export::{
-    escape_yaml, export_content_to_file, export_skill_to_disk, generate_content_markdown,
+    escape_yaml, export_agent_to_disk, export_content_to_file, export_skill_to_disk,
+    generate_agent_config, generate_agent_system_prompt, generate_content_markdown,
     generate_skill_config, generate_skill_markdown,
 };
 pub use files::{
@@ -24,10 +25,10 @@ pub use files::{
     SyncDiffEntry, SyncDiffResult,
 };
 pub use jobs::ContentSyncJob;
-pub use local::{ContentDiffEntry, ContentLocalSync, SkillsLocalSync};
+pub use local::{AgentsLocalSync, ContentDiffEntry, ContentLocalSync, SkillsLocalSync};
 pub use models::{
-    ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent, DiskSkill, LocalSyncDirection,
-    LocalSyncResult, SkillDiffItem, SkillsDiffResult,
+    AgentDiffItem, AgentsDiffResult, ContentDiffItem, ContentDiffResult, DiffStatus, DiskAgent,
+    DiskContent, DiskSkill, LocalSyncDirection, LocalSyncResult, SkillDiffItem, SkillsDiffResult,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]

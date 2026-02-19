@@ -54,7 +54,7 @@ pub fn execute(args: &ShowArgs, _config: &CliConfig) -> Result<CommandResult<Plu
         scripts: plugin.scripts.iter().map(|s| s.name.clone()).collect(),
         keywords: plugin.keywords.clone(),
         category: plugin.category.clone(),
-        author: plugin.author.as_ref().map(|a| a.name.clone()),
+        author: plugin.author.name.clone(),
     };
 
     Ok(CommandResult::card(output).with_title(format!("Plugin: {}", args.id)))
