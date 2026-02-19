@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.16] - 2026-02-19
+
+### Changed
+- Refactor hooks CLI to use `HookEvent::ALL_VARIANTS` and `matchers_for_event()` instead of hardcoded event name strings
+- `count_hooks` in plugin show now uses `HookEvent` enum iteration instead of manual field chaining
+
 ## [0.1.15] - 2026-02-18
 
 ### Changed

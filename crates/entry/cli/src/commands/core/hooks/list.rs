@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_models::{HookEventsConfig, HookMatcher, PluginConfigFile};
+use systemprompt_models::{HookEvent, HookEventsConfig, HookMatcher, PluginConfigFile};
 
 use super::types::{HookEntry, HookListOutput};
 
@@ -72,25 +72,14 @@ fn scan_hooks(plugins_path: &Path) -> Result<Vec<HookEntry>> {
 }
 
 fn extract_hook_entries(plugin_id: &str, hooks: &HookEventsConfig, entries: &mut Vec<HookEntry>) {
-    extract_event_hooks(plugin_id, "PreToolUse", &hooks.pre_tool_use, entries);
-    extract_event_hooks(plugin_id, "PostToolUse", &hooks.post_tool_use, entries);
-    extract_event_hooks(plugin_id, "SessionStart", &hooks.session_start, entries);
-    extract_event_hooks(plugin_id, "SessionEnd", &hooks.session_end, entries);
-    extract_event_hooks(
-        plugin_id,
-        "UserPromptSubmit",
-        &hooks.user_prompt_submit,
-        entries,
-    );
-    extract_event_hooks(plugin_id, "Notification", &hooks.notification, entries);
-    extract_event_hooks(plugin_id, "Stop", &hooks.stop, entries);
-    extract_event_hooks(plugin_id, "SubagentStart", &hooks.subagent_start, entries);
-    extract_event_hooks(plugin_id, "SubagentStop", &hooks.subagent_stop, entries);
+    for event in HookEvent::ALL_VARIANTS {
+        extract_event_hooks(plugin_id, *event, hooks.matchers_for_event(*event), entries);
+    }
 }
 
 fn extract_event_hooks(
     plugin_id: &str,
-    event: &str,
+    event: HookEvent,
     matchers: &[HookMatcher],
     entries: &mut Vec<HookEntry>,
 ) {
@@ -99,7 +88,7 @@ fn extract_event_hooks(
             let hook_type = format!("{:?}", action.hook_type).to_lowercase();
             entries.push(HookEntry {
                 plugin_id: plugin_id.to_string(),
-                event: event.to_string(),
+                event: event.as_str().to_string(),
                 matcher: matcher.matcher.clone(),
                 hook_type,
                 command: action.command.clone(),

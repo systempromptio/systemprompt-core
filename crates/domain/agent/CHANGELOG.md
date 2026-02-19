@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.4] - 2026-02-19
+
+### Changed
+- Add `server_type` column to `services` schema
+
 ## [0.1.3] - 2026-02-18
 
 ### Changed

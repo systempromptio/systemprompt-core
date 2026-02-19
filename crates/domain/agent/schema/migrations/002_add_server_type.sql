@@ -1,0 +1,1 @@
+ALTER TABLE services ADD COLUMN IF NOT EXISTS server_type TEXT NOT NULL DEFAULT 'internal';

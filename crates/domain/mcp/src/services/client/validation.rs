@@ -12,12 +12,32 @@ pub async fn validate_connection(
     host: &str,
     port: u16,
 ) -> Result<McpConnectionResult> {
-    let connection_start = std::time::Instant::now();
     let url = format!("http://{host}:{port}/mcp");
+    validate_connection_by_url(service_name, &url).await
+}
+
+pub async fn validate_connection_with_auth(
+    service_name: &str,
+    host: &str,
+    port: u16,
+    requires_oauth: bool,
+) -> Result<McpConnectionResult> {
+    if requires_oauth {
+        Ok(validate_oauth_service(service_name, host, port))
+    } else {
+        validate_connection(service_name, host, port).await
+    }
+}
+
+pub async fn validate_connection_by_url(
+    service_name: &str,
+    url: &str,
+) -> Result<McpConnectionResult> {
+    let connection_start = std::time::Instant::now();
 
     let connection_result = timeout(
         Duration::from_secs(15),
-        connect_and_validate(&url, service_name),
+        connect_and_validate(url, service_name),
     )
     .await;
 
@@ -51,19 +71,6 @@ pub async fn validate_connection(
             tools_count: 0,
             validation_type: "timeout".to_string(),
         }),
-    }
-}
-
-pub async fn validate_connection_with_auth(
-    service_name: &str,
-    host: &str,
-    port: u16,
-    requires_oauth: bool,
-) -> Result<McpConnectionResult> {
-    if requires_oauth {
-        Ok(validate_oauth_service(service_name, host, port))
-    } else {
-        validate_connection(service_name, host, port).await
     }
 }
 

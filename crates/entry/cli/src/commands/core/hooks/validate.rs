@@ -4,7 +4,7 @@ use std::path::Path;
 
 use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_models::PluginConfigFile;
+use systemprompt_models::{HookEvent, PluginConfigFile};
 
 use super::types::{HookValidateEntry, HookValidateOutput};
 
@@ -106,23 +106,13 @@ fn validate_hook_scripts(
 }
 
 fn collect_hook_commands(hooks: &systemprompt_models::HookEventsConfig) -> Vec<String> {
-    let all_matchers = hooks
-        .pre_tool_use
-        .iter()
-        .chain(&hooks.post_tool_use)
-        .chain(&hooks.session_start)
-        .chain(&hooks.session_end)
-        .chain(&hooks.user_prompt_submit)
-        .chain(&hooks.notification)
-        .chain(&hooks.stop)
-        .chain(&hooks.subagent_start)
-        .chain(&hooks.subagent_stop);
-
     let mut commands = Vec::new();
-    for matcher in all_matchers {
-        for action in &matcher.hooks {
-            if let Some(cmd) = &action.command {
-                commands.push(cmd.clone());
+    for event in HookEvent::ALL_VARIANTS {
+        for matcher in hooks.matchers_for_event(*event) {
+            for action in &matcher.hooks {
+                if let Some(cmd) = &action.command {
+                    commands.push(cmd.clone());
+                }
             }
         }
     }

@@ -74,13 +74,8 @@ fn parse_plugin_config(config_path: &Path) -> Result<systemprompt_models::Plugin
 }
 
 fn count_hooks(hooks: &systemprompt_models::HookEventsConfig) -> usize {
-    hooks.pre_tool_use.len()
-        + hooks.post_tool_use.len()
-        + hooks.session_start.len()
-        + hooks.session_end.len()
-        + hooks.user_prompt_submit.len()
-        + hooks.notification.len()
-        + hooks.stop.len()
-        + hooks.subagent_start.len()
-        + hooks.subagent_stop.len()
+    systemprompt_models::HookEvent::ALL_VARIANTS
+        .iter()
+        .map(|event| hooks.matchers_for_event(*event).len())
+        .sum()
 }

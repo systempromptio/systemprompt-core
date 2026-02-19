@@ -13,7 +13,10 @@ pub use ai::{
     AiConfig, AiProviderConfig, HistoryConfig, McpConfig, ModelCapabilities, ModelDefinition,
     ModelLimits, ModelPricing, SamplingConfig, ToolModelConfig, ToolModelSettings,
 };
-pub use hooks::{HookAction, HookEventsConfig, HookMatcher, HookType};
+pub use hooks::{
+    DiskHookConfig, HookAction, HookCategory, HookEvent, HookEventsConfig, HookMatcher, HookType,
+    HOOK_CONFIG_FILENAME,
+};
 pub use plugin::{
     ComponentFilter, ComponentSource, PluginAuthor, PluginComponentRef, PluginConfig,
     PluginConfigFile, PluginScript, PluginVariableDef,
@@ -27,7 +30,7 @@ pub use skills::{
 };
 pub use web::{BrandingConfig, WebConfig};
 
-use crate::mcp::Deployment;
+use crate::mcp::{Deployment, McpServerType};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::collections::HashMap;
 
@@ -159,6 +162,9 @@ impl ServicesConfig {
         }
 
         for (name, mcp) in &self.mcp_servers {
+            if mcp.server_type == McpServerType::External {
+                continue;
+            }
             if let Some(existing) = seen_ports.insert(mcp.port, ("mcp_server", name.as_str())) {
                 anyhow::bail!(
                     "Port conflict: {} used by both {} '{}' and mcp_server '{}'",
@@ -195,6 +201,9 @@ impl ServicesConfig {
         let (min, max) = self.settings.mcp_port_range;
 
         for (name, mcp) in &self.mcp_servers {
+            if mcp.server_type == McpServerType::External {
+                continue;
+            }
             if mcp.port < min || mcp.port > max {
                 anyhow::bail!(
                     "MCP server '{}' port {} is outside allowed range {}-{}",

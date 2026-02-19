@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.15] - 2026-02-19
+
+### Changed
+- `site_auth_gate` now uses exact permission match instead of hierarchy-based `implies()`
+
 ## [0.1.14] - 2026-02-18
 
 ### Changed

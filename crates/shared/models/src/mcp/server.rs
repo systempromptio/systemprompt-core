@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 use crate::ai::ToolModelConfig;
 use crate::auth::{AuthenticatedUser, Permission};
+use crate::mcp::deployment::McpServerType;
 
 pub const RUNNING: &str = "running";
 pub const ERROR: &str = "error";
@@ -13,6 +14,7 @@ pub const STARTING: &str = "starting";
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpServerConfig {
     pub name: String,
+    pub server_type: McpServerType,
     pub binary: String,
     pub enabled: bool,
     pub display_in_web: bool,
@@ -38,6 +40,8 @@ pub struct McpServerConfig {
     pub host: String,
     pub module_name: String,
     pub protocol: String,
+    #[serde(default)]
+    pub remote_endpoint: String,
 }
 
 fn serialize_path<S>(path: &Path, serializer: S) -> Result<S::Ok, S::Error>
@@ -58,6 +62,14 @@ where
 impl McpServerConfig {
     pub fn endpoint(&self, api_server_url: &str) -> String {
         format!("{}/api/v1/mcp/{}/mcp", api_server_url, self.name)
+    }
+
+    pub const fn is_internal(&self) -> bool {
+        matches!(self.server_type, McpServerType::Internal)
+    }
+
+    pub const fn is_external(&self) -> bool {
+        matches!(self.server_type, McpServerType::External)
     }
 }
 

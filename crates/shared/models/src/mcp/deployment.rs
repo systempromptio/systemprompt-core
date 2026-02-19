@@ -4,6 +4,24 @@ use crate::mcp::capabilities::ToolVisibility;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[derive(Debug, Clone, Copy, Default, Serialize, Deserialize, PartialEq, Eq)]
+pub enum McpServerType {
+    #[default]
+    #[serde(rename = "internal")]
+    Internal,
+    #[serde(rename = "external")]
+    External,
+}
+
+impl McpServerType {
+    pub const fn as_str(&self) -> &'static str {
+        match self {
+            Self::Internal => "internal",
+            Self::External => "external",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ToolUiConfig {
     #[serde(default = "default_resource_uri_template")]
@@ -68,6 +86,8 @@ pub struct DeploymentConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Deployment {
+    #[serde(default, alias = "type")]
+    pub server_type: McpServerType,
     pub binary: String,
     pub package: Option<String>,
     pub port: u16,

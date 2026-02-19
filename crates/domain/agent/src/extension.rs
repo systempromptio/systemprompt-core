@@ -106,11 +106,18 @@ impl Extension for AgentExtension {
     }
 
     fn migrations(&self) -> Vec<Migration> {
-        vec![Migration::new(
-            1,
-            "drop_playbooks_table",
-            include_str!("../schema/migrations/001_drop_playbooks.sql"),
-        )]
+        vec![
+            Migration::new(
+                1,
+                "drop_playbooks_table",
+                include_str!("../schema/migrations/001_drop_playbooks.sql"),
+            ),
+            Migration::new(
+                2,
+                "add_server_type_column",
+                include_str!("../schema/migrations/002_add_server_type.sql"),
+            ),
+        ]
     }
 }
 

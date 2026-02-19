@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.17] - 2026-02-19
+
+### Added
+- `HookEvent` enum with 10 variants (`PreToolUse`, `PostToolUse`, `PostToolUseFailure`, `SessionStart`, `SessionEnd`, `UserPromptSubmit`, `Notification`, `Stop`, `SubagentStart`, `SubagentStop`)
+- `HookCategory` enum (`System`, `Custom`) with `Default` deriving `Custom`
+- `DiskHookConfig` struct for on-disk `services/hooks/{id}/config.yaml` parsing with strongly typed `HookEvent` and `HookCategory` fields
+- `HOOK_CONFIG_FILENAME` constant
+- `HookEventsConfig::matchers_for_event()` method bridging struct fields with `HookEvent` enum
+- `post_tool_use_failure` field on `HookEventsConfig`
+- `McpServerType` on `McpServerConfig` and `remote_endpoint` field for external MCP server support
+- `McpServerType` now derives `Default` (defaulting to `Internal`) and `Copy`
+
+### Changed
+- `parse_permissions()` now uses iterator `map` + `collect` instead of `filter_map` with silently swallowed errors
+
 ## [0.1.16] - 2026-02-18
 
 ### Added

@@ -12,12 +12,12 @@ mod reconciliation;
 mod schema_sync;
 mod server_startup;
 mod service_validation;
-
-pub use reconciliation::ReconcileParams;
+mod target_resolution;
 
 pub use event_bus::EventBus;
 pub use events::McpEvent;
 pub use handlers::{DatabaseSyncHandler, HealthCheckHandler, LifecycleHandler, MonitoringHandler};
+pub use reconciliation::ReconcileParams;
 
 use super::database::DatabaseManager;
 use super::lifecycle::LifecycleManager;
@@ -81,7 +81,12 @@ impl McpOrchestrator {
         service_name: Option<String>,
         events: Option<&StartupEventSender>,
     ) -> Result<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, true)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
         let mut failed = Vec::new();
 
         for server in servers {
@@ -140,7 +145,12 @@ impl McpOrchestrator {
     }
 
     pub async fn stop_services(&self, service_name: Option<String>) -> Result<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, false)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
 
         for server in servers {
             tracing::info!(service = %server.name, "Stopping MCP service");
@@ -164,7 +174,12 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services(&self, service_name: Option<String>) -> Result<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, false)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -181,7 +196,12 @@ impl McpOrchestrator {
     }
 
     pub async fn restart_services_sync(&self, service_name: Option<String>) -> Result<()> {
-        let servers = self.get_target_servers(service_name, false).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, false)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
 
         for server in servers {
             tracing::info!(service = %server.name, "Restarting MCP service");
@@ -192,7 +212,12 @@ impl McpOrchestrator {
     }
 
     pub async fn build_and_restart_services(&self, service_name: Option<String>) -> Result<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, true)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
@@ -206,7 +231,12 @@ impl McpOrchestrator {
     }
 
     pub async fn build_services(&self, service_name: Option<String>) -> Result<()> {
-        let servers = self.get_target_servers(service_name, true).await?;
+        let servers: Vec<_> = self
+            .get_target_servers(service_name, true)
+            .await?
+            .into_iter()
+            .filter(McpServerConfig::is_internal)
+            .collect();
 
         for server in servers {
             tracing::info!(service = %server.name, "Building service");
@@ -258,33 +288,6 @@ impl McpOrchestrator {
         service_name: &str,
     ) -> Result<Option<super::database::ServiceInfo>> {
         self.database.get_service_by_name(service_name).await
-    }
-
-    async fn get_target_servers(
-        &self,
-        service_name: Option<String>,
-        enabled_only: bool,
-    ) -> Result<Vec<McpServerConfig>> {
-        match service_name {
-            Some(name) if name == "all" => {
-                if enabled_only {
-                    RegistryManager::get_enabled_servers()
-                } else {
-                    self.database.get_running_servers().await
-                }
-            },
-            Some(name) => {
-                let servers = RegistryManager::get_enabled_servers()?;
-                Ok(servers.into_iter().filter(|s| s.name == name).collect())
-            },
-            None => {
-                if enabled_only {
-                    RegistryManager::get_enabled_servers()
-                } else {
-                    self.database.get_running_servers().await
-                }
-            },
-        }
     }
 
     pub async fn run_daemon(&self) -> Result<()> {

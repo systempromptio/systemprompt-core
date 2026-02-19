@@ -113,18 +113,30 @@ pub async fn check_service_health(config: &McpServerConfig) -> Result<HealthStat
 }
 
 pub async fn perform_health_check(config: &McpServerConfig) -> Result<HealthCheckResult> {
-    use crate::services::client::validate_connection_with_auth;
+    use crate::services::client::{validate_connection_by_url, validate_connection_with_auth};
+    use systemprompt_models::mcp::McpServerType;
 
-    let connection_result = timeout(
-        Duration::from_secs(30),
-        validate_connection_with_auth(
-            &config.name,
-            &config.host,
-            config.port,
-            config.oauth.required,
-        ),
-    )
-    .await;
+    let connection_result = match config.server_type {
+        McpServerType::Internal => {
+            timeout(
+                Duration::from_secs(30),
+                validate_connection_with_auth(
+                    &config.name,
+                    &config.host,
+                    config.port,
+                    config.oauth.required,
+                ),
+            )
+            .await
+        },
+        McpServerType::External => {
+            timeout(
+                Duration::from_secs(30),
+                validate_connection_by_url(&config.name, &config.remote_endpoint),
+            )
+            .await
+        },
+    };
 
     match connection_result {
         Ok(Ok(mcp_result)) => Ok(HealthCheckResult::from_connection_result(

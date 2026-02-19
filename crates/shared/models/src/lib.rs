@@ -125,12 +125,13 @@ pub use secrets::{Secrets, SecretsBootstrap, SecretsBootstrapError};
 pub use services::{
     strip_frontmatter, AgentCardConfig, AgentConfig, AgentMetadataConfig, AgentProviderInfo,
     AiConfig, AiProviderConfig, CapabilitiesConfig, ComponentFilter, ComponentSource,
-    DiskSkillConfig, HistoryConfig, HookAction, HookEventsConfig, HookMatcher, HookType,
-    IncludableString, JobConfig, McpConfig, OAuthConfig as AgentOAuthConfig, PartialServicesConfig,
-    PluginAuthor, PluginComponentRef, PluginConfig, PluginConfigFile, PluginScript, RuntimeStatus,
-    SamplingConfig, SchedulerConfig, ServiceType, ServicesConfig, Settings as ServicesSettings,
-    SkillConfig, SkillsConfig, ToolModelConfig, ToolModelSettings, WebConfig,
-    DEFAULT_SKILL_CONTENT_FILE, SKILL_CONFIG_FILENAME,
+    DiskHookConfig, DiskSkillConfig, HistoryConfig, HookAction, HookCategory, HookEvent,
+    HookEventsConfig, HookMatcher, HookType, IncludableString, JobConfig, McpConfig,
+    OAuthConfig as AgentOAuthConfig, PartialServicesConfig, PluginAuthor, PluginComponentRef,
+    PluginConfig, PluginConfigFile, PluginScript, RuntimeStatus, SamplingConfig, SchedulerConfig,
+    ServiceType, ServicesConfig, Settings as ServicesSettings, SkillConfig, SkillsConfig,
+    ToolModelConfig, ToolModelSettings, WebConfig, DEFAULT_SKILL_CONTENT_FILE,
+    HOOK_CONFIG_FILENAME, SKILL_CONFIG_FILENAME,
 };
 pub use systemprompt_identifiers::{AgentId, ContextId, SessionId, TaskId, TraceId, UserId};
 

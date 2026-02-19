@@ -1,6 +1,7 @@
 use anyhow::Result;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use systemprompt_loader::ExtensionRegistry;
+use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::Config;
 
 use crate::services::deployment::DeploymentService;
@@ -33,7 +34,11 @@ impl RegistryService {
                 continue;
             }
 
-            let crate_path = registry.get_path(&deployment.binary)?;
+            let crate_path = match deployment.server_type {
+                McpServerType::Internal => registry.get_path(&deployment.binary)?,
+                McpServerType::External => PathBuf::new(),
+            };
+
             let display_name = deployment
                 .package
                 .clone()
@@ -41,6 +46,7 @@ impl RegistryService {
 
             let config = crate::McpServerConfig {
                 name: server_name.clone(),
+                server_type: deployment.server_type,
                 binary: deployment.binary.clone(),
                 enabled: deployment.enabled,
                 display_in_web: deployment.display_in_web,
@@ -58,6 +64,7 @@ impl RegistryService {
                 host: "0.0.0.0".to_string(),
                 module_name: "mcp".to_string(),
                 protocol: "mcp".to_string(),
+                remote_endpoint: deployment.endpoint.clone(),
             };
             enabled.push(config);
         }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-02-19
+
+### Added
+- `HookId` typed identifier with `generate()` support for hook catalog entries
+
 ## [0.1.2] - 2026-02-03
 
 ### Added

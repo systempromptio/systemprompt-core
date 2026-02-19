@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.10] - 2026-02-19
+
+### Changed
+- Remove `server_type` field from `CreateServiceInput` (now tracked on `McpServerConfig` instead of service registration)
+
 ## [0.1.9] - 2026-02-05
 
 ### Fixed

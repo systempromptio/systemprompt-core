@@ -1,6 +1,7 @@
 CREATE TABLE IF NOT EXISTS services (
     name TEXT PRIMARY KEY,
     module_name TEXT NOT NULL,
+    server_type TEXT NOT NULL DEFAULT 'internal',
     pid INTEGER,
     port INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'stopped',

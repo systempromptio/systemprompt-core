@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.5] - 2026-02-19
+
+### Changed
+- Populate `server_type` and `remote_endpoint` fields in MCP server config from deployment
+- Replace inline validation with dedicated `RegistryValidator` methods for target resolution
+- Refactor orchestrator to use `TargetResolution` module for server target routing
+
 ## [0.1.4] - 2026-02-04
 
 ### Added

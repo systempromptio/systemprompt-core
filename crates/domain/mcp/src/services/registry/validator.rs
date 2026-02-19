@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::collections::HashSet;
-use systemprompt_models::mcp::RegistryConfig;
+use systemprompt_models::mcp::{McpServerType, RegistryConfig};
 
 pub fn validate_registry(config: &RegistryConfig) -> Result<()> {
     tracing::info!("Validating registry configuration");
@@ -8,6 +8,7 @@ pub fn validate_registry(config: &RegistryConfig) -> Result<()> {
     validate_port_conflicts(config)?;
     validate_server_configs(config)?;
     validate_oauth_configs(config)?;
+    validate_server_types(config)?;
 
     tracing::info!("Registry validation passed");
     Ok(())
@@ -19,7 +20,7 @@ fn validate_port_conflicts(config: &RegistryConfig) -> Result<()> {
     let conflicts: Vec<_> = config
         .servers
         .iter()
-        .filter(|s| s.enabled)
+        .filter(|s| s.enabled && s.is_internal())
         .filter(|s| !seen_ports.insert(s.port))
         .map(|s| format!("{}:{}", s.name, s.port))
         .collect();
@@ -63,17 +64,22 @@ fn validate_single_server(
     let mut errors = Vec::new();
     let name = &server_config.name;
 
-    if server_config.port < 1024 {
-        errors.push(format!("{name}: invalid port {}", server_config.port));
-        return errors;
-    }
+    match server_config.server_type {
+        McpServerType::Internal => {
+            if server_config.port < 1024 {
+                errors.push(format!("{name}: invalid port {}", server_config.port));
+                return errors;
+            }
 
-    if !server_config.crate_path.exists() {
-        errors.push(format!(
-            "{name}: crate path does not exist: {}",
-            server_config.crate_path.display()
-        ));
-        return errors;
+            if !server_config.crate_path.exists() {
+                errors.push(format!(
+                    "{name}: crate path does not exist: {}",
+                    server_config.crate_path.display()
+                ));
+                return errors;
+            }
+        },
+        McpServerType::External => {},
     }
 
     if server_config.display_name.is_empty() {
@@ -104,4 +110,50 @@ fn validate_oauth_configs(config: &RegistryConfig) -> Result<()> {
         "OAuth configuration issues:\n{}",
         oauth_issues.join("\n")
     ))
+}
+
+fn validate_server_types(config: &RegistryConfig) -> Result<()> {
+    let issues: Vec<String> = config
+        .servers
+        .iter()
+        .filter(|s| s.enabled)
+        .filter_map(validate_server_type_constraints)
+        .collect();
+
+    if issues.is_empty() {
+        return Ok(());
+    }
+
+    Err(anyhow::anyhow!(
+        "Server type validation issues:\n{}",
+        issues.join("\n")
+    ))
+}
+
+fn validate_server_type_constraints(
+    server: &systemprompt_models::mcp::McpServerConfig,
+) -> Option<String> {
+    match server.server_type {
+        McpServerType::Internal => {
+            if server.binary.is_empty() {
+                return Some(format!("{}: internal server has no binary", server.name));
+            }
+            None
+        },
+        McpServerType::External => {
+            if server.remote_endpoint.is_empty() {
+                return Some(format!(
+                    "{}: external server has no remote endpoint",
+                    server.name
+                ));
+            }
+            if !server.binary.is_empty() {
+                return Some(format!(
+                    "{}: external server should not have a binary",
+                    server.name
+                ));
+            }
+            None
+        },
+    }
 }
