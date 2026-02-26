@@ -75,7 +75,7 @@ pub struct SessionMetrics {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
 pub struct CostMetrics {
-    pub total_cents: i64,
+    pub total_cost_microdollars: i64,
     pub change_percent: Option<f64>,
 }
 
@@ -176,7 +176,7 @@ async fn fetch_overview_data(
     let prev_cost = repo.get_cost(prev_start, start).await?;
 
     let costs = CostMetrics {
-        total_cents: current_cost.cost.unwrap_or(0),
+        total_cost_microdollars: current_cost.cost.unwrap_or(0),
         change_percent: calculate_change(
             current_cost.cost.unwrap_or(0),
             prev_cost.cost.unwrap_or(0),
@@ -221,7 +221,7 @@ fn export_overview_csv(output: &OverviewOutput, path: &std::path::Path) -> Resul
         "tools_success_rate",
         "sessions_currently_active",
         "sessions_created_in_period",
-        "costs_cents",
+        "costs_microdollars",
         "costs_change_pct",
     ]);
 
@@ -242,7 +242,7 @@ fn export_overview_csv(output: &OverviewOutput, path: &std::path::Path) -> Resul
         format!("{:.2}", output.tools.success_rate),
         output.sessions.active.to_string(),
         output.sessions.total_today.to_string(),
-        output.costs.total_cents.to_string(),
+        output.costs.total_cost_microdollars.to_string(),
         output
             .costs
             .change_percent

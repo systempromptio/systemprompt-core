@@ -123,10 +123,10 @@ pub fn format_number(n: i64) -> String {
     }
 }
 
-pub fn format_cost(cents: i64) -> String {
-    let dollars = cents as f64 / 100.0;
+pub fn format_cost(microdollars: i64) -> String {
+    let dollars = microdollars as f64 / 1_000_000.0;
     match dollars {
-        d if d < 0.01 && cents > 0 => format!("${:.4}", d),
+        d if d < 0.01 && microdollars > 0 => format!("${:.4}", d),
         d if d < 100.0 => format!("${:.2}", d),
         _ => format!("${:.0}", dollars),
     }

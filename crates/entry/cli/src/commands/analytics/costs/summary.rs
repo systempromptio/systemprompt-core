@@ -81,7 +81,7 @@ async fn execute_internal(
         total_cost_microdollars: total_cost,
         total_requests: current.total_requests,
         total_tokens: current.total_tokens.unwrap_or(0),
-        avg_cost_per_request_cents: avg_cost,
+        avg_cost_per_request_microdollars: avg_cost,
         change_percent,
     };
 

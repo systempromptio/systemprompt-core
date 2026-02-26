@@ -123,7 +123,7 @@ sp analytics overview --since 24h --export metrics.csv
     "total_today": 89
   },
   "costs": {
-    "total_cents": 4520,
+    "total_cost_microdollars": 4520,
     "change_percent": -5.2
   }
 }
@@ -1000,7 +1000,7 @@ sp analytics costs summary --since 7d
   "total_cost_microdollars": 4520,
   "total_requests": 1200,
   "total_tokens": 500000,
-  "avg_cost_per_request_cents": 3.77,
+  "avg_cost_per_request_microdollars": 3.77,
   "change_percent": -5.2
 }
 ```
@@ -1216,7 +1216,7 @@ All commands support `--json` flag for structured output:
 sp --json analytics overview | jq .
 
 # Extract specific metrics
-sp --json analytics overview | jq '.costs.total_cents'
+sp --json analytics overview | jq '.costs.total_cost_microdollars'
 sp --json analytics agents list | jq '.agents[].agent_name'
 sp --json analytics requests models | jq '.models[] | select(.percentage > 50)'
 sp --json analytics sessions live | jq '.sessions | length'

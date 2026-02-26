@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.18] - 2026-02-26
+
+### Fixed
+- Rename `total_cents` to `total_cost_microdollars` in analytics overview (field contained microdollars, not cents)
+- Rename `avg_cost_per_request_cents` to `avg_cost_per_request_microdollars` in cost summary output
+- Fix `format_cost()` to divide by 1,000,000 (microdollars) instead of 100 (cents)
+
 ## [0.1.17] - 2026-02-19
 
 ### Added

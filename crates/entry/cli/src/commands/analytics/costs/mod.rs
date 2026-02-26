@@ -29,7 +29,7 @@ pub struct CostSummaryOutput {
     pub total_cost_microdollars: i64,
     pub total_requests: i64,
     pub total_tokens: i64,
-    pub avg_cost_per_request_cents: f64,
+    pub avg_cost_per_request_microdollars: f64,
     pub change_percent: Option<f64>,
 }
 
