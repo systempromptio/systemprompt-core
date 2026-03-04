@@ -9,17 +9,43 @@
 - `Database::write_pool_arc()`, `write_pool()`, `write_provider()`, `has_write_pool()` methods
 - `ConfigProvider::database_write_url()` trait method with backward-compatible default
 - `DatabaseContext::from_urls()` for explicit read/write URL configuration
+- MCP session cleanup job running every 30 minutes (expires stale sessions, deletes records older than 7 days)
+- MCP session reconnection support via standalone stream fallback after SSE drops
+- Proxy-layer SSE buffering prevention (`x-accel-buffering: no`, `cache-control: no-cache, no-transform`)
+- MCP session-ID-based auth bypass for SSE reconnection after token loss
+- Hierarchical permission matching with `Permission::implies()` in RBAC and proxy auth
+- Log filter `since` field with SQL-level time filtering via `LoggingMaintenanceService::get_filtered_logs()`
+- Custom `404.html` support in static content handler with proper cache headers
+- Internal vs external MCP server validation (URL-based for external, TCP for internal)
 
 ### Changed
 - All 37 repositories migrated to use write pool for mutations (INSERT/UPDATE/DELETE)
 - Migrations and schema installations now use write pool to prevent failures on read replicas
 - `Database::begin()` now uses write pool for transactions
 - `Database::test_connection()` validates both read and write pools
+- Upgrade `rmcp` to latest version with breaking API changes
+- SSE keep-alive interval reduced from 30s to 15s for faster connection health detection
+- HTTP client timeouts replaced with connect timeouts and pool settings (SSE streams no longer killed by request timeouts)
+- CLI command descriptors refined so filesystem-only commands skip unnecessary database connections
+- `get_scopes()` replaced with `get_permissions()` returning typed `Permission` values
+- CLI write commands now use `database_write_url` for read/write replica support
+- `McpSessionRepository::update_activity()` now extends session expiry by 24 hours
+- Error formatting in skill ingestion changed from Display to Debug for richer diagnostics
+- JWT authentication errors now log diagnostic context (headers present, validation error) before returning status codes
 
 ### Fixed
 - Migrations failing with "cannot execute CREATE FUNCTION in a read-only transaction" when DATABASE_URL points to a read replica
 - WebAuthn operations (credential storage, counter updates, setup tokens) failing with "cannot execute UPDATE/INSERT in a read-only transaction" on read replicas
 - Log flush, scheduler jobs, CLI job commands, and notification handlers using read pool for mutations
+- MCP SSE connections dropping silently due to reverse-proxy buffering
+- MCP clients unable to reconnect after SSE drop when in-memory OAuth token is lost
+- Stale MCP session records in database causing HTTP 500 instead of HTTP 401 after server restart
+
+### Removed
+- `crates/domain/ai/src/services/providers/shared/http_client.rs` (consolidated into callers)
+- `mcp.md` working document (implementation complete)
+- `REQUEST_TIMEOUT` constant from Gemini provider
+- In-memory log filtering (`apply_filters()` functions removed from CLI log commands)
 
 ## [0.1.9] - 2026-02-05
 
