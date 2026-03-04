@@ -39,7 +39,7 @@ pub fn init_logging(db_pool: DbPool) {
         EnvFilter::new("warn")
     } else {
         EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("info,tokio_cron_scheduler=warn,sqlx::postgres::notice=warn")
+            EnvFilter::new("info,tokio_cron_scheduler=warn,sqlx::postgres::notice=warn,handlebars=warn,sqlx::query=warn")
         })
     };
 
@@ -70,7 +70,7 @@ pub fn init_console_logging_with_level(level: Option<&str>) {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
         let base = level.unwrap_or("info");
         EnvFilter::new(format!(
-            "{},tokio_cron_scheduler=warn,sqlx::postgres::notice=warn",
+            "{},tokio_cron_scheduler=warn,sqlx::postgres::notice=warn,handlebars=warn,sqlx::query=warn",
             base
         ))
     });

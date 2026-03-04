@@ -1,6 +1,6 @@
 # Changelog
 
-## [Unreleased]
+## [0.1.14] - 2026-03-04
 
 ### Added
 - Read/write database pool separation for multi-region Postgres deployments
