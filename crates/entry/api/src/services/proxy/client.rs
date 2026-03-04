@@ -13,7 +13,9 @@ impl ClientPool {
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(120))
+                .connect_timeout(std::time::Duration::from_secs(30))
+                .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
+                .pool_idle_timeout(std::time::Duration::from_secs(90))
                 .build()
                 .unwrap_or_else(|e| {
                     tracing::warn!(error = %e, "Failed to build HTTP client with timeout, using default");

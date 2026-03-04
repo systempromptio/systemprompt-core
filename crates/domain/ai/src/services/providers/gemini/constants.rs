@@ -3,7 +3,6 @@ use std::time::Duration;
 pub mod timeout {
     use super::Duration;
 
-    pub const REQUEST_TIMEOUT: Duration = Duration::from_secs(300);
     pub const CONNECT_TIMEOUT: Duration = Duration::from_secs(30);
 }
 

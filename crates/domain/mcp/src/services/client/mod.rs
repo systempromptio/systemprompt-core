@@ -1,8 +1,6 @@
 use anyhow::{Context, Result};
 use rmcp::handler::client::progress::ProgressDispatcher;
-use rmcp::model::{
-    ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam, ProtocolVersion,
-};
+use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProgressNotificationParam};
 use rmcp::service::NotificationContext;
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -21,7 +19,8 @@ mod validation;
 pub use http_client_with_context::HttpClientWithContext;
 pub use types::{McpConnectionResult, McpProtocolInfo, ToolExecutionWithId, ValidationResult};
 pub use validation::{
-    validate_connection, validate_connection_by_url, validate_connection_with_auth,
+    rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
+    validate_connection_with_auth,
 };
 
 use systemprompt_database::DbPool;
@@ -76,7 +75,7 @@ impl McpClient {
             .ok_or_else(|| anyhow::anyhow!("MCP server '{service_id}' not found in registry"))?;
 
         let url = server_config.endpoint(&Config::get()?.api_server_url);
-        let url = validation::rewrite_url_for_internal_use(&url);
+        let url = rewrite_url_for_internal_use(&url);
         let requires_auth = server_config.oauth.required;
 
         let client = HttpClientWithContext::new(context.clone());
@@ -95,18 +94,10 @@ impl McpClient {
             StreamableHttpClientTransport::with_client(client, config)
         };
 
-        let client_info = ClientInfo {
-            meta: None,
-            protocol_version: ProtocolVersion::default(),
-            capabilities: ClientCapabilities::default(),
-            client_info: Implementation {
-                name: "systemprompt-mcp-client".to_string(),
-                title: None,
-                version: "1.0.0".to_string(),
-                website_url: None,
-                icons: None,
-            },
-        };
+        let client_info = ClientInfo::new(
+            ClientCapabilities::default(),
+            Implementation::new("systemprompt-mcp-client", "1.0.0"),
+        );
 
         let client = client_info.serve(transport).await?;
         let tools_response = client.list_tools(None).await?;
@@ -164,7 +155,7 @@ impl McpClient {
             .ok_or_else(|| anyhow::anyhow!("MCP server '{service_name}' not found in registry"))?;
 
         let url = server_config.endpoint(&Config::get()?.api_server_url);
-        let url = validation::rewrite_url_for_internal_use(&url);
+        let url = rewrite_url_for_internal_use(&url);
 
         let transport = build_transport(&url, server_config.oauth.required, context)?;
         execute_tool_call(transport, &name, arguments)
@@ -201,18 +192,10 @@ async fn execute_tool_call(
     name: &str,
     arguments: Option<serde_json::Value>,
 ) -> Result<systemprompt_models::CallToolResult, anyhow::Error> {
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: "systemprompt-ai-mcp-client".to_string(),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new("systemprompt-ai-mcp-client", "1.0.0"),
+    );
 
     let handler = McpClientHandler::new(client_info);
 
@@ -226,12 +209,10 @@ async fn execute_tool_call(
         },
     };
 
-    let params = rmcp::model::CallToolRequestParams {
-        meta: None,
-        name: name.to_string().into(),
-        arguments: arguments.and_then(|v| v.as_object().cloned()),
-        task: None,
-    };
+    let mut params = rmcp::model::CallToolRequestParams::new(name.to_string());
+    if let Some(args) = arguments.and_then(|v| v.as_object().cloned()) {
+        params = params.with_arguments(args);
+    }
 
     let result = client_service
         .call_tool(params)

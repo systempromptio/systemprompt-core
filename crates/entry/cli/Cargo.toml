@@ -71,7 +71,6 @@ reqwest = { workspace = true }
 reqwest-eventsource = { workspace = true }
 futures-util = { workspace = true }
 rmcp = { workspace = true }
-atty = { workspace = true }
 dialoguer = { workspace = true }
 dirs = { workspace = true }
 base64 = { workspace = true }

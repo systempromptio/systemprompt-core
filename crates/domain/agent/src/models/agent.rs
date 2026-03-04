@@ -124,10 +124,7 @@ impl Agent {
             .and_then(|v| v.as_str())
             .map(String::from);
 
-        let model = row
-            .get("model")
-            .and_then(|v| v.as_str())
-            .map(String::from);
+        let model = row.get("model").and_then(|v| v.as_str()).map(String::from);
 
         let mcp_servers = row
             .get("mcp_servers")

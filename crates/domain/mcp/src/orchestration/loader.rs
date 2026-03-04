@@ -180,7 +180,9 @@ impl McpToolLoader {
     }
 }
 
-fn extract_user_permissions(context: &RequestContext) -> Result<Vec<String>> {
+fn extract_user_permissions(
+    context: &RequestContext,
+) -> Result<Vec<systemprompt_models::auth::Permission>> {
     use crate::services::auth::validate_jwt_token;
 
     let token = context.auth_token().as_str();
@@ -200,13 +202,13 @@ fn extract_user_permissions(context: &RequestContext) -> Result<Vec<String>> {
         anyhow::anyhow!("JWT validation failed: {}", e)
     })?;
 
-    Ok(claims.get_scopes())
+    Ok(claims.get_permissions())
 }
 
 fn has_server_permission(
     config: &systemprompt_models::services::ServicesConfig,
     server_name: &str,
-    user_permissions: &[String],
+    user_permissions: &[systemprompt_models::auth::Permission],
 ) -> bool {
     let Some(deployment) = config.mcp_servers.get(server_name) else {
         return true;
@@ -216,11 +218,11 @@ fn has_server_permission(
         return true;
     }
 
-    deployment
-        .oauth
-        .scopes
-        .iter()
-        .any(|required_scope| user_permissions.contains(&required_scope.to_string()))
+    deployment.oauth.scopes.iter().any(|required| {
+        user_permissions
+            .iter()
+            .any(|user_perm| user_perm.implies(required))
+    })
 }
 
 async fn load_with_timeout(

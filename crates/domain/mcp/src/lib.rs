@@ -2,6 +2,7 @@ pub mod capabilities;
 pub mod cli;
 pub mod error;
 pub mod extension;
+pub mod jobs;
 pub mod middleware;
 pub mod models;
 pub mod orchestration;
@@ -19,8 +20,6 @@ pub use capabilities::{
     build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
     model_only_visibility, tool_ui_meta, visibility_to_json, WEBSITE_URL,
 };
-// NOTE: result_ui_meta was removed - MCP Apps spec uses static templates with
-// ui/notifications/tool-result
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use response::McpResponseBuilder;
 pub use schema::McpOutputSchema;
@@ -77,9 +76,10 @@ where
 {
     let config = StreamableHttpServerConfig {
         stateful_mode: true,
-        sse_keep_alive: Some(Duration::from_secs(30)),
+        sse_keep_alive: Some(Duration::from_secs(15)),
         sse_retry: Some(Duration::from_secs(3)),
         cancellation_token: CancellationToken::new(),
+        json_response: false,
     };
 
     let session_manager = DatabaseSessionManager::new(db_pool);
@@ -87,5 +87,14 @@ where
     let service =
         StreamableHttpService::new(move || Ok(server.clone()), session_manager.into(), config);
 
-    axum::Router::new().nest_service("/mcp", service)
+    axum::Router::new()
+        .nest_service("/mcp", service)
+        .layer(axum::middleware::map_response(
+            |mut response: http::Response<_>| async move {
+                response
+                    .headers_mut()
+                    .insert("x-accel-buffering", http::HeaderValue::from_static("no"));
+                response
+            },
+        ))
 }

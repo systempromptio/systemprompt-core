@@ -1,7 +1,7 @@
 use std::fmt;
 use std::sync::Arc;
 
-use futures::Stream;
+use futures::{Stream, StreamExt};
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
 use rmcp::transport::common::server_side_http::ServerSseMessage;
 use rmcp::transport::streamable_http_server::session::local::{
@@ -131,6 +131,7 @@ impl SessionManager for DatabaseSessionManager {
 
     async fn create_session(&self) -> Result<(SessionId, Self::Transport), Self::Error> {
         let (id, transport) = self.local_manager.create_session().await?;
+        tracing::info!(session_id = %id, "MCP session created");
         self.persist_create(&id).await;
         Ok((id, transport))
     }
@@ -146,13 +147,23 @@ impl SessionManager for DatabaseSessionManager {
     }
 
     async fn has_session(&self, id: &SessionId) -> Result<bool, Self::Error> {
-        if self.local_manager.has_session(id).await? {
+        if self.local_manager.has_session(id).await.unwrap_or(false) {
             return Ok(true);
         }
-        Ok(self.check_db_session(id).await.unwrap_or(false))
+
+        if self.check_db_session(id).await == Some(true) {
+            tracing::info!(
+                session_id = %id,
+                "Session exists in database but not in memory — closing stale record"
+            );
+            self.persist_close(id).await;
+        }
+
+        Ok(false)
     }
 
     async fn close_session(&self, id: &SessionId) -> Result<(), Self::Error> {
+        tracing::info!(session_id = %id, "MCP session closing");
         let _ = self.local_manager.close_session(id).await;
         self.persist_close(id).await;
         Ok(())
@@ -192,43 +203,50 @@ impl SessionManager for DatabaseSessionManager {
         id: &SessionId,
         last_event_id: String,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
-        if self.local_manager.has_session(id).await.unwrap_or(false) {
-            match self.local_manager.resume(id, last_event_id).await {
-                Ok(stream) => return Ok(stream),
-                Err(e) => {
-                    tracing::info!(
-                        session_id = %id,
-                        error = %e,
-                        "Session channel closed - cleaning up stale session"
-                    );
-                    let _ = self.local_manager.close_session(id).await;
-                    self.persist_close(id).await;
-                    return Err(DatabaseSessionManagerError::SessionNeedsReconnect(
-                        id.to_string(),
-                    ));
-                },
-            }
+        if !self.local_manager.has_session(id).await.unwrap_or(false) {
+            tracing::warn!(
+                session_id = %id,
+                "Resume called but session not in local memory"
+            );
+            return Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()));
         }
 
-        match self.check_db_session(id).await {
-            Some(true) => {
+        match self.local_manager.resume(id, last_event_id).await {
+            Ok(stream) => {
                 tracing::info!(
                     session_id = %id,
-                    "Session exists in database but not in memory - client needs to reconnect"
+                    "Session resumed successfully"
                 );
-                Err(DatabaseSessionManagerError::SessionNeedsReconnect(
-                    id.to_string(),
-                ))
+                self.update_activity(id).await;
+                Ok(stream.left_stream())
             },
-            Some(false) => {
-                tracing::debug!(session_id = %id, "Session not found in database");
-                Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
+            Err(e) => {
+                tracing::info!(
+                    session_id = %id,
+                    error = %e,
+                    "Resume failed, attempting recovery via new standalone stream"
+                );
+                match self.local_manager.create_standalone_stream(id).await {
+                    Ok(stream) => {
+                        tracing::info!(
+                            session_id = %id,
+                            "Session recovered with new standalone stream"
+                        );
+                        self.update_activity(id).await;
+                        Ok(stream.right_stream())
+                    },
+                    Err(e2) => {
+                        tracing::warn!(
+                            session_id = %id,
+                            error = %e2,
+                            "Session worker is dead, cleaning up"
+                        );
+                        let _ = self.local_manager.close_session(id).await;
+                        self.persist_close(id).await;
+                        Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
+                    },
+                }
             },
-            None => self
-                .local_manager
-                .resume(id, last_event_id)
-                .await
-                .map_err(Into::into),
         }
     }
 }

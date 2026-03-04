@@ -159,9 +159,26 @@ impl DescribeCommand for Commands {
             Self::Plugins(cmd) => cmd.descriptor(),
             Self::Admin(admin::AdminCommands::Setup(_)) => CommandDescriptor::NONE,
             Self::Admin(admin::AdminCommands::Session(cmd)) => cmd.descriptor(),
+            Self::Admin(admin::AdminCommands::Config(_))
+            | Self::Web(_)
+            | Self::Core(
+                core::CoreCommands::Hooks(_)
+                | core::CoreCommands::Plugins(_)
+                | core::CoreCommands::Agents(
+                    core::agents::AgentsCommands::List(_)
+                    | core::agents::AgentsCommands::Show(_)
+                    | core::agents::AgentsCommands::Validate(_),
+                )
+                | core::CoreCommands::Skills(
+                    core::skills::SkillsCommands::List(_) | core::skills::SkillsCommands::Show(_),
+                ),
+            ) => CommandDescriptor::PROFILE_SECRETS_AND_PATHS,
             Self::Build(_) => CommandDescriptor::PROFILE_ONLY,
             Self::Core(core::CoreCommands::Skills(core::skills::SkillsCommands::Create(_))) => {
                 CommandDescriptor::FULL.with_skip_validation()
+            },
+            Self::Infra(infrastructure::InfraCommands::Services(_)) => {
+                CommandDescriptor::PROFILE_SECRETS_AND_PATHS
             },
             Self::Infra(infrastructure::InfraCommands::Jobs(
                 infrastructure::jobs::JobsCommands::Run(_)

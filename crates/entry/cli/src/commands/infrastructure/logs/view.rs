@@ -1,8 +1,7 @@
 use anyhow::{anyhow, Result};
-use chrono::{DateTime, Utc};
 use clap::Args;
-use systemprompt_logging::models::{LogEntry, LogLevel};
-use systemprompt_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::models::LogEntry;
+use systemprompt_logging::{CliService, LogFilter, LoggingMaintenanceService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
@@ -39,8 +38,7 @@ pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandResult
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(ctx.db_pool())?;
 
-    let since_timestamp = parse_since(args.since.as_ref())?;
-    let logs = get_logs(&service, &args, since_timestamp).await?;
+    let logs = get_logs(&service, &args).await?;
     let output = build_output(&logs, &args);
 
     let hints = RenderingHints {
@@ -73,8 +71,7 @@ pub async fn execute_with_pool(
 ) -> Result<CommandResult<LogViewOutput>> {
     let service = LoggingMaintenanceService::new(db_ctx.db_pool())?;
 
-    let since_timestamp = parse_since(args.since.as_ref())?;
-    let logs = get_logs(&service, &args, since_timestamp).await?;
+    let logs = get_logs(&service, &args).await?;
     let output = build_output(&logs, &args);
 
     let hints = RenderingHints {
@@ -100,34 +97,31 @@ pub async fn execute_with_pool(
     Ok(result.with_skip_render())
 }
 
-async fn get_logs(
-    service: &LoggingMaintenanceService,
-    args: &ViewArgs,
-    since: Option<DateTime<Utc>>,
-) -> Result<Vec<LogEntry>> {
-    let mut logs = service
-        .get_recent_logs(args.tail)
-        .await
-        .map_err(|e| anyhow!("Failed to get logs: {}", e))?;
+fn build_filter(args: &ViewArgs) -> Result<LogFilter> {
+    let since_timestamp = parse_since(args.since.as_ref())?;
 
-    apply_filters(&mut logs, args, since);
-    Ok(logs)
+    let mut filter = LogFilter::new(1, args.tail.try_into().unwrap_or(20));
+
+    if let Some(ref level) = args.level {
+        filter = filter.with_level(level.to_uppercase());
+    }
+    if let Some(ref module) = args.module {
+        filter = filter.with_module(module);
+    }
+    if let Some(since) = since_timestamp {
+        filter = filter.with_since(since);
+    }
+
+    Ok(filter)
 }
 
-fn apply_filters(logs: &mut Vec<LogEntry>, args: &ViewArgs, since: Option<DateTime<Utc>>) {
-    if let Some(ref level_str) = args.level {
-        if let Ok(level) = level_str.parse::<LogLevel>() {
-            logs.retain(|log| log.level == level);
-        }
-    }
-
-    if let Some(ref module) = args.module {
-        logs.retain(|log| log.module.contains(module));
-    }
-
-    if let Some(since_ts) = since {
-        logs.retain(|log| log.timestamp >= since_ts);
-    }
+async fn get_logs(service: &LoggingMaintenanceService, args: &ViewArgs) -> Result<Vec<LogEntry>> {
+    let filter = build_filter(args)?;
+    let (logs, _count) = service
+        .get_filtered_logs(&filter)
+        .await
+        .map_err(|e| anyhow!("Failed to get logs: {}", e))?;
+    Ok(logs)
 }
 
 fn build_output(logs: &[LogEntry], args: &ViewArgs) -> LogViewOutput {

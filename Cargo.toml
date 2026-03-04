@@ -142,7 +142,7 @@ variant_size_differences = "warn"
 
 [workspace.dependencies]
 # Core dependencies
-tokio = { version = "1.47", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal"] }
+tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal"] }
 tokio-test = "0.4"
 axum-test = "18.0"
 anyhow = "1.0"
@@ -153,7 +153,7 @@ async-trait = "0.1"
 
 # Database
 sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "migrate", "chrono", "rust_decimal"] }
-rust_decimal = "1.37"
+rust_decimal = "1.40"
 
 # Serialization
 serde = { version = "1.0", features = ["derive"] }
@@ -180,7 +180,6 @@ console = "0.16"
 dialoguer = "0.12"
 tabled = "0.20"
 indicatif = "0.18"
-atty = "0.2"
 dirs = "6"
 open = "5"
 toml = "0.9"
@@ -226,8 +225,8 @@ pulldown-cmark = "0.13"
 
 # MCP additional dependencies
 sse-stream = "0.2.1"
-rmcp = { version = "0.14", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
-rmcp-macros = "0.14"
+rmcp = { version = "1.1", features = ["server", "client", "transport-io", "transport-streamable-http-server", "transport-streamable-http-server-session", "transport-streamable-http-client", "transport-streamable-http-client-reqwest", "macros", "auth"] }
+rmcp-macros = "1.1"
 
 # Security
 rand = "0.9"

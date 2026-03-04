@@ -12,7 +12,9 @@ use systemprompt_traits::{
     ToolProviderResult,
 };
 
-use crate::services::client::{validate_connection, McpClient};
+use crate::services::client::{
+    rewrite_url_for_internal_use, validate_connection, validate_connection_by_url, McpClient,
+};
 use crate::services::registry::RegistryManager;
 
 use context::{create_request_context, load_agent_servers};
@@ -160,30 +162,35 @@ impl ToolProvider for McpToolProvider {
 
 async fn validate_server_connection(server_name: &str, api_server_url: &str) {
     if let Ok(Some(server_config)) = RegistryManager::find_server(server_name) {
-        let url = server_config.endpoint(api_server_url);
-        if let Ok(parsed_url) = url::Url::parse(&url) {
-            let host = parsed_url.host_str().unwrap_or("127.0.0.1");
-            let port = parsed_url.port().unwrap_or(80);
+        let host = &server_config.host;
+        let port = server_config.port;
 
-            match validate_connection(server_name, host, port).await {
-                Ok(result) if result.success => {
-                    info!(server = server_name, "MCP server connection validated");
-                },
-                Ok(result) => {
-                    warn!(
-                        server = server_name,
-                        error = result.error_message.as_deref().unwrap_or("[no error]"),
-                        "MCP server connection validation failed"
-                    );
-                },
-                Err(e) => {
-                    warn!(
-                        server = server_name,
-                        error = %e,
-                        "Failed to validate MCP server connection"
-                    );
-                },
-            }
+        let result = if port == 0 {
+            let url = server_config.endpoint(api_server_url);
+            let url = rewrite_url_for_internal_use(&url);
+            validate_connection_by_url(server_name, &url).await
+        } else {
+            validate_connection(server_name, host, port).await
+        };
+
+        match result {
+            Ok(result) if result.success => {
+                info!(server = server_name, "MCP server connection validated");
+            },
+            Ok(result) => {
+                warn!(
+                    server = server_name,
+                    error = result.error_message.as_deref().unwrap_or("[no error]"),
+                    "MCP server connection validation failed"
+                );
+            },
+            Err(e) => {
+                warn!(
+                    server = server_name,
+                    error = %e,
+                    "Failed to validate MCP server connection"
+                );
+            },
         }
     }
 }

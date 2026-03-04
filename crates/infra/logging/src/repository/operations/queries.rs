@@ -94,6 +94,7 @@ pub async fn list_logs_paginated(
     let level_filter = filter.level();
     let module_filter = filter.module();
     let message_pattern = filter.message().map(|m| format!("%{m}%"));
+    let since_filter = filter.since();
 
     let rows = sqlx::query_as!(
         LogRow,
@@ -106,11 +107,13 @@ pub async fn list_logs_paginated(
         WHERE ($1::VARCHAR IS NULL OR level = $1)
         AND ($2::VARCHAR IS NULL OR module = $2)
         AND ($3::VARCHAR IS NULL OR message LIKE $3)
-        ORDER BY timestamp DESC LIMIT $4 OFFSET $5
+        AND ($4::TIMESTAMPTZ IS NULL OR timestamp >= $4)
+        ORDER BY timestamp DESC LIMIT $5 OFFSET $6
         "#,
         level_filter,
         module_filter,
         message_pattern,
+        since_filter,
         per_page,
         offset
     )
@@ -123,6 +126,7 @@ pub async fn list_logs_paginated(
         level_filter.map(ToString::to_string),
         module_filter.map(ToString::to_string),
         message_pattern,
+        since_filter,
     )
     .await?;
     let entries = rows.into_iter().map(row_to_entry).collect();
@@ -146,6 +150,7 @@ async fn fetch_filtered_count(
     level: Option<String>,
     module: Option<String>,
     message_pattern: Option<String>,
+    since: Option<DateTime<Utc>>,
 ) -> Result<i64, LoggingError> {
     sqlx::query_scalar!(
         r#"
@@ -153,10 +158,12 @@ async fn fetch_filtered_count(
         WHERE ($1::VARCHAR IS NULL OR level = $1)
         AND ($2::VARCHAR IS NULL OR module = $2)
         AND ($3::VARCHAR IS NULL OR message LIKE $3)
+        AND ($4::TIMESTAMPTZ IS NULL OR timestamp >= $4)
         "#,
         level,
         module,
-        message_pattern
+        message_pattern,
+        since
     )
     .fetch_one(pool)
     .await

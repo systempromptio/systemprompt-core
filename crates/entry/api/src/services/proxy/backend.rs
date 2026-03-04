@@ -268,6 +268,10 @@ impl ResponseHandler {
             .map_err(|e| format!("Invalid status code {}: {}", status_code, e))?;
 
         let response_headers = response.headers().clone();
+        let is_sse = response_headers
+            .get("content-type")
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|ct| ct.contains("text/event-stream"));
 
         let stream = response.bytes_stream().map_err(std::io::Error::other);
         let body = Body::from_stream(stream);
@@ -286,6 +290,12 @@ impl ResponseHandler {
         axum_response = axum_response
             .header("connection", "keep-alive")
             .header("cache-control", "no-cache");
+
+        if is_sse {
+            axum_response = axum_response
+                .header("x-accel-buffering", "no")
+                .header("cache-control", "no-cache, no-transform");
+        }
 
         axum_response
             .body(body)

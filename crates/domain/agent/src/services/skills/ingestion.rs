@@ -43,7 +43,7 @@ impl SkillIngestionService {
                 Err(e) => {
                     report
                         .errors
-                        .push(format!("{}: {}", skill_dir.display(), e));
+                        .push(format!("{}: {:?}", skill_dir.display(), e));
                 },
             }
         }

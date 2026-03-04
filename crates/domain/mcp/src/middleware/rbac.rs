@@ -153,12 +153,14 @@ fn validate_scopes(
     claims: &JwtClaims,
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
-    let user_scopes = claims.get_scopes();
+    let user_permissions = claims.get_permissions();
     let required_scopes = &oauth_config.scopes;
 
-    let has_required_scope = required_scopes
-        .iter()
-        .any(|required| user_scopes.contains(&required.to_string()));
+    let has_required_scope = required_scopes.iter().any(|required| {
+        user_permissions
+            .iter()
+            .any(|user_perm| user_perm.implies(required))
+    });
 
     if has_required_scope {
         return Ok(());
@@ -167,13 +169,13 @@ fn validate_scopes(
     tracing::error!(
         server = %server_name,
         required = ?required_scopes,
-        user_scopes = ?user_scopes,
+        user_permissions = ?user_permissions,
         "Insufficient permissions"
     );
     Err(McpError::invalid_request(
         format!(
             "Insufficient permissions. User must have one of: {required_scopes:?}, but has: \
-             {user_scopes:?}"
+             {user_permissions:?}"
         ),
         None,
     ))

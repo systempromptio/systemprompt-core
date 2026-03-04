@@ -1,3 +1,5 @@
+use chrono::{DateTime, Utc};
+
 #[derive(Debug, Clone, Default)]
 pub struct LogFilter {
     page: i32,
@@ -5,6 +7,7 @@ pub struct LogFilter {
     level: Option<String>,
     module: Option<String>,
     message: Option<String>,
+    since: Option<DateTime<Utc>>,
 }
 
 impl LogFilter {
@@ -16,6 +19,7 @@ impl LogFilter {
             level: None,
             module: None,
             message: None,
+            since: None,
         }
     }
 
@@ -34,6 +38,12 @@ impl LogFilter {
     #[must_use]
     pub fn with_message(mut self, message: impl Into<String>) -> Self {
         self.message = Some(message.into());
+        self
+    }
+
+    #[must_use]
+    pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
         self
     }
 
@@ -60,5 +70,10 @@ impl LogFilter {
     #[must_use]
     pub fn message(&self) -> Option<&str> {
         self.message.as_deref()
+    }
+
+    #[must_use]
+    pub const fn since(&self) -> Option<DateTime<Utc>> {
+        self.since
     }
 }

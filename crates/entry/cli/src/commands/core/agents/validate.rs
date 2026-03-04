@@ -30,7 +30,7 @@ pub struct ValidationEntry {
     pub error: String,
 }
 
-pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<ValidateOutput>> {
+pub fn execute(args: &ValidateArgs, _config: &CliConfig) -> Result<CommandResult<ValidateOutput>> {
     let agents_path = get_agents_path()?;
 
     let dirs = if let Some(ref name) = args.name {
@@ -70,7 +70,9 @@ pub fn execute(args: ValidateArgs, _config: &CliConfig) -> Result<CommandResult<
     if invalid == 0 {
         CliService::success(&format!("All {total} agent configurations are valid"));
     } else {
-        CliService::warning(&format!("{invalid} of {total} agent configurations have errors"));
+        CliService::warning(&format!(
+            "{invalid} of {total} agent configurations have errors"
+        ));
     }
 
     let output = ValidateOutput {

@@ -66,7 +66,11 @@ pub fn execute(
         results.push(result);
     }
 
-    let plugins_output_path = services_path.join("..").join("storage").join("files").join("plugins");
+    let plugins_output_path = services_path
+        .join("..")
+        .join("storage")
+        .join("files")
+        .join("plugins");
     marketplace::generate_marketplace_json(&plugins_path, &plugins_output_path)?;
 
     let install_hint = extract_install_command(profile);
@@ -109,7 +113,14 @@ fn generate_plugin(
     let plugin = &plugin_file.plugin;
 
     let output_dir = ctx.output_dir_override.map_or_else(
-        || ctx.services_path.join("..").join("storage").join("files").join("plugins").join(plugin_id),
+        || {
+            ctx.services_path
+                .join("..")
+                .join("storage")
+                .join("files")
+                .join("plugins")
+                .join(plugin_id)
+        },
         PathBuf::from,
     );
 

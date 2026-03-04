@@ -1,6 +1,7 @@
 use futures::stream::BoxStream;
 use futures::StreamExt;
 use http::header::WWW_AUTHENTICATE;
+use http::{HeaderName, HeaderValue};
 use reqwest::header::ACCEPT;
 use rmcp::model::{ClientJsonRpcMessage, ServerJsonRpcMessage};
 use rmcp::transport::common::http_header::{
@@ -10,6 +11,7 @@ use rmcp::transport::streamable_http_client::{
     AuthRequiredError, StreamableHttpClient, StreamableHttpError, StreamableHttpPostResponse,
 };
 use sse_stream::{Error as SseError, Sse, SseStream};
+use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;
 use systemprompt_traits::ContextPropagation;
@@ -23,9 +25,9 @@ pub struct HttpClientWithContext {
 impl HttpClientWithContext {
     pub fn new(context: RequestContext) -> Self {
         let client = reqwest::Client::builder()
-            .timeout(std::time::Duration::from_secs(600))
             .connect_timeout(std::time::Duration::from_secs(30))
             .tcp_keepalive(Some(std::time::Duration::from_secs(60)))
+            .pool_idle_timeout(std::time::Duration::from_secs(90))
             .build()
             .unwrap_or_else(|_| reqwest::Client::default());
 
@@ -58,6 +60,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         session_id: Arc<str>,
         last_event_id: Option<String>,
         auth_token: Option<String>,
+        custom_headers: HashMap<HeaderName, HeaderValue>,
     ) -> Result<BoxStream<'static, Result<Sse, SseError>>, StreamableHttpError<Self::Error>> {
         let mut request_builder = self
             .client
@@ -67,6 +70,10 @@ impl StreamableHttpClient for HttpClientWithContext {
 
         request_builder = self.add_context_headers(request_builder);
 
+        for (key, value) in &custom_headers {
+            request_builder = request_builder.header(key, value);
+        }
+
         if let Some(last_event_id) = last_event_id {
             request_builder = request_builder.header(HEADER_LAST_EVENT_ID, last_event_id);
         }
@@ -74,11 +81,16 @@ impl StreamableHttpClient for HttpClientWithContext {
             request_builder = request_builder.bearer_auth(auth_header);
         }
 
-        let response = request_builder.send().await?;
+        let response = request_builder
+            .send()
+            .await
+            .map_err(StreamableHttpError::Client)?;
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Err(StreamableHttpError::ServerDoesNotSupportSse);
         }
-        let response = response.error_for_status()?;
+        let response = response
+            .error_for_status()
+            .map_err(StreamableHttpError::Client)?;
         match response.headers().get(reqwest::header::CONTENT_TYPE) {
             Some(ct) => {
                 if !ct.as_bytes().starts_with(EVENT_STREAM_MIME_TYPE.as_bytes()) {
@@ -100,10 +112,15 @@ impl StreamableHttpClient for HttpClientWithContext {
         uri: Arc<str>,
         session: Arc<str>,
         auth_token: Option<String>,
+        custom_headers: HashMap<HeaderName, HeaderValue>,
     ) -> Result<(), StreamableHttpError<Self::Error>> {
         let mut request_builder = self.client.delete(uri.as_ref());
 
         request_builder = self.add_context_headers(request_builder);
+
+        for (key, value) in &custom_headers {
+            request_builder = request_builder.header(key, value);
+        }
 
         if let Some(auth_header) = auth_token {
             request_builder = request_builder.bearer_auth(auth_header);
@@ -111,12 +128,15 @@ impl StreamableHttpClient for HttpClientWithContext {
         let response = request_builder
             .header(HEADER_SESSION_ID, session.as_ref())
             .send()
-            .await?;
+            .await
+            .map_err(StreamableHttpError::Client)?;
 
         if response.status() == reqwest::StatusCode::METHOD_NOT_ALLOWED {
             return Ok(());
         }
-        let _response = response.error_for_status()?;
+        let _response = response
+            .error_for_status()
+            .map_err(StreamableHttpError::Client)?;
         Ok(())
     }
 
@@ -126,6 +146,7 @@ impl StreamableHttpClient for HttpClientWithContext {
         message: ClientJsonRpcMessage,
         session_id: Option<Arc<str>>,
         auth_token: Option<String>,
+        custom_headers: HashMap<HeaderName, HeaderValue>,
     ) -> Result<StreamableHttpPostResponse, StreamableHttpError<Self::Error>> {
         let mut request = self
             .client
@@ -134,13 +155,21 @@ impl StreamableHttpClient for HttpClientWithContext {
 
         request = self.add_context_headers(request);
 
+        for (key, value) in &custom_headers {
+            request = request.header(key, value);
+        }
+
         if let Some(auth_header) = auth_token {
             request = request.bearer_auth(auth_header);
         }
         if let Some(ref session_id) = session_id {
             request = request.header(HEADER_SESSION_ID, session_id.as_ref());
         }
-        let response = request.json(&message).send().await?;
+        let response = request
+            .json(&message)
+            .send()
+            .await
+            .map_err(StreamableHttpError::Client)?;
         if response.status() == reqwest::StatusCode::UNAUTHORIZED {
             if let Some(header) = response.headers().get(WWW_AUTHENTICATE) {
                 let header = header
@@ -156,7 +185,9 @@ impl StreamableHttpClient for HttpClientWithContext {
                 }));
             }
         }
-        let response = response.error_for_status()?;
+        let response = response
+            .error_for_status()
+            .map_err(StreamableHttpError::Client)?;
         if response.status() == reqwest::StatusCode::ACCEPTED {
             return Ok(StreamableHttpPostResponse::Accepted);
         }
@@ -171,7 +202,8 @@ impl StreamableHttpClient for HttpClientWithContext {
                 Ok(StreamableHttpPostResponse::Sse(event_stream, session_id))
             },
             Some(ct) if ct.as_bytes().starts_with(JSON_MIME_TYPE.as_bytes()) => {
-                let message: ServerJsonRpcMessage = response.json().await?;
+                let message: ServerJsonRpcMessage =
+                    response.json().await.map_err(StreamableHttpError::Client)?;
                 Ok(StreamableHttpPostResponse::Json(message, session_id))
             },
             _ => Err(StreamableHttpError::UnexpectedContentType(

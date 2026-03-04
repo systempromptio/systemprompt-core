@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::{anyhow, Context, Result};
 use clap::Args;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProtocolVersion};
+use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
@@ -225,18 +225,10 @@ async fn list_tools_unauthenticated(
     let url = format!("http://127.0.0.1:{}/mcp", port);
     let transport = StreamableHttpClientTransport::from_uri(url.as_str());
 
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: format!("systemprompt-cli-{}", server_name),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+    );
 
     let client = timeout(
         Duration::from_secs(timeout_secs),
@@ -295,18 +287,10 @@ async fn list_tools_authenticated(
         .auth_header(format!("Bearer {}", token.as_str()));
     let transport = StreamableHttpClientTransport::from_config(config);
 
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: format!("systemprompt-cli-{}", server_name),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+    );
 
     let client = timeout(
         Duration::from_secs(timeout_secs),

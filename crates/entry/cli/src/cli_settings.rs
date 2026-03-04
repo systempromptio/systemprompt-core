@@ -1,4 +1,5 @@
 use std::env;
+use std::io::IsTerminal;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OutputFormat {
@@ -119,7 +120,7 @@ impl CliConfig {
         match self.color_mode {
             ColorMode::Always => true,
             ColorMode::Never => false,
-            ColorMode::Auto => atty::is(atty::Stream::Stdout),
+            ColorMode::Auto => std::io::stdout().is_terminal(),
         }
     }
 
@@ -132,7 +133,7 @@ impl CliConfig {
     }
 
     pub fn is_interactive(&self) -> bool {
-        self.interactive && atty::is(atty::Stream::Stdin) && atty::is(atty::Stream::Stdout)
+        self.interactive && std::io::stdin().is_terminal() && std::io::stdout().is_terminal()
     }
 
     pub const fn output_format(&self) -> OutputFormat {

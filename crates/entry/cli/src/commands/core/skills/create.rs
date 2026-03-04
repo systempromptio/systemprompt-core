@@ -340,7 +340,12 @@ async fn sync_skill_to_db(skill_dir: &Path) -> Result<()> {
         .context("Database URL not configured")?
         .to_string();
 
-    let database = Database::from_config("postgres", &db_url)
+    let write_url = SecretsBootstrap::database_write_url()
+        .ok()
+        .flatten()
+        .map(str::to_string);
+
+    let database = Database::from_config_with_write("postgres", &db_url, write_url.as_deref())
         .await
         .context("Failed to connect to database")?;
 

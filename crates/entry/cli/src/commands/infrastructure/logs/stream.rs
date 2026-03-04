@@ -2,8 +2,8 @@ use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::time::Duration;
-use systemprompt_logging::models::{LogEntry, LogLevel};
-use systemprompt_logging::{CliService, LoggingMaintenanceService};
+use systemprompt_logging::models::LogEntry;
+use systemprompt_logging::{CliService, LogFilter, LogLevel, LoggingMaintenanceService};
 use systemprompt_runtime::AppContext;
 use tokio::time;
 
@@ -62,60 +62,37 @@ pub async fn execute(args: StreamArgs, config: &CliConfig) -> Result<()> {
     }
 }
 
+fn build_filter(args: &StreamArgs, since: Option<DateTime<Utc>>, limit: i32) -> LogFilter {
+    let mut filter = LogFilter::new(1, limit);
+
+    if let Some(ref level) = args.level {
+        filter = filter.with_level(level.to_uppercase());
+    }
+    if let Some(ref module) = args.module {
+        filter = filter.with_module(module);
+    }
+    if let Some(since) = since {
+        filter = filter.with_since(since);
+    }
+
+    filter
+}
+
 async fn get_logs(
     service: &LoggingMaintenanceService,
     args: &StreamArgs,
     since: Option<DateTime<Utc>>,
 ) -> Result<Vec<LogEntry>> {
-    match since {
-        None => get_initial_logs(service, args).await,
-        Some(ts) => get_new_logs(service, args, ts).await,
-    }
-}
+    let limit = if since.is_some() { 100 } else { 20 };
+    let filter = build_filter(args, since, limit);
 
-async fn get_initial_logs(
-    service: &LoggingMaintenanceService,
-    args: &StreamArgs,
-) -> Result<Vec<LogEntry>> {
-    let mut logs = service
-        .get_recent_logs(20)
+    let (mut logs, _count) = service
+        .get_filtered_logs(&filter)
         .await
-        .map_err(|e| anyhow!("Failed to get initial logs: {}", e))?;
+        .map_err(|e| anyhow!("Failed to get logs: {}", e))?;
 
-    apply_filters(&mut logs, args);
+    logs.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
     Ok(logs)
-}
-
-async fn get_new_logs(
-    service: &LoggingMaintenanceService,
-    args: &StreamArgs,
-    since: DateTime<Utc>,
-) -> Result<Vec<LogEntry>> {
-    let all_recent_logs = service
-        .get_recent_logs(100)
-        .await
-        .map_err(|e| anyhow!("Failed to get recent logs: {}", e))?;
-
-    let mut new_logs: Vec<LogEntry> = all_recent_logs
-        .into_iter()
-        .filter(|log| log.timestamp > since)
-        .collect();
-
-    apply_filters(&mut new_logs, args);
-    new_logs.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
-    Ok(new_logs)
-}
-
-fn apply_filters(logs: &mut Vec<LogEntry>, args: &StreamArgs) {
-    if let Some(ref level_str) = args.level {
-        if let Ok(level) = level_str.parse::<LogLevel>() {
-            logs.retain(|log| log.level == level);
-        }
-    }
-
-    if let Some(ref module) = args.module {
-        logs.retain(|log| log.module.contains(module));
-    }
 }
 
 fn display_filters(args: &StreamArgs) {

@@ -19,7 +19,12 @@ async fn create_db_provider(database_url: Option<&str>) -> Result<DbPool> {
         None => SecretsBootstrap::database_url()?.to_string(),
     };
 
-    let database = Database::from_config("postgres", &url)
+    let write_url = SecretsBootstrap::database_write_url()
+        .ok()
+        .flatten()
+        .map(str::to_string);
+
+    let database = Database::from_config_with_write("postgres", &url, write_url.as_deref())
         .await
         .context("Failed to connect to database")?;
 

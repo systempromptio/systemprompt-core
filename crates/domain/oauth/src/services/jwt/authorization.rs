@@ -14,23 +14,39 @@ impl AuthorizationService {
         headers: &HeaderMap,
         service_name: &str,
     ) -> Result<AuthenticatedUser, StatusCode> {
-        let token = TokenExtractor::standard()
-            .extract(headers)
-            .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        let Ok(token) = TokenExtractor::standard().extract(headers) else {
+            tracing::warn!(
+                service = %service_name,
+                has_auth_header = headers.contains_key("authorization"),
+                has_cookie = headers.contains_key("cookie"),
+                "No valid token found in request"
+            );
+            return Err(StatusCode::UNAUTHORIZED);
+        };
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()
             .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
         let config =
             systemprompt_models::Config::get().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-        let claims = jwt_validation::validate_jwt_token(
+        let Ok(claims) = jwt_validation::validate_jwt_token(
             &token,
             jwt_secret,
             &config.jwt_issuer,
             &config.jwt_audiences,
-        )
-        .map_err(|_| StatusCode::UNAUTHORIZED)?;
+        ) else {
+            tracing::warn!(
+                service = %service_name,
+                "JWT validation failed"
+            );
+            return Err(StatusCode::UNAUTHORIZED);
+        };
 
         if !audience::validate_service_access(&claims.aud, service_name) {
+            tracing::warn!(
+                service = %service_name,
+                audiences = ?claims.aud,
+                "Token lacks required audience"
+            );
             return Err(StatusCode::FORBIDDEN);
         }
 

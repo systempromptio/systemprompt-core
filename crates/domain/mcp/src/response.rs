@@ -58,12 +58,12 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
             McpError::Serialization(e)
         })?;
 
-        Ok(CallToolResult {
-            content: vec![Content::text(summary.into())],
-            structured_content: Some(structured_content),
-            is_error: Some(false),
-            meta: metadata.to_meta(),
-        })
+        let mut result = CallToolResult::success(vec![Content::text(summary.into())]);
+        result.structured_content = Some(structured_content);
+        if let Some(meta) = metadata.to_meta() {
+            result = result.with_meta(Some(meta));
+        }
+        Ok(result)
     }
 
     pub async fn build_and_persist(
@@ -117,22 +117,17 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
 
         tracing::info!(artifact_id = %artifact_id, server = %self.tool_name, "Artifact persisted");
 
-        Ok(CallToolResult {
-            content: vec![Content::text(summary_str)],
-            structured_content: Some(structured_content),
-            is_error: Some(false),
-            meta: metadata.to_meta(),
-        })
+        let mut result = CallToolResult::success(vec![Content::text(summary_str)]);
+        result.structured_content = Some(structured_content);
+        if let Some(meta) = metadata.to_meta() {
+            result = result.with_meta(Some(meta));
+        }
+        Ok(result)
     }
 
     pub fn build_error(error_message: impl Into<String>) -> CallToolResult {
         let error_text = error_message.into();
 
-        CallToolResult {
-            content: vec![Content::text(error_text)],
-            structured_content: None,
-            is_error: Some(true),
-            meta: None,
-        }
+        CallToolResult::error(vec![Content::text(error_text)])
     }
 }

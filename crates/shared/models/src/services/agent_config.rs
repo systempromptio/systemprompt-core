@@ -57,12 +57,19 @@ impl DiskAgentConfig {
     }
 
     pub fn to_agent_config(&self, base_url: &str, system_prompt: Option<String>) -> AgentConfig {
-        let endpoint = self
-            .endpoint
-            .clone()
-            .unwrap_or_else(|| format!("{}/api/v1/agents/{}", base_url.trim_end_matches('/'), self.name));
+        let endpoint = self.endpoint.clone().unwrap_or_else(|| {
+            format!(
+                "{}/api/v1/agents/{}",
+                base_url.trim_end_matches('/'),
+                self.name
+            )
+        });
 
-        let card_name = self.card.name.clone().unwrap_or_else(|| self.display_name.clone());
+        let card_name = self
+            .card
+            .name
+            .clone()
+            .unwrap_or_else(|| self.display_name.clone());
 
         AgentConfig {
             name: self.name.clone(),

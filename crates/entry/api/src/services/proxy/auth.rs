@@ -165,6 +165,21 @@ impl AccessValidator {
             {
                 Ok(user) => user,
                 Err(status_code) => {
+                    if service.module_name == "mcp"
+                        && status_code == StatusCode::UNAUTHORIZED
+                        && headers
+                            .get("mcp-session-id")
+                            .and_then(|v| v.to_str().ok())
+                            .is_some_and(|v| !v.is_empty())
+                    {
+                        tracing::info!(
+                            service = %service_name,
+                            session_id = ?headers.get("mcp-session-id"),
+                            "Allowing MCP request with session ID (token missing)"
+                        );
+                        return Ok(());
+                    }
+
                     match OAuthChallengeBuilder::build_challenge_response(
                         service_name,
                         &resource_path,

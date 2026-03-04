@@ -1,5 +1,5 @@
 use anyhow::Result;
-use rmcp::model::{ClientCapabilities, ClientInfo, Implementation, ProtocolVersion};
+use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
 use rmcp::ServiceExt;
 use std::time::Duration;
@@ -112,18 +112,13 @@ async fn connect_and_validate(
 ) -> Result<(McpProtocolInfo, ValidationResult)> {
     let transport = StreamableHttpClientTransport::from_uri(url);
 
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: format!("systemprompt.io MCP Validator for {service_name}"),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new(
+            format!("systemprompt.io MCP Validator for {service_name}"),
+            "1.0.0",
+        ),
+    );
 
     let client = client_info.serve(transport).await?;
 

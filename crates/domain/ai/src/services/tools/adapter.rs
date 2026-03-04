@@ -143,19 +143,24 @@ pub fn trait_result_to_rmcp_result(result: &TraitToolCallResult) -> CallToolResu
         })
         .collect();
 
-    CallToolResult {
-        content,
-        structured_content: result.structured_content.clone(),
-        is_error: result.is_error,
-        meta: result.meta.as_ref().and_then(|m| {
-            serde_json::from_value(m.clone())
-                .map_err(|e| {
-                    tracing::warn!(error = %e, "Failed to deserialize tool result meta from JSON");
-                    e
-                })
-                .ok()
-        }),
-    }
+    let mut rmcp_result = if result.is_error == Some(true) {
+        CallToolResult::error(content)
+    } else {
+        CallToolResult::success(content)
+    };
+    rmcp_result
+        .structured_content
+        .clone_from(&result.structured_content);
+    let meta = result.meta.as_ref().and_then(|m| {
+        serde_json::from_value(m.clone())
+            .map_err(|e| {
+                tracing::warn!(error = %e, "Failed to deserialize tool result meta from JSON");
+                e
+            })
+            .ok()
+    });
+    rmcp_result = rmcp_result.with_meta(meta);
+    rmcp_result
 }
 
 pub fn request_context_to_tool_context(ctx: &RequestContext) -> ToolContext {

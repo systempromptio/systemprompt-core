@@ -255,12 +255,13 @@ pub fn convert_to_call_tool_results(state: &ExecutionState) -> Vec<CallToolResul
                 r.error.clone().unwrap_or_else(|| "Error".to_string())
             };
 
-            CallToolResult {
-                content: vec![Content::text(text_content)],
-                structured_content: Some(r.output.clone()),
-                is_error: Some(!r.success),
-                meta: None,
-            }
+            let mut result = if r.success {
+                CallToolResult::success(vec![Content::text(text_content)])
+            } else {
+                CallToolResult::error(vec![Content::text(text_content)])
+            };
+            result.structured_content = Some(r.output.clone());
+            result
         })
         .collect()
 }

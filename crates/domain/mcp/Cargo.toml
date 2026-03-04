@@ -52,6 +52,7 @@ clap = { workspace = true }
 jsonwebtoken = { workspace = true }
 
 # systemprompt.io integration
+systemprompt-provider-contracts = { workspace = true }
 systemprompt-config = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-extension = { workspace = true }

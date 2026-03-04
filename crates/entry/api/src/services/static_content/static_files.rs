@@ -156,7 +156,7 @@ pub async fn serve_static_content(
         return serve_content_page(req, &state.ctx).await;
     }
 
-    not_found_response()
+    not_found_response(&dist_dir, &headers).await
 }
 
 async fn serve_static_asset(
@@ -248,7 +248,7 @@ async fn serve_content_page(
 
     match content_repo.get_by_slug(req.slug).await {
         Ok(Some(_)) => not_prerendered_response(req.path, req.slug),
-        Ok(None) => not_found_response(),
+        Ok(None) => not_found_response(req.dist_dir, req.headers).await,
         Err(e) => {
             tracing::error!(error = %e, "Database error checking content");
             (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error").into_response()
@@ -275,7 +275,30 @@ fn not_prerendered_response(path: &str, slug: &str) -> axum::response::Response 
         .into_response()
 }
 
-fn not_found_response() -> axum::response::Response {
+async fn not_found_response(
+    dist_dir: &std::path::Path,
+    headers: &HeaderMap,
+) -> axum::response::Response {
+    let custom_404 = dist_dir.join("404.html");
+    if custom_404.exists() {
+        if let Ok(content) = tokio::fs::read(&custom_404).await {
+            let etag = compute_etag(&content);
+            if etag_matches(headers, &etag) {
+                return not_modified_response(&etag, CACHE_HTML);
+            }
+            return (
+                StatusCode::NOT_FOUND,
+                [
+                    (header::CONTENT_TYPE, "text/html".to_string()),
+                    (header::CACHE_CONTROL, CACHE_HTML.to_string()),
+                    (header::ETAG, etag),
+                ],
+                content,
+            )
+                .into_response();
+        }
+    }
+
     (
         StatusCode::NOT_FOUND,
         axum::response::Html(concat!(

@@ -25,7 +25,8 @@ impl AgentRepository {
             "INSERT INTO agents (agent_id, name, display_name, description, version,
              system_prompt, enabled, port, endpoint, dev_only, is_primary, is_default,
              tags, category_id, source_id, provider, model, mcp_servers, skills, card_json)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, \
+             $18, $19, $20)",
         )
         .bind(agent.agent_id.as_str())
         .bind(&agent.name)
@@ -98,9 +99,7 @@ impl AgentRepository {
         .await
         .context("Failed to list enabled agents")?;
 
-        rows.iter()
-            .map(agent_from_row)
-            .collect::<Result<Vec<_>>>()
+        rows.iter().map(agent_from_row).collect::<Result<Vec<_>>>()
     }
 
     pub async fn list_all(&self) -> Result<Vec<Agent>> {
@@ -115,9 +114,7 @@ impl AgentRepository {
         .await
         .context("Failed to list all agents")?;
 
-        rows.iter()
-            .map(agent_from_row)
-            .collect::<Result<Vec<_>>>()
+        rows.iter().map(agent_from_row).collect::<Result<Vec<_>>>()
     }
 
     pub async fn update(&self, agent_id: &AgentId, agent: &Agent) -> Result<()> {
@@ -178,7 +175,9 @@ fn agent_from_row(row: &sqlx::postgres::PgRow) -> Result<Agent> {
         dev_only: row.try_get("dev_only")?,
         is_primary: row.try_get("is_primary")?,
         is_default: row.try_get("is_default")?,
-        tags: row.try_get::<Option<Vec<String>>, _>("tags")?.unwrap_or_else(Vec::new),
+        tags: row
+            .try_get::<Option<Vec<String>>, _>("tags")?
+            .unwrap_or_else(Vec::new),
         category_id: row
             .try_get::<Option<String>, _>("category_id")?
             .map(|s| CategoryId::new(&s)),

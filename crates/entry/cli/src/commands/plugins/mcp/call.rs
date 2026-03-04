@@ -5,8 +5,7 @@ use clap::Args;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
 use rmcp::model::{
-    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, ProtocolVersion,
-    RawContent,
+    CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, RawContent,
 };
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
@@ -186,18 +185,10 @@ async fn execute_tool_call(
         .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: format!("systemprompt-cli-{}", server_name),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+    );
 
     let client = timeout(
         Duration::from_secs(timeout_secs),
@@ -207,12 +198,8 @@ async fn execute_tool_call(
     .context("Connection timeout")?
     .context("Failed to connect to MCP server")?;
 
-    let params = CallToolRequestParams {
-        meta: None,
-        name: tool_name.to_string().into(),
-        arguments: arguments.and_then(|v| v.as_object().cloned()),
-        task: None,
-    };
+    let mut params = CallToolRequestParams::new(tool_name.to_string());
+    params.arguments = arguments.and_then(|v| v.as_object().cloned());
 
     let result = client
         .call_tool(params)
@@ -282,18 +269,10 @@ async fn list_available_tools(
         .auth_header(format!("Bearer {}", session_ctx.session_token().as_str()));
     let transport = StreamableHttpClientTransport::with_client(http_client, config);
 
-    let client_info = ClientInfo {
-        meta: None,
-        protocol_version: ProtocolVersion::default(),
-        capabilities: ClientCapabilities::default(),
-        client_info: Implementation {
-            name: format!("systemprompt-cli-{}", server_name),
-            title: None,
-            version: "1.0.0".to_string(),
-            website_url: None,
-            icons: None,
-        },
-    };
+    let client_info = ClientInfo::new(
+        ClientCapabilities::default(),
+        Implementation::new(format!("systemprompt-cli-{}", server_name), "1.0.0"),
+    );
 
     let client = timeout(
         Duration::from_secs(timeout_secs),

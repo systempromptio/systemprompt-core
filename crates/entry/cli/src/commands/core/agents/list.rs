@@ -105,10 +105,7 @@ fn show_agent_detail(agent_id: &str, agents_path: &Path) -> Result<CommandResult
         system_prompt_preview,
     };
 
-    Ok(
-        CommandResult::card(ListOrDetail::Detail(output))
-            .with_title(format!("Agent: {agent_id}")),
-    )
+    Ok(CommandResult::card(ListOrDetail::Detail(output)).with_title(format!("Agent: {agent_id}")))
 }
 
 fn scan_agents(agents_path: &Path) -> Result<Vec<AgentSummary>> {

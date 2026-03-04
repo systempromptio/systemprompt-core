@@ -1,7 +1,7 @@
 use chrono::{DateTime, Utc};
 use systemprompt_database::DbPool;
 
-use crate::models::{LogEntry, LoggingError};
+use crate::models::{LogEntry, LogFilter, LoggingError};
 use crate::repository::LoggingRepository;
 
 #[derive(Clone, Debug)]
@@ -18,6 +18,13 @@ impl LoggingMaintenanceService {
 
     pub async fn get_recent_logs(&self, limit: i64) -> Result<Vec<LogEntry>, LoggingError> {
         self.repo.get_recent_logs(limit).await
+    }
+
+    pub async fn get_filtered_logs(
+        &self,
+        filter: &LogFilter,
+    ) -> Result<(Vec<LogEntry>, i64), LoggingError> {
+        self.repo.get_logs_paginated(filter).await
     }
 
     pub async fn cleanup_old_logs(&self, older_than: DateTime<Utc>) -> Result<u64, LoggingError> {

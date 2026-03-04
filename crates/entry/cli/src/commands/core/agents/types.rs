@@ -103,8 +103,7 @@ pub fn validate_agent_config(config_path: &Path, dir_name: &str) -> Result<()> {
 }
 
 pub fn get_agents_path() -> Result<std::path::PathBuf> {
-    let profile =
-        systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
+    let profile = systemprompt_models::ProfileBootstrap::get().context("Failed to get profile")?;
     Ok(std::path::PathBuf::from(profile.paths.agents()))
 }
 

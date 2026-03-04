@@ -120,7 +120,8 @@ impl McpSessionRepository {
         sqlx::query!(
             r#"
             UPDATE mcp_sessions
-            SET last_activity_at = NOW()
+            SET last_activity_at = NOW(),
+                expires_at = NOW() + INTERVAL '24 hours'
             WHERE session_id = $1
             "#,
             session_id,
@@ -144,6 +145,21 @@ impl McpSessionRepository {
         .await?;
 
         Ok(())
+    }
+
+    pub async fn delete_stale(&self, retention_days: i32) -> Result<u64> {
+        let result = sqlx::query!(
+            r#"
+            DELETE FROM mcp_sessions
+            WHERE status IN ('expired', 'closed')
+              AND last_activity_at < NOW() - make_interval(days => $1)
+            "#,
+            retention_days,
+        )
+        .execute(&*self.write_pool)
+        .await?;
+
+        Ok(result.rows_affected())
     }
 
     pub async fn cleanup_expired(&self) -> Result<u64> {

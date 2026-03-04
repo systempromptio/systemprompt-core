@@ -89,9 +89,10 @@ impl AgentIngestionService {
             None
         };
 
-        let endpoint = config.endpoint.clone().unwrap_or_else(|| {
-            format!("/api/v1/agents/{}", config.name)
-        });
+        let endpoint = config
+            .endpoint
+            .clone()
+            .unwrap_or_else(|| format!("/api/v1/agents/{}", config.name));
 
         let card_json = serde_json::to_value(&config.card)
             .map_err(|e| anyhow!("Failed to serialize agent card: {}", e))?;
