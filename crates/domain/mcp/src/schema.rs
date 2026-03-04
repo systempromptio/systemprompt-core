@@ -1,5 +1,6 @@
 use schemars::JsonSchema;
 use serde_json::Value as JsonValue;
+use systemprompt_models::artifacts::TextArtifact;
 
 pub trait McpOutputSchema: JsonSchema {
     fn artifact_type() -> &'static str;
@@ -23,5 +24,11 @@ pub trait McpOutputSchema: JsonSchema {
         }
 
         schema
+    }
+}
+
+impl McpOutputSchema for TextArtifact {
+    fn artifact_type() -> &'static str {
+        "text"
     }
 }

@@ -6,7 +6,9 @@ pub mod jobs;
 pub mod middleware;
 pub mod models;
 pub mod orchestration;
+pub mod progress;
 pub mod repository;
+pub mod resources;
 pub mod response;
 pub mod schema;
 pub mod services;
@@ -22,6 +24,11 @@ pub use capabilities::{
 };
 pub use repository::{CreateMcpArtifact, McpArtifactRecord, McpArtifactRepository};
 pub use response::McpResponseBuilder;
+pub use progress::{create_progress_callback, ProgressCallback};
+pub use resources::{
+    build_artifact_viewer_resource, default_server_icons, read_artifact_viewer_resource,
+    ArtifactViewerConfig,
+};
 pub use schema::McpOutputSchema;
 pub use tool::{call_tool, McpToolHandler};
 

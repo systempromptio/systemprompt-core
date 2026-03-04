@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.15] - 2026-03-04
+
+### Fixed
+- License on crates.io now bundled directly (no 404 link to private repo)
+- Corrected SPDX identifier from BSL-1.0 (Boost) to BUSL-1.1 (Business Source License)
+- License updated to evaluation-only — production use requires commercial license
+
 ## [0.1.14] - 2026-03-04
 
 ### Added
