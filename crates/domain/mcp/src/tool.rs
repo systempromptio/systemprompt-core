@@ -1,4 +1,4 @@
-use crate::error::McpError;
+use rmcp::ErrorData as McpError;
 use crate::response::McpResponseBuilder;
 use crate::schema::McpOutputSchema;
 use async_trait::async_trait;
@@ -66,6 +66,6 @@ fn parse_input<T: DeserializeOwned>(request: &CallToolRequestParams) -> Result<T
             tool = %request.name,
             "Failed to parse tool input"
         );
-        McpError::SchemaValidation(format!("Invalid tool input: {e}"))
+        McpError::invalid_params(format!("Invalid tool input: {e}"), None)
     })
 }

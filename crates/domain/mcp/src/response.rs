@@ -1,4 +1,4 @@
-use crate::error::McpError;
+use rmcp::ErrorData as McpError;
 use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use rmcp::model::{CallToolResult, Content};
 use schemars::JsonSchema;
@@ -55,7 +55,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
 
         let structured_content = tool_response.to_json().map_err(|e| {
             tracing::error!(error = %e, tool = %self.tool_name, "Failed to serialize tool response");
-            McpError::Serialization(e)
+            McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
         let mut result = CallToolResult::success(vec![Content::text(summary.into())]);
@@ -91,7 +91,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
 
         let structured_content = tool_response.to_json().map_err(|e| {
             tracing::error!(error = %e, tool = %self.tool_name, "Failed to serialize tool response");
-            McpError::Serialization(e)
+            McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
         let create_artifact = CreateMcpArtifact {
@@ -112,7 +112,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
 
         repo.save(&create_artifact).await.map_err(|e| {
             tracing::error!(error = %e, artifact_id = %artifact_id, "Failed to persist artifact");
-            McpError::Internal(format!("Failed to persist artifact: {e}"))
+            McpError::internal_error(format!("Failed to persist artifact: {e}"), None)
         })?;
 
         tracing::info!(artifact_id = %artifact_id, server = %self.tool_name, "Artifact persisted");

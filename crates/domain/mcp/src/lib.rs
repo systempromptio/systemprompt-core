@@ -16,7 +16,9 @@ pub mod tool;
 
 pub use extension::McpExtension;
 
-pub use error::{McpError, McpResult};
+pub use error::McpError as McpDomainError;
+pub use rmcp::ErrorData as McpError;
+pub type McpResult<T> = Result<T, McpError>;
 
 pub use capabilities::{
     build_experimental_capabilities, default_tool_visibility, mcp_apps_ui_extension,
