@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n        SELECT\n            id as \"id!\", timestamp as \"timestamp!\", level as \"level!\", module as \"module!\",\n            message as \"message!\", metadata, user_id as \"user_id!\", session_id as \"session_id!\",\n            task_id, trace_id as \"trace_id!\", context_id, client_id\n        FROM logs\n        WHERE ($1::VARCHAR IS NULL OR level = $1)\n        AND ($2::VARCHAR IS NULL OR module = $2)\n        AND ($3::VARCHAR IS NULL OR message LIKE $3)\n        ORDER BY timestamp DESC LIMIT $4 OFFSET $5\n        ",
+  "query": "\n        SELECT\n            id as \"id!\", timestamp as \"timestamp!\", level as \"level!\", module as \"module!\",\n            message as \"message!\", metadata, user_id as \"user_id!\", session_id as \"session_id!\",\n            task_id, trace_id as \"trace_id!\", context_id, client_id\n        FROM logs\n        WHERE ($1::VARCHAR IS NULL OR level = $1)\n        AND ($2::VARCHAR IS NULL OR module = $2)\n        AND ($3::VARCHAR IS NULL OR message LIKE $3)\n        AND ($4::TIMESTAMPTZ IS NULL OR timestamp >= $4)\n        ORDER BY timestamp DESC LIMIT $5 OFFSET $6\n        ",
   "describe": {
     "columns": [
       {
@@ -69,6 +69,7 @@
         "Varchar",
         "Varchar",
         "Varchar",
+        "Timestamptz",
         "Int8",
         "Int8"
       ]
@@ -88,5 +89,5 @@
       true
     ]
   },
-  "hash": "6be3e2a51b3bef1af364a6ffbbabb1b2864f580de0a4a51804de3d6c88574fba"
+  "hash": "dc8f6f775e3d649aed98fd3d22eae3539b48284f3a9f42e9b00120d21e4b2fad"
 }
