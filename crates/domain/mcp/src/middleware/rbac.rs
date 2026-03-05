@@ -69,7 +69,24 @@ pub async fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_name: &str,
 ) -> Result<AuthResult, McpError> {
+    let header_dump = mcp_context
+        .extensions
+        .get::<http::request::Parts>()
+        .map(|p| {
+            p.headers
+                .iter()
+                .filter(|(k, _)| {
+                    let name = k.as_str();
+                    name.starts_with("x-")
+                        || name == "authorization"
+                        || name == "mcp-session-id"
+                })
+                .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
+                .collect::<Vec<_>>()
+        });
+
     let services_config = ConfigLoader::load().map_err(|e| {
+        tracing::error!(server = %server_name, headers = ?header_dump, error = %e, "Failed to load services config");
         McpError::internal_error(format!("Failed to load services config: {e}"), None)
     })?;
 
@@ -77,6 +94,7 @@ pub async fn enforce_rbac_from_registry(
         .mcp_servers
         .get(server_name)
         .ok_or_else(|| {
+            tracing::error!(server = %server_name, headers = ?header_dump, "MCP server not found in registry");
             McpError::internal_error(
                 format!("MCP server '{server_name}' not found in registry"),
                 None,
@@ -97,7 +115,7 @@ pub async fn enforce_rbac_from_registry(
     }
 
     let token = extract_bearer_token(mcp_context)?.ok_or_else(|| {
-        tracing::error!(server = %server_name, "Authentication required: No Bearer token provided");
+        tracing::error!(server = %server_name, headers = ?header_dump, "Authentication required: No Bearer token provided");
         McpError::invalid_request(
             format!(
                 "Authentication required. Server '{server_name}' requires OAuth but no Bearer \

@@ -160,6 +160,43 @@ impl ProxyEngine {
         };
 
         if service.module_name == "mcp" {
+            let resp_status = response.status();
+            let resp_session = response
+                .headers()
+                .get("mcp-session-id")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("none");
+            let resp_content_type = response
+                .headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("none");
+
+            tracing::info!(
+                service = %service_name,
+                status = %resp_status,
+                resp_session_id = %resp_session,
+                content_type = %resp_content_type,
+                method = %method_str,
+                "MCP backend response"
+            );
+
+            if !resp_status.is_success() {
+                let header_dump: Vec<String> = response
+                    .headers()
+                    .iter()
+                    .map(|(k, v)| {
+                        format!("{}: {}", k, v.to_str().unwrap_or("?"))
+                    })
+                    .collect();
+                tracing::error!(
+                    service = %service_name,
+                    status = %resp_status,
+                    headers = ?header_dump,
+                    "MCP backend error response"
+                );
+            }
+
             if let Some(session_id) = response
                 .headers()
                 .get("mcp-session-id")

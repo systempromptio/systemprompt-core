@@ -67,6 +67,9 @@ pub use cli::{list_services, show_status, start_services, stop_services};
 
 pub mod state;
 
+use axum::extract::Request;
+use axum::middleware::Next;
+use axum::response::Response;
 use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
 use rmcp::transport::StreamableHttpService;
@@ -78,6 +81,52 @@ use tokio_util::sync::CancellationToken;
 use crate::middleware::DatabaseSessionManager;
 
 pub use state::McpState;
+
+async fn mcp_request_logger(req: Request, next: Next) -> Response {
+    let method = req.method().clone();
+    let uri = req.uri().clone();
+    let session_id = req
+        .headers()
+        .get("mcp-session-id")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
+    let has_auth = req.headers().get("authorization").is_some();
+    let proxy_verified = req
+        .headers()
+        .get("x-proxy-verified")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v == "true");
+    let accept = req
+        .headers()
+        .get("accept")
+        .and_then(|v| v.to_str().ok())
+        .map(String::from);
+
+    tracing::info!(
+        %method,
+        %uri,
+        session_id = ?session_id,
+        has_auth,
+        proxy_verified,
+        accept = ?accept,
+        "MCP request received"
+    );
+
+    let response = next.run(req).await;
+
+    let status = response.status();
+    if !status.is_success() {
+        tracing::error!(
+            %method,
+            %uri,
+            session_id = ?session_id,
+            status = %status,
+            "MCP request failed at transport level"
+        );
+    }
+
+    response
+}
 
 pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
 where
@@ -98,6 +147,7 @@ where
 
     axum::Router::new()
         .nest_service("/mcp", service)
+        .layer(axum::middleware::from_fn(mcp_request_logger))
         .layer(axum::middleware::map_response(
             |mut response: http::Response<_>| async move {
                 response

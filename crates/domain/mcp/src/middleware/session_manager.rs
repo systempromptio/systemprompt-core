@@ -158,9 +158,13 @@ impl SessionManager for DatabaseSessionManager {
         if self.local_manager.has_session(id).await.unwrap_or(false) {
             return Ok(true);
         }
-        // Session not in local memory — can't serve requests.
-        // Don't close the DB record here; let resume() handle cleanup
-        // to avoid a race between has_session() and resume().
+        if self.check_db_session(id).await == Some(true) {
+            tracing::info!(
+                session_id = %id,
+                "Session in DB but not memory after restart — closing stale record"
+            );
+            self.persist_close(id).await;
+        }
         Ok(false)
     }
 
