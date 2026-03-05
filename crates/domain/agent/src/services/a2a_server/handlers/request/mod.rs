@@ -127,8 +127,8 @@ pub async fn handle_agent_request(
 
     let mut enriched_context = context.clone();
     match &a2a_request {
-        A2aRequestParams::SendMessage(ref params)
-        | A2aRequestParams::SendStreamingMessage(ref params) => {
+        A2aRequestParams::SendMessage(params)
+        | A2aRequestParams::SendStreamingMessage(params) => {
             if params.message.context_id.as_str().is_empty() {
                 let error_response = JsonRpcErrorBuilder::invalid_params()
                     .with_data(json!({

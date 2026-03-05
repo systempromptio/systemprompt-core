@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_identifiers::SessionId;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService};
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::SessionEndOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct EndArgs {

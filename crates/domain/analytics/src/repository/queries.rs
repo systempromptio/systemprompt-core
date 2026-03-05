@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde::Serialize;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseProvider, DbPool, JsonRow, ToDbValue};

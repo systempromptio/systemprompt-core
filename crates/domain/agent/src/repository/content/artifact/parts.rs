@@ -1,5 +1,5 @@
-use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
 use crate::models::ArtifactPartRow;
+use crate::models::a2a::{DataPart, FilePart, FileWithBytes, Part, TextPart};
 use sqlx::PgPool;
 use systemprompt_identifiers::{ArtifactId, ContextId};
 use systemprompt_traits::RepositoryError;

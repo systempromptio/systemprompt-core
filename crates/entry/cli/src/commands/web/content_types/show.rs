@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
 
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 

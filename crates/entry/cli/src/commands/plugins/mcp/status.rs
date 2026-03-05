@@ -4,8 +4,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::McpStatusOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpManager;
 use systemprompt_models::AppPaths;

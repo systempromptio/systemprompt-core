@@ -2,8 +2,8 @@ use super::analyzer::DiscriminatedUnion;
 use super::capabilities::ProviderCapabilities;
 use super::sanitizer::SchemaSanitizer;
 use crate::models::tools::McpTool;
-use anyhow::{anyhow, Result};
-use serde_json::{json, Map, Value};
+use anyhow::{Result, anyhow};
+use serde_json::{Map, Value, json};
 
 fn merge_properties_into(
     target: &mut Map<String, Value>,

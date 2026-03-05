@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use super::types::BannedIp;
 use super::BannedIpRepository;
+use super::types::BannedIp;
 
 impl BannedIpRepository {
     pub async fn list_active_bans(&self, limit: i64) -> Result<Vec<BannedIp>> {

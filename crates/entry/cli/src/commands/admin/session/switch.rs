@@ -7,9 +7,9 @@ use systemprompt_models::{Profile, Secrets};
 
 use super::login::{self, LoginArgs};
 use super::types::SwitchOutput;
-use crate::paths::ResolvedPaths;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::paths::ResolvedPaths;
+use crate::shared::{CommandResult, render_result};
 
 pub async fn execute(
     profile_name: &str,

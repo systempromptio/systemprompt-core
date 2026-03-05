@@ -7,5 +7,5 @@ pub mod static_files;
 pub use config::StaticContentMatcher;
 pub use fallback::*;
 pub use homepage::serve_homepage;
-pub use session::{ensure_session, SessionInfo};
-pub use static_files::{serve_static_content, StaticContentState};
+pub use session::{SessionInfo, ensure_session};
+pub use static_files::{StaticContentState, serve_static_content};

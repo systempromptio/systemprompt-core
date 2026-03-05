@@ -51,17 +51,6 @@ pub async fn validate_authorize_request(
     OAuthRepository::validate_scopes(&requested_scopes)
         .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
 
-    // Client registration scopes are not a security boundary. Dynamically
-    // registered clients (RFC 7591) may not know what scopes they need at
-    // registration time — MCP clients discover required scopes later from
-    // the protected resource metadata (RFC 9728) or from the MCP server.
-    //
-    // The actual access control happens at token issuance time in
-    // resolve_user_permissions(), which intersects requested scopes with
-    // both the user's database permissions and the resource's declared scopes.
-    // Rejecting valid scopes here would break MCP clients that register
-    // before discovering what scopes the target server requires.
-
     Ok(scope)
 }
 
@@ -82,9 +71,7 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
     }
 
     let Some(code_challenge) = &params.code_challenge else {
-        return Err(
-            "code_challenge is required. PKCE with S256 method must be used.".to_string(),
-        );
+        return Err("code_challenge is required. PKCE with S256 method must be used.".to_string());
     };
 
     if code_challenge.len() < systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
@@ -105,15 +92,11 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
         .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
 
     if !is_valid_base64url {
-        return Err(
-            "code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_string(),
-        );
+        return Err("code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_string());
     }
 
     if is_low_entropy_challenge(code_challenge) {
-        return Err(
-            "code_challenge appears to have insufficient entropy for security".to_string(),
-        );
+        return Err("code_challenge appears to have insufficient entropy for security".to_string());
     }
 
     let method = params.code_challenge_method.as_deref().ok_or_else(|| {
@@ -123,9 +106,7 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
     match method {
         "S256" => {},
         "plain" => {
-            return Err(
-                "PKCE method 'plain' is not allowed. Use 'S256' for security.".to_string(),
-            );
+            return Err("PKCE method 'plain' is not allowed. Use 'S256' for security.".to_string());
         },
         _ => {
             return Err(format!(

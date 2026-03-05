@@ -1,12 +1,12 @@
 use axum::extract::{Path, State};
-use axum::http::header::LINK;
 use axum::http::StatusCode;
+use axum::http::header::LINK;
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use systemprompt_content::{Content, ContentService};
 use systemprompt_identifiers::SourceId;
-use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::{MarkdownFrontmatter, MarkdownResponse};
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::{AcceptedFormat, AcceptedMediaType};

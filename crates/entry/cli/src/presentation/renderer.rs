@@ -8,7 +8,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 use systemprompt_logging::services::cli::BrandColors;
 
-use super::widgets::{render_warning, CompletionMessage, ServiceTable, StartupBanner};
+use super::widgets::{CompletionMessage, ServiceTable, StartupBanner, render_warning};
 
 pub struct StartupRenderer {
     receiver: StartupEventReceiver,

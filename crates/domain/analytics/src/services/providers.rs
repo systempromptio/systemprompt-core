@@ -8,8 +8,8 @@ use systemprompt_traits::{
     SessionAnalyticsProvider, SessionAnalyticsProviderError, SessionAnalyticsResult,
 };
 
-use super::service::AnalyticsService;
 use super::SessionAnalytics;
+use super::service::AnalyticsService;
 use crate::repository::{FingerprintRepository, SessionRepository};
 
 #[async_trait]

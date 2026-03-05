@@ -1,9 +1,9 @@
 use crate::services::process::utils;
-use crate::{McpServerConfig, ERROR, RUNNING, STOPPED};
+use crate::{ERROR, McpServerConfig, RUNNING, STOPPED};
 use anyhow::Result;
 use systemprompt_database::ServiceRepository;
 use tokio::net::TcpStream;
-use tokio::time::{timeout, Duration};
+use tokio::time::{Duration, timeout};
 
 const HEALTH_CHECK_TIMEOUT_SECS: u64 = 5;
 

@@ -1,6 +1,6 @@
 use std::path::Path;
 use systemprompt_extension::ExtensionRegistry;
-use systemprompt_logging::services::cli::{render_phase_success, BrandColors};
+use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_traits::validation_report::ValidationError;
 use systemprompt_traits::{StartupValidationReport, ValidationReport};

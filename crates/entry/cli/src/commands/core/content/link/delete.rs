@@ -2,7 +2,7 @@ use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDeleteOutput;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
 use systemprompt_identifiers::LinkId;

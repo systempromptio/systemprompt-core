@@ -1,7 +1,7 @@
 use crate::services::proxy::ProxyEngine;
+use axum::Router;
 use axum::extract::Path;
 use axum::routing::any;
-use axum::Router;
 use systemprompt_runtime::{AppContext, ServiceCategory};
 
 pub fn router(ctx: &AppContext) -> Router {

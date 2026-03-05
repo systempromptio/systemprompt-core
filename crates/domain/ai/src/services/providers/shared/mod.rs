@@ -1,3 +1,3 @@
 mod response_builder;
 
-pub use response_builder::{build_response, BuildResponseParams, TokenUsage};
+pub use response_builder::{BuildResponseParams, TokenUsage, build_response};

@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 
-use super::conversion::bind_params;
 use super::PostgresProvider;
+use super::conversion::bind_params;
 use crate::models::{FromDatabaseRow, QuerySelector, ToDbValue};
 use crate::services::provider::DatabaseProviderExt;
 

@@ -7,7 +7,7 @@ use systemprompt_identifiers::{ArtifactId, MessageId, TaskId};
 use systemprompt_traits::RepositoryError;
 
 use super::batch_builders::{build_artifacts, build_execution_steps, build_messages};
-use super::{converters, TaskConstructor};
+use super::{TaskConstructor, converters};
 
 pub async fn construct_tasks_batch(
     constructor: &TaskConstructor,

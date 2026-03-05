@@ -1,5 +1,5 @@
 use super::{UiRenderer, UiResource};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_models::a2a::Artifact;

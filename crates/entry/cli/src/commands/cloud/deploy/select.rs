@@ -1,15 +1,15 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Context, Result, bail};
 use dialoguer::Select;
-use systemprompt_cloud::{get_cloud_paths, CloudPath, ProfilePath, ProjectContext, TenantStore};
+use dialoguer::theme::ColorfulTheme;
+use systemprompt_cloud::{CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::profile::{discover_profiles, DiscoveredProfile};
+use crate::shared::profile::{DiscoveredProfile, discover_profiles};
 
 #[derive(Debug)]
 pub struct DeployableProfile {

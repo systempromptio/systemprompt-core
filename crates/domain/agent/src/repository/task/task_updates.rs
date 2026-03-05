@@ -1,7 +1,7 @@
-use super::{task_state_to_db_string, TaskRepository};
+use super::{TaskRepository, task_state_to_db_string};
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::repository::context::message::{
-    get_next_sequence_number_sqlx, persist_message_sqlx, FileUploadContext,
+    FileUploadContext, get_next_sequence_number_sqlx, persist_message_sqlx,
 };
 use systemprompt_traits::RepositoryError;
 

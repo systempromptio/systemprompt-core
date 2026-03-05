@@ -1,7 +1,7 @@
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
-use axum::Json;
 use std::collections::HashMap;
 use systemprompt_models::Config;
 use systemprompt_oauth::services::templating::TemplateEngine;

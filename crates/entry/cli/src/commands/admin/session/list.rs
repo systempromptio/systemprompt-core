@@ -5,9 +5,9 @@ use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_models::Profile;
 
 use super::types::{ProfileInfo, ProfileListOutput};
+use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[allow(clippy::unnecessary_wraps)]
 pub fn execute(_config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {

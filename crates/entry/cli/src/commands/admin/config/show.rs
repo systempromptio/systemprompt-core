@@ -5,8 +5,8 @@ use super::types::{
     ConfigOverviewOutput, PathsOverview, RateLimitsSummary, RuntimeOverview, SecurityOverview,
     ServerOverview,
 };
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 pub fn execute(_config: &CliConfig) -> Result<CommandResult<ConfigOverviewOutput>> {
     let profile = ProfileBootstrap::get()?;

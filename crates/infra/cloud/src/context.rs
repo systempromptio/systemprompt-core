@@ -1,10 +1,10 @@
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::Profile;
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use crate::api_client::CloudApiClient;
 use crate::credentials::CloudCredentials;
 use crate::error::{CloudError, CloudResult};
-use crate::paths::{get_cloud_paths, CloudPath};
+use crate::paths::{CloudPath, get_cloud_paths};
 use crate::tenants::{StoredTenant, TenantStore};
 
 #[derive(Debug, Clone)]

@@ -2,7 +2,7 @@ use systemprompt_identifiers::UserId;
 
 use crate::error::{Result, UserError};
 use crate::models::{User, UserActivity, UserRole, UserStatus, UserWithSessions};
-use crate::repository::{UserRepository, MAX_PAGE_SIZE};
+use crate::repository::{MAX_PAGE_SIZE, UserRepository};
 
 impl UserRepository {
     pub async fn find_with_sessions(&self, user_id: &UserId) -> Result<Option<UserWithSessions>> {

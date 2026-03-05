@@ -1,9 +1,9 @@
-use anyhow::{anyhow, bail, Result};
+use anyhow::{Result, anyhow, bail};
 use chrono::Utc;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType,
+    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 

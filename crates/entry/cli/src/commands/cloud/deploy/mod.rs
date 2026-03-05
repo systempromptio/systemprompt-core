@@ -3,10 +3,10 @@ mod select;
 
 use std::path::PathBuf;
 
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use systemprompt_cloud::constants::{build, container, paths};
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore,
+    CloudApiClient, CloudPath, ProfilePath, ProjectContext, TenantStore, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 

@@ -4,8 +4,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::McpPackagesOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_mcp::services::registry::RegistryManager;
 
 #[derive(Debug, Clone, Copy, Args)]

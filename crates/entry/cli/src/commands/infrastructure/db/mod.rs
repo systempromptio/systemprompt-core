@@ -5,7 +5,7 @@ mod query;
 mod schema;
 mod types;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use std::sync::Arc;
 use systemprompt_database::{DatabaseAdminService, QueryExecutor};

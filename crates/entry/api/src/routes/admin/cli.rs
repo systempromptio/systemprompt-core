@@ -1,15 +1,15 @@
 use axum::extract::Extension;
-use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
+use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::post;
 use axum::{Json, Router};
 use futures_util::stream::Stream;
 use std::convert::Infallible;
 use std::time::Duration;
 use systemprompt_events::ToSse;
+use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, CliExecuteRequest, CliOutputEvent};
 use systemprompt_models::auth::UserType;
-use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;

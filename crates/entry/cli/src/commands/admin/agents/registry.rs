@@ -4,8 +4,8 @@ use reqwest::Client;
 use serde::Deserialize;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 

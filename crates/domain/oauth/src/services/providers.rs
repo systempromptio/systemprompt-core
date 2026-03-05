@@ -4,7 +4,7 @@ use systemprompt_traits::{
 };
 use uuid::Uuid;
 
-use super::generation::{generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams};
+use super::generation::{JwtConfig, JwtSigningParams, generate_jwt, generate_secure_token};
 use super::validation::jwt::validate_jwt_token;
 
 #[derive(Debug)]

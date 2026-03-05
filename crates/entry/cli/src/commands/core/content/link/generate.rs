@@ -1,7 +1,7 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{GenerateLinkOutput, UtmParamsOutput};
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Args, ValueEnum};
 use systemprompt_content::models::{LinkType as DomainLinkType, UtmParams};
 use systemprompt_content::services::link::generation::{GenerateLinkParams, LinkGenerationService};

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::PathBuf;
-use systemprompt_cloud::{get_cloud_paths, CloudCredentials, CloudPath};
+use systemprompt_cloud::{CloudCredentials, CloudPath, get_cloud_paths};
 
 
 #[derive(Debug, Clone)]

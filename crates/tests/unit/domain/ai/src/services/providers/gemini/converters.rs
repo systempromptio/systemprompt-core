@@ -140,12 +140,7 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn converts_error_result() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Something went wrong")],
-            is_error: Some(true),
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::error(vec![create_text_content("Something went wrong")]);
 
         let json = convert_tool_result_to_json(&result);
 
@@ -159,12 +154,8 @@ mod convert_tool_result_to_json_tests {
             "data": [1, 2, 3]
         });
 
-        let result = CallToolResult {
-            content: vec![create_text_content("ignored")],
-            is_error: Some(false),
-            structured_content: Some(structured.clone()),
-            meta: None,
-        };
+        let mut result = CallToolResult::success(vec![create_text_content("ignored")]);
+        result.structured_content = Some(structured.clone());
 
         let json = convert_tool_result_to_json(&result);
 
@@ -173,12 +164,7 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn converts_text_content() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Hello, world!")],
-            is_error: Some(false),
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_text_content("Hello, world!")]);
 
         let json = convert_tool_result_to_json(&result);
 
@@ -194,15 +180,10 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn converts_multiple_text_contents() {
-        let result = CallToolResult {
-            content: vec![
-                create_text_content("Line 1"),
-                create_text_content("Line 2"),
-            ],
-            is_error: Some(false),
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![
+            create_text_content("Line 1"),
+            create_text_content("Line 2"),
+        ]);
 
         let json = convert_tool_result_to_json(&result);
 
@@ -214,15 +195,10 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn handles_error_with_multiple_messages() {
-        let result = CallToolResult {
-            content: vec![
-                create_text_content("Error 1"),
-                create_text_content("Error 2"),
-            ],
-            is_error: Some(true),
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::error(vec![
+            create_text_content("Error 1"),
+            create_text_content("Error 2"),
+        ]);
 
         let json = convert_tool_result_to_json(&result);
 
@@ -231,12 +207,7 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn handles_none_is_error_as_false() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Result")],
-            is_error: None,
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_text_content("Result")]);
 
         let json = convert_tool_result_to_json(&result);
 
@@ -246,12 +217,7 @@ mod convert_tool_result_to_json_tests {
 
     #[test]
     fn handles_empty_content() {
-        let result = CallToolResult {
-            content: vec![],
-            is_error: Some(false),
-            structured_content: None,
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![]);
 
         let json = convert_tool_result_to_json(&result);
 

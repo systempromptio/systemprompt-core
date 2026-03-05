@@ -1,8 +1,8 @@
 use anyhow::Result;
 use uuid::Uuid;
 
-use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::RequestStatus;
+use crate::models::ai::{AiRequest, AiResponse};
 use crate::services::providers::{AiProvider, GenerationParams, SchemaGenerationParams};
 
 use super::super::request_logging;

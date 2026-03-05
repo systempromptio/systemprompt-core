@@ -4,11 +4,11 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "web")]
+use axum::Json;
+#[cfg(feature = "web")]
 use axum::http::StatusCode;
 #[cfg(feature = "web")]
 use axum::response::IntoResponse;
-#[cfg(feature = "web")]
-use axum::Json;
 #[cfg(feature = "web")]
 use http::header;
 

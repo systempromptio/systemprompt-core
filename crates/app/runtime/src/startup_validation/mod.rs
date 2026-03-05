@@ -5,9 +5,9 @@ mod files_validator;
 mod mcp_validator;
 
 use systemprompt_logging::services::cli::{
-    render_phase_success, render_phase_warning, BrandColors,
+    BrandColors, render_phase_success, render_phase_warning,
 };
-use systemprompt_logging::{is_startup_mode, CliService};
+use systemprompt_logging::{CliService, is_startup_mode};
 use systemprompt_models::validators::{
     AgentConfigValidator, AiConfigValidator, ContentConfigValidator, McpConfigValidator,
     RateLimitsConfigValidator, SkillConfigValidator, ValidationConfigProvider, WebConfigValidator,

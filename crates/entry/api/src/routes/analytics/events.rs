@@ -1,7 +1,7 @@
+use axum::Json;
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use std::sync::Arc;
 
 use systemprompt_analytics::{
@@ -11,9 +11,9 @@ use systemprompt_analytics::{
 };
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::ContentId;
+use systemprompt_models::ContentRouting;
 use systemprompt_models::api::ApiError;
 use systemprompt_models::execution::context::RequestContext;
-use systemprompt_models::ContentRouting;
 
 #[derive(Clone)]
 pub struct AnalyticsState {

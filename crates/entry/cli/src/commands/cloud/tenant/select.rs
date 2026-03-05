@@ -1,8 +1,8 @@
-use anyhow::{anyhow, bail, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, anyhow, bail};
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType,
+    CloudCredentials, CloudPath, CredentialsBootstrap, StoredTenant, TenantType, get_cloud_paths,
 };
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 

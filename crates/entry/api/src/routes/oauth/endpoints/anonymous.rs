@@ -1,17 +1,17 @@
-use axum::extract::State;
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
-use axum::response::IntoResponse;
 use axum::Json;
+use axum::extract::State;
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
+use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
 use systemprompt_identifiers::{ClientId, SessionSource, UserId};
 use systemprompt_models::auth::TokenType;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::services::cimd::ClientValidator;
 use systemprompt_oauth::services::{
-    generate_admin_jwt, CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService,
+    CreateAnonymousSessionInput, JwtSigningParams, SessionCreationService, generate_admin_jwt,
 };
-use systemprompt_oauth::OAuthState;
 
 #[derive(Debug, Serialize)]
 pub struct AnonymousTokenResponse {
@@ -100,12 +100,12 @@ pub async fn generate_anonymous_token(
     }
 
     if let Some(ref user_id_str) = req.user_id {
-        if req.client_id == "sp_tui" {
+        if req.client_id == "sp_cli" {
             let user_id = UserId::new(user_id_str.clone());
             let email = req.email.clone().unwrap_or_else(|| user_id_str.clone());
 
             match session_service
-                .create_authenticated_session(&user_id, &headers, SessionSource::Tui)
+                .create_authenticated_session(&user_id, &headers, SessionSource::Cli)
                 .await
             {
                 Ok(session_id) => {
@@ -173,7 +173,7 @@ pub async fn generate_anonymous_token(
                             session_id: session_id.to_string(),
                             user_id: user_id_str.clone(),
                             client_id: client_id.to_string(),
-                            client_type: "tui".to_string(),
+                            client_type: "cli".to_string(),
                         }),
                     )
                         .into_response();
@@ -191,7 +191,7 @@ pub async fn generate_anonymous_token(
                         StatusCode::INTERNAL_SERVER_ERROR,
                         Json(AnonymousError {
                             error: "server_error".to_string(),
-                            error_description: format!("Failed to create TUI session: {e}"),
+                            error_description: format!("Failed to create CLI session: {e}"),
                         }),
                     )
                         .into_response();

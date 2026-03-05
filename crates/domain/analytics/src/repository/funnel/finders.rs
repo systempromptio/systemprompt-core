@@ -1,8 +1,8 @@
 use anyhow::Result;
 use systemprompt_identifiers::{FunnelId, SessionId};
 
-use super::types::{FunnelProgressRow, FunnelRow, FunnelStepRow};
 use super::FunnelRepository;
+use super::types::{FunnelProgressRow, FunnelRow, FunnelStepRow};
 use crate::models::{Funnel, FunnelProgress, FunnelStep, FunnelWithSteps};
 
 impl FunnelRepository {

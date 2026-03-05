@@ -2,8 +2,8 @@ mod upsert;
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::prelude::FromRow;
 use sqlx::PgPool;
+use sqlx::prelude::FromRow;
 
 use crate::error::SyncResult;
 use crate::{SyncDirection, SyncOperationResult};

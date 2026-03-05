@@ -1,5 +1,5 @@
 use chrono::Duration;
-use systemprompt_identifiers::{SessionId, UserId};
+use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_security::{AdminTokenParams, JwtService};
 
 #[test]
@@ -14,6 +14,7 @@ fn test_admin_token_params_creation() {
         jwt_secret: "test_secret_key_for_testing",
         issuer: "test_issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     assert_eq!(params.email, "admin@example.com");
@@ -32,6 +33,7 @@ fn test_admin_token_params_debug() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let debug_str = format!("{:?}", params);
@@ -50,6 +52,7 @@ fn test_generate_admin_token_success() {
         jwt_secret: "a_very_secure_secret_key_for_jwt_signing",
         issuer: "systemprompt",
         duration: Duration::hours(24),
+        client_id: Some(&ClientId::cli()),
     };
 
     let result = JwtService::generate_admin_token(&params);
@@ -74,6 +77,7 @@ fn test_generate_admin_token_structure() {
         jwt_secret: "secret_key",
         issuer: "test_issuer",
         duration: Duration::minutes(30),
+        client_id: Some(&ClientId::cli()),
     };
 
     let token = JwtService::generate_admin_token(&params).unwrap();
@@ -97,6 +101,7 @@ fn test_generate_admin_token_different_durations() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::minutes(5),
+        client_id: Some(&ClientId::cli()),
     };
 
     let long_params = AdminTokenParams {
@@ -106,6 +111,7 @@ fn test_generate_admin_token_different_durations() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::days(30),
+        client_id: Some(&ClientId::cli()),
     };
 
     let short_token = JwtService::generate_admin_token(&short_params);
@@ -129,6 +135,7 @@ fn test_generate_admin_token_different_secrets() {
         jwt_secret: "secret_one",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let params2 = AdminTokenParams {
@@ -138,6 +145,7 @@ fn test_generate_admin_token_different_secrets() {
         jwt_secret: "secret_two",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let token1 = JwtService::generate_admin_token(&params1).unwrap();
@@ -159,6 +167,7 @@ fn test_generate_admin_token_different_users() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let params2 = AdminTokenParams {
@@ -168,6 +177,7 @@ fn test_generate_admin_token_different_users() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let token1 = JwtService::generate_admin_token(&params1).unwrap();
@@ -189,6 +199,7 @@ fn test_generate_admin_token_different_sessions() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let params2 = AdminTokenParams {
@@ -198,6 +209,7 @@ fn test_generate_admin_token_different_sessions() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let token1 = JwtService::generate_admin_token(&params1).unwrap();
@@ -218,6 +230,7 @@ fn test_generate_admin_token_unique_jti() {
         jwt_secret: "secret",
         issuer: "issuer",
         duration: Duration::hours(1),
+        client_id: Some(&ClientId::cli()),
     };
 
     let token1 = JwtService::generate_admin_token(&params).unwrap();

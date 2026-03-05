@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::time::Instant;
 use tracing::{debug, error, info};
 use uuid::Uuid;

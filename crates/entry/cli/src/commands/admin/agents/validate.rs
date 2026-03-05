@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 
 use super::types::{ValidationIssue, ValidationOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::SecretsBootstrap;
 

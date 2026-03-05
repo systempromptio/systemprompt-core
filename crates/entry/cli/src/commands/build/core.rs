@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Args;
 use std::process::Command;
 use std::time::Instant;
@@ -6,9 +6,9 @@ use std::time::Instant;
 use systemprompt_logging::CliService;
 
 use super::types::CoreBuildOutput;
+use crate::CliConfig;
 use crate::shared::command_result::CommandResult;
 use crate::shared::project::ProjectRoot;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CoreArgs {

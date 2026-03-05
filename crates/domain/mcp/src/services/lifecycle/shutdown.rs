@@ -1,7 +1,7 @@
 use super::LifecycleManager;
+use crate::McpServerConfig;
 use crate::services::network::NetworkManager;
 use crate::services::process::ProcessManager;
-use crate::McpServerConfig;
 use anyhow::Result;
 
 pub async fn stop_server(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {

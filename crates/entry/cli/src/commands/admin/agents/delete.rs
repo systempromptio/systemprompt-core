@@ -1,16 +1,16 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use std::sync::Arc;
 
 use super::types::AgentDeleteOutput;
+use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
-use crate::CliConfig;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_loader::{ConfigLoader, ConfigWriter};
 use systemprompt_logging::CliService;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;

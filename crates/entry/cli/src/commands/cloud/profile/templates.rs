@@ -195,7 +195,7 @@ pub fn get_services_path() -> Result<String> {
 }
 
 pub async fn validate_connection(db_url: &str) -> bool {
-    use tokio::time::{timeout, Duration};
+    use tokio::time::{Duration, timeout};
 
     let result = timeout(Duration::from_secs(5), async {
         sqlx::postgres::PgPoolOptions::new()

@@ -6,7 +6,7 @@ use crate::error::ArtifactError;
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::artifacts::types::ArtifactType;
 

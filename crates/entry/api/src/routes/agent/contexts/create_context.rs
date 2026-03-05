@@ -1,6 +1,6 @@
+use axum::Json;
 use axum::extract::{Extension, State};
 use axum::response::Response;
-use axum::Json;
 
 use super::super::responses::{api_error_response, single_response_created};
 use systemprompt_agent::models::context::CreateContextRequest;
@@ -18,7 +18,7 @@ pub async fn create_context(
     let context_repo = match ContextRepository::new(&db_pool) {
         Ok(repo) => repo,
         Err(e) => {
-            return api_error_response(ApiError::internal_error(format!("Database error: {e}")))
+            return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
         },
     };
     let user_id = &req_ctx.auth.user_id;
@@ -28,7 +28,7 @@ pub async fn create_context(
             return api_error_response(
                 ApiError::bad_request("Context name cannot be empty")
                     .with_request_context(&req_ctx),
-            )
+            );
         },
         Some(name) => name.to_owned(),
         None => format!("Conversation {}", chrono::Utc::now().timestamp_millis()),

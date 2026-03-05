@@ -4,8 +4,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::UserStatsOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 pub async fn execute(config: &CliConfig) -> Result<CommandResult<UserStatsOutput>> {
     let ctx = AppContext::new().await?;

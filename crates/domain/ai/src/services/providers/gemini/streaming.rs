@@ -1,6 +1,6 @@
-use anyhow::{anyhow, Result};
-use futures::stream::StreamExt;
+use anyhow::{Result, anyhow};
 use futures::Stream;
+use futures::stream::StreamExt;
 use std::pin::Pin;
 
 use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};

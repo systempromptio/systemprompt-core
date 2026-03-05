@@ -3,7 +3,7 @@ mod credentials;
 mod link;
 mod registration;
 
-pub use link::{create_link_states, LinkStates, LinkUserInfo};
+pub use link::{LinkStates, LinkUserInfo, create_link_states};
 pub use registration::FinishRegistrationParams;
 
 use super::config::WebAuthnConfig;

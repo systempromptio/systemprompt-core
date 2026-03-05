@@ -2,8 +2,8 @@ use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
 use super::{
-    parse_permissions, permissions_to_string, JwtAudience, Permission, RateLimitTier, TokenType,
-    UserType,
+    JwtAudience, Permission, RateLimitTier, TokenType, UserType, parse_permissions,
+    permissions_to_string,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

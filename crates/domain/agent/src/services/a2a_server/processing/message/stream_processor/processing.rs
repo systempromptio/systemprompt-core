@@ -2,10 +2,10 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use super::helpers::{build_artifacts_from_results, synthesize_final_response};
 use super::StreamProcessor;
-use crate::models::a2a::Message;
+use super::helpers::{build_artifacts_from_results, synthesize_final_response};
 use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::Message;
 use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategySelector,

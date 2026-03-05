@@ -110,7 +110,7 @@ pub trait ArtifactSupport {
 
 /// Helper functions for creating common artifact schemas
 pub mod schemas {
-    use serde_json::{json, Value};
+    use serde_json::{Value, json};
 
     /// Creates a presentation card schema with optional theme hints
     #[must_use]

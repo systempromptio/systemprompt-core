@@ -1,9 +1,9 @@
 mod handlers;
 
+use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use systemprompt_identifiers::UserId;

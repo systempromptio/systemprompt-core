@@ -1,6 +1,6 @@
+use axum::Router;
 use axum::middleware::from_fn;
 use axum::routing::get;
-use axum::Router;
 use systemprompt_runtime::AppContext;
 
 mod auth;

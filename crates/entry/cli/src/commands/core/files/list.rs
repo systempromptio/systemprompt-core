@@ -6,8 +6,8 @@ use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_runtime::AppContext;
 
 use super::types::{FileListOutput, FileSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

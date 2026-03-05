@@ -5,8 +5,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::{UserListOutput, UserSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {

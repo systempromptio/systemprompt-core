@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use base64::Engine;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::ContextId;
 use systemprompt_models::{
-    is_supported_audio, is_supported_image, is_supported_text, is_supported_video, AiContentPart,
-    AiMessage, MessageRole,
+    AiContentPart, AiMessage, MessageRole, is_supported_audio, is_supported_image,
+    is_supported_text, is_supported_video,
 };
 
 use crate::models::a2a::{FilePart, Part};

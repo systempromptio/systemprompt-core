@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::FileService;
@@ -6,8 +6,8 @@ use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
 use super::types::{FileSearchOutput, FileSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct SearchArgs {

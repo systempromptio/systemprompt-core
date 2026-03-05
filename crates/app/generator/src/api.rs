@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value;
 
 pub async fn fetch_content_from_api(api_url: &str, source_id: &str) -> Result<Vec<Value>> {

@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::{Stream, StreamExt};
 use std::pin::Pin;
 

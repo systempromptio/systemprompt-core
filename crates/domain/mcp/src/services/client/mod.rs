@@ -8,8 +8,8 @@ use rmcp::transport::streamable_http_client::{
 use rmcp::{ClientHandler, RoleClient, ServiceExt};
 use std::time::Duration;
 use systemprompt_identifiers::McpServerId;
-use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::Config;
+use systemprompt_models::ai::tools::McpTool;
 use tokio::time::timeout;
 
 mod http_client_with_context;
@@ -205,7 +205,7 @@ async fn execute_tool_call(
         Err(_) => {
             return Err(anyhow::anyhow!(
                 "MCP transport serve timed out after 30 seconds"
-            ))
+            ));
         },
     };
 

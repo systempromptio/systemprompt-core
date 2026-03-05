@@ -1,15 +1,15 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 
 use super::types::SkillCreateOutput;
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use systemprompt_agent::services::skills::SkillIngestionService;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::SourceId;

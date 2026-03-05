@@ -1,9 +1,9 @@
 use super::LifecycleManager;
-use crate::services::monitoring::health::{perform_health_check, HealthStatus};
-use crate::services::network::port_manager::MAX_PORT_CLEANUP_ATTEMPTS;
-use crate::services::network::NetworkManager;
-use crate::services::process::ProcessManager;
 use crate::McpServerConfig;
+use crate::services::monitoring::health::{HealthStatus, perform_health_check};
+use crate::services::network::NetworkManager;
+use crate::services::network::port_manager::MAX_PORT_CLEANUP_ATTEMPTS;
+use crate::services::process::ProcessManager;
 use anyhow::Result;
 use std::time::Duration;
 use systemprompt_traits::{StartupEventExt, StartupEventSender};

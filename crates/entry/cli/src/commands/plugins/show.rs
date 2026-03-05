@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_extension::{ExtensionRegistry, SchemaSource};
 
@@ -6,8 +6,8 @@ use super::types::{
     ExtensionDetailOutput, ExtensionSource, JobInfo, LlmProviderInfo, RoleInfo, SchemaInfo,
     TemplateInfo, ToolInfo,
 };
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {

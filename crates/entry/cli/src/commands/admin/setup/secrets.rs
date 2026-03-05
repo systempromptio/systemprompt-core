@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
 use serde::{Deserialize, Serialize};
@@ -6,8 +6,8 @@ use std::path::Path;
 use systemprompt_logging::CliService;
 
 use super::SetupArgs;
-use crate::shared::profile::generate_jwt_secret;
 use crate::CliConfig;
+use crate::shared::profile::generate_jwt_secret;
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct SecretsData {

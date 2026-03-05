@@ -1,17 +1,17 @@
 use super::{TokenError, TokenErrorResponse, TokenResponse, TokenResult};
 use anyhow::Result;
+use axum::Json;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::IntoResponse;
-use axum::Json;
 use sha2::{Digest, Sha256};
 use std::str::FromStr;
 use std::sync::Arc;
 use systemprompt_identifiers::{ClientId, RefreshTokenId, SessionId, SessionSource, UserId};
-use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
-use systemprompt_oauth::services::{generate_jwt, JwtConfig, JwtSigningParams};
+use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
+use systemprompt_oauth::services::{JwtConfig, JwtSigningParams, generate_jwt};
 use systemprompt_traits::CreateSessionInput;
 
 pub struct TokenGenerationParams<'a> {
@@ -27,10 +27,7 @@ pub async fn generate_tokens_by_user_id(
     params: TokenGenerationParams<'_>,
     state: &OAuthState,
 ) -> Result<TokenResponse> {
-    use systemprompt_oauth::services::{generate_access_token_jti, generate_secure_token};
-
     let expires_in = Config::get()?.jwt_access_token_expiration;
-    let refresh_token_expires_in = Config::get()?.jwt_refresh_token_expiration;
 
     let scope_str = params
         .scope
@@ -40,16 +37,7 @@ pub async fn generate_tokens_by_user_id(
 
     let requested_permissions = parse_permissions(scope_str)?;
     let user_perms = user.permissions().to_vec();
-    let final_permissions = resolve_user_permissions(
-        repo,
-        &requested_permissions,
-        &user_perms,
-        params.client_id,
-        params.resource,
-    )
-    .await?;
-    let scope_string = systemprompt_models::auth::permissions_to_string(&final_permissions);
-
+    let final_permissions = resolve_user_permissions(&requested_permissions, &user_perms)?;
     let session_service = systemprompt_oauth::services::SessionCreationService::new(
         Arc::clone(state.analytics_provider()),
         Arc::clone(state.user_provider()),
@@ -58,34 +46,8 @@ pub async fn generate_tokens_by_user_id(
         .create_authenticated_session(params.user_id, params.headers, SessionSource::Oauth)
         .await?;
 
-    let access_token_jti = generate_access_token_jti();
-    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
-    let global_config = Config::get()?;
-    let config = JwtConfig {
-        permissions: final_permissions,
-        audience: global_config.jwt_audiences.clone(),
-        resource: params.resource.map(String::from),
-        ..Default::default()
-    };
-    let signing = JwtSigningParams {
-        secret: jwt_secret,
-        issuer: &global_config.jwt_issuer,
-    };
-    let access_token = generate_jwt(&user, config, access_token_jti, &session_id, &signing)?;
-
-    let refresh_token_value = generate_secure_token("rt");
-    let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
-    let refresh_expires_at = chrono::Utc::now().timestamp() + refresh_token_expires_in;
-
-    let refresh_params = RefreshTokenParams::builder(
-        &refresh_token_id,
-        params.client_id,
-        params.user_id,
-        &scope_string,
-        refresh_expires_at,
-    )
-    .build();
-    repo.store_refresh_token(refresh_params).await?;
+    let jwt_and_refresh =
+        create_jwt_and_refresh_token(repo, &user, final_permissions, &session_id, &params).await?;
 
     if let Err(e) = repo
         .update_client_last_used(params.client_id.as_str())
@@ -99,11 +61,11 @@ pub async fn generate_tokens_by_user_id(
     }
 
     Ok(TokenResponse {
-        access_token,
+        access_token: jwt_and_refresh.access_token,
         token_type: "Bearer".to_string(),
         expires_in,
-        refresh_token: Some(refresh_token_value),
-        scope: Some(scope_string),
+        refresh_token: Some(jwt_and_refresh.refresh_token_value),
+        scope: Some(jwt_and_refresh.scope_string),
     })
 }
 
@@ -133,48 +95,8 @@ pub async fn generate_client_tokens(
         .await?
         .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
 
-    let client_allowed: Vec<Permission> = client
-        .scopes
-        .iter()
-        .filter_map(|s| {
-            Permission::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
-                    e
-                })
-                .ok()
-        })
-        .collect();
-
-    let permissions: Vec<Permission> = requested_permissions
-        .into_iter()
-        .filter(|p| client_allowed.contains(p))
-        .collect();
-
-    if permissions.is_empty() {
-        return Err(anyhow::anyhow!(
-            "No valid permissions: requested scopes not allowed for this client"
-        ));
-    }
-
-    let client_id_str = client_id.as_str();
-    let mut hasher = Sha256::new();
-    hasher.update(format!("client.{client_id_str}").as_bytes());
-    let hash = hasher.finalize();
-
-    let mut uuid_bytes = [0u8; 16];
-    uuid_bytes.copy_from_slice(&hash[..16]);
-    let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
-    let user_id = UserId::new(client_uuid.to_string());
-
-    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
-    let client_user = AuthenticatedUser::new_with_roles(
-        client_uuid,
-        format!("client:{client_id_str}"),
-        format!("{client_id_str}@client.local"),
-        permissions.clone(),
-        role_strings,
-    );
+    let permissions = resolve_client_permissions(requested_permissions, &client.scopes)?;
+    let (user_id, client_user) = build_client_user(client_id, &permissions);
 
     let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
     let global_config = Config::get()?;
@@ -227,18 +149,119 @@ pub async fn generate_client_tokens(
     })
 }
 
-pub async fn resolve_user_permissions(
-    _repo: &OAuthRepository,
+struct JwtAndRefreshToken {
+    access_token: String,
+    refresh_token_value: String,
+    scope_string: String,
+}
+
+async fn create_jwt_and_refresh_token(
+    repo: &OAuthRepository,
+    user: &AuthenticatedUser,
+    permissions: Vec<Permission>,
+    session_id: &SessionId,
+    params: &TokenGenerationParams<'_>,
+) -> Result<JwtAndRefreshToken> {
+    use systemprompt_oauth::services::{generate_access_token_jti, generate_secure_token};
+
+    let scope_string = systemprompt_models::auth::permissions_to_string(&permissions);
+    let access_token_jti = generate_access_token_jti();
+    let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
+    let global_config = Config::get()?;
+    let config = JwtConfig {
+        permissions,
+        audience: global_config.jwt_audiences.clone(),
+        resource: params.resource.map(String::from),
+        ..Default::default()
+    };
+    let signing = JwtSigningParams {
+        secret: jwt_secret,
+        issuer: &global_config.jwt_issuer,
+    };
+    let access_token = generate_jwt(user, config, access_token_jti, session_id, &signing)?;
+
+    let refresh_token_value = generate_secure_token("rt");
+    let refresh_token_id = RefreshTokenId::new(&refresh_token_value);
+    let refresh_expires_at =
+        chrono::Utc::now().timestamp() + Config::get()?.jwt_refresh_token_expiration;
+
+    let refresh_params = RefreshTokenParams::builder(
+        &refresh_token_id,
+        params.client_id,
+        params.user_id,
+        &scope_string,
+        refresh_expires_at,
+    )
+    .build();
+    repo.store_refresh_token(refresh_params).await?;
+
+    Ok(JwtAndRefreshToken {
+        access_token,
+        refresh_token_value,
+        scope_string,
+    })
+}
+
+fn resolve_client_permissions(
+    requested_permissions: Vec<Permission>,
+    client_scopes: &[String],
+) -> Result<Vec<Permission>> {
+    let client_allowed: Vec<Permission> = client_scopes
+        .iter()
+        .filter_map(|s| {
+            Permission::from_str(s)
+                .map_err(|e| {
+                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
+                    e
+                })
+                .ok()
+        })
+        .collect();
+
+    let permissions: Vec<Permission> = requested_permissions
+        .into_iter()
+        .filter(|p| client_allowed.contains(p))
+        .collect();
+
+    if permissions.is_empty() {
+        return Err(anyhow::anyhow!(
+            "No valid permissions: requested scopes not allowed for this client"
+        ));
+    }
+
+    Ok(permissions)
+}
+
+fn build_client_user(
+    client_id: &ClientId,
+    permissions: &[Permission],
+) -> (UserId, AuthenticatedUser) {
+    let client_id_str = client_id.as_str();
+    let mut hasher = Sha256::new();
+    hasher.update(format!("client.{client_id_str}").as_bytes());
+    let hash = hasher.finalize();
+
+    let mut uuid_bytes = [0u8; 16];
+    uuid_bytes.copy_from_slice(&hash[..16]);
+    let client_uuid = uuid::Uuid::from_bytes(uuid_bytes);
+    let user_id = UserId::new(client_uuid.to_string());
+
+    let role_strings: Vec<String> = permissions.iter().map(ToString::to_string).collect();
+    let client_user = AuthenticatedUser::new_with_roles(
+        client_uuid,
+        format!("client:{client_id_str}"),
+        format!("{client_id_str}@client.local"),
+        permissions.to_vec(),
+        role_strings,
+    );
+
+    (user_id, client_user)
+}
+
+pub fn resolve_user_permissions(
     requested_permissions: &[Permission],
     user_permissions: &[Permission],
-    _client_id: &ClientId,
-    _resource: Option<&str>,
 ) -> Result<Vec<Permission>> {
-    // The user's database permissions are the sole security boundary.
-    // Client registration scopes are not enforced here — dynamically
-    // registered MCP clients may not know what scopes they need at
-    // registration time. The requested scopes have already been validated
-    // as legitimate system scopes at authorize time.
     let mut final_permissions = Vec::new();
 
     for requested in requested_permissions {

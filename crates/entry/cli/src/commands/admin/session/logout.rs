@@ -1,14 +1,14 @@
 use anyhow::{Context, Result};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, SessionKey, SessionStore};
 use systemprompt_models::Profile;
 
 use super::types::LogoutOutput;
+use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct LogoutArgs {

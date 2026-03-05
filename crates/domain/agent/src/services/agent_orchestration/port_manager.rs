@@ -3,7 +3,7 @@ use std::process::Command;
 use std::time::Duration;
 use systemprompt_models::CliPaths;
 
-use crate::services::agent_orchestration::{process, OrchestrationError, OrchestrationResult};
+use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResult, process};
 
 #[derive(Debug, Copy, Clone)]
 pub struct PortManager;

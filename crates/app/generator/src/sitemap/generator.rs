@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
 use systemprompt_content::ContentRepository;
@@ -7,7 +7,7 @@ use systemprompt_identifiers::SourceId;
 use systemprompt_models::{AppPaths, Config, ContentConfigRaw, ContentSourceConfigRaw};
 use tokio::fs;
 
-use super::xml::{build_sitemap_index, build_sitemap_xml, SitemapUrl};
+use super::xml::{SitemapUrl, build_sitemap_index, build_sitemap_xml};
 
 const MAX_URLS_PER_SITEMAP: usize = 50_000;
 const SLUG_PLACEHOLDER: &str = "{slug}";

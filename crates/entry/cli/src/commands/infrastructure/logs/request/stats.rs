@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
-use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
+use crate::commands::infrastructure::logs::duration::parse_since;
+use crate::shared::{CommandResult, RenderingHints, render_result};
 
 #[derive(Debug, Args)]
 pub struct StatsArgs {

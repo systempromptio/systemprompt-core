@@ -1,15 +1,15 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use regex::Regex;
 use std::collections::HashSet;
 use std::fs;
 use std::io::{BufRead, BufReader};
 
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateDetailOutput, TemplatesConfig};

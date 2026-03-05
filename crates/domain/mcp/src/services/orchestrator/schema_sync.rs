@@ -1,8 +1,8 @@
 use anyhow::Result;
 use systemprompt_database::DbPool;
 
-use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 use crate::McpServerConfig;
+use crate::services::schema::{SchemaValidationMode, SchemaValidationReport, SchemaValidator};
 
 pub async fn validate_schemas(servers: &[McpServerConfig], db_pool: &DbPool) -> Result<()> {
     let schema_report = validate_and_migrate_schemas(servers, db_pool).await?;

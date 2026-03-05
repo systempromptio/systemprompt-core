@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::{Args, Subcommand};
 use std::fs;
 use systemprompt_logging::CliService;
@@ -6,9 +6,9 @@ use systemprompt_models::profile::{Environment, LogLevel, OutputFormat as Profil
 use systemprompt_models::{Profile, ProfileBootstrap};
 
 use super::types::{RuntimeConfigOutput, RuntimeSetOutput};
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum RuntimeCommands {

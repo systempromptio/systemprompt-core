@@ -1,18 +1,18 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use std::sync::Arc;
 use std::time::Duration;
 
 use super::types::{McpBatchValidateOutput, McpServerInfo, McpValidateOutput, McpValidateSummary};
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_mcp::services::McpManager;
 use systemprompt_mcp::services::client::validate_connection_with_auth;
 use systemprompt_mcp::services::database::DatabaseManager;
-use systemprompt_mcp::services::McpManager;
 use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]

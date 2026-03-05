@@ -11,7 +11,7 @@ use crate::content::{generate_toc, render_markdown};
 use crate::error::PublishError;
 use crate::prerender::context::PrerenderContext;
 use crate::prerender::fetch::{contents_to_json, fetch_content_for_source, fetch_popular_ids};
-use crate::prerender::list::{render_list_route, RenderListParams};
+use crate::prerender::list::{RenderListParams, render_list_route};
 
 const SLUG_PLACEHOLDER: &str = "{slug}";
 

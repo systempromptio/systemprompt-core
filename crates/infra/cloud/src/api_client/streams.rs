@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use futures::stream::{Stream, StreamExt};
 use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use std::pin::Pin;
 use systemprompt_models::modules::ApiPaths;
 
-use super::types::{CheckoutEvent, ProvisioningEvent};
 use super::CloudApiClient;
+use super::types::{CheckoutEvent, ProvisioningEvent};
 
 impl CloudApiClient {
     pub fn subscribe_provisioning_events(

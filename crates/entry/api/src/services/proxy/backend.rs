@@ -1,11 +1,11 @@
-use axum::body::{to_bytes, Body};
+use axum::body::{Body, to_bytes};
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Response};
 use futures_util::TryStreamExt;
 use reqwest::Method;
 use std::str::FromStr;
-use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_traits::InjectContextHeaders;
 use thiserror::Error;
 

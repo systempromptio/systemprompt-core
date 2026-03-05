@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-use super::ai::ToolModelConfig;
 use super::IncludableString;
+use super::ai::ToolModelConfig;
 
 const fn default_true() -> bool {
     true

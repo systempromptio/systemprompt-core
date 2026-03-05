@@ -4,9 +4,9 @@ use clap::Args;
 use std::fs;
 use std::path::PathBuf;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_generator::{build_sitemap_xml, SitemapUrl};
+use crate::shared::CommandResult;
+use systemprompt_generator::{SitemapUrl, build_sitemap_xml};
 use systemprompt_logging::CliService;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;

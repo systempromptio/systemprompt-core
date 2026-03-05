@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use comrak::nodes::{AstNode, NodeValue};
-use comrak::{parse_document, Arena, Options};
+use comrak::{Arena, Options, parse_document};
 
 #[derive(Debug)]
 pub struct TocEntry {

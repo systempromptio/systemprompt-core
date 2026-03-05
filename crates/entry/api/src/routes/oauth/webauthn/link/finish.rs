@@ -1,12 +1,12 @@
+use axum::Json;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
-use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 use webauthn_rs::prelude::RegisterPublicKeyCredential;
 

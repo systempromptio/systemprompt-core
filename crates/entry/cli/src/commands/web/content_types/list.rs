@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_models::content_config::ContentConfigRaw;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 

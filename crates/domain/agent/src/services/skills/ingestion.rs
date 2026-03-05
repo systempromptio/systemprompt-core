@@ -1,12 +1,12 @@
 use crate::models::Skill;
 use crate::repository::content::SkillRepository;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashSet;
 use std::path::Path;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SkillId, SourceId};
 use systemprompt_models::{
-    strip_frontmatter, DiskSkillConfig, IngestionReport, SKILL_CONFIG_FILENAME,
+    DiskSkillConfig, IngestionReport, SKILL_CONFIG_FILENAME, strip_frontmatter,
 };
 
 #[derive(Debug)]

@@ -74,8 +74,8 @@ pub mod standard;
 pub mod tool_executor;
 
 pub use plan_executor::{
-    convert_to_call_tool_results, convert_to_tool_calls, execute_tools_sequentially,
-    execute_tools_with_templates, format_results_for_response, ToolExecutorTrait,
+    ToolExecutorTrait, convert_to_call_tool_results, convert_to_tool_calls,
+    execute_tools_sequentially, execute_tools_with_templates, format_results_for_response,
 };
 pub use planned::PlannedAgenticStrategy;
 pub use selector::ExecutionStrategySelector;

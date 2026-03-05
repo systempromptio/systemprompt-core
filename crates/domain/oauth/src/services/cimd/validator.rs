@@ -1,7 +1,7 @@
 use super::fetcher::CimdFetcher;
 use crate::models::cimd::ClientValidation;
 use crate::repository::oauth::OAuthRepository;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::Database;
 use systemprompt_identifiers::ClientId;

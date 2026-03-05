@@ -10,13 +10,13 @@ use super::process_cleanup::{
     detect_and_handle_orphaned_processes, detect_and_handle_stale_binaries,
 };
 use super::schema_sync::validate_schemas;
-use super::server_startup::{start_pending_servers, StartPendingServersParams};
+use super::server_startup::{StartPendingServersParams, start_pending_servers};
+use crate::McpServerConfig;
 use crate::services::database::DatabaseManager;
 use crate::services::lifecycle::LifecycleManager;
 use crate::services::network::port_manager::{self, POST_KILL_DELAY_MS};
 use crate::services::process::ProcessManager;
 use crate::services::registry::RegistryManager;
-use crate::McpServerConfig;
 
 #[derive(Debug)]
 pub struct ReconcileParams<'a> {

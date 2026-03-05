@@ -1,11 +1,11 @@
+use axum::Router;
 use axum::extract::Path as AxumPath;
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use axum::routing::get;
-use axum::Router;
 use std::path::PathBuf;
-use systemprompt_models::api::ApiError;
 use systemprompt_models::AppPaths;
+use systemprompt_models::api::ApiError;
 use systemprompt_runtime::AppContext;
 
 pub fn router() -> Router<AppContext> {

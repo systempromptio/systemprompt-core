@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, TenantStore};
+use systemprompt_cloud::{CloudApiClient, CloudPath, ProfilePath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_models::SecretsBootstrap;
 use systemprompt_sync::{

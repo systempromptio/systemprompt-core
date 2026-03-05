@@ -88,7 +88,7 @@ pub mod api {
 #[cfg(feature = "cli")]
 #[cfg_attr(docsrs, doc(cfg(feature = "cli")))]
 pub mod cli {
-    pub use systemprompt_cli::{run, CliConfig, ColorMode, OutputFormat, VerbosityLevel};
+    pub use systemprompt_cli::{CliConfig, ColorMode, OutputFormat, VerbosityLevel, run};
 }
 
 #[cfg(feature = "runtime")]

@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_files::{FileValidator, FilesConfig};
 
 use super::types::FileValidationOutput;
 use super::upload::detect_mime_type;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {

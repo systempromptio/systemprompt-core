@@ -90,8 +90,8 @@ fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Va
     }
     if let Ok(val) = row.try_get::<Option<Vec<u8>>, _>(ordinal) {
         return val.map_or(serde_json::Value::Null, |bytes| {
-            use base64::engine::general_purpose::STANDARD;
             use base64::Engine;
+            use base64::engine::general_purpose::STANDARD;
             serde_json::Value::String(STANDARD.encode(&bytes))
         });
     }

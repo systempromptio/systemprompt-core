@@ -14,7 +14,7 @@ use crate::services::agent_orchestration::events::AgentEvent;
 use crate::services::agent_orchestration::lifecycle::AgentLifecycle;
 use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::reconciler::AgentReconciler;
-use crate::services::agent_orchestration::{monitor, AgentStatus, OrchestrationResult};
+use crate::services::agent_orchestration::{AgentStatus, OrchestrationResult, monitor};
 use crate::state::AgentState;
 
 #[derive(Debug, Clone)]

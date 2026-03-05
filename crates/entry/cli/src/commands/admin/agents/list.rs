@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 
 use super::types::{AgentDetailOutput, AgentListOutput, AgentSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Clone, Args)]

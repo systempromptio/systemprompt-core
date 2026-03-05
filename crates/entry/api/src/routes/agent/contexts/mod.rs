@@ -15,8 +15,8 @@ pub use notifications::handle_context_notification;
 pub use update_context::update_context;
 pub use webhook::{broadcast_a2a_event, broadcast_agui_event, broadcast_context_event};
 
-use axum::routing::{get, post, MethodRouter};
 use axum::Router;
+use axum::routing::{MethodRouter, get, post};
 use systemprompt_runtime::AppContext;
 
 const INVALID_CONTEXT_IDS: &[&str] = &["undefined", "null", "", "__CONTEXT_LOADING__"];

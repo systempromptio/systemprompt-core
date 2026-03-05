@@ -2,15 +2,15 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::{Args, ValueEnum};
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 
 use super::types::McpLogsOutput;
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_logging::LoggingRepository;
 use systemprompt_models::AppPaths;

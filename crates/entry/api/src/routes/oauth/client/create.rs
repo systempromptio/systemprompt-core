@@ -1,16 +1,16 @@
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
-use bcrypt::{hash, DEFAULT_COST};
+use bcrypt::{DEFAULT_COST, hash};
 use tracing::instrument;
 use uuid::Uuid;
 
 use super::super::responses::{created_response, error_response};
-use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::RequestContext;
+use systemprompt_models::modules::ApiPaths;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
-use systemprompt_oauth::OAuthState;
 
 fn init_error(e: impl std::fmt::Display) -> Response {
     error_response(

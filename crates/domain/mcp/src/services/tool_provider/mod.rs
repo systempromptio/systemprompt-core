@@ -13,7 +13,7 @@ use systemprompt_traits::{
 };
 
 use crate::services::client::{
-    rewrite_url_for_internal_use, validate_connection, validate_connection_by_url, McpClient,
+    McpClient, rewrite_url_for_internal_use, validate_connection, validate_connection_by_url,
 };
 use crate::services::registry::RegistryManager;
 

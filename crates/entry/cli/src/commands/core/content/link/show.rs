@@ -1,7 +1,7 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::LinkDetailOutput;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::services::LinkGenerationService;
 use systemprompt_runtime::AppContext;

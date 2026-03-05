@@ -1,6 +1,6 @@
 use crate::error::AiError;
-use base64::engine::general_purpose::STANDARD as BASE64;
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD as BASE64;
 use chrono::{Datelike, Utc};
 use serde::{Deserialize, Serialize};
 use std::fs;

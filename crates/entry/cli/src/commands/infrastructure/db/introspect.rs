@@ -3,7 +3,7 @@ use systemprompt_database::DatabaseAdminService;
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{render_result, CommandResult};
+use crate::shared::{CommandResult, render_result};
 
 use super::helpers::format_bytes;
 use super::types::{DbIndexesOutput, DbSizeOutput, TableIndexInfo, TableSizeInfo};

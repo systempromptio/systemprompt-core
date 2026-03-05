@@ -12,8 +12,8 @@ pub fn mcp_apps_ui_extension() -> (String, serde_json::Map<String, serde_json::V
     (key, value)
 }
 
-pub fn build_experimental_capabilities(
-) -> BTreeMap<String, serde_json::Map<String, serde_json::Value>> {
+pub fn build_experimental_capabilities()
+-> BTreeMap<String, serde_json::Map<String, serde_json::Value>> {
     let mut map = BTreeMap::new();
     let (key, value) = mcp_apps_ui_extension();
     map.insert(key, value);

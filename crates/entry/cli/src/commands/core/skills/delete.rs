@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use std::fs;
 use std::path::Path;
 
 use super::types::SkillDeleteOutput;
+use crate::CliConfig;
 use crate::interactive::{require_confirmation, resolve_required};
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 

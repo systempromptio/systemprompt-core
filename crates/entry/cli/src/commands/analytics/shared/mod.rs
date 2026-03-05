@@ -3,11 +3,11 @@ pub mod output;
 pub mod time;
 
 pub use export::{
-    ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_path, CsvBuilder,
+    CsvBuilder, ensure_export_dir, export_single_to_csv, export_to_csv, resolve_export_path,
 };
 pub use output::{
-    format_change, format_cost, format_number, format_percent, format_tokens, BreakdownData,
-    BreakdownItem, MetricCard, StatsSummary, TrendData, TrendPoint,
+    BreakdownData, BreakdownItem, MetricCard, StatsSummary, TrendData, TrendPoint, format_change,
+    format_cost, format_number, format_percent, format_tokens,
 };
 pub use time::{
     format_duration_ms, format_period_label, format_timestamp, parse_duration, parse_since,

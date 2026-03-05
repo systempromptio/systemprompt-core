@@ -4,11 +4,11 @@ use systemprompt_loader::EnhancedConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
 
-use super::show_display::print_formatted_config;
-use super::show_types::{build_env_config, FullConfig, SettingsOutput};
 use super::ShowFilter;
+use super::show_display::print_formatted_config;
+use super::show_types::{FullConfig, SettingsOutput, build_env_config};
 use crate::cli_settings::CliConfig;
-use crate::shared::{render_result, resolve_profile_path, CommandResult};
+use crate::shared::{CommandResult, render_result, resolve_profile_path};
 
 pub fn execute(
     name: Option<&str>,
@@ -41,7 +41,7 @@ pub fn execute(
 fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
     use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
-    std::env::set_var("SYSTEMPROMPT_PROFILE", profile_path.display().to_string());
+    unsafe { std::env::set_var("SYSTEMPROMPT_PROFILE", profile_path.display().to_string()) };
     ProfileBootstrap::init()?;
     SecretsBootstrap::init()?;
     let profile = ProfileBootstrap::get()?;

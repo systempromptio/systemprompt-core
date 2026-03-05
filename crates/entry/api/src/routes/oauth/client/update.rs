@@ -5,9 +5,9 @@ use tracing::instrument;
 
 use super::super::responses::{bad_request, internal_error, not_found, single_response};
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::clients::api::{OAuthClientResponse, UpdateOAuthClientRequest};
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::OAuthState;
 
 fn init_error(e: impl std::fmt::Display) -> Response {
     (

@@ -8,7 +8,7 @@ use systemprompt_identifiers::{
 };
 use systemprompt_models::auth::UserType;
 
-use super::{SessionKey, LOCAL_SESSION_KEY};
+use super::{LOCAL_SESSION_KEY, SessionKey};
 use crate::error::CloudError;
 
 const CURRENT_VERSION: u32 = 4;

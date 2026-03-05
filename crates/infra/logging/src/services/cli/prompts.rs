@@ -1,8 +1,8 @@
 #![allow(clippy::print_stdout)]
 
 use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
+use dialoguer::theme::ColorfulTheme;
 
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, StatusDisplay};
 use crate::services::cli::theme::MessageLevel;

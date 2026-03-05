@@ -67,40 +67,40 @@ impl DatabaseSessionManager {
 
     async fn persist_create(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref() {
-            if let Err(e) = repo.create(session_id.as_ref(), None, None).await {
-                tracing::warn!(
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to persist session creation to database"
-                );
-            }
+        if let Some(repo) = repo_guard.as_ref()
+            && let Err(e) = repo.create(session_id.as_ref(), None, None).await
+        {
+            tracing::warn!(
+                session_id = %session_id,
+                error = %e,
+                "Failed to persist session creation to database"
+            );
         }
     }
 
     async fn persist_close(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref() {
-            if let Err(e) = repo.close(session_id.as_ref()).await {
-                tracing::warn!(
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to persist session close to database"
-                );
-            }
+        if let Some(repo) = repo_guard.as_ref()
+            && let Err(e) = repo.close(session_id.as_ref()).await
+        {
+            tracing::warn!(
+                session_id = %session_id,
+                error = %e,
+                "Failed to persist session close to database"
+            );
         }
     }
 
     async fn update_activity(&self, session_id: &SessionId) {
         let repo_guard = self.repository.read().await;
-        if let Some(repo) = repo_guard.as_ref() {
-            if let Err(e) = repo.update_activity(session_id.as_ref()).await {
-                tracing::debug!(
-                    session_id = %session_id,
-                    error = %e,
-                    "Failed to update session activity"
-                );
-            }
+        if let Some(repo) = repo_guard.as_ref()
+            && let Err(e) = repo.update_activity(session_id.as_ref()).await
+        {
+            tracing::debug!(
+                session_id = %session_id,
+                error = %e,
+                "Failed to update session activity"
+            );
         }
     }
 
@@ -150,15 +150,9 @@ impl SessionManager for DatabaseSessionManager {
         if self.local_manager.has_session(id).await.unwrap_or(false) {
             return Ok(true);
         }
-
-        if self.check_db_session(id).await == Some(true) {
-            tracing::info!(
-                session_id = %id,
-                "Session exists in database but not in memory — closing stale record"
-            );
-            self.persist_close(id).await;
-        }
-
+        // Session not in local memory — can't serve requests.
+        // Don't close the DB record here; let resume() handle cleanup
+        // to avoid a race between has_session() and resume().
         Ok(false)
     }
 
@@ -204,9 +198,19 @@ impl SessionManager for DatabaseSessionManager {
         last_event_id: String,
     ) -> Result<impl Stream<Item = ServerSseMessage> + Send + 'static, Self::Error> {
         if !self.local_manager.has_session(id).await.unwrap_or(false) {
+            if self.check_db_session(id).await == Some(true) {
+                tracing::info!(
+                    session_id = %id,
+                    "Session in DB but not memory (server restart?) — signaling reconnect"
+                );
+                self.persist_close(id).await;
+                return Err(DatabaseSessionManagerError::SessionNeedsReconnect(
+                    id.to_string(),
+                ));
+            }
             tracing::warn!(
                 session_id = %id,
-                "Resume called but session not in local memory"
+                "Resume called but session not found anywhere"
             );
             return Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()));
         }

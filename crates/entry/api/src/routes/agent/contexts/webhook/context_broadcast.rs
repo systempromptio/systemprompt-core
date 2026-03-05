@@ -5,7 +5,7 @@ use axum::{Extension, Json};
 use serde_json::json;
 use systemprompt_events::EventRouter;
 use systemprompt_models::{AgUiEventBuilder, CustomPayload, GenericCustomPayload};
-use systemprompt_runtime::{create_request_span, AppContext};
+use systemprompt_runtime::{AppContext, create_request_span};
 
 use super::event_loader::load_event_data;
 use super::types::WebhookRequest;

@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Password, Select};
 use systemprompt_logging::CliService;

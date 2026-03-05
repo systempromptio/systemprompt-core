@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use dialoguer::Confirm;
 use systemprompt_files::ContentService;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::core::files::types::ContentUnlinkOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct UnlinkArgs {

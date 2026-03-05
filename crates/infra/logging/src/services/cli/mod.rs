@@ -18,7 +18,7 @@ pub use startup::{
     render_startup_banner,
 };
 pub use summary::{OperationResult, ProgressSummary, ValidationSummary};
-pub use table::{render_service_table, render_startup_complete, render_table, ServiceTableEntry};
+pub use table::{ServiceTableEntry, render_service_table, render_startup_complete, render_table};
 pub use theme::{
     ActionType, BrandColors, ColorType, Colors, EmphasisType, IconType, Icons, ItemStatus,
     MessageLevel, ModuleType, ServiceStatus, Theme,

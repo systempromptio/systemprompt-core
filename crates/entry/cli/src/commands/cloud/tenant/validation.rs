@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use std::path::Path;
 use systemprompt_loader::{ConfigLoader, ExtensionLoader};
 use systemprompt_logging::CliService;

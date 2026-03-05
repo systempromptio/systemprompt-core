@@ -1,7 +1,7 @@
 //! Web configuration validator.
 
-use super::validation_config_provider::{WebConfigRaw, WebMetadataRaw};
 use super::ValidationConfigProvider;
+use super::validation_config_provider::{WebConfigRaw, WebMetadataRaw};
 use std::path::Path;
 use systemprompt_traits::validation_report::{
     ValidationError, ValidationReport, ValidationWarning,

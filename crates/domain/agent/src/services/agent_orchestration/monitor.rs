@@ -5,7 +5,7 @@ use tokio::net::TcpStream;
 use tokio::time::timeout;
 
 use crate::services::agent_orchestration::database::AgentDatabaseService;
-use crate::services::agent_orchestration::{process, OrchestrationResult};
+use crate::services::agent_orchestration::{OrchestrationResult, process};
 
 #[derive(Debug)]
 pub struct AgentMonitor {

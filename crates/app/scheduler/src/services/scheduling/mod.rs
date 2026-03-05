@@ -9,7 +9,7 @@ use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Job as JobTrait, JobContext};
 use tokio::sync::Mutex;
 use tokio_cron_scheduler::{Job, JobScheduler};
-use tracing::{debug, error, info, warn, Instrument};
+use tracing::{Instrument, debug, error, info, warn};
 
 type RunningJobs = Arc<Mutex<HashSet<String>>>;
 

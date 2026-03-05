@@ -1,5 +1,5 @@
 mod client;
 mod provisioning;
 
-pub use client::{run_checkout_callback_flow, CheckoutCallbackResult, CheckoutTemplates};
+pub use client::{CheckoutCallbackResult, CheckoutTemplates, run_checkout_callback_flow};
 pub use provisioning::wait_for_provisioning;

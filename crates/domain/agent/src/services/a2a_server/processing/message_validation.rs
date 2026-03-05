@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::RequestContext;

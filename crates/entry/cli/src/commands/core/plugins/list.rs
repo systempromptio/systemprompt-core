@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::types::{PluginListOutput, PluginSummary};
 

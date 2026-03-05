@@ -4,9 +4,9 @@ use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::BannedIpRepository;
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::{BanCheckOutput, BanSummary};
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct CheckArgs {

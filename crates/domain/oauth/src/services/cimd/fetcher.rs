@@ -1,5 +1,5 @@
 use crate::models::cimd::CimdMetadata;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use reqwest::Client;
 use std::time::Duration;
 

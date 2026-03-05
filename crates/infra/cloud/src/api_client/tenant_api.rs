@@ -2,13 +2,13 @@ use anyhow::Result;
 use serde::Serialize;
 use systemprompt_models::modules::ApiPaths;
 
+use super::CloudApiClient;
 use super::types::{
     ApiResponse, CustomDomainResponse, DeployResponse, ExternalDbAccessResponse,
     ListSecretsResponse, RegistryToken, RotateCredentialsResponse, RotateSyncTokenResponse,
     SetCustomDomainRequest, SetExternalDbAccessRequest, SetSecretsRequest, StatusResponse,
     TenantSecrets, TenantStatus,
 };
-use super::CloudApiClient;
 
 #[derive(Serialize)]
 struct DeployRequest {

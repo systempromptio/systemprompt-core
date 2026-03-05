@@ -1,4 +1,4 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::process::Command;
 
 const PROTECTED_PORTS: &[u16] = &[5432, 6432];

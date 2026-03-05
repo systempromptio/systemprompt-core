@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use systemprompt_models::{strip_frontmatter, DiskSkillConfig};
+use systemprompt_models::{DiskSkillConfig, strip_frontmatter};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct SkillListOutput {

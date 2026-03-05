@@ -1,5 +1,5 @@
 use super::html::{
-    base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script, HtmlBuilder,
+    HtmlBuilder, base_styles, html_escape, json_to_js_literal, mcp_app_bridge_script,
 };
 use crate::services::ui_renderer::{CspBuilder, CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;

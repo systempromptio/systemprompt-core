@@ -442,8 +442,8 @@ pub mod prelude {
     pub use crate::error::{ConfigError, LoaderError};
     pub use crate::registry::ExtensionRegistry;
     pub use crate::{
-        register_extension, Extension, ExtensionMetadata, ExtensionRole, Migration,
-        SchemaDefinition, SchemaSource, SiteAuthConfig,
+        Extension, ExtensionMetadata, ExtensionRole, Migration, SchemaDefinition, SchemaSource,
+        SiteAuthConfig, register_extension,
     };
 
     #[cfg(feature = "web")]
@@ -465,7 +465,7 @@ pub mod prelude {
 
     #[cfg(feature = "web")]
     pub use crate::typed::ApiExtensionTypedDyn;
-    pub use crate::typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
+    pub use crate::typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
     pub use crate::types::{
         Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency,
         NoDependencies,
@@ -497,7 +497,7 @@ pub use typed::{
     ApiExtensionTyped, ConfigExtensionTyped, JobExtensionTyped, ProviderExtensionTyped,
     SchemaDefinitionTyped, SchemaExtensionTyped, SchemaSourceTyped,
 };
-pub use typed_registry::{TypedExtensionRegistry, RESERVED_PATHS};
+pub use typed_registry::{RESERVED_PATHS, TypedExtensionRegistry};
 pub use types::{
     Dependencies, DependencyList, ExtensionMeta, ExtensionType, MissingDependency, NoDependencies,
 };

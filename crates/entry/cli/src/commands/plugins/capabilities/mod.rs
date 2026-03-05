@@ -9,8 +9,8 @@ use clap::{Args, Subcommand};
 use systemprompt_extension::ExtensionRegistry;
 
 use super::types::CapabilitiesSummaryOutput;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct CapabilitiesArgs {

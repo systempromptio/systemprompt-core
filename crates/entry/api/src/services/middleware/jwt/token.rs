@@ -1,5 +1,5 @@
-use anyhow::{anyhow, Result};
-use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+use anyhow::{Result, anyhow};
+use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 use systemprompt_models::auth::UserType;

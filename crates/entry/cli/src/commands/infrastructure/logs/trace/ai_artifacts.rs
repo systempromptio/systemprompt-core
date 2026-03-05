@@ -1,9 +1,9 @@
 use std::collections::HashSet;
 use systemprompt_logging::{CliService, TaskArtifact};
-use tabled::settings::Style;
 use tabled::Table;
+use tabled::settings::Style;
 
-use super::ai_display::{print_content_block, print_section, truncate, ArtifactRow};
+use super::ai_display::{ArtifactRow, print_content_block, print_section, truncate};
 
 pub fn print_artifacts(artifacts: &[TaskArtifact]) {
     if artifacts.is_empty() {

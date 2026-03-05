@@ -1,5 +1,5 @@
 use crate::services::shared::error::{AgentServiceError, Result};
-use jsonwebtoken::{decode, DecodingKey, Validation};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 pub use systemprompt_models::auth::JwtClaims;
 use systemprompt_traits::AgentJwtClaims;
 

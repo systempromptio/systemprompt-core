@@ -3,10 +3,10 @@ use clap::Args;
 use std::sync::Arc;
 
 use super::types::{AgentStatusOutput, AgentStatusRow};
-use crate::shared::CommandResult;
 use crate::CliConfig;
-use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
+use crate::shared::CommandResult;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::agent_orchestration::{AgentOrchestrator, AgentStatus};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;

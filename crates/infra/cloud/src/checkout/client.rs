@@ -1,18 +1,18 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
+use axum::Router;
 use axum::extract::{Path, Query, State};
 use axum::response::{Html, Json};
 use axum::routing::get;
-use axum::Router;
 use futures::StreamExt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
 use systemprompt_logging::CliService;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 
+use crate::CloudApiClient;
 use crate::api_client::{CheckoutEvent, ProvisioningEventType};
 use crate::constants::checkout::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
-use crate::CloudApiClient;
 
 #[derive(Debug, Deserialize)]
 struct CallbackParams {

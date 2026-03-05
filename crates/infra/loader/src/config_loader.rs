@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use systemprompt_models::services::{PartialServicesConfig, ServicesConfig};
 use systemprompt_models::AppPaths;
+use systemprompt_models::services::{PartialServicesConfig, ServicesConfig};
 
 use crate::ConfigWriter;
 

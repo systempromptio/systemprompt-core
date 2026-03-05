@@ -6,7 +6,7 @@ pub mod slug;
 
 pub use error::{AgentServiceError, Result};
 pub type ServiceResult<T> = Result<T>;
-pub use auth::{extract_bearer_token, AgentSessionUser, JwtClaims, JwtValidator};
+pub use auth::{AgentSessionUser, JwtClaims, JwtValidator, extract_bearer_token};
 pub use config::{
     AgentServiceConfig, ConfigValidation, ConnectionConfiguration, RuntimeConfiguration,
     RuntimeConfigurationBuilder, ServiceConfiguration,

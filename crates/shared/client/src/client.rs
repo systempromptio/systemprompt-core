@@ -112,7 +112,7 @@ impl SystempromptClient {
     }
 
     pub async fn create_context_auto_name(&self) -> ClientResult<UserContext> {
-        let name = format!("TUI Session {}", Utc::now().format("%Y-%m-%d %H:%M"));
+        let name = format!("Session {}", Utc::now().format("%Y-%m-%d %H:%M"));
         self.create_context(Some(&name)).await
     }
 

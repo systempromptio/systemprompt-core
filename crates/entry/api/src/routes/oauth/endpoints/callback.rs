@@ -1,5 +1,5 @@
 use axum::extract::{Query, State};
-use axum::http::{header, HeaderMap, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, HeaderValue, StatusCode, header};
 use axum::response::{IntoResponse, Redirect};
 use serde::Deserialize;
 use std::str::FromStr;
@@ -7,11 +7,11 @@ use std::sync::Arc;
 use systemprompt_identifiers::{
     AuthorizationCode, ClientId, RefreshTokenId, SessionSource, UserId,
 };
-use systemprompt_models::auth::{parse_permissions, AuthenticatedUser, Permission};
 use systemprompt_models::Config;
+use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 
-use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 
 #[derive(Debug, Deserialize)]
 pub struct CallbackQuery {
@@ -131,7 +131,7 @@ async fn exchange_code_for_token(
     state: &OAuthState,
 ) -> anyhow::Result<TokenResponse> {
     use systemprompt_oauth::services::{
-        generate_access_token_jti, generate_jwt, generate_secure_token, JwtConfig, JwtSigningParams,
+        JwtConfig, JwtSigningParams, generate_access_token_jti, generate_jwt, generate_secure_token,
     };
 
     let validation_result = repo

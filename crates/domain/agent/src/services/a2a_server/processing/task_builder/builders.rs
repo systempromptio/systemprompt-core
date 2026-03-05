@@ -1,12 +1,12 @@
-use super::helpers::{content_to_json, extract_text_from_content};
 use super::TaskBuilder;
+use super::helpers::{content_to_json, extract_text_from_content};
 use crate::models::a2a::{
     Artifact, DataPart, Message, Part, Task, TaskState, TaskStatus, TextPart,
 };
 use crate::services::mcp::parse_tool_response;
 use serde_json::json;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::a2a::{agent_names, ArtifactMetadata, TaskMetadata};
+use systemprompt_models::a2a::{ArtifactMetadata, TaskMetadata, agent_names};
 use systemprompt_models::{CallToolResult, ToolCall};
 
 pub fn build_completed_task(

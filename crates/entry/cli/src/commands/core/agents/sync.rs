@@ -5,8 +5,8 @@ use dialoguer::{Confirm, Select};
 use std::sync::Arc;
 
 use super::types::AgentSyncOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_database::{Database, DbPool};
 use systemprompt_logging::CliService;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};

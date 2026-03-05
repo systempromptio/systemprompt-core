@@ -11,9 +11,9 @@ pub use layer::DatabaseLayer;
 pub use models::{LogEntry, LogFilter, LogLevel};
 pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
 pub use services::{
-    is_startup_mode, publish_log, set_log_publisher, set_startup_mode, CliService,
-    DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
-    RequestSpanBuilder, SystemSpan,
+    CliService, DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
+    RequestSpanBuilder, SystemSpan, is_startup_mode, publish_log, set_log_publisher,
+    set_startup_mode,
 };
 pub use trace::{
     AiRequestInfo, AiRequestSummary, AiTraceService, ConversationMessage, ExecutionStep,
@@ -83,8 +83,8 @@ pub fn init_console_logging_with_level(level: Option<&str>) {
         return;
     }
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| build_filter(level.unwrap_or("info")));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter(level.unwrap_or("info")));
 
     tracing_subscriber::fmt().with_env_filter(env_filter).init();
 }

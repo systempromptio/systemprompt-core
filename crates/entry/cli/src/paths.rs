@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
-use systemprompt_cloud::paths::{get_cloud_paths, CloudPath};
 use systemprompt_cloud::ProjectContext;
+use systemprompt_cloud::paths::{CloudPath, get_cloud_paths};
 
 #[derive(Debug)]
 pub struct ResolvedPaths {

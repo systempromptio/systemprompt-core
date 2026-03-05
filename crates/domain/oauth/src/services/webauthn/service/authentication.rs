@@ -1,6 +1,6 @@
 use super::{AuthenticationStateData, WebAuthnService};
 use anyhow::Result;
-use base64::engine::{general_purpose, Engine};
+use base64::engine::{Engine, general_purpose};
 use std::time::Instant;
 use tracing::instrument;
 use uuid::Uuid;

@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Context, Result, bail};
 use dialoguer::Confirm;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 

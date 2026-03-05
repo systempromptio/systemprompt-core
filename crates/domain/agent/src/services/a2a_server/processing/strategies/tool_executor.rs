@@ -4,8 +4,8 @@ use serde_json::Value;
 use systemprompt_identifiers::AiToolCallId;
 use systemprompt_models::{McpTool, RequestContext, ToolCall};
 
-use super::plan_executor::ToolExecutorTrait;
 use super::ExecutionContext;
+use super::plan_executor::ToolExecutorTrait;
 
 #[derive(Debug)]
 pub struct ContextToolExecutor {

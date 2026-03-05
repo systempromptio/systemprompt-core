@@ -1,7 +1,7 @@
 use super::types::VerifyOutput;
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_content::ContentRepository;

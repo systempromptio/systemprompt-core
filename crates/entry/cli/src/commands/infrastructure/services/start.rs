@@ -3,16 +3,16 @@ use crate::presentation::StartupRenderer;
 use anyhow::{Context, Result};
 use std::sync::Arc;
 use std::time::Instant;
+use systemprompt_agent::AgentState;
 use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
-use systemprompt_agent::AgentState;
 use systemprompt_cloud::CredentialsBootstrap;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
 use systemprompt_models::ProfileBootstrap;
 use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_traits::{startup_channel, Phase, StartupEvent, StartupEventExt};
+use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, startup_channel};
 
 pub struct ServiceTarget {
     pub api: bool,

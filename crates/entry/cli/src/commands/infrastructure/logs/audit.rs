@@ -8,8 +8,8 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::audit_display::render_text_output;
 use super::types::MessageRow;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct AuditArgs {

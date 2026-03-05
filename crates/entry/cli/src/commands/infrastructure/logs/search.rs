@@ -10,8 +10,8 @@ use super::duration::parse_since;
 use super::search_queries::{search_logs, search_tools};
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct SearchArgs {

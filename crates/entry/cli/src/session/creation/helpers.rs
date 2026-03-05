@@ -6,8 +6,8 @@ use systemprompt_agent::repository::context::ContextRepository;
 use systemprompt_cloud::{CliSession, CloudCredentials, CredentialsBootstrap, SessionKey};
 use systemprompt_database::{Database, DbPool};
 use systemprompt_identifiers::{ContextId, Email, ProfileName, SessionId, SessionToken};
-use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_models::SecretsBootstrap;
+use systemprompt_models::auth::{Permission, RateLimitTier, UserType};
 use systemprompt_security::{SessionGenerator, SessionParams};
 use systemprompt_users::UserService;
 

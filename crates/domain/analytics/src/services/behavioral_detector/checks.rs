@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use chrono::{DateTime, Utc};
 
 use super::{
-    scoring, thresholds, BehavioralAnalysisInput, BehavioralBotDetector, BehavioralSignal,
-    SignalType,
+    BehavioralAnalysisInput, BehavioralBotDetector, BehavioralSignal, SignalType, scoring,
+    thresholds,
 };
 
 impl BehavioralBotDetector {
@@ -248,29 +248,25 @@ fn compute_timing_variance(timestamps: &[DateTime<Utc>]) -> Option<f64> {
 fn is_outdated_browser(user_agent: &str) -> bool {
     let ua_lower = user_agent.to_lowercase();
 
-    if let Some(pos) = ua_lower.find("chrome/") {
-        let version_str = &ua_lower[pos + 7..];
-        if let Some(dot_pos) = version_str.find('.') {
-            if let Ok(major) = version_str[..dot_pos].parse::<i32>() {
-                if major < thresholds::CHROME_MIN_VERSION {
-                    return true;
-                }
-            }
-        }
+    if let Some(pos) = ua_lower.find("chrome/")
+        && let Some(dot_pos) = ua_lower[pos + 7..].find('.')
+        && let Ok(major) = ua_lower[pos + 7..][..dot_pos].parse::<i32>()
+        && major < thresholds::CHROME_MIN_VERSION
+    {
+        return true;
     }
 
     if let Some(pos) = ua_lower.find("firefox/") {
         let version_str = &ua_lower[pos + 8..];
-        if let Some(space_pos) = version_str.find(|c: char| !c.is_numeric() && c != '.') {
-            if let Ok(major) = version_str[..space_pos].parse::<i32>() {
-                if major < thresholds::FIREFOX_MIN_VERSION {
-                    return true;
-                }
-            }
-        } else if let Ok(major) = version_str.parse::<i32>() {
-            if major < thresholds::FIREFOX_MIN_VERSION {
-                return true;
-            }
+        if let Some(space_pos) = version_str.find(|c: char| !c.is_numeric() && c != '.')
+            && let Ok(major) = version_str[..space_pos].parse::<i32>()
+            && major < thresholds::FIREFOX_MIN_VERSION
+        {
+            return true;
+        } else if let Ok(major) = version_str.parse::<i32>()
+            && major < thresholds::FIREFOX_MIN_VERSION
+        {
+            return true;
         }
     }
 

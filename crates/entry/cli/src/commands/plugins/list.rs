@@ -3,8 +3,8 @@ use systemprompt_extension::ExtensionRegistry;
 use systemprompt_loader::ExtensionLoader;
 
 use super::types::{CapabilitySummary, ExtensionListOutput, ExtensionSource, ExtensionSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

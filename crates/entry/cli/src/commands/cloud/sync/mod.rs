@@ -2,12 +2,12 @@ pub mod admin_user;
 mod interactive;
 pub mod skills;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::{Args, Subcommand, ValueEnum};
-use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
+use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::SecretsBootstrap;
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
 use crate::cli_settings::CliConfig;

@@ -1,6 +1,6 @@
 use anyhow::Result;
-use axum::routing::post;
 use axum::Router;
+use axum::routing::post;
 use std::sync::Arc;
 use systemprompt_analytics::EngagementRepository;
 use systemprompt_content::ContentRepository;

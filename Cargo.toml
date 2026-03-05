@@ -47,7 +47,7 @@ exclude = [
 resolver = "2"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Edward Burton"]
 license = "BUSL-1.1"
 version = "0.1.17"
@@ -131,7 +131,7 @@ separated_literal_suffix = "warn"
 try_err = "warn"
 
 [workspace.lints.rust]
-unsafe_code = "forbid"
+unsafe_code = "deny"
 missing_debug_implementations = "warn"
 missing_copy_implementations = "warn"
 trivial_casts = "warn"

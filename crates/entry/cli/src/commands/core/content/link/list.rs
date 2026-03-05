@@ -1,7 +1,7 @@
 use crate::cli_settings::CliConfig;
 use crate::commands::core::content::types::{LinkListOutput, LinkSummary};
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::LinkAnalyticsService;
 use systemprompt_identifiers::{CampaignId, ContentId};

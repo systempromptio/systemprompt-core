@@ -6,8 +6,8 @@ use systemprompt_logging::{AiTraceService, CliService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

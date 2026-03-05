@@ -1,8 +1,8 @@
 use anyhow::Result;
 
 use super::McpOrchestrator;
-use crate::services::registry::RegistryManager;
 use crate::McpServerConfig;
+use crate::services::registry::RegistryManager;
 
 impl McpOrchestrator {
     pub(super) async fn get_target_servers(

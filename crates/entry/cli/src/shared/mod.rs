@@ -7,11 +7,11 @@ pub mod profile;
 pub mod project;
 
 pub use command_result::{
-    render_result, ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput,
-    RenderingHints, SuccessOutput, TableOutput, TextOutput,
+    ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput, RenderingHints,
+    SuccessOutput, TableOutput, TextOutput, render_result,
 };
 pub use parsers::{parse_email, parse_profile_name};
 pub use profile::{
-    is_path_input, resolve_profile_from_path, resolve_profile_path, resolve_profile_with_data,
-    ProfileResolutionError,
+    ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,
+    resolve_profile_with_data,
 };

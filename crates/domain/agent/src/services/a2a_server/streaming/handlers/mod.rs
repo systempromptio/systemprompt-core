@@ -1,4 +1,4 @@
 mod completion;
 pub mod text;
 
-pub use completion::{handle_complete, handle_error, HandleCompleteParams};
+pub use completion::{HandleCompleteParams, handle_complete, handle_error};

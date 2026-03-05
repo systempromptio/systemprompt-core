@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::SessionCleanupOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CleanupArgs {

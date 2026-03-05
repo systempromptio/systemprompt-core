@@ -1,14 +1,14 @@
 use anyhow::Result;
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, HeaderValue, StatusCode};
 use axum::response::{IntoResponse, Redirect};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
 use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
-use systemprompt_oauth::OAuthState;
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {

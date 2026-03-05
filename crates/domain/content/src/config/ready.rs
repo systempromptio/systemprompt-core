@@ -6,9 +6,9 @@ use systemprompt_identifiers::{CategoryId, SourceId};
 use systemprompt_models::ContentRouting;
 use walkdir::WalkDir;
 
+use crate::ContentError;
 use crate::models::ContentMetadata;
 use crate::services::validate_content_metadata;
-use crate::ContentError;
 
 use super::validated::{ContentConfigValidated, ContentSourceConfigValidated};
 

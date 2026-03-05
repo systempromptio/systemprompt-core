@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use futures::StreamExt;
 use std::time::Duration;
 
-use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
 use crate::CloudApiClient;
+use crate::api_client::{ProvisioningEvent, ProvisioningEventType};
 
 pub async fn wait_for_provisioning<F>(
     client: &CloudApiClient,

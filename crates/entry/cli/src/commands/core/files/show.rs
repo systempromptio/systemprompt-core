@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_database::DbPool;
 use systemprompt_files::{File, FileService, TypeSpecificMetadata};
@@ -9,8 +9,8 @@ use super::types::{
     AudioMetadataOutput, ChecksumsOutput, DocumentMetadataOutput, FileDetailOutput,
     FileMetadataOutput, ImageMetadataOutput, VideoMetadataOutput,
 };
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {

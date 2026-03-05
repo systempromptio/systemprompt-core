@@ -1,12 +1,12 @@
 use axum::extract::{Extension, State};
-use axum::response::sse::Sse;
 use axum::response::IntoResponse;
+use axum::response::sse::Sse;
 use tokio::sync::mpsc;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
 use super::{StreamState, StreamWithGuard};
 use systemprompt_events::{
-    standard_keep_alive, Broadcaster, ConnectionGuard, ToSse, CONTEXT_BROADCASTER,
+    Broadcaster, CONTEXT_BROADCASTER, ConnectionGuard, ToSse, standard_keep_alive,
 };
 use systemprompt_models::events::ContextSummary;
 use systemprompt_models::{ContextEvent, RequestContext, SystemEventBuilder};
@@ -44,10 +44,10 @@ pub async fn stream_context_state(
 
             tracing::info!(conn_id = %conn_id, "SSE snapshot sent");
 
-            if let Ok(sse_event) = snapshot_event.to_sse() {
-                if tx.send(Ok(sse_event)).is_err() {
-                    tracing::error!(conn_id = %conn_id, "Failed to send snapshot");
-                }
+            if let Ok(sse_event) = snapshot_event.to_sse()
+                && tx.send(Ok(sse_event)).is_err()
+            {
+                tracing::error!(conn_id = %conn_id, "Failed to send snapshot");
             }
         },
         Err(e) => {

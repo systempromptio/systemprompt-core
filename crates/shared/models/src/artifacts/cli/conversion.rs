@@ -23,7 +23,7 @@ impl CommandResultRaw {
             CliArtifactType::Table => self.convert_table(ctx),
             CliArtifactType::List => self.convert_list(ctx),
             CliArtifactType::CopyPasteText => Ok(self.convert_copy_paste_text(ctx)),
-            CliArtifactType::PresentationCard => self.convert_presentation_card(ctx),
+            CliArtifactType::PresentationCard => self.convert_presentation_card(),
             CliArtifactType::Text
             | CliArtifactType::Dashboard
             | CliArtifactType::Chart
@@ -128,10 +128,7 @@ impl CommandResultRaw {
         CliArtifact::CopyPasteText { artifact }
     }
 
-    fn convert_presentation_card(
-        &self,
-        _ctx: &RequestContext,
-    ) -> Result<CliArtifact, ConversionError> {
+    fn convert_presentation_card(&self) -> Result<CliArtifact, ConversionError> {
         let artifact: PresentationCardArtifact =
             serde_json::from_value(self.data.clone()).map_err(ConversionError::Json)?;
         Ok(CliArtifact::PresentationCard { artifact })

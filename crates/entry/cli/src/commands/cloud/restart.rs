@@ -1,7 +1,7 @@
-use anyhow::{bail, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, bail};
 use dialoguer::Confirm;
-use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudPath, TenantStore, TenantType};
+use dialoguer::theme::ColorfulTheme;
+use systemprompt_cloud::{CloudApiClient, CloudPath, TenantStore, TenantType, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use super::tenant::{get_credentials, resolve_tenant_id};

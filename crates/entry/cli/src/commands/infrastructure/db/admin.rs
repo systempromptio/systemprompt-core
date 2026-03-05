@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::sync::Arc;
 use systemprompt_database::{DatabaseAdminService, MigrationService};
 use systemprompt_extension::ExtensionRegistry;
@@ -7,17 +7,17 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use systemprompt_users::{PromoteResult, UserAdminService, UserService};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{render_result, CommandResult};
+use crate::shared::{CommandResult, render_result};
 
+use super::MigrationsCommands;
 use super::helpers::format_bytes;
 use super::types::{
     AppliedMigrationInfo, DbAssignAdminOutput, DbMigrateOutput, DbStatusOutput,
     ExtensionMigrationStatus, MigrationHistoryOutput, MigrationStatusOutput,
 };
-use super::MigrationsCommands;
 
 pub async fn execute_migrate(config: &CliConfig) -> Result<()> {
-    use systemprompt_database::{install_extension_schemas, Database};
+    use systemprompt_database::{Database, install_extension_schemas};
     use systemprompt_extension::ExtensionRegistry;
     use systemprompt_models::Config;
 

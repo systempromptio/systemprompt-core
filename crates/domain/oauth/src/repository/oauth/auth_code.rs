@@ -197,7 +197,7 @@ impl OAuthRepository {
                 None => {
                     return Err(anyhow::anyhow!(
                         "Unsupported code_challenge_method: {method}. Only 'S256' is allowed."
-                    ))
+                    ));
                 },
             };
 

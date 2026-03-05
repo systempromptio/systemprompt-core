@@ -1,5 +1,5 @@
 pub mod data;
 mod engine;
 
-pub use data::{prepare_template_data, TemplateDataParams};
+pub use data::{TemplateDataParams, prepare_template_data};
 pub use engine::{get_assets_path, get_templates_path, load_web_config};

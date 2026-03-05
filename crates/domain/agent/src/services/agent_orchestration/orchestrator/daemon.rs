@@ -4,8 +4,8 @@ use systemprompt_traits::StartupEventSender;
 use tokio::task::JoinHandle;
 
 use super::AgentOrchestrator;
-use crate::services::agent_orchestration::monitor::AgentMonitor;
 use crate::services::agent_orchestration::OrchestrationResult;
+use crate::services::agent_orchestration::monitor::AgentMonitor;
 
 impl AgentOrchestrator {
     pub async fn run_daemon(&mut self) -> OrchestrationResult<()> {

@@ -3,10 +3,10 @@ mod ext;
 mod introspection;
 pub mod transaction;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use async_trait::async_trait;
-use sqlx::postgres::{PgConnectOptions, PgPool, PgSslMode};
 use sqlx::Executor;
+use sqlx::postgres::{PgConnectOptions, PgPool, PgSslMode};
 use std::str::FromStr;
 use std::sync::Arc;
 
@@ -178,7 +178,7 @@ impl DatabaseProvider for PostgresProvider {
             serde_json::Value::Bool(b) => DbValue::Bool(*b),
             serde_json::Value::Null => DbValue::NullString,
             serde_json::Value::Array(_) | serde_json::Value::Object(_) => {
-                return Err(anyhow!("Unsupported value type"))
+                return Err(anyhow!("Unsupported value type"));
             },
         };
 

@@ -25,30 +25,19 @@ fn create_text_content(text: &str) -> Content {
 }
 
 fn create_result_with_content(text: &str) -> CallToolResult {
-    CallToolResult {
-        content: vec![create_text_content(text)],
-        structured_content: None,
-        is_error: Some(false),
-        meta: None,
-    }
+    CallToolResult::success(vec![create_text_content(text)])
 }
 
 fn create_result_with_artifact() -> CallToolResult {
-    CallToolResult {
-        content: vec![],
-        structured_content: Some(json!({"artifact": "data"})),
-        is_error: Some(false),
-        meta: None,
-    }
+    let mut result = CallToolResult::success(vec![]);
+    result.structured_content = Some(json!({"artifact": "data"}));
+    result
 }
 
 fn create_error_result() -> CallToolResult {
-    CallToolResult {
-        content: vec![create_text_content("Error")],
-        structured_content: Some(json!({"error": true})),
-        is_error: Some(true),
-        meta: None,
-    }
+    let mut result = CallToolResult::error(vec![create_text_content("Error")]);
+    result.structured_content = Some(json!({"error": true}));
+    result
 }
 
 mod response_strategy_tests {

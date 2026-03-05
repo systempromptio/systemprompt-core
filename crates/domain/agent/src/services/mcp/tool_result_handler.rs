@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::fmt;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::ai::tools::CallToolResult;

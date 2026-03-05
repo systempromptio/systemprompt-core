@@ -22,14 +22,14 @@ pub use shared::{
 };
 pub use types::{MessageRow, ToolCallRow};
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Subcommand;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
-use crate::shared::render_result;
 use crate::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum LogsCommands {

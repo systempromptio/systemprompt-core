@@ -1,5 +1,5 @@
-use super::types::{WebhookConfig, WebhookDeliveryResult, WebhookStats, WebhookTestResult};
 use super::WebhookService;
+use super::types::{WebhookConfig, WebhookDeliveryResult, WebhookStats, WebhookTestResult};
 use crate::models::external_integrations::{IntegrationError, IntegrationResult};
 use serde_json::Value;
 use std::collections::HashMap;

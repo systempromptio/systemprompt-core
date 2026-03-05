@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use axum::http::HeaderMap;
 use systemprompt_identifiers::{AgentName, ContextId, SessionId, TraceId, UserId};
 use systemprompt_models::auth::{JwtAudience, JwtClaims, Permission, UserType};
@@ -86,7 +86,7 @@ impl AuthValidationService {
     }
 
     fn validate_token(&self, token: &str) -> Result<ValidatedSessionClaims> {
-        use jsonwebtoken::{decode, Algorithm, DecodingKey, Validation};
+        use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode};
 
         let mut validation = Validation::new(Algorithm::HS256);
 

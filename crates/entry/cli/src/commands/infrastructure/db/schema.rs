@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::collections::HashSet;
 use systemprompt_database::{DatabaseAdminService, DatabaseCliDisplay};
 use systemprompt_logging::CliService;
 use tabled::{Table, Tabled};
 
 use crate::cli_settings::CliConfig;
-use crate::shared::{render_result, CommandResult};
+use crate::shared::{CommandResult, render_result};
 
 use super::helpers::format_bytes;
 use super::types::{

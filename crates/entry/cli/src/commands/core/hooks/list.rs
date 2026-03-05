@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::path::Path;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_models::{HookEvent, HookEventsConfig, HookMatcher, PluginConfigFile};
 
 use super::types::{HookEntry, HookListOutput};

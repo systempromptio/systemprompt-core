@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 
-use super::{parse_database_datetime, DbValue};
+use super::{DbValue, parse_database_datetime};
 
 pub trait FromDbValue: Sized {
     fn from_db_value(value: &DbValue) -> Result<Self>;

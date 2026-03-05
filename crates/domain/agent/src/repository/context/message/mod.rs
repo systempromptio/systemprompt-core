@@ -10,7 +10,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-pub use parts::{get_message_parts, FileUploadContext};
+pub use parts::{FileUploadContext, get_message_parts};
 pub use persistence::{persist_message_sqlx, persist_message_with_tx};
 pub use queries::{
     get_messages_by_context, get_messages_by_task, get_next_sequence_number,

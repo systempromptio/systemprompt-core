@@ -24,7 +24,7 @@ impl Default for RetryConfiguration {
 pub async fn retry_operation<F, Fut, T>(operation: F, config: RetryConfiguration) -> Result<T>
 where
     F: Fn() -> Fut,
-    Fut: std::future::Future<Output = Result<T>>,
+    Fut: Future<Output = Result<T>>,
 {
     let mut current_delay = config.initial_delay;
 
@@ -61,7 +61,7 @@ pub async fn retry_operation_with_backoff<F, Fut, T>(
 ) -> Result<T>
 where
     F: Fn() -> Fut,
-    Fut: std::future::Future<Output = Result<T>>,
+    Fut: Future<Output = Result<T>>,
 {
     let config = RetryConfiguration {
         max_attempts,
@@ -73,7 +73,7 @@ where
 
 pub async fn execute_with_timeout<F, T>(duration: Duration, operation: F) -> Result<T>
 where
-    F: std::future::Future<Output = Result<T>>,
+    F: Future<Output = Result<T>>,
 {
     timeout(duration, operation)
         .await
@@ -105,7 +105,7 @@ pub async fn execute_with_custom_timeout<F, T>(
     operation: F,
 ) -> Result<T>
 where
-    F: std::future::Future<Output = Result<T>>,
+    F: Future<Output = Result<T>>,
 {
     let duration = match timeout_type {
         TimeoutType::Connect => config.connect_timeout,

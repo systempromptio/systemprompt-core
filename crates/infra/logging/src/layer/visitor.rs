@@ -1,5 +1,5 @@
-use tracing::field::{Field, Visit};
 use tracing::Subscriber;
+use tracing::field::{Field, Visit};
 use tracing_subscriber::registry::LookupSpan;
 
 mod field_names {

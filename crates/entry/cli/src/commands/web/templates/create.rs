@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
 use std::io::{self, Read};
 use std::path::Path;
 
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_logging::CliService;
 
 use super::super::paths::WebPaths;

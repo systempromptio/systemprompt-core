@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use sqlx::postgres::PgPool;
 use sqlx::Row;
+use sqlx::postgres::PgPool;
 
 use crate::models::{ColumnInfo, DatabaseInfo, IndexInfo, TableInfo};
 

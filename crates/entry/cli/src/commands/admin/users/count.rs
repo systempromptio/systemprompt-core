@@ -7,8 +7,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
 use super::types::{UserCountBreakdownOutput, UserCountOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct CountArgs {

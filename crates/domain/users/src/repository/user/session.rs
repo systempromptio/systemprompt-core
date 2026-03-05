@@ -3,7 +3,7 @@ use systemprompt_identifiers::{SessionId, UserId};
 
 use crate::error::Result;
 use crate::models::{UserSession, UserSessionRow};
-use crate::repository::{UserRepository, MAX_PAGE_SIZE};
+use crate::repository::{MAX_PAGE_SIZE, UserRepository};
 
 impl UserRepository {
     pub async fn list_sessions(&self, user_id: &UserId) -> Result<Vec<UserSession>> {

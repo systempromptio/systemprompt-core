@@ -189,12 +189,7 @@ mod tool_results_params_tests {
     }
 
     fn sample_results() -> Vec<CallToolResult> {
-        vec![CallToolResult {
-            content: vec![],
-            structured_content: None,
-            is_error: Some(false),
-            meta: None,
-        }]
+        vec![CallToolResult::success(vec![])]
     }
 
     #[test]

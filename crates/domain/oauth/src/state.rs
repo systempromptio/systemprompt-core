@@ -1,4 +1,4 @@
-use crate::services::webauthn::{create_link_states, LinkStates};
+use crate::services::webauthn::{LinkStates, create_link_states};
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_traits::{

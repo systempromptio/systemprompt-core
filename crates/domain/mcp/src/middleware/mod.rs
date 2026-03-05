@@ -6,7 +6,7 @@ use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_models::RequestContext as SysRequestContext;
 use systemprompt_traits::ContextPropagation;
 
-pub use rbac::{enforce_rbac_from_registry, AuthResult, AuthenticatedRequestContext};
+pub use rbac::{AuthResult, AuthenticatedRequestContext, enforce_rbac_from_registry};
 pub use session_manager::DatabaseSessionManager;
 
 pub fn extract_bearer_token(

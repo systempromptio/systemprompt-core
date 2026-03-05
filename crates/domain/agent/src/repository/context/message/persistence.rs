@@ -3,7 +3,7 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-use super::parts::{persist_part_sqlx, persist_part_with_tx, FileUploadContext};
+use super::parts::{FileUploadContext, persist_part_sqlx, persist_part_with_tx};
 
 pub async fn persist_message_sqlx(
     tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,

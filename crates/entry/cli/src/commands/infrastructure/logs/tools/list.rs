@@ -6,9 +6,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::queries::query_tools;
 use super::{ToolExecutionRow, ToolsListOutput};
-use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::commands::infrastructure::logs::duration::parse_since;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

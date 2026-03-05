@@ -5,9 +5,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use super::types::{McpListOutput, McpServerSummary};
-use crate::shared::project::ProjectRoot;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
+use crate::shared::project::ProjectRoot;
 use systemprompt_loader::ConfigLoader;
 
 #[derive(Debug, Clone, Copy, Args)]

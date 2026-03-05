@@ -4,9 +4,9 @@ use systemprompt_files::AiService;
 use systemprompt_identifiers::{FileId, UserId};
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::core::files::types::{AiFilesListOutput, FileSummary};
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

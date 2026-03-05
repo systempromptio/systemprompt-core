@@ -8,6 +8,6 @@ pub mod types;
 pub use claims::JwtClaims;
 pub use cloud_claims::CloudAuthClaims;
 pub use enums::*;
-pub use permission::{parse_permissions, permissions_to_string, Permission};
+pub use permission::{Permission, parse_permissions, permissions_to_string};
 pub use roles::{BaseRole, BaseRoles};
-pub use types::{AuthError, AuthenticatedUser, GrantType, PkceMethod, ResponseType, BEARER_PREFIX};
+pub use types::{AuthError, AuthenticatedUser, BEARER_PREFIX, GrantType, PkceMethod, ResponseType};

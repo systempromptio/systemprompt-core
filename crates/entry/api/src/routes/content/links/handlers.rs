@@ -1,5 +1,5 @@
 use super::types::{
-    internal_error, AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery,
+    AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery, internal_error,
 };
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

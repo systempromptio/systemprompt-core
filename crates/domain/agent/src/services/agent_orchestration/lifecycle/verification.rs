@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::AgentLifecycle;
 use crate::services::agent_orchestration::{
-    process, AgentStatus, OrchestrationError, OrchestrationResult,
+    AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
 
 impl AgentLifecycle {

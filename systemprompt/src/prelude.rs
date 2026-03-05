@@ -1,7 +1,7 @@
 #[cfg(feature = "core")]
 pub use systemprompt_extension::{
-    register_extension, Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry,
-    ExtensionRouter, SchemaDefinition, SchemaSource,
+    Extension, ExtensionContext, ExtensionMetadata, ExtensionRegistry, ExtensionRouter,
+    SchemaDefinition, SchemaSource, register_extension,
 };
 
 #[cfg(feature = "core")]
@@ -18,8 +18,8 @@ pub use systemprompt_traits::{LlmProvider, LlmProviderResult, ToolProvider, Tool
 
 #[cfg(feature = "database")]
 pub use systemprompt_database::{
-    repository::{Entity, EntityId, GenericRepository, RepositoryExt},
     DatabaseProvider, DbPool,
+    repository::{Entity, EntityId, GenericRepository, RepositoryExt},
 };
 
 #[cfg(feature = "api")]

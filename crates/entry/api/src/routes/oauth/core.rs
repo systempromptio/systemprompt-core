@@ -1,6 +1,6 @@
 use super::{clients, endpoints, health, webauthn};
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use systemprompt_oauth::OAuthState;
 
 pub fn router() -> Router<OAuthState> {

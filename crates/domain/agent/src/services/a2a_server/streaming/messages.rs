@@ -4,12 +4,12 @@ use axum::response::sse::Event;
 use systemprompt_models::RequestContext;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
+use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
-use crate::models::a2a::Message;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 
-use super::event_loop::{handle_stream_creation_error, process_events, ProcessEventsParams};
+use super::event_loop::{ProcessEventsParams, handle_stream_creation_error, process_events};
 use super::initialization::setup_stream;
 use super::types::StreamInput;
 use super::webhook_client::WebhookContext;

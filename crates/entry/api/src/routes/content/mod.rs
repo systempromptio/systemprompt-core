@@ -4,8 +4,8 @@ pub mod query;
 
 use std::sync::Arc;
 
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use systemprompt_database::DbPool;
 use systemprompt_runtime::AppContext;
 

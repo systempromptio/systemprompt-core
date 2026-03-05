@@ -4,11 +4,11 @@ use axum::response::{IntoResponse, Json};
 use systemprompt_models::Config;
 
 use super::validation::validate_registration_token;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_oauth::OAuthState;
 
 pub async fn update_client_configuration(
     State(state): State<OAuthState>,

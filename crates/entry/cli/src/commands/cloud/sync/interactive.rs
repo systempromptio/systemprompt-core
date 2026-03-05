@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
-use anyhow::{bail, Context, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Context, Result, bail};
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
@@ -10,7 +10,7 @@ use systemprompt_models::Profile;
 
 use crate::cli_settings::CliConfig;
 
-use super::{skills, SkillsSyncArgs};
+use super::{SkillsSyncArgs, skills};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SyncType {
@@ -133,7 +133,7 @@ fn discover_profiles() -> Result<Vec<ProfileSelection>> {
 }
 
 async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> Result<()> {
-    use systemprompt_cloud::{get_cloud_paths, CloudPath, CredentialsBootstrap, TenantStore};
+    use systemprompt_cloud::{CloudPath, CredentialsBootstrap, TenantStore, get_cloud_paths};
     use systemprompt_sync::{SyncConfig, SyncDirection, SyncOperationResult, SyncService};
 
     let creds = CredentialsBootstrap::require()
@@ -213,7 +213,7 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
 }
 
 async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
+    unsafe { std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path) };
 
     let args = SkillsSyncArgs {
         direction: None,

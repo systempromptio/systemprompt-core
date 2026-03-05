@@ -1,7 +1,7 @@
 use super::column::Column;
 use crate::artifacts::traits::ArtifactSchema;
 use crate::artifacts::types::SortOrder;
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 
 #[derive(Debug, Clone, Default)]
 pub struct TableHints {

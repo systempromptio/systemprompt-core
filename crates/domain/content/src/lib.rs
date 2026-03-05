@@ -12,11 +12,11 @@ pub mod models;
 pub mod repository;
 pub mod services;
 
-pub use branding_provider::{default_branding_provider, DefaultBrandingProvider};
+pub use branding_provider::{DefaultBrandingProvider, default_branding_provider};
 pub use extension::ContentExtension;
-pub use homepage_prerenderer::{default_homepage_prerenderer, DefaultHomepagePrerenderer};
-pub use list_branding_provider::{default_list_branding_provider, DefaultListBrandingProvider};
-pub use list_items_renderer::{default_list_items_renderer, ListItemsCardRenderer};
+pub use homepage_prerenderer::{DefaultHomepagePrerenderer, default_homepage_prerenderer};
+pub use list_branding_provider::{DefaultListBrandingProvider, default_list_branding_provider};
+pub use list_items_renderer::{ListItemsCardRenderer, default_list_items_renderer};
 
 pub use config::{
     ContentConfigValidated, ContentReady, ContentSourceConfigValidated, LoadStats, ParsedContent,

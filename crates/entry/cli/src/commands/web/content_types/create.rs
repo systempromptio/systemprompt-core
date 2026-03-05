@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::fs;
 
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use systemprompt_identifiers::{CategoryId, SourceId};

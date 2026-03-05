@@ -1,10 +1,10 @@
 use anyhow::Result;
 use tracing::Instrument;
 
+use crate::McpServerConfig;
 use crate::services::database::state::get_binary_mtime_for_service;
 use crate::services::database::{DatabaseManager, ServiceInfo};
 use crate::services::process::ProcessManager;
-use crate::McpServerConfig;
 
 pub async fn detect_and_handle_orphaned_processes(
     servers: &[McpServerConfig],

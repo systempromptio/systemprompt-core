@@ -16,7 +16,7 @@ use super::startup::{
     render_startup_banner,
 };
 use super::summary::{OperationResult, ProgressSummary, ValidationSummary};
-use super::table::{render_service_table, render_startup_complete, ServiceTableEntry};
+use super::table::{ServiceTableEntry, render_service_table, render_startup_complete};
 use super::theme::{EmphasisType, ItemStatus, MessageLevel, ModuleType, Theme};
 
 #[derive(Copy, Clone, Debug)]

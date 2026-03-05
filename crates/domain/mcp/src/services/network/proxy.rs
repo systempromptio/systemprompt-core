@@ -1,9 +1,9 @@
+use axum::Router;
 use axum::extract::Request;
 use axum::http::StatusCode;
 use axum::routing::any;
-use axum::Router;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 pub fn create_proxy_router(target_host: &str, target_port: u16) -> Router {
     let target_url = format!("http://{target_host}:{target_port}");

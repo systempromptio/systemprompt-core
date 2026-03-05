@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{BanDuration, BanIpParams, BannedIpRepository};
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::BanAddOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 const CLI_BAN_SOURCE: &str = "cli";
 

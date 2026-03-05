@@ -6,11 +6,11 @@ use chrono::Utc;
 use systemprompt_models::Config;
 use uuid::Uuid;
 
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
-use systemprompt_oauth::OAuthState;
 
 pub async fn register_client(
     State(state): State<OAuthState>,

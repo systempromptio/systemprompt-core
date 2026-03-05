@@ -1,18 +1,18 @@
+use axum::Json;
 use axum::body::Body;
 use axum::extract::Query;
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
-use axum::Json;
+use flate2::Compression;
 use flate2::read::GzDecoder;
 use flate2::write::GzEncoder;
-use flate2::Compression;
 use sha2::{Digest, Sha256};
 use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_models::api::ApiError;
 use tar::{Archive, Builder};
 
-use super::types::{to_api_error, ApiResult, FileEntry, FileManifest, FilesQuery, UploadResult};
+use super::types::{ApiResult, FileEntry, FileManifest, FilesQuery, UploadResult, to_api_error};
 
 const ALLOWED_DIRS: &[&str] = &[
     "agents", "skills", "content", "mcp", "ai", "config", "profiles",

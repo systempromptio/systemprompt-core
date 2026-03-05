@@ -25,7 +25,7 @@ pub async fn delete_context(
     let context_repo = match ContextRepository::new(&db_pool) {
         Ok(repo) => repo,
         Err(e) => {
-            return api_error_response(ApiError::internal_error(format!("Database error: {e}")))
+            return api_error_response(ApiError::internal_error(format!("Database error: {e}")));
         },
     };
     let user_id = &req_ctx.auth.user_id;

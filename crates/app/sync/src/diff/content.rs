@@ -1,6 +1,6 @@
 use super::compute_content_hash;
 use crate::models::{ContentDiffItem, ContentDiffResult, DiffStatus, DiskContent};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_content::models::Content;

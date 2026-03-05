@@ -14,7 +14,7 @@ pub mod shared;
 pub use cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 pub use commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
 
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use systemprompt_logging::set_startup_mode;
 use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};

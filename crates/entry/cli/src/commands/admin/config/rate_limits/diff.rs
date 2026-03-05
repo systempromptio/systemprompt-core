@@ -1,14 +1,14 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
 use std::path::Path;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::RateLimitsConfig;
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_models::profile::RateLimitsConfig;
 
 use super::DiffArgs;
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{DiffEntry, DiffOutput};
 

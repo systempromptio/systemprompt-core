@@ -1,9 +1,9 @@
 use clap::Args;
 use systemprompt_extension::{ExtensionRegistry, SchemaSource};
 
+use crate::CliConfig;
 use crate::commands::plugins::types::{SchemaWithExtension, SchemasListOutput};
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct SchemasArgs {

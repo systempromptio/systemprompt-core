@@ -7,9 +7,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ActiveSessionRow, LiveSessionsOutput};
-use crate::commands::analytics::shared::{export_to_csv, resolve_export_path};
-use crate::shared::{render_result, CommandResult, RenderingHints};
 use crate::CliConfig;
+use crate::commands::analytics::shared::{export_to_csv, resolve_export_path};
+use crate::shared::{CommandResult, RenderingHints, render_result};
 
 #[derive(Debug, Clone, Args)]
 pub struct LiveArgs {

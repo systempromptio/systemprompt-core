@@ -54,7 +54,7 @@ pub trait ContentProvider: Send + Sync {
     ) -> Result<Option<ContentItem>, Self::Error>;
 
     async fn list_content(&self, filter: ContentFilter)
-        -> Result<Vec<ContentSummary>, Self::Error>;
+    -> Result<Vec<ContentSummary>, Self::Error>;
 
     async fn search(
         &self,

@@ -1,5 +1,5 @@
 use crate::CliConfig;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Select};
 

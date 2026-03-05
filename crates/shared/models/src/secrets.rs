@@ -5,7 +5,7 @@ use std::path::Path;
 use std::sync::OnceLock;
 
 use crate::paths::constants::env_vars;
-use crate::profile::{resolve_with_home, SecretsSource, SecretsValidationMode};
+use crate::profile::{SecretsSource, SecretsValidationMode, resolve_with_home};
 use crate::profile_bootstrap::ProfileBootstrap;
 
 static SECRETS: OnceLock<Secrets> = OnceLock::new();

@@ -1,15 +1,15 @@
 use super::generation::{
-    convert_token_result_to_response, generate_client_tokens, generate_tokens_by_user_id,
-    TokenGenerationParams,
+    TokenGenerationParams, convert_token_result_to_response, generate_client_tokens,
+    generate_tokens_by_user_id,
 };
 use super::validation::{
     extract_required_field, validate_authorization_code, validate_client_credentials,
 };
 use super::{TokenError, TokenRequest};
+use axum::Form;
 use axum::extract::{Extension, State};
 use axum::http::HeaderMap;
 use axum::response::IntoResponse;
-use axum::Form;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, RefreshTokenId};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::repository::OAuthRepository;

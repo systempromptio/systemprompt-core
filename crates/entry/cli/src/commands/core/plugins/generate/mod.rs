@@ -4,12 +4,12 @@ mod marketplace;
 mod mcp;
 mod skills;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::{Path, PathBuf};
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_models::PluginConfigFile;
 
 use super::types::{PluginGenerateAllOutput, PluginGenerateOutput};

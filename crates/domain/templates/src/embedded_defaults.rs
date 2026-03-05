@@ -17,11 +17,13 @@ impl TemplateProvider for EmbeddedDefaultsProvider {
     }
 
     fn templates(&self) -> Vec<TemplateDefinition> {
-        vec![TemplateDefinition::embedded(
-            "homepage",
-            include_str!("../defaults/templates/homepage.html"),
-        )
-        .with_priority(Self::PRIORITY)
-        .for_content_type("homepage")]
+        vec![
+            TemplateDefinition::embedded(
+                "homepage",
+                include_str!("../defaults/templates/homepage.html"),
+            )
+            .with_priority(Self::PRIORITY)
+            .for_content_type("homepage"),
+        ]
     }
 }

@@ -1,5 +1,5 @@
-use crate::modules::ApiPaths;
 use crate::ContentRouting;
+use crate::modules::ApiPaths;
 use std::path::Path;
 use std::sync::Arc;
 

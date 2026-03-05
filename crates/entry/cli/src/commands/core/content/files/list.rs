@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -6,11 +6,11 @@ use systemprompt_files::ContentService;
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::core::files::types::{
     ContentFileRow, ContentFilesOutput, FileContentLinkRow, FileContentLinksOutput,
 };
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct ListArgs {

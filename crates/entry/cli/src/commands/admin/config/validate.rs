@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Args;
 
-use super::types::{read_yaml_file, ConfigFileInfo, ConfigSection, ConfigValidateOutput};
-use crate::shared::CommandResult;
+use super::types::{ConfigFileInfo, ConfigSection, ConfigValidateOutput, read_yaml_file};
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ValidateArgs {

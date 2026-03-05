@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::fs;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::super::paths::WebPaths;
 use super::super::types::{TemplateListOutput, TemplateSummary, TemplatesConfig};

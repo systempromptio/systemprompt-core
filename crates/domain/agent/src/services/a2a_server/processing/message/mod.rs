@@ -4,12 +4,12 @@ mod stream_processor;
 
 pub use stream_processor::StreamProcessor;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::models::a2a::{Artifact, Message, Task};
 use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::{Artifact, Message, Task};
 use systemprompt_models::{AiProvider, CallToolResult, ToolCall};
 
 #[derive(Debug)]

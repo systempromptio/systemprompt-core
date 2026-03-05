@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use async_trait::async_trait;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;

@@ -11,7 +11,7 @@
 
 # systemprompt-client
 
-HTTP API client library for systemprompt.io - enables TUI and external clients to communicate with the server.
+HTTP API client library for systemprompt.io - enables CLI and external clients to communicate with the server.
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt-client.svg)](https://crates.io/crates/systemprompt-client)
 [![Documentation](https://docs.rs/systemprompt-client/badge.svg)](https://docs.rs/systemprompt-client)
@@ -21,7 +21,7 @@ HTTP API client library for systemprompt.io - enables TUI and external clients t
 
 **Part of the Shared layer in the systemprompt.io architecture.**
 
-This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (TUI, CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
+This crate provides a type-safe, async HTTP client for interacting with the systemprompt.io API. It serves as the primary interface for external applications (CLI tools, third-party integrations) to communicate with the systemprompt.io server without depending on internal business logic.
 
 ### Design Principles
 

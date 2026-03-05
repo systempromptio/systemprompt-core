@@ -1,6 +1,6 @@
 use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
+use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use std::process::Command;
 use systemprompt_cloud::ProjectContext;

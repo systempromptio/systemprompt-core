@@ -1,8 +1,8 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use systemprompt_database::{QueryExecutor, QueryResult};
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::helpers::{extract_relation_name, suggest_table_name};
 use super::types::DbExecuteOutput;

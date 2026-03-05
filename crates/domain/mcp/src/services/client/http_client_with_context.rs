@@ -1,5 +1,5 @@
-use futures::stream::BoxStream;
 use futures::StreamExt;
+use futures::stream::BoxStream;
 use http::header::WWW_AUTHENTICATE;
 use http::{HeaderName, HeaderValue};
 use reqwest::header::ACCEPT;

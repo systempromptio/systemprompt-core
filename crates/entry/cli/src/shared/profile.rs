@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_loader::ProfileLoader;
 use systemprompt_models::Profile;

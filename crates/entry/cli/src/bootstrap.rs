@@ -7,7 +7,7 @@ use systemprompt_logging::CliService;
 use systemprompt_models::profile::LogLevel;
 use systemprompt_models::{AppPaths, Config, Profile, ProfileBootstrap, SecretsBootstrap};
 use systemprompt_runtime::{
-    display_validation_report, display_validation_warnings, StartupValidator,
+    StartupValidator, display_validation_report, display_validation_warnings,
 };
 
 use crate::cli_settings::{CliConfig, OutputFormat, VerbosityLevel};

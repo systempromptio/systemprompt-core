@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use anyhow::Result;
-use systemprompt_extension::runtime_config::{
-    set_injected_extensions, InjectedExtensions, WebAssetsStrategy,
-};
 use systemprompt_extension::Extension;
+use systemprompt_extension::runtime_config::{
+    InjectedExtensions, WebAssetsStrategy, set_injected_extensions,
+};
 
 pub use systemprompt_extension::runtime_config::WebAssetsStrategy as WebAssets;
 

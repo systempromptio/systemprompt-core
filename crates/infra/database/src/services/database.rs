@@ -45,7 +45,7 @@ impl Database {
             other => {
                 return Err(anyhow::anyhow!(
                     "Unsupported database type: {other}. Only PostgreSQL is supported."
-                ))
+                ));
             },
         };
 

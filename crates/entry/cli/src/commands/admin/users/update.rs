@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserAdminService, UserService, UserStatus};
 
 use super::list::StatusFilter;
 use super::types::UserUpdatedOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct UpdateArgs {

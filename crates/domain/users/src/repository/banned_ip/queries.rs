@@ -1,7 +1,7 @@
 use anyhow::Result;
 
-use super::types::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
 use super::BannedIpRepository;
+use super::types::{BanDuration, BanIpParams, BanIpWithMetadataParams, BannedIp};
 
 impl BannedIpRepository {
     pub async fn is_banned(&self, ip_address: &str) -> Result<bool> {

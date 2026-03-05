@@ -5,11 +5,11 @@ use std::collections::HashMap;
 use std::pin::Pin;
 
 use systemprompt_identifiers::AgentName;
+use systemprompt_models::RequestContext;
 use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, CallToolResult, GenerateResponseParams, GoogleSearchParams,
     McpTool, PlanningResult, SearchGroundedResponse, ToolCall, ToolModelOverrides,
 };
-use systemprompt_models::RequestContext;
 
 use super::service::AiService;
 

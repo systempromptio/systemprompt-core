@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::PathBuf;
 use systemprompt_analytics::ToolAnalyticsRepository;
@@ -6,11 +6,11 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{AgentUsageItem, ErrorItem, StatusBreakdownItem, ToolShowOutput, ToolStatsOutput};
+use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_single_to_csv, parse_time_range, resolve_export_path,
 };
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

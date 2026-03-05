@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Select};
 use std::fs;
@@ -6,8 +6,8 @@ use std::process::Command;
 use systemprompt_cloud::constants::checkout::CALLBACK_PORT;
 use systemprompt_cloud::constants::regions::AVAILABLE;
 use systemprompt_cloud::{
-    run_checkout_callback_flow, wait_for_provisioning, CheckoutTemplates, CloudApiClient,
-    CloudCredentials, ProjectContext, StoredTenant, TenantType,
+    CheckoutTemplates, CloudApiClient, CloudCredentials, ProjectContext, StoredTenant, TenantType,
+    run_checkout_callback_flow, wait_for_provisioning,
 };
 use systemprompt_logging::CliService;
 use url::Url;
@@ -19,11 +19,11 @@ use crate::cloud::profile::{
 use crate::cloud::templates::{CHECKOUT_ERROR_HTML, CHECKOUT_SUCCESS_HTML, WAITING_HTML};
 
 use super::docker::{
-    check_volume_exists, create_database_for_tenant, ensure_admin_role, generate_admin_password,
+    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, check_volume_exists,
+    create_database_for_tenant, ensure_admin_role, generate_admin_password,
     generate_shared_postgres_compose, get_container_password, is_shared_container_running,
     load_shared_config, nanoid, remove_shared_volume, save_shared_config,
-    wait_for_postgres_healthy, SharedContainerConfig, SHARED_ADMIN_USER, SHARED_PORT,
-    SHARED_VOLUME_NAME,
+    wait_for_postgres_healthy,
 };
 use super::validation::{validate_build_ready, warn_required_secrets};
 use crate::cloud::profile::templates::validate_connection;
@@ -356,7 +356,7 @@ pub async fn create_cloud_tenant(
     CliService::info(
         "External database access allows direct PostgreSQL connections from your local machine.",
     );
-    CliService::info("This is required for the TUI and local development workflows.");
+    CliService::info("This is required for local development workflows.");
 
     let enable_external = Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Enable external database access?")
@@ -381,7 +381,7 @@ pub async fn create_cloud_tenant(
             },
         }
     } else {
-        CliService::info("External access disabled. TUI features will be limited.");
+        CliService::info("External access disabled. Some local features will be limited.");
         (false, None)
     };
 

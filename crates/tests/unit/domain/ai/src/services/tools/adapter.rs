@@ -233,12 +233,7 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn converts_text_content() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Hello")],
-            structured_content: None,
-            is_error: Some(false),
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_text_content("Hello")]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -251,12 +246,7 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn converts_image_content() {
-        let result = CallToolResult {
-            content: vec![create_image_content()],
-            structured_content: None,
-            is_error: Some(false),
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_image_content()]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -272,12 +262,7 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn converts_resource_content() {
-        let result = CallToolResult {
-            content: vec![create_resource_content()],
-            structured_content: None,
-            is_error: Some(false),
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_resource_content()]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -293,12 +278,8 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn preserves_structured_content() {
-        let result = CallToolResult {
-            content: vec![],
-            structured_content: Some(json!({"key": "value"})),
-            is_error: Some(false),
-            meta: None,
-        };
+        let mut result = CallToolResult::success(vec![]);
+        result.structured_content = Some(json!({"key": "value"}));
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -307,12 +288,7 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn preserves_is_error() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Error occurred")],
-            structured_content: None,
-            is_error: Some(true),
-            meta: None,
-        };
+        let result = CallToolResult::error(vec![create_text_content("Error occurred")]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -321,12 +297,7 @@ mod rmcp_result_to_trait_result_tests {
 
     #[test]
     fn handles_multiple_content_types() {
-        let result = CallToolResult {
-            content: vec![create_text_content("Hello"), create_image_content()],
-            structured_content: None,
-            is_error: Some(false),
-            meta: None,
-        };
+        let result = CallToolResult::success(vec![create_text_content("Hello"), create_image_content()]);
 
         let trait_result = rmcp_result_to_trait_result(&result);
 
@@ -435,20 +406,16 @@ mod trait_result_to_rmcp_result_tests {
 
     #[test]
     fn roundtrip_preserves_content() {
-        let original = CallToolResult {
-            content: vec![
-                Annotated {
-                    raw: RawContent::Text(RawTextContent {
-                        text: "roundtrip".to_string(),
-                        meta: None,
-                    }),
-                    annotations: None,
-                },
-            ],
-            structured_content: Some(json!({"test": true})),
-            is_error: Some(false),
-            meta: None,
-        };
+        let mut original = CallToolResult::success(vec![
+            Annotated {
+                raw: RawContent::Text(RawTextContent {
+                    text: "roundtrip".to_string(),
+                    meta: None,
+                }),
+                annotations: None,
+            },
+        ]);
+        original.structured_content = Some(json!({"test": true}));
 
         let trait_result = rmcp_result_to_trait_result(&original);
         let back = trait_result_to_rmcp_result(&trait_result);

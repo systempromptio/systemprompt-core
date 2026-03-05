@@ -2,11 +2,11 @@ use anyhow::Result;
 use clap::{Args, Subcommand};
 
 use super::types::{
-    read_yaml_file, write_yaml_file, ConfigSection, ProviderInfo, ProviderListOutput,
-    ProviderSetOutput,
+    ConfigSection, ProviderInfo, ProviderListOutput, ProviderSetOutput, read_yaml_file,
+    write_yaml_file,
 };
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum ProviderCommands {

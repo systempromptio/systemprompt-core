@@ -45,7 +45,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-edition = "2021"
+edition = "2024"
 authors = ["Edward Burton"]
 license = "BSL-1.0"
 version = "0.0.11"

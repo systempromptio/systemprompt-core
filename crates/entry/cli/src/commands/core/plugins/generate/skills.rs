@@ -1,6 +1,6 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
-use systemprompt_models::{strip_frontmatter, ComponentFilter, ComponentSource, PluginConfig};
+use systemprompt_models::{ComponentFilter, ComponentSource, PluginConfig, strip_frontmatter};
 
 pub fn generate_skills(
     plugin: &PluginConfig,

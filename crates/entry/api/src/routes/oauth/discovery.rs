@@ -1,10 +1,10 @@
+use axum::Json;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
-use axum::Json;
 use serde::Serialize;
+use systemprompt_models::Config;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_models::oauth::OAuthServerConfig;
-use systemprompt_models::Config;
 
 use crate::routes::proxy::mcp::get_mcp_server_scopes;
 

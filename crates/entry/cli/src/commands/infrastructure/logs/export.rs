@@ -8,8 +8,8 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
 pub enum ExportFormat {

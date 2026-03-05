@@ -1,6 +1,6 @@
 use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::{
-    process, AgentStatus, OrchestrationError, OrchestrationResult,
+    AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
 use crate::services::registry::AgentRegistry;
 use systemprompt_models::services::AgentConfig;

@@ -9,8 +9,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_runtime::DatabaseContext;
 
 use super::types::{MessageRow, ToolCallRow};
-use crate::shared::render_result;
 use crate::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum RequestCommands {

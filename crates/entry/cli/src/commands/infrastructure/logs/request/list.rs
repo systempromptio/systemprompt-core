@@ -6,10 +6,10 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{RequestListOutput, RequestListRow};
+use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::commands::infrastructure::logs::shared::truncate_id;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

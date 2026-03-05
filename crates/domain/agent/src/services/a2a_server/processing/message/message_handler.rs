@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use uuid::Uuid;
 
 use super::persistence::{broadcast_completion, persist_completed_task};

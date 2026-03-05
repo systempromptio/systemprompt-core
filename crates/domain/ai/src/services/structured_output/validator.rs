@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Copy, Clone)]
@@ -29,10 +29,10 @@ impl SchemaValidator {
             _ => {},
         }
 
-        if let Some(enum_values) = schema.get("enum").and_then(|e| e.as_array()) {
-            if !enum_values.contains(value) {
-                return Err(anyhow!("Value at {path} must be one of: {enum_values:?}"));
-            }
+        if let Some(enum_values) = schema.get("enum").and_then(|e| e.as_array())
+            && !enum_values.contains(value)
+        {
+            return Err(anyhow!("Value at {path} must be one of: {enum_values:?}"));
         }
 
         Ok(())
@@ -85,10 +85,10 @@ impl SchemaValidator {
 
         if let Some(required) = schema.get("required").and_then(|r| r.as_array()) {
             for req_prop in required {
-                if let Some(prop_name) = req_prop.as_str() {
-                    if !obj.contains_key(prop_name) {
-                        return Err(anyhow!("Missing required property '{prop_name}' at {path}"));
-                    }
+                if let Some(prop_name) = req_prop.as_str()
+                    && !obj.contains_key(prop_name)
+                {
+                    return Err(anyhow!("Missing required property '{prop_name}' at {path}"));
                 }
             }
         }
@@ -125,16 +125,16 @@ impl SchemaValidator {
             .as_array()
             .ok_or_else(|| anyhow!("{path} must be an array"))?;
 
-        if let Some(min_items) = schema.get("minItems").and_then(serde_json::Value::as_u64) {
-            if arr.len() < min_items as usize {
-                return Err(anyhow!("{path} must have at least {min_items} items"));
-            }
+        if let Some(min_items) = schema.get("minItems").and_then(serde_json::Value::as_u64)
+            && arr.len() < min_items as usize
+        {
+            return Err(anyhow!("{path} must have at least {min_items} items"));
         }
 
-        if let Some(max_items) = schema.get("maxItems").and_then(serde_json::Value::as_u64) {
-            if arr.len() > max_items as usize {
-                return Err(anyhow!("{path} must have at most {max_items} items"));
-            }
+        if let Some(max_items) = schema.get("maxItems").and_then(serde_json::Value::as_u64)
+            && arr.len() > max_items as usize
+        {
+            return Err(anyhow!("{path} must have at most {max_items} items"));
         }
 
         if let Some(items_schema) = schema.get("items") {
@@ -152,23 +152,22 @@ impl SchemaValidator {
             .as_str()
             .ok_or_else(|| anyhow!("{path} must be a string"))?;
 
-        if let Some(min_length) = schema.get("minLength").and_then(serde_json::Value::as_u64) {
-            if str_val.len() < min_length as usize {
-                return Err(anyhow!("{path} must have at least {min_length} characters"));
-            }
+        if let Some(min_length) = schema.get("minLength").and_then(serde_json::Value::as_u64)
+            && str_val.len() < min_length as usize
+        {
+            return Err(anyhow!("{path} must have at least {min_length} characters"));
         }
 
-        if let Some(max_length) = schema.get("maxLength").and_then(serde_json::Value::as_u64) {
-            if str_val.len() > max_length as usize {
-                return Err(anyhow!("{path} must have at most {max_length} characters"));
-            }
+        if let Some(max_length) = schema.get("maxLength").and_then(serde_json::Value::as_u64)
+            && str_val.len() > max_length as usize
+        {
+            return Err(anyhow!("{path} must have at most {max_length} characters"));
         }
 
-        if let Some(pattern) = schema.get("pattern").and_then(|p| p.as_str()) {
-            let re = regex::Regex::new(pattern)?;
-            if !re.is_match(str_val) {
-                return Err(anyhow!("{path} does not match pattern: {pattern}"));
-            }
+        if let Some(pattern) = schema.get("pattern").and_then(|p| p.as_str())
+            && !regex::Regex::new(pattern)?.is_match(str_val)
+        {
+            return Err(anyhow!("{path} does not match pattern: {pattern}"));
         }
 
         Ok(())
@@ -179,16 +178,16 @@ impl SchemaValidator {
             .as_f64()
             .ok_or_else(|| anyhow!("{path} must be a number"))?;
 
-        if let Some(minimum) = schema.get("minimum").and_then(serde_json::Value::as_f64) {
-            if num_val < minimum {
-                return Err(anyhow!("{path} must be >= {minimum}"));
-            }
+        if let Some(minimum) = schema.get("minimum").and_then(serde_json::Value::as_f64)
+            && num_val < minimum
+        {
+            return Err(anyhow!("{path} must be >= {minimum}"));
         }
 
-        if let Some(maximum) = schema.get("maximum").and_then(serde_json::Value::as_f64) {
-            if num_val > maximum {
-                return Err(anyhow!("{path} must be <= {maximum}"));
-            }
+        if let Some(maximum) = schema.get("maximum").and_then(serde_json::Value::as_f64)
+            && num_val > maximum
+        {
+            return Err(anyhow!("{path} must be <= {maximum}"));
         }
 
         Ok(())

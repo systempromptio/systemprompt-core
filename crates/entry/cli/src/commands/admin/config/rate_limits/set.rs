@@ -1,15 +1,15 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
+use super::SetArgs;
 use super::helpers::{
     get_endpoint_rate, get_tier_multiplier, load_profile_for_edit, save_profile, set_endpoint_rate,
     set_tier_multiplier,
 };
-use super::SetArgs;
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{RateLimitStatusOutput, SetRateLimitOutput};
 

@@ -1,6 +1,6 @@
 use crate::models::a2a::jsonrpc::NumberOrString;
 use axum::http::StatusCode;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use systemprompt_logging::LogLevel;
 use systemprompt_traits::RepositoryError;
 

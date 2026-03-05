@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::Duration;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath, ProfilePath, ProjectContext,
+    CloudApiClient, CloudCredentials, CloudPath, ProfilePath, ProjectContext, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 

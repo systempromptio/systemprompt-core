@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_analytics::{
-    FingerprintRepository, FingerprintReputation, FlagReason, ABUSE_THRESHOLD_FOR_BAN,
+    ABUSE_THRESHOLD_FOR_BAN, FingerprintRepository, FingerprintReputation, FlagReason,
     HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM, SUSTAINED_VELOCITY_MINUTES,
 };
 use systemprompt_database::DbPool;

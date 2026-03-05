@@ -29,7 +29,7 @@ pub async fn get_context(
             return api_error_response(
                 ApiError::internal_error(format!("Database error: {e}"))
                     .with_request_context(&req_ctx),
-            )
+            );
         },
     };
     let user_id = &req_ctx.auth.user_id;

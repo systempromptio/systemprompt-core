@@ -1,9 +1,9 @@
-use anyhow::{bail, Context, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Context, Result, bail};
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
-    get_cloud_paths, CloudApiClient, CloudPath, ProfilePath, ProjectContext, StoredTenant,
-    TenantStore, TenantType,
+    CloudApiClient, CloudPath, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
+    get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 use systemprompt_models::Profile;
@@ -12,13 +12,13 @@ use systemprompt_identifiers::TenantId;
 
 use crate::commands::cloud::tenant::get_credentials;
 
-use super::api_keys::{collect_api_keys, ApiKeys};
+use super::api_keys::{ApiKeys, collect_api_keys};
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::templates::{
-    get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
-    save_secrets, update_ai_config_default_provider, DatabaseUrls,
+    DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
+    save_profile, save_secrets, update_ai_config_default_provider,
 };
 use super::{CreateArgs, TenantTypeArg};
 use crate::cli_settings::CliConfig;

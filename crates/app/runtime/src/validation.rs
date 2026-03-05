@@ -1,5 +1,5 @@
 use crate::AppContext;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::path::Path;
 use systemprompt_database::validate_database_connection;
 

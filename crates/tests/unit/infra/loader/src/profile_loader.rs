@@ -701,7 +701,7 @@ fn test_load_with_env_var_substitution() {
     std::fs::create_dir_all(temp_dir.path().join("bin")).expect("Failed to create bin dir");
 
     // Set environment variable for test
-    std::env::set_var("TEST_PROFILE_HOST", "env-host.example.com");
+    unsafe { std::env::set_var("TEST_PROFILE_HOST", "env-host.example.com") };
 
     let profile_content = format!(
         r#"
@@ -763,5 +763,5 @@ rate_limits:
     assert_eq!(profile.server.host, "env-host.example.com");
 
     // Clean up
-    std::env::remove_var("TEST_PROFILE_HOST");
+    unsafe { std::env::remove_var("TEST_PROFILE_HOST") };
 }

@@ -4,7 +4,7 @@ use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 fn default_artifact_type() -> String {

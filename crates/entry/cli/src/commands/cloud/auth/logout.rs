@@ -1,7 +1,7 @@
 use anyhow::Result;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Confirm;
-use systemprompt_cloud::{get_cloud_paths, CloudApiClient, CloudCredentials, CloudPath};
+use dialoguer::theme::ColorfulTheme;
+use systemprompt_cloud::{CloudApiClient, CloudCredentials, CloudPath, get_cloud_paths};
 use systemprompt_logging::CliService;
 use systemprompt_models::modules::ApiPaths;
 

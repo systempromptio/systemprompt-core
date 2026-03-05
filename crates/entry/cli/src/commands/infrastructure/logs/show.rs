@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use schemars::JsonSchema;
@@ -9,8 +9,8 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::shared::truncate_id;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {

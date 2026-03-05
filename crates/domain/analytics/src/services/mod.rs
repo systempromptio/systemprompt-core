@@ -15,8 +15,8 @@ pub use anomaly_detection::{
     AnomalyCheckResult, AnomalyDetectionService, AnomalyEvent, AnomalyLevel, AnomalyThresholdConfig,
 };
 pub use behavioral_detector::{
-    BehavioralAnalysisInput, BehavioralAnalysisResult, BehavioralBotDetector, BehavioralSignal,
-    SignalType, BEHAVIORAL_BOT_THRESHOLD,
+    BEHAVIORAL_BOT_THRESHOLD, BehavioralAnalysisInput, BehavioralAnalysisResult,
+    BehavioralBotDetector, BehavioralSignal, SignalType,
 };
 pub use extractor::SessionAnalytics;
 pub use service::{AnalyticsService, CreateAnalyticsSessionInput};

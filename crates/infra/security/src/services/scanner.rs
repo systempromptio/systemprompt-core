@@ -107,30 +107,21 @@ impl ScannerDetector {
     }
 
     fn is_outdated_browser(ua_lower: &str) -> bool {
-        if ua_lower.contains("chrome/") {
-            if let Some(pos) = ua_lower.find("chrome/") {
-                let version_str = &ua_lower[pos + 7..];
-                if let Some(dot_pos) = version_str.find('.') {
-                    if let Ok(major) = version_str[..dot_pos].parse::<i32>() {
-                        if major < MIN_CHROME_VERSION {
-                            return true;
-                        }
-                    }
-                }
-            }
+        if let Some(pos) = ua_lower.find("chrome/")
+            && let Some(dot_pos) = ua_lower[pos + 7..].find('.')
+            && let Ok(major) = ua_lower[pos + 7..][..dot_pos].parse::<i32>()
+            && major < MIN_CHROME_VERSION
+        {
+            return true;
         }
 
-        if ua_lower.contains("firefox/") {
-            if let Some(pos) = ua_lower.find("firefox/") {
-                let version_str = &ua_lower[pos + 8..];
-                if let Some(space_pos) = version_str.find(|c: char| !c.is_numeric() && c != '.') {
-                    if let Ok(major) = version_str[..space_pos].parse::<i32>() {
-                        if major < MIN_FIREFOX_VERSION {
-                            return true;
-                        }
-                    }
-                }
-            }
+        if let Some(pos) = ua_lower.find("firefox/")
+            && let Some(space_pos) =
+                ua_lower[pos + 8..].find(|c: char| !c.is_numeric() && c != '.')
+            && let Ok(major) = ua_lower[pos + 8..][..space_pos].parse::<i32>()
+            && major < MIN_FIREFOX_VERSION
+        {
+            return true;
         }
 
         false

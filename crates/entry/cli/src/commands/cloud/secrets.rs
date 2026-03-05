@@ -1,4 +1,4 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -9,7 +9,7 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use super::tenant::get_credentials;
 use super::types::SecretsOutput;
 use crate::cli_settings::CliConfig;
-use crate::shared::{render_result, CommandResult};
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Subcommand)]
 pub enum SecretsCommands {

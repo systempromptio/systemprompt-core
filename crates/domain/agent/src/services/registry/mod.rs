@@ -1,7 +1,7 @@
 mod security;
 mod skills;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::sync::Arc;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;

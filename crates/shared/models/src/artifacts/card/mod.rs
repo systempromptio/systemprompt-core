@@ -4,7 +4,7 @@ use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, Default)]
@@ -174,7 +174,7 @@ impl PresentationCardArtifact {
         skill_name: impl Into<String>,
     ) -> Self {
         let id = skill_id.into();
-        self.skill_id = Some(id.as_str().to_string());
+        self.skill_id = Some(id.to_string());
         self.skill_name = Some(skill_name.into());
         self.metadata.skill_id = Some(id);
         self

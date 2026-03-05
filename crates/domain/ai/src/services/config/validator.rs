@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use systemprompt_models::services::AiConfig;
 use tracing::warn;
 

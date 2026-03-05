@@ -12,7 +12,7 @@ use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{MessageProcessor, StreamEvent};
 
 use super::handlers::text::TextStreamState;
-use super::handlers::{handle_complete, handle_error, HandleCompleteParams};
+use super::handlers::{HandleCompleteParams, handle_complete, handle_error};
 use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {

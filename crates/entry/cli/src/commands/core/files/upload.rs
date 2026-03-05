@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-use anyhow::{anyhow, Result};
-use base64::engine::general_purpose::STANDARD;
+use anyhow::{Result, anyhow};
 use base64::Engine;
+use base64::engine::general_purpose::STANDARD;
 use clap::Args;
 use sha2::{Digest, Sha256};
 use systemprompt_files::{FileUploadRequest, FileUploadService, FilesConfig};
@@ -11,8 +11,8 @@ use systemprompt_runtime::AppContext;
 use tokio::fs;
 
 use super::types::FileUploadOutput;
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct UploadArgs {

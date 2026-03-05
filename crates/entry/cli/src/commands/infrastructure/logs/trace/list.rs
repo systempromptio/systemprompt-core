@@ -6,9 +6,9 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TraceListOutput, TraceListRow};
-use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::commands::infrastructure::logs::duration::parse_since;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

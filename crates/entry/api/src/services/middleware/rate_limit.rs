@@ -1,17 +1,17 @@
 use crate::services::middleware::context::{ContextExtractor, ContextMiddleware};
+use axum::Router;
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use axum::Router;
 use governor::clock::DefaultClock;
 use governor::state::keyed::DefaultKeyedStateStore;
 use governor::{Quota, RateLimiter};
 use std::num::NonZeroU32;
 use std::sync::Arc;
+use systemprompt_models::RequestContext;
 use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::auth::RateLimitTier;
 use systemprompt_models::config::RateLimitConfig;
-use systemprompt_models::RequestContext;
 use tower_governor::key_extractor::SmartIpKeyExtractor;
 use tracing::warn;
 

@@ -2,11 +2,11 @@ use anyhow::Result;
 use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
-use super::helpers::{apply_multiplier, get_tier_multiplier};
 use super::TierArgs;
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
+use super::helpers::{apply_multiplier, get_tier_multiplier};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{
     BaseRateRow, EffectiveLimitRow, EffectiveLimitsOutput, RateLimitsDocsOutput, RateLimitsOutput,

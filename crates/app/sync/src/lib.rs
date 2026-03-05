@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 pub use api_client::SyncApiClient;
 pub use database::{ContextExport, DatabaseExport, DatabaseSyncService, SkillExport};
 pub use diff::{
-    compute_content_hash, AgentsDiffCalculator, ContentDiffCalculator, SkillsDiffCalculator,
+    AgentsDiffCalculator, ContentDiffCalculator, SkillsDiffCalculator, compute_content_hash,
 };
 pub use error::{SyncError, SyncResult};
 pub use export::{

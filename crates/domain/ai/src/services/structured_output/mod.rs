@@ -2,7 +2,7 @@ pub mod parser;
 pub mod validator;
 
 use crate::models::ai::{ResponseFormat, StructuredOutputOptions};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::Value as JsonValue;
 
 #[derive(Debug, Copy, Clone)]
@@ -69,7 +69,7 @@ impl StructuredOutputProcessor {
     ) -> Result<JsonValue>
     where
         F: FnMut() -> Fut,
-        Fut: std::future::Future<Output = Result<String>>,
+        Fut: Future<Output = Result<String>>,
     {
         let max_retries = options.max_retries.unwrap_or(3);
         let mut last_error = None;

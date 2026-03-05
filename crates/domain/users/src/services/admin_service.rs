@@ -1,8 +1,8 @@
 use systemprompt_identifiers::UserId;
 
+use crate::UserService;
 use crate::error::Result;
 use crate::models::{User, UserRole};
-use crate::UserService;
 
 #[derive(Debug)]
 pub struct UserAdminService {

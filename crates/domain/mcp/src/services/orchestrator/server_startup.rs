@@ -5,9 +5,9 @@ use systemprompt_traits::StartupEventSender;
 
 use super::event_bus::EventBus;
 use super::events::McpEvent;
+use crate::McpServerConfig;
 use crate::services::database::DatabaseManager;
 use crate::services::lifecycle::LifecycleManager;
-use crate::McpServerConfig;
 
 pub struct StartPendingServersParams<'a> {
     pub servers: &'a [McpServerConfig],

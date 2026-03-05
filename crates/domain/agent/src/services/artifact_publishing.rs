@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use serde_json::json;
 use std::sync::Arc;
 
@@ -8,8 +8,8 @@ use crate::repository::execution::ExecutionStepRepository;
 use crate::services::MessageService;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ContextId, MessageId, TaskId};
-use systemprompt_models::execution::CallSource;
 use systemprompt_models::RequestContext;
+use systemprompt_models::execution::CallSource;
 
 pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,

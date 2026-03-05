@@ -1,13 +1,13 @@
 use super::{compute_agent_hash, compute_db_agent_hash};
 use crate::models::{AgentDiffItem, AgentsDiffResult, DiffStatus, DiskAgent};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_agent::models::Agent;
 use systemprompt_agent::repository::content::AgentRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::AgentId;
-use systemprompt_models::{strip_frontmatter, DiskAgentConfig, AGENT_CONFIG_FILENAME};
+use systemprompt_models::{AGENT_CONFIG_FILENAME, DiskAgentConfig, strip_frontmatter};
 use tracing::warn;
 
 #[derive(Debug)]

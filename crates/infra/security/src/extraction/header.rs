@@ -1,7 +1,7 @@
 use axum::http::{HeaderMap, HeaderValue};
 use std::error::Error;
 use std::fmt;
-use systemprompt_identifiers::{headers, AgentName, ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, SessionId, TaskId, TraceId, UserId, headers};
 use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

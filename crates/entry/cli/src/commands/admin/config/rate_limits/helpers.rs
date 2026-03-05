@@ -1,7 +1,7 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::fs;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 use systemprompt_models::Profile;
+use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::super::types::ResetChange;
 

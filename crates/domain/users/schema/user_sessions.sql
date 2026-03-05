@@ -9,7 +9,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     converted_at TIMESTAMPTZ,
     expires_at TIMESTAMPTZ DEFAULT (CURRENT_TIMESTAMP + INTERVAL '7 days'),
     client_id VARCHAR(255) NOT NULL DEFAULT 'sp_web',
-    client_type VARCHAR(255) NOT NULL DEFAULT 'firstparty' CHECK (client_type IN ('cimd', 'firstparty', 'thirdparty', 'system', 'tui', 'unknown')),
+    client_type VARCHAR(255) NOT NULL DEFAULT 'firstparty' CHECK (client_type IN ('cimd', 'firstparty', 'thirdparty', 'system', 'unknown')),
     request_count INTEGER NOT NULL DEFAULT 0,
     avg_response_time_ms DOUBLE PRECISION NOT NULL DEFAULT 0,
     success_rate DOUBLE PRECISION NOT NULL DEFAULT 1.0,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS user_sessions (
     behavioral_bot_score INTEGER NOT NULL DEFAULT 0,
     throttle_escalated_at TIMESTAMPTZ,
     session_source VARCHAR(50) DEFAULT 'web'
-        CHECK (session_source IN ('web', 'api', 'cli', 'tui', 'oauth', 'unknown')),
+        CHECK (session_source IN ('web', 'api', 'cli', 'oauth', 'unknown')),
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
 );
 
@@ -58,7 +58,7 @@ COMMENT ON COLUMN user_sessions.is_bot IS 'Whether this session was created by a
 COMMENT ON COLUMN user_sessions.is_scanner IS 'Whether this session exhibits scanner/attacker behavior (accessing .php, .env, admin paths, high velocity)';
 COMMENT ON COLUMN user_sessions.is_behavioral_bot IS 'Whether this session exhibits bot-like behavior based on request patterns (high request count, page coverage, etc.)';
 COMMENT ON COLUMN user_sessions.behavioral_bot_reason IS 'Reason for behavioral bot classification (e.g., request_count_exceeded, high_page_coverage)';
-COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), tui (terminal UI), oauth (token endpoint)';
+COMMENT ON COLUMN user_sessions.session_source IS 'Origin of the session: web (browser), api (programmatic), cli (command line), oauth (token endpoint)';
 CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
 CREATE INDEX IF NOT EXISTS idx_sessions_started_at ON user_sessions(started_at);
 CREATE INDEX IF NOT EXISTS idx_sessions_last_activity ON user_sessions(last_activity_at);

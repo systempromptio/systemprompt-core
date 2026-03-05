@@ -1,6 +1,6 @@
 use crate::error::{AiError, Result};
-use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::models::AiRequestRecordBuilder;
+use crate::models::image_generation::{ImageGenerationRequest, ImageGenerationResponse};
 use crate::repository::AiRequestRepository;
 use systemprompt_identifiers::{FileId, McpExecutionId, SessionId, TraceId, UserId};
 use systemprompt_traits::{

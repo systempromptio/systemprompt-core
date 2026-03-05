@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::models::LogEntry;
 use systemprompt_logging::{CliService, LogFilter, LoggingMaintenanceService};
@@ -7,8 +7,8 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::duration::parse_since;
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters, LogViewOutput};
-use crate::shared::{CommandResult, RenderingHints};
 use crate::CliConfig;
+use crate::shared::{CommandResult, RenderingHints};
 
 #[derive(Debug, Args)]
 pub struct ViewArgs {

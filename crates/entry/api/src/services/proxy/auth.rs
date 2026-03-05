@@ -6,9 +6,9 @@ use std::str::FromStr;
 use systemprompt_agent::services::AgentRegistryProviderService;
 use systemprompt_database::ServiceConfig;
 use systemprompt_mcp::McpServerRegistry;
+use systemprompt_models::RequestContext;
 use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::RequestContext;
 use systemprompt_oauth::services::AuthService;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{AgentRegistryProvider, McpRegistryProvider};
@@ -159,52 +159,74 @@ impl AccessValidator {
             String::new()
         };
 
-        let authenticated_user =
-            match AuthValidator::validate_service_access(headers, service_name, ctx, req_context)
-                .await
-            {
-                Ok(user) => user,
-                Err(status_code) => {
-                    if service.module_name == "mcp"
-                        && status_code == StatusCode::UNAUTHORIZED
-                        && headers
-                            .get("mcp-session-id")
-                            .and_then(|v| v.to_str().ok())
-                            .is_some_and(|v| !v.is_empty())
-                    {
+        let authenticated_user = match AuthValidator::validate_service_access(
+            headers,
+            service_name,
+            ctx,
+            req_context,
+        )
+        .await
+        {
+            Ok(user) => user,
+            Err(status_code) => {
+                if service.module_name == "mcp"
+                    && status_code == StatusCode::UNAUTHORIZED
+                    && headers
+                        .get("mcp-session-id")
+                        .and_then(|v| v.to_str().ok())
+                        .is_some_and(|v| !v.is_empty())
+                {
+                    let has_bearer_token = headers
+                        .get("authorization")
+                        .and_then(|v| v.to_str().ok())
+                        .is_some_and(|v| v.starts_with("Bearer "));
+
+                    if !has_bearer_token {
+                        // No token sent — pure session-based auth (kept for backwards compat)
                         tracing::info!(
                             service = %service_name,
                             session_id = ?headers.get("mcp-session-id"),
-                            "Allowing MCP request with session ID (token missing)"
+                            "Allowing MCP request with session ID (no token, session-based auth)"
                         );
                         return Ok(());
                     }
 
-                    match OAuthChallengeBuilder::build_challenge_response(
-                        service_name,
-                        &resource_path,
-                        ctx,
-                        status_code,
-                    )
-                    .await
-                    {
-                        Ok(challenge_response) => {
-                            return Err(ProxyError::AuthChallenge(challenge_response));
-                        },
-                        Err(status) => {
-                            return Err(if status == StatusCode::UNAUTHORIZED {
-                                ProxyError::AuthenticationRequired {
-                                    service: service_name.to_string(),
-                                }
-                            } else {
-                                ProxyError::Forbidden {
-                                    service: service_name.to_string(),
-                                }
-                            });
-                        },
-                    }
-                },
-            };
+                    // Token IS present but expired/invalid — return 401 so the SDK
+                    // can refresh the token and retry with the same session ID.
+                    tracing::info!(
+                        service = %service_name,
+                        session_id = ?headers.get("mcp-session-id"),
+                        "MCP request has expired/invalid Bearer token — returning 401 for client token refresh"
+                    );
+                    // Fall through to
+                    // OAuthChallengeBuilder::build_challenge_response()
+                }
+
+                match OAuthChallengeBuilder::build_challenge_response(
+                    service_name,
+                    &resource_path,
+                    ctx,
+                    status_code,
+                )
+                .await
+                {
+                    Ok(challenge_response) => {
+                        return Err(ProxyError::AuthChallenge(challenge_response));
+                    },
+                    Err(status) => {
+                        return Err(if status == StatusCode::UNAUTHORIZED {
+                            ProxyError::AuthenticationRequired {
+                                service: service_name.to_string(),
+                            }
+                        } else {
+                            ProxyError::Forbidden {
+                                service: service_name.to_string(),
+                            }
+                        });
+                    },
+                }
+            },
+        };
 
         if !required_scopes.is_empty() {
             let has_required_scope = required_scopes.iter().any(|required_scope_str| {

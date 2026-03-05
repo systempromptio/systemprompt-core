@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use crate::constants::{cli_session, credentials, dir_names, tenants};
 
-use super::{resolve_path, ProjectContext};
+use super::{ProjectContext, resolve_path};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum CloudPath {

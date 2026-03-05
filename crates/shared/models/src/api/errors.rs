@@ -3,11 +3,11 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[cfg(feature = "web")]
-use axum::http::{header, StatusCode};
+use axum::Json;
+#[cfg(feature = "web")]
+use axum::http::{StatusCode, header};
 #[cfg(feature = "web")]
 use axum::response::IntoResponse;
-#[cfg(feature = "web")]
-use axum::Json;
 
 #[derive(Debug, thiserror::Error)]
 pub enum InternalApiError {

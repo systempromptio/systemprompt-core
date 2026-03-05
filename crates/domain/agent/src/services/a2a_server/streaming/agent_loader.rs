@@ -2,8 +2,8 @@ use axum::response::sse::Event;
 use systemprompt_identifiers::TaskId;
 use tokio::sync::mpsc::UnboundedSender;
 
-use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::repository::task::TaskRepository;
 use crate::services::registry::AgentRegistry;
 

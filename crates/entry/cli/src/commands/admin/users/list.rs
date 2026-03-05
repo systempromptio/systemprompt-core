@@ -5,8 +5,8 @@ use systemprompt_runtime::AppContext;
 use systemprompt_users::{UserRole, UserService, UserStatus};
 
 use super::types::{UserListOutput, UserSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum RoleFilter {

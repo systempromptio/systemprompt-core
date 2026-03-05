@@ -1,9 +1,9 @@
 use anyhow::Result;
 use clap::Args;
 
-use super::types::{read_yaml_file, ConfigFileInfo, ConfigListOutput, ConfigSection};
-use crate::shared::CommandResult;
+use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection, read_yaml_file};
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs {

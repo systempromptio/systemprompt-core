@@ -1,7 +1,7 @@
 use std::time::Duration;
 use systemprompt_logging::services::cli::{
-    render_phase_warning, render_service_table, render_startup_banner, render_startup_complete,
-    BrandColors, ServiceStatus, ServiceTableEntry,
+    BrandColors, ServiceStatus, ServiceTableEntry, render_phase_warning, render_service_table,
+    render_startup_banner, render_startup_complete,
 };
 use systemprompt_traits::{ServiceInfo, ServiceState};
 

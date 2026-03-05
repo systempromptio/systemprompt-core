@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
 use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
-use sqlx::postgres::PgPoolOptions;
+use rand::{Rng, rng};
 use sqlx::Row;
+use sqlx::postgres::PgPoolOptions;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
 use systemprompt_logging::CliService;

@@ -4,10 +4,10 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use tokio::sync::mpsc::UnboundedSender;
 
+use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
-use crate::models::a2a::Message;
-use crate::models::AgentRuntimeInfo;
 use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;

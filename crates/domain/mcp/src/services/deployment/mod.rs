@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::ServicesConfig;
 

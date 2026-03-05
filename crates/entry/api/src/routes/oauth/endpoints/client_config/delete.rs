@@ -3,8 +3,8 @@ use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
 
 use super::validation::validate_registration_token;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
 
 pub async fn delete_client_configuration(
     State(state): State<OAuthState>,

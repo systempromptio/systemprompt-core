@@ -21,7 +21,7 @@ pub use context::{ContextExtractor, ContextMiddleware, HeaderContextExtractor};
 pub use cors::*;
 pub use ip_ban::*;
 pub use jwt::*;
-pub use negotiation::{content_negotiation_middleware, AcceptedFormat, AcceptedMediaType};
+pub use negotiation::{AcceptedFormat, AcceptedMediaType, content_negotiation_middleware};
 pub use rate_limit::*;
 pub use security_headers::*;
 pub use session::*;

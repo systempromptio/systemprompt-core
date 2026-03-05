@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use systemprompt_database::DbPool;
-use systemprompt_models::ai::tools::McpTool;
 use systemprompt_models::RequestContext;
+use systemprompt_models::ai::tools::McpTool;
 use tracing::{debug, error};
 
 use super::state::ServiceStateManager;

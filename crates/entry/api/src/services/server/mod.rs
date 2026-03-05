@@ -6,7 +6,7 @@ pub mod runner;
 
 pub use builder::*;
 pub use readiness::{
-    get_readiness_receiver, init_readiness, is_ready, signal_ready, signal_shutdown,
-    wait_for_ready, ReadinessEvent,
+    ReadinessEvent, get_readiness_receiver, init_readiness, is_ready, signal_ready,
+    signal_shutdown, wait_for_ready,
 };
 pub use runner::*;

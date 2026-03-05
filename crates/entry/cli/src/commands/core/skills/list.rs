@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::types::{
-    parse_skill_from_config, ListOrDetail, SkillDetailOutput, SkillListOutput, SkillSummary,
+    ListOrDetail, SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config,
 };
 
 #[derive(Debug, Clone, Args)]

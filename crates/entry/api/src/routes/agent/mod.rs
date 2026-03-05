@@ -4,8 +4,8 @@ pub mod registry;
 pub mod responses;
 pub mod tasks;
 
-use axum::routing::get;
 use axum::Router;
+use axum::routing::get;
 use systemprompt_runtime::AppContext;
 
 pub fn registry_router(ctx: &AppContext) -> Router {

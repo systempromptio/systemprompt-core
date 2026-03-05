@@ -71,7 +71,6 @@ pub enum SessionSource {
     Web,
     Api,
     Cli,
-    Tui,
     Oauth,
     Mcp,
     #[default]
@@ -84,7 +83,6 @@ impl SessionSource {
             Self::Web => "web",
             Self::Api => "api",
             Self::Cli => "cli",
-            Self::Tui => "tui",
             Self::Oauth => "oauth",
             Self::Mcp => "mcp",
             Self::Unknown => "unknown",
@@ -95,7 +93,6 @@ impl SessionSource {
         match client_id {
             "sp_web" => Self::Web,
             "sp_cli" => Self::Cli,
-            "sp_tui" => Self::Tui,
             _ => Self::Unknown,
         }
     }
@@ -115,7 +112,6 @@ impl std::str::FromStr for SessionSource {
             "web" => Self::Web,
             "api" => Self::Api,
             "cli" => Self::Cli,
-            "tui" => Self::Tui,
             "oauth" => Self::Oauth,
             "mcp" => Self::Mcp,
             _ => Self::Unknown,

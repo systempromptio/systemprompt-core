@@ -4,9 +4,9 @@ use systemprompt_files::{ContentService, FileRole};
 use systemprompt_identifiers::{ContentId, FileId};
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::core::files::types::ContentLinkOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, ValueEnum)]
 pub enum FileRoleArg {

@@ -3,8 +3,8 @@ use std::pin::Pin;
 use std::task::{Context, Poll};
 use uuid::Uuid;
 
-use crate::models::ai::{AiRequest, AiResponse};
 use crate::models::RequestStatus;
+use crate::models::ai::{AiRequest, AiResponse};
 use crate::services::core::request_storage::{RequestStorage, StoreParams};
 
 pub struct StreamStorageParams {

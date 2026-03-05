@@ -5,9 +5,9 @@ use systemprompt_oauth::repository::{CreateSetupTokenParams, OAuthRepository, Se
 use systemprompt_oauth::services::webauthn::generate_setup_token;
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::WebauthnSetupTokenOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, ClapArgs)]
 pub struct Args {

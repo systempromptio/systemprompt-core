@@ -1,7 +1,7 @@
 mod helpers;
 mod processing;
 
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use base64::Engine;
 use std::sync::Arc;
 
@@ -9,8 +9,8 @@ use crate::models::a2a::{FilePart, Message, Part};
 use crate::repository::execution::ExecutionStepRepository;
 use crate::services::{ContextService, SkillService};
 use systemprompt_models::{
-    is_supported_audio, is_supported_image, is_supported_text, is_supported_video, AiContentPart,
-    AiProvider,
+    AiContentPart, AiProvider, is_supported_audio, is_supported_image, is_supported_text,
+    is_supported_video,
 };
 
 #[allow(missing_debug_implementations)]

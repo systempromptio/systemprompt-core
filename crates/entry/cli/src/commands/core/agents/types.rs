@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
-use systemprompt_models::{strip_frontmatter, DiskAgentConfig, AGENT_CONFIG_FILENAME};
+use systemprompt_models::{AGENT_CONFIG_FILENAME, DiskAgentConfig, strip_frontmatter};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AgentListOutput {

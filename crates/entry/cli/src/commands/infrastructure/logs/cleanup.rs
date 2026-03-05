@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::Utc;
 use clap::Args;
 use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
-use super::duration::parse_duration;
 use super::LogCleanupOutput;
-use crate::interactive::require_confirmation;
-use crate::shared::{render_result, CommandResult};
+use super::duration::parse_duration;
 use crate::CliConfig;
+use crate::interactive::require_confirmation;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Args)]
 pub struct CleanupArgs {

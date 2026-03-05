@@ -7,14 +7,14 @@ use std::time::Duration;
 use chrono::Utc;
 use tokio::sync::mpsc;
 use tracing::{Event, Subscriber};
+use tracing_subscriber::Layer;
 use tracing_subscriber::layer::Context;
 use tracing_subscriber::registry::LookupSpan;
-use tracing_subscriber::Layer;
 
 use crate::models::{LogEntry, LogLevel};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{ClientId, ContextId, LogId, SessionId, TaskId, TraceId, UserId};
-use visitor::{extract_span_context, FieldVisitor, SpanContext, SpanFields, SpanVisitor};
+use visitor::{FieldVisitor, SpanContext, SpanFields, SpanVisitor, extract_span_context};
 
 const BUFFER_FLUSH_SIZE: usize = 100;
 const BUFFER_FLUSH_INTERVAL_SECS: u64 = 10;

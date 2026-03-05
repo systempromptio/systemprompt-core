@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_files::{FileService, TypeSpecificMetadata};
 use systemprompt_identifiers::FileId;
 use systemprompt_runtime::AppContext;
 
+use crate::CliConfig;
 use crate::commands::core::files::types::{
     ChecksumsOutput, FileDetailOutput, FileMetadataOutput, ImageMetadataOutput,
 };
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct ShowArgs {

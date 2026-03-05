@@ -1,5 +1,5 @@
-use super::xml::{build_rss_xml, RssChannel, RssItem};
-use anyhow::{anyhow, Context, Result};
+use super::xml::{RssChannel, RssItem, build_rss_xml};
+use anyhow::{Context, Result, anyhow};
 use std::path::Path;
 use std::sync::Arc;
 use systemprompt_database::DbPool;

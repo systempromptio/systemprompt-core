@@ -9,6 +9,7 @@ use systemprompt_models::mcp::OAuthRequirement;
 fn create_test_config() -> McpServerConfig {
     McpServerConfig {
         name: "test-service".to_string(),
+        server_type: Default::default(),
         binary: "test-binary".to_string(),
         enabled: true,
         display_in_web: true,
@@ -31,6 +32,7 @@ fn create_test_config() -> McpServerConfig {
         host: "127.0.0.1".to_string(),
         module_name: "mcp".to_string(),
         protocol: "mcp".to_string(),
+        remote_endpoint: String::new(),
     }
 }
 

@@ -1,12 +1,12 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_logging::LoggingMaintenanceService;
 use systemprompt_runtime::AppContext;
 
 use super::LogDeleteOutput;
-use crate::interactive::require_confirmation;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::interactive::require_confirmation;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct DeleteArgs {

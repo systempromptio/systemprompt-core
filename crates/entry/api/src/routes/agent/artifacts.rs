@@ -1,5 +1,5 @@
 use axum::extract::{Path, Query, State};
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::{IntoResponse, Response};
 use axum::{Extension, Json};
 use serde::Deserialize;
@@ -7,8 +7,8 @@ use systemprompt_models::api::ApiError;
 
 use systemprompt_agent::repository::content::ArtifactRepository;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId, UserId};
-use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
 use systemprompt_mcp::services::ui_renderer::MCP_APP_MIME_TYPE;
+use systemprompt_mcp::services::ui_renderer::registry::create_default_registry;
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;
 

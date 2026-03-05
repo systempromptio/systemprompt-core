@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use serde::Serialize;
 use systemprompt_extension::ExtensionRegistry;
 
 use super::types::{ExtensionConfigListOutput, ExtensionConfigOutput, ExtensionConfigSummary};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Args)]
 pub struct ConfigArgs {

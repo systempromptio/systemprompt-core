@@ -1,7 +1,7 @@
 use crate::error::ArtifactError;
-use serde_json::{json, Value as JsonValue};
-use systemprompt_models::artifacts::types::ArtifactType;
+use serde_json::{Value as JsonValue, json};
 use systemprompt_models::ArtifactMetadata;
+use systemprompt_models::artifacts::types::ArtifactType;
 
 use super::artifact_type_to_string;
 
@@ -52,51 +52,53 @@ pub fn build_metadata(
 }
 
 fn extract_table_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema {
-        if let Some(hints) = schema.get("x-table-hints") {
-            return hints.clone();
-        }
+    if let Some(schema) = schema
+        && let Some(hints) = schema.get("x-table-hints")
+    {
+        return hints.clone();
+    }
 
-        if let Some(items) = schema.get("items") {
-            if let Some(properties) = items.get("properties") {
-                if let Some(props_obj) = properties.as_object() {
-                    let columns: Vec<String> = props_obj.keys().cloned().collect();
+    if let Some(schema) = schema
+        && let Some(items) = schema.get("items")
+        && let Some(properties) = items.get("properties")
+        && let Some(props_obj) = properties.as_object()
+    {
+        let columns: Vec<String> = props_obj.keys().cloned().collect();
 
-                    return json!({
-                        "columns": columns,
-                        "sortable_columns": columns,
-                        "filterable": true,
-                        "page_size": 25,
-                    });
-                }
-            }
-        }
+        return json!({
+            "columns": columns,
+            "sortable_columns": columns,
+            "filterable": true,
+            "page_size": 25,
+        });
     }
     json!({})
 }
 
 fn extract_form_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema {
-        if let Some(hints) = schema.get("x-form-hints") {
-            return hints.clone();
-        }
+    if let Some(schema) = schema
+        && let Some(hints) = schema.get("x-form-hints")
+    {
+        return hints.clone();
+    }
 
-        if let Some(properties) = schema.get("properties") {
-            let fields = schema_properties_to_form_fields(properties);
-            return json!({
-                "fields": fields,
-                "layout": "vertical",
-            });
-        }
+    if let Some(schema) = schema
+        && let Some(properties) = schema.get("properties")
+    {
+        let fields = schema_properties_to_form_fields(properties);
+        return json!({
+            "fields": fields,
+            "layout": "vertical",
+        });
     }
     json!({})
 }
 
 fn extract_chart_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema {
-        if let Some(hints) = schema.get("x-chart-hints") {
-            return hints.clone();
-        }
+    if let Some(schema) = schema
+        && let Some(hints) = schema.get("x-chart-hints")
+    {
+        return hints.clone();
     }
     json!({
         "chart_type": "bar",
@@ -104,10 +106,10 @@ fn extract_chart_hints(schema: Option<&JsonValue>) -> JsonValue {
 }
 
 fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema {
-        if let Some(hints) = schema.get("x-presentation-hints") {
-            return hints.clone();
-        }
+    if let Some(schema) = schema
+        && let Some(hints) = schema.get("x-presentation-hints")
+    {
+        return hints.clone();
     }
     json!({
         "theme": "default"
@@ -115,10 +117,10 @@ fn extract_presentation_hints(schema: Option<&JsonValue>) -> JsonValue {
 }
 
 fn extract_dashboard_hints(schema: Option<&JsonValue>) -> JsonValue {
-    if let Some(schema) = schema {
-        if let Some(hints) = schema.get("x-dashboard-hints") {
-            return hints.clone();
-        }
+    if let Some(schema) = schema
+        && let Some(hints) = schema.get("x-dashboard-hints")
+    {
+        return hints.clone();
     }
     json!({
         "layout": "vertical"

@@ -2,9 +2,9 @@ use systemprompt_logging::{
     AiRequestInfo, AiTraceService, CliService, McpToolExecution, ToolLogEntry,
 };
 
-use super::ai_display::{print_content_block, print_section, truncate, ToolCallRow};
-use tabled::settings::Style;
+use super::ai_display::{ToolCallRow, print_content_block, print_section, truncate};
 use tabled::Table;
+use tabled::settings::Style;
 
 pub async fn print_mcp_executions(
     service: &AiTraceService,

@@ -2,11 +2,11 @@ use anyhow::{Context, Result};
 use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input};
 use std::process::Command;
-use systemprompt_cloud::constants::docker::{container_name, COMPOSE_PATH};
+use systemprompt_cloud::constants::docker::{COMPOSE_PATH, container_name};
 use systemprompt_logging::CliService;
 
-use super::postgres::{generate_password, PostgresConfig};
 use super::SetupArgs;
+use super::postgres::{PostgresConfig, generate_password};
 
 pub async fn setup_docker_postgres_non_interactive(
     config: &PostgresConfig,
@@ -271,8 +271,8 @@ pub async fn create_database_in_docker(
     config: &PostgresConfig,
     container_name: &str,
 ) -> Result<()> {
-    use sqlx::postgres::PgPoolOptions;
     use sqlx::Row;
+    use sqlx::postgres::PgPoolOptions;
     use std::time::Duration;
 
     CliService::info("Creating database and user in Docker container...");

@@ -1,6 +1,6 @@
 //! Unit tests for McpError types
 
-use systemprompt_mcp::McpError;
+use systemprompt_mcp::McpDomainError as McpError;
 
 // ============================================================================
 // McpError Display Tests

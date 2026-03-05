@@ -1,9 +1,9 @@
-use anyhow::{anyhow, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, anyhow};
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
-    get_cloud_paths, run_oauth_flow, CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates,
-    TenantInfo, TenantStore, UserMeResponse,
+    CloudApiClient, CloudCredentials, CloudPath, OAuthTemplates, TenantInfo, TenantStore,
+    UserMeResponse, get_cloud_paths, run_oauth_flow,
 };
 use systemprompt_logging::CliService;
 use systemprompt_models::modules::ApiPaths;

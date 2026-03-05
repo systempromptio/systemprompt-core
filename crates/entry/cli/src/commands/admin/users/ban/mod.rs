@@ -6,7 +6,7 @@ mod remove;
 
 use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use clap::Subcommand;
 use systemprompt_database::DbPool;
 

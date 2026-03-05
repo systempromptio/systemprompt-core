@@ -16,9 +16,9 @@ pub use validation::{check_build_ready, find_services_config};
 
 use anyhow::Result;
 use clap::{Args, Subcommand};
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
-use systemprompt_cloud::{get_cloud_paths, CloudPath, TenantStore};
+use dialoguer::theme::ColorfulTheme;
+use systemprompt_cloud::{CloudPath, TenantStore, get_cloud_paths};
 use systemprompt_logging::CliService;
 
 use crate::cli_settings::CliConfig;

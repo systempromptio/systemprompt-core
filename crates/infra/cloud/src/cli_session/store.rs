@@ -6,7 +6,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use systemprompt_identifiers::TenantId;
 
-use super::{CliSession, SessionKey, LOCAL_SESSION_KEY};
+use super::{CliSession, LOCAL_SESSION_KEY, SessionKey};
 
 const STORE_VERSION: u32 = 1;
 

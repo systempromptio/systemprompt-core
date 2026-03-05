@@ -7,9 +7,9 @@ use systemprompt_analytics::RequestAnalyticsRepository;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
+use crate::CliConfig;
 use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
 use crate::shared::{CommandResult, RenderingHints};
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

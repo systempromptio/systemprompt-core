@@ -1,7 +1,7 @@
 use axum::extract::{Json, State};
 use axum::http::StatusCode;
-use axum::response::sse::{KeepAlive, Sse};
 use axum::response::IntoResponse;
+use axum::response::sse::{KeepAlive, Sse};
 use serde_json::json;
 use std::sync::Arc;
 use systemprompt_models::RequestContext;

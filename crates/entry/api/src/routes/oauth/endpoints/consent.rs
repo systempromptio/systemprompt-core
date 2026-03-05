@@ -1,14 +1,14 @@
 #![allow(unused_qualifications)]
 
 use anyhow::Result;
+use axum::Json;
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
-use axum::Json;
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::OAuthState;
+use systemprompt_oauth::repository::OAuthRepository;
 
 #[derive(Debug, Deserialize)]
 pub struct ConsentQuery {

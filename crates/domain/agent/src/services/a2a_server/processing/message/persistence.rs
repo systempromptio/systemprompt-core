@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};
 use crate::repository::task::TaskRepository;
+use crate::services::ArtifactPublishingService;
 use crate::services::a2a_server::streaming::{
     broadcast_artifact_created, broadcast_task_completed,
 };
-use crate::services::ArtifactPublishingService;
 
 pub async fn persist_completed_task(
     task: &Task,

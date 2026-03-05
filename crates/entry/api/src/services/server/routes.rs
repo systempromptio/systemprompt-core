@@ -4,10 +4,10 @@ use systemprompt_oauth::OAuthState;
 use systemprompt_runtime::AppContext;
 
 use crate::services::middleware::{
-    ip_ban_middleware, site_auth_gate, ContextMiddleware, JwtContextExtractor, RouterExt,
+    ContextMiddleware, JwtContextExtractor, RouterExt, ip_ban_middleware, site_auth_gate,
 };
 use crate::services::static_content::{
-    serve_homepage, smart_fallback_handler, StaticContentMatcher, StaticContentState,
+    StaticContentMatcher, StaticContentState, serve_homepage, smart_fallback_handler,
 };
 use axum::routing::get;
 use std::sync::Arc;

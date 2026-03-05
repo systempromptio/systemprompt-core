@@ -1,5 +1,5 @@
-use super::{AnonymousSessionInfo, SessionCreationService, MAX_SESSION_AGE_SECONDS};
-use crate::services::generation::{generate_anonymous_jwt, JwtSigningParams};
+use super::{AnonymousSessionInfo, MAX_SESSION_AGE_SECONDS, SessionCreationService};
+use crate::services::generation::{JwtSigningParams, generate_anonymous_jwt};
 use systemprompt_identifiers::{ClientId, SessionId, UserId};
 
 const SESSION_LOOKUP_TIMEOUT_MS: u64 = 500;

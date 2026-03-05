@@ -1,15 +1,15 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
+use axum::Router;
 use axum::extract::Query;
 use axum::response::Html;
 use axum::routing::get;
-use axum::Router;
 use reqwest::Client;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use tokio::sync::{oneshot, Mutex};
+use tokio::sync::{Mutex, oneshot};
 
-use crate::constants::oauth::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
 use crate::OAuthProvider;
+use crate::constants::oauth::{CALLBACK_PORT, CALLBACK_TIMEOUT_SECS};
 
 #[derive(serde::Deserialize)]
 struct CallbackParams {

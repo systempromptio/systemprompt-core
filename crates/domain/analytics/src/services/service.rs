@@ -10,9 +10,9 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::{SessionId, SessionSource, UserId};
 use systemprompt_models::ContentRouting;
 
+use crate::GeoIpReader;
 use crate::repository::{CreateSessionParams, SessionRecord, SessionRepository};
 use crate::services::SessionAnalytics;
-use crate::GeoIpReader;
 
 #[derive(Debug)]
 pub struct CreateAnalyticsSessionInput<'a> {

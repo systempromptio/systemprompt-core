@@ -2,8 +2,8 @@ mod events;
 mod stream;
 
 use anyhow::Result;
-use axum::routing::{get, post};
 use axum::Router;
+use axum::routing::{get, post};
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsEventsRepository, EngagementRepository};
 use systemprompt_content::ContentRepository;

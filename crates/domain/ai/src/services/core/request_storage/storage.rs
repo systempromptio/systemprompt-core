@@ -10,7 +10,7 @@ use super::async_operations::{
     store_messages_async, store_request_async, store_tool_calls_async, update_session_usage_async,
 };
 use super::record_builder::{
-    build_record, extract_messages, extract_tool_calls, BuildRecordParams,
+    BuildRecordParams, build_record, extract_messages, extract_tool_calls,
 };
 
 #[derive(Debug)]

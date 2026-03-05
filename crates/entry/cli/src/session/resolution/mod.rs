@@ -10,8 +10,8 @@ use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::{Profile, SecretsBootstrap};
 
 use super::context::CliSessionContext;
-use crate::paths::ResolvedPaths;
 use crate::CliConfig;
+use crate::paths::ResolvedPaths;
 use helpers::{
     create_new_session, extract_profile_name, initialize_profile_bootstraps,
     resolve_profile_path_from_session, resolve_profile_path_without_session, try_session_from_env,

@@ -1,14 +1,14 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use std::path::Path;
 use systemprompt_models::AGENT_CONFIG_FILENAME;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::types::{
-    get_agents_path, parse_agent_from_config, AgentDetailOutput, AgentListOutput, AgentSummary,
-    ListOrDetail,
+    AgentDetailOutput, AgentListOutput, AgentSummary, ListOrDetail, get_agents_path,
+    parse_agent_from_config,
 };
 
 #[derive(Debug, Clone, Args)]

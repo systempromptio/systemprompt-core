@@ -1,7 +1,7 @@
 use super::types::{ContentSummary, PopularOutput};
 use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::ContentRepository;
 use systemprompt_database::DbPool;

@@ -3,11 +3,11 @@ pub mod restart;
 pub mod shutdown;
 pub mod startup;
 
+use crate::McpServerConfig;
 use crate::services::database::DatabaseManager;
 use crate::services::monitoring::MonitoringManager;
 use crate::services::network::NetworkManager;
 use crate::services::process::ProcessManager;
-use crate::McpServerConfig;
 use anyhow::Result;
 use systemprompt_traits::StartupEventSender;
 

@@ -1,4 +1,4 @@
-use console::{style, Emoji, StyledObject};
+use console::{Emoji, StyledObject, style};
 
 pub use super::types::{
     ActionType, ColorType, EmphasisType, IconType, ItemStatus, MessageLevel, ModuleType,

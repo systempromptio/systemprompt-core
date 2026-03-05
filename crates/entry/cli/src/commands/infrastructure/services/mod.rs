@@ -263,7 +263,7 @@ pub async fn execute(command: ServicesCommands, config: &CliConfig) -> Result<()
                         return Err(anyhow::anyhow!(
                             "Must specify target (api, agent, mcp) or use --failed/--agents/--mcp \
                              flag"
-                        ))
+                        ));
                     },
                 }
             };

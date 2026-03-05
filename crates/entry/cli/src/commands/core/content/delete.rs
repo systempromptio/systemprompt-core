@@ -2,7 +2,7 @@ use super::types::DeleteOutput;
 use crate::cli_settings::CliConfig;
 use crate::interactive::require_confirmation;
 use crate::shared::CommandResult;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use systemprompt_content::ContentRepository;
 use systemprompt_identifiers::{ContentId, SourceId};

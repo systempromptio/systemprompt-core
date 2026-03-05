@@ -1,6 +1,6 @@
+use crate::Extension;
 use crate::asset::{AssetDefinition, AssetPaths};
 use crate::error::LoaderError;
-use crate::Extension;
 use std::collections::HashMap;
 use std::sync::Arc;
 use systemprompt_provider_contracts::Job;

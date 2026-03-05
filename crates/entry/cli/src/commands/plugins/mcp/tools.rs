@@ -1,12 +1,12 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
+use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
-use rmcp::ServiceExt;
 use std::time::Duration;
 use systemprompt_identifiers::SessionToken;
 use systemprompt_logging::CliService;
@@ -14,9 +14,9 @@ use tokio::time::timeout;
 use tracing::debug;
 
 use super::types::{McpToolEntry, McpToolsOutput, McpToolsSummary};
+use crate::CliConfig;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_mcp::services::McpManager;
 use systemprompt_runtime::AppContext;

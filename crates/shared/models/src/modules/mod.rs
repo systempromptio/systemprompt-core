@@ -11,7 +11,7 @@ pub use types::{
     SchemaSource, SeedSource,
 };
 
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 
 #[derive(Clone, Debug)]
 pub struct Modules {

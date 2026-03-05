@@ -1,6 +1,6 @@
-use anyhow::{bail, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Result, bail};
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{StoredTenant, TenantStore, TenantType};
 
 pub fn select_tenant_type(store: &TenantStore) -> Result<TenantType> {

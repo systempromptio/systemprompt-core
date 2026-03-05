@@ -1,4 +1,4 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{DateTime, Datelike, Duration, NaiveDate, Timelike, Utc};
 
 pub fn parse_duration(s: &str) -> Option<Duration> {

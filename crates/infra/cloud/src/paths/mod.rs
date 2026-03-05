@@ -5,7 +5,7 @@ mod project;
 
 use std::path::{Path, PathBuf};
 
-pub use cloud::{get_cloud_paths, CloudPath, CloudPaths};
+pub use cloud::{CloudPath, CloudPaths, get_cloud_paths};
 pub use context::UnifiedContext;
 pub use discovery::DiscoveredProject;
 pub use project::{ProfilePath, ProjectContext, ProjectPath};

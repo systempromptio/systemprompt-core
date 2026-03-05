@@ -1,4 +1,4 @@
-use crate::shared::{render_result, CommandResult};
+use crate::shared::{CommandResult, render_result};
 use serde_json::Value;
 use systemprompt_logging::{
     AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent,

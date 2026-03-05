@@ -1,5 +1,5 @@
 use crate::error::ArtifactError;
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use systemprompt_models::artifacts::types::ArtifactType;
 
 pub fn infer_type(
@@ -7,11 +7,13 @@ pub fn infer_type(
     schema: Option<&JsonValue>,
     tool_name: &str,
 ) -> Result<ArtifactType, ArtifactError> {
-    if let Some(schema) = schema {
-        if let Some(artifact_type) = extract_artifact_type_from_schema(schema) {
-            return Ok(parse_artifact_type(&artifact_type));
-        }
+    if let Some(schema) = schema
+        && let Some(artifact_type) = extract_artifact_type_from_schema(schema)
+    {
+        return Ok(parse_artifact_type(&artifact_type));
+    }
 
+    if let Some(schema) = schema {
         if is_tabular_schema(schema) {
             return Ok(ArtifactType::Table);
         }
@@ -59,15 +61,16 @@ fn extract_artifact_type_from_data(data: &JsonValue) -> Option<String> {
         return Some(t.to_string());
     }
 
-    if let Some(artifact) = data.get("artifact") {
-        if let Some(t) = artifact.get("x-artifact-type").and_then(|v| v.as_str()) {
-            return Some(t.to_string());
-        }
-        if let Some(card) = artifact.get("card") {
-            if let Some(t) = card.get("x-artifact-type").and_then(|v| v.as_str()) {
-                return Some(t.to_string());
-            }
-        }
+    if let Some(artifact) = data.get("artifact")
+        && let Some(t) = artifact.get("x-artifact-type").and_then(|v| v.as_str())
+    {
+        return Some(t.to_string());
+    }
+    if let Some(artifact) = data.get("artifact")
+        && let Some(card) = artifact.get("card")
+        && let Some(t) = card.get("x-artifact-type").and_then(|v| v.as_str())
+    {
+        return Some(t.to_string());
     }
 
     None
@@ -92,10 +95,10 @@ fn is_tabular_schema(schema: &JsonValue) -> bool {
 }
 
 fn is_form_schema(schema: &JsonValue) -> bool {
-    if let Some(props) = schema.get("properties") {
-        if let Some(fields) = props.get("fields") {
-            return fields.get("type") == Some(&json!("array"));
-        }
+    if let Some(props) = schema.get("properties")
+        && let Some(fields) = props.get("fields")
+    {
+        return fields.get("type") == Some(&json!("array"));
     }
     false
 }
@@ -110,10 +113,10 @@ fn is_chart_schema(schema: &JsonValue) -> bool {
 }
 
 fn is_tabular_data(data: &JsonValue) -> bool {
-    if let Some(arr) = data.as_array() {
-        if let Some(first) = arr.first() {
-            return first.is_object();
-        }
+    if let Some(arr) = data.as_array()
+        && let Some(first) = arr.first()
+    {
+        return first.is_object();
     }
     false
 }

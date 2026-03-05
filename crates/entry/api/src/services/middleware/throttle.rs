@@ -5,8 +5,8 @@ use std::sync::Arc;
 
 use systemprompt_analytics::{SessionRepository, ThrottleLevel};
 use systemprompt_database::DbPool;
-use systemprompt_models::api::{ApiError, ErrorCode};
 use systemprompt_models::RequestContext;
+use systemprompt_models::api::{ApiError, ErrorCode};
 
 #[derive(Debug, Clone)]
 pub struct ThrottleMiddleware {

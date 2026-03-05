@@ -277,20 +277,20 @@ fn test_mcp_server_id_from_env_missing() {
 
 #[test]
 fn test_mcp_server_id_from_env_empty() {
-    std::env::set_var("MCP_SERVICE_ID", "");
+    unsafe { std::env::set_var("MCP_SERVICE_ID", "") };
     let result = McpServerId::from_env();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("empty"));
-    std::env::remove_var("MCP_SERVICE_ID");
+    unsafe { std::env::remove_var("MCP_SERVICE_ID") };
 }
 
 #[test]
 fn test_mcp_server_id_from_env_valid() {
-    std::env::set_var("MCP_SERVICE_ID", "test-mcp-server");
+    unsafe { std::env::set_var("MCP_SERVICE_ID", "test-mcp-server") };
     let result = McpServerId::from_env();
     assert!(result.is_ok());
     assert_eq!(result.unwrap().as_str(), "test-mcp-server");
-    std::env::remove_var("MCP_SERVICE_ID");
+    unsafe { std::env::remove_var("MCP_SERVICE_ID") };
 }
 
 #[test]

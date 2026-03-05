@@ -5,8 +5,8 @@ use serde::{Deserialize, Serialize};
 use systemprompt_logging::CliService;
 use systemprompt_models::AGENT_CONFIG_FILENAME;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::types::{get_agents_path, scan_agent_dirs, validate_agent_config};
 

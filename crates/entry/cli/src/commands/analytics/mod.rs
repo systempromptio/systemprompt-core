@@ -13,8 +13,8 @@ use anyhow::Result;
 use clap::Subcommand;
 use systemprompt_runtime::DatabaseContext;
 
-use crate::shared::render_result;
 use crate::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum AnalyticsCommands {

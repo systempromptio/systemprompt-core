@@ -1,12 +1,12 @@
 use anyhow::Result;
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::TierMultipliers;
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_models::profile::TierMultipliers;
 
 use super::helpers::apply_multiplier;
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{CompareOutput, EndpointComparison, ValidateOutput};
 

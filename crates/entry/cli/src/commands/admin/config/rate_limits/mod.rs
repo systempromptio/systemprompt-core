@@ -10,8 +10,8 @@ mod validate;
 use anyhow::Result;
 use clap::{Args, Subcommand};
 
-use crate::shared::render_result;
 use crate::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum RateLimitsCommands {

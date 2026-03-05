@@ -26,21 +26,11 @@ fn create_text_content(text: &str) -> Content {
 }
 
 fn create_success_result(text: &str) -> CallToolResult {
-    CallToolResult {
-        content: vec![create_text_content(text)],
-        structured_content: None,
-        is_error: Some(false),
-        meta: None,
-    }
+    CallToolResult::success(vec![create_text_content(text)])
 }
 
 fn create_error_result(text: &str) -> CallToolResult {
-    CallToolResult {
-        content: vec![create_text_content(text)],
-        structured_content: None,
-        is_error: Some(true),
-        meta: None,
-    }
+    CallToolResult::error(vec![create_text_content(text)])
 }
 
 mod fallback_reason_tests {

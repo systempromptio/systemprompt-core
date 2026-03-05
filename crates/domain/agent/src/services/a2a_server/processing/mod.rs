@@ -16,5 +16,5 @@ pub use strategies::{
     ExecutionContext, ExecutionResult, ExecutionStrategy, ExecutionStrategySelector,
 };
 pub use task_builder::{
-    build_canceled_task, build_completed_task, build_mock_task, build_multiturn_task, TaskBuilder,
+    TaskBuilder, build_canceled_task, build_completed_task, build_mock_task, build_multiturn_task,
 };

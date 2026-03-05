@@ -160,7 +160,7 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
 
 #[cfg(unix)]
 fn verify_process_started(pid: u32) -> bool {
-    use nix::sys::wait::{waitpid, WaitPidFlag, WaitStatus};
+    use nix::sys::wait::{WaitPidFlag, WaitStatus, waitpid};
     use nix::unistd::Pid;
 
     match waitpid(Pid::from_raw(pid as i32), Some(WaitPidFlag::WNOHANG)) {

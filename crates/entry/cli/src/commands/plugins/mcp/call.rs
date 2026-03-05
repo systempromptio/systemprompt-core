@@ -1,29 +1,29 @@
 use std::sync::Arc;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
+use rmcp::ServiceExt;
 use rmcp::model::{
     CallToolRequestParams, ClientCapabilities, ClientInfo, Implementation, RawContent,
 };
 use rmcp::transport::streamable_http_client::{
     StreamableHttpClientTransport, StreamableHttpClientTransportConfig,
 };
-use rmcp::ServiceExt;
 use std::time::Duration;
 use systemprompt_loader::ConfigLoader;
-use systemprompt_mcp::services::client::HttpClientWithContext;
 use systemprompt_mcp::services::McpManager;
+use systemprompt_mcp::services::client::HttpClientWithContext;
 use systemprompt_models::ai::tools::CallToolResult;
 use systemprompt_runtime::AppContext;
 use tokio::time::timeout;
 
 use super::types::{McpCallOutput, McpToolContent};
-use crate::interactive::resolve_required;
-use crate::session::{get_or_create_session, CliSessionContext};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::interactive::resolve_required;
+use crate::session::{CliSessionContext, get_or_create_session};
+use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
 pub struct CallArgs {

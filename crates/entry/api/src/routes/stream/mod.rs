@@ -1,14 +1,14 @@
-use axum::extract::Extension;
-use axum::response::sse::Sse;
-use axum::response::IntoResponse;
-use axum::routing::get;
 use axum::Router;
+use axum::extract::Extension;
+use axum::response::IntoResponse;
+use axum::response::sse::Sse;
+use axum::routing::get;
 use std::convert::Infallible;
 use std::sync::{Arc, LazyLock};
 use systemprompt_agent::services::ContextProviderService;
 use systemprompt_events::{
-    standard_keep_alive, Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse, A2A_BROADCASTER,
-    AGUI_BROADCASTER,
+    A2A_BROADCASTER, AGUI_BROADCASTER, Broadcaster, ConnectionGuard, GenericBroadcaster, ToSse,
+    standard_keep_alive,
 };
 use systemprompt_models::RequestContext;
 use systemprompt_runtime::AppContext;

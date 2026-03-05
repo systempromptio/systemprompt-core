@@ -1,5 +1,5 @@
-use super::parts::persist_artifact_part;
 use super::ArtifactRepository;
+use super::parts::persist_artifact_part;
 use crate::models::a2a::Artifact;
 use chrono::Utc;
 use systemprompt_identifiers::{ArtifactId, ContextId, TaskId};

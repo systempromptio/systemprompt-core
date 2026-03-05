@@ -1,5 +1,6 @@
 use axum::routing::{get, post};
-use axum::{middleware, Router};
+use axum::{Router, middleware};
+use std::pin::Pin;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 use systemprompt_models::modules::ApiPaths;
@@ -8,8 +9,8 @@ use tokio::sync::RwLock;
 use tower_http::cors::CorsLayer;
 use tower_http::services::ServeDir;
 
-use super::auth::{agent_oauth_middleware_wrapper, AgentOAuthConfig, AgentOAuthState};
-use super::handlers::{handle_agent_card, handle_agent_request, AgentHandlerState};
+use super::auth::{AgentOAuthConfig, AgentOAuthState, agent_oauth_middleware_wrapper};
+use super::handlers::{AgentHandlerState, handle_agent_card, handle_agent_request};
 use crate::state::AgentState;
 
 pub struct Server {
@@ -138,7 +139,7 @@ impl Server {
 
     pub async fn run_with_shutdown(
         self,
-        shutdown_signal: impl std::future::Future<Output = ()> + Send + 'static,
+        shutdown_signal: impl Future<Output = ()> + Send + 'static,
     ) -> anyhow::Result<()> {
         self.log_server_configuration().await;
         self.start_server(Some(Box::pin(shutdown_signal))).await
@@ -148,7 +149,7 @@ impl Server {
 
     async fn start_server(
         self,
-        shutdown_signal: Option<std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send>>>,
+        shutdown_signal: Option<Pin<Box<dyn Future<Output = ()> + Send>>>,
     ) -> anyhow::Result<()> {
         let app = self.create_router();
         let addr = format!("0.0.0.0:{}", self.port);

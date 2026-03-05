@@ -1,11 +1,11 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use chrono::{DateTime, Utc};
 use clap::Args;
 use std::fs;
 use std::path::Path;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use super::super::paths::WebPaths;

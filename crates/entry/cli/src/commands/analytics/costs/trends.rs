@@ -7,11 +7,11 @@ use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{CostTrendPoint, CostTrendsOutput};
+use crate::CliConfig;
 use crate::commands::analytics::shared::{
     export_to_csv, format_period_label, parse_time_range, resolve_export_path, truncate_to_period,
 };
 use crate::shared::{ChartType, CommandResult};
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {

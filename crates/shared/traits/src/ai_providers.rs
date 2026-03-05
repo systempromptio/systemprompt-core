@@ -99,8 +99,8 @@ impl ImageMetadata {
         self
     }
 
-    pub fn with_generation(mut self, gen: ImageGenerationInfo) -> Self {
-        self.generation = Some(gen);
+    pub fn with_generation(mut self, generation: ImageGenerationInfo) -> Self {
+        self.generation = Some(generation);
         self
     }
 }

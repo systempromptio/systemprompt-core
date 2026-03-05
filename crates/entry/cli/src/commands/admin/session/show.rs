@@ -1,10 +1,10 @@
 use anyhow::Result;
-use systemprompt_cloud::{SessionKey, SessionStore, TenantStore, LOCAL_SESSION_KEY};
+use systemprompt_cloud::{LOCAL_SESSION_KEY, SessionKey, SessionStore, TenantStore};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
+use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[allow(clippy::unnecessary_wraps)]
 pub fn execute(_config: &CliConfig) -> Result<CommandResult<SessionShowOutput>> {

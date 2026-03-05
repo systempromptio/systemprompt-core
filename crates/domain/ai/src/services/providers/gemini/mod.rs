@@ -11,6 +11,6 @@ pub mod tool_conversion;
 mod tools;
 mod trait_impl;
 
-pub use code_execution::{generate_with_code_execution, CodeExecutionResponse};
+pub use code_execution::{CodeExecutionResponse, generate_with_code_execution};
 pub use provider::GeminiProvider;
 pub use tools::{ToolRequestParams, ToolResultParams};

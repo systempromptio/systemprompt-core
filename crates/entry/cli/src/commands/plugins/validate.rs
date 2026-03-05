@@ -2,8 +2,8 @@ use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
 use super::types::{ExtensionValidationOutput, ValidationError, ValidationWarning};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ValidateArgs {

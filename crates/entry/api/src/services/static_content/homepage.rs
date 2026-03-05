@@ -1,8 +1,8 @@
-use axum::http::{header, StatusCode};
+use axum::http::{StatusCode, header};
 use axum::response::IntoResponse;
 use systemprompt_models::AppPaths;
 
-use super::static_files::{compute_etag, CACHE_HTML};
+use super::static_files::{CACHE_HTML, compute_etag};
 
 pub async fn serve_homepage(headers: http::HeaderMap) -> impl IntoResponse {
     let dist_dir = match AppPaths::get() {

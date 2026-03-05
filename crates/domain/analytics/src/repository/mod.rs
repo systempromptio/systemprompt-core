@@ -24,7 +24,7 @@ pub use costs::CostAnalyticsRepository;
 pub use engagement::{EngagementRepository, SessionEngagementSummary};
 pub use events::{AnalyticsEventsRepository, StoredAnalyticsEvent};
 pub use fingerprint::{
-    FingerprintRepository, ABUSE_THRESHOLD_FOR_BAN, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM,
+    ABUSE_THRESHOLD_FOR_BAN, FingerprintRepository, HIGH_REQUEST_THRESHOLD, HIGH_VELOCITY_RPM,
     MAX_SESSIONS_PER_FINGERPRINT, SUSTAINED_VELOCITY_MINUTES,
 };
 pub use funnel::FunnelRepository;

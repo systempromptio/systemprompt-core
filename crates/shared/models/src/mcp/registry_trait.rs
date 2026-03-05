@@ -26,7 +26,7 @@ pub trait McpRegistry: Send + Sync {
 #[async_trait]
 pub trait McpToolProvider: Send + Sync {
     async fn list_tools(&self, server_name: &str, context: &RequestContext)
-        -> Result<Vec<McpTool>>;
+    -> Result<Vec<McpTool>>;
 
     async fn load_tools_for_servers(
         &self,

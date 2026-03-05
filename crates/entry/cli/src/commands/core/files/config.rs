@@ -3,8 +3,8 @@ use clap::Args;
 use systemprompt_files::{FilePersistenceMode, FilesConfig};
 
 use super::types::{AllowedTypesOutput, FileConfigOutput, StoragePathsOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ConfigArgs;

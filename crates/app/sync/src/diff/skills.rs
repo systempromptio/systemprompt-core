@@ -1,13 +1,13 @@
 use super::{compute_db_skill_hash, compute_skill_hash};
 use crate::models::{DiffStatus, DiskSkill, SkillDiffItem, SkillsDiffResult};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashMap;
 use std::path::Path;
 use systemprompt_agent::models::Skill;
 use systemprompt_agent::repository::content::SkillRepository;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SkillId;
-use systemprompt_models::{strip_frontmatter, DiskSkillConfig, SKILL_CONFIG_FILENAME};
+use systemprompt_models::{DiskSkillConfig, SKILL_CONFIG_FILENAME, strip_frontmatter};
 use tracing::warn;
 
 #[derive(Debug)]

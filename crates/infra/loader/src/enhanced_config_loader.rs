@@ -3,12 +3,12 @@ use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
+use systemprompt_models::AppPaths;
 use systemprompt_models::mcp::Deployment;
 use systemprompt_models::services::{
     AgentConfig, AiConfig, PartialServicesConfig, PluginConfig, SchedulerConfig, ServicesConfig,
     Settings as ServicesSettings, WebConfig,
 };
-use systemprompt_models::AppPaths;
 
 use crate::ConfigWriter;
 

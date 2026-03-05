@@ -1,10 +1,10 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use clap::Args;
 use futures_util::StreamExt;
 use reqwest::Client;
 use reqwest_eventsource::{Event, EventSource};
 use systemprompt_agent::models::a2a::jsonrpc::{
-    JsonRpcResponse, Request, RequestId, JSON_RPC_VERSION_2_0,
+    JSON_RPC_VERSION_2_0, JsonRpcResponse, Request, RequestId,
 };
 use systemprompt_agent::models::a2a::protocol::{
     MessageSendConfiguration, MessageSendParams, TaskStatusUpdateEvent,
@@ -14,10 +14,10 @@ use systemprompt_logging::CliService;
 use systemprompt_models::a2a::{Message, Part, Task, TextPart};
 
 use super::types::MessageOutput;
+use crate::CliConfig;
 use crate::interactive::resolve_required;
 use crate::session::get_or_create_session;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct MessageArgs {

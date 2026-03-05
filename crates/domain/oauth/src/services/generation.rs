@@ -1,16 +1,16 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
 use rand::distr::Alphanumeric;
-use rand::{rng, Rng};
+use rand::{Rng, rng};
 use serde::{Deserialize, Serialize};
 
 use crate::models::JwtClaims;
 use systemprompt_identifiers::SessionId;
+use systemprompt_models::Config;
 use systemprompt_models::auth::{
     AuthenticatedUser, JwtAudience, Permission, RateLimitTier, TokenType, UserType,
 };
-use systemprompt_models::Config;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct JwtConfig {
@@ -120,7 +120,7 @@ pub fn generate_access_token_jti() -> String {
 }
 
 pub fn hash_client_secret(secret: &str) -> Result<String> {
-    use bcrypt::{hash, DEFAULT_COST};
+    use bcrypt::{DEFAULT_COST, hash};
     Ok(hash(secret, DEFAULT_COST)?)
 }
 

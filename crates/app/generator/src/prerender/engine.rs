@@ -8,7 +8,7 @@ use tokio::fs;
 
 use crate::error::PublishError;
 use crate::prerender::content::process_all_sources;
-use crate::prerender::context::{load_prerender_context, PrerenderContext};
+use crate::prerender::context::{PrerenderContext, load_prerender_context};
 use crate::prerender::utils::{merge_json_data, render_components};
 
 pub async fn prerender_content(db_pool: DbPool) -> Result<()> {

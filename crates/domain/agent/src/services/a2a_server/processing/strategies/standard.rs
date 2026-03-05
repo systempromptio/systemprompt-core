@@ -4,9 +4,9 @@ use systemprompt_identifiers::TaskId;
 use systemprompt_models::AiMessage;
 
 use super::{ExecutionContext, ExecutionResult, ExecutionStrategy};
+use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::ai_executor::process_without_tools;
 use crate::services::a2a_server::processing::message::StreamEvent;
-use crate::services::ExecutionTrackingService;
 
 #[derive(Debug, Clone, Copy)]
 pub struct StandardExecutionStrategy;

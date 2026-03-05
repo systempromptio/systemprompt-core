@@ -11,9 +11,9 @@ mod sync;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
+use crate::CliConfig;
 use crate::cli_settings::get_global_config;
 use crate::shared::render_result;
-use crate::CliConfig;
 
 #[derive(Debug, Subcommand)]
 pub enum SkillsCommands {

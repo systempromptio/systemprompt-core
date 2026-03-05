@@ -4,7 +4,7 @@ use systemprompt_traits::{StartupEventExt, StartupEventSender};
 use super::AgentLifecycle;
 use crate::services::agent_orchestration::events::AgentEvent;
 use crate::services::agent_orchestration::{
-    process, AgentStatus, OrchestrationError, OrchestrationResult,
+    AgentStatus, OrchestrationError, OrchestrationResult, process,
 };
 
 impl AgentLifecycle {

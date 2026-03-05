@@ -5,9 +5,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::ProfileBootstrap;
 
 use super::types::{PathInfo, PathValidation, PathsConfigOutput, PathsValidateOutput};
-use crate::cli_settings::OutputFormat;
-use crate::shared::{render_result, CommandResult};
 use crate::CliConfig;
+use crate::cli_settings::OutputFormat;
+use crate::shared::{CommandResult, render_result};
 
 #[derive(Debug, Clone, Copy, Subcommand)]
 pub enum PathsCommands {

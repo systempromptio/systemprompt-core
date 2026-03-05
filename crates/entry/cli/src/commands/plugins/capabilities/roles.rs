@@ -1,9 +1,9 @@
 use clap::Args;
 use systemprompt_extension::ExtensionRegistry;
 
+use crate::CliConfig;
 use crate::commands::plugins::types::{RoleWithExtension, RolesListOutput};
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Args)]
 pub struct RolesArgs {

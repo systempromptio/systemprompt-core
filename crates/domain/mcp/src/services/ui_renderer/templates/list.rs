@@ -1,4 +1,4 @@
-use super::html::{base_styles, html_escape, mcp_app_bridge_script, HtmlBuilder};
+use super::html::{HtmlBuilder, base_styles, html_escape, mcp_app_bridge_script};
 use crate::services::ui_renderer::{CspPolicy, UiRenderer, UiResource};
 use anyhow::Result;
 use async_trait::async_trait;

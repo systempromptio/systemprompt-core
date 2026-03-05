@@ -1,8 +1,8 @@
 use anyhow::Result;
 use std::path::{Path, PathBuf};
 use systemprompt_loader::ExtensionRegistry;
-use systemprompt_models::mcp::McpServerType;
 use systemprompt_models::Config;
+use systemprompt_models::mcp::McpServerType;
 
 use crate::services::deployment::DeploymentService;
 

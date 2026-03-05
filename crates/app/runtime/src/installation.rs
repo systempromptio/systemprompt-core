@@ -1,6 +1,6 @@
 use anyhow::Result;
 use systemprompt_database::{
-    install_module_schemas_from_source, install_module_seeds_from_path, DatabaseProvider,
+    DatabaseProvider, install_module_schemas_from_source, install_module_seeds_from_path,
 };
 use systemprompt_models::modules::Module;
 

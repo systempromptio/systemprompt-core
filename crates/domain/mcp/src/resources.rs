@@ -1,11 +1,11 @@
+use rmcp::ErrorData as McpError;
 use rmcp::model::{
     Icon, ListResourcesResult, Meta, RawResource, ReadResourceRequestParams, ReadResourceResult,
     Resource, ResourceContents,
 };
-use rmcp::ErrorData as McpError;
 
 use crate::capabilities::WEBSITE_URL;
-use crate::services::ui_renderer::{CspPolicy, UiMetadata, MCP_APP_MIME_TYPE};
+use crate::services::ui_renderer::{CspPolicy, MCP_APP_MIME_TYPE, UiMetadata};
 
 #[derive(Debug)]
 pub struct ArtifactViewerConfig<'a> {

@@ -9,9 +9,9 @@ use super::api::request_session_id;
 use super::resolution::ProfileContext;
 use crate::CliConfig;
 use helpers::{
-    build_cli_session, connect_database, create_cli_context, generate_admin_token, load_secrets,
-    resolve_admin_with_fallback, resolve_local_user_email, resolve_tenant_admin_with_fallback,
-    SessionComponents,
+    SessionComponents, build_cli_session, connect_database, create_cli_context,
+    generate_admin_token, load_secrets, resolve_admin_with_fallback, resolve_local_user_email,
+    resolve_tenant_admin_with_fallback,
 };
 
 pub(super) async fn create_local_session(

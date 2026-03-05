@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
-use systemprompt_content::models::Content;
 use systemprompt_content::ContentRepository;
+use systemprompt_content::models::Content;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::SourceId;
 use systemprompt_provider_contracts::{ContentDataContext, ContentDataProvider};

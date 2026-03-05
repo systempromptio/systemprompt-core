@@ -1,16 +1,16 @@
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use systemprompt_logging::CliService;
-use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 use systemprompt_models::ProfileBootstrap;
+use systemprompt_models::profile::{RateLimitsConfig, TierMultipliers};
 
 use super::helpers::{
     collect_endpoint_changes, collect_tier_changes, load_profile_for_edit, save_profile,
 };
 use super::{PresetApplyArgs, PresetCommands, PresetShowArgs};
+use crate::CliConfig;
 use crate::cli_settings::OutputFormat;
 use crate::interactive::require_confirmation;
-use crate::shared::{render_result, CommandResult};
-use crate::CliConfig;
+use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{
     PresetApplyOutput, PresetInfo, PresetListOutput, PresetShowOutput, RateLimitsOutput,

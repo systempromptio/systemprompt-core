@@ -1,13 +1,13 @@
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_runtime::AppContext;
 use systemprompt_users::UserService;
 
+use crate::CliConfig;
 use crate::commands::admin::users::types::BulkDeleteOutput;
 use crate::shared::CommandResult;
-use crate::CliConfig;
 
 #[derive(Debug, Args)]
 pub struct DeleteArgs {

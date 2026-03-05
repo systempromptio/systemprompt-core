@@ -1,6 +1,6 @@
+use axum::Router;
 use axum::http::StatusCode;
 use axum::routing::get;
-use axum::Router;
 use systemprompt_models::modules::ApiPaths;
 
 pub fn wellknown_routes() -> Router {

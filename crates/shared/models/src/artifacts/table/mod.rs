@@ -10,7 +10,7 @@ use crate::artifacts::types::ArtifactType;
 use crate::execution::context::RequestContext;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value as JsonValue};
+use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::SkillId;
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
@@ -106,7 +106,13 @@ impl TableArtifact {
             execution_id: self.metadata.execution_id.clone(),
             hints: Some(self.hints_builder.generate_schema()),
         };
-        serde_json::to_value(response).unwrap_or(JsonValue::Null)
+        match serde_json::to_value(response) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize table response");
+                JsonValue::Null
+            },
+        }
     }
 }
 

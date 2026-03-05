@@ -1,7 +1,7 @@
 use systemprompt_cloud::CliSession;
 use systemprompt_identifiers::{AgentName, ContextId, SessionToken, TraceId};
-use systemprompt_models::execution::context::RequestContext;
 use systemprompt_models::Profile;
+use systemprompt_models::execution::context::RequestContext;
 
 #[derive(Debug)]
 pub struct CliSessionContext {

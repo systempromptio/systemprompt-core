@@ -4,17 +4,17 @@ use axum::routing::get;
 use axum::{Json, Router};
 use serde_json::json;
 use systemprompt_database::DatabaseQuery;
+use systemprompt_models::AppPaths;
 use systemprompt_models::api::SingleResponse;
 use systemprompt_models::modules::ApiPaths;
-use systemprompt_models::AppPaths;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 
 use super::routes::configure_routes;
 use crate::models::ServerConfig;
 use crate::services::middleware::{
-    inject_security_headers, inject_trace_header, remove_trailing_slash, AnalyticsMiddleware,
-    ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
+    AnalyticsMiddleware, ContextMiddleware, CorsMiddleware, JwtContextExtractor, SessionMiddleware,
+    inject_security_headers, inject_trace_header, remove_trailing_slash,
 };
 
 const HEALTH_CHECK_QUERY: DatabaseQuery = DatabaseQuery::new("SELECT 1");

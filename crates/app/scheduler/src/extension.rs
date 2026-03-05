@@ -17,11 +17,17 @@ impl Extension for SchedulerExtension {
     }
 
     fn schemas(&self) -> Vec<SchemaDefinition> {
-        vec![SchemaDefinition::inline(
-            "scheduled_jobs",
-            include_str!("../schema/scheduled_jobs.sql"),
-        )
-        .with_required_columns(vec!["id".into(), "job_name".into(), "created_at".into()])]
+        vec![
+            SchemaDefinition::inline(
+                "scheduled_jobs",
+                include_str!("../schema/scheduled_jobs.sql"),
+            )
+            .with_required_columns(vec![
+                "id".into(),
+                "job_name".into(),
+                "created_at".into(),
+            ]),
+        ]
     }
 
     fn dependencies(&self) -> Vec<&'static str> {

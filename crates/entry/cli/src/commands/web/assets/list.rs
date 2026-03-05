@@ -4,8 +4,8 @@ use clap::{Args, ValueEnum};
 use std::path::Path;
 use walkdir::WalkDir;
 
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 use super::super::paths::WebPaths;
 use super::super::types::{AssetListOutput, AssetSummary, AssetType};

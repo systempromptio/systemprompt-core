@@ -1,7 +1,7 @@
 use anyhow::Result;
 use chrono::{Duration, Utc};
-use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use systemprompt_identifiers::{JwtToken, SessionId, UserId};
+use jsonwebtoken::{Algorithm, EncodingKey, Header, encode};
+use systemprompt_identifiers::{ClientId, JwtToken, SessionId, UserId};
 use systemprompt_models::auth::{
     JwtAudience, JwtClaims, Permission, RateLimitTier, TokenType, UserType,
 };
@@ -14,6 +14,7 @@ pub struct AdminTokenParams<'a> {
     pub jwt_secret: &'a str,
     pub issuer: &'a str,
     pub duration: Duration,
+    pub client_id: Option<&'a ClientId>,
 }
 
 #[derive(Copy, Clone, Debug)]
@@ -36,7 +37,7 @@ impl JwtService {
             email: params.email.to_string(),
             user_type: UserType::Admin,
             roles: vec!["admin".to_string(), "user".to_string()],
-            client_id: Some("sp_tui".to_string()),
+            client_id: params.client_id.map(ToString::to_string),
             token_type: TokenType::Bearer,
             auth_time: now.timestamp(),
             session_id: Some(params.session_id.to_string()),

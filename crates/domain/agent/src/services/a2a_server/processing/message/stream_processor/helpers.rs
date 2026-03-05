@@ -2,11 +2,11 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::sync::mpsc;
 
-use crate::models::a2a::Artifact;
 use crate::models::AgentRuntimeInfo;
+use crate::models::a2a::Artifact;
+use crate::services::SkillService;
 use crate::services::a2a_server::processing::artifact::ArtifactBuilder;
 use crate::services::a2a_server::processing::message::StreamEvent;
-use crate::services::SkillService;
 use systemprompt_models::{AiMessage, AiProvider, RequestContext};
 
 pub fn build_artifacts_from_results(

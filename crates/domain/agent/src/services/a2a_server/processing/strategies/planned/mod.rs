@@ -5,12 +5,12 @@ mod tool_execution;
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
-use systemprompt_models::ai::PlanningResult;
 use systemprompt_models::AiMessage;
+use systemprompt_models::ai::PlanningResult;
 
 use super::{ExecutionContext, ExecutionResult, ExecutionStrategy};
-use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::ExecutionTrackingService;
+use crate::services::a2a_server::processing::message::StreamEvent;
 use helpers::build_ai_request;
 
 #[derive(Debug, Clone, Copy)]

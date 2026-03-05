@@ -2,8 +2,8 @@ use anyhow::{Context, Result};
 use clap::Args;
 use std::sync::Arc;
 
-use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_agent::AgentState;
+use systemprompt_agent::services::a2a_server::run_standalone;
 use systemprompt_ai::AiService;
 use systemprompt_database::Database;
 use systemprompt_loader::ConfigLoader;

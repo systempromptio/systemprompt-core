@@ -12,9 +12,9 @@ pub mod status;
 pub mod types;
 pub mod verify;
 
-use crate::cli_settings::{get_global_config, CliConfig};
+use crate::cli_settings::{CliConfig, get_global_config};
 use crate::shared::render_result;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use clap::Subcommand;
 use systemprompt_runtime::DatabaseContext;
 

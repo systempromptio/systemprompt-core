@@ -1,6 +1,6 @@
 use super::types::{DeployEnvironment, EnvironmentConfig};
 use super::writer::ConfigWriter;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use regex::Regex;
 use std::collections::HashMap;
 use std::fs;
@@ -94,7 +94,10 @@ impl ConfigManager {
                 }
 
                 if let Some((key, value)) = line.split_once('=') {
-                    std::env::set_var(key.trim(), value.trim().trim_matches('"'));
+                    #[allow(unsafe_code)]
+                    unsafe {
+                        std::env::set_var(key.trim(), value.trim().trim_matches('"'));
+                    }
                 }
             }
 

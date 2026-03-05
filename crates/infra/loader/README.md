@@ -28,7 +28,7 @@ This crate provides pure I/O operations for loading configuration files, profile
 The loader crate sits in the infrastructure layer and depends only on `systemprompt-models` (shared layer). It separates file I/O concerns from business logic, enabling:
 
 - Testable file operations with clear boundaries
-- Reusable loaders across different entry points (API, TUI, CLI)
+- Reusable loaders across different entry points (API, CLI)
 - Consistent configuration parsing and validation
 
 ## File Structure

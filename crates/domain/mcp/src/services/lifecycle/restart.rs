@@ -1,6 +1,6 @@
-use super::{shutdown, startup, LifecycleManager};
-use crate::services::process::ProcessManager;
+use super::{LifecycleManager, shutdown, startup};
 use crate::McpServerConfig;
+use crate::services::process::ProcessManager;
 use anyhow::Result;
 
 pub async fn restart_server(manager: &LifecycleManager, config: &McpServerConfig) -> Result<()> {

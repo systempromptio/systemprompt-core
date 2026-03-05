@@ -4,11 +4,11 @@ use crate::response::McpResponseBuilder;
 use crate::schema::McpOutputSchema;
 use async_trait::async_trait;
 use chrono::Utc;
-use rmcp::model::{CallToolRequestParams, CallToolResult};
 use rmcp::ErrorData as McpError;
+use rmcp::model::{CallToolRequestParams, CallToolResult};
 use schemars::JsonSchema;
-use serde::de::DeserializeOwned;
 use serde::Serialize;
+use serde::de::DeserializeOwned;
 use serde_json::Value as JsonValue;
 use std::sync::Arc;
 use systemprompt_identifiers::McpExecutionId;
@@ -27,7 +27,13 @@ pub trait McpToolHandler: Send + Sync {
 
     fn input_schema(&self) -> JsonValue {
         let schema = schemars::schema_for!(Self::Input);
-        serde_json::to_value(&schema).unwrap_or(JsonValue::Null)
+        match serde_json::to_value(&schema) {
+            Ok(v) => v,
+            Err(e) => {
+                tracing::error!(error = %e, "Failed to serialize input schema");
+                JsonValue::Null
+            },
+        }
     }
 
     fn output_schema(&self) -> JsonValue {
@@ -70,10 +76,15 @@ impl McpToolExecutor {
     ) -> Result<CallToolResult, McpError> {
         let started_at = Utc::now();
 
+        let input_value = serde_json::to_value(&request.arguments).map_err(|e| {
+            tracing::error!(error = %e, "Failed to serialize tool arguments");
+            McpError::internal_error(format!("Failed to serialize arguments: {e}"), None)
+        })?;
+
         let execution_request = ToolExecutionRequest {
             tool_name: handler.tool_name().to_string(),
             server_name: self.server_name.clone(),
-            input: serde_json::to_value(&request.arguments).unwrap_or_default(),
+            input: input_value,
             started_at,
             context: ctx.clone(),
             request_method: Some("mcp".to_string()),
@@ -91,10 +102,7 @@ impl McpToolExecutor {
                     error = %e,
                     "Failed to start execution tracking"
                 );
-                McpError::internal_error(
-                    format!("Failed to start execution tracking: {e}"),
-                    None,
-                )
+                McpError::internal_error(format!("Failed to start execution tracking: {e}"), None)
             })?;
 
         tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution started");
@@ -112,12 +120,23 @@ impl McpToolExecutor {
                 McpResponseBuilder::new(output, handler.tool_name(), ctx, &exec_id)
                     .build(summary, &self.artifact_repo, &artifact_type, title)
                     .await
-            }
+            },
             Err(ref e) => Err(e.clone()),
         };
 
+        let execution_result = Self::build_execution_result(&response, started_at);
+        self.record_completion(handler.tool_name(), &exec_id, &execution_result)
+            .await;
+
+        response
+    }
+
+    fn build_execution_result(
+        response: &Result<CallToolResult, McpError>,
+        started_at: chrono::DateTime<Utc>,
+    ) -> ToolExecutionResult {
         let completed_at = Utc::now();
-        let execution_result = ToolExecutionResult {
+        ToolExecutionResult {
             output: response
                 .as_ref()
                 .ok()
@@ -131,27 +150,32 @@ impl McpToolExecutor {
             error_message: response.as_ref().err().map(|e| e.message.to_string()),
             started_at,
             completed_at,
-        };
+        }
+    }
 
+    async fn record_completion(
+        &self,
+        tool_name: &str,
+        exec_id: &McpExecutionId,
+        result: &ToolExecutionResult,
+    ) {
         match self
             .tool_usage_repo
-            .complete_execution(&exec_id, &execution_result)
+            .complete_execution(exec_id, result)
             .await
         {
             Ok(()) => {
-                tracing::info!(tool = handler.tool_name(), %exec_id, "MCP execution completed");
-            }
+                tracing::info!(tool = tool_name, %exec_id, "MCP execution completed");
+            },
             Err(e) => {
                 tracing::error!(
-                    tool = handler.tool_name(),
+                    tool = tool_name,
                     %exec_id,
                     error = %e,
                     "Failed to complete execution tracking"
                 );
-            }
+            },
         }
-
-        response
     }
 }
 

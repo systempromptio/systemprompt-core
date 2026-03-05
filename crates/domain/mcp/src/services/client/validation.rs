@@ -1,7 +1,7 @@
 use anyhow::Result;
+use rmcp::ServiceExt;
 use rmcp::model::{ClientCapabilities, ClientInfo, Implementation};
 use rmcp::transport::streamable_http_client::StreamableHttpClientTransport;
-use rmcp::ServiceExt;
 use std::time::Duration;
 use tokio::time::timeout;
 

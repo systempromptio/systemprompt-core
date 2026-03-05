@@ -214,7 +214,7 @@ pub async fn save_push_notification_config(
     callback_config: &Option<PushNotificationConfig>,
     state: &Arc<AgentHandlerState>,
 ) {
-    let Some(ref config) = callback_config else {
+    let Some(config) = callback_config else {
         return;
     };
 

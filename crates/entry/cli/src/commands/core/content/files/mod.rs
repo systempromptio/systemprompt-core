@@ -6,8 +6,8 @@ mod unlink;
 use anyhow::{Context, Result};
 use clap::Subcommand;
 
-use crate::shared::render_result;
 use crate::CliConfig;
+use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum ContentFilesCommands {

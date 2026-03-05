@@ -13,7 +13,7 @@ use super::ai_display::{
 use super::ai_mcp::print_mcp_executions;
 use super::display::{print_event, print_table};
 use super::json::print_json;
-use super::summary::{print_summary, SummaryContext};
+use super::summary::{SummaryContext, print_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
 use crate::shared::CommandResult;
 

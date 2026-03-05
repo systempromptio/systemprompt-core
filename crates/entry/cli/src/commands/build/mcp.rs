@@ -1,4 +1,4 @@
-use anyhow::{anyhow, bail, Context, Result};
+use anyhow::{Context, Result, anyhow, bail};
 use clap::Args;
 use std::path::Path;
 use std::process::Command;
@@ -8,9 +8,9 @@ use systemprompt_logging::CliService;
 use systemprompt_models::BuildType;
 
 use super::types::{BuildExtensionRow, BuildOutput};
+use crate::CliConfig;
 use crate::shared::command_result::CommandResult;
 use crate::shared::project::ProjectRoot;
-use crate::CliConfig;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct McpArgs {

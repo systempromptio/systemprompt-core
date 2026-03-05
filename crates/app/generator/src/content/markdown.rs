@@ -1,4 +1,4 @@
-use comrak::{markdown_to_html, Options};
+use comrak::{Options, markdown_to_html};
 
 fn strip_first_h1(content: &str) -> String {
     let lines: Vec<&str> = content.lines().collect();

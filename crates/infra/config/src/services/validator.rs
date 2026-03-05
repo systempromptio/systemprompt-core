@@ -1,5 +1,5 @@
 use super::types::{DeployEnvironment, EnvironmentConfig};
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use regex::Regex;
 use std::path::Path;
 use systemprompt_logging::CliService;

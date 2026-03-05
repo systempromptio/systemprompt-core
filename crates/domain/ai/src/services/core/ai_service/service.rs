@@ -2,8 +2,8 @@ use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use crate::models::ai::AiRequest;
 use crate::models::RequestStatus;
+use crate::models::ai::AiRequest;
 use crate::repository::AiRequestRepository;
 use crate::services::config::ConfigValidator;
 use crate::services::providers::{AiProvider, ProviderFactory};
@@ -13,8 +13,8 @@ use crate::services::tools::ToolDiscovery;
 use super::super::request_storage::{RequestStorage, StoreParams};
 
 use systemprompt_database::DbPool;
-use systemprompt_models::services::AiConfig;
 use systemprompt_models::SecretsBootstrap;
+use systemprompt_models::services::AiConfig;
 use systemprompt_traits::{DynAiSessionProvider, ToolProvider};
 
 pub struct AiService {

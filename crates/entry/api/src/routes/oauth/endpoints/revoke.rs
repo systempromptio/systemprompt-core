@@ -7,9 +7,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use systemprompt_analytics::SessionRepository;
 use systemprompt_models::RequestContext;
+use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
-use systemprompt_oauth::OAuthState;
 use tracing::instrument;
 
 #[derive(Debug, Deserialize)]

@@ -5,8 +5,8 @@ use systemprompt_files::{FileService, FileStats};
 use systemprompt_runtime::AppContext;
 
 use super::types::{CategoryStat, FileCategoryStats, FileStatsOutput};
-use crate::shared::CommandResult;
 use crate::CliConfig;
+use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct StatsArgs;

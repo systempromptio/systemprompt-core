@@ -1,12 +1,12 @@
 use crate::models::Agent;
 use crate::repository::content::AgentRepository;
-use anyhow::{anyhow, Result};
+use anyhow::{Result, anyhow};
 use std::collections::HashSet;
 use std::path::Path;
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{AgentId, SourceId};
 use systemprompt_models::{
-    strip_frontmatter, DiskAgentConfig, IngestionReport, AGENT_CONFIG_FILENAME,
+    AGENT_CONFIG_FILENAME, DiskAgentConfig, IngestionReport, strip_frontmatter,
 };
 
 #[derive(Debug)]

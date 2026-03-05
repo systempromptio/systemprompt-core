@@ -12,8 +12,8 @@ use super::super::plan_executor::{
 };
 use super::super::tool_executor::ContextToolExecutor;
 use super::super::{ExecutionContext, ExecutionResult};
-use crate::services::a2a_server::processing::message::StreamEvent;
 use crate::services::ExecutionTrackingService;
+use crate::services::a2a_server::processing::message::StreamEvent;
 
 pub async fn handle_tool_calls(
     reasoning: String,
