@@ -32,7 +32,7 @@ pub use resources::{
     ArtifactViewerConfig,
 };
 pub use schema::McpOutputSchema;
-pub use tool::{call_tool, McpToolHandler};
+pub use tool::{McpToolExecutor, McpToolHandler};
 
 pub use systemprompt_models::mcp::{
     Deployment, DeploymentConfig, McpAuthState, McpServerConfig, OAuthRequirement, Settings, ERROR,

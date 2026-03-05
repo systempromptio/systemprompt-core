@@ -42,6 +42,8 @@ pub struct VideoArtifact {
 }
 
 impl VideoArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "video";
+
     pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "video".to_string(),

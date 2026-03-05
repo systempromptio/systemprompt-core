@@ -57,6 +57,8 @@ pub struct ChartArtifact {
 }
 
 impl ChartArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "chart";
+
     pub fn new(title: impl Into<String>, chart_type: ChartType, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "chart".to_string(),

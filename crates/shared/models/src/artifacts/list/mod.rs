@@ -93,6 +93,8 @@ pub struct ListArtifact {
 }
 
 impl ListArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "list";
+
     pub fn new(ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "list".to_string(),

@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.19] - 2026-03-05
+
+### Changed
+- Refactor CLI artifact from single file `cli.rs` to module directory `cli/` with `mod.rs` and `conversion.rs`
+- Add `ARTIFACT_TYPE_STR` constant to all artifact types (Audio, Card, Chart, Cli, CopyPasteText, Dashboard, Image, List, Table, Text, Video)
+- `ArtifactType::Display` now uses `ARTIFACT_TYPE_STR` constants instead of hardcoded strings
+
 ## [0.1.18] - 2026-02-19
 
 ### Added

@@ -27,6 +27,8 @@ pub struct CopyPasteTextArtifact {
 }
 
 impl CopyPasteTextArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "copy_paste_text";
+
     pub fn new(content: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "copy_paste_text".to_string(),

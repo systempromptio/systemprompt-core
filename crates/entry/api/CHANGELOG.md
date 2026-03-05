@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.16] - 2026-03-05
+
+### Changed
+- Remove `form_post` from supported response modes in OAuth discovery metadata
+- Simplify OAuth authorize request scope resolution logic
+- Remove unused `McpServerRegistry` and `McpRegistryProvider` imports from authorize validation
+- Simplify token generation by removing redundant resource scope validation
+
 ## [0.1.15] - 2026-02-19
 
 ### Changed

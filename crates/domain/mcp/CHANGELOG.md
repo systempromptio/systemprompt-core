@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.6] - 2026-03-05
+
+### Changed
+- Rename `call_tool` to `McpToolExecutor` for consistent naming
+- Merge `build()` and `build_and_persist()` into single `build()` method that always persists artifacts
+- Add `artifact_type()` and `artifact_type_name()` methods to `McpOutputSchema` trait
+- Implement `McpOutputSchema` for all artifact types (Audio, Chart, Cli, CopyPasteText, Dashboard, Image, List, PresentationCard, Table, Text, Video)
+
 ## [0.1.5] - 2026-02-19
 
 ### Changed

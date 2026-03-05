@@ -39,6 +39,8 @@ pub struct DashboardArtifact {
 }
 
 impl DashboardArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "dashboard";
+
     pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "dashboard".to_string(),

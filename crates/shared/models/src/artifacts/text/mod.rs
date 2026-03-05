@@ -25,6 +25,8 @@ pub struct TextArtifact {
 }
 
 impl TextArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "text";
+
     pub fn new(content: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "text".to_string(),

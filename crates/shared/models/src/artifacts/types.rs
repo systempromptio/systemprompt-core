@@ -1,6 +1,17 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
+use super::audio::AudioArtifact;
+use super::card::PresentationCardArtifact;
+use super::chart::ChartArtifact;
+use super::copy_paste_text::CopyPasteTextArtifact;
+use super::dashboard::DashboardArtifact;
+use super::image::ImageArtifact;
+use super::list::ListArtifact;
+use super::table::TableArtifact;
+use super::text::TextArtifact;
+use super::video::VideoArtifact;
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, JsonSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ArtifactType {
@@ -17,8 +28,6 @@ pub enum ArtifactType {
     Image,
     Video,
     Audio,
-    /// Custom artifact types defined by extensions (e.g., "blog", "product",
-    /// etc.)
     #[serde(untagged)]
     Custom(String),
 }
@@ -26,17 +35,17 @@ pub enum ArtifactType {
 impl std::fmt::Display for ArtifactType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Text => write!(f, "text"),
-            Self::Table => write!(f, "table"),
-            Self::Chart => write!(f, "chart"),
+            Self::Text => write!(f, "{}", TextArtifact::ARTIFACT_TYPE_STR),
+            Self::Table => write!(f, "{}", TableArtifact::ARTIFACT_TYPE_STR),
+            Self::Chart => write!(f, "{}", ChartArtifact::ARTIFACT_TYPE_STR),
             Self::Form => write!(f, "form"),
-            Self::Dashboard => write!(f, "dashboard"),
-            Self::PresentationCard => write!(f, "presentation_card"),
-            Self::List => write!(f, "list"),
-            Self::CopyPasteText => write!(f, "copy_paste_text"),
-            Self::Image => write!(f, "image"),
-            Self::Video => write!(f, "video"),
-            Self::Audio => write!(f, "audio"),
+            Self::Dashboard => write!(f, "{}", DashboardArtifact::ARTIFACT_TYPE_STR),
+            Self::PresentationCard => write!(f, "{}", PresentationCardArtifact::ARTIFACT_TYPE_STR),
+            Self::List => write!(f, "{}", ListArtifact::ARTIFACT_TYPE_STR),
+            Self::CopyPasteText => write!(f, "{}", CopyPasteTextArtifact::ARTIFACT_TYPE_STR),
+            Self::Image => write!(f, "{}", ImageArtifact::ARTIFACT_TYPE_STR),
+            Self::Video => write!(f, "{}", VideoArtifact::ARTIFACT_TYPE_STR),
+            Self::Audio => write!(f, "{}", AudioArtifact::ARTIFACT_TYPE_STR),
             Self::Custom(s) => write!(f, "{}", s),
         }
     }

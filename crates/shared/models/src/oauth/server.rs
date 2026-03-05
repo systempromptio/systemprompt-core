@@ -60,7 +60,7 @@ impl OAuthServerConfig {
             issuer: api_server_url.to_owned(),
             authorization_endpoint: format!("{api_server_url}/api/v1/core/oauth/authorize"),
             token_endpoint: format!("{api_server_url}/api/v1/core/oauth/token"),
-            registration_endpoint: format!("{api_server_url}/api/v1/core/oauth/clients"),
+            registration_endpoint: format!("{api_server_url}/api/v1/core/oauth/register"),
             supported_scopes: vec!["user".to_owned(), "admin".to_owned()],
             supported_response_types: vec!["code".to_owned()],
             supported_grant_types: vec![

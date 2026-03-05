@@ -1,8 +1,6 @@
 use super::AuthorizeQuery;
 use anyhow::Result;
-use systemprompt_mcp::McpServerRegistry;
 use systemprompt_oauth::repository::OAuthRepository;
-use systemprompt_traits::McpRegistryProvider;
 
 pub async fn validate_authorize_request(
     params: &AuthorizeQuery,
@@ -31,56 +29,38 @@ pub async fn validate_authorize_request(
         })?;
     }
 
-    let (scope, from_resource) = if let Some(scope_param) = params.scope.as_deref() {
-        if let Some(resource) = &params.resource {
-            if let Some(resource_scopes) = resolve_resource_scopes(resource).await {
-                let resource_scope_list = OAuthRepository::parse_scopes(&resource_scopes);
-                let requested_list = OAuthRepository::parse_scopes(scope_param);
-                let all_covered = requested_list
-                    .iter()
-                    .all(|s| resource_scope_list.contains(s));
-                (scope_param.to_string(), all_covered)
-            } else {
-                (scope_param.to_string(), false)
-            }
-        } else {
-            (scope_param.to_string(), false)
-        }
-    } else if let Some(resource) = &params.resource {
-        if let Some(resource_scopes) = resolve_resource_scopes(resource).await {
-            (resource_scopes, true)
-        } else if client.scopes.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Client has no registered scopes and none provided in request"
-            ));
-        } else {
-            (client.scopes.join(" "), false)
-        }
+    let resource_scopes = match &params.resource {
+        Some(resource) => resolve_resource_scopes(resource).await,
+        None => None,
+    };
+
+    let scope = if let Some(scope_param) = params.scope.as_deref() {
+        scope_param.to_string()
+    } else if let Some(ref rs) = resource_scopes {
+        rs.clone()
+    } else if client.scopes.is_empty() {
+        return Err(anyhow::anyhow!(
+            "Client has no registered scopes and none provided in request"
+        ));
     } else {
-        if client.scopes.is_empty() {
-            return Err(anyhow::anyhow!(
-                "Client has no registered scopes and none provided in request"
-            ));
-        }
-        (client.scopes.join(" "), false)
+        client.scopes.join(" ")
     };
 
     let requested_scopes = OAuthRepository::parse_scopes(&scope);
 
-    let valid_scopes = OAuthRepository::validate_scopes(&requested_scopes)
+    OAuthRepository::validate_scopes(&requested_scopes)
         .map_err(|e| anyhow::anyhow!("Invalid scopes requested: {e}"))?;
 
-    if !from_resource {
-        for requested_scope in &valid_scopes {
-            if !client.scopes.contains(requested_scope) {
-                return Err(anyhow::anyhow!(
-                    "Scope '{}' not allowed for client '{}'",
-                    requested_scope,
-                    params.client_id
-                ));
-            }
-        }
-    }
+    // Client registration scopes are not a security boundary. Dynamically
+    // registered clients (RFC 7591) may not know what scopes they need at
+    // registration time — MCP clients discover required scopes later from
+    // the protected resource metadata (RFC 9728) or from the MCP server.
+    //
+    // The actual access control happens at token issuance time in
+    // resolve_user_permissions(), which intersects requested scopes with
+    // both the user's database permissions and the resource's declared scopes.
+    // Rejecting valid scopes here would break MCP clients that register
+    // before discovering what scopes the target server requires.
 
     Ok(scope)
 }
@@ -101,53 +81,57 @@ pub fn validate_oauth_parameters(params: &AuthorizeQuery) -> Result<(), String> 
         }
     }
 
-    if let Some(code_challenge) = &params.code_challenge {
-        if code_challenge.len() < systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
-            return Err(format!(
-                "code_challenge too short. Must be at least {} characters for security.",
-                systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH
-            ));
-        }
-        if code_challenge.len() > systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH {
-            return Err(format!(
-                "code_challenge too long. Must be at most {} characters.",
-                systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH
-            ));
-        }
+    let Some(code_challenge) = &params.code_challenge else {
+        return Err(
+            "code_challenge is required. PKCE with S256 method must be used.".to_string(),
+        );
+    };
 
-        let is_valid_base64url = code_challenge
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+    if code_challenge.len() < systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH {
+        return Err(format!(
+            "code_challenge too short. Must be at least {} characters for security.",
+            systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MIN_LENGTH
+        ));
+    }
+    if code_challenge.len() > systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH {
+        return Err(format!(
+            "code_challenge too long. Must be at most {} characters.",
+            systemprompt_oauth::constants::pkce::CODE_CHALLENGE_MAX_LENGTH
+        ));
+    }
 
-        if !is_valid_base64url {
+    let is_valid_base64url = code_challenge
+        .chars()
+        .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_');
+
+    if !is_valid_base64url {
+        return Err(
+            "code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_string(),
+        );
+    }
+
+    if is_low_entropy_challenge(code_challenge) {
+        return Err(
+            "code_challenge appears to have insufficient entropy for security".to_string(),
+        );
+    }
+
+    let method = params.code_challenge_method.as_deref().ok_or_else(|| {
+        "code_challenge_method is required when code_challenge is provided".to_string()
+    })?;
+
+    match method {
+        "S256" => {},
+        "plain" => {
             return Err(
-                "code_challenge must be base64url encoded (A-Z, a-z, 0-9, -, _)".to_string(),
+                "PKCE method 'plain' is not allowed. Use 'S256' for security.".to_string(),
             );
-        }
-
-        if is_low_entropy_challenge(code_challenge) {
-            return Err(
-                "code_challenge appears to have insufficient entropy for security".to_string(),
-            );
-        }
-
-        let method = params.code_challenge_method.as_deref().ok_or_else(|| {
-            "code_challenge_method is required when code_challenge is provided".to_string()
-        })?;
-
-        match method {
-            "S256" => {},
-            "plain" => {
-                return Err(
-                    "PKCE method 'plain' is not allowed. Use 'S256' for security.".to_string(),
-                );
-            },
-            _ => {
-                return Err(format!(
-                    "Unsupported code_challenge_method '{method}'. Only 'S256' is allowed."
-                ));
-            },
-        }
+        },
+        _ => {
+            return Err(format!(
+                "Unsupported code_challenge_method '{method}'. Only 'S256' is allowed."
+            ));
+        },
     }
 
     if let Some(display) = &params.display {
@@ -297,42 +281,7 @@ fn has_low_diversity(challenge: &str) -> bool {
 }
 
 async fn resolve_resource_scopes(resource: &str) -> Option<String> {
-    let url = match reqwest::Url::parse(resource) {
-        Ok(u) => u,
-        Err(e) => {
-            tracing::debug!(resource = %resource, error = %e, "Failed to parse resource URI");
-            return None;
-        },
-    };
-    let path = url.path();
-
-    let parts: Vec<&str> = path.split('/').collect();
-    if parts.len() < 6 || parts[1] != "api" || parts[3] != "mcp" || parts[5] != "mcp" {
-        return None;
-    }
-
-    let server_name = parts[4];
-
-    if let Err(e) = McpServerRegistry::validate() {
-        tracing::debug!(error = %e, "MCP registry validation failed");
-        return None;
-    }
-
-    let registry = systemprompt_mcp::services::registry::RegistryManager;
-    match McpRegistryProvider::get_server(&registry, server_name).await {
-        Ok(server_info) if server_info.oauth.required && !server_info.oauth.scopes.is_empty() => {
-            let scope_strings: Vec<String> = server_info
-                .oauth
-                .scopes
-                .iter()
-                .map(ToString::to_string)
-                .collect();
-            Some(scope_strings.join(" "))
-        },
-        Ok(_) => None,
-        Err(e) => {
-            tracing::debug!(server = %server_name, error = %e, "Failed to get MCP server info");
-            None
-        },
-    }
+    crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(resource)
+        .await
+        .map(|scopes| scopes.join(" "))
 }

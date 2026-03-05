@@ -1,66 +1,13 @@
-//! CLI artifact wrapper for MCP tool responses.
-
-use schemars::JsonSchema;
-use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use std::collections::HashMap;
-use thiserror::Error;
 
-use super::list::ListItem;
-use super::table::Column;
-use super::types::ColumnType;
-use super::{CopyPasteTextArtifact, DashboardArtifact, ListArtifact, TableArtifact, TextArtifact};
+use super::{CliArtifact, CliArtifactType, CommandResultRaw, ConversionError};
+use crate::artifacts::list::ListItem;
+use crate::artifacts::table::Column;
+use crate::artifacts::types::ColumnType;
+use crate::artifacts::{
+    CopyPasteTextArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
+};
 use crate::execution::context::RequestContext;
-
-#[derive(Debug, Error)]
-pub enum ConversionError {
-    #[error("Missing columns hint for table artifact")]
-    MissingColumns,
-
-    #[error("No array found in data for table/list conversion")]
-    NoArrayFound,
-
-    #[error("JSON serialization error: {0}")]
-    Json(#[from] serde_json::Error),
-
-    #[error("Unsupported artifact type: {0}")]
-    UnsupportedType(String),
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-#[serde(rename_all = "snake_case")]
-pub enum CliArtifactType {
-    Table,
-    List,
-    PresentationCard,
-    Text,
-    CopyPasteText,
-    Chart,
-    Form,
-    Dashboard,
-}
-
-#[derive(Debug, Clone, Default, Serialize, Deserialize, JsonSchema)]
-pub struct RenderingHints {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub columns: Option<Vec<String>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub chart_type: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub theme: Option<String>,
-    #[serde(flatten)]
-    pub extra: HashMap<String, JsonValue>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-pub struct CommandResultRaw {
-    pub data: JsonValue,
-    pub artifact_type: CliArtifactType,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub title: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub hints: Option<RenderingHints>,
-}
 
 impl CommandResultRaw {
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
@@ -76,8 +23,8 @@ impl CommandResultRaw {
             CliArtifactType::Table => self.convert_table(ctx),
             CliArtifactType::List => self.convert_list(ctx),
             CliArtifactType::CopyPasteText => Ok(self.convert_copy_paste_text(ctx)),
+            CliArtifactType::PresentationCard => self.convert_presentation_card(ctx),
             CliArtifactType::Text
-            | CliArtifactType::PresentationCard
             | CliArtifactType::Dashboard
             | CliArtifactType::Chart
             | CliArtifactType::Form => Ok(self.convert_text(ctx)),
@@ -180,6 +127,15 @@ impl CommandResultRaw {
 
         CliArtifact::CopyPasteText { artifact }
     }
+
+    fn convert_presentation_card(
+        &self,
+        _ctx: &RequestContext,
+    ) -> Result<CliArtifact, ConversionError> {
+        let artifact: PresentationCardArtifact =
+            serde_json::from_value(self.data.clone()).map_err(ConversionError::Json)?;
+        Ok(CliArtifact::PresentationCard { artifact })
+    }
 }
 
 fn extract_array_from_value(value: &JsonValue) -> Result<Vec<JsonValue>, ConversionError> {
@@ -196,68 +152,4 @@ fn extract_array_from_value(value: &JsonValue) -> Result<Vec<JsonValue>, Convers
     }
 
     Err(ConversionError::NoArrayFound)
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
-#[serde(tag = "artifact_type", rename_all = "snake_case")]
-pub enum CliArtifact {
-    Table {
-        #[serde(flatten)]
-        artifact: TableArtifact,
-    },
-    List {
-        #[serde(flatten)]
-        artifact: ListArtifact,
-    },
-    Text {
-        #[serde(flatten)]
-        artifact: TextArtifact,
-    },
-    #[serde(rename = "copy_paste_text")]
-    CopyPasteText {
-        #[serde(flatten)]
-        artifact: CopyPasteTextArtifact,
-    },
-    Dashboard {
-        #[serde(flatten)]
-        artifact: DashboardArtifact,
-    },
-}
-
-impl CliArtifact {
-    #[must_use]
-    pub const fn artifact_type_str(&self) -> &'static str {
-        match self {
-            Self::Table { .. } => "table",
-            Self::List { .. } => "list",
-            Self::Text { .. } => "text",
-            Self::CopyPasteText { .. } => "copy_paste_text",
-            Self::Dashboard { .. } => "dashboard",
-        }
-    }
-
-    #[must_use]
-    pub const fn table(artifact: TableArtifact) -> Self {
-        Self::Table { artifact }
-    }
-
-    #[must_use]
-    pub const fn list(artifact: ListArtifact) -> Self {
-        Self::List { artifact }
-    }
-
-    #[must_use]
-    pub const fn text(artifact: TextArtifact) -> Self {
-        Self::Text { artifact }
-    }
-
-    #[must_use]
-    pub const fn copy_paste_text(artifact: CopyPasteTextArtifact) -> Self {
-        Self::CopyPasteText { artifact }
-    }
-
-    #[must_use]
-    pub const fn dashboard(artifact: DashboardArtifact) -> Self {
-        Self::Dashboard { artifact }
-    }
 }

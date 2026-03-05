@@ -114,6 +114,8 @@ fn default_card_artifact_type() -> String {
 }
 
 impl PresentationCardArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "presentation_card";
+
     pub fn new(title: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "presentation_card".to_string(),

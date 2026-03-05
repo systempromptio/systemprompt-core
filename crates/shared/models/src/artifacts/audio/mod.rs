@@ -42,6 +42,8 @@ pub struct AudioArtifact {
 }
 
 impl AudioArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "audio";
+
     pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "audio".to_string(),

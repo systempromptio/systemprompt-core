@@ -1,6 +1,6 @@
-use rmcp::ErrorData as McpError;
 use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
 use rmcp::model::{CallToolResult, Content};
+use rmcp::ErrorData as McpError;
 use schemars::JsonSchema;
 use serde::Serialize;
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
@@ -38,35 +38,7 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
         }
     }
 
-    pub fn build(self, summary: impl Into<String>) -> Result<CallToolResult, McpError> {
-        let artifact_id = ArtifactId::generate();
-
-        let metadata = ExecutionMetadata::builder(&self.ctx)
-            .with_tool(self.tool_name.clone())
-            .with_execution(self.mcp_execution_id.to_string())
-            .build();
-
-        let tool_response = ToolResponse::new(
-            artifact_id,
-            self.mcp_execution_id.clone(),
-            self.output,
-            metadata.clone(),
-        );
-
-        let structured_content = tool_response.to_json().map_err(|e| {
-            tracing::error!(error = %e, tool = %self.tool_name, "Failed to serialize tool response");
-            McpError::internal_error(format!("Serialization error: {e}"), None)
-        })?;
-
-        let mut result = CallToolResult::success(vec![Content::text(summary.into())]);
-        result.structured_content = Some(structured_content);
-        if let Some(meta) = metadata.to_meta() {
-            result = result.with_meta(Some(meta));
-        }
-        Ok(result)
-    }
-
-    pub async fn build_and_persist(
+    pub async fn build(
         self,
         summary: impl Into<String>,
         repo: &McpArtifactRepository,

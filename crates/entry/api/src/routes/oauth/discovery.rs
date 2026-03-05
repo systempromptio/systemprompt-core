@@ -51,7 +51,7 @@ pub async fn handle_well_known() -> impl IntoResponse {
         registration_endpoint: Some(format!("{}/api/v1/core/oauth/register", config.issuer)),
         scopes_supported: config.supported_scopes,
         response_types_supported: config.supported_response_types,
-        response_modes_supported: vec!["query".to_string(), "form_post".to_string()],
+        response_modes_supported: vec!["query".to_string()],
         grant_types_supported: config.supported_grant_types,
         token_endpoint_auth_methods_supported: vec![
             "none".to_string(),

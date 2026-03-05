@@ -50,6 +50,8 @@ fn default_artifact_type() -> String {
 }
 
 impl TableArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "table";
+
     pub fn new(columns: Vec<Column>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "table".to_string(),

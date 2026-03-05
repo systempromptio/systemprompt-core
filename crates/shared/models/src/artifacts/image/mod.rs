@@ -31,6 +31,8 @@ pub struct ImageArtifact {
 }
 
 impl ImageArtifact {
+    pub const ARTIFACT_TYPE_STR: &'static str = "image";
+
     pub fn new(src: impl Into<String>, ctx: &RequestContext) -> Self {
         Self {
             artifact_type: "image".to_string(),

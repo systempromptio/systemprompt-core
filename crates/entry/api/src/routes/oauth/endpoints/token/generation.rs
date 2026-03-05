@@ -228,52 +228,20 @@ pub async fn generate_client_tokens(
 }
 
 pub async fn resolve_user_permissions(
-    repo: &OAuthRepository,
+    _repo: &OAuthRepository,
     requested_permissions: &[Permission],
     user_permissions: &[Permission],
-    client_id: &ClientId,
-    resource: Option<&str>,
+    _client_id: &ClientId,
+    _resource: Option<&str>,
 ) -> Result<Vec<Permission>> {
-    let client = repo
-        .find_client_by_id(client_id.as_str())
-        .await?
-        .ok_or_else(|| anyhow::anyhow!("Client not found"))?;
-
-    let mut client_allowed: Vec<Permission> = client
-        .scopes
-        .iter()
-        .filter_map(|s| {
-            Permission::from_str(s)
-                .map_err(|e| {
-                    tracing::warn!(scope = %s, error = %e, "Invalid scope in client configuration");
-                    e
-                })
-                .ok()
-        })
-        .collect();
-
-    // Include MCP server scopes if resource points to one
-    if let Some(resource_uri) = resource {
-        if let Some(resource_scopes) =
-            crate::routes::proxy::mcp::get_mcp_server_scopes_from_resource(resource_uri).await
-        {
-            for scope_str in &resource_scopes {
-                if let Ok(perm) = Permission::from_str(scope_str) {
-                    if !client_allowed.contains(&perm) {
-                        client_allowed.push(perm);
-                    }
-                }
-            }
-        }
-    }
-
+    // The user's database permissions are the sole security boundary.
+    // Client registration scopes are not enforced here — dynamically
+    // registered MCP clients may not know what scopes they need at
+    // registration time. The requested scopes have already been validated
+    // as legitimate system scopes at authorize time.
     let mut final_permissions = Vec::new();
 
     for requested in requested_permissions {
-        if !client_allowed.contains(requested) {
-            continue;
-        }
-
         if *requested == Permission::User {
             final_permissions.extend(
                 user_permissions
