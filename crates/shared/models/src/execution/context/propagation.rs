@@ -75,6 +75,12 @@ impl InjectContextHeaders for RequestContext {
             insert_header(hdrs, headers::AUTHORIZATION, &auth_value);
             tracing::trace!(user_id = %self.auth.user_id, "Injected Authorization header for proxy");
         }
+
+        if let Some(user) = &self.user {
+            insert_header(hdrs, headers::PROXY_VERIFIED, "true");
+            let perms = crate::auth::permissions_to_string(&user.permissions);
+            insert_header(hdrs, headers::USER_PERMISSIONS, &perms);
+        }
     }
 }
 
@@ -165,6 +171,28 @@ impl ContextPropagation for RequestContext {
 
         if let Some(token) = auth_token {
             ctx = ctx.with_auth_token(token);
+        }
+
+        let proxy_verified = hdrs
+            .get(headers::PROXY_VERIFIED)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|v| v == "true");
+
+        if proxy_verified {
+            if let Some(permissions) = hdrs
+                .get(headers::USER_PERMISSIONS)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|s| crate::auth::parse_permissions(s).ok())
+            {
+                let user_id_uuid = user_id.parse().unwrap_or_default();
+                let user = crate::auth::AuthenticatedUser::new(
+                    user_id_uuid,
+                    String::new(),
+                    String::new(),
+                    permissions,
+                );
+                ctx = ctx.with_user(user);
+            }
         }
 
         Ok(ctx)

@@ -50,10 +50,18 @@ impl From<LocalSessionManagerError> for DatabaseSessionManagerError {
     }
 }
 
-#[derive(Debug)]
 pub struct DatabaseSessionManager {
     local_manager: LocalSessionManager,
     repository: Arc<RwLock<Option<McpSessionRepository>>>,
+}
+
+impl fmt::Debug for DatabaseSessionManager {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("DatabaseSessionManager")
+            .field("local_manager", &self.local_manager)
+            .field("repository", &self.repository)
+            .finish()
+    }
 }
 
 impl DatabaseSessionManager {

@@ -2,18 +2,33 @@ use axum::body::Body;
 use axum::extract::{Path, Request, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use systemprompt_identifiers::AgentName;
+use std::collections::HashMap;
+use std::sync::Arc;
+use systemprompt_identifiers::{AgentName, UserId};
 use systemprompt_models::RequestContext;
+use systemprompt_models::auth::{AuthenticatedUser, Permission};
 use systemprompt_runtime::AppContext;
+use tokio::sync::RwLock;
 
 use super::auth::AccessValidator;
 use super::backend::{HeaderInjector, ProxyError, RequestBuilder, ResponseHandler, UrlResolver};
 use super::client::ClientPool;
 use super::resolver::ServiceResolver;
 
+#[derive(Clone, Debug)]
+struct ProxySessionIdentity {
+    user_id: String,
+    user_type: String,
+    permissions: Vec<Permission>,
+    auth_token: String,
+}
+
+type SessionCache = Arc<RwLock<HashMap<String, ProxySessionIdentity>>>;
+
 #[derive(Debug, Clone)]
 pub struct ProxyEngine {
     client_pool: ClientPool,
+    session_cache: SessionCache,
 }
 
 impl Default for ProxyEngine {
@@ -26,6 +41,7 @@ impl ProxyEngine {
     pub fn new() -> Self {
         Self {
             client_pool: ClientPool::new(),
+            session_cache: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -43,7 +59,7 @@ impl ProxyEngine {
         let service = ServiceResolver::resolve(service_name, &ctx).await?;
 
         let req_ctx = request.extensions().get::<RequestContext>().cloned();
-        AccessValidator::validate(
+        let authenticated_user = AccessValidator::validate(
             request.headers(),
             service_name,
             &service,
@@ -55,7 +71,8 @@ impl ProxyEngine {
         let backend_url = UrlResolver::build_backend_url("http", "127.0.0.1", service.port, path);
 
         let method_str = request.method().to_string();
-        let mut headers = request.headers().clone();
+        let request_headers = request.headers().clone();
+        let mut headers = request_headers.clone();
         let query = request.uri().query();
         let full_url = UrlResolver::append_query_params(backend_url, query);
 
@@ -66,6 +83,37 @@ impl ProxyEngine {
 
         if service.module_name == "agent" || service.module_name == "mcp" {
             req_context = req_context.with_agent_name(AgentName::new(service_name.to_string()));
+        }
+
+        if service.module_name == "mcp" && req_context.auth_token().as_str().is_empty() {
+            if let Some(session_id) = request_headers
+                .get("mcp-session-id")
+                .and_then(|v| v.to_str().ok())
+            {
+                if let Some(identity) = self.session_cache.read().await.get(session_id) {
+                    tracing::info!(
+                        service = %service_name,
+                        session_id = %session_id,
+                        user_id = %identity.user_id,
+                        "Enriching session-only request with cached identity"
+                    );
+                    req_context = req_context
+                        .with_user_id(UserId::from(identity.user_id.clone()))
+                        .with_user_type(
+                            identity
+                                .user_type
+                                .parse()
+                                .unwrap_or(systemprompt_models::auth::UserType::Unknown),
+                        )
+                        .with_auth_token(identity.auth_token.clone())
+                        .with_user(AuthenticatedUser::new(
+                            identity.user_id.parse().unwrap_or_default(),
+                            String::new(),
+                            String::new(),
+                            identity.permissions.clone(),
+                        ));
+                }
+            }
         }
 
         let has_auth_before = headers.get("authorization").is_some();
@@ -110,6 +158,42 @@ impl ProxyEngine {
                 });
             },
         };
+
+        if service.module_name == "mcp" {
+            if let Some(session_id) = response
+                .headers()
+                .get("mcp-session-id")
+                .and_then(|v| v.to_str().ok())
+            {
+                if let Some(user) = &authenticated_user {
+                    self.session_cache.write().await.insert(
+                        session_id.to_string(),
+                        ProxySessionIdentity {
+                            user_id: user.id.to_string(),
+                            user_type: req_context.user_type().to_string(),
+                            permissions: user.permissions.clone(),
+                            auth_token: req_context.auth_token().as_str().to_string(),
+                        },
+                    );
+                    tracing::info!(
+                        service = %service_name,
+                        session_id = %session_id,
+                        user_id = %user.id,
+                        "Cached session identity for MCP session"
+                    );
+                }
+            }
+
+            if method_str == "DELETE" {
+                if let Some(session_id) = request_headers
+                    .get("mcp-session-id")
+                    .and_then(|v| v.to_str().ok())
+                {
+                    self.session_cache.write().await.remove(session_id);
+                    tracing::debug!(session_id = %session_id, "Evicted session identity on DELETE");
+                }
+            }
+        }
 
         match ResponseHandler::build_response(response) {
             Ok(resp) => Ok(resp),

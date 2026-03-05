@@ -99,7 +99,7 @@ impl AccessValidator {
         service: &ServiceConfig,
         ctx: &AppContext,
         req_context: Option<&RequestContext>,
-    ) -> Result<(), ProxyError> {
+    ) -> Result<Option<AuthenticatedUser>, ProxyError> {
         let (oauth_required, required_scopes) = if service.module_name == "agent" {
             match AgentRegistryProviderService::new().await {
                 Ok(registry) => match registry.get_agent(service_name).await {
@@ -148,7 +148,7 @@ impl AccessValidator {
         };
 
         if !oauth_required {
-            return Ok(());
+            return Ok(None);
         }
 
         let resource_path = if service.module_name == "mcp" {
@@ -182,13 +182,12 @@ impl AccessValidator {
                         .is_some_and(|v| v.starts_with("Bearer "));
 
                     if !has_bearer_token {
-                        // No token sent — pure session-based auth (kept for backwards compat)
                         tracing::info!(
                             service = %service_name,
                             session_id = ?headers.get("mcp-session-id"),
-                            "Allowing MCP request with session ID (no token, session-based auth)"
+                            "Allowing MCP request with session ID (session-based auth, identity from proxy cache)"
                         );
-                        return Ok(());
+                        return Ok(None);
                     }
 
                     // Token IS present but expired/invalid — return 401 so the SDK
@@ -256,6 +255,6 @@ impl AccessValidator {
             }
         }
 
-        Ok(())
+        Ok(Some(authenticated_user))
     }
 }

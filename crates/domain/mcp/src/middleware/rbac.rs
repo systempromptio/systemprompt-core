@@ -3,7 +3,7 @@ use rmcp::{ErrorData as McpError, RoleServer};
 use systemprompt_identifiers::UserId;
 use systemprompt_loader::ConfigLoader;
 use systemprompt_models::RequestContext;
-use systemprompt_models::auth::{AuthenticatedUser, JwtClaims};
+use systemprompt_models::auth::{AuthenticatedUser, JwtClaims, Permission};
 
 use super::{extract_bearer_token, extract_request_context};
 use crate::services::auth::validate_jwt_token;
@@ -90,6 +90,12 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
+    if let Some(auth_result) =
+        try_proxy_verified_auth(mcp_context, request_context.clone(), oauth_config, server_name)?
+    {
+        return Ok(auth_result);
+    }
+
     let token = extract_bearer_token(mcp_context)?.ok_or_else(|| {
         tracing::error!(server = %server_name, "Authentication required: No Bearer token provided");
         McpError::invalid_request(
@@ -103,10 +109,79 @@ pub async fn enforce_rbac_from_registry(
 
     let claims = validate_and_extract_claims(server_name, &token)?;
     validate_audience(server_name, &claims, oauth_config)?;
-    validate_scopes(server_name, &claims, oauth_config)?;
+    validate_scopes_for_permissions(
+        server_name,
+        &claims.get_permissions(),
+        oauth_config,
+    )?;
 
     let authenticated_context = build_authenticated_context(request_context, &claims, token)?;
     Ok(AuthResult::Authenticated(authenticated_context))
+}
+
+fn try_proxy_verified_auth(
+    mcp_context: &McpContext<RoleServer>,
+    request_context: RequestContext,
+    oauth_config: &crate::OAuthRequirement,
+    server_name: &str,
+) -> Result<Option<AuthResult>, McpError> {
+    let parts = mcp_context
+        .extensions
+        .get::<http::request::Parts>()
+        .ok_or_else(|| {
+            McpError::invalid_request("No HTTP parts in MCP context".to_string(), None)
+        })?;
+
+    let proxy_verified = parts
+        .headers
+        .get("x-proxy-verified")
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|v| v == "true");
+
+    if !proxy_verified {
+        return Ok(None);
+    }
+
+    let user_id_str = parts
+        .headers
+        .get("x-user-id")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or_default();
+
+    let permissions = parts
+        .headers
+        .get("x-user-permissions")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| systemprompt_models::auth::parse_permissions(s).ok())
+        .unwrap_or_default();
+
+    validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
+
+    let user_id: uuid::Uuid = user_id_str.parse().unwrap_or_default();
+    let authenticated_user =
+        AuthenticatedUser::new(user_id, String::new(), String::new(), permissions);
+
+    let token = parts
+        .headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.strip_prefix("Bearer "))
+        .unwrap_or_default()
+        .to_string();
+
+    let context = request_context
+        .with_user(authenticated_user)
+        .with_user_id(UserId::from(user_id_str.to_string()));
+
+    tracing::info!(
+        server = %server_name,
+        user_id = %user_id_str,
+        "Authorized via proxy-verified identity"
+    );
+
+    Ok(Some(AuthResult::Authenticated(
+        AuthenticatedRequestContext::new(context, token),
+    )))
 }
 
 fn validate_and_extract_claims(server_name: &str, token: &str) -> Result<JwtClaims, McpError> {
@@ -148,12 +223,11 @@ fn validate_audience(
     ))
 }
 
-fn validate_scopes(
+fn validate_scopes_for_permissions(
     server_name: &str,
-    claims: &JwtClaims,
+    user_permissions: &[Permission],
     oauth_config: &crate::OAuthRequirement,
 ) -> Result<(), McpError> {
-    let user_permissions = claims.get_permissions();
     let required_scopes = &oauth_config.scopes;
 
     let has_required_scope = required_scopes.iter().any(|required| {
