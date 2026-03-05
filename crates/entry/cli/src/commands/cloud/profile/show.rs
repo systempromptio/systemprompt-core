@@ -41,7 +41,11 @@ pub fn execute(
 fn initialize_config_from_profile(profile_path: &std::path::Path) -> Result<()> {
     use systemprompt_models::{ProfileBootstrap, SecretsBootstrap};
 
-    unsafe { std::env::set_var("SYSTEMPROMPT_PROFILE", profile_path.display().to_string()) };
+    #[allow(unsafe_code)]
+    // SAFETY: single-threaded CLI init, no concurrent threads yet
+    unsafe {
+        std::env::set_var("SYSTEMPROMPT_PROFILE", profile_path.display().to_string());
+    }
     ProfileBootstrap::init()?;
     SecretsBootstrap::init()?;
     let profile = ProfileBootstrap::get()?;

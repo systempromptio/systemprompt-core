@@ -213,7 +213,11 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
 }
 
 async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    unsafe { std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path) };
+    #[allow(unsafe_code)]
+    // SAFETY: single-threaded CLI init, no concurrent threads yet
+    unsafe {
+        std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
+    }
 
     let args = SkillsSyncArgs {
         direction: None,

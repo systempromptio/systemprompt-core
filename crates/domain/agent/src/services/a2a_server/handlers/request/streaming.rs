@@ -32,7 +32,7 @@ pub async fn handle_streaming_request(
     let agent_name = config.name.clone();
     drop(config);
 
-    let stream = match request {
+    match request {
         A2aRequestParams::SendStreamingMessage(params) => {
             tracing::info!("Matched SendStreamingMessage, calling create_sse_stream");
 
@@ -96,7 +96,5 @@ pub async fn handle_streaming_request(
             }
             UnboundedReceiverStream::new(rx).map(Ok)
         },
-    };
-
-    stream
+    }
 }

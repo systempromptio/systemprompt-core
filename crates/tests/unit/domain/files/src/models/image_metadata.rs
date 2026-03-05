@@ -50,8 +50,8 @@ fn test_image_metadata_with_description() {
 
 #[test]
 fn test_image_metadata_with_generation() {
-    let gen = ImageGenerationInfo::new("test prompt", "dall-e-3", "openai");
-    let meta = ImageMetadata::new().with_generation(gen);
+    let gen_info = ImageGenerationInfo::new("test prompt", "dall-e-3", "openai");
+    let meta = ImageMetadata::new().with_generation(gen_info);
 
     assert!(meta.generation.is_some());
     let gen_info = meta.generation.unwrap();
@@ -62,12 +62,12 @@ fn test_image_metadata_with_generation() {
 
 #[test]
 fn test_image_metadata_builder_chain() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider");
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider");
     let meta = ImageMetadata::new()
         .with_dimensions(512, 512)
         .with_alt_text("Alt text")
         .with_description("Description")
-        .with_generation(gen);
+        .with_generation(gen_info);
 
     assert_eq!(meta.width, Some(512));
     assert_eq!(meta.height, Some(512));
@@ -162,83 +162,83 @@ fn test_image_metadata_roundtrip() {
 
 #[test]
 fn test_image_generation_info_new() {
-    let gen = ImageGenerationInfo::new("A sunset over mountains", "dall-e-3", "openai");
+    let gen_info = ImageGenerationInfo::new("A sunset over mountains", "dall-e-3", "openai");
 
-    assert_eq!(gen.prompt, "A sunset over mountains");
-    assert_eq!(gen.model, "dall-e-3");
-    assert_eq!(gen.provider, "openai");
-    assert!(gen.resolution.is_none());
-    assert!(gen.aspect_ratio.is_none());
-    assert!(gen.generation_time_ms.is_none());
-    assert!(gen.cost_estimate.is_none());
-    assert!(gen.request_id.is_none());
+    assert_eq!(gen_info.prompt, "A sunset over mountains");
+    assert_eq!(gen_info.model, "dall-e-3");
+    assert_eq!(gen_info.provider, "openai");
+    assert!(gen_info.resolution.is_none());
+    assert!(gen_info.aspect_ratio.is_none());
+    assert!(gen_info.generation_time_ms.is_none());
+    assert!(gen_info.cost_estimate.is_none());
+    assert!(gen_info.request_id.is_none());
 }
 
 #[test]
 fn test_image_generation_info_with_resolution() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider").with_resolution("1024x1024");
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_resolution("1024x1024");
 
-    assert_eq!(gen.resolution, Some("1024x1024".to_string()));
+    assert_eq!(gen_info.resolution, Some("1024x1024".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_with_aspect_ratio() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider").with_aspect_ratio("16:9");
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_aspect_ratio("16:9");
 
-    assert_eq!(gen.aspect_ratio, Some("16:9".to_string()));
+    assert_eq!(gen_info.aspect_ratio, Some("16:9".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_with_generation_time() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider").with_generation_time(5000);
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_generation_time(5000);
 
-    assert_eq!(gen.generation_time_ms, Some(5000));
+    assert_eq!(gen_info.generation_time_ms, Some(5000));
 }
 
 #[test]
 fn test_image_generation_info_with_cost_estimate() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider").with_cost_estimate(0.02);
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider").with_cost_estimate(0.02);
 
-    assert_eq!(gen.cost_estimate, Some(0.02));
+    assert_eq!(gen_info.cost_estimate, Some(0.02));
 }
 
 #[test]
 fn test_image_generation_info_with_request_id() {
-    let gen =
+    let gen_info =
         ImageGenerationInfo::new("prompt", "model", "provider").with_request_id("req_abc123");
 
-    assert_eq!(gen.request_id, Some("req_abc123".to_string()));
+    assert_eq!(gen_info.request_id, Some("req_abc123".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_builder_chain() {
-    let gen = ImageGenerationInfo::new("Create a logo", "stable-diffusion", "stability")
+    let gen_info = ImageGenerationInfo::new("Create a logo", "stable-diffusion", "stability")
         .with_resolution("512x512")
         .with_aspect_ratio("1:1")
         .with_generation_time(3000)
         .with_cost_estimate(0.01)
         .with_request_id("req_xyz789");
 
-    assert_eq!(gen.prompt, "Create a logo");
-    assert_eq!(gen.model, "stable-diffusion");
-    assert_eq!(gen.provider, "stability");
-    assert_eq!(gen.resolution, Some("512x512".to_string()));
-    assert_eq!(gen.aspect_ratio, Some("1:1".to_string()));
-    assert_eq!(gen.generation_time_ms, Some(3000));
-    assert_eq!(gen.cost_estimate, Some(0.01));
-    assert_eq!(gen.request_id, Some("req_xyz789".to_string()));
+    assert_eq!(gen_info.prompt, "Create a logo");
+    assert_eq!(gen_info.model, "stable-diffusion");
+    assert_eq!(gen_info.provider, "stability");
+    assert_eq!(gen_info.resolution, Some("512x512".to_string()));
+    assert_eq!(gen_info.aspect_ratio, Some("1:1".to_string()));
+    assert_eq!(gen_info.generation_time_ms, Some(3000));
+    assert_eq!(gen_info.cost_estimate, Some(0.01));
+    assert_eq!(gen_info.request_id, Some("req_xyz789".to_string()));
 }
 
 #[test]
 fn test_image_generation_info_clone() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider")
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider")
         .with_resolution("1024x1024")
         .with_cost_estimate(0.05);
 
-    let cloned = gen.clone();
-    assert_eq!(gen.prompt, cloned.prompt);
-    assert_eq!(gen.resolution, cloned.resolution);
-    assert_eq!(gen.cost_estimate, cloned.cost_estimate);
+    let cloned = gen_info.clone();
+    assert_eq!(gen_info.prompt, cloned.prompt);
+    assert_eq!(gen_info.resolution, cloned.resolution);
+    assert_eq!(gen_info.cost_estimate, cloned.cost_estimate);
 }
 
 // ============================================================================
@@ -247,8 +247,8 @@ fn test_image_generation_info_clone() {
 
 #[test]
 fn test_image_generation_info_serialize_minimal() {
-    let gen = ImageGenerationInfo::new("prompt text", "gpt-image", "openai");
-    let json = serde_json::to_string(&gen).unwrap();
+    let gen_info = ImageGenerationInfo::new("prompt text", "gpt-image", "openai");
+    let json = serde_json::to_string(&gen_info).unwrap();
 
     assert!(json.contains("\"prompt\":\"prompt text\""));
     assert!(json.contains("\"model\":\"gpt-image\""));
@@ -257,8 +257,8 @@ fn test_image_generation_info_serialize_minimal() {
 
 #[test]
 fn test_image_generation_info_serialize_skip_none() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider");
-    let json = serde_json::to_string(&gen).unwrap();
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider");
+    let json = serde_json::to_string(&gen_info).unwrap();
 
     assert!(!json.contains("resolution"));
     assert!(!json.contains("aspect_ratio"));
@@ -269,11 +269,11 @@ fn test_image_generation_info_serialize_skip_none() {
 
 #[test]
 fn test_image_generation_info_serialize_with_optionals() {
-    let gen = ImageGenerationInfo::new("prompt", "model", "provider")
+    let gen_info = ImageGenerationInfo::new("prompt", "model", "provider")
         .with_resolution("2048x2048")
         .with_generation_time(10000);
 
-    let json = serde_json::to_string(&gen).unwrap();
+    let json = serde_json::to_string(&gen_info).unwrap();
 
     assert!(json.contains("\"resolution\":\"2048x2048\""));
     assert!(json.contains("\"generation_time_ms\":10000"));
@@ -288,35 +288,35 @@ fn test_image_generation_info_deserialize() {
         "resolution": "768x768"
     }"#;
 
-    let gen: ImageGenerationInfo = serde_json::from_str(json).unwrap();
+    let gen_info: ImageGenerationInfo = serde_json::from_str(json).unwrap();
 
-    assert_eq!(gen.prompt, "test prompt");
-    assert_eq!(gen.model, "test-model");
-    assert_eq!(gen.provider, "test-provider");
-    assert_eq!(gen.resolution, Some("768x768".to_string()));
-    assert!(gen.aspect_ratio.is_none());
+    assert_eq!(gen_info.prompt, "test prompt");
+    assert_eq!(gen_info.model, "test-model");
+    assert_eq!(gen_info.provider, "test-provider");
+    assert_eq!(gen_info.resolution, Some("768x768".to_string()));
+    assert!(gen_info.aspect_ratio.is_none());
 }
 
 #[test]
 fn test_image_generation_info_roundtrip() {
-    let gen = ImageGenerationInfo::new("Generate art", "midjourney", "discord")
+    let gen_info = ImageGenerationInfo::new("Generate art", "midjourney", "discord")
         .with_resolution("1792x1024")
         .with_aspect_ratio("16:9")
         .with_generation_time(8500)
         .with_cost_estimate(0.10)
         .with_request_id("mj_12345");
 
-    let json = serde_json::to_string(&gen).unwrap();
+    let json = serde_json::to_string(&gen_info).unwrap();
     let deserialized: ImageGenerationInfo = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(gen.prompt, deserialized.prompt);
-    assert_eq!(gen.model, deserialized.model);
-    assert_eq!(gen.provider, deserialized.provider);
-    assert_eq!(gen.resolution, deserialized.resolution);
-    assert_eq!(gen.aspect_ratio, deserialized.aspect_ratio);
-    assert_eq!(gen.generation_time_ms, deserialized.generation_time_ms);
-    assert_eq!(gen.cost_estimate, deserialized.cost_estimate);
-    assert_eq!(gen.request_id, deserialized.request_id);
+    assert_eq!(gen_info.prompt, deserialized.prompt);
+    assert_eq!(gen_info.model, deserialized.model);
+    assert_eq!(gen_info.provider, deserialized.provider);
+    assert_eq!(gen_info.resolution, deserialized.resolution);
+    assert_eq!(gen_info.aspect_ratio, deserialized.aspect_ratio);
+    assert_eq!(gen_info.generation_time_ms, deserialized.generation_time_ms);
+    assert_eq!(gen_info.cost_estimate, deserialized.cost_estimate);
+    assert_eq!(gen_info.request_id, deserialized.request_id);
 }
 
 // ============================================================================
@@ -325,7 +325,7 @@ fn test_image_generation_info_roundtrip() {
 
 #[test]
 fn test_image_metadata_with_full_generation_info() {
-    let gen = ImageGenerationInfo::new("A futuristic city", "dall-e-3", "openai")
+    let gen_info = ImageGenerationInfo::new("A futuristic city", "dall-e-3", "openai")
         .with_resolution("1024x1024")
         .with_aspect_ratio("1:1")
         .with_generation_time(4500)
@@ -336,7 +336,7 @@ fn test_image_metadata_with_full_generation_info() {
         .with_dimensions(1024, 1024)
         .with_alt_text("AI generated futuristic city")
         .with_description("A photorealistic image of a futuristic city with flying cars")
-        .with_generation(gen);
+        .with_generation(gen_info);
 
     let json = serde_json::to_string(&meta).unwrap();
     let deserialized: ImageMetadata = serde_json::from_str(&json).unwrap();

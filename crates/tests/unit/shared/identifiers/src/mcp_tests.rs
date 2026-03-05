@@ -268,15 +268,16 @@ fn test_mcp_server_id_empty_panics() {
 
 #[test]
 fn test_mcp_server_id_from_env_missing() {
-    // Ensure the env var is not set
-    std::env::remove_var("MCP_SERVICE_ID");
+    unsafe { std::env::remove_var("MCP_SERVICE_ID") };
     let result = McpServerId::from_env();
     assert!(result.is_err());
     assert!(result.unwrap_err().to_string().contains("not set"));
 }
 
 #[test]
+#[allow(unsafe_code)]
 fn test_mcp_server_id_from_env_empty() {
+    // SAFETY: test runs in isolation, no concurrent env access
     unsafe { std::env::set_var("MCP_SERVICE_ID", "") };
     let result = McpServerId::from_env();
     assert!(result.is_err());
@@ -285,7 +286,9 @@ fn test_mcp_server_id_from_env_empty() {
 }
 
 #[test]
+#[allow(unsafe_code)]
 fn test_mcp_server_id_from_env_valid() {
+    // SAFETY: test runs in isolation, no concurrent env access
     unsafe { std::env::set_var("MCP_SERVICE_ID", "test-mcp-server") };
     let result = McpServerId::from_env();
     assert!(result.is_ok());

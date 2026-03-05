@@ -692,6 +692,7 @@ rate_limits:
 // ============================================================================
 
 #[test]
+#[allow(unsafe_code)]
 fn test_load_with_env_var_substitution() {
     let temp_dir = TempDir::new().expect("Failed to create temp dir");
 

@@ -40,13 +40,13 @@ pub fn stream_router(ctx: &AppContext) -> Router {
 pub async fn stream_a2a_events(
     Extension(request_context): Extension<RequestContext>,
 ) -> impl IntoResponse {
-    create_sse_stream(&request_context, &A2A_BROADCASTER, "A2A").await
+    create_sse_stream(request_context, &A2A_BROADCASTER, "A2A").await
 }
 
 pub async fn stream_agui_events(
     Extension(request_context): Extension<RequestContext>,
 ) -> impl IntoResponse {
-    create_sse_stream(&request_context, &AGUI_BROADCASTER, "AgUI").await
+    create_sse_stream(request_context, &AGUI_BROADCASTER, "AgUI").await
 }
 
 #[derive(Debug)]
@@ -79,7 +79,7 @@ impl<E: ToSse + Clone + Send + Sync + 'static> futures_util::Stream for StreamWi
 }
 
 pub async fn create_sse_stream<E: ToSse + Clone + Send + Sync + 'static>(
-    request_context: &RequestContext,
+    request_context: RequestContext,
     broadcaster: &'static LazyLock<GenericBroadcaster<E>>,
     stream_name: &str,
 ) -> impl IntoResponse {
