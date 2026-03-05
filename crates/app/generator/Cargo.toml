@@ -42,6 +42,7 @@ systemprompt-sync = { workspace = true }
 
 # Async runtime
 tokio = { workspace = true }
+futures = { workspace = true }
 
 # Error handling
 anyhow = { workspace = true }
@@ -61,9 +62,6 @@ handlebars = { workspace = true }
 # Markdown processing
 pulldown-cmark = { workspace = true }
 comrak = { workspace = true }
-
-# Regex for heading ID injection
-regex = { workspace = true }
 
 # XML generation (sitemap)
 quick-xml = { version = "0.31", features = ["serialize"] }

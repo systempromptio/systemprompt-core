@@ -1,6 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use anyhow::Result;
+use futures::stream::{self, StreamExt};
 use systemprompt_models::{ContentSourceConfigRaw, SitemapConfig};
 use systemprompt_template_provider::{ComponentContext, ExtenderContext, PageContext};
 
@@ -16,17 +17,34 @@ use crate::prerender::list::{RenderListParams, render_list_route};
 const SLUG_PLACEHOLDER: &str = "{slug}";
 
 pub async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
+    const SOURCE_CONCURRENCY: usize = 2;
+
+    let sources: Vec<_> = ctx
+        .config
+        .content_sources
+        .iter()
+        .filter_map(|(source_name, source)| {
+            get_enabled_sitemap(source_name, source)
+                .map(|sitemap| (source_name, source, sitemap))
+        })
+        .collect();
+
+    let futures: Vec<_> = sources
+        .iter()
+        .map(|&(source_name, source, sitemap_config)| {
+            process_source(ctx, source_name, source, sitemap_config)
+        })
+        .collect();
+
+    let results: Vec<Result<u32>> = stream::iter(futures)
+        .buffer_unordered(SOURCE_CONCURRENCY)
+        .collect()
+        .await;
+
     let mut total_rendered = 0;
-
-    for (source_name, source) in &ctx.config.content_sources {
-        let Some(sitemap_config) = get_enabled_sitemap(source_name, source) else {
-            continue;
-        };
-
-        let rendered = process_source(ctx, source_name, source, sitemap_config).await?;
-        total_rendered += rendered;
+    for result in results {
+        total_rendered += result?;
     }
-
     Ok(total_rendered)
 }
 
@@ -87,34 +105,49 @@ async fn render_all_items(
     items: &[serde_json::Value],
     popular_ids: &[String],
 ) -> Result<u32> {
+    const RENDER_CONCURRENCY: usize = 8;
+
     let config_value = serde_yaml::to_value(&ctx.config)?;
-    let mut rendered = 0;
 
     let parent_route_enabled = sitemap_config
         .parent_route
         .as_ref()
         .is_some_and(|p| p.enabled);
 
-    for item in items {
-        let slug = item.get("slug").and_then(|v| v.as_str()).unwrap_or("");
-        if slug.is_empty() && parent_route_enabled {
-            tracing::debug!(source = %source_name, "Skipping index content - rendered by parent route");
-            continue;
-        }
+    let futures: Vec<_> = items
+        .iter()
+        .map(|item| async {
+            let slug = item.get("slug").and_then(|v| v.as_str()).unwrap_or("");
+            if slug.is_empty() && parent_route_enabled {
+                tracing::debug!(source = %source_name, "Skipping index content - rendered by parent route");
+                return Ok(false);
+            }
 
-        render_single_item(&RenderSingleItemParams {
-            ctx,
-            source_name,
-            sitemap_config,
-            item,
-            all_items: items,
-            popular_ids,
-            config_value: &config_value,
+            render_single_item(&RenderSingleItemParams {
+                ctx,
+                source_name,
+                sitemap_config,
+                item,
+                all_items: items,
+                popular_ids,
+                config_value: &config_value,
+            })
+            .await?;
+            Ok(true)
         })
-        .await?;
-        rendered += 1;
-    }
+        .collect();
 
+    let results: Vec<Result<bool>> = stream::iter(futures)
+        .buffer_unordered(RENDER_CONCURRENCY)
+        .collect()
+        .await;
+
+    let mut rendered = 0u32;
+    for result in results {
+        if result? {
+            rendered += 1;
+        }
+    }
     Ok(rendered)
 }
 

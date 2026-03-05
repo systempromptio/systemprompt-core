@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use anyhow::{Context, Result};
+use futures::stream::{self, StreamExt};
 use systemprompt_content::ContentRepository;
 use systemprompt_content::models::Content;
 use systemprompt_database::DbPool;
@@ -61,7 +62,7 @@ pub async fn contents_to_json(
     providers: &[Arc<dyn ContentDataProvider>],
     db_pool: &DbPool,
 ) -> Vec<serde_json::Value> {
-    let mut items: Vec<serde_json::Value> = contents
+    let items: Vec<serde_json::Value> = contents
         .iter()
         .map(|c| {
             serde_json::json!({
@@ -83,29 +84,41 @@ pub async fn contents_to_json(
         })
         .collect();
 
-    for (item, content) in items.iter_mut().zip(contents.iter()) {
-        let content_id = content.id.to_string();
+    const ENRICHMENT_CONCURRENCY: usize = 8;
 
-        for provider in providers {
-            let applies = provider.applies_to_sources();
-            if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
-                continue;
+    let futures: Vec<_> = items
+        .into_iter()
+        .zip(contents.iter())
+        .map(|(mut item, content)| {
+            let content_id = content.id.to_string();
+            async move {
+                for provider in providers {
+                    let applies = provider.applies_to_sources();
+                    if !applies.is_empty() && !applies.contains(&source_name.to_string()) {
+                        continue;
+                    }
+
+                    let ctx = ContentDataContext::new(&content_id, source_name, db_pool);
+
+                    if let Err(e) = provider.enrich_content(&ctx, &mut item).await {
+                        tracing::warn!(
+                            provider = %provider.provider_id(),
+                            content_id = %content_id,
+                            error = %e,
+                            "Content data provider enrichment failed"
+                        );
+                    }
+                }
+
+                item
             }
+        })
+        .collect();
 
-            let ctx = ContentDataContext::new(&content_id, source_name, db_pool);
-
-            if let Err(e) = provider.enrich_content(&ctx, item).await {
-                tracing::warn!(
-                    provider = %provider.provider_id(),
-                    content_id = %content_id,
-                    error = %e,
-                    "Content data provider enrichment failed"
-                );
-            }
-        }
-    }
-
-    items
+    stream::iter(futures)
+        .buffered(ENRICHMENT_CONCURRENCY)
+        .collect()
+        .await
 }
 
 pub async fn fetch_popular_ids(

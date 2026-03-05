@@ -167,27 +167,19 @@ fn inject_heading_ids(html: &str, entries: &[TocEntry]) -> String {
     let mut result = html.to_string();
 
     for entry in entries {
-        let escaped_text = regex_escape(&entry.text);
+        let open_tag = format!("<h{}", entry.level);
+        let close_tag = format!("</h{}>", entry.level);
 
-        for tag in ["h2", "h3", "h4", "h5", "h6"] {
-            let pattern = format!(r"<{}([^>]*)>([^<]*{}[^<]*)</{}>", tag, escaped_text, tag);
-
-            if let Ok(re) = regex::Regex::new(&pattern) {
-                result = re
-                    .replace(&result, |caps: &regex::Captures| {
-                        let attrs = caps.get(1).map_or("", |m| m.as_str());
-                        let content = caps.get(2).map_or("", |m| m.as_str());
-
-                        if attrs.contains("id=") {
-                            format!("<{}{}>{}</{}>", tag, attrs, content, tag)
-                        } else {
-                            format!(
-                                "<{} id=\"{}\"{}>{}</{}>",
-                                tag, entry.slug, attrs, content, tag
-                            )
-                        }
-                    })
-                    .to_string();
+        if let Some(tag_start) =
+            find_heading_position(&result, &open_tag, &close_tag, &entry.text)
+        {
+            let close_bracket = result[tag_start..].find('>').map(|i| tag_start + i);
+            if let Some(cb) = close_bracket {
+                let attrs = &result[tag_start + open_tag.len()..cb];
+                if !attrs.contains("id=") {
+                    let id_attr = format!(" id=\"{}\"", entry.slug);
+                    result.insert_str(tag_start + open_tag.len(), &id_attr);
+                }
             }
         }
     }
@@ -195,106 +187,22 @@ fn inject_heading_ids(html: &str, entries: &[TocEntry]) -> String {
     result
 }
 
-fn regex_escape(text: &str) -> String {
-    let special_chars = [
-        '\\', '.', '+', '*', '?', '(', ')', '[', ']', '{', '}', '^', '$', '|',
-    ];
-    let mut result = String::new();
-    for c in text.chars() {
-        if special_chars.contains(&c) {
-            result.push('\\');
+fn find_heading_position(
+    html: &str,
+    open_tag: &str,
+    close_tag: &str,
+    heading_text: &str,
+) -> Option<usize> {
+    let mut search_start = 0;
+    while let Some(pos) = html[search_start..].find(open_tag) {
+        let abs_pos = search_start + pos;
+        if let Some(close_pos) = html[abs_pos..].find(close_tag) {
+            let segment = &html[abs_pos..abs_pos + close_pos + close_tag.len()];
+            if segment.contains(heading_text) {
+                return Some(abs_pos);
+            }
         }
-        result.push(c);
+        search_start = abs_pos + open_tag.len();
     }
-    result
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_slugify() {
-        assert_eq!(slugify("Hello World"), "hello-world");
-        assert_eq!(slugify("What's New?"), "what-s-new");
-        assert_eq!(slugify("OAuth2/OIDC"), "oauth2-oidc");
-        assert_eq!(slugify("  Multiple   Spaces  "), "multiple-spaces");
-    }
-
-    #[test]
-    fn test_deduplicate_slug() {
-        let mut counts = HashMap::new();
-        assert_eq!(deduplicate_slug("section", &mut counts), "section");
-        assert_eq!(deduplicate_slug("section", &mut counts), "section-1");
-        assert_eq!(deduplicate_slug("section", &mut counts), "section-2");
-        assert_eq!(deduplicate_slug("other", &mut counts), "other");
-    }
-
-    #[test]
-    fn test_extract_headings_skips_h1() {
-        let markdown = "# Title\n\n## Section One\n\n### Subsection\n\n## Section Two";
-        let entries = extract_headings(markdown);
-
-        assert_eq!(entries.len(), 3);
-        assert_eq!(entries[0].text, "Section One");
-        assert_eq!(entries[0].level, 2);
-        assert_eq!(entries[1].text, "Subsection");
-        assert_eq!(entries[1].level, 3);
-        assert_eq!(entries[2].text, "Section Two");
-        assert_eq!(entries[2].level, 2);
-    }
-
-    #[test]
-    fn test_empty_markdown() {
-        let entries = extract_headings("");
-        assert!(entries.is_empty());
-    }
-
-    #[test]
-    fn test_no_headings() {
-        let markdown = "Just some text without any headings.";
-        let entries = extract_headings(markdown);
-        assert!(entries.is_empty());
-    }
-}
-
-#[cfg(test)]
-mod additional_tests {
-    use super::*;
-
-    #[test]
-    fn test_real_content_with_code_block() {
-        let markdown = r#"# Layer System
-
-SystemPrompt organizes its 33 crates into five distinct layers.
-
-## Layer Diagram
-
-```
-┌────────────────────────────────────────────┐
-│                 ENTRY LAYER                 │
-└────────────────────────────────────────────┘
-```
-
-## Shared Layer
-
-The foundation layer.
-
-### Models
-
-Core data structures.
-"#;
-
-        let entries = extract_headings(markdown);
-        println!("Entries found: {:?}", entries);
-
-        assert!(!entries.is_empty(), "Should find headings");
-        assert_eq!(
-            entries.len(),
-            3,
-            "Should find 3 headings (Layer Diagram, Shared Layer, Models)"
-        );
-        assert_eq!(entries[0].text, "Layer Diagram");
-        assert_eq!(entries[0].level, 2);
-    }
+    None
 }

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.2] - 2026-03-05
+
+### Changed
+- Parallelize content item rendering with `buffer_unordered(8)` for concurrent page generation
+- Parallelize content enrichment with `buffered(8)` for concurrent provider calls per source
+- Parallelize source processing with `buffer_unordered(2)` for concurrent source rendering
+- Replace regex-based heading ID injection with string search in TOC generation
+
+### Removed
+- Remove `regex` dependency (no longer needed after TOC refactor)
+
+### Added
+- Add `futures` dependency for stream-based concurrency
+
 ## [0.1.1] - 2026-02-03
 
 ### Added
