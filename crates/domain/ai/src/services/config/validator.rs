@@ -29,7 +29,7 @@ impl ConfigValidator {
                 error_msg.push_str("      gemini:\n");
                 error_msg.push_str("        enabled: true\n");
                 error_msg.push_str("        api_key: \"${GEMINI_API_KEY}\"\n");
-                error_msg.push_str("        default_model: gemini-2.5-flash-lite\n\n");
+                error_msg.push_str("        default_model: gemini-3.1-flash-lite-preview\n\n");
                 error_msg.push_str("And add the API key to your secrets.json:\n\n");
                 error_msg.push_str("  { \"gemini\": \"your-api-key-here\" }\n\n");
                 error_msg.push_str("Supported providers: gemini, anthropic, openai\n");

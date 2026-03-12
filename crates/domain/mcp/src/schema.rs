@@ -3,7 +3,7 @@ use serde_json::Value as JsonValue;
 use systemprompt_models::artifacts::{
     AudioArtifact, ChartArtifact, CliArtifact, CopyPasteTextArtifact, DashboardArtifact,
     ImageArtifact, ListArtifact, PresentationCardArtifact, TableArtifact, TextArtifact,
-    VideoArtifact,
+    ToolResponse, VideoArtifact,
 };
 
 pub trait McpOutputSchema: JsonSchema {
@@ -17,8 +17,17 @@ pub trait McpOutputSchema: JsonSchema {
         None
     }
 
-    fn validated_schema() -> JsonValue {
-        let root_schema = schemars::schema_for!(Self);
+    /// Generate the output schema for MCP tool definitions.
+    ///
+    /// Returns the schema for `ToolResponse<Self>` — the actual shape of
+    /// `structured_content` in `CallToolResult`. This must match what
+    /// `McpResponseBuilder::build()` serializes, so that MCP clients
+    /// validating `structured_content` against `output_schema` succeed.
+    fn validated_schema() -> JsonValue
+    where
+        Self: Sized,
+    {
+        let root_schema = schemars::schema_for!(ToolResponse<Self>);
 
         let mut schema = match serde_json::to_value(&root_schema) {
             Ok(v) => v,

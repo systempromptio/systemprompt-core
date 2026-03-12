@@ -195,6 +195,22 @@ impl ProxyEngine {
                     headers = ?header_dump,
                     "MCP backend error response"
                 );
+
+                // Evict stale proxy session cache when backend returns 404 on GET
+                // (session no longer exists on backend after restart/timeout)
+                if resp_status == StatusCode::NOT_FOUND && method_str == "GET" {
+                    if let Some(session_id) = request_headers
+                        .get("mcp-session-id")
+                        .and_then(|v| v.to_str().ok())
+                    {
+                        self.session_cache.write().await.remove(session_id);
+                        tracing::info!(
+                            service = %service_name,
+                            session_id = %session_id,
+                            "Evicted stale proxy session cache on 404 GET"
+                        );
+                    }
+                }
             }
 
             if let Some(session_id) = response

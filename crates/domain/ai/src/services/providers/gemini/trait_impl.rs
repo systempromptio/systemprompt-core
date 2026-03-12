@@ -31,10 +31,13 @@ impl AiProvider for GeminiProvider {
     fn supports_model(&self, model: &str) -> bool {
         matches!(
             model,
-            "gemini-2.5-flash-lite"
+            "gemini-3.1-flash-lite-preview"
+                | "gemini-3.1-flash-image-preview"
+                | "gemini-3-flash-preview"
+                | "gemini-3-pro-image-preview"
+                | "gemini-2.5-flash-lite"
                 | "gemini-2.5-flash"
                 | "gemini-2.5-pro"
-                | "gemini-3-pro-preview"
                 | "gemini-2.0-flash"
                 | "gemini-2.0-flash-lite"
                 | "gemini-1.5-flash"
@@ -48,12 +51,16 @@ impl AiProvider for GeminiProvider {
     }
 
     fn default_model(&self) -> &'static str {
-        "gemini-2.5-flash-lite"
+        "gemini-3.1-flash-lite-preview"
     }
 
     fn get_pricing(&self, model: &str) -> ModelPricing {
         match model {
-            "gemini-3-pro-preview" => ModelPricing::new(0.002, 0.012),
+            "gemini-3-pro-image-preview" => ModelPricing::new(0.002, 0.012),
+            "gemini-3-flash-preview" | "gemini-3.1-flash-image-preview" => {
+                ModelPricing::new(0.0005, 0.003)
+            }
+            "gemini-3.1-flash-lite-preview" => ModelPricing::new(0.000_25, 0.0015),
             "gemini-2.5-pro" | "gemini-2.5-pro-preview-05-06" => ModelPricing::new(0.00125, 0.01),
             "gemini-2.5-flash"
             | "gemini-2.5-flash-preview-04-17"
@@ -63,7 +70,7 @@ impl AiProvider for GeminiProvider {
             | "gemini-2.0-flash-lite"
             | "gemini-1.5-flash"
             | "gemini-1.5-flash-8b"
-            | "gemini-1.5-flash-latest" => ModelPricing::new(0.000_075, 0.0003),
+            | "gemini-1.5-flash-latest" => ModelPricing::new(0.0001, 0.0004),
             _ => ModelPricing::new(0.0001, 0.0004),
         }
     }

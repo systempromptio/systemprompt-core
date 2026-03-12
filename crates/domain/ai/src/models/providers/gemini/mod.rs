@@ -18,10 +18,10 @@ impl Default for GeminiModels {
     fn default() -> Self {
         Self {
             gemini_flash_lite: ModelConfig {
-                id: "gemini-2.5-flash-lite".to_string(),
+                id: "gemini-3.1-flash-lite-preview".to_string(),
                 max_tokens: 1_000_000,
                 supports_tools: true,
-                cost_per_1k_tokens: 0.0004,
+                cost_per_1k_tokens: 0.00025,
             },
             gemini_flash: ModelConfig {
                 id: "gemini-2.5-flash".to_string(),

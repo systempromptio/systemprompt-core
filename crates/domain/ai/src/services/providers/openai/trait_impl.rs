@@ -31,16 +31,20 @@ impl AiProvider for OpenAiProvider {
     fn supports_model(&self, model: &str) -> bool {
         matches!(
             model,
-            "gpt-4-turbo"
-                | "gpt-4"
-                | "gpt-3.5-turbo"
+            "gpt-4.1"
+                | "gpt-4.1-mini"
+                | "gpt-4.1-nano"
+                | "o4-mini"
+                | "o3"
+                | "o3-mini"
                 | "gpt-4o"
                 | "gpt-4o-mini"
+                | "gpt-4-turbo"
+                | "gpt-4"
+                | "gpt-3.5-turbo"
                 | "o1"
                 | "o1-mini"
                 | "o1-preview"
-                | "o3"
-                | "o3-mini"
         )
     }
 
@@ -49,18 +53,23 @@ impl AiProvider for OpenAiProvider {
     }
 
     fn default_model(&self) -> &'static str {
-        "gpt-4o"
+        "gpt-4.1"
     }
 
     fn get_pricing(&self, model: &str) -> ModelPricing {
         match model {
-            "gpt-4" | "gpt-4-turbo" | "gpt-4-turbo-preview" => ModelPricing::new(0.01, 0.03),
+            "gpt-4.1" => ModelPricing::new(0.002, 0.008),
+            "gpt-4.1-mini" => ModelPricing::new(0.0004, 0.0016),
+            "gpt-4.1-nano" => ModelPricing::new(0.0001, 0.0004),
+            "o4-mini" => ModelPricing::new(0.0011, 0.0044),
+            "o3" => ModelPricing::new(0.01, 0.04),
+            "o3-mini" => ModelPricing::new(0.0011, 0.0044),
+            "gpt-4o" => ModelPricing::new(0.0025, 0.01),
             "gpt-4o-mini" | "gpt-4o-mini-2024-07-18" => ModelPricing::new(0.00015, 0.0006),
+            "gpt-4" | "gpt-4-turbo" | "gpt-4-turbo-preview" => ModelPricing::new(0.01, 0.03),
             "gpt-3.5-turbo" | "gpt-3.5-turbo-0125" => ModelPricing::new(0.0005, 0.0015),
             "o1" | "o1-2024-12-17" => ModelPricing::new(0.015, 0.06),
             "o1-mini" | "o1-mini-2024-09-12" => ModelPricing::new(0.003, 0.012),
-            "o3" => ModelPricing::new(0.01, 0.04),
-            "o3-mini" => ModelPricing::new(0.0011, 0.0044),
             _ => ModelPricing::new(0.0025, 0.01),
         }
     }

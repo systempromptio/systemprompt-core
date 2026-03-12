@@ -30,6 +30,7 @@ tower_governor = { workspace = true }
 governor = { workspace = true }
 http = { workspace = true }
 reqwest = { workspace = true }
+bytes = { workspace = true }
 futures-util = { workspace = true }
 
 # MCP transport

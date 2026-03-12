@@ -1,4 +1,5 @@
 use crate::repository::{CreateMcpArtifact, McpArtifactRepository};
+use crate::schema::McpOutputSchema;
 use rmcp::ErrorData as McpError;
 use rmcp::model::{CallToolResult, Content};
 use schemars::JsonSchema;
@@ -24,7 +25,7 @@ impl<T: Serialize + JsonSchema> std::fmt::Debug for McpResponseBuilder<T> {
     }
 }
 
-impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
+impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
     pub fn new(
         output: T,
         tool_name: impl Into<String>,
@@ -68,6 +69,47 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
             McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
+        // Validate structured_content keys against output_schema properties
+        let output_schema = T::validated_schema();
+        if let Some(content_obj) = structured_content.as_object() {
+            let content_keys: Vec<&String> = content_obj.keys().collect();
+
+            if let Some(schema_props) =
+                output_schema.get("properties").and_then(|p| p.as_object())
+            {
+                let schema_keys: Vec<&String> = schema_props.keys().collect();
+                let extra_keys: Vec<&&String> = content_keys
+                    .iter()
+                    .filter(|k| !schema_props.contains_key(k.as_str()))
+                    .collect();
+
+                if !extra_keys.is_empty() {
+                    tracing::error!(
+                        tool = %tool_name,
+                        ?content_keys,
+                        ?schema_keys,
+                        ?extra_keys,
+                        "structured_content has keys not in output_schema"
+                    );
+                }
+
+                tracing::debug!(
+                    tool = %tool_name,
+                    artifact_id = %artifact_id,
+                    ?content_keys,
+                    schema_valid = extra_keys.is_empty(),
+                    "MCP response validation"
+                );
+            } else {
+                tracing::debug!(
+                    tool = %tool_name,
+                    artifact_id = %artifact_id,
+                    ?content_keys,
+                    "MCP response built (no schema properties to validate against)"
+                );
+            }
+        }
+
         let create_artifact = CreateMcpArtifact {
             artifact_id: artifact_id.clone(),
             mcp_execution_id: exec_id,
@@ -97,6 +139,9 @@ impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
         Ok(result)
     }
 
+}
+
+impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {
     pub fn build_error(error_message: impl Into<String>) -> CallToolResult {
         let error_text = error_message.into();
 

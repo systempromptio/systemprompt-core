@@ -16,6 +16,7 @@ pub struct CreateContentParams {
     pub source_id: SourceId,
     pub version_hash: String,
     pub links: serde_json::Value,
+    pub public: bool,
 }
 
 impl CreateContentParams {
@@ -40,6 +41,7 @@ impl CreateContentParams {
             source_id,
             version_hash: String::new(),
             links: serde_json::Value::Array(vec![]),
+            public: true,
         }
     }
 
@@ -80,6 +82,11 @@ impl CreateContentParams {
 
     pub fn with_links(mut self, links: serde_json::Value) -> Self {
         self.links = links;
+        self
+    }
+
+    pub const fn with_public(mut self, public: bool) -> Self {
+        self.public = public;
         self
     }
 }

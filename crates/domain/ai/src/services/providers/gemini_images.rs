@@ -91,8 +91,9 @@ impl ImageProvider for GeminiImageProvider {
 
     fn supported_models(&self) -> Vec<String> {
         vec![
-            "gemini-2.5-flash-image".to_string(),
+            "gemini-3.1-flash-image-preview".to_string(),
             "gemini-3-pro-image-preview".to_string(),
+            "gemini-2.5-flash-image".to_string(),
         ]
     }
 

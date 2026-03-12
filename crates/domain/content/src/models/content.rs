@@ -85,6 +85,8 @@ pub struct ContentMetadata {
     pub tags: Vec<String>,
     #[serde(default)]
     pub links: Vec<ContentLinkMetadata>,
+    #[serde(default)]
+    pub public: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

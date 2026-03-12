@@ -19,9 +19,9 @@ pub async fn create(
         INSERT INTO markdown_content (
             id, slug, title, description, body, author,
             published_at, keywords, kind, image, category_id, source_id,
-            version_hash, links, updated_at
+            version_hash, links, updated_at, public
         )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT (slug) DO UPDATE SET
             title = EXCLUDED.title,
             description = EXCLUDED.description,
@@ -35,7 +35,8 @@ pub async fn create(
             source_id = EXCLUDED.source_id,
             version_hash = EXCLUDED.version_hash,
             links = EXCLUDED.links,
-            updated_at = EXCLUDED.updated_at
+            updated_at = EXCLUDED.updated_at,
+            public = EXCLUDED.public
         RETURNING id as "id: ContentId", slug, title, description, body, author,
                   published_at, keywords, kind, image,
                   category_id as "category_id: CategoryId",
@@ -57,7 +58,8 @@ pub async fn create(
         params.source_id.as_str(),
         params.version_hash,
         params.links,
-        now
+        now,
+        params.public
     )
     .fetch_one(&**pool)
     .await
