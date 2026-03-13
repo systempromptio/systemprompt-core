@@ -29,8 +29,7 @@ fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
 
 fn get_api_port() -> u16 {
     ProfileBootstrap::get()
-        .map(|p| p.server.port)
-        .unwrap_or(DEFAULT_API_PORT)
+        .map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
 async fn resolve_name(agent_identifier: &str) -> Result<String> {

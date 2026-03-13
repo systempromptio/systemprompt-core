@@ -14,8 +14,7 @@ const DEFAULT_API_PORT: u16 = 8080;
 
 fn get_api_port() -> u16 {
     ProfileBootstrap::get()
-        .map(|p| p.server.port)
-        .unwrap_or(DEFAULT_API_PORT)
+        .map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
 pub async fn execute(

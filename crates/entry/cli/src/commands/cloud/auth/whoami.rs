@@ -95,8 +95,7 @@ async fn fetch_cloud_tenant_count(creds: &CloudCredentials) -> usize {
     client
         .list_tenants()
         .await
-        .map(|tenants| tenants.len())
-        .unwrap_or(0)
+        .map_or(0, |tenants| tenants.len())
 }
 
 fn count_local_profiles() -> usize {
@@ -107,12 +106,10 @@ fn count_local_profiles() -> usize {
         return 0;
     }
 
-    std::fs::read_dir(&profiles_dir)
-        .map(|entries| {
-            entries
-                .filter_map(Result::ok)
-                .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
-                .count()
-        })
-        .unwrap_or(0)
+    std::fs::read_dir(&profiles_dir).map_or(0, |entries| {
+        entries
+            .filter_map(Result::ok)
+            .filter(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
+            .count()
+    })
 }

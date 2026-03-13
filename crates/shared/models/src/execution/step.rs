@@ -136,12 +136,10 @@ pub enum StepContent {
 }
 
 impl StepContent {
-    /// Create an Understanding step
     pub const fn understanding() -> Self {
         Self::Understanding
     }
 
-    /// Create a Planning step with optional reasoning and planned tools
     pub const fn planning(
         reasoning: Option<String>,
         planned_tools: Option<Vec<PlannedTool>>,
@@ -304,12 +302,10 @@ impl ExecutionStep {
         }
     }
 
-    /// Create an understanding step
     pub fn understanding(task_id: TaskId) -> Self {
         Self::new(task_id, StepContent::understanding())
     }
 
-    /// Create a planning step
     pub fn planning(
         task_id: TaskId,
         reasoning: Option<String>,
@@ -318,12 +314,10 @@ impl ExecutionStep {
         Self::new(task_id, StepContent::planning(reasoning, planned_tools))
     }
 
-    /// Create a skill usage step
     pub fn skill_usage(task_id: TaskId, skill_id: SkillId, skill_name: impl Into<String>) -> Self {
         Self::new(task_id, StepContent::skill_usage(skill_id, skill_name))
     }
 
-    /// Create a tool execution step
     pub fn tool_execution(
         task_id: TaskId,
         tool_name: impl Into<String>,
@@ -335,7 +329,6 @@ impl ExecutionStep {
         )
     }
 
-    /// Create a completion step
     pub fn completion(task_id: TaskId) -> Self {
         Self::new(task_id, StepContent::completion())
     }

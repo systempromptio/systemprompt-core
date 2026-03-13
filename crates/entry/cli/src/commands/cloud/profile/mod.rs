@@ -206,13 +206,11 @@ fn select_operation() -> Result<Option<ProfileCommands>> {
     let ctx = ProjectContext::discover();
     let profiles_dir = ctx.profiles_dir();
     let has_profiles = profiles_dir.exists()
-        && std::fs::read_dir(&profiles_dir)
-            .map(|entries| {
-                entries
-                    .filter_map(Result::ok)
-                    .any(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
-            })
-            .unwrap_or(false);
+        && std::fs::read_dir(&profiles_dir).is_ok_and(|entries| {
+            entries
+                .filter_map(Result::ok)
+                .any(|e| e.path().is_dir() && ProfilePath::Config.resolve(&e.path()).exists())
+        });
 
     let edit_label = if has_profiles {
         "Edit".to_string()

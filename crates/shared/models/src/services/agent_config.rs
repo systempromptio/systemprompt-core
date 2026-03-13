@@ -186,7 +186,6 @@ pub struct AgentCardConfig {
     pub supports_authenticated_extended_card: bool,
 }
 
-/// Agent skill definition for A2A Agent Card.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentSkillConfig {
     pub id: String,
@@ -204,12 +203,6 @@ pub struct AgentSkillConfig {
     pub security: Option<Vec<serde_json::Value>>,
 }
 
-/// Information about the organization providing this agent.
-///
-/// This is metadata about the provider, not configuration for calling AI
-/// providers. For AI provider configuration, see
-/// `crates/modules/ai/src/services/providers/provider_factory.
-/// rs::AiProviderConfig`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentProviderInfo {
     pub organization: String,
@@ -247,10 +240,6 @@ pub struct AgentMetadataConfig {
     pub tool_model_overrides: ToolModelOverrides,
 }
 
-/// OAuth configuration for A2A agent authentication requirements.
-///
-/// Defines the permissions and audience required to access this agent.
-/// Corresponds to the `security` field in the A2A `AgentCard` specification.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OAuthConfig {
     #[serde(default)]

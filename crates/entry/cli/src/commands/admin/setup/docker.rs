@@ -138,8 +138,7 @@ pub fn is_compose_available() -> bool {
     Command::new("docker")
         .args(["compose", "version"])
         .output()
-        .map(|o| o.status.success())
-        .unwrap_or(false)
+        .is_ok_and(|o| o.status.success())
 }
 
 pub fn is_container_running(container_name: &str) -> bool {
@@ -152,8 +151,7 @@ pub fn is_container_running(container_name: &str) -> bool {
             "{{.Names}}",
         ])
         .output()
-        .map(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
-        .unwrap_or(false)
+        .is_ok_and(|o| !String::from_utf8_lossy(&o.stdout).trim().is_empty())
 }
 
 fn create_compose_files_if_missing(
@@ -258,7 +256,7 @@ fn wait_for_postgres_ready(config: &PostgresConfig, container_name: &str) {
             ])
             .output();
 
-        if health.map(|o| o.status.success()).unwrap_or(false) {
+        if health.is_ok_and(|o| o.status.success()) {
             CliService::success("PostgreSQL is ready");
             return;
         }

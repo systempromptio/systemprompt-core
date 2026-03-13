@@ -35,43 +35,6 @@ pub struct RequestContext {
 }
 
 impl RequestContext {
-    /// Creates a new `RequestContext` - the ONLY way to construct a context.
-    ///
-    /// This is the single constructor for `RequestContext`. All contexts must
-    /// be created through this method, ensuring consistent initialization.
-    ///
-    /// # Required Fields
-    /// - `session_id`: Identifies the user session
-    /// - `trace_id`: For distributed tracing
-    /// - `context_id`: Conversation/execution context (empty string for
-    ///   user-level contexts)
-    /// - `agent_name`: The agent handling this request (use
-    ///   `AgentName::system()` for system operations)
-    ///
-    /// # Optional Fields
-    /// Use builder methods to set optional fields:
-    /// - `.with_user_id()` - Set the authenticated user
-    /// - `.with_auth_token()` - Set the JWT token
-    /// - `.with_user_type()` - Set user type (Admin, Standard, Anon)
-    /// - `.with_task_id()` - Set task ID for AI operations
-    /// - `.with_client_id()` - Set client ID
-    /// - `.with_call_source()` - Set call source (Agentic, Direct, Ephemeral)
-    ///
-    /// # Example
-    /// ```
-    /// # use systemprompt_models::execution::context::RequestContext;
-    /// # use systemprompt_identifiers::{SessionId, TraceId, ContextId, AgentName, UserId};
-    /// # use systemprompt_models::auth::UserType;
-    /// let ctx = RequestContext::new(
-    ///     SessionId::new("sess_123".to_string()),
-    ///     TraceId::new("trace_456".to_string()),
-    ///     ContextId::new("ctx_789".to_string()),
-    ///     AgentName::new("my-agent".to_string()),
-    /// )
-    /// .with_user_id(UserId::new("user_123".to_string()))
-    /// .with_auth_token("jwt_token_here")
-    /// .with_user_type(UserType::User);
-    /// ```
     pub fn new(
         session_id: SessionId,
         trace_id: TraceId,

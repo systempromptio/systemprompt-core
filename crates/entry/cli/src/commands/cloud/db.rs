@@ -325,9 +325,7 @@ fn execute_backup(
     let size = if output_path.is_dir() {
         dir_size(&output_path)
     } else {
-        std::fs::metadata(&output_path)
-            .map(|m| m.len())
-            .unwrap_or(0)
+        std::fs::metadata(&output_path).map_or(0, |m| m.len())
     };
 
     CliService::success(&format!(
@@ -438,15 +436,13 @@ fn execute_restore(
 }
 
 fn dir_size(path: &PathBuf) -> u64 {
-    std::fs::read_dir(path)
-        .map(|entries| {
-            entries
-                .filter_map(std::result::Result::ok)
-                .filter_map(|e| e.metadata().ok())
-                .map(|m| m.len())
-                .sum()
-        })
-        .unwrap_or(0)
+    std::fs::read_dir(path).map_or(0, |entries| {
+        entries
+            .filter_map(std::result::Result::ok)
+            .filter_map(|e| e.metadata().ok())
+            .map(|m| m.len())
+            .sum()
+    })
 }
 
 fn format_size(bytes: u64) -> String {

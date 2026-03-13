@@ -210,8 +210,7 @@ pub fn generate_admin_password() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_nanos())
-        .unwrap_or(1);
+        .map_or(1, |d| d.as_nanos());
     let random_part = format!("{:x}{:x}", timestamp, timestamp.wrapping_mul(31337));
     random_part.chars().take(32).collect()
 }
@@ -388,8 +387,7 @@ pub fn nanoid() -> String {
     use std::time::{SystemTime, UNIX_EPOCH};
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis())
-        .unwrap_or(1);
+        .map_or(1, |d| d.as_millis());
     format!("{:x}", timestamp)
 }
 

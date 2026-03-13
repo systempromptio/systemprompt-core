@@ -62,7 +62,7 @@ impl BreakdownData {
                 item.percentage = (item.count as f64 / self.total as f64) * 100.0;
             });
         }
-        self.items.sort_by(|a, b| b.count.cmp(&a.count));
+        self.items.sort_by_key(|x| std::cmp::Reverse(x.count));
     }
 }
 

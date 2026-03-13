@@ -91,7 +91,7 @@ async fn get_logs(
         .await
         .map_err(|e| anyhow!("Failed to get logs: {}", e))?;
 
-    logs.sort_by(|a, b| a.timestamp.cmp(&b.timestamp));
+    logs.sort_by_key(|x| x.timestamp);
     Ok(logs)
 }
 

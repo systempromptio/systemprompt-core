@@ -88,7 +88,7 @@ pub async fn execute_size(admin: &DatabaseAdminService, config: &CliConfig) -> R
     let tables = admin.list_tables().await.context("Failed to list tables")?;
 
     let mut sorted_tables = tables.clone();
-    sorted_tables.sort_by(|a, b| b.size_bytes.cmp(&a.size_bytes));
+    sorted_tables.sort_by_key(|x| std::cmp::Reverse(x.size_bytes));
 
     let largest: Vec<TableSizeInfo> = sorted_tables
         .iter()

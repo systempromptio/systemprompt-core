@@ -14,33 +14,24 @@ use crate::profile_bootstrap::ProfileBootstrap;
 use crate::secrets::SecretsBootstrap;
 use crate::{AppPaths, Config, PathsConfig};
 
-/// Marker trait for bootstrap states.
 pub trait BootstrapState {}
 
-/// Initial state - nothing initialized.
 #[derive(Debug, Clone, Copy)]
 pub struct Uninitialized;
 impl BootstrapState for Uninitialized {}
 
-/// Profile has been initialized.
 #[derive(Debug, Clone, Copy)]
 pub struct ProfileInitialized;
 impl BootstrapState for ProfileInitialized {}
 
-/// Secrets have been initialized (requires profile).
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsInitialized;
 impl BootstrapState for SecretsInitialized {}
 
-/// Paths have been initialized (requires secrets).
 #[derive(Debug, Clone, Copy)]
 pub struct PathsInitialized;
 impl BootstrapState for PathsInitialized {}
 
-/// Type-safe bootstrap sequence builder.
-///
-/// Uses the type state pattern to ensure initialization happens in the
-/// correct order: Profile -> Secrets -> Paths
 #[derive(Debug)]
 pub struct BootstrapSequence<S: BootstrapState> {
     _state: PhantomData<S>,
@@ -53,7 +44,6 @@ impl Default for BootstrapSequence<Uninitialized> {
 }
 
 impl BootstrapSequence<Uninitialized> {
-    /// Creates a new bootstrap sequence.
     #[must_use]
     pub const fn new() -> Self {
         Self {
@@ -61,9 +51,6 @@ impl BootstrapSequence<Uninitialized> {
         }
     }
 
-    /// Initializes the profile from a path.
-    ///
-    /// This must be called first before secrets or paths can be initialized.
     #[allow(clippy::unused_self)]
     pub fn with_profile(self, path: &Path) -> Result<BootstrapSequence<ProfileInitialized>> {
         ProfileBootstrap::init_from_path(path)
@@ -74,7 +61,6 @@ impl BootstrapSequence<Uninitialized> {
         })
     }
 
-    /// Skips profile initialization (for commands that don't need it).
     #[must_use]
     pub const fn skip_profile(self) -> Self {
         self
@@ -82,9 +68,6 @@ impl BootstrapSequence<Uninitialized> {
 }
 
 impl BootstrapSequence<ProfileInitialized> {
-    /// Initializes secrets from the loaded profile.
-    ///
-    /// Requires profile to be initialized first.
     #[allow(clippy::unused_self)]
     pub fn with_secrets(self) -> Result<BootstrapSequence<SecretsInitialized>> {
         SecretsBootstrap::init().context("Secrets initialization failed")?;
@@ -94,9 +77,6 @@ impl BootstrapSequence<ProfileInitialized> {
         })
     }
 
-    /// Skips secrets initialization but allows moving forward.
-    ///
-    /// Useful for commands that need profile but not secrets.
     #[must_use]
     pub const fn skip_secrets(self) -> Self {
         self
@@ -104,9 +84,6 @@ impl BootstrapSequence<ProfileInitialized> {
 }
 
 impl BootstrapSequence<SecretsInitialized> {
-    /// Initializes application paths from the profile configuration.
-    ///
-    /// Requires secrets to be initialized first.
     #[allow(clippy::unused_self)]
     pub fn with_paths(self) -> Result<BootstrapSequence<PathsInitialized>> {
         let profile = ProfileBootstrap::get()?;
@@ -118,7 +95,6 @@ impl BootstrapSequence<SecretsInitialized> {
         })
     }
 
-    /// Initializes paths with custom configuration.
     #[allow(clippy::unused_self)]
     pub fn with_paths_config(
         self,
@@ -132,7 +108,6 @@ impl BootstrapSequence<SecretsInitialized> {
         })
     }
 
-    /// Skips paths initialization.
     #[must_use]
     pub const fn skip_paths(self) -> Self {
         self
@@ -140,7 +115,6 @@ impl BootstrapSequence<SecretsInitialized> {
 }
 
 impl BootstrapSequence<PathsInitialized> {
-    /// Returns a reference to indicate bootstrap is complete.
     #[must_use]
     #[allow(clippy::unused_self)]
     pub const fn complete(&self) -> BootstrapComplete {
@@ -148,13 +122,11 @@ impl BootstrapSequence<PathsInitialized> {
     }
 }
 
-/// Proof that bootstrap completed successfully.
 #[derive(Debug, Clone, Copy)]
 pub struct BootstrapComplete {
     _private: (),
 }
 
-/// Convenience functions for common bootstrap patterns.
 pub mod presets {
     use std::path::Path;
 
@@ -164,7 +136,6 @@ pub mod presets {
         BootstrapComplete, BootstrapSequence, ProfileInitialized, SecretsInitialized, Uninitialized,
     };
 
-    /// Full bootstrap: profile + secrets + paths.
     pub fn full(profile_path: &Path) -> Result<BootstrapComplete> {
         Ok(BootstrapSequence::<Uninitialized>::new()
             .with_profile(profile_path)?
@@ -173,7 +144,6 @@ pub mod presets {
             .complete())
     }
 
-    /// Profile and secrets only (no paths).
     pub fn profile_and_secrets(
         profile_path: &Path,
     ) -> Result<BootstrapSequence<SecretsInitialized>> {
@@ -182,7 +152,6 @@ pub mod presets {
             .with_secrets()
     }
 
-    /// Profile only.
     pub fn profile_only(profile_path: &Path) -> Result<BootstrapSequence<ProfileInitialized>> {
         BootstrapSequence::<Uninitialized>::new().with_profile(profile_path)
     }
