@@ -211,6 +211,5 @@ async fn check_server_health(server_name: &str, server_port: u16, api_server_url
 
     validate_connection(server_name, host, actual_port)
         .await
-        .map(|r| r.success)
-        .unwrap_or(false)
+        .is_ok_and(|r| r.success)
 }

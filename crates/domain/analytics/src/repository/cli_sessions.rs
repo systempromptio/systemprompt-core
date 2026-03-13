@@ -41,7 +41,6 @@ impl CliSessionAnalyticsRepository {
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
               AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
-              AND session_source = 'web'
             "#,
             start,
             end
@@ -53,7 +52,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_active_session_count(&self, since: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false AND session_source = 'web'"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false"#,
             since
         )
         .fetch_one(&*self.pool)
@@ -80,7 +79,6 @@ impl CliSessionAnalyticsRepository {
             WHERE ended_at IS NULL
               AND last_activity_at >= $1
               AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
-              AND session_source = 'web'
             ORDER BY last_activity_at DESC
             LIMIT $2
             "#,
@@ -94,7 +92,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_active_count(&self, cutoff: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false AND session_source = 'web'"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE ended_at IS NULL AND last_activity_at >= $1 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false"#,
             cutoff
         )
         .fetch_one(&*self.pool)
@@ -117,7 +115,6 @@ impl CliSessionAnalyticsRepository {
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2
               AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
-              AND session_source = 'web'
             ORDER BY started_at
             "#,
             start,
@@ -136,7 +133,6 @@ impl CliSessionAnalyticsRepository {
             WHERE ended_at IS NULL
               AND last_activity_at >= $1
               AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false
-              AND session_source = 'web'
             "#,
             start
         )
@@ -147,7 +143,7 @@ impl CliSessionAnalyticsRepository {
 
     pub async fn get_total_count(&self, start: DateTime<Utc>, end: DateTime<Utc>) -> Result<i64> {
         let count = sqlx::query_scalar!(
-            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE started_at >= $1 AND started_at < $2 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false AND session_source = 'web'"#,
+            r#"SELECT COUNT(*)::bigint as "count!" FROM user_sessions WHERE started_at >= $1 AND started_at < $2 AND is_bot = false AND is_behavioral_bot = false AND is_scanner = false"#,
             start,
             end
         )

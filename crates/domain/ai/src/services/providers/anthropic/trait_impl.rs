@@ -63,7 +63,6 @@ impl AiProvider for AnthropicProvider {
                 ModelPricing::new(0.003, 0.015)
             }
             "claude-3-opus-20240229" | "claude-opus-4-20250514" => ModelPricing::new(0.015, 0.075),
-            "claude-sonnet-4-20250514" => ModelPricing::new(0.003, 0.015),
             "claude-haiku-4-5-20251101" => ModelPricing::new(0.001, 0.005),
             "claude-3-5-haiku-20241022" => ModelPricing::new(0.0008, 0.004),
             "claude-3-haiku-20240307" => ModelPricing::new(0.00025, 0.00125),

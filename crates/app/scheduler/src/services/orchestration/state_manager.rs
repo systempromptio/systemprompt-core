@@ -146,8 +146,7 @@ impl ServiceStateManager {
             TcpStream::connect(format!("127.0.0.1:{}", port)),
         )
         .await
-        .map(|r| r.is_ok())
-        .unwrap_or(false)
+        .is_ok_and(|r| r.is_ok())
     }
 
     async fn fetch_db_services(&self) -> Result<Vec<DbServiceRecord>> {

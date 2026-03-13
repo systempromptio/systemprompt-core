@@ -52,7 +52,7 @@ pub async fn generate_stream(
                 .map(|b| parse_stream_chunk(&b))
         })
         .filter(|result| {
-            futures::future::ready(result.as_ref().map(|s| !s.is_empty()).unwrap_or(true))
+            futures::future::ready(result.as_ref().map_or(true, |s| !s.is_empty()))
         });
 
     Ok(Box::pin(text_stream))

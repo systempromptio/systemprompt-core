@@ -10,7 +10,7 @@ pub async fn restart_server(manager: &LifecycleManager, config: &McpServerConfig
     shutdown::stop_server(manager, config).await?;
 
     tracing::debug!(service = %config.name, "Waiting for clean shutdown");
-    tokio::time::sleep(tokio::time::Duration::from_millis(1000)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
 
     verify_clean_state(manager, config).await?;
 

@@ -36,7 +36,7 @@ impl ContentAnalyticsRepository {
                 INNER JOIN user_sessions us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2
                     AND ee.content_id IS NOT NULL
-                    AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
+                    AND us.is_bot = false AND us.is_behavioral_bot = false
                 GROUP BY ee.content_id
             )
             SELECT
@@ -79,7 +79,7 @@ impl ContentAnalyticsRepository {
             FROM engagement_events ee
             INNER JOIN user_sessions us ON ee.session_id = us.session_id
             WHERE ee.created_at >= $1 AND ee.created_at < $2
-                AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
+                AND us.is_bot = false AND us.is_behavioral_bot = false
             "#,
             start,
             end
@@ -112,7 +112,7 @@ impl ContentAnalyticsRepository {
                 FROM engagement_events ee
                 INNER JOIN user_sessions us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2
-                    AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
+                    AND us.is_bot = false AND us.is_behavioral_bot = false
                 GROUP BY date_trunc('day', ee.created_at)
             )
             SELECT

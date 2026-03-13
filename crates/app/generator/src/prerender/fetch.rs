@@ -62,7 +62,9 @@ pub async fn contents_to_json(
     providers: &[Arc<dyn ContentDataProvider>],
     db_pool: &DbPool,
 ) -> Vec<serde_json::Value> {
-    let items: Vec<serde_json::Value> = contents
+    const ENRICHMENT_CONCURRENCY: usize = 8;
+
+    let futures: Vec<_> = contents
         .iter()
         .map(|c| {
             serde_json::json!({
@@ -82,12 +84,6 @@ pub async fn contents_to_json(
                 "links": c.links,
             })
         })
-        .collect();
-
-    const ENRICHMENT_CONCURRENCY: usize = 8;
-
-    let futures: Vec<_> = items
-        .into_iter()
         .zip(contents.iter())
         .map(|(mut item, content)| {
             let content_id = content.id.to_string();
