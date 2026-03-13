@@ -19,6 +19,9 @@ pub enum ContentCommands {
     #[command(about = "Top performing content")]
     Top(top::TopArgs),
 
+    #[command(about = "Top performing content", hide = true)]
+    Popular(top::TopArgs),
+
     #[command(about = "Content trends over time")]
     Trends(trends::TrendsArgs),
 }
@@ -36,6 +39,9 @@ pub struct ContentStatsOutput {
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct TopContentRow {
     pub content_id: String,
+    pub slug: String,
+    pub title: String,
+    pub source: String,
     pub views: i64,
     pub unique_visitors: i64,
     pub avg_time_seconds: i64,
@@ -69,7 +75,7 @@ pub async fn execute(command: ContentCommands, config: &CliConfig) -> Result<()>
             render_result(&result);
             Ok(())
         },
-        ContentCommands::Top(args) => {
+        ContentCommands::Top(args) | ContentCommands::Popular(args) => {
             let result = top::execute(args, config).await?;
             render_result(&result);
             Ok(())
@@ -93,7 +99,7 @@ pub async fn execute_with_pool(
             render_result(&result);
             Ok(())
         },
-        ContentCommands::Top(args) => {
+        ContentCommands::Top(args) | ContentCommands::Popular(args) => {
             let result = top::execute_with_pool(args, db_ctx, config).await?;
             render_result(&result);
             Ok(())

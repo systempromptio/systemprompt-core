@@ -15,10 +15,10 @@ use crate::shared::{ChartType, CommandResult};
 
 #[derive(Debug, Args)]
 pub struct TrendsArgs {
-    #[arg(long, default_value = "7d", help = "Time range")]
+    #[arg(long, alias = "from", default_value = "7d", help = "Time range")]
     pub since: Option<String>,
 
-    #[arg(long, help = "End time")]
+    #[arg(long, alias = "to", help = "End time")]
     pub until: Option<String>,
 
     #[arg(long, default_value = "day", help = "Group by period")]

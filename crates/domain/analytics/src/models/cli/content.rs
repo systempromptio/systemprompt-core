@@ -6,6 +6,9 @@ use systemprompt_identifiers::ContentId;
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct TopContentRow {
     pub content_id: ContentId,
+    pub slug: Option<String>,
+    pub title: Option<String>,
+    pub source_id: Option<String>,
     pub total_views: i64,
     pub unique_visitors: i64,
     pub avg_time_on_page_seconds: Option<f64>,

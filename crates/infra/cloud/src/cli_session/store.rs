@@ -136,6 +136,13 @@ impl SessionStore {
     }
 
     #[must_use]
+    pub fn find_by_profile_name(&self, name: &str) -> Option<&CliSession> {
+        self.sessions
+            .values()
+            .find(|s| s.profile_name.as_str() == name && !s.is_expired())
+    }
+
+    #[must_use]
     pub fn all_sessions(&self) -> Vec<(&String, &CliSession)> {
         self.sessions.iter().collect()
     }

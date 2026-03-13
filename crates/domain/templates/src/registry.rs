@@ -119,7 +119,7 @@ impl TemplateRegistry {
             }
         }
 
-        all_templates.sort_by(|a, b| a.0.priority.cmp(&b.0.priority));
+        all_templates.sort_by_key(|a| a.0.priority);
 
         for (template, provider_id) in all_templates {
             if self.resolved_templates.contains_key(&template.name) {

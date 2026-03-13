@@ -12,10 +12,10 @@ use crate::shared::{CommandResult, RenderingHints};
 
 #[derive(Debug, Args)]
 pub struct TopArgs {
-    #[arg(long, default_value = "24h", help = "Time range")]
+    #[arg(long, alias = "from", default_value = "24h", help = "Time range")]
     pub since: Option<String>,
 
-    #[arg(long, help = "End time")]
+    #[arg(long, alias = "to", help = "End time")]
     pub until: Option<String>,
 
     #[arg(
@@ -60,6 +60,9 @@ async fn execute_internal(
         .into_iter()
         .map(|row| TopContentRow {
             content_id: row.content_id.to_string(),
+            slug: row.slug.unwrap_or_default(),
+            title: row.title.unwrap_or_default(),
+            source: row.source_id.unwrap_or_default(),
             views: row.total_views,
             unique_visitors: row.unique_visitors,
             avg_time_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),
@@ -86,10 +89,13 @@ async fn execute_internal(
 
     let hints = RenderingHints {
         columns: Some(vec![
-            "content_id".to_string(),
+            "slug".to_string(),
+            "title".to_string(),
+            "source".to_string(),
             "views".to_string(),
             "unique_visitors".to_string(),
             "avg_time_seconds".to_string(),
+            "trend".to_string(),
         ]),
         ..Default::default()
     };

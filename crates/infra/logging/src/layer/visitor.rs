@@ -96,21 +96,15 @@ impl SpanVisitor<'_> {
         match name {
             field_names::USER_ID => self.context.user = Some(value),
             field_names::SESSION_ID => self.context.session = Some(value),
-            field_names::TASK_ID => {
-                if !value.is_empty() {
-                    self.context.task = Some(value);
-                }
+            field_names::TASK_ID if !value.is_empty() => {
+                self.context.task = Some(value);
             },
             field_names::TRACE_ID => self.context.trace = Some(value),
-            field_names::CONTEXT_ID => {
-                if !value.is_empty() {
-                    self.context.context = Some(value);
-                }
+            field_names::CONTEXT_ID if !value.is_empty() => {
+                self.context.context = Some(value);
             },
-            field_names::CLIENT_ID => {
-                if !value.is_empty() {
-                    self.context.client = Some(value);
-                }
+            field_names::CLIENT_ID if !value.is_empty() => {
+                self.context.client = Some(value);
             },
             _ => {},
         }

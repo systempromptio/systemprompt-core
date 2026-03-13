@@ -17,12 +17,13 @@ use crate::shared::{ChartType, CommandResult};
 pub struct TrendsArgs {
     #[arg(
         long,
+        alias = "from",
         default_value = "7d",
         help = "Time range (e.g., '1h', '24h', '7d')"
     )]
     pub since: Option<String>,
 
-    #[arg(long, help = "End time for range")]
+    #[arg(long, alias = "to", help = "End time for range")]
     pub until: Option<String>,
 
     #[arg(

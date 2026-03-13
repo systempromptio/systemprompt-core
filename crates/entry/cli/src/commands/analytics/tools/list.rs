@@ -32,12 +32,13 @@ impl ToolSortBy {
 pub struct ListArgs {
     #[arg(
         long,
+        alias = "from",
         default_value = "24h",
         help = "Time range (e.g., '1h', '24h', '7d')"
     )]
     pub since: Option<String>,
 
-    #[arg(long, help = "End time for range")]
+    #[arg(long, alias = "to", help = "End time for range")]
     pub until: Option<String>,
 
     #[arg(

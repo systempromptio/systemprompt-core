@@ -12,10 +12,10 @@ use crate::shared::{CommandResult, RenderingHints};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
-    #[arg(long, default_value = "24h", help = "Time range")]
+    #[arg(long, alias = "from", default_value = "24h", help = "Time range")]
     pub since: Option<String>,
 
-    #[arg(long, help = "End time for range")]
+    #[arg(long, alias = "to", help = "End time for range")]
     pub until: Option<String>,
 
     #[arg(

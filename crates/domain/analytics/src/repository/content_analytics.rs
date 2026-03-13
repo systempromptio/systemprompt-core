@@ -27,14 +27,18 @@ impl ContentAnalyticsRepository {
             TopContentRow,
             r#"
             SELECT
-                content_id as "content_id!",
-                total_views as "total_views!",
-                unique_visitors as "unique_visitors!",
-                avg_time_on_page_seconds as "avg_time_on_page_seconds",
-                trend_direction as "trend_direction"
-            FROM content_performance_metrics
-            WHERE created_at >= $1 AND created_at < $2
-            ORDER BY total_views DESC
+                cpm.content_id as "content_id!",
+                mc.slug as "slug?",
+                mc.title as "title?",
+                mc.source_id as "source_id?",
+                cpm.total_views as "total_views!",
+                cpm.unique_visitors as "unique_visitors!",
+                cpm.avg_time_on_page_seconds as "avg_time_on_page_seconds",
+                cpm.trend_direction as "trend_direction"
+            FROM content_performance_metrics cpm
+            LEFT JOIN markdown_content mc ON cpm.content_id = mc.id
+            WHERE cpm.created_at >= $1 AND cpm.created_at < $2
+            ORDER BY cpm.total_views DESC
             LIMIT $3
             "#,
             start,

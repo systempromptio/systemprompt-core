@@ -184,6 +184,7 @@ impl DescribeCommand for Commands {
                 infrastructure::jobs::JobsCommands::Run(_)
                 | infrastructure::jobs::JobsCommands::List,
             )) => CommandDescriptor::FULL.with_skip_validation(),
+            Self::Analytics(_) => CommandDescriptor::FULL.with_skip_validation(),
             _ => CommandDescriptor::FULL,
         }
     }

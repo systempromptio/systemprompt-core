@@ -127,10 +127,23 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
     }
 
     let profiles = discover_profiles()?;
-    Ok(profiles
-        .into_iter()
-        .find(|p| p.name == name)
-        .map(|p| p.path))
+    if let Some(found) = profiles.into_iter().find(|p| p.name == name) {
+        return Ok(Some(found.path));
+    }
+
+    if let Ok(paths) = crate::paths::ResolvedPaths::discover().sessions_dir() {
+        if let Ok(store) = systemprompt_cloud::SessionStore::load_or_create(&paths) {
+            if let Some(session) = store.find_by_profile_name(name) {
+                if let Some(ref profile_path) = session.profile_path {
+                    if profile_path.exists() {
+                        return Ok(Some(profile_path.clone()));
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 #[derive(Debug)]
