@@ -31,7 +31,7 @@ impl ContentAnalyticsRepository {
                     ee.content_id,
                     COUNT(*)::bigint as total_views,
                     COUNT(DISTINCT ee.session_id)::bigint as unique_visitors,
-                    AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0 as avg_time_on_page_seconds
+                    (AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0)::float8 as avg_time_on_page_seconds
                 FROM engagement_events ee
                 INNER JOIN user_sessions us ON ee.session_id = us.session_id
                 WHERE ee.created_at >= $1 AND ee.created_at < $2
@@ -46,7 +46,7 @@ impl ContentAnalyticsRepository {
                 mc.source_id as "source_id?",
                 cs.total_views as "total_views!",
                 cs.unique_visitors as "unique_visitors!",
-                cs.avg_time_on_page_seconds as "avg_time_on_page_seconds",
+                cs.avg_time_on_page_seconds::float8 as "avg_time_on_page_seconds",
                 NULL::text as "trend_direction"
             FROM content_stats cs
             LEFT JOIN markdown_content mc ON cs.content_id = mc.id
