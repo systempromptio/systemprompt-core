@@ -69,7 +69,6 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
             McpError::internal_error(format!("Serialization error: {e}"), None)
         })?;
 
-        // Validate structured_content keys against output_schema properties
         let output_schema = T::validated_schema();
         if let Some(content_obj) = structured_content.as_object() {
             let content_keys: Vec<&String> = content_obj.keys().collect();

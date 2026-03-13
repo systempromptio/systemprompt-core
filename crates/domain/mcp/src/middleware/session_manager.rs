@@ -158,9 +158,6 @@ impl SessionManager for DatabaseSessionManager {
         if self.local_manager.has_session(id).await.unwrap_or(false) {
             return Ok(true);
         }
-        // Don't eagerly close DB records here — closing prevents the resume()
-        // method from detecting stale sessions and signaling SessionNeedsReconnect.
-        // DB records are cleaned up by close_session() or a future cleanup job.
         if self.check_db_session(id).await == Some(true) {
             tracing::info!(
                 session_id = %id,

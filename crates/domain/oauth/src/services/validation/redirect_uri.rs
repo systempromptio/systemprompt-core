@@ -17,9 +17,6 @@ pub fn validate_redirect_uri(
     Ok(uri.to_string())
 }
 
-/// Check if any registered relative path URI matches the path of the requested
-/// absolute URI. A registered URI like `/admin/login` will match `https://example.com/admin/login`.
-/// Only paths starting with `/` (and not `//`) are treated as relative.
 fn matches_relative_uri(registered_uris: &[String], requested_uri: &str) -> bool {
     let requested_path = match requested_uri.find("://") {
         Some(scheme_end) => {

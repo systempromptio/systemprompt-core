@@ -17,12 +17,6 @@ pub trait McpOutputSchema: JsonSchema {
         None
     }
 
-    /// Generate the output schema for MCP tool definitions.
-    ///
-    /// Returns the schema for `ToolResponse<Self>` — the actual shape of
-    /// `structured_content` in `CallToolResult`. This must match what
-    /// `McpResponseBuilder::build()` serializes, so that MCP clients
-    /// validating `structured_content` against `output_schema` succeed.
     fn validated_schema() -> JsonValue
     where
         Self: Sized,

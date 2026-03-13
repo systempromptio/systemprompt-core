@@ -10,7 +10,6 @@ use systemprompt_mcp::services::registry::RegistryManager;
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListPackagesArgs {
-    /// Output as space-separated string (for shell scripts)
     #[arg(long, help = "Output as space-separated string")]
     pub raw: bool,
 }

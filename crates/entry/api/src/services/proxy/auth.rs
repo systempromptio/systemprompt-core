@@ -190,15 +190,11 @@ impl AccessValidator {
                         return Ok(None);
                     }
 
-                    // Token IS present but expired/invalid — return 401 so the SDK
-                    // can refresh the token and retry with the same session ID.
                     tracing::info!(
                         service = %service_name,
                         session_id = ?headers.get("mcp-session-id"),
                         "MCP request has expired/invalid Bearer token — returning 401 for client token refresh"
                     );
-                    // Fall through to
-                    // OAuthChallengeBuilder::build_challenge_response()
                 }
 
                 match OAuthChallengeBuilder::build_challenge_response(

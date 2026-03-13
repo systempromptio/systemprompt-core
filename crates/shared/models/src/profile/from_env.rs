@@ -13,10 +13,6 @@ use super::{
 use anyhow::{Context, Result};
 
 impl Profile {
-    /// Creates a Profile from environment variables.
-    ///
-    /// This is primarily used for cloud deployments where configuration
-    /// is passed via environment variables rather than files.
     pub fn from_env(profile_name: &str, display_name: &str) -> Result<Self> {
         let require_env = |key: &str| -> Result<String> {
             std::env::var(key)

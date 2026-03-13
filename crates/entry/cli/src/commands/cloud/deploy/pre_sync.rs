@@ -80,7 +80,6 @@ pub async fn execute(
         return handle_sync_result(result, true);
     }
 
-    // Step 1: Download and compute diff
     let service = FileSyncService::new(sync_config, api_client);
 
     let spinner = CliService::spinner("Downloading files from cloud...");
@@ -90,23 +89,19 @@ pub async fn execute(
         .map_err(|e| anyhow::anyhow!("Download failed: {}", e))?;
     spinner.finish_and_clear();
 
-    // Step 2: Backup local services to zip
     let spinner = CliService::spinner("Backing up local services...");
     let backup_path = FileSyncService::backup_services(&services_path)
         .map_err(|e| anyhow::anyhow!("Backup failed: {}", e))?;
     spinner.finish_and_clear();
     CliService::success(&format!("Backed up to {}", backup_path.display()));
 
-    // Step 3: Display diff
     display_diff(&download.diff);
 
-    // Step 4: If no changes, we're done
     if !download.diff.has_changes() {
         CliService::success("All files are already in sync");
         return Ok(PreSyncResult::success());
     }
 
-    // Step 5: Interactive confirmation (skip with --yes)
     let changes = download.diff.added + download.diff.modified;
     if !config.yes {
         let prompt = format!(
@@ -122,7 +117,6 @@ pub async fn execute(
         }
     }
 
-    // Step 6: Apply only changed files
     let changed_paths = download.diff.changed_paths();
     let count = FileSyncService::apply(&download.data, &services_path, Some(&changed_paths))
         .map_err(|e| anyhow::anyhow!("Apply failed: {}", e))?;

@@ -17,16 +17,12 @@ use systemprompt_runtime::AppContext;
 
 #[derive(Debug, Args)]
 pub struct ValidateArgs {
-    /// MCP server name to validate (required in non-interactive mode unless
-    /// --all is used)
     #[arg(help = "MCP server name")]
     pub service: Option<String>,
 
-    /// Validate all configured MCP servers
     #[arg(long, help = "Validate all configured servers")]
     pub all: bool,
 
-    /// Connection timeout in seconds
     #[arg(long, default_value = "10", help = "Connection timeout in seconds")]
     pub timeout: u64,
 }

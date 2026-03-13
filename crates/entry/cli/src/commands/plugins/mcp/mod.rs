@@ -18,25 +18,18 @@ use crate::shared::render_result;
 
 #[derive(Debug, Subcommand)]
 pub enum McpCommands {
-    /// List MCP server configs
     List(list::ListArgs),
 
-    /// Show running MCP server status with binary info
     Status(status::StatusArgs),
 
-    /// Validate MCP connection
     Validate(validate::ValidateArgs),
 
-    /// View MCP server logs
     Logs(logs::LogsArgs),
 
-    /// List package names for build
     ListPackages(list_packages::ListPackagesArgs),
 
-    /// List tools from running MCP servers
     Tools(tools::ToolsArgs),
 
-    /// Execute a tool on an MCP server
     Call(call::CallArgs),
 }
 

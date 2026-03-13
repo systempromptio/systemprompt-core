@@ -34,7 +34,6 @@ pub fn validate_profile_paths(profile: &Profile, profile_path: &str) -> Validati
     report
 }
 
-/// Validate a required path (must be set and exist).
 pub fn validate_required_path(report: &mut ValidationReport, field: &str, path: &str) {
     if path.is_empty() {
         report.add_error(

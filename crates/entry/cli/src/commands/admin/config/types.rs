@@ -349,7 +349,6 @@ pub struct DiffEntry {
     pub other: String,
 }
 
-// Provider-related types
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct ProviderInfo {
     pub name: String,

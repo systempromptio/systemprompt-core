@@ -371,10 +371,6 @@ fn is_standard_env_var(key: &str) -> bool {
     )
 }
 
-/// Syncs cloud credentials to the deployment environment.
-///
-/// This sets the environment variables that allow the CLI to authenticate
-/// with the cloud API when running inside a deployed container.
 pub async fn sync_cloud_credentials(
     api_client: &CloudApiClient,
     tenant_id: &str,

@@ -9,7 +9,6 @@ use super::Profile;
 use anyhow::Result;
 
 impl Profile {
-    /// Validates the entire profile configuration.
     pub fn validate(&self) -> Result<()> {
         let mut errors: Vec<String> = Vec::new();
         let is_cloud = self.target.is_cloud();

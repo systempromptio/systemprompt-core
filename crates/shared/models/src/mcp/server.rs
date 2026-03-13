@@ -73,7 +73,6 @@ impl McpServerConfig {
     }
 }
 
-/// Authentication state for MCP connections
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum McpAuthState {
     Authenticated(AuthenticatedUser),

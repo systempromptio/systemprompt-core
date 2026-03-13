@@ -54,14 +54,10 @@ impl ProfileBootstrap {
             .ok_or_else(|| anyhow::anyhow!(ProfileBootstrapError::NotInitialized))
     }
 
-    /// Get the initialized profile.
-    /// Returns error if profile has not been initialized.
     pub fn get() -> Result<&'static Profile, ProfileBootstrapError> {
         PROFILE.get().ok_or(ProfileBootstrapError::NotInitialized)
     }
 
-    /// Get the initialized profile path.
-    /// Returns error if profile has not been initialized.
     pub fn get_path() -> Result<&'static str, ProfileBootstrapError> {
         PROFILE_PATH
             .get()
@@ -69,7 +65,6 @@ impl ProfileBootstrap {
             .ok_or(ProfileBootstrapError::NotInitialized)
     }
 
-    /// Check if the profile has been initialized.
     pub fn is_initialized() -> bool {
         PROFILE.get().is_some()
     }

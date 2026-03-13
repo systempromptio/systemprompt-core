@@ -13,7 +13,6 @@ pub enum Phase {
 }
 
 impl Phase {
-    /// Human-readable phase name for display
     pub const fn name(&self) -> &'static str {
         match self {
             Self::PreFlight => "Pre-flight",
@@ -25,7 +24,6 @@ impl Phase {
         }
     }
 
-    /// Whether this phase blocks API readiness
     pub const fn is_blocking(&self) -> bool {
         matches!(
             self,
