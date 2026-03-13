@@ -26,19 +26,31 @@ impl ContentAnalyticsRepository {
         sqlx::query_as!(
             TopContentRow,
             r#"
+            WITH content_stats AS (
+                SELECT
+                    ee.content_id,
+                    COUNT(*)::bigint as total_views,
+                    COUNT(DISTINCT ee.session_id)::bigint as unique_visitors,
+                    AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0 as avg_time_on_page_seconds
+                FROM engagement_events ee
+                INNER JOIN user_sessions us ON ee.session_id = us.session_id
+                WHERE ee.created_at >= $1 AND ee.created_at < $2
+                    AND ee.content_id IS NOT NULL
+                    AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
+                GROUP BY ee.content_id
+            )
             SELECT
-                cpm.content_id as "content_id!",
+                cs.content_id as "content_id!",
                 mc.slug as "slug?",
                 mc.title as "title?",
                 mc.source_id as "source_id?",
-                cpm.total_views as "total_views!",
-                cpm.unique_visitors as "unique_visitors!",
-                cpm.avg_time_on_page_seconds as "avg_time_on_page_seconds",
-                cpm.trend_direction as "trend_direction"
-            FROM content_performance_metrics cpm
-            LEFT JOIN markdown_content mc ON cpm.content_id = mc.id
-            WHERE cpm.created_at >= $1 AND cpm.created_at < $2
-            ORDER BY cpm.total_views DESC
+                cs.total_views as "total_views!",
+                cs.unique_visitors as "unique_visitors!",
+                cs.avg_time_on_page_seconds as "avg_time_on_page_seconds",
+                NULL::text as "trend_direction"
+            FROM content_stats cs
+            LEFT JOIN markdown_content mc ON cs.content_id = mc.id
+            ORDER BY cs.total_views DESC
             LIMIT $3
             "#,
             start,
@@ -58,29 +70,16 @@ impl ContentAnalyticsRepository {
         sqlx::query_as!(
             ContentStatsRow,
             r#"
-            WITH page_view_stats AS (
-                SELECT
-                    COUNT(*) as total_views,
-                    COUNT(DISTINCT user_id) as unique_visitors
-                FROM analytics_events
-                WHERE event_type = 'page_view'
-                    AND timestamp >= $1 AND timestamp < $2
-            ),
-            engagement_stats AS (
-                SELECT
-                    COALESCE(AVG(time_on_page_ms) / 1000.0, 0) as avg_time_on_page_seconds,
-                    COALESCE(AVG(max_scroll_depth), 0) as avg_scroll_depth,
-                    COALESCE(SUM(click_count), 0) as total_clicks
-                FROM engagement_events
-                WHERE created_at >= $1 AND created_at < $2
-            )
             SELECT
-                pv.total_views::bigint as "total_views!",
-                pv.unique_visitors::bigint as "unique_visitors!",
-                es.avg_time_on_page_seconds::float8 as "avg_time_on_page_seconds",
-                es.avg_scroll_depth::float8 as "avg_scroll_depth",
-                es.total_clicks::bigint as "total_clicks!"
-            FROM page_view_stats pv, engagement_stats es
+                COUNT(*)::bigint as "total_views!",
+                COUNT(DISTINCT ee.session_id)::bigint as "unique_visitors!",
+                COALESCE(AVG(LEAST(ee.time_on_page_ms, 1800000)) / 1000.0, 0)::float8 as "avg_time_on_page_seconds",
+                COALESCE(AVG(ee.max_scroll_depth), 0)::float8 as "avg_scroll_depth",
+                COALESCE(SUM(ee.click_count), 0)::bigint as "total_clicks!"
+            FROM engagement_events ee
+            INNER JOIN user_sessions us ON ee.session_id = us.session_id
+            WHERE ee.created_at >= $1 AND ee.created_at < $2
+                AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
             "#,
             start,
             end
@@ -98,13 +97,31 @@ impl ContentAnalyticsRepository {
         sqlx::query_as!(
             ContentTrendRow,
             r#"
+            WITH date_series AS (
+                SELECT generate_series(
+                    date_trunc('day', $1::timestamptz),
+                    date_trunc('day', $2::timestamptz) - interval '1 day',
+                    '1 day'::interval
+                ) as day
+            ),
+            daily_stats AS (
+                SELECT
+                    date_trunc('day', ee.created_at) as day,
+                    COUNT(*)::bigint as views,
+                    COUNT(DISTINCT ee.session_id)::bigint as unique_visitors
+                FROM engagement_events ee
+                INNER JOIN user_sessions us ON ee.session_id = us.session_id
+                WHERE ee.created_at >= $1 AND ee.created_at < $2
+                    AND us.is_bot = false AND us.is_behavioral_bot = false AND us.is_scanner = false
+                GROUP BY date_trunc('day', ee.created_at)
+            )
             SELECT
-                created_at as "timestamp!",
-                total_views as "views!",
-                unique_visitors as "unique_visitors!"
-            FROM content_performance_metrics
-            WHERE created_at >= $1 AND created_at < $2
-            ORDER BY created_at
+                ds.day as "timestamp!",
+                COALESCE(s.views, 0)::bigint as "views!",
+                COALESCE(s.unique_visitors, 0)::bigint as "unique_visitors!"
+            FROM date_series ds
+            LEFT JOIN daily_stats s ON ds.day = s.day
+            ORDER BY ds.day
             "#,
             start,
             end

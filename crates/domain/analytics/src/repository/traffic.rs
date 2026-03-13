@@ -228,17 +228,28 @@ impl TrafficAnalyticsRepository {
             BotTypeRow,
             r#"
             SELECT
-                COALESCE(
-                    CASE
-                        WHEN user_agent ILIKE '%googlebot%' THEN 'Googlebot'
-                        WHEN user_agent ILIKE '%bingbot%' THEN 'Bingbot'
-                        WHEN user_agent ILIKE '%chatgpt%' THEN 'ChatGPT'
-                        WHEN user_agent ILIKE '%claude%' THEN 'Claude'
-                        WHEN user_agent ILIKE '%perplexity%' THEN 'Perplexity'
-                        ELSE 'Other'
-                    END,
-                    'Unknown'
-                ) as "bot_type",
+                CASE
+                    WHEN user_agent ILIKE '%googlebot%' OR user_agent ILIKE '%google-inspectiontool%' OR user_agent ILIKE '%adsbot-google%' THEN 'Google'
+                    WHEN user_agent ILIKE '%bingbot%' OR user_agent ILIKE '%bingpreview%' OR user_agent ILIKE '%msnbot%' THEN 'Bing'
+                    WHEN user_agent ILIKE '%chatgpt%' OR user_agent ILIKE '%gptbot%' THEN 'OpenAI'
+                    WHEN user_agent ILIKE '%claude%' OR user_agent ILIKE '%anthropic%' THEN 'Anthropic'
+                    WHEN user_agent ILIKE '%perplexity%' THEN 'Perplexity'
+                    WHEN user_agent ILIKE '%baiduspider%' THEN 'Baidu'
+                    WHEN user_agent ILIKE '%yandexbot%' THEN 'Yandex'
+                    WHEN user_agent ILIKE '%facebookexternalhit%' OR user_agent ILIKE '%facebot%' OR user_agent ILIKE '%meta-externalagent%' THEN 'Meta'
+                    WHEN user_agent ILIKE '%twitterbot%' THEN 'Twitter/X'
+                    WHEN user_agent ILIKE '%linkedinbot%' THEN 'LinkedIn'
+                    WHEN user_agent ILIKE '%semrushbot%' OR user_agent ILIKE '%ahrefsbot%' OR user_agent ILIKE '%mj12bot%' OR user_agent ILIKE '%dotbot%' THEN 'SEO Crawlers'
+                    WHEN user_agent ILIKE '%bytespider%' THEN 'ByteDance'
+                    WHEN user_agent ILIKE '%amazonbot%' OR user_agent ILIKE '%applebot%' THEN 'Tech Giants'
+                    WHEN user_agent ILIKE '%python%' OR user_agent ILIKE '%scrapy%' OR user_agent ILIKE '%httpx%' THEN 'Python Scrapers'
+                    WHEN user_agent ILIKE '%curl%' OR user_agent ILIKE '%wget%' OR user_agent ILIKE '%node-fetch%' OR user_agent ILIKE '%axios%' THEN 'CLI/HTTP Tools'
+                    WHEN user_agent ILIKE '%headless%' OR user_agent ILIKE '%phantom%' OR user_agent ILIKE '%selenium%' OR user_agent ILIKE '%puppeteer%' THEN 'Headless Browsers'
+                    WHEN user_agent ILIKE '%uptimerobot%' OR user_agent ILIKE '%pingdom%' OR user_agent ILIKE '%statuscake%' OR user_agent ILIKE '%lighthouse%' THEN 'Monitoring'
+                    WHEN is_behavioral_bot = true THEN 'Behavioral Bot'
+                    WHEN is_scanner = true THEN 'Scanner'
+                    ELSE 'Other'
+                END as "bot_type",
                 COUNT(*)::bigint as "count!"
             FROM user_sessions
             WHERE started_at >= $1 AND started_at < $2

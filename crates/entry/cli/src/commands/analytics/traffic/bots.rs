@@ -22,6 +22,12 @@ pub struct BotsArgs {
 
     #[arg(long, help = "Export to CSV")]
     pub export: Option<PathBuf>,
+
+    #[arg(
+        long,
+        help = "Include all sessions (ghost sessions, suspected bots that evaded detection)"
+    )]
+    pub include_all: bool,
 }
 
 pub async fn execute(args: BotsArgs, _config: &CliConfig) -> Result<CommandResult<BotsOutput>> {
@@ -45,7 +51,8 @@ async fn execute_internal(
 ) -> Result<CommandResult<BotsOutput>> {
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
-    let totals = repo.get_bot_totals(start, end, false).await?;
+    let engaged_only = !args.include_all;
+    let totals = repo.get_bot_totals(start, end, engaged_only).await?;
     let bot_types = repo.get_bot_breakdown(start, end).await?;
 
     let total = totals.human + totals.bot;
