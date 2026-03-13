@@ -1,4 +1,6 @@
 pub mod builder;
+mod discovery;
+mod health;
 mod lifecycle;
 pub mod readiness;
 mod routes;

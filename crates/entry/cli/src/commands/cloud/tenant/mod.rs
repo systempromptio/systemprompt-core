@@ -1,14 +1,22 @@
+mod cancel;
 mod create;
-mod crud;
+mod delete;
 mod docker;
+mod edit;
+mod list;
 mod rotate;
 mod select;
+mod show;
 mod validation;
 
+pub use cancel::cancel_subscription;
 pub use create::{
     create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
 };
-pub use crud::{cancel_subscription, delete_tenant, edit_tenant, list_tenants, show_tenant};
+pub use delete::delete_tenant;
+pub use edit::edit_tenant;
+pub use list::list_tenants;
+pub use show::show_tenant;
 pub use docker::wait_for_postgres_healthy;
 pub use rotate::{rotate_credentials, rotate_sync_token};
 pub use select::{get_credentials, resolve_tenant_id};

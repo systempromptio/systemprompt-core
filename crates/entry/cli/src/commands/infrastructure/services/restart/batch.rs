@@ -2,181 +2,12 @@ use crate::cli_settings::CliConfig;
 use crate::shared::CommandResult;
 use anyhow::{Context, Result};
 use std::sync::Arc;
-use systemprompt_agent::AgentState;
-use systemprompt_agent::services::agent_orchestration::AgentOrchestrator;
 use systemprompt_agent::services::registry::AgentRegistry;
 use systemprompt_logging::CliService;
 use systemprompt_mcp::services::McpManager;
-use systemprompt_models::ProfileBootstrap;
-use systemprompt_oauth::JwtValidationProviderImpl;
 use systemprompt_runtime::AppContext;
-use systemprompt_scheduler::ProcessCleanup;
 
-use super::types::RestartOutput;
-
-const DEFAULT_API_PORT: u16 = 8080;
-
-fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
-    let jwt_provider = Arc::new(
-        JwtValidationProviderImpl::from_config().context("Failed to create JWT provider")?,
-    );
-    Ok(Arc::new(AgentState::new(
-        Arc::clone(ctx.db_pool()),
-        Arc::new(ctx.config().clone()),
-        jwt_provider,
-    )))
-}
-
-fn get_api_port() -> u16 {
-    ProfileBootstrap::get()
-        .map_or(DEFAULT_API_PORT, |p| p.server.port)
-}
-
-async fn resolve_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new().await?;
-    let agent = registry.get_agent(agent_identifier).await?;
-    Ok(agent.name)
-}
-
-pub async fn execute_api(config: &CliConfig) -> Result<CommandResult<RestartOutput>> {
-    let quiet = config.is_json_output();
-
-    if !quiet {
-        CliService::section("Restarting API Server");
-    }
-
-    let port = get_api_port();
-    let Some(pid) = ProcessCleanup::check_port(port) else {
-        if !quiet {
-            CliService::warning("API server is not running");
-            CliService::info("Starting API server...");
-        }
-        super::serve::execute(true, false, config).await?;
-        let output = RestartOutput {
-            service_type: "api".to_string(),
-            service_name: None,
-            restarted_count: 1,
-            failed_count: 0,
-            message: "API server started (was not running)".to_string(),
-        };
-        return Ok(CommandResult::card(output).with_title("Restart API Server"));
-    };
-
-    if !quiet {
-        CliService::info(&format!("Stopping API server (PID: {})...", pid));
-    }
-
-    ProcessCleanup::terminate_gracefully(pid, 100).await;
-    ProcessCleanup::kill_port(port);
-
-    ProcessCleanup::wait_for_port_free(port, 5, 500).await?;
-
-    if !quiet {
-        CliService::success("API server stopped");
-        CliService::info("Starting API server...");
-    }
-
-    super::serve::execute(true, false, config).await?;
-
-    let message = "API server restarted successfully".to_string();
-    if !quiet {
-        CliService::success(&message);
-    }
-
-    let output = RestartOutput {
-        service_type: "api".to_string(),
-        service_name: None,
-        restarted_count: 1,
-        failed_count: 0,
-        message,
-    };
-
-    Ok(CommandResult::card(output).with_title("Restart API Server"))
-}
-
-pub async fn execute_agent(
-    ctx: &Arc<AppContext>,
-    agent_id: &str,
-    config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
-    let quiet = config.is_json_output();
-
-    if !quiet {
-        CliService::section(&format!("Restarting Agent: {}", agent_id));
-    }
-
-    let agent_state = create_agent_state(ctx)?;
-    let orchestrator = AgentOrchestrator::new(agent_state, None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
-
-    let name = resolve_name(agent_id).await?;
-    let service_id = orchestrator.restart_agent(&name, None).await?;
-
-    let message = format!(
-        "Agent {} restarted successfully (service ID: {})",
-        agent_id, service_id
-    );
-    if !quiet {
-        CliService::success(&message);
-    }
-
-    let output = RestartOutput {
-        service_type: "agent".to_string(),
-        service_name: Some(agent_id.to_string()),
-        restarted_count: 1,
-        failed_count: 0,
-        message,
-    };
-
-    Ok(CommandResult::card(output).with_title("Restart Agent"))
-}
-
-pub async fn execute_mcp(
-    ctx: &Arc<AppContext>,
-    server_name: &str,
-    build: bool,
-    config: &CliConfig,
-) -> Result<CommandResult<RestartOutput>> {
-    let quiet = config.is_json_output();
-    let action = if build {
-        "Building and restarting"
-    } else {
-        "Restarting"
-    };
-
-    if !quiet {
-        CliService::section(&format!("{} MCP Server: {}", action, server_name));
-    }
-
-    let manager =
-        McpManager::new(Arc::clone(ctx.db_pool())).context("Failed to initialize MCP manager")?;
-
-    if build {
-        manager
-            .build_and_restart_services(Some(server_name.to_string()))
-            .await?;
-    } else {
-        manager
-            .restart_services_sync(Some(server_name.to_string()))
-            .await?;
-    }
-
-    let message = format!("MCP server {} restarted successfully", server_name);
-    if !quiet {
-        CliService::success(&message);
-    }
-
-    let output = RestartOutput {
-        service_type: "mcp".to_string(),
-        service_name: Some(server_name.to_string()),
-        restarted_count: 1,
-        failed_count: 0,
-        message,
-    };
-
-    Ok(CommandResult::card(output).with_title("Restart MCP Server"))
-}
+use super::super::types::RestartOutput;
 
 pub async fn execute_all_agents(
     ctx: &Arc<AppContext>,
@@ -188,11 +19,7 @@ pub async fn execute_all_agents(
         CliService::section("Restarting All Agents");
     }
 
-    let agent_state = create_agent_state(ctx)?;
-    let orchestrator = AgentOrchestrator::new(agent_state, None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
-
+    let orchestrator = super::create_orchestrator(ctx).await?;
     let agent_registry = AgentRegistry::new().await?;
     let all_agents = orchestrator.list_all().await?;
 
@@ -227,35 +54,7 @@ pub async fn execute_all_agents(
         }
     }
 
-    let message = match (restarted, failed) {
-        (0, 0) => {
-            if !quiet {
-                CliService::info("No enabled agents found");
-            }
-            "No enabled agents found".to_string()
-        },
-        (r, 0) => {
-            let msg = format!("Restarted {} agents", r);
-            if !quiet {
-                CliService::success(&msg);
-            }
-            msg
-        },
-        (0, f) => {
-            let msg = format!("Failed to restart {} agents", f);
-            if !quiet {
-                CliService::warning(&msg);
-            }
-            msg
-        },
-        (r, f) => {
-            if !quiet {
-                CliService::success(&format!("Restarted {} agents", r));
-                CliService::warning(&format!("Failed to restart {} agents", f));
-            }
-            format!("Restarted {} agents, {} failed", r, f)
-        },
-    };
+    let message = super::format_batch_message("agents", restarted, failed, quiet);
 
     let output = RestartOutput {
         service_type: "agents".to_string(),
@@ -314,35 +113,7 @@ pub async fn execute_all_mcp(
         }
     }
 
-    let message = match (restarted, failed) {
-        (0, 0) => {
-            if !quiet {
-                CliService::info("No enabled MCP servers found");
-            }
-            "No enabled MCP servers found".to_string()
-        },
-        (r, 0) => {
-            let msg = format!("Restarted {} MCP servers", r);
-            if !quiet {
-                CliService::success(&msg);
-            }
-            msg
-        },
-        (0, f) => {
-            let msg = format!("Failed to restart {} MCP servers", f);
-            if !quiet {
-                CliService::warning(&msg);
-            }
-            msg
-        },
-        (r, f) => {
-            if !quiet {
-                CliService::success(&format!("Restarted {} MCP servers", r));
-                CliService::warning(&format!("Failed to restart {} MCP servers", f));
-            }
-            format!("Restarted {} MCP servers, {} failed", r, f)
-        },
-    };
+    let message = super::format_batch_message("MCP servers", restarted, failed, quiet);
 
     let output = RestartOutput {
         service_type: "mcp".to_string(),
@@ -409,11 +180,7 @@ async fn restart_failed_agents(
     failed_count: &mut usize,
     quiet: bool,
 ) -> Result<()> {
-    let agent_state = create_agent_state(ctx)?;
-    let orchestrator = AgentOrchestrator::new(agent_state, None)
-        .await
-        .context("Failed to initialize agent orchestrator")?;
-
+    let orchestrator = super::create_orchestrator(ctx).await?;
     let agent_registry = AgentRegistry::new().await?;
 
     let all_agents = orchestrator.list_all().await?;
@@ -506,3 +273,4 @@ async fn restart_failed_mcp(
 
     Ok(())
 }
+

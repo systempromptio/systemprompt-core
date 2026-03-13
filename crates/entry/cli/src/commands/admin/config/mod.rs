@@ -1,6 +1,8 @@
+pub mod config_section;
 pub mod list;
 pub mod paths;
 pub mod provider;
+pub mod rate_limit_types;
 pub mod rate_limits;
 pub mod runtime;
 pub mod security;
