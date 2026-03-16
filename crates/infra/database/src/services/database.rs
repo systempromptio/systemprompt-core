@@ -61,9 +61,7 @@ impl Database {
     }
 
     pub fn get_postgres_pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
-        self.provider
-            .get_postgres_pool()
-            .ok_or_else(|| anyhow::anyhow!("Database is not PostgreSQL"))
+        self.pool_arc()
     }
 
     pub fn write_pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
@@ -126,16 +124,31 @@ impl Database {
 
     #[must_use]
     pub fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.provider.get_postgres_pool()
+        self.write_provider
+            .as_ref()
+            .and_then(|wp| wp.get_postgres_pool())
+            .or_else(|| self.provider.get_postgres_pool())
     }
 
     pub fn pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
-        self.get_postgres_pool_arc()
+        self.get_postgres_pool()
+            .ok_or_else(|| anyhow::anyhow!("Database is not PostgreSQL"))
     }
 
     #[must_use]
     pub fn pool(&self) -> Option<Arc<sqlx::PgPool>> {
         self.get_postgres_pool()
+    }
+
+    #[must_use]
+    pub fn read_pool(&self) -> Option<Arc<sqlx::PgPool>> {
+        self.provider.get_postgres_pool()
+    }
+
+    pub fn read_pool_arc(&self) -> Result<Arc<sqlx::PgPool>> {
+        self.provider
+            .get_postgres_pool()
+            .ok_or_else(|| anyhow::anyhow!("Database is not PostgreSQL"))
     }
 
     pub async fn begin(&self) -> Result<sqlx::Transaction<'_, sqlx::Postgres>> {
@@ -159,7 +172,10 @@ impl DatabaseExt for Arc<Database> {
 #[async_trait::async_trait]
 impl DatabaseProvider for Database {
     fn get_postgres_pool(&self) -> Option<Arc<sqlx::PgPool>> {
-        self.provider.get_postgres_pool()
+        self.write_provider
+            .as_ref()
+            .and_then(|wp| wp.get_postgres_pool())
+            .or_else(|| self.provider.get_postgres_pool())
     }
 
     async fn execute(
@@ -167,11 +183,11 @@ impl DatabaseProvider for Database {
         query: &dyn crate::models::QuerySelector,
         params: &[&dyn crate::models::ToDbValue],
     ) -> Result<u64> {
-        self.provider.execute(query, params).await
+        self.write_provider().execute(query, params).await
     }
 
     async fn execute_raw(&self, sql: &str) -> Result<()> {
-        self.provider.execute_raw(sql).await
+        self.write_provider().execute_raw(sql).await
     }
 
     async fn fetch_all(
@@ -207,7 +223,7 @@ impl DatabaseProvider for Database {
     }
 
     async fn begin_transaction(&self) -> Result<Box<dyn crate::models::DatabaseTransaction>> {
-        self.provider.begin_transaction().await
+        self.write_provider().begin_transaction().await
     }
 
     async fn get_database_info(&self) -> Result<DatabaseInfo> {
@@ -219,7 +235,7 @@ impl DatabaseProvider for Database {
     }
 
     async fn execute_batch(&self, sql: &str) -> Result<()> {
-        self.provider.execute_batch(sql).await
+        self.write_provider().execute_batch(sql).await
     }
 
     async fn query_raw(&self, query: &dyn crate::models::QuerySelector) -> Result<QueryResult> {

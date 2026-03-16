@@ -17,7 +17,7 @@ pub struct ContentRepository {
 impl ContentRepository {
     pub fn new(db: &DbPool) -> Result<Self, ContentError> {
         let pool = db
-            .pool_arc()
+            .read_pool_arc()
             .map_err(|e| ContentError::InvalidRequest(format!("Database pool error: {e}")))?;
         let write_pool = db
             .write_pool_arc()
