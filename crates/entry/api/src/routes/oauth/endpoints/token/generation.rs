@@ -103,6 +103,7 @@ pub async fn generate_client_tokens(
     let config = JwtConfig {
         permissions: permissions.clone(),
         audience: global_config.jwt_audiences.clone(),
+        expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
         ..Default::default()
     };
     let session_id = SessionId::new(format!("sess_{}", uuid::Uuid::new_v4().simple()));
@@ -172,6 +173,7 @@ async fn create_jwt_and_refresh_token(
         permissions,
         audience: global_config.jwt_audiences.clone(),
         resource: params.resource.map(String::from),
+        expires_in_hours: Some(global_config.jwt_access_token_expiration / 3600),
         ..Default::default()
     };
     let signing = JwtSigningParams {

@@ -17,7 +17,7 @@ pub struct StaticContentState {
     pub route_classifier: Arc<RouteClassifier>,
 }
 
-pub const CACHE_STATIC_ASSET: &str = "public, max-age=86400";
+pub const CACHE_STATIC_ASSET: &str = "public, max-age=31536000, immutable";
 pub const CACHE_HTML: &str = "no-cache";
 pub const CACHE_METADATA: &str = "public, max-age=3600";
 
