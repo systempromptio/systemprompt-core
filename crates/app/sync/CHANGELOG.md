@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.8] - 2026-03-20
+
+### Fixed
+- Fix test compilation for `SyncApiClient::new()` returning `SyncResult<Self>`
+
 ## [0.1.7] - 2026-02-19
 
 ### Added

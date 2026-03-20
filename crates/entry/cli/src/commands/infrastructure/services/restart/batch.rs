@@ -273,4 +273,3 @@ async fn restart_failed_mcp(
 
     Ok(())
 }
-

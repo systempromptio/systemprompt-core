@@ -29,7 +29,8 @@ impl AgentRepository {
             "INSERT INTO agents (agent_id, name, display_name, description, version,
              system_prompt, enabled, port, endpoint, dev_only, is_primary, is_default,
              tags, category_id, source_id, provider, model, mcp_servers, skills, card_json)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, \
+             $18, $19, $20)",
             agent_id_str,
             agent.name,
             agent.display_name,

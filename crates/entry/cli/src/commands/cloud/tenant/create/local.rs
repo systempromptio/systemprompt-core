@@ -6,10 +6,10 @@ use std::process::Command;
 use systemprompt_cloud::{ProjectContext, StoredTenant};
 use systemprompt_logging::CliService;
 
+use crate::cloud::profile::templates::validate_connection;
 use crate::cloud::profile::{
     collect_api_keys, create_profile_for_tenant, get_cloud_user, handle_local_tenant_setup,
 };
-use crate::cloud::profile::templates::validate_connection;
 
 use super::super::docker::{
     SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, check_volume_exists,
@@ -169,9 +169,7 @@ fn handle_orphaned_volume() -> Result<()> {
         return Ok(());
     }
 
-    CliService::warning(
-        "PostgreSQL data volume exists but no container or configuration found.",
-    );
+    CliService::warning("PostgreSQL data volume exists but no container or configuration found.");
     CliService::info(&format!(
         "Volume '{}' contains data from a previous installation.",
         SHARED_VOLUME_NAME
@@ -189,8 +187,8 @@ fn handle_orphaned_volume() -> Result<()> {
         CliService::success("Volume removed");
     } else {
         bail!(
-            "Cannot create container with orphaned volume.\nEither reset the volume \
-             or remove it manually:\n  docker volume rm {}",
+            "Cannot create container with orphaned volume.\nEither reset the volume or remove it \
+             manually:\n  docker volume rm {}",
             SHARED_VOLUME_NAME
         );
     }
@@ -229,11 +227,7 @@ async fn start_container(
     Ok(())
 }
 
-async fn setup_local_profile(
-    tenant: &StoredTenant,
-    name: &str,
-    database_url: &str,
-) -> Result<()> {
+async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &str) -> Result<()> {
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())
         .with_prompt("Profile name")

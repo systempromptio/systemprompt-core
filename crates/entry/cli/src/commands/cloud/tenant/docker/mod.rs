@@ -3,8 +3,8 @@ mod container;
 mod database;
 
 pub use config::{
-    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig,
-    load_shared_config, save_shared_config,
+    SHARED_ADMIN_USER, SHARED_PORT, SHARED_VOLUME_NAME, SharedContainerConfig, load_shared_config,
+    save_shared_config,
 };
 pub use container::{
     check_volume_exists, generate_admin_password, generate_shared_postgres_compose,

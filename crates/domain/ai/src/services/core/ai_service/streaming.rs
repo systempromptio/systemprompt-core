@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::pin::Pin;
 use uuid::Uuid;
 
-use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse};
+use crate::models::ai::{AiRequest, GoogleSearchParams, SearchGroundedResponse, StreamChunk};
 use crate::services::providers::{GenerationParams, SearchGenerationParams, ToolGenerationParams};
 
 use super::service::AiService;
@@ -14,7 +14,7 @@ impl AiService {
     pub async fn generate_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = Uuid::new_v4();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
@@ -35,6 +35,7 @@ impl AiService {
             params = params.with_sampling(sampling);
         }
 
+        let pricing = provider.get_pricing(request.model());
         let inner_stream = provider.generate_stream(params).await?;
 
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
@@ -45,6 +46,7 @@ impl AiService {
             start,
             provider: request.provider().to_string(),
             model: request.model().to_string(),
+            pricing,
         });
 
         Ok(Box::pin(wrapped_stream))
@@ -53,7 +55,7 @@ impl AiService {
     pub async fn generate_with_tools_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let request_id = Uuid::new_v4();
         let start = std::time::Instant::now();
         let provider = self.get_provider(request.provider())?;
@@ -76,6 +78,7 @@ impl AiService {
         }
         let params = ToolGenerationParams::new(base, tools);
 
+        let pricing = provider.get_pricing(request.model());
         let inner_stream = provider.generate_with_tools_stream(params).await?;
 
         let wrapped_stream = StreamStorageWrapper::new(StreamStorageParams {
@@ -86,6 +89,7 @@ impl AiService {
             start,
             provider: request.provider().to_string(),
             model: request.model().to_string(),
+            pricing,
         });
 
         Ok(Box::pin(wrapped_stream))

@@ -185,9 +185,7 @@ impl ProxyEngine {
                 let header_dump: Vec<String> = response
                     .headers()
                     .iter()
-                    .map(|(k, v)| {
-                        format!("{}: {}", k, v.to_str().unwrap_or("?"))
-                    })
+                    .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
                     .collect();
                 tracing::error!(
                     service = %service_name,

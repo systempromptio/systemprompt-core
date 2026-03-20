@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
+use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
@@ -58,10 +58,10 @@ impl AiProvider for AnthropicProvider {
         match model {
             "claude-opus-4-6-20250610" | "claude-opus-4-5-20251101" => {
                 ModelPricing::new(0.005, 0.025)
-            }
+            },
             "claude-sonnet-4-6-20250610" | "claude-sonnet-4-5-20251101" => {
                 ModelPricing::new(0.003, 0.015)
-            }
+            },
             "claude-3-opus-20240229" | "claude-opus-4-20250514" => ModelPricing::new(0.015, 0.075),
             "claude-haiku-4-5-20251101" => ModelPricing::new(0.001, 0.005),
             "claude-3-5-haiku-20241022" => ModelPricing::new(0.0008, 0.004),
@@ -92,14 +92,14 @@ impl AiProvider for AnthropicProvider {
     async fn generate_stream(
         &self,
         params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         self.create_stream_request(params, None).await
     }
 
     async fn generate_with_tools_stream(
         &self,
         params: ToolGenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let anthropic_tools = converters::convert_tools(params.tools);
         self.create_stream_request(params.base, Some(anthropic_tools))
             .await

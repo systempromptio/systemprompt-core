@@ -118,30 +118,6 @@ fn test_build_orchestrator_with_various_paths() {
 // =============================================================================
 
 #[test]
-fn test_build_error_theme_generation_failed() {
-    let error = BuildError::ThemeGenerationFailed("Custom theme error".to_string());
-    let error_msg = format!("{}", error);
-    assert!(error_msg.contains("Theme generation failed"));
-    assert!(error_msg.contains("Custom theme error"));
-}
-
-#[test]
-fn test_build_error_typescript_failed() {
-    let error = BuildError::TypeScriptFailed("Type error in file.ts".to_string());
-    let error_msg = format!("{}", error);
-    assert!(error_msg.contains("TypeScript compilation failed"));
-    assert!(error_msg.contains("Type error"));
-}
-
-#[test]
-fn test_build_error_vite_failed() {
-    let error = BuildError::ViteFailed("Module not found".to_string());
-    let error_msg = format!("{}", error);
-    assert!(error_msg.contains("Vite build failed"));
-    assert!(error_msg.contains("Module not found"));
-}
-
-#[test]
 fn test_build_error_css_organization_failed() {
     let error = BuildError::CssOrganizationFailed("Failed to copy CSS".to_string());
     let error_msg = format!("{}", error);
@@ -182,9 +158,9 @@ fn test_build_error_config_error() {
 
 #[test]
 fn test_build_error_debug_format() {
-    let error = BuildError::ThemeGenerationFailed("test error".to_string());
+    let error = BuildError::ProcessError("test error".to_string());
     let debug_str = format!("{:?}", error);
-    assert!(debug_str.contains("ThemeGenerationFailed"));
+    assert!(debug_str.contains("ProcessError"));
     assert!(debug_str.contains("test error"));
 }
 

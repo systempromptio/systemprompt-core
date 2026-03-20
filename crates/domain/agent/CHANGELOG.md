@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.6] - 2026-03-20
+
+### Changed
+- AI executor pattern-matches on `StreamChunk::Text` and `StreamChunk::Usage` variants instead of raw strings
+
 ## [0.1.5] - 2026-02-19
 
 ### Added

@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
+use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
@@ -59,7 +59,7 @@ impl AiProvider for GeminiProvider {
             "gemini-3-pro-image-preview" => ModelPricing::new(0.002, 0.012),
             "gemini-3-flash-preview" | "gemini-3.1-flash-image-preview" => {
                 ModelPricing::new(0.0005, 0.003)
-            }
+            },
             "gemini-3.1-flash-lite-preview" => ModelPricing::new(0.000_25, 0.0015),
             "gemini-2.5-pro" | "gemini-2.5-pro-preview-05-06" => ModelPricing::new(0.00125, 0.01),
             "gemini-2.5-flash"
@@ -122,7 +122,7 @@ impl AiProvider for GeminiProvider {
     async fn generate_stream(
         &self,
         params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         streaming::generate_stream(self, params).await
     }
 

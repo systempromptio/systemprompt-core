@@ -36,11 +36,7 @@ pub async fn create_cloud_tenant(
     let redirect_uri = format!("http://127.0.0.1:{}/callback", CALLBACK_PORT);
     let spinner = CliService::spinner("Creating checkout session...");
     let checkout = client
-        .create_checkout(
-            &selected_plan,
-            selected_region,
-            Some(&redirect_uri),
-        )
+        .create_checkout(&selected_plan, selected_region, Some(&redirect_uri))
         .await?;
     spinner.finish_and_clear();
 
@@ -71,13 +67,17 @@ pub async fn create_cloud_tenant(
     let (external_db_access, external_database_url) =
         configure_external_access(&client, &result.tenant_id, &internal_database_url).await?;
 
-    let stored_tenant =
-        build_stored_tenant(&client, &result.tenant_id, TenantDatabaseConfig {
+    let stored_tenant = build_stored_tenant(
+        &client,
+        &result.tenant_id,
+        TenantDatabaseConfig {
             external_database_url,
             internal_database_url,
             external_db_access,
             sync_token,
-        }).await?;
+        },
+    )
+    .await?;
 
     CliService::section("Profile Setup");
     let profile_name: String = Input::with_theme(&ColorfulTheme::default())

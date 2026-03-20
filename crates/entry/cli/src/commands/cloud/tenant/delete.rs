@@ -1,7 +1,9 @@
 use anyhow::{Result, anyhow, bail};
 use dialoguer::Confirm;
 use dialoguer::theme::ColorfulTheme;
-use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
+use systemprompt_cloud::{
+    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+};
 use systemprompt_logging::CliService;
 
 use super::docker::{

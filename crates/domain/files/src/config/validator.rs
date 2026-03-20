@@ -4,8 +4,8 @@ use systemprompt_traits::validation_report::{
 };
 use systemprompt_traits::{ConfigProvider, DomainConfig, DomainConfigError};
 
-use super::types::FilesConfigYaml;
 use super::FilesConfig;
+use super::types::FilesConfigYaml;
 
 const MAX_RECOMMENDED_FILE_SIZE: u64 = 2 * 1024 * 1024 * 1024;
 const MIN_VIDEO_FILE_SIZE: u64 = 100 * 1024 * 1024;

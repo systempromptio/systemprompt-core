@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.17] - 2026-03-20
+
+### Fixed
+- Remove needless `..Default::default()` spread in JWT config construction
+
 ## [0.1.16] - 2026-03-05
 
 ### Changed

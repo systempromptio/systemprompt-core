@@ -116,8 +116,7 @@ impl ScannerDetector {
         }
 
         if let Some(pos) = ua_lower.find("firefox/")
-            && let Some(space_pos) =
-                ua_lower[pos + 8..].find(|c: char| !c.is_numeric() && c != '.')
+            && let Some(space_pos) = ua_lower[pos + 8..].find(|c: char| !c.is_numeric() && c != '.')
             && let Ok(major) = ua_lower[pos + 8..][..space_pos].parse::<i32>()
             && major < MIN_FIREFOX_VERSION
         {

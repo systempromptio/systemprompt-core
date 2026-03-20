@@ -151,6 +151,23 @@ pub struct OpenAiUsage {
     pub prompt_tokens_details: Option<OpenAiPromptTokensDetails>,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct OpenAiStreamChunk {
+    #[serde(default)]
+    pub choices: Vec<OpenAiStreamChoice>,
+    pub usage: Option<OpenAiUsage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenAiStreamChoice {
+    pub delta: OpenAiStreamDelta,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct OpenAiStreamDelta {
+    pub content: Option<String>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum OpenAiResponseFormat {

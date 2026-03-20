@@ -51,9 +51,9 @@ pub use ai::{
     AiContentPart, AiMessage, AiProvider, AiRequest, AiRequestBuilder, AiResponse, CallToolResult,
     DynAiProvider, McpTool, MessageRole, ModelConfig, ModelHint, ModelPreferences, ProviderConfig,
     ResponseFormat, SUPPORTED_AUDIO_TYPES, SUPPORTED_IMAGE_TYPES, SUPPORTED_TEXT_TYPES,
-    SUPPORTED_VIDEO_TYPES, SamplingParams, SearchGroundedResponse, StructuredOutputOptions,
-    ToolCall, ToolExecution, ToolResultFormatter, is_supported_audio, is_supported_image,
-    is_supported_media, is_supported_text, is_supported_video,
+    SUPPORTED_VIDEO_TYPES, SamplingParams, SearchGroundedResponse, StreamChunk,
+    StructuredOutputOptions, ToolCall, ToolExecution, ToolResultFormatter, is_supported_audio,
+    is_supported_image, is_supported_media, is_supported_text, is_supported_video,
 };
 pub use api::{
     AcceptedResponse, ApiError, ApiErrorExt, ApiQuery, ApiResponse, CheckoutEvent, CheckoutRequest,

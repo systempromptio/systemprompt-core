@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.3] - 2026-03-20
+
+### Fixed
+- Remove stale test functions referencing removed `BuildError` variants (`ThemeGenerationFailed`, `TypeScriptFailed`, `ViteFailed`)
+
 ## [0.1.2] - 2026-03-05
 
 ### Changed

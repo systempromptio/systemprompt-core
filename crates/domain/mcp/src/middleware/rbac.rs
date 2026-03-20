@@ -77,9 +77,7 @@ pub async fn enforce_rbac_from_registry(
                 .iter()
                 .filter(|(k, _)| {
                     let name = k.as_str();
-                    name.starts_with("x-")
-                        || name == "authorization"
-                        || name == "mcp-session-id"
+                    name.starts_with("x-") || name == "authorization" || name == "mcp-session-id"
                 })
                 .map(|(k, v)| format!("{}: {}", k, v.to_str().unwrap_or("?")))
                 .collect::<Vec<_>>()
@@ -108,9 +106,12 @@ pub async fn enforce_rbac_from_registry(
         return Ok(AuthResult::Anonymous(request_context));
     }
 
-    if let Some(auth_result) =
-        try_proxy_verified_auth(mcp_context, request_context.clone(), oauth_config, server_name)?
-    {
+    if let Some(auth_result) = try_proxy_verified_auth(
+        mcp_context,
+        request_context.clone(),
+        oauth_config,
+        server_name,
+    )? {
         return Ok(auth_result);
     }
 
@@ -127,11 +128,7 @@ pub async fn enforce_rbac_from_registry(
 
     let claims = validate_and_extract_claims(server_name, &token)?;
     validate_audience(server_name, &claims, oauth_config)?;
-    validate_scopes_for_permissions(
-        server_name,
-        &claims.get_permissions(),
-        oauth_config,
-    )?;
+    validate_scopes_for_permissions(server_name, &claims.get_permissions(), oauth_config)?;
 
     let authenticated_context = build_authenticated_context(request_context, &claims, token)?;
     Ok(AuthResult::Authenticated(authenticated_context))

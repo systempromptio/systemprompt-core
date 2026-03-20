@@ -24,8 +24,7 @@ pub async fn process_all_sources(ctx: &PrerenderContext) -> Result<u32> {
         .content_sources
         .iter()
         .filter_map(|(source_name, source)| {
-            get_enabled_sitemap(source_name, source)
-                .map(|sitemap| (source_name, source, sitemap))
+            get_enabled_sitemap(source_name, source).map(|sitemap| (source_name, source, sitemap))
         })
         .collect();
 

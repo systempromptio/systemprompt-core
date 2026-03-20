@@ -28,8 +28,7 @@ pub(crate) fn create_agent_state(ctx: &AppContext) -> Result<Arc<AgentState>> {
 }
 
 pub(crate) fn get_api_port() -> u16 {
-    ProfileBootstrap::get()
-        .map_or(DEFAULT_API_PORT, |p| p.server.port)
+    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
 pub(crate) async fn resolve_name(agent_identifier: &str) -> Result<String> {
@@ -38,9 +37,7 @@ pub(crate) async fn resolve_name(agent_identifier: &str) -> Result<String> {
     Ok(agent.name)
 }
 
-pub(crate) async fn create_orchestrator(
-    ctx: &Arc<AppContext>,
-) -> Result<AgentOrchestrator> {
+pub(crate) async fn create_orchestrator(ctx: &Arc<AppContext>) -> Result<AgentOrchestrator> {
     let agent_state = create_agent_state(ctx)?;
     AgentOrchestrator::new(agent_state, None)
         .await

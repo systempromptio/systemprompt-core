@@ -76,7 +76,9 @@ impl ExtensionRegistry {
         registry
     }
 
-    pub fn discover_and_merge(injected: Vec<Arc<dyn crate::Extension>>) -> Result<Self, LoaderError> {
+    pub fn discover_and_merge(
+        injected: Vec<Arc<dyn crate::Extension>>,
+    ) -> Result<Self, LoaderError> {
         let mut registry = Self::discover();
         registry.merge(injected)?;
         registry.validate()?;

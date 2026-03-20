@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.20] - 2026-03-20
+
+### Added
+- `StreamChunk` enum with `Text` and `Usage` variants for typed streaming responses
+- `cache_read_tokens`, `cache_creation_tokens`, and `finish_reason` fields on `StreamChunk::Usage`
+
+### Changed
+- `AiProvider` trait streaming methods now return `StreamChunk` instead of `String`
+
 ## [0.1.19] - 2026-03-05
 
 ### Changed

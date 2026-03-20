@@ -88,6 +88,19 @@ impl AiResponse {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum StreamChunk {
+    Text(String),
+    Usage {
+        input_tokens: Option<u32>,
+        output_tokens: Option<u32>,
+        tokens_used: Option<u32>,
+        cache_read_tokens: Option<u32>,
+        cache_creation_tokens: Option<u32>,
+        finish_reason: Option<String>,
+    },
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WebSource {
     pub title: String,

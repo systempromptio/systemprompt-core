@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use systemprompt_cloud::CloudApiClient;
 use systemprompt_logging::CliService;
 
-use super::helpers::{get_tenant_and_secrets_path, get_tenant_id, load_secrets_json, map_secrets_to_env_vars};
+use super::helpers::{
+    get_tenant_and_secrets_path, get_tenant_id, load_secrets_json, map_secrets_to_env_vars,
+};
 use crate::cli_settings::CliConfig;
 use crate::commands::cloud::tenant::get_credentials;
 use crate::commands::cloud::types::SecretsOutput;

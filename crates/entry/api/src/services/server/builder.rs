@@ -1,6 +1,6 @@
 use anyhow::Result;
-use axum::extract::DefaultBodyLimit;
 use axum::Router;
+use axum::extract::DefaultBodyLimit;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{StartupEvent, StartupEventExt, StartupEventSender};
 

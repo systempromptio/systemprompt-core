@@ -73,8 +73,7 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         if let Some(content_obj) = structured_content.as_object() {
             let content_keys: Vec<&String> = content_obj.keys().collect();
 
-            if let Some(schema_props) =
-                output_schema.get("properties").and_then(|p| p.as_object())
+            if let Some(schema_props) = output_schema.get("properties").and_then(|p| p.as_object())
             {
                 let schema_keys: Vec<&String> = schema_props.keys().collect();
                 let extra_keys: Vec<&&String> = content_keys
@@ -137,7 +136,6 @@ impl<T: Serialize + JsonSchema + McpOutputSchema> McpResponseBuilder<T> {
         }
         Ok(result)
     }
-
 }
 
 impl<T: Serialize + JsonSchema> McpResponseBuilder<T> {

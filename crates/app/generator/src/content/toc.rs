@@ -170,8 +170,7 @@ fn inject_heading_ids(html: &str, entries: &[TocEntry]) -> String {
         let open_tag = format!("<h{}", entry.level);
         let close_tag = format!("</h{}>", entry.level);
 
-        if let Some(tag_start) =
-            find_heading_position(&result, &open_tag, &close_tag, &entry.text)
+        if let Some(tag_start) = find_heading_position(&result, &open_tag, &close_tag, &entry.text)
         {
             let close_bracket = result[tag_start..].find('>').map(|i| tag_start + i);
             if let Some(cb) = close_bracket {

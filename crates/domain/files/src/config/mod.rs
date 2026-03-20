@@ -4,12 +4,12 @@ mod validator;
 pub use types::{AllowedFileTypes, FilePersistenceMode, FileUploadConfig, FilesConfigYaml};
 pub use validator::FilesConfigValidator;
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
 use systemprompt_cloud::constants::storage;
-use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 use systemprompt_models::AppPaths;
+use systemprompt_models::profile_bootstrap::ProfileBootstrap;
 
 use types::FilesConfigWrapper;
 

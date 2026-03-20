@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.19] - 2026-03-20
+
+### Added
+- Structured streaming with `StreamChunk` enum for typed AI provider responses with token usage tracking
+- Pricing-based cost calculation for streaming responses
+
+### Fixed
+- Fix test compilation across `systemprompt-generator` and `systemprompt-sync`
+- Remove needless `..Default::default()` in API JWT config
+
 ## [0.1.18] - 2026-03-05
 
 ### Changed

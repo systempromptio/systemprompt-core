@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use super::execution_plan::PlanningResult;
 use super::request::{AiMessage, AiRequest};
-use super::response::{AiResponse, SearchGroundedResponse};
+use super::response::{AiResponse, SearchGroundedResponse, StreamChunk};
 use super::sampling::SamplingParams;
 use super::tools::{CallToolResult, McpTool, ToolCall};
 use crate::execution::context::RequestContext;
@@ -46,14 +46,14 @@ pub trait AiProvider: Send + Sync {
     async fn generate_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>>;
 
     async fn generate_with_tools(&self, request: &AiRequest) -> Result<AiResponse>;
 
     async fn generate_with_tools_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>>;
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>>;
 
     async fn generate_single_turn(
         &self,

@@ -8,7 +8,7 @@ use systemprompt_identifiers::AgentName;
 use systemprompt_models::RequestContext;
 use systemprompt_models::ai::{
     AiProvider, AiRequest, AiResponse, CallToolResult, GenerateResponseParams, GoogleSearchParams,
-    McpTool, PlanningResult, SearchGroundedResponse, ToolCall, ToolModelOverrides,
+    McpTool, PlanningResult, SearchGroundedResponse, StreamChunk, ToolCall, ToolModelOverrides,
 };
 
 use super::service::AiService;
@@ -34,7 +34,7 @@ impl AiProvider for AiService {
     async fn generate_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         Self::generate_stream(self, request).await
     }
 
@@ -45,7 +45,7 @@ impl AiProvider for AiService {
     async fn generate_with_tools_stream(
         &self,
         request: &AiRequest,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         Self::generate_with_tools_stream(self, request).await
     }
 

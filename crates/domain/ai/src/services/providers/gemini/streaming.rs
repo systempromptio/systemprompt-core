@@ -5,6 +5,7 @@ use std::pin::Pin;
 
 use crate::models::providers::gemini::{GeminiPart, GeminiRequest, GeminiResponse};
 use crate::services::providers::GenerationParams;
+use systemprompt_models::ai::StreamChunk;
 
 use super::provider::GeminiProvider;
 use super::{converters, request_builders};
@@ -12,7 +13,7 @@ use super::{converters, request_builders};
 pub async fn generate_stream(
     provider: &GeminiProvider,
     params: GenerationParams<'_>,
-) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
     let contents = converters::convert_messages(params.messages);
     let generation_config = request_builders::build_generation_config(
         params.sampling,
@@ -45,20 +46,21 @@ pub async fn generate_stream(
 
     let byte_stream = response.bytes_stream();
 
-    let text_stream = byte_stream
+    let chunk_stream = byte_stream
         .map(|result| {
             result
                 .map_err(|e| anyhow!("Stream error: {e}"))
-                .map(|b| parse_stream_chunk(&b))
+                .map(|b| parse_stream_chunks(&b))
         })
-        .filter(|result| {
-            futures::future::ready(result.as_ref().map_or(true, |s| !s.is_empty()))
+        .flat_map(|result| match result {
+            Ok(chunks) => futures::stream::iter(chunks.into_iter().map(Ok)).boxed(),
+            Err(e) => futures::stream::iter(vec![Err(e)]).boxed(),
         });
 
-    Ok(Box::pin(text_stream))
+    Ok(Box::pin(chunk_stream))
 }
 
-fn parse_stream_chunk(bytes: &bytes::Bytes) -> String {
+fn parse_stream_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
     let text = String::from_utf8_lossy(bytes);
     let cleaned = text
         .trim()
@@ -66,19 +68,14 @@ fn parse_stream_chunk(bytes: &bytes::Bytes) -> String {
         .trim_end_matches(']')
         .trim();
 
-    if let Some(content) = try_parse_array_format(cleaned) {
-        return content;
+    if let Some(chunks) = try_parse_array_format(cleaned) {
+        return chunks;
     }
 
-    try_parse_chunked_format(cleaned).unwrap_or_else(|| {
-        if !cleaned.is_empty() {
-            tracing::debug!(chunk = %cleaned, "Could not parse Gemini stream chunk");
-        }
-        String::new()
-    })
+    try_parse_chunked_format(cleaned).unwrap_or_default()
 }
 
-fn try_parse_array_format(cleaned: &str) -> Option<String> {
+fn try_parse_array_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
     let json_array = format!("[{cleaned}]");
     let responses: Vec<GeminiResponse> = serde_json::from_str(&json_array)
         .map_err(|e| {
@@ -86,10 +83,16 @@ fn try_parse_array_format(cleaned: &str) -> Option<String> {
             e
         })
         .ok()?;
-    extract_text_from_responses(&responses)
+    let chunks = extract_chunks_from_responses(&responses);
+    if chunks.is_empty() {
+        None
+    } else {
+        Some(chunks)
+    }
 }
 
-fn try_parse_chunked_format(cleaned: &str) -> Option<String> {
+fn try_parse_chunked_format(cleaned: &str) -> Option<Vec<StreamChunk>> {
+    let mut chunks = Vec::new();
     for chunk in cleaned.split("\n,\n") {
         let trimmed = chunk.trim().trim_start_matches(',').trim();
         if trimmed.is_empty() || !trimmed.starts_with('{') {
@@ -97,30 +100,50 @@ fn try_parse_chunked_format(cleaned: &str) -> Option<String> {
         }
 
         if let Ok(response) = serde_json::from_str::<GeminiResponse>(trimmed) {
-            if let Some(content) = extract_text_from_responses(&[response]) {
-                return Some(content);
-            }
+            chunks.extend(extract_chunks_from_responses(&[response]));
         }
     }
-    None
+    if chunks.is_empty() {
+        None
+    } else {
+        Some(chunks)
+    }
 }
 
-fn extract_text_from_responses(responses: &[GeminiResponse]) -> Option<String> {
+fn extract_chunks_from_responses(responses: &[GeminiResponse]) -> Vec<StreamChunk> {
+    let mut chunks = Vec::new();
     for response in responses {
-        let candidate = response.candidates.first()?;
-        let candidate_content = candidate.content.as_ref()?;
-        let content: String = candidate_content
-            .parts
-            .iter()
-            .filter_map(|part| match part {
-                GeminiPart::Text { text } => Some(text.clone()),
-                _ => None,
-            })
-            .collect();
+        if let Some(candidate) = response.candidates.first() {
+            if let Some(candidate_content) = candidate.content.as_ref() {
+                let content: String = candidate_content
+                    .parts
+                    .iter()
+                    .filter_map(|part| match part {
+                        GeminiPart::Text { text } => Some(text.clone()),
+                        _ => None,
+                    })
+                    .collect();
 
-        if !content.is_empty() {
-            return Some(content);
+                if !content.is_empty() {
+                    chunks.push(StreamChunk::Text(content));
+                }
+            }
+        }
+
+        if let Some(usage) = &response.usage_metadata {
+            let finish_reason = response
+                .candidates
+                .first()
+                .and_then(|c| c.finish_reason.clone());
+            chunks.push(StreamChunk::Usage {
+                input_tokens: Some(usage.prompt),
+                output_tokens: usage.candidates,
+                tokens_used: Some(usage.total),
+                cache_read_tokens: None,
+                cache_creation_tokens: None,
+                finish_reason,
+            });
         }
     }
-    None
+    chunks
 }

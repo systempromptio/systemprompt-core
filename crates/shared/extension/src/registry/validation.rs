@@ -104,10 +104,7 @@ fn detect_cycles(extensions: &HashMap<String, Arc<dyn Extension>>) -> Result<(),
         Ok(())
     }
 
-    let mut color: HashMap<&str, u8> = extensions
-        .keys()
-        .map(|id| (id.as_str(), WHITE))
-        .collect();
+    let mut color: HashMap<&str, u8> = extensions.keys().map(|id| (id.as_str(), WHITE)).collect();
 
     let mut path = Vec::new();
     for id in extensions.keys() {

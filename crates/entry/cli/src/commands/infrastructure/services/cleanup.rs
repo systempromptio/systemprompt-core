@@ -13,8 +13,7 @@ use super::types::CleanupOutput;
 const DEFAULT_API_PORT: u16 = 8080;
 
 fn get_api_port() -> u16 {
-    ProfileBootstrap::get()
-        .map_or(DEFAULT_API_PORT, |p| p.server.port)
+    ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
 pub async fn execute(

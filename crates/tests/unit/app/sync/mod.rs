@@ -1704,7 +1704,7 @@ fn test_import_result_copy() {
 fn test_sync_api_client_new() {
     use systemprompt_sync::SyncApiClient;
 
-    let client = SyncApiClient::new("https://api.example.com", "test-token");
+    let client = SyncApiClient::new("https://api.example.com", "test-token").expect("test client");
     let debug_str = format!("{:?}", client);
     assert!(debug_str.contains("SyncApiClient"));
     assert!(debug_str.contains("api.example.com"));
@@ -1714,10 +1714,12 @@ fn test_sync_api_client_new() {
 fn test_sync_api_client_with_direct_sync() {
     use systemprompt_sync::SyncApiClient;
 
-    let client = SyncApiClient::new("https://api.example.com", "test-token").with_direct_sync(
-        Some("app.example.com".to_string()),
-        Some("sync-token".to_string()),
-    );
+    let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .expect("test client")
+        .with_direct_sync(
+            Some("app.example.com".to_string()),
+            Some("sync-token".to_string()),
+        );
 
     let debug_str = format!("{:?}", client);
     assert!(debug_str.contains("app.example.com"));
@@ -1727,8 +1729,9 @@ fn test_sync_api_client_with_direct_sync() {
 fn test_sync_api_client_with_direct_sync_none() {
     use systemprompt_sync::SyncApiClient;
 
-    let client =
-        SyncApiClient::new("https://api.example.com", "test-token").with_direct_sync(None, None);
+    let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .expect("test client")
+        .with_direct_sync(None, None);
 
     let debug_str = format!("{:?}", client);
     assert!(debug_str.contains("None"));
@@ -1739,6 +1742,7 @@ fn test_sync_api_client_clone() {
     use systemprompt_sync::SyncApiClient;
 
     let client = SyncApiClient::new("https://api.example.com", "test-token")
+        .expect("test client")
         .with_direct_sync(Some("host.com".to_string()), Some("token".to_string()));
 
     let cloned = client.clone();
@@ -1900,7 +1904,7 @@ fn test_file_sync_service_creation() {
 
     let config = SyncConfig::builder("tenant", "https://api.com", "token", "/services").build();
 
-    let api_client = SyncApiClient::new("https://api.com", "token");
+    let api_client = SyncApiClient::new("https://api.com", "token").expect("test client");
     let service = FileSyncService::new(config, api_client);
 
     let debug_str = format!("{:?}", service);

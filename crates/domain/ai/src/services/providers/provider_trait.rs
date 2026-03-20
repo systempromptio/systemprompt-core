@@ -1,5 +1,5 @@
 use crate::models::ai::{
-    AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse,
+    AiMessage, AiResponse, ResponseFormat, SamplingParams, SearchGroundedResponse, StreamChunk,
 };
 use crate::models::tools::{CallToolResult, McpTool, ToolCall};
 use crate::services::schema::ProviderCapabilities;
@@ -224,7 +224,7 @@ pub trait AiProvider: Send + Sync {
     async fn generate_stream(
         &self,
         _params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         Err(anyhow::anyhow!(
             "Streaming not supported by provider {}",
             self.name()
@@ -234,7 +234,7 @@ pub trait AiProvider: Send + Sync {
     async fn generate_with_tools_stream(
         &self,
         _params: ToolGenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         Err(anyhow::anyhow!(
             "Tool streaming not supported by provider {}",
             self.name()

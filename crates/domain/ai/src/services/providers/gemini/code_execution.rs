@@ -99,9 +99,7 @@ fn extract_code_execution_result(candidate: &GeminiCandidate) -> Result<CodeExtr
                     ));
                 }
             },
-            GeminiPart::Text { text }
-                if result.execution_output.is_empty() && !text.is_empty() =>
-            {
+            GeminiPart::Text { text } if result.execution_output.is_empty() && !text.is_empty() => {
                 info!(
                     text_preview = %text.chars().take(200).collect::<String>(),
                     "Text response (not code result)"

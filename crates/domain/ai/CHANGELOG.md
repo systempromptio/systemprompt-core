@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.1.3] - 2026-03-20
+
+### Added
+- `OpenAiStreamChunk`, `OpenAiStreamChoice`, `OpenAiStreamDelta` typed structs for OpenAI streaming
+- Pricing-based cost calculation in `StreamStorageWrapper` using `ModelPricing`
+- Token usage tracking (input, output, total, cache read, cache creation) accumulated during streaming
+
+### Changed
+- All provider streaming implementations return `StreamChunk` instead of raw strings
+- `StreamStorageWrapper` captures token usage and finish reason from `StreamChunk::Usage` during streaming
+- Replace `serde_json::Value` with typed `OpenAiStreamChunk` struct in OpenAI streaming parser
+- `capture_usage` accepts `StreamChunk` directly instead of individual parameters
+
 ## [0.1.2] - 2026-02-03
 
 ### Added

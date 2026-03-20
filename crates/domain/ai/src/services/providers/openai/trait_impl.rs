@@ -3,7 +3,7 @@ use async_trait::async_trait;
 use futures::Stream;
 use std::pin::Pin;
 
-use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse};
+use crate::models::ai::{AiResponse, SamplingParams, SearchGroundedResponse, StreamChunk};
 use crate::models::tools::ToolCall;
 use crate::services::providers::{
     AiProvider, GenerationParams, ModelPricing, SchemaGenerationParams, SearchGenerationParams,
@@ -109,14 +109,14 @@ impl AiProvider for OpenAiProvider {
     async fn generate_stream(
         &self,
         params: GenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         self.create_stream_request(params, None).await
     }
 
     async fn generate_with_tools_stream(
         &self,
         params: ToolGenerationParams<'_>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Send>>> {
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<StreamChunk>> + Send>>> {
         let openai_tools = converters::convert_tools(params.tools)?;
         self.create_stream_request(params.base, Some(openai_tools))
             .await

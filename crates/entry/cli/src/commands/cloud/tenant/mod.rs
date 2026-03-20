@@ -14,12 +14,12 @@ pub use create::{
     create_cloud_tenant, create_external_tenant, create_local_tenant, swap_to_external_host,
 };
 pub use delete::delete_tenant;
+pub use docker::wait_for_postgres_healthy;
 pub use edit::edit_tenant;
 pub use list::list_tenants;
-pub use show::show_tenant;
-pub use docker::wait_for_postgres_healthy;
 pub use rotate::{rotate_credentials, rotate_sync_token};
 pub use select::{get_credentials, resolve_tenant_id};
+pub use show::show_tenant;
 pub use validation::{check_build_ready, find_services_config};
 
 use anyhow::Result;

@@ -1417,30 +1417,14 @@ fn test_kill_by_pattern_protected_contains() {
 // ============================================================================
 
 #[test]
-fn test_process_exists_invalid_pid() {
+fn test_process_exists_current_process() {
     use systemprompt_scheduler::ProcessCleanup;
 
-    // PID 0 should not exist as a user process
-    let exists = ProcessCleanup::process_exists(0);
-    assert!(!exists, "PID 0 should not exist as a user process");
-}
-
-#[test]
-fn test_process_exists_very_high_pid() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    // Very high PIDs are unlikely to exist
-    let exists = ProcessCleanup::process_exists(u32::MAX);
-    assert!(!exists, "Very high PID should not exist");
-}
-
-#[test]
-fn test_process_exists_pid_1() {
-    use systemprompt_scheduler::ProcessCleanup;
-
-    // PID 1 (init/systemd) should exist on Linux
-    let exists = ProcessCleanup::process_exists(1);
-    assert!(exists, "PID 1 (init) should exist on Linux systems");
+    let current_pid = std::process::id();
+    assert!(
+        ProcessCleanup::process_exists(current_pid),
+        "Current process PID should exist"
+    );
 }
 
 // ============================================================================

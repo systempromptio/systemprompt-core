@@ -2,7 +2,9 @@ use anyhow::Result;
 use chrono::Utc;
 use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
-use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
+use systemprompt_cloud::{
+    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+};
 use systemprompt_logging::CliService;
 
 use super::select::get_credentials;

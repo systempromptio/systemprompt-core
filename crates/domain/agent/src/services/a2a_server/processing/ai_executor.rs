@@ -6,8 +6,8 @@ use tokio::sync::mpsc;
 use crate::models::a2a::Artifact;
 use crate::services::SkillService;
 use systemprompt_models::{
-    AiMessage, AiProvider, AiRequest, CallToolResult, MessageRole, RequestContext, ToolCall,
-    ToolResultFormatter,
+    AiMessage, AiProvider, AiRequest, CallToolResult, MessageRole, RequestContext, StreamChunk,
+    ToolCall, ToolResultFormatter,
 };
 
 use super::message::StreamEvent;
@@ -159,12 +159,13 @@ pub async fn process_without_tools(
             let mut accumulated_text = String::new();
             while let Some(chunk) = stream.next().await {
                 match chunk {
-                    Ok(text) => {
+                    Ok(StreamChunk::Text(text)) => {
                         accumulated_text.push_str(&text);
                         if tx.send(StreamEvent::Text(text)).is_err() {
                             tracing::debug!("Stream receiver dropped during generation");
                         }
                     },
+                    Ok(StreamChunk::Usage { .. }) => {},
                     Err(e) => {
                         if tx.send(StreamEvent::Error(e.to_string())).is_err() {
                             tracing::debug!("Stream receiver dropped while sending error");

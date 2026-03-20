@@ -21,10 +21,10 @@ pub use error::{ConfigError, LoaderError};
 pub use metadata::{ExtensionMetadata, ExtensionRole, SchemaDefinition, SchemaSource, SeedSource};
 pub use migration::Migration;
 pub use registry::{ExtensionRegistration, ExtensionRegistry};
-pub use router::{ExtensionRouterConfig, SiteAuthConfig};
-pub use traits::Extension;
 #[cfg(feature = "web")]
 pub use router::ExtensionRouter;
+pub use router::{ExtensionRouterConfig, SiteAuthConfig};
+pub use traits::Extension;
 
 #[cfg(feature = "web")]
 pub use any::ApiExtensionWrapper;

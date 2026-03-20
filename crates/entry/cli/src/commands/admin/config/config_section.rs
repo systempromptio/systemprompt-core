@@ -97,24 +97,16 @@ impl ConfigSection {
         let profile = ProfileBootstrap::get()?;
         match self {
             Self::Ai => Ok(PathBuf::from(&profile.paths.services).join("ai/config.yaml")),
-            Self::Content => {
-                Ok(PathBuf::from(&profile.paths.services).join("content/config.yaml"))
-            },
+            Self::Content => Ok(PathBuf::from(&profile.paths.services).join("content/config.yaml")),
             Self::Web => Ok(PathBuf::from(&profile.paths.services).join("web/config.yaml")),
             Self::Scheduler => {
                 Ok(PathBuf::from(&profile.paths.services).join("scheduler/config.yaml"))
             },
-            Self::Agents => {
-                Ok(PathBuf::from(&profile.paths.services).join("agents/config.yaml"))
-            },
+            Self::Agents => Ok(PathBuf::from(&profile.paths.services).join("agents/config.yaml")),
             Self::Mcp => Ok(PathBuf::from(&profile.paths.services).join("mcp/config.yaml")),
-            Self::Skills => {
-                Ok(PathBuf::from(&profile.paths.services).join("skills/config.yaml"))
-            },
+            Self::Skills => Ok(PathBuf::from(&profile.paths.services).join("skills/config.yaml")),
             Self::Profile => Ok(PathBuf::from(ProfileBootstrap::get_path()?)),
-            Self::Services => {
-                Ok(PathBuf::from(&profile.paths.services).join("config/config.yaml"))
-            },
+            Self::Services => Ok(PathBuf::from(&profile.paths.services).join("config/config.yaml")),
         }
     }
 

@@ -1,8 +1,9 @@
 use anyhow::{Result, anyhow, bail};
-use dialoguer::Input;
-use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
-use systemprompt_cloud::{CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths};
+use dialoguer::{Input, Select};
+use systemprompt_cloud::{
+    CloudApiClient, CloudPath, StoredTenant, TenantStore, TenantType, get_cloud_paths,
+};
 use systemprompt_logging::CliService;
 
 use super::select::get_credentials;
