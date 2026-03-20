@@ -5,7 +5,7 @@ use systemprompt_ai::services::tools::ToolDiscovery;
 use systemprompt_identifiers::AgentName;
 use systemprompt_traits::{
     ToolCallRequest, ToolCallResult, ToolContext, ToolDefinition, ToolProvider,
-    ToolProviderError, ToolProviderResult,
+    ToolProviderResult,
 };
 use serde_json::json;
 
@@ -76,7 +76,7 @@ fn create_test_tool(name: &str, description: &str) -> ToolDefinition {
         .with_input_schema(json!({"type": "object", "properties": {}}))
 }
 
-fn create_test_context() -> ToolContext {
+fn _create_test_context() -> ToolContext {
     ToolContext::new("test-token")
 }
 

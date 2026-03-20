@@ -202,16 +202,16 @@ fn test_url_with_schema() {
 fn test_database_context_debug_pattern() {
     #[derive(Debug)]
     struct MockDatabaseContext {
-        connection_string: String,
+        _connection_string: String,
     }
 
     let ctx = MockDatabaseContext {
-        connection_string: "postgresql://localhost/test".to_string(),
+        _connection_string: "postgresql://localhost/test".to_string(),
     };
 
     let debug_str = format!("{:?}", ctx);
     assert!(debug_str.contains("MockDatabaseContext"));
-    assert!(debug_str.contains("connection_string"));
+    assert!(debug_str.contains("_connection_string"));
 }
 
 #[test]

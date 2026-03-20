@@ -334,7 +334,7 @@ mod local_sync_result_tests {
     fn result_is_serializable() {
         let result = test_result();
         let json = serde_json::to_string(&result).unwrap();
-        assert!(json.contains("to_disk"));
+        assert!(json.contains("ToDisk"));
     }
 
     #[test]

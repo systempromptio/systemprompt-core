@@ -13,7 +13,11 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod layer;
+#[cfg(test)]
 mod models;
+#[cfg(test)]
 mod services;
+#[cfg(test)]
 mod trace;

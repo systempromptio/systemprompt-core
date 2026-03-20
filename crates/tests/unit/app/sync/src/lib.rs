@@ -11,7 +11,11 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod config;
+#[cfg(test)]
 mod error;
+#[cfg(test)]
 mod files;
+#[cfg(test)]
 mod models;

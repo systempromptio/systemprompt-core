@@ -1,7 +1,7 @@
 //! Unit tests for CLI theme components (ServiceStatus, Icons, Colors, Theme, BrandColors)
 
 use systemprompt_logging::services::cli::theme::{
-    ActionType, BrandColors, ColorType, Colors, EmphasisType, IconType, Icons, ItemStatus,
+    ActionType, BrandColors, Colors, EmphasisType, Icons, ItemStatus,
     MessageLevel, ModuleType, ServiceStatus, Theme,
 };
 

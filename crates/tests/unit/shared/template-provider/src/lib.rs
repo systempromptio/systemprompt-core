@@ -7,5 +7,7 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod error;
+#[cfg(test)]
 mod loader;

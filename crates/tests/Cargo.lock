@@ -5030,6 +5030,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-provider-contracts-tests"
+version = "0.0.11"
+dependencies = [
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-provider-contracts",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-runtime"
 version = "0.1.17"
 dependencies = [
@@ -5104,6 +5114,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-scheduler-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-models",
+ "systemprompt-scheduler",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-security"
 version = "0.1.17"
 dependencies = [
@@ -5167,12 +5189,33 @@ dependencies = [
 ]
 
 [[package]]
+name = "systemprompt-sync-tests"
+version = "0.0.11"
+dependencies = [
+ "chrono",
+ "serde_json",
+ "systemprompt-identifiers",
+ "systemprompt-sync",
+ "tokio",
+]
+
+[[package]]
 name = "systemprompt-template-provider"
 version = "0.1.17"
 dependencies = [
  "async-trait",
  "systemprompt-provider-contracts",
  "thiserror 2.0.17",
+ "tokio",
+]
+
+[[package]]
+name = "systemprompt-template-provider-tests"
+version = "0.0.11"
+dependencies = [
+ "systemprompt-provider-contracts",
+ "systemprompt-template-provider",
+ "tempfile",
  "tokio",
 ]
 

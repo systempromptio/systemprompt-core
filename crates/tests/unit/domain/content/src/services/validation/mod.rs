@@ -19,6 +19,7 @@ fn create_valid_metadata() -> ContentMetadata {
         category: None,
         tags: vec![],
         links: vec![],
+        public: Some(true),
     }
 }
 

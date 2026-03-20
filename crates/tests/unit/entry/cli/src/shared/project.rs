@@ -87,7 +87,7 @@ fn create_project_dir() -> TempDir {
 #[test]
 fn test_project_root_as_path() {
     let temp = create_project_dir();
-    let project_path = temp.path().to_path_buf();
+    let _project_path = temp.path().to_path_buf();
 
     // Create ProjectRoot by discovering in the temp directory
     // Since we can't directly set current_dir safely in tests,
@@ -108,7 +108,7 @@ fn test_project_root_clone() {
 #[test]
 fn test_project_root_debug() {
     let temp = create_project_dir();
-    let expected = temp.path().to_string_lossy();
+    let _expected = temp.path().to_string_lossy();
 
     // Verify temp dir exists
     assert!(temp.path().exists());

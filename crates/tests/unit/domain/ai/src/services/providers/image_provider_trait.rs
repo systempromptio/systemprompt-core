@@ -254,8 +254,6 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supports_resolution_checks_capabilities() {
-        use systemprompt_ai::ImageResolution;
-
         let provider = GeminiImageProvider::new("test-key".to_string());
         let caps = provider.capabilities();
 
@@ -266,8 +264,6 @@ mod gemini_image_provider_tests {
 
     #[test]
     fn supports_aspect_ratio_checks_capabilities() {
-        use systemprompt_ai::AspectRatio;
-
         let provider = GeminiImageProvider::new("test-key".to_string());
         let caps = provider.capabilities();
 

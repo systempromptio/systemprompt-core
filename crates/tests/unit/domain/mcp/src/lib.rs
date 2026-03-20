@@ -11,8 +11,13 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod error;
+#[cfg(test)]
 mod middleware;
+#[cfg(test)]
 mod models;
+#[cfg(test)]
 mod orchestration;
+#[cfg(test)]
 mod services;

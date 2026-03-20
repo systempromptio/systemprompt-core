@@ -9,5 +9,7 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod models;
+#[cfg(test)]
 mod orchestration;

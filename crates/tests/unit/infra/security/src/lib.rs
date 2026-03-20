@@ -9,8 +9,13 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod auth;
+#[cfg(test)]
 mod extraction;
+#[cfg(test)]
 mod jwt;
+#[cfg(test)]
 mod services;
+#[cfg(test)]
 mod session;

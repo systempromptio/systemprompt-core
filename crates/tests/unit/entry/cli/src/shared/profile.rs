@@ -13,7 +13,6 @@
     clippy::cargo
 )]
 
-use std::collections::HashSet;
 use systemprompt_cli::shared::ProfileResolutionError;
 
 // ============================================================================

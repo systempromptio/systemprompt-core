@@ -13,7 +13,11 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod build;
+#[cfg(test)]
 mod content;
+#[cfg(test)]
 mod sitemap;
+#[cfg(test)]
 mod templates;

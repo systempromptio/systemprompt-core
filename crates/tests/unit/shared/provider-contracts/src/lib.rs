@@ -12,6 +12,9 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod job;
+#[cfg(test)]
 mod llm;
+#[cfg(test)]
 mod tool;

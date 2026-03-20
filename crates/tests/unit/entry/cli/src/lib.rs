@@ -13,6 +13,9 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod cli_settings;
+#[cfg(test)]
 mod descriptor;
+#[cfg(test)]
 mod shared;

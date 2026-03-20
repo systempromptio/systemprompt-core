@@ -8,7 +8,6 @@
 //! - Binary validation
 //! - Binary map building
 
-use std::collections::HashMap;
 use systemprompt_loader::ExtensionLoader;
 use tempfile::TempDir;
 

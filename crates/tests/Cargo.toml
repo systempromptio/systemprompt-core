@@ -17,6 +17,8 @@ members = [
     "unit/shared/models",
     "unit/shared/client",
     "unit/shared/identifiers",
+    "unit/shared/provider-contracts",
+    "unit/shared/template-provider",
     # Unit tests - infra layer
     "unit/infra/cloud",
     "unit/infra/config",
@@ -38,6 +40,8 @@ members = [
     # Unit tests - app layer
     "unit/app/generator",
     "unit/app/runtime",
+    "unit/app/scheduler",
+    "unit/app/sync",
     # Unit tests - entry layer
     "unit/entry/api",
     "unit/entry/cli",

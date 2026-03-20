@@ -73,7 +73,7 @@ runtime:
     .to_string()
 }
 
-fn create_minimal_profile_yaml() -> String {
+fn _create_minimal_profile_yaml() -> String {
     r#"
 name: minimal
 display_name: Minimal Profile

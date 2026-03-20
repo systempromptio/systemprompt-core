@@ -19,9 +19,9 @@ fn test_pg_db_pool_type_alias() {
 
 #[test]
 fn test_entity_id_requires_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+    fn _assert_send_sync<T: Send + Sync>() {}
     fn _check_entity_id<I: EntityId>() {
-        assert_send_sync::<I>();
+        _assert_send_sync::<I>();
     }
 }
 
@@ -50,17 +50,17 @@ fn test_entity_associated_types() {
 
 #[test]
 fn test_generic_repository_is_send_sync() {
-    fn assert_send_sync<T: Send + Sync>() {}
+    fn _assert_send_sync<T: Send + Sync>() {}
     fn _check<E: Entity>() {
-        assert_send_sync::<GenericRepository<E>>();
+        _assert_send_sync::<GenericRepository<E>>();
     }
 }
 
 #[test]
 fn test_generic_repository_is_clone() {
-    fn assert_clone<T: Clone>() {}
+    fn _assert_clone<T: Clone>() {}
     fn _check<E: Entity + Clone>() {
-        assert_clone::<GenericRepository<E>>();
+        _assert_clone::<GenericRepository<E>>();
     }
 }
 

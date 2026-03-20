@@ -232,7 +232,6 @@ fn test_path_is_file_check_logic() {
 
 #[test]
 fn test_temp_file_as_database_path() {
-    use std::path::Path;
     use tempfile::NamedTempFile;
 
     let temp = NamedTempFile::new().expect("Failed to create temp file");
@@ -244,7 +243,6 @@ fn test_temp_file_as_database_path() {
 
 #[test]
 fn test_temp_directory_not_valid_database() {
-    use std::path::Path;
     use tempfile::TempDir;
 
     let temp_dir = TempDir::new().expect("Failed to create temp dir");

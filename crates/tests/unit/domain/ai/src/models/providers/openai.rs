@@ -13,16 +13,16 @@ mod openai_models_tests {
     fn default_models_have_correct_ids() {
         let models = OpenAiModels::default();
 
-        assert_eq!(models.gpt4_turbo.id, "gpt-4-turbo");
-        assert_eq!(models.gpt35_turbo.id, "gpt-3.5-turbo");
+        assert_eq!(models.gpt4_turbo.id, "gpt-4.1");
+        assert_eq!(models.gpt35_turbo.id, "gpt-4.1-mini");
     }
 
     #[test]
     fn default_models_have_max_tokens() {
         let models = OpenAiModels::default();
 
-        assert_eq!(models.gpt4_turbo.max_tokens, 128_000);
-        assert_eq!(models.gpt35_turbo.max_tokens, 16385);
+        assert_eq!(models.gpt4_turbo.max_tokens, 1_000_000);
+        assert_eq!(models.gpt35_turbo.max_tokens, 1_000_000);
     }
 
     #[test]

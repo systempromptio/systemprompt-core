@@ -12,11 +12,19 @@
 
 #![allow(clippy::all)]
 
+#[cfg(test)]
 mod context;
+#[cfg(test)]
 mod database_context;
+#[cfg(test)]
 mod installation;
+#[cfg(test)]
 mod registry;
+#[cfg(test)]
 mod span;
+#[cfg(test)]
 mod startup_validation;
+#[cfg(test)]
 mod validation;
+#[cfg(test)]
 mod wellknown;

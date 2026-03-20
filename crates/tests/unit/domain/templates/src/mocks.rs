@@ -44,6 +44,7 @@ impl MockProvider {
         }
     }
 
+    #[allow(dead_code)]
     pub fn with_priority(id: &'static str, priority: u32) -> Self {
         Self {
             id,
@@ -106,6 +107,7 @@ impl MockLoader {
         }
     }
 
+    #[allow(dead_code)]
     pub fn failing() -> Self {
         Self {
             load_count: AtomicUsize::new(0),
@@ -113,6 +115,7 @@ impl MockLoader {
         }
     }
 
+    #[allow(dead_code)]
     pub fn load_count(&self) -> usize {
         self.load_count.load(Ordering::SeqCst)
     }

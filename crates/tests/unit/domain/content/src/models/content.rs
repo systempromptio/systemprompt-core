@@ -282,6 +282,7 @@ fn test_content_metadata_serialization() {
             title: "Link".to_string(),
             url: "https://example.com".to_string(),
         }],
+        public: Some(true),
     };
 
     let json = serde_json::to_string(&metadata).unwrap();

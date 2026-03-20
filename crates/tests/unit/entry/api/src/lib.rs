@@ -12,8 +12,13 @@
 //! - Health check types (HealthSummary, ModuleHealth)
 //! - HealthChecker builder pattern
 
+#[cfg(test)]
 mod middleware;
+#[cfg(test)]
 mod models;
+#[cfg(test)]
 mod routes;
+#[cfg(test)]
 mod services;
+#[cfg(test)]
 mod static_content;

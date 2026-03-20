@@ -6,6 +6,9 @@
 //! - HTTP request handling (GET, POST, PUT, DELETE)
 //! - Error response parsing and network error handling
 
+#[cfg(test)]
 mod client;
+#[cfg(test)]
 mod error;
+#[cfg(test)]
 mod http;

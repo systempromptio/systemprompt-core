@@ -99,7 +99,7 @@ fn test_query_string_preservation_documented() {
     // When redirecting /api/users/?page=1 -> /api/users?page=1
     // The query string should be preserved
 
-    let path_with_query = "/api/users/";
+    let _path_with_query = "/api/users/";
     let query = "page=1&limit=10";
     let expected_new_path = "/api/users";
     let expected_new_uri = format!("{}?{}", expected_new_path, query);
