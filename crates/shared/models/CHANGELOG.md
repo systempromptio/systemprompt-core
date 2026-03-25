@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.21] - 2026-03-25
+
+### Added
+- `CloudEnterpriseLicenseInfo` struct for domain-based enterprise licensing
+- `enterprise` field on `UserMeResponse` (optional, backward-compatible with `#[serde(default)]`)
+- `EnterpriseLicenseInfo` type alias
+
 ## [0.1.20] - 2026-03-20
 
 ### Added
