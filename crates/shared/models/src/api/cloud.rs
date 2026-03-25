@@ -162,12 +162,23 @@ pub struct RotateSyncTokenResponse {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CloudEnterpriseLicenseInfo {
+    pub id: String,
+    pub name: String,
+    pub domain: String,
+    #[serde(default)]
+    pub plan: Option<CloudPlanInfo>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMeResponse {
     pub user: CloudUserInfo,
     #[serde(default)]
     pub customer: Option<CloudCustomerInfo>,
     #[serde(default)]
     pub tenants: Vec<CloudTenantInfo>,
+    #[serde(default)]
+    pub enterprise: Option<CloudEnterpriseLicenseInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -330,3 +341,4 @@ pub type ListResponse<T> = CloudListResponse<T>;
 pub type StatusResponse = CloudStatusResponse;
 pub type LogEntry = CloudLogEntry;
 pub type LogsResponse = CloudLogsResponse;
+pub type EnterpriseLicenseInfo = CloudEnterpriseLicenseInfo;
