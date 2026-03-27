@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Added
+- MCP request logging middleware with method, URI, session ID, and auth status tracking
+- Proxy-verified identity auth flow in RBAC middleware
+- Stale session cleanup in `DatabaseSessionManager`
+
+### Fixed
+- Fix MCP session loss causing 404 on SSE reconnect by persisting sessions to database
+- Move MCP session auth to proxy layer with trusted identity headers
+
+### Changed
+- Upgrade to Rust 2024 edition
+- Split `dashboard.rs` UI renderer into focused modules
+
 ## [0.1.6] - 2026-03-05
 
 ### Changed

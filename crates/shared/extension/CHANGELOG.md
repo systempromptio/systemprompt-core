@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Changed
+- Upgrade to Rust 2024 edition
+- Split monolithic `lib.rs` and `registry.rs` into focused modules
+
 ## [0.1.12] - 2026-02-10
 
 ### Added

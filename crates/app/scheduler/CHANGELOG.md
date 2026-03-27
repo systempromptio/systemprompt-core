@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Fixed
+- Fix scheduler extension job registration logic
+
+### Changed
+- Upgrade to Rust 2024 edition
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed

@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Fixed
+- Rewrite content analytics queries to use `engagement_events` joined with `user_sessions`, filtering bots via `is_bot` and `is_behavioral_bot` flags
+- Cast `avg_time_on_page` to `float8` for type safety
+- Cap `time_on_page_ms` at 1,800,000ms to exclude outliers
+
+### Changed
+- Upgrade to Rust 2024 edition
+
 ## [0.1.10] - 2026-02-08
 
 ### Added

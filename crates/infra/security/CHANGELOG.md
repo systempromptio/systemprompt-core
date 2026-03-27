@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Added
+- `client_id` parameter on `AdminTokenParams` for configurable JWT client ID
+
+### Changed
+- Upgrade to Rust 2024 edition
+
+### Removed
+- Remove hardcoded `sp_tui` client ID from JWT generation
+
 ## [0.1.0] - 2026-02-02
 
 ### Changed

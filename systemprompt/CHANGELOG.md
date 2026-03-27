@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Added
+- Enterprise license info on `UserMeResponse`
+- `StreamChunk` enum for typed AI streaming with token usage tracking
+- MCP proxy-verified identity auth flow and request logging
+- `public` field on content for visibility control
+- CLI tenant management commands (cancel, show, list, edit, delete)
+
+### Fixed
+- Route database write operations through write provider when available
+- MCP session loss causing 404 on SSE reconnect
+- Analytics query rewrites for accurate bot filtering and type safety
+- Configurable JWT expiration (remove hardcoded values)
+
+### Changed
+- Upgrade all crates to Rust 2024 edition
+- Split large modules into focused files across CLI, MCP, extension, and generator crates
+- Move MCP session auth to proxy layer with trusted identity headers
+
 ## [0.1.16] - 2026-03-04
 
 ### Fixed

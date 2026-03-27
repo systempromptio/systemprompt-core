@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Changed
+- Upgrade to Rust 2024 edition
+
+### Removed
+- Remove `ExtensionError` type
+- Remove doc comments and inline comments from trait definitions
+
 ## [0.1.2] - 2026-02-03
 
 ### Changed

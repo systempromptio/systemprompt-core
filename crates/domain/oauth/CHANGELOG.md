@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Changed
+- Upgrade to Rust 2024 edition
+
+### Removed
+- Remove TUI client seed SQL files
+
 ## [0.1.7] - 2026-03-05
 
 ### Changed

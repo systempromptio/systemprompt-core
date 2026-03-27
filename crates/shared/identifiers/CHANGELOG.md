@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Added
+- `PROXY_VERIFIED` and `USER_PERMISSIONS` header constants for proxy-verified identity flow
+
+### Changed
+- Upgrade to Rust 2024 edition
+
+### Removed
+- Remove unused session ID helper methods
+
 ## [0.1.3] - 2026-02-19
 
 ### Added

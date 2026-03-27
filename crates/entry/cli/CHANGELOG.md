@@ -1,6 +1,15 @@
 # Changelog
 
-## [0.1.18] - 2026-02-26
+## [0.1.18] - 2026-03-27
+
+### Added
+- Tenant cancel subscription, show, list, edit, and delete commands
+
+### Changed
+- Upgrade to Rust 2024 edition
+- Split large CLI modules into focused files across tenant, secrets, services, and config commands
+
+## [0.1.17a] - 2026-02-26
 
 ### Fixed
 - Rename `total_cents` to `total_cost_microdollars` in analytics overview (field contained microdollars, not cents)

@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Added
+- `read_pool()` and `read_pool_arc()` methods for explicit read-only pool access
+
+### Fixed
+- Route `pool()` and write operations through write provider when available
+
+### Changed
+- Upgrade to Rust 2024 edition
+
 ## [0.1.10] - 2026-02-19
 
 ### Changed

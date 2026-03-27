@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Fixed
+- Fix CLI session store edge cases
+
+### Changed
+- Upgrade to Rust 2024 edition
+
 ## [0.1.4] - 2026-02-11
 
 ### Changed

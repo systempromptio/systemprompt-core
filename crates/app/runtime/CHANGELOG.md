@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.1.18] - 2026-03-27
+
+### Changed
+- Upgrade to Rust 2024 edition
+
 ## [0.1.10] - 2026-02-08
 
 ### Added
