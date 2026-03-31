@@ -2,6 +2,23 @@ use chrono::{DateTime, Utc};
 use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 #[derive(Debug, Clone)]
+pub enum CategoryIdUpdate {
+    Unchanged,
+    Clear,
+    Set(CategoryId),
+}
+
+impl From<Option<Option<CategoryId>>> for CategoryIdUpdate {
+    fn from(value: Option<Option<CategoryId>>) -> Self {
+        match value {
+            None => Self::Unchanged,
+            Some(None) => Self::Clear,
+            Some(Some(id)) => Self::Set(id),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct CreateContentParams {
     pub slug: String,
     pub title: String,
@@ -100,8 +117,7 @@ pub struct UpdateContentParams {
     pub keywords: String,
     pub image: Option<String>,
     pub version_hash: String,
-    #[allow(clippy::option_option)]
-    pub category_id: Option<Option<CategoryId>>,
+    pub category_id: CategoryIdUpdate,
     pub public: Option<bool>,
     pub kind: Option<String>,
     pub author: Option<String>,
@@ -119,7 +135,7 @@ impl UpdateContentParams {
             keywords: String::new(),
             image: None,
             version_hash: String::new(),
-            category_id: None,
+            category_id: CategoryIdUpdate::Unchanged,
             public: None,
             kind: None,
             author: None,
@@ -143,9 +159,8 @@ impl UpdateContentParams {
         self
     }
 
-    #[allow(clippy::option_option)]
-    pub fn with_category_id(mut self, category_id: Option<Option<CategoryId>>) -> Self {
-        self.category_id = category_id;
+    pub fn with_category_id(mut self, category_id: impl Into<CategoryIdUpdate>) -> Self {
+        self.category_id = category_id.into();
         self
     }
 

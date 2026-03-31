@@ -24,11 +24,6 @@ pub struct ToolStatsRow {
 }
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct ToolExistsRow {
-    pub count: i64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct ToolSummaryRow {
     pub total: i64,
     pub successful: i64,

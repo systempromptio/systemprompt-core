@@ -9,8 +9,7 @@ pub trait EventHandler: Send + Sync {
 
     fn name(&self) -> &'static str;
 
-    fn handles(&self, event: &McpEvent) -> bool {
-        let _ = event;
+    fn handles(&self, _event: &McpEvent) -> bool {
         true
     }
 }

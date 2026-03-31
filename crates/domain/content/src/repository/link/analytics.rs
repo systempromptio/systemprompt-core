@@ -174,7 +174,6 @@ impl LinkAnalyticsRepository {
         .await
     }
 
-    #[allow(clippy::cognitive_complexity)]
     pub async fn record_click(&self, params: &RecordClickParams) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"

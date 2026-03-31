@@ -1,4 +1,3 @@
-use anyhow::Result;
 use systemprompt_cloud::{LOCAL_SESSION_KEY, SessionKey, SessionStore, TenantStore};
 
 use super::types::{RoutingInfo, SessionInfo, SessionShowOutput};
@@ -6,8 +5,7 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 
-#[allow(clippy::unnecessary_wraps)]
-pub fn execute(_config: &CliConfig) -> Result<CommandResult<SessionShowOutput>> {
+pub fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
     let paths = ResolvedPaths::discover();
 
     let sessions = collect_sessions(&paths);
@@ -15,7 +13,7 @@ pub fn execute(_config: &CliConfig) -> Result<CommandResult<SessionShowOutput>> 
 
     let output = SessionShowOutput { sessions, routing };
 
-    Ok(CommandResult::card(output).with_title("Session Info"))
+    CommandResult::card(output).with_title("Session Info")
 }
 
 fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {

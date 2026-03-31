@@ -213,11 +213,10 @@ async fn execute_cloud_sync(sync_type: SyncType, source: &ProfileSelection) -> R
 }
 
 async fn execute_local_skills_sync(source: &ProfileSelection, config: &CliConfig) -> Result<()> {
-    #[allow(unsafe_code)]
-    // SAFETY: single-threaded CLI init, no concurrent threads yet
-    unsafe {
-        std::env::set_var("SYSTEMPROMPT_PROFILE", &source.path);
-    }
+    use systemprompt_models::ProfileBootstrap;
+
+    ProfileBootstrap::init_from_path(&source.path)
+        .context("Failed to initialize profile for skills sync")?;
 
     let args = SkillsSyncArgs {
         direction: None,

@@ -119,7 +119,10 @@ async fn print_mcp_linked_ai_requests(
             req.model
         ));
 
-        if let Ok(previews) = service.get_ai_request_message_previews(req.id.as_str()).await {
+        if let Ok(previews) = service
+            .get_ai_request_message_previews(req.id.as_str())
+            .await
+        {
             for msg in previews {
                 let preview = if msg.content.len() >= 500 {
                     format!("{}...", truncate(&msg.content, 200))

@@ -1,5 +1,4 @@
-#![allow(clippy::print_stdout)]
-
+use std::io::Write;
 use std::sync::Arc;
 
 use chrono::{DateTime, Utc};
@@ -50,7 +49,8 @@ impl LoggingRepository {
         entry.validate()?;
 
         if self.terminal_output {
-            println!("{entry}");
+            let mut stdout = std::io::stdout();
+            let _ = writeln!(stdout, "{entry}");
         }
 
         if self.db_output {

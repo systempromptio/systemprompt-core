@@ -1,45 +1,38 @@
 use axum::extract::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
-use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 use systemprompt_models::api::ApiError;
 use systemprompt_users::BannedIpRepository;
 use tracing::warn;
 
-#[derive(Clone, Copy, Debug)]
-pub struct IpBanMiddleware;
-
-impl IpBanMiddleware {
-    fn extract_ip(request: &Request) -> Option<String> {
-        request
-            .headers()
-            .get("x-forwarded-for")
-            .and_then(|v| v.to_str().ok())
-            .and_then(|s| s.split(',').next())
-            .map(|s| s.trim().to_string())
-            .or_else(|| {
-                request
-                    .headers()
-                    .get("x-real-ip")
-                    .and_then(|v| v.to_str().ok())
-                    .map(ToString::to_string)
-            })
-            .or_else(|| {
-                request
-                    .headers()
-                    .get("cf-connecting-ip")
-                    .and_then(|v| v.to_str().ok())
-                    .map(ToString::to_string)
-            })
-            .or_else(|| {
-                request
-                    .extensions()
-                    .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
-                    .map(|ci| ci.0.ip().to_string())
-            })
-    }
+fn extract_client_ip(request: &Request) -> Option<String> {
+    request
+        .headers()
+        .get("x-forwarded-for")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|s| s.split(',').next())
+        .map(|s| s.trim().to_string())
+        .or_else(|| {
+            request
+                .headers()
+                .get("x-real-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            request
+                .headers()
+                .get("cf-connecting-ip")
+                .and_then(|v| v.to_str().ok())
+                .map(ToString::to_string)
+        })
+        .or_else(|| {
+            request
+                .extensions()
+                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                .map(|ci| ci.0.ip().to_string())
+        })
 }
 
 pub async fn ip_ban_middleware(
@@ -47,7 +40,7 @@ pub async fn ip_ban_middleware(
     next: Next,
     banned_ip_repo: Arc<BannedIpRepository>,
 ) -> Response {
-    let ip_address = IpBanMiddleware::extract_ip(&request);
+    let ip_address = extract_client_ip(&request);
 
     if let Some(ip) = &ip_address {
         match banned_ip_repo.is_banned(ip).await {
@@ -69,20 +62,4 @@ pub async fn ip_ban_middleware(
     }
 
     next.run(request).await
-}
-
-#[allow(clippy::type_complexity)]
-pub fn ip_ban_layer(
-    banned_ip_repo: Arc<BannedIpRepository>,
-) -> axum::middleware::FromFnLayer<
-    impl Fn(Request, Next) -> Pin<Box<dyn Future<Output = Response> + Send>> + Clone + Send,
-    (),
-    Request,
-> {
-    axum::middleware::from_fn(move |req: Request, next: Next| {
-        let repo = Arc::clone(&banned_ip_repo);
-        let fut: Pin<Box<dyn Future<Output = Response> + Send>> =
-            Box::pin(async move { ip_ban_middleware(req, next, repo).await });
-        fut
-    })
 }

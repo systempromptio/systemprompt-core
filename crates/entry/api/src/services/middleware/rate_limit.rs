@@ -138,32 +138,29 @@ pub async fn tiered_rate_limit_middleware(
         return next.run(request).await;
     }
 
-    let (tier, key) = request
-        .extensions()
-        .get::<RequestContext>()
-        .map_or_else(
-            || {
-                let ip = request
-                    .headers()
-                    .get("x-forwarded-for")
-                    .and_then(|h| {
-                        h.to_str()
-                            .map_err(|e| {
-                                tracing::trace!(error = %e, "Invalid UTF-8 in x-forwarded-for header");
-                                e
-                            })
-                            .ok()
-                    })
-                    .and_then(|s| s.split(',').next())
-                    .map_or_else(|| "unknown".to_string(), ToString::to_string);
-                (RateLimitTier::Anon, ip)
-            },
-            |ctx| {
-                let tier = ctx.rate_limit_tier();
-                let key = ctx.user_id().to_string();
-                (tier, key)
-            },
-        );
+    let (tier, key) = request.extensions().get::<RequestContext>().map_or_else(
+        || {
+            let ip = request
+                .headers()
+                .get("x-forwarded-for")
+                .and_then(|h| {
+                    h.to_str()
+                        .map_err(|e| {
+                            tracing::trace!(error = %e, "Invalid UTF-8 in x-forwarded-for header");
+                            e
+                        })
+                        .ok()
+                })
+                .and_then(|s| s.split(',').next())
+                .map_or_else(|| "unknown".to_string(), ToString::to_string);
+            (RateLimitTier::Anon, ip)
+        },
+        |ctx| {
+            let tier = ctx.rate_limit_tier();
+            let key = ctx.user_id().to_string();
+            (tier, key)
+        },
+    );
 
     if limiter.check(tier, &key) {
         next.run(request).await

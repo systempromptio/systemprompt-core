@@ -1,5 +1,3 @@
-#![allow(clippy::print_stdout)]
-
 use anyhow::Context;
 use chrono::{DateTime, Utc};
 use sqlx::PgPool;

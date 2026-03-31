@@ -19,12 +19,20 @@ pub fn execute(_args: ConfigArgs, _config: &CliConfig) -> Result<CommandResult<F
         FilePersistenceMode::Disabled => "disabled",
     };
 
-    let allowed_types = AllowedTypesOutput {
-        images: upload_config.allowed_types.images,
-        documents: upload_config.allowed_types.documents,
-        audio: upload_config.allowed_types.audio,
-        video: upload_config.allowed_types.video,
-    };
+    let mut allowed = Vec::new();
+    if upload_config.allowed_types.images {
+        allowed.push("images".to_string());
+    }
+    if upload_config.allowed_types.documents {
+        allowed.push("documents".to_string());
+    }
+    if upload_config.allowed_types.audio {
+        allowed.push("audio".to_string());
+    }
+    if upload_config.allowed_types.video {
+        allowed.push("video".to_string());
+    }
+    let allowed_types = AllowedTypesOutput { allowed };
 
     let storage_paths = StoragePathsOutput {
         uploads: files_config.uploads().display().to_string(),

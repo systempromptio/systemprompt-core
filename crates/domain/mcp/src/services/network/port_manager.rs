@@ -40,11 +40,15 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
             if let Ok(pid) = pid_str.trim().parse::<i32>() {
                 tracing::debug!(port = port, pid = pid, "Stopping process on port");
 
-                let _ = signal::kill(Pid::from_raw(pid), Signal::SIGTERM);
+                if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGTERM) {
+                    tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM to port process");
+                }
 
                 tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-                let _ = signal::kill(Pid::from_raw(pid), Signal::SIGKILL);
+                if let Err(e) = signal::kill(Pid::from_raw(pid), Signal::SIGKILL) {
+                    tracing::warn!(pid = pid, error = %e, "Failed to send SIGKILL to port process");
+                }
             }
         }
 
@@ -69,13 +73,18 @@ pub async fn cleanup_port_processes(port: u16) -> Result<()> {
                 if pid_str.parse::<u32>().is_ok() {
                     tracing::debug!(port = port, pid = %pid_str, "Stopping process on port");
 
-                    let _ = Command::new("taskkill").args(["/PID", pid_str]).output();
+                    if let Err(e) = Command::new("taskkill").args(["/PID", pid_str]).output() {
+                        tracing::warn!(pid = %pid_str, error = %e, "Failed to send taskkill to port process");
+                    }
 
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
-                    let _ = Command::new("taskkill")
+                    if let Err(e) = Command::new("taskkill")
                         .args(["/PID", pid_str, "/F"])
-                        .output();
+                        .output()
+                    {
+                        tracing::warn!(pid = %pid_str, error = %e, "Failed to force taskkill port process");
+                    }
                 }
             }
         }

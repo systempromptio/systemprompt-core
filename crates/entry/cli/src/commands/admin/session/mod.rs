@@ -44,7 +44,7 @@ impl DescribeCommand for SessionCommands {
 pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
     match cmd {
         SessionCommands::Show => {
-            let result = show::execute(config)?;
+            let result = show::execute(config);
             render_result(&result);
             Ok(())
         },
@@ -54,7 +54,7 @@ pub async fn execute(cmd: SessionCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         SessionCommands::List => {
-            let result = list::execute(config)?;
+            let result = list::execute(config);
             render_result(&result);
             Ok(())
         },

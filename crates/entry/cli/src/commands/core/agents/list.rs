@@ -81,8 +81,7 @@ fn show_agent_detail(agent_id: &str, agents_path: &Path) -> Result<CommandResult
     let system_prompt_preview = parsed
         .system_prompt
         .as_deref()
-        .map(|s| truncate_with_ellipsis(s, 200))
-        .unwrap_or_default();
+        .map_or_else(String::new, |s| truncate_with_ellipsis(s, 200));
 
     let output = AgentDetailOutput {
         agent_id: agent_id.to_string(),

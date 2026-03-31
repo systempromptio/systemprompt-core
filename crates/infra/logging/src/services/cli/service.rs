@@ -1,5 +1,4 @@
-#![allow(clippy::print_stdout)]
-
+use std::io::Write;
 use std::time::Duration;
 
 use anyhow::Result;
@@ -54,7 +53,6 @@ impl CliService {
         DisplayUtils::message(MessageLevel::Info, message);
     }
 
-    #[allow(clippy::exit)]
     pub fn fatal(message: &str, exit_code: i32) -> ! {
         let fatal_msg = format!("FATAL: {message}");
         DisplayUtils::message(MessageLevel::Error, &fatal_msg);
@@ -70,36 +68,49 @@ impl CliService {
     }
 
     pub fn clear_screen() {
-        print!("\x1B[2J\x1B[1;1H");
+        let mut stdout = std::io::stdout();
+        let _ = write!(stdout, "\x1B[2J\x1B[1;1H");
     }
 
     pub fn output(content: &str) {
-        println!("{content}");
+        let mut stdout = std::io::stdout();
+        let _ = writeln!(stdout, "{content}");
     }
 
     pub fn json<T: Serialize>(value: &T) {
         match serde_json::to_string_pretty(value) {
-            Ok(json) => println!("{json}"),
+            Ok(json) => {
+                let mut stdout = std::io::stdout();
+                let _ = writeln!(stdout, "{json}");
+            },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
     pub fn json_compact<T: Serialize>(value: &T) {
         match serde_json::to_string(value) {
-            Ok(json) => println!("{json}"),
+            Ok(json) => {
+                let mut stdout = std::io::stdout();
+                let _ = writeln!(stdout, "{json}");
+            },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
     pub fn yaml<T: Serialize>(value: &T) {
         match serde_yaml::to_string(value) {
-            Ok(yaml) => print!("{yaml}"),
+            Ok(yaml) => {
+                let mut stdout = std::io::stdout();
+                let _ = write!(stdout, "{yaml}");
+            },
             Err(e) => Self::error(&format!("Failed to format log entry: {e}")),
         }
     }
 
     pub fn key_value(label: &str, value: &str) {
-        println!(
+        let mut stdout = std::io::stdout();
+        let _ = writeln!(
+            stdout,
             "{}: {}",
             Theme::color(label, EmphasisType::Bold),
             Theme::color(value, EmphasisType::Highlight)
@@ -107,7 +118,9 @@ impl CliService {
     }
 
     pub fn status_line(label: &str, value: &str, status: ItemStatus) {
-        println!(
+        let mut stdout = std::io::stdout();
+        let _ = writeln!(
+            stdout,
             "{} {}: {}",
             Theme::icon(status),
             Theme::color(label, EmphasisType::Bold),
@@ -245,16 +258,16 @@ impl CliService {
         render_phase_warning(message, detail);
     }
 
-    #[allow(clippy::literal_string_with_formatting_args)]
     pub fn service_spinner(service_name: &str, port: Option<u16>) -> ProgressBar {
         let msg = port.map_or_else(
             || format!("Starting {}", service_name),
             |p| format!("Starting {} on :{}", service_name, p),
         );
         let pb = ProgressBar::new_spinner();
+        let spinner_template = concat!("{spinner:.208}", " {msg}");
         pb.set_style(
             ProgressStyle::default_spinner()
-                .template("{spinner:.208} {msg}")
+                .template(spinner_template)
                 .unwrap_or_else(|_| ProgressStyle::default_spinner()),
         );
         pb.set_message(msg);
@@ -303,7 +316,8 @@ impl CliService {
             profile, truncated_session, tenant_info, url_info
         );
 
-        println!("{}", Theme::color(&banner, EmphasisType::Dim));
+        let mut stdout = std::io::stdout();
+        let _ = writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim));
     }
 
     pub fn profile_banner(profile_name: &str, is_cloud: bool, tenant: Option<&str>) {
@@ -313,6 +327,7 @@ impl CliService {
             "[profile: {} ({}){}]",
             profile_name, target_label, tenant_info
         );
-        println!("{}", Theme::color(&banner, EmphasisType::Dim));
+        let mut stdout = std::io::stdout();
+        let _ = writeln!(stdout, "{}", Theme::color(&banner, EmphasisType::Dim));
     }
 }

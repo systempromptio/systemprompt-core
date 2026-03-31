@@ -18,7 +18,6 @@ pub async fn create_client(
     OAuthRepo(repository): OAuthRepo,
     Json(request): Json<CreateOAuthClientRequest>,
 ) -> impl IntoResponse {
-
     let client_secret = Uuid::new_v4().to_string();
     let client_secret_hash = match hash(&client_secret, DEFAULT_COST) {
         Ok(hash) => hash,
@@ -32,7 +31,7 @@ pub async fn create_client(
             return error_response(
                 StatusCode::INTERNAL_SERVER_ERROR,
                 "server_error",
-                format!("Failed to hash client secret: {e}"),
+                &format!("Failed to hash client secret: {e}"),
             );
         },
     };
@@ -76,7 +75,7 @@ pub async fn create_client(
                 Err(e) => error_response(
                     StatusCode::INTERNAL_SERVER_ERROR,
                     "server_error",
-                    format!("Failed to serialize response: {e}"),
+                    &format!("Failed to serialize response: {e}"),
                 ),
             }
         },
@@ -95,10 +94,10 @@ pub async fn create_client(
                 error_response(
                     StatusCode::CONFLICT,
                     "conflict",
-                    "Client with this ID already exists".to_string(),
+                    "Client with this ID already exists",
                 )
             } else {
-                error_response(StatusCode::BAD_REQUEST, "bad_request", error_msg)
+                error_response(StatusCode::BAD_REQUEST, "bad_request", &error_msg)
             }
         },
     }

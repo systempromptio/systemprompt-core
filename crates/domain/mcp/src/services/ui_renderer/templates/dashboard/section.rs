@@ -160,7 +160,7 @@ impl DashboardSection {
 
         let header = columns.iter().fold(String::new(), |mut acc, c| {
             use std::fmt::Write;
-            let _ = write!(acc, "<th>{}</th>", html_escape(c));
+            write!(acc, "<th>{}</th>", html_escape(c)).expect("Writing to String should not fail");
             acc
         });
 
@@ -183,7 +183,8 @@ impl DashboardSection {
 
                     let cells_html = cells.iter().fold(String::new(), |mut acc, c| {
                         use std::fmt::Write;
-                        let _ = write!(acc, "<td>{}</td>", html_escape(c.trim_matches('"')));
+                        write!(acc, "<td>{}</td>", html_escape(c.trim_matches('"')))
+                            .expect("Writing to String should not fail");
                         acc
                     });
 

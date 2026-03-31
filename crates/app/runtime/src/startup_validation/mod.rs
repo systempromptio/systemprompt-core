@@ -44,7 +44,6 @@ impl StartupValidator {
         Self { registry }
     }
 
-    #[allow(clippy::print_stdout)]
     pub fn validate(&mut self, config: &Config) -> StartupValidationReport {
         let mut report = StartupValidationReport::new();
         let verbose = is_startup_mode();
@@ -76,7 +75,7 @@ impl StartupValidator {
         validate_extensions(config, &mut report, verbose);
 
         if verbose {
-            println!();
+            CliService::output("");
         }
 
         report
@@ -126,7 +125,6 @@ impl StartupValidator {
         Some(provider)
     }
 
-    #[allow(clippy::print_stdout)]
     fn load_domain_validators(
         &mut self,
         provider: &ValidationConfigProvider,
@@ -134,12 +132,12 @@ impl StartupValidator {
         verbose: bool,
     ) -> bool {
         if verbose {
-            println!();
-            println!(
+            CliService::output("");
+            CliService::output(&format!(
                 "{} {}",
                 BrandColors::primary("▸"),
                 BrandColors::white_bold("Validating domains")
-            );
+            ));
         }
 
         for validator in self.registry.validators_mut() {
@@ -160,7 +158,12 @@ impl StartupValidator {
                     if let Some(s) = spinner {
                         s.finish_and_clear();
                     }
-                    println!("  {} [{}] {}", BrandColors::stopped("✗"), domain_id, e);
+                    CliService::output(&format!(
+                        "  {} [{}] {}",
+                        BrandColors::stopped("✗"),
+                        domain_id,
+                        e
+                    ));
 
                     let mut domain_report = ValidationReport::new(domain_id);
                     domain_report.add_error(ValidationError::new(
@@ -175,7 +178,6 @@ impl StartupValidator {
         report.has_errors()
     }
 
-    #[allow(clippy::print_stdout)]
     fn run_domain_validations(&self, report: &mut StartupValidationReport, verbose: bool) {
         for validator in self.registry.validators_sorted() {
             let domain_id = validator.domain_id();
@@ -199,7 +201,12 @@ impl StartupValidator {
                     if let Some(s) = spinner {
                         s.finish_and_clear();
                     }
-                    println!("  {} [{}] {}", BrandColors::stopped("✗"), domain_id, e);
+                    CliService::output(&format!(
+                        "  {} [{}] {}",
+                        BrandColors::stopped("✗"),
+                        domain_id,
+                        e
+                    ));
 
                     let mut domain_report = ValidationReport::new(domain_id);
                     domain_report.add_error(ValidationError::new(
@@ -212,15 +219,14 @@ impl StartupValidator {
         }
     }
 
-    #[allow(clippy::print_stdout)]
     fn print_domain_result(domain_report: &ValidationReport, domain_id: &str) {
         if domain_report.has_errors() {
-            println!(
+            CliService::output(&format!(
                 "  {} [{}] {} error(s)",
                 BrandColors::stopped("✗"),
                 domain_id,
                 domain_report.errors.len()
-            );
+            ));
         } else if domain_report.has_warnings() {
             render_phase_warning(
                 &format!("[{}]", domain_id),

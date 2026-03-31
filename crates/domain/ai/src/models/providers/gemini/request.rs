@@ -156,17 +156,23 @@ pub struct GeminiTool {
     pub code_execution: Option<CodeExecution>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)]
-pub struct GoogleSearch {}
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+pub struct GoogleSearch {
+    #[serde(skip)]
+    _private: (),
+}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)]
-pub struct UrlContext {}
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+pub struct UrlContext {
+    #[serde(skip)]
+    _private: (),
+}
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
-#[allow(clippy::empty_structs_with_brackets)]
-pub struct CodeExecution {}
+#[derive(Debug, Default, Clone, Copy, Serialize, Deserialize)]
+pub struct CodeExecution {
+    #[serde(skip)]
+    _private: (),
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

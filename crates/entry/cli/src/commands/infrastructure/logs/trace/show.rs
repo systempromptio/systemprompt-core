@@ -32,7 +32,7 @@ pub struct ShowArgs {
     pub sections: TraceSections,
 }
 
-#[derive(Debug, Args)]
+#[derive(Debug, Clone, Copy, Args)]
 pub struct TraceSections {
     #[arg(long, help = "Show execution steps")]
     pub steps: bool,

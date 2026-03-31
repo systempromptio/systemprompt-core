@@ -1,4 +1,4 @@
-#![allow(clippy::print_stdout)]
+use std::io::Write;
 
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, StatusDisplay};
 use crate::services::cli::theme::{EmphasisType, ItemStatus, MessageLevel, Theme};
@@ -135,7 +135,9 @@ impl Display for ValidationSummary {
 
         let total_active = self.total_active();
         if total_active > 0 {
-            println!(
+            let mut stdout = std::io::stdout();
+            let _ = writeln!(
+                stdout,
                 "\n{} {} active modules ready",
                 Theme::icon(MessageLevel::Success),
                 Theme::color(&total_active.to_string(), EmphasisType::Bold)
@@ -213,7 +215,8 @@ impl Display for OperationResult {
 
         for detail in &self.details {
             let colored = Theme::color(detail, EmphasisType::Dim);
-            println!("  • {colored}");
+            let mut stdout = std::io::stdout();
+            let _ = writeln!(stdout, "  \u{2022} {colored}");
         }
     }
 }

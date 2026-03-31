@@ -182,7 +182,9 @@ impl ImageStorage {
         })?;
 
         if let Some(parent) = file_path.parent() {
-            let _ = self.cleanup_empty_directories(parent);
+            if let Err(e) = self.cleanup_empty_directories(parent) {
+                tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
+            }
         }
 
         Ok(())
@@ -215,7 +217,9 @@ impl ImageStorage {
             fs::remove_dir(dir)?;
 
             if let Some(parent) = dir.parent() {
-                let _ = self.cleanup_empty_directories(parent);
+                if let Err(e) = self.cleanup_empty_directories(parent) {
+                    tracing::warn!(dir = %parent.display(), error = %e, "Failed to clean up empty directory");
+                }
             }
         }
 

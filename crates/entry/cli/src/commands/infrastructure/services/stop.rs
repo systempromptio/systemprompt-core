@@ -21,7 +21,6 @@ fn get_api_port() -> u16 {
     ProfileBootstrap::get().map_or(DEFAULT_API_PORT, |p| p.server.port)
 }
 
-#[allow(clippy::useless_let_if_seq)]
 pub async fn execute(
     target: ServiceTarget,
     force: bool,
@@ -30,31 +29,33 @@ pub async fn execute(
     let ctx = Arc::new(AppContext::new().await?);
     let service_mgmt = ServiceManagementService::new(ctx.db_pool())?;
 
-    let mut api_stopped = false;
-    let mut agents_stopped = 0usize;
-    let mut mcp_stopped = 0usize;
-
-    if target.mcp {
+    let mcp_stopped = if target.mcp {
         if !config.is_json_output() {
             CliService::section("Stopping MCP Servers");
         }
-        mcp_stopped = stop_mcp_servers(&service_mgmt, force, config.is_json_output()).await?;
-    }
+        stop_mcp_servers(&service_mgmt, force, config.is_json_output()).await?
+    } else {
+        0
+    };
 
-    if target.agents {
+    let agents_stopped = if target.agents {
         if !config.is_json_output() {
             CliService::section("Stopping Agents");
         }
-        agents_stopped = stop_agents(&service_mgmt, force, config.is_json_output()).await?;
-    }
+        stop_agents(&service_mgmt, force, config.is_json_output()).await?
+    } else {
+        0
+    };
 
-    if target.api {
+    let api_stopped = if target.api {
         if !config.is_json_output() {
             CliService::section("Stopping API Server");
         }
         stop_api(force, config.is_json_output()).await?;
-        api_stopped = true;
-    }
+        true
+    } else {
+        false
+    };
 
     let message = "All requested services stopped".to_string();
     if !config.is_json_output() {

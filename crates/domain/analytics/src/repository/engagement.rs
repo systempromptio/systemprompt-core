@@ -20,7 +20,6 @@ impl EngagementRepository {
         Ok(Self { pool, write_pool })
     }
 
-    #[allow(clippy::cognitive_complexity)]
     pub async fn create_engagement(
         &self,
         session_id: &str,

@@ -22,20 +22,29 @@ pub async fn validate_client_credentials(
     validate_client_credentials_shared(repo, client_id.as_str(), client_secret).await
 }
 
-#[allow(clippy::too_many_arguments)]
+pub struct AuthCodeValidationParams<'a> {
+    pub repo: &'a OAuthRepository,
+    pub code: &'a AuthorizationCode,
+    pub client_id: &'a ClientId,
+    pub redirect_uri: Option<&'a str>,
+    pub code_verifier: Option<&'a str>,
+    pub request_resource: Option<&'a str>,
+}
+
 pub async fn validate_authorization_code(
-    repo: &OAuthRepository,
-    code: &AuthorizationCode,
-    client_id: &ClientId,
-    redirect_uri: Option<&str>,
-    code_verifier: Option<&str>,
-    request_resource: Option<&str>,
+    params: AuthCodeValidationParams<'_>,
 ) -> Result<AuthCodeValidationResult> {
-    let result = repo
-        .validate_authorization_code(code, client_id, redirect_uri, code_verifier)
+    let result = params
+        .repo
+        .validate_authorization_code(
+            params.code,
+            params.client_id,
+            params.redirect_uri,
+            params.code_verifier,
+        )
         .await?;
 
-    if let Some(req_resource) = request_resource {
+    if let Some(req_resource) = params.request_resource {
         if let Some(ref stored_resource) = result.resource {
             if req_resource != stored_resource {
                 return Err(anyhow::anyhow!(

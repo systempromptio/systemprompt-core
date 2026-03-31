@@ -16,14 +16,17 @@ pub fn create_progress_callback(token: ProgressToken, peer: Peer<RoleServer>) ->
             let token = token.clone();
             let peer = peer.clone();
             let fut: Pin<Box<dyn Future<Output = ()> + Send>> = Box::pin(async move {
-                let _ = peer
+                if let Err(e) = peer
                     .notify_progress(ProgressNotificationParam {
                         progress_token: token,
                         progress,
                         total,
                         message,
                     })
-                    .await;
+                    .await
+                {
+                    tracing::warn!(error = %e, "Failed to send progress notification");
+                }
             });
             fut
         },

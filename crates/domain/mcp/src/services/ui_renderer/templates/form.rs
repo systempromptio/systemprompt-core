@@ -144,13 +144,14 @@ impl FormField {
                         .as_ref()
                         .and_then(JsonValue::as_str)
                         .is_some_and(|dv| dv == o.value);
-                    let _ = write!(
+                    write!(
                         acc,
                         r#"<option value="{value}"{selected}>{label}</option>"#,
                         value = html_escape(&o.value),
                         selected = if selected { " selected" } else { "" },
                         label = html_escape(&o.label),
-                    );
+                    )
+                    .expect("Writing to String should not fail");
                     acc
                 });
 

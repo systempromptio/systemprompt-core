@@ -13,7 +13,6 @@ pub async fn get_client(
     OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
 ) -> impl IntoResponse {
-
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(client)) => {
             tracing::info!(
@@ -32,7 +31,7 @@ pub async fn get_client(
                 requested_by = %req_ctx.auth.user_id,
                 "OAuth client retrieval failed"
             );
-            not_found(format!("Client with ID '{client_id}' not found"))
+            not_found(&format!("Client with ID '{client_id}' not found"))
         },
         Err(e) => {
             tracing::error!(
@@ -41,7 +40,7 @@ pub async fn get_client(
                 requested_by = %req_ctx.auth.user_id,
                 "OAuth client retrieval failed"
             );
-            internal_error(format!("Failed to get client: {e}"))
+            internal_error(&format!("Failed to get client: {e}"))
         },
     }
 }

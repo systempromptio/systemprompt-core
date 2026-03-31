@@ -1,6 +1,5 @@
 //! List available profiles with session status.
 
-use anyhow::Result;
 use systemprompt_cloud::{ProfilePath, ProjectContext, SessionKey, SessionStore};
 use systemprompt_models::Profile;
 
@@ -9,25 +8,24 @@ use crate::CliConfig;
 use crate::paths::ResolvedPaths;
 use crate::shared::CommandResult;
 
-#[allow(clippy::unnecessary_wraps)]
-pub fn execute(_config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> {
+pub fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
     let project_ctx = ProjectContext::discover();
     let profiles_dir = project_ctx.profiles_dir();
 
     if !profiles_dir.exists() {
-        return Ok(CommandResult::table(ProfileListOutput {
+        return CommandResult::table(ProfileListOutput {
             profiles: Vec::new(),
         })
-        .with_title("Available Profiles"));
+        .with_title("Available Profiles");
     }
 
     let discovered = discover_profiles(&profiles_dir);
 
     if discovered.is_empty() {
-        return Ok(CommandResult::table(ProfileListOutput {
+        return CommandResult::table(ProfileListOutput {
             profiles: Vec::new(),
         })
-        .with_title("Available Profiles"));
+        .with_title("Available Profiles");
     }
 
     let store = ResolvedPaths::discover()
@@ -42,14 +40,14 @@ pub fn execute(_config: &CliConfig) -> Result<CommandResult<ProfileListOutput>> 
 
     let output = ProfileListOutput { profiles };
 
-    Ok(CommandResult::table(output)
+    CommandResult::table(output)
         .with_title("Available Profiles")
         .with_columns(vec![
             "name".to_string(),
             "routing".to_string(),
             "is_active".to_string(),
             "session_status".to_string(),
-        ]))
+        ])
 }
 
 struct DiscoveredProfile {

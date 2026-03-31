@@ -212,21 +212,16 @@ impl SchedulerService {
 
         debug!(job_name = %job_name, "Starting job");
 
-        repository
+        if let Err(e) = repository
             .update_job_execution(&job_name, JobStatus::Running, None, None)
             .await
-            .map_err(|e| {
-                error!(job_name = %job_name, error = %e, "Failed to set job status to running");
-            })
-            .ok();
+        {
+            error!(job_name = %job_name, error = %e, "Failed to set job status to running");
+        }
 
-        repository
-            .increment_run_count(&job_name)
-            .await
-            .map_err(|e| {
-                error!(job_name = %job_name, error = %e, "Failed to increment run count");
-            })
-            .ok();
+        if let Err(e) = repository.increment_run_count(&job_name).await {
+            error!(job_name = %job_name, error = %e, "Failed to increment run count");
+        }
 
         let result = Self::find_and_execute_job(&job_name, db_pool, app_context).await;
         Self::handle_job_result(&job_name, result, &repository).await;
@@ -286,13 +281,12 @@ impl SchedulerService {
         job_result: &systemprompt_traits::JobResult,
         repository: &SchedulerRepository,
     ) {
-        repository
+        if let Err(e) = repository
             .update_job_execution(job_name, JobStatus::Success, None, None)
             .await
-            .map_err(|e| {
-                error!(job_name = %job_name, error = %e, "Failed to update job execution status");
-            })
-            .ok();
+        {
+            error!(job_name = %job_name, error = %e, "Failed to update job execution status");
+        }
 
         debug!(
             job_name = %job_name,
@@ -306,12 +300,11 @@ impl SchedulerService {
         message: Option<&str>,
         repository: &SchedulerRepository,
     ) {
-        repository
+        if let Err(e) = repository
             .update_job_execution(job_name, JobStatus::Failed, message, None)
             .await
-            .map_err(
-                |e| error!(job_name = %job_name, error = %e, "Failed to update failed job status"),
-            )
-            .ok();
+        {
+            error!(job_name = %job_name, error = %e, "Failed to update failed job status");
+        }
     }
 }

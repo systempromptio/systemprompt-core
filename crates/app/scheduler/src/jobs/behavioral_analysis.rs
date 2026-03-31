@@ -157,7 +157,6 @@ async fn flag_fingerprint_if_needed(
     )
 }
 
-#[allow(clippy::cognitive_complexity)]
 fn log_flag_result(
     fingerprint: &str,
     reasons: &[FlagReason],
@@ -166,11 +165,20 @@ fn log_flag_result(
 ) -> bool {
     match result {
         Ok(()) => {
-            warn!(fingerprint = %fingerprint, reasons = ?reasons, new_score = new_score, "Flagged fingerprint");
+            warn!(
+                fingerprint = %fingerprint,
+                reasons = ?reasons,
+                new_score = new_score,
+                "Flagged fingerprint"
+            );
             true
         },
         Err(e) => {
-            warn!(fingerprint = %fingerprint, error = %e, "Failed to flag fingerprint");
+            warn!(
+                fingerprint = %fingerprint,
+                error = %e,
+                "Failed to flag fingerprint"
+            );
             false
         },
     }
@@ -198,7 +206,6 @@ async fn ban_ip_if_needed(fp: &FingerprintReputation, repo: &BannedIpRepository)
     log_ban_result(ip, &fp.fingerprint_hash, fp.abuse_incidents, &result)
 }
 
-#[allow(clippy::cognitive_complexity)]
 fn log_ban_result(
     ip: &str,
     fingerprint: &str,
@@ -207,11 +214,21 @@ fn log_ban_result(
 ) -> bool {
     match result {
         Ok(()) => {
-            warn!(ip = %ip, fingerprint = %fingerprint, abuse_incidents = abuse_incidents, "Banned IP for behavioral violations");
+            warn!(
+                ip = %ip,
+                fingerprint = %fingerprint,
+                abuse_incidents = abuse_incidents,
+                "Banned IP for behavioral violations"
+            );
             true
         },
         Err(e) => {
-            warn!(ip = %ip, fingerprint = %fingerprint, error = %e, "Failed to ban IP");
+            warn!(
+                ip = %ip,
+                fingerprint = %fingerprint,
+                error = %e,
+                "Failed to ban IP"
+            );
             false
         },
     }

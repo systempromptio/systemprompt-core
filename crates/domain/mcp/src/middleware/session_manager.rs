@@ -169,7 +169,9 @@ impl SessionManager for DatabaseSessionManager {
 
     async fn close_session(&self, id: &SessionId) -> Result<(), Self::Error> {
         tracing::info!(session_id = %id, "MCP session closing");
-        let _ = self.local_manager.close_session(id).await;
+        if let Err(e) = self.local_manager.close_session(id).await {
+            tracing::warn!(session_id = %id, error = %e, "Failed to close local session");
+        }
         self.persist_close(id).await;
         Ok(())
     }
@@ -256,7 +258,9 @@ impl SessionManager for DatabaseSessionManager {
                             error = %e2,
                             "Session worker is dead, cleaning up"
                         );
-                        let _ = self.local_manager.close_session(id).await;
+                        if let Err(e) = self.local_manager.close_session(id).await {
+                            tracing::warn!(session_id = %id, error = %e, "Failed to close local session during recovery");
+                        }
                         self.persist_close(id).await;
                         Err(DatabaseSessionManagerError::SessionNotFound(id.to_string()))
                     },

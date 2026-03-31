@@ -5,7 +5,8 @@ pub mod link;
 pub mod search;
 
 pub use builders::{
-    CreateContentParams, CreateLinkParams, RecordClickParams, TrackClickParams, UpdateContentParams,
+    CategoryIdUpdate, CreateContentParams, CreateLinkParams, RecordClickParams, TrackClickParams,
+    UpdateContentParams,
 };
 pub use content::{
     Content, ContentKind, ContentLinkMetadata, ContentMetadata, ContentSummary, IngestionOptions,

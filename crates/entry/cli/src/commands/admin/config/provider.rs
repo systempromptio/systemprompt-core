@@ -145,14 +145,11 @@ fn set_default_provider(provider: &str) -> Result<ProviderSetOutput> {
         .as_mapping()
         .is_some_and(|m| m.contains_key(serde_yaml::Value::String(provider.to_string())))
     {
-        let available: Vec<String> = providers
-            .as_mapping()
-            .map(|m| {
-                m.keys()
-                    .filter_map(|k| k.as_str().map(String::from))
-                    .collect()
-            })
-            .unwrap_or_default();
+        let available: Vec<String> = providers.as_mapping().map_or_else(Vec::new, |m| {
+            m.keys()
+                .filter_map(|k| k.as_str().map(String::from))
+                .collect()
+        });
         anyhow::bail!(
             "Unknown provider: '{}'. Available providers: {:?}",
             provider,

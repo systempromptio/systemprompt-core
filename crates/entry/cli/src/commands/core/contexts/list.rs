@@ -115,4 +115,3 @@ pub async fn execute_with_pool(
             "is_active".to_string(),
         ]))
 }
-

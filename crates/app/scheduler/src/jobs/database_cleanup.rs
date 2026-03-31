@@ -32,8 +32,7 @@ impl Job for DatabaseCleanupJob {
         debug!("Job started");
 
         let write_pool = db_pool.write_pool_arc()?;
-        let cleanup_repo =
-            CleanupRepository::new_with_write_pool((*write_pool).clone());
+        let cleanup_repo = CleanupRepository::new_with_write_pool((*write_pool).clone());
         let mut total_deleted = 0u64;
 
         let orphaned_logs = cleanup_repo.delete_orphaned_logs().await?;

@@ -3,7 +3,8 @@ use super::generation::{
     generate_tokens_by_user_id,
 };
 use super::validation::{
-    extract_required_field, validate_authorization_code, validate_client_credentials,
+    AuthCodeValidationParams, extract_required_field, validate_authorization_code,
+    validate_client_credentials,
 };
 use super::{TokenError, TokenRequest};
 use axum::Form;
@@ -85,14 +86,14 @@ async fn handle_authorization_code_grant(
             .await
             .map_err(|_| TokenError::InvalidClientSecret)?;
 
-        let validation_result = validate_authorization_code(
-            &repo,
-            &code,
-            &client_id,
-            request.redirect_uri.as_deref(),
-            request.code_verifier.as_deref(),
-            request.resource.as_deref(),
-        )
+        let validation_result = validate_authorization_code(AuthCodeValidationParams {
+            repo: &repo,
+            code: &code,
+            client_id: &client_id,
+            redirect_uri: request.redirect_uri.as_deref(),
+            code_verifier: request.code_verifier.as_deref(),
+            request_resource: request.resource.as_deref(),
+        })
         .await
         .map_err(|e: anyhow::Error| TokenError::InvalidGrant {
             reason: e.to_string(),

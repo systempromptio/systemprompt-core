@@ -18,7 +18,9 @@ pub fn is_startup_mode() -> bool {
 }
 
 pub fn set_log_publisher(publisher: Arc<dyn LogEventPublisher>) {
-    let _ = LOG_PUBLISHER.set(publisher);
+    if LOG_PUBLISHER.set(publisher).is_err() {
+        tracing::warn!("Log publisher already initialized, ignoring duplicate registration");
+    }
 }
 
 #[must_use]

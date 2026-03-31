@@ -103,7 +103,7 @@ pub async fn generate_with_google_search(
 fn build_search_tools(include_url_context: bool) -> Vec<GeminiTool> {
     let mut tools = vec![GeminiTool {
         function_declarations: None,
-        google_search: Some(GoogleSearch {}),
+        google_search: Some(GoogleSearch::default()),
         url_context: None,
         code_execution: None,
     }];
@@ -112,7 +112,7 @@ fn build_search_tools(include_url_context: bool) -> Vec<GeminiTool> {
         tools.push(GeminiTool {
             function_declarations: None,
             google_search: None,
-            url_context: Some(UrlContext {}),
+            url_context: Some(UrlContext::default()),
             code_execution: None,
         });
     }

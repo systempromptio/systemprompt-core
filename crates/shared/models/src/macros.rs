@@ -1,6 +1,7 @@
 /// Generates builder-style `with_*` methods for Option fields.
 ///
-/// Each method takes `self` by value and returns `Self`, setting the field to `Some(value)`.
+/// Each method takes `self` by value and returns `Self`, setting the field to
+/// `Some(value)`.
 ///
 /// # Usage
 /// ```rust

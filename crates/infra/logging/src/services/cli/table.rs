@@ -1,8 +1,17 @@
-#![allow(clippy::print_stdout)]
-
+use std::io::Write;
 use std::time::Duration;
 
 use crate::services::cli::theme::{BrandColors, ServiceStatus};
+
+fn stdout_write(args: std::fmt::Arguments<'_>) {
+    let mut out = std::io::stdout();
+    let _ = write!(out, "{args}");
+}
+
+fn stdout_writeln(args: std::fmt::Arguments<'_>) {
+    let mut out = std::io::stdout();
+    let _ = writeln!(out, "{args}");
+}
 
 #[derive(Debug, Clone)]
 pub struct ServiceTableEntry {
@@ -52,26 +61,26 @@ fn calculate_column_widths(headers: &[&str], rows: &[Vec<String>]) -> Vec<usize>
 }
 
 fn render_table_border(widths: &[usize], left: &str, middle: &str, right: &str) {
-    print!("{left}");
+    stdout_write(format_args!("{left}"));
     for (i, &width) in widths.iter().enumerate() {
-        print!("{}", "─".repeat(width + 2));
+        stdout_write(format_args!("{}", "\u{2500}".repeat(width + 2)));
         if i < widths.len() - 1 {
-            print!("{middle}");
+            stdout_write(format_args!("{middle}"));
         }
     }
-    println!("{right}");
+    stdout_writeln(format_args!("{right}"));
 }
 
 fn render_table_row(cells: &[&str], widths: &[usize]) {
-    print!("│");
+    stdout_write(format_args!("\u{2502}"));
     for (i, (&cell, &width)) in cells.iter().zip(widths.iter()).enumerate() {
         let truncated = truncate_to_width(cell, width);
-        print!(" {truncated:<width$} ");
+        stdout_write(format_args!(" {truncated:<width$} "));
         if i < widths.len() - 1 {
-            print!("│");
+            stdout_write(format_args!("\u{2502}"));
         }
     }
-    println!("│");
+    stdout_writeln(format_args!("\u{2502}"));
 }
 
 pub fn render_table(headers: &[&str], rows: &[Vec<String>]) {
@@ -81,16 +90,16 @@ pub fn render_table(headers: &[&str], rows: &[Vec<String>]) {
 
     let widths = calculate_column_widths(headers, rows);
 
-    render_table_border(&widths, "┌", "┬", "┐");
+    render_table_border(&widths, "\u{250c}", "\u{252c}", "\u{2510}");
     render_table_row(headers, &widths);
-    render_table_border(&widths, "├", "┼", "┤");
+    render_table_border(&widths, "\u{251c}", "\u{253c}", "\u{2524}");
 
     for row in rows {
         let cells: Vec<&str> = row.iter().map(String::as_str).collect();
         render_table_row(&cells, &widths);
     }
 
-    render_table_border(&widths, "└", "┴", "┘");
+    render_table_border(&widths, "\u{2514}", "\u{2534}", "\u{2518}");
 }
 
 pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
@@ -115,37 +124,41 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
 
     let total_width = name_width + type_width + port_width + status_width + 13;
 
-    println!();
-    println!("┌{}┐", "─".repeat(total_width));
-    println!(
-        "│ {:<width$} │",
+    stdout_writeln(format_args!(""));
+    stdout_writeln(format_args!(
+        "\u{250c}{}\u{2510}",
+        "\u{2500}".repeat(total_width)
+    ));
+    stdout_writeln(format_args!(
+        "\u{2502} {:<width$} \u{2502}",
         BrandColors::white_bold(title),
         width = total_width - 3
-    );
+    ));
 
-    println!(
-        "├{}┬{}┬{}┬{}┤",
-        "─".repeat(name_width + 2),
-        "─".repeat(type_width + 2),
-        "─".repeat(port_width + 2),
-        "─".repeat(status_width + 2)
-    );
+    stdout_writeln(format_args!(
+        "\u{251c}{}\u{252c}{}\u{252c}{}\u{252c}{}\u{2524}",
+        "\u{2500}".repeat(name_width + 2),
+        "\u{2500}".repeat(type_width + 2),
+        "\u{2500}".repeat(port_width + 2),
+        "\u{2500}".repeat(status_width + 2)
+    ));
 
-    println!(
-        "│ {:<name_width$} │ {:<type_width$} │ {:<port_width$} │ {:<status_width$} │",
+    stdout_writeln(format_args!(
+        "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:<port_width$} \u{2502} \
+         {:<status_width$} \u{2502}",
         BrandColors::dim("Name"),
         BrandColors::dim("Type"),
         BrandColors::dim("Port"),
         BrandColors::dim("Status"),
-    );
+    ));
 
-    println!(
-        "├{}┼{}┼{}┼{}┤",
-        "─".repeat(name_width + 2),
-        "─".repeat(type_width + 2),
-        "─".repeat(port_width + 2),
-        "─".repeat(status_width + 2)
-    );
+    stdout_writeln(format_args!(
+        "\u{251c}{}\u{253c}{}\u{253c}{}\u{253c}{}\u{2524}",
+        "\u{2500}".repeat(name_width + 2),
+        "\u{2500}".repeat(type_width + 2),
+        "\u{2500}".repeat(port_width + 2),
+        "\u{2500}".repeat(status_width + 2)
+    ));
 
     for service in services {
         let port_str = service
@@ -162,34 +175,35 @@ pub fn render_service_table(title: &str, services: &[ServiceTableEntry]) {
             ServiceStatus::Unknown => format!("{}", BrandColors::dim(&status_display)),
         };
 
-        println!(
-            "│ {:<name_width$} │ {:<type_width$} │ {:>port_width$} │ {:<status_width$} │",
+        stdout_writeln(format_args!(
+            "\u{2502} {:<name_width$} \u{2502} {:<type_width$} \u{2502} {:>port_width$} \u{2502} \
+             {:<status_width$} \u{2502}",
             service.name, service.service_type, port_str, colored_status,
-        );
+        ));
     }
 
-    println!(
-        "└{}┴{}┴{}┴{}┘",
-        "─".repeat(name_width + 2),
-        "─".repeat(type_width + 2),
-        "─".repeat(port_width + 2),
-        "─".repeat(status_width + 2)
-    );
+    stdout_writeln(format_args!(
+        "\u{2514}{}\u{2534}{}\u{2534}{}\u{2534}{}\u{2518}",
+        "\u{2500}".repeat(name_width + 2),
+        "\u{2500}".repeat(type_width + 2),
+        "\u{2500}".repeat(port_width + 2),
+        "\u{2500}".repeat(status_width + 2)
+    ));
 }
 
 pub fn render_startup_complete(duration: Duration, api_url: &str) {
     let secs = duration.as_secs_f64();
-    println!();
-    println!(
+    stdout_writeln(format_args!(""));
+    stdout_writeln(format_args!(
         "{} {} {}",
-        BrandColors::running("✓"),
+        BrandColors::running("\u{2713}"),
         BrandColors::white_bold("All services started successfully"),
         BrandColors::dim(format!("({:.1}s)", secs))
-    );
-    println!(
+    ));
+    stdout_writeln(format_args!(
         "  {} {}",
         BrandColors::dim("API:"),
         BrandColors::highlight(api_url)
-    );
-    println!();
+    ));
+    stdout_writeln(format_args!(""));
 }

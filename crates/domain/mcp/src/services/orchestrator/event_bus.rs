@@ -25,7 +25,9 @@ impl EventBus {
     }
 
     pub async fn publish(&self, event: McpEvent) -> Result<()> {
-        let _ = self.sender.send(event.clone());
+        if let Err(e) = self.sender.send(event.clone()) {
+            tracing::debug!(error = %e, "No broadcast subscribers for event");
+        }
 
         for handler in &self.handlers {
             if handler.handles(&event) {

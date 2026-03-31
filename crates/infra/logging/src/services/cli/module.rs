@@ -1,9 +1,15 @@
-#![allow(clippy::print_stdout)]
+use std::io::Write;
 
 use crate::services::cli::display::{CollectionDisplay, Display, DisplayUtils, ModuleItemDisplay};
 use crate::services::cli::prompts::Prompts;
 use crate::services::cli::theme::{ItemStatus, MessageLevel, ModuleType, Theme};
 use anyhow::Result;
+
+fn stdout_writeln(args: std::fmt::Arguments<'_>) {
+    let mut out = std::io::stdout();
+    let _ = writeln!(out, "{args}");
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct ModuleDisplay;
 
@@ -62,7 +68,7 @@ impl ModuleDisplay {
         }
 
         Self::missing_schemas(module_name, schemas);
-        println!();
+        stdout_writeln(format_args!(""));
         Prompts::confirm_schemas()
     }
 
@@ -72,7 +78,7 @@ impl ModuleDisplay {
         }
 
         Self::missing_seeds(module_name, seeds);
-        println!();
+        stdout_writeln(format_args!(""));
         Prompts::confirm_seeds()
     }
 }
@@ -114,21 +120,21 @@ impl ModuleUpdate {
 
 impl Display for ModuleUpdate {
     fn display(&self) {
-        println!(
+        stdout_writeln(format_args!(
             "   {} {} {}",
             Theme::icon(crate::services::cli::theme::ActionType::Update),
             Theme::color(&self.name, crate::services::cli::theme::EmphasisType::Bold),
             Theme::color(
-                &format!("{} → {}", self.old_version, self.new_version),
+                &format!("{} \u{2192} {}", self.old_version, self.new_version),
                 crate::services::cli::theme::EmphasisType::Dim
             )
-        );
+        ));
 
         for change in &self.changes {
-            println!(
-                "     • {}",
+            stdout_writeln(format_args!(
+                "     \u{2022} {}",
                 Theme::color(change, crate::services::cli::theme::EmphasisType::Dim)
-            );
+            ));
         }
     }
 }
@@ -163,12 +169,12 @@ impl Display for ModuleInstall {
             |desc| format!("v{} - {}", self.version, desc),
         );
 
-        println!(
+        stdout_writeln(format_args!(
             "   {} {} {}",
             Theme::icon(crate::services::cli::theme::ActionType::Install),
             Theme::color(&self.name, crate::services::cli::theme::EmphasisType::Bold),
             Theme::color(&detail, crate::services::cli::theme::EmphasisType::Dim)
-        );
+        ));
     }
 }
 

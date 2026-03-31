@@ -37,27 +37,26 @@ macro_rules! impl_str_enum {
 }
 
 #[derive(Debug, Clone)]
-#[allow(clippy::enum_variant_names)]
 pub enum OAuthParseError {
-    InvalidGrantType(String),
-    InvalidPkceMethod(String),
-    InvalidResponseType(String),
-    InvalidResponseMode(String),
-    InvalidDisplayMode(String),
-    InvalidPrompt(String),
-    InvalidTokenAuthMethod(String),
+    GrantType(String),
+    PkceMethod(String),
+    ResponseType(String),
+    ResponseMode(String),
+    DisplayMode(String),
+    Prompt(String),
+    TokenAuthMethod(String),
 }
 
 impl fmt::Display for OAuthParseError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::InvalidGrantType(s) => write!(f, "unknown grant type: '{}'", s),
-            Self::InvalidPkceMethod(s) => write!(f, "unknown PKCE method: '{}'", s),
-            Self::InvalidResponseType(s) => write!(f, "unknown response type: '{}'", s),
-            Self::InvalidResponseMode(s) => write!(f, "unknown response mode: '{}'", s),
-            Self::InvalidDisplayMode(s) => write!(f, "unknown display mode: '{}'", s),
-            Self::InvalidPrompt(s) => write!(f, "unknown prompt type: '{}'", s),
-            Self::InvalidTokenAuthMethod(s) => write!(f, "unknown token auth method: '{}'", s),
+            Self::GrantType(s) => write!(f, "unknown grant type: '{s}'"),
+            Self::PkceMethod(s) => write!(f, "unknown PKCE method: '{s}'"),
+            Self::ResponseType(s) => write!(f, "unknown response type: '{s}'"),
+            Self::ResponseMode(s) => write!(f, "unknown response mode: '{s}'"),
+            Self::DisplayMode(s) => write!(f, "unknown display mode: '{s}'"),
+            Self::Prompt(s) => write!(f, "unknown prompt type: '{s}'"),
+            Self::TokenAuthMethod(s) => write!(f, "unknown token auth method: '{s}'"),
         }
     }
 }
@@ -71,7 +70,7 @@ pub enum GrantType {
     ClientCredentials,
 }
 
-impl_str_enum!(GrantType, InvalidGrantType, {
+impl_str_enum!(GrantType, GrantType, {
     AuthorizationCode => "authorization_code",
     RefreshToken => "refresh_token",
     ClientCredentials => "client_credentials",
@@ -89,7 +88,7 @@ pub enum PkceMethod {
     Plain,
 }
 
-impl_str_enum!(PkceMethod, InvalidPkceMethod, {
+impl_str_enum!(PkceMethod, PkceMethod, {
     S256 => "S256",
     Plain => "plain",
 });
@@ -99,7 +98,7 @@ pub enum ResponseType {
     Code,
 }
 
-impl_str_enum!(ResponseType, InvalidResponseType, {
+impl_str_enum!(ResponseType, ResponseType, {
     Code => "code",
 });
 
@@ -109,7 +108,7 @@ pub enum ResponseMode {
     Fragment,
 }
 
-impl_str_enum!(ResponseMode, InvalidResponseMode, {
+impl_str_enum!(ResponseMode, ResponseMode, {
     Query => "query",
     Fragment => "fragment",
 });
@@ -122,7 +121,7 @@ pub enum DisplayMode {
     Wap,
 }
 
-impl_str_enum!(DisplayMode, InvalidDisplayMode, {
+impl_str_enum!(DisplayMode, DisplayMode, {
     Page => "page",
     Popup => "popup",
     Touch => "touch",
@@ -137,7 +136,7 @@ pub enum Prompt {
     SelectAccount,
 }
 
-impl_str_enum!(Prompt, InvalidPrompt, {
+impl_str_enum!(Prompt, Prompt, {
     None => "none",
     Login => "login",
     Consent => "consent",
@@ -151,7 +150,7 @@ pub enum TokenAuthMethod {
     None,
 }
 
-impl_str_enum!(TokenAuthMethod, InvalidTokenAuthMethod, {
+impl_str_enum!(TokenAuthMethod, TokenAuthMethod, {
     ClientSecretPost => "client_secret_post",
     ClientSecretBasic => "client_secret_basic",
     None => "none",

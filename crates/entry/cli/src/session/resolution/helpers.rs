@@ -86,12 +86,14 @@ pub(super) async fn create_new_session(
         .clone();
 
     crate::session::creation::create_session_for_tenant(
-        &creds,
-        profile,
-        profile_ctx,
-        session_key,
-        config,
-        session_email_hint,
+        crate::session::creation::TenantSessionParams {
+            creds: &creds,
+            profile,
+            profile_ctx,
+            session_key,
+            config,
+            session_email_hint,
+        },
     )
     .await
 }

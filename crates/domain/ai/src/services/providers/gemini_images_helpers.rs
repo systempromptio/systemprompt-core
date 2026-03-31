@@ -72,7 +72,7 @@ pub fn build_image_request(
     let tools = if request.enable_search_grounding {
         Some(vec![GeminiTool {
             function_declarations: None,
-            google_search: Some(GoogleSearch {}),
+            google_search: Some(GoogleSearch::default()),
             url_context: None,
             code_execution: None,
         }])

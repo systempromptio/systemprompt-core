@@ -248,8 +248,12 @@ async fn enforce_clean_agent_state(
                         );
                     }
                 }
-                process::terminate_gracefully(pid, 5).await.ok();
-                orchestrator.delete_agent(agent_id).await.ok();
+                if let Err(e) = process::terminate_gracefully(pid, 5).await {
+                    tracing::warn!(error = %e, agent_id = %agent_id, "Failed to terminate agent process gracefully");
+                }
+                if let Err(e) = orchestrator.delete_agent(agent_id).await {
+                    tracing::warn!(error = %e, agent_id = %agent_id, "Failed to delete agent during cleanup");
+                }
             },
             AgentStatus::Failed { .. } => {
                 if let Some(tx) = events {

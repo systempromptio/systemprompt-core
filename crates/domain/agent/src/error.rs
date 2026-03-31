@@ -55,7 +55,7 @@ pub enum TaskError {
     MissingCreatedTimestamp,
 
     #[error("Database error: {0}")]
-    Database(#[from] anyhow::Error),
+    Database(String),
 }
 
 #[derive(Debug, Error)]
@@ -76,7 +76,7 @@ pub enum ContextError {
     RoleSerialization(#[from] serde_json::Error),
 
     #[error("Database error: {0}")]
-    Database(#[from] anyhow::Error),
+    Database(String),
 }
 
 #[derive(Debug, Error)]
@@ -105,7 +105,7 @@ pub enum ArtifactError {
     InvalidMetadata(#[from] serde_json::Error),
 
     #[error("Database error: {0}")]
-    Database(#[from] anyhow::Error),
+    Database(String),
 
     #[error("Transform error: {0}")]
     Transform(String),
@@ -138,7 +138,7 @@ pub enum ProtocolError {
     JsonParse(#[from] serde_json::Error),
 
     #[error("Database error: {0}")]
-    Database(#[from] anyhow::Error),
+    Database(String),
 }
 
 #[derive(Debug, Error)]
@@ -156,7 +156,7 @@ pub enum AgentError {
     Protocol(#[from] ProtocolError),
 
     #[error("Repository error: {0}")]
-    Repository(#[from] anyhow::Error),
+    Repository(String),
 
     #[error("Database error: {0}")]
     Database(String),

@@ -140,7 +140,7 @@ impl ProcessCleanup {
                 let stdout = String::from_utf8_lossy(&o.stdout);
                 !stdout.contains("INFO: No tasks") && !stdout.trim().is_empty()
             })
-            .unwrap_or(false)
+            .is_ok_and(|exists| exists)
     }
 
     #[cfg(unix)]
@@ -186,13 +186,19 @@ impl ProcessCleanup {
             }
         }
 
-        let pid = Self::check_port(port).unwrap_or(0);
-        bail!(
-            "Port {} still occupied by PID {} after {} attempts",
-            port,
-            pid,
-            max_retries
-        )
+        match Self::check_port(port) {
+            Some(pid) => bail!(
+                "Port {} still occupied by PID {} after {} attempts",
+                port,
+                pid,
+                max_retries
+            ),
+            None => bail!(
+                "Port {} still occupied by unknown process after {} attempts",
+                port,
+                max_retries
+            ),
+        }
     }
 
     #[cfg(unix)]

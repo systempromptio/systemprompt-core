@@ -1,5 +1,3 @@
-#![allow(clippy::redundant_closure_for_method_calls)]
-
 use std::path::{Path, PathBuf};
 
 use super::{CloudPath, CloudPaths, DiscoveredProject};
@@ -97,7 +95,7 @@ impl UnifiedContext {
 
     #[must_use]
     pub fn profiles_dir(&self) -> Option<PathBuf> {
-        self.project.as_ref().map(|p| p.profiles_dir())
+        self.project.as_ref().map(DiscoveredProject::profiles_dir)
     }
 
     #[must_use]
@@ -107,12 +105,12 @@ impl UnifiedContext {
 
     #[must_use]
     pub fn docker_dir(&self) -> Option<PathBuf> {
-        self.project.as_ref().map(|p| p.docker_dir())
+        self.project.as_ref().map(DiscoveredProject::docker_dir)
     }
 
     #[must_use]
     pub fn storage_dir(&self) -> Option<PathBuf> {
-        self.project.as_ref().map(|p| p.storage_dir())
+        self.project.as_ref().map(DiscoveredProject::storage_dir)
     }
 
     #[must_use]
@@ -132,10 +130,7 @@ impl UnifiedContext {
 
     #[must_use]
     pub fn has_profile(&self, name: &str) -> bool {
-        self.project
-            .as_ref()
-            .map(|p| p.has_profile(name))
-            .unwrap_or(false)
+        self.project.as_ref().is_some_and(|p| p.has_profile(name))
     }
 
     #[must_use]

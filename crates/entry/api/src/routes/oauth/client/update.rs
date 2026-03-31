@@ -14,7 +14,6 @@ pub async fn update_client(
     Path(client_id): Path<String>,
     Json(request): Json<UpdateOAuthClientRequest>,
 ) -> impl IntoResponse {
-
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(prev_client)) => {
             match repository
@@ -46,7 +45,7 @@ pub async fn update_client(
                         updated_by = %req_ctx.auth.user_id,
                         "OAuth client update failed"
                     );
-                    bad_request(format!("Failed to update client: {e}"))
+                    bad_request(&format!("Failed to update client: {e}"))
                 },
             }
         },
@@ -57,7 +56,7 @@ pub async fn update_client(
                 updated_by = %req_ctx.auth.user_id,
                 "OAuth client update failed"
             );
-            not_found(format!("Client with ID '{client_id}' not found"))
+            not_found(&format!("Client with ID '{client_id}' not found"))
         },
         Err(e) => {
             tracing::error!(
@@ -66,7 +65,7 @@ pub async fn update_client(
                 updated_by = %req_ctx.auth.user_id,
                 "OAuth client update failed"
             );
-            internal_error(format!("Failed to get client: {e}"))
+            internal_error(&format!("Failed to get client: {e}"))
         },
     }
 }

@@ -5,9 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
-use systemprompt_models::text::truncate_with_ellipsis;
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
+use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ShowArgs {
@@ -160,7 +160,10 @@ fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
         return;
     }
 
-    CliService::section(&format!("Logs for Trace: {}", truncate_with_ellipsis(&trace_id, 12)));
+    CliService::section(&format!(
+        "Logs for Trace: {}",
+        truncate_with_ellipsis(&trace_id, 12)
+    ));
     CliService::info(&format!("Found {} log entries", logs.len()));
     CliService::info("");
 

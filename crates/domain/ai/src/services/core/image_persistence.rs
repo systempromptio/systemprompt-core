@@ -66,7 +66,7 @@ async fn persist_ai_request(
         .insert(&record)
         .await
         .map(|_| ())
-        .map_err(|e| AiError::DatabaseError(e.into()))
+        .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
 async fn persist_file_record(
@@ -110,7 +110,7 @@ async fn persist_file_record(
     file_provider
         .insert_file(params)
         .await
-        .map_err(|e| AiError::DatabaseError(anyhow::anyhow!("{}", e)))
+        .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
 pub async fn get_generated_image(
@@ -120,7 +120,7 @@ pub async fn get_generated_image(
     file_provider
         .find_by_id(&FileId::new(uuid))
         .await
-        .map_err(|e| AiError::DatabaseError(anyhow::anyhow!("{}", e)))
+        .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
 pub async fn list_user_images(
@@ -134,7 +134,7 @@ pub async fn list_user_images(
     file_provider
         .list_by_user(user_id, limit, offset)
         .await
-        .map_err(|e| AiError::DatabaseError(anyhow::anyhow!("{}", e)))
+        .map_err(|e| AiError::DatabaseError(e.to_string()))
 }
 
 pub async fn delete_image(
@@ -146,7 +146,7 @@ pub async fn delete_image(
     let file = file_provider
         .find_by_id(&file_id)
         .await
-        .map_err(|e| AiError::DatabaseError(anyhow::anyhow!("{}", e)))?;
+        .map_err(|e| AiError::DatabaseError(e.to_string()))?;
 
     if let Some(file_record) = file {
         let file_path = std::path::Path::new(&file_record.path);
@@ -154,7 +154,7 @@ pub async fn delete_image(
         file_provider
             .delete(&file_id)
             .await
-            .map_err(|e| AiError::DatabaseError(anyhow::anyhow!("{}", e)))?;
+            .map_err(|e| AiError::DatabaseError(e.to_string()))?;
     }
 
     Ok(())

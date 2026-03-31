@@ -1,3 +1,4 @@
+use crate::models::builders::content::CategoryIdUpdate;
 use crate::models::{Content, ContentKind, CreateContentParams, UpdateContentParams};
 use chrono::Utc;
 use sqlx::PgPool;
@@ -6,7 +7,6 @@ use systemprompt_identifiers::{CategoryId, ContentId, SourceId};
 
 use super::queries;
 
-#[allow(clippy::cognitive_complexity)]
 pub async fn create(
     pool: &Arc<PgPool>,
     params: &CreateContentParams,
@@ -75,9 +75,9 @@ pub async fn update(
     let current_ref = current.as_ref();
 
     let category_id_value: Option<String> = match &params.category_id {
-        Some(Some(cat)) => Some(cat.as_str().to_string()),
-        Some(None) => None,
-        None => {
+        CategoryIdUpdate::Set(cat) => Some(cat.as_str().to_string()),
+        CategoryIdUpdate::Clear => None,
+        CategoryIdUpdate::Unchanged => {
             current_ref.and_then(|c| c.category_id.as_ref().map(|cat| cat.as_str().to_string()))
         },
     };

@@ -133,7 +133,6 @@ pub async fn migrate_user_sessions(
     Ok(result.rows_affected())
 }
 
-#[allow(clippy::cognitive_complexity)]
 pub async fn create_session(pool: &PgPool, params: &CreateSessionParams<'_>) -> Result<()> {
     let session_id = params.session_id.as_str();
     let user_id = params.user_id.map(UserId::as_str);

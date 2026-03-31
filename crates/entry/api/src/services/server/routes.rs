@@ -259,8 +259,8 @@ pub fn configure_routes(
     };
 
     router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
-    router = router
-        .merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
+    router =
+        router.merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
 
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 

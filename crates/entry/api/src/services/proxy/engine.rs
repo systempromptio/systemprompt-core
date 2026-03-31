@@ -107,7 +107,7 @@ impl ProxyEngine {
                         )
                         .with_auth_token(identity.auth_token.clone())
                         .with_user(AuthenticatedUser::new(
-                            identity.user_id.parse().unwrap_or_default(),
+                            identity.user_id.parse().unwrap_or(uuid::Uuid::nil()),
                             String::new(),
                             String::new(),
                             identity.permissions.clone(),

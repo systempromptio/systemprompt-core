@@ -1,4 +1,4 @@
-#![allow(clippy::print_stdout)]
+use std::io::Write;
 
 use anyhow::Result;
 use dialoguer::Confirm;
@@ -80,7 +80,10 @@ impl Prompts {
             for item in context_items {
                 item.display();
             }
-            println!();
+            {
+                let mut stdout = std::io::stdout();
+                let _ = writeln!(stdout);
+            }
         }
 
         Self::confirm(question, default)
@@ -146,7 +149,10 @@ impl PromptBuilder {
         }
 
         if !self.show_context.is_empty() {
-            println!();
+            {
+                let mut stdout = std::io::stdout();
+                let _ = writeln!(stdout);
+            }
         }
 
         Prompts::confirm(&self.message, self.default)

@@ -54,10 +54,9 @@ pub(super) fn get_process_memory() -> Option<serde_json::Value> {
     None
 }
 
-#[allow(clippy::cast_precision_loss)]
 fn human_bytes(bytes: i64) -> String {
     const UNITS: &[&str] = &["B", "KB", "MB", "GB", "TB"];
-    let mut size = bytes as f64;
+    let mut size: f64 = bytes as f64;
     let mut idx = 0;
     while size >= 1024.0 && idx < UNITS.len() - 1 {
         size /= 1024.0;
@@ -85,14 +84,12 @@ fn get_disk_usage() -> Option<serde_json::Value> {
     let free = stat.f_bfree.saturating_mul(block_size);
     let used = total.saturating_sub(free);
 
-    #[allow(clippy::cast_precision_loss)]
     let usage_pct = if total > 0 {
         (used as f64 / total as f64) * 100.0
     } else {
         0.0
     };
 
-    #[allow(clippy::cast_possible_wrap)]
     Some(json!({
         "total": human_bytes(total as i64),
         "used": human_bytes(used as i64),

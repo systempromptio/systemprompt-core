@@ -102,10 +102,8 @@ pub async fn log_time_range(
 }
 
 pub async fn total_log_count(pool: &Arc<PgPool>) -> Result<i64> {
-    sqlx::query_scalar!(
-        r#"SELECT COUNT(*) as "count!" FROM logs"#
-    )
-    .fetch_one(&**pool)
-    .await
-    .context("Failed to count total logs")
+    sqlx::query_scalar!(r#"SELECT COUNT(*) as "count!" FROM logs"#)
+        .fetch_one(&**pool)
+        .await
+        .context("Failed to count total logs")
 }

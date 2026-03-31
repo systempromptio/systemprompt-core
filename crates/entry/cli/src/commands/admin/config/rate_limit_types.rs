@@ -36,20 +36,15 @@ pub struct TierEffectiveLimitsOutput {
     pub effective_limits: EffectiveLimitsOutput,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
-#[allow(clippy::struct_field_names)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct EffectiveLimitsOutput {
-    pub oauth_public_per_second: u64,
-    pub oauth_auth_per_second: u64,
-    pub contexts_per_second: u64,
-    pub tasks_per_second: u64,
-    pub artifacts_per_second: u64,
-    pub agent_registry_per_second: u64,
-    pub agents_per_second: u64,
-    pub mcp_registry_per_second: u64,
-    pub mcp_per_second: u64,
-    pub stream_per_second: u64,
-    pub content_per_second: u64,
+    pub limits: Vec<EndpointRateLimit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+pub struct EndpointRateLimit {
+    pub endpoint: String,
+    pub per_second: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

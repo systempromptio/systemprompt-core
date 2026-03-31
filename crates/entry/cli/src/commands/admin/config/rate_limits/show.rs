@@ -9,8 +9,8 @@ use crate::cli_settings::OutputFormat;
 use crate::shared::{CommandResult, render_result};
 
 use super::super::types::{
-    BaseRateRow, EffectiveLimitRow, EffectiveLimitsOutput, RateLimitsDocsOutput, RateLimitsOutput,
-    TierEffectiveLimitsOutput, TierMultiplierRow, TierMultipliersOutput,
+    BaseRateRow, EffectiveLimitRow, EffectiveLimitsOutput, EndpointRateLimit, RateLimitsDocsOutput,
+    RateLimitsOutput, TierEffectiveLimitsOutput, TierMultiplierRow, TierMultipliersOutput,
 };
 
 pub fn execute_show(config: &CliConfig) -> Result<()> {
@@ -60,20 +60,52 @@ pub fn execute_tier(args: TierArgs, config: &CliConfig) -> Result<()> {
         tier: args.tier,
         multiplier,
         effective_limits: EffectiveLimitsOutput {
-            oauth_public_per_second: apply_multiplier(limits.oauth_public_per_second, multiplier),
-            oauth_auth_per_second: apply_multiplier(limits.oauth_auth_per_second, multiplier),
-            contexts_per_second: apply_multiplier(limits.contexts_per_second, multiplier),
-            tasks_per_second: apply_multiplier(limits.tasks_per_second, multiplier),
-            artifacts_per_second: apply_multiplier(limits.artifacts_per_second, multiplier),
-            agent_registry_per_second: apply_multiplier(
-                limits.agent_registry_per_second,
-                multiplier,
-            ),
-            agents_per_second: apply_multiplier(limits.agents_per_second, multiplier),
-            mcp_registry_per_second: apply_multiplier(limits.mcp_registry_per_second, multiplier),
-            mcp_per_second: apply_multiplier(limits.mcp_per_second, multiplier),
-            stream_per_second: apply_multiplier(limits.stream_per_second, multiplier),
-            content_per_second: apply_multiplier(limits.content_per_second, multiplier),
+            limits: vec![
+                EndpointRateLimit {
+                    endpoint: "oauth_public".to_string(),
+                    per_second: apply_multiplier(limits.oauth_public_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "oauth_auth".to_string(),
+                    per_second: apply_multiplier(limits.oauth_auth_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "contexts".to_string(),
+                    per_second: apply_multiplier(limits.contexts_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "tasks".to_string(),
+                    per_second: apply_multiplier(limits.tasks_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "artifacts".to_string(),
+                    per_second: apply_multiplier(limits.artifacts_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "agent_registry".to_string(),
+                    per_second: apply_multiplier(limits.agent_registry_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "agents".to_string(),
+                    per_second: apply_multiplier(limits.agents_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "mcp_registry".to_string(),
+                    per_second: apply_multiplier(limits.mcp_registry_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "mcp".to_string(),
+                    per_second: apply_multiplier(limits.mcp_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "stream".to_string(),
+                    per_second: apply_multiplier(limits.stream_per_second, multiplier),
+                },
+                EndpointRateLimit {
+                    endpoint: "content".to_string(),
+                    per_second: apply_multiplier(limits.content_per_second, multiplier),
+                },
+            ],
         },
     };
 

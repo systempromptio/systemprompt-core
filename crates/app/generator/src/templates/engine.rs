@@ -57,4 +57,3 @@ pub fn get_templates_path(config: &FullWebConfig) -> PathBuf {
         |p| p.web().root().join("templates"),
     )
 }
-

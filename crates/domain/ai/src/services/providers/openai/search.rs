@@ -144,7 +144,7 @@ fn extract_search_response(
         confidence_scores: Vec::new(),
         web_search_queries: Vec::new(),
         url_context_metadata: None,
-        tokens_used: response.usage.as_ref().map(|u| u.total_tokens),
+        tokens_used: response.usage.as_ref().map(|u| u.total),
         latency_ms,
         finish_reason: Some("stop".to_string()),
         safety_ratings: None,

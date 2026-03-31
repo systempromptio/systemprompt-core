@@ -11,7 +11,6 @@ use super::message::extract_text_from_parts;
 use super::types::MessageOutput;
 use crate::shared::CommandResult;
 
-#[allow(clippy::print_stdout)]
 pub async fn execute_streaming(
     agent: &str,
     agent_url: &str,
@@ -58,7 +57,11 @@ pub async fn execute_streaming(
                             if let Some(ref msg) = event.status.message {
                                 let text = extract_text_from_parts(&msg.parts);
                                 if !text.is_empty() {
-                                    print!("{}", text);
+                                    let _ = std::io::Write::write_all(
+                                        &mut std::io::stdout(),
+                                        text.as_bytes(),
+                                    );
+                                    let _ = std::io::Write::flush(&mut std::io::stdout());
                                     accumulated_text.push_str(&text);
                                 }
                             }

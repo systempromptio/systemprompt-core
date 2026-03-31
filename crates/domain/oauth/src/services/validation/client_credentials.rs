@@ -44,5 +44,7 @@ pub async fn validate_client_credentials(
 }
 
 fn perform_timing_safe_dummy_verification() {
-    let _ = verify_client_secret("dummy_secret", TIMING_SAFE_DUMMY_HASH);
+    if let Err(e) = verify_client_secret("dummy_secret", TIMING_SAFE_DUMMY_HASH) {
+        tracing::debug!(error = %e, "Timing-safe dummy verification encountered error");
+    }
 }

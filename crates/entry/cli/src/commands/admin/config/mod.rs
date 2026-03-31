@@ -56,7 +56,7 @@ pub fn execute(command: ConfigCommands, config: &CliConfig) -> Result<()> {
             Ok(())
         },
         ConfigCommands::List(args) => {
-            let result = list::execute(args, config)?;
+            let result = list::execute(args, config);
             render_result(&result);
             Ok(())
         },

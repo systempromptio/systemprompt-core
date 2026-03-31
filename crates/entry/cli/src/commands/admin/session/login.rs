@@ -156,16 +156,16 @@ pub async fn login_for_profile(
         })
         .context("Failed to generate session token")?;
 
-    save_session_to_store(
-        &sessions_dir,
-        &session_key,
+    save_session_to_store(SessionStoreParams {
+        sessions_dir: &sessions_dir,
+        session_key: &session_key,
         profile_path,
-        session_token.clone(),
-        session_id.clone(),
+        session_token: session_token.clone(),
+        session_id: session_id.clone(),
         context_id,
-        admin_user.id.clone(),
-        &admin_user.email,
-    )?;
+        user_id: admin_user.id.clone(),
+        user_email: &admin_user.email,
+    })?;
 
     let output = LoginOutput {
         status: "created".to_string(),
@@ -323,17 +323,28 @@ async fn create_session(api_url: &str, user_id: &str, email: &str) -> Result<Ses
     Ok(SessionId::new(session_response.session_id))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn save_session_to_store(
-    sessions_dir: &Path,
-    session_key: &SessionKey,
-    profile_path: &str,
+struct SessionStoreParams<'a> {
+    sessions_dir: &'a Path,
+    session_key: &'a SessionKey,
+    profile_path: &'a str,
     session_token: systemprompt_identifiers::SessionToken,
     session_id: SessionId,
     context_id: ContextId,
     user_id: systemprompt_identifiers::UserId,
-    user_email: &str,
-) -> Result<()> {
+    user_email: &'a str,
+}
+
+fn save_session_to_store(params: SessionStoreParams<'_>) -> Result<()> {
+    let SessionStoreParams {
+        sessions_dir,
+        session_key,
+        profile_path,
+        session_token,
+        session_id,
+        context_id,
+        user_id,
+        user_email,
+    } = params;
     let mut store = SessionStore::load_or_create(sessions_dir)?;
 
     let profile_dir = Path::new(profile_path).parent();

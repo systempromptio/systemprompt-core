@@ -26,13 +26,19 @@ pub fn print_json(
                 obj.insert("user_id".to_string(), Value::String(user_id.to_string()));
             }
             if let Some(ref session_id) = e.session_id {
-                obj.insert("session_id".to_string(), Value::String(session_id.to_string()));
+                obj.insert(
+                    "session_id".to_string(),
+                    Value::String(session_id.to_string()),
+                );
             }
             if let Some(ref task_id) = e.task_id {
                 obj.insert("task_id".to_string(), Value::String(task_id.to_string()));
             }
             if let Some(ref context_id) = e.context_id {
-                obj.insert("context_id".to_string(), Value::String(context_id.to_string()));
+                obj.insert(
+                    "context_id".to_string(),
+                    Value::String(context_id.to_string()),
+                );
             }
             if let Some(ref metadata) = e.metadata {
                 if let Ok(parsed) = serde_json::from_str::<Value>(metadata) {

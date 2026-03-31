@@ -1,6 +1,5 @@
 use http::{HeaderMap, Uri};
 use std::collections::HashMap;
-use tracing::debug;
 
 #[cfg(feature = "web")]
 use axum::extract::Request;
@@ -174,26 +173,26 @@ impl SessionAnalytics {
         geoip_reader: Option<&GeoIpReader>,
     ) -> Option<(Option<String>, Option<String>, Option<String>)> {
         let Some(reader) = geoip_reader else {
-            debug!(ip = %ip_str, "GeoIP lookup skipped: reader not configured");
+            tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: reader not configured");
             return None;
         };
 
         let ip: std::net::IpAddr = match ip_str.parse() {
             Ok(ip) => ip,
             Err(e) => {
-                debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: invalid IP address");
+                tracing::debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: invalid IP address");
                 return None;
             },
         };
 
         if ip.is_loopback() || ip.is_unspecified() {
-            debug!(ip = %ip_str, "GeoIP lookup skipped: loopback or unspecified address");
+            tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: loopback or unspecified address");
             return None;
         }
 
         if let std::net::IpAddr::V4(ipv4) = ip {
             if ipv4.is_private() || ipv4.is_link_local() {
-                debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
+                tracing::debug!(ip = %ip_str, "GeoIP lookup skipped: private or link-local address");
                 return None;
             }
         }
@@ -201,7 +200,7 @@ impl SessionAnalytics {
         let lookup_result = match reader.lookup(ip) {
             Ok(result) => result,
             Err(e) => {
-                debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: database lookup error");
+                tracing::debug!(ip = %ip_str, error = %e, "GeoIP lookup failed: database lookup error");
                 return None;
             },
         };
@@ -209,11 +208,11 @@ impl SessionAnalytics {
         let city_data: maxminddb::geoip2::City = match lookup_result.decode() {
             Ok(Some(data)) => data,
             Ok(None) => {
-                debug!(ip = %ip_str, "GeoIP lookup returned empty result");
+                tracing::debug!(ip = %ip_str, "GeoIP lookup returned empty result");
                 return None;
             },
             Err(e) => {
-                debug!(ip = %ip_str, error = %e, "GeoIP decode failed");
+                tracing::debug!(ip = %ip_str, error = %e, "GeoIP decode failed");
                 return None;
             },
         };

@@ -1,85 +1,106 @@
 use serde_json::Value;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[allow(clippy::struct_excessive_bools)]
+pub struct SchemaComposition {
+    pub allof: bool,
+    pub anyof: bool,
+    pub oneof: bool,
+    pub if_then_else: bool,
+    pub not: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SchemaFeatures {
+    pub references: bool,
+    pub definitions: bool,
+    pub additional_properties: bool,
+    pub const_values: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct ProviderCapabilities {
-    pub supports_allof: bool,
-    pub supports_anyof: bool,
-    pub supports_oneof: bool,
-    pub supports_if_then_else: bool,
-    pub supports_ref: bool,
-    pub supports_definitions: bool,
-    pub supports_not: bool,
-    pub supports_additional_properties: bool,
-    pub supports_const: bool,
+    pub composition: SchemaComposition,
+    pub features: SchemaFeatures,
 }
 
 impl ProviderCapabilities {
     pub const fn anthropic() -> Self {
         Self {
-            supports_allof: true,
-            supports_anyof: true,
-            supports_oneof: true,
-            supports_if_then_else: true,
-            supports_ref: true,
-            supports_definitions: true,
-            supports_not: true,
-            supports_additional_properties: true,
-            supports_const: true,
+            composition: SchemaComposition {
+                allof: true,
+                anyof: true,
+                oneof: true,
+                if_then_else: true,
+                not: true,
+            },
+            features: SchemaFeatures {
+                references: true,
+                definitions: true,
+                additional_properties: true,
+                const_values: true,
+            },
         }
     }
 
     pub const fn openai() -> Self {
         Self {
-            supports_allof: true,
-            supports_anyof: true,
-            supports_oneof: true,
-            supports_if_then_else: false,
-            supports_ref: true,
-            supports_definitions: true,
-            supports_not: false,
-            supports_additional_properties: true,
-            supports_const: true,
+            composition: SchemaComposition {
+                allof: true,
+                anyof: true,
+                oneof: true,
+                if_then_else: false,
+                not: false,
+            },
+            features: SchemaFeatures {
+                references: true,
+                definitions: true,
+                additional_properties: true,
+                const_values: true,
+            },
         }
     }
 
     pub const fn gemini() -> Self {
         Self {
-            supports_allof: false,
-            supports_anyof: true,
-            supports_oneof: false,
-            supports_if_then_else: false,
-            supports_ref: true,
-            supports_definitions: true,
-            supports_not: false,
-            supports_additional_properties: false,
-            supports_const: false,
+            composition: SchemaComposition {
+                allof: false,
+                anyof: true,
+                oneof: false,
+                if_then_else: false,
+                not: false,
+            },
+            features: SchemaFeatures {
+                references: true,
+                definitions: true,
+                additional_properties: false,
+                const_values: false,
+            },
         }
     }
 
     pub fn requires_transformation(&self, schema: &Value) -> bool {
         if let Some(obj) = schema.as_object() {
-            if obj.contains_key("allOf") && !self.supports_allof {
+            if obj.contains_key("allOf") && !self.composition.allof {
                 return true;
             }
-            if obj.contains_key("anyOf") && !self.supports_anyof {
+            if obj.contains_key("anyOf") && !self.composition.anyof {
                 return true;
             }
-            if obj.contains_key("oneOf") && !self.supports_oneof {
+            if obj.contains_key("oneOf") && !self.composition.oneof {
                 return true;
             }
-            if obj.contains_key("if") && !self.supports_if_then_else {
+            if obj.contains_key("if") && !self.composition.if_then_else {
                 return true;
             }
-            if obj.contains_key("$ref") && !self.supports_ref {
+            if obj.contains_key("$ref") && !self.features.references {
                 return true;
             }
             if (obj.contains_key("definitions") || obj.contains_key("$defs"))
-                && !self.supports_definitions
+                && !self.features.definitions
             {
                 return true;
             }
-            if obj.contains_key("not") && !self.supports_not {
+            if obj.contains_key("not") && !self.composition.not {
                 return true;
             }
         }

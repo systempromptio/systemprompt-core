@@ -4,6 +4,15 @@ use systemprompt_mcp::services::registry::RegistryManager;
 use systemprompt_runtime::AppContext;
 use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSender};
 
+struct ReconcileSuccessParams<'a> {
+    running_count: usize,
+    required_count: usize,
+    required_servers: &'a [systemprompt_mcp::McpServerConfig],
+    mcp_orchestrator: &'a Arc<systemprompt_mcp::services::McpManager>,
+    ctx: &'a AppContext,
+    events: Option<&'a StartupEventSender>,
+}
+
 pub async fn reconcile_system_services(
     ctx: &AppContext,
     mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
@@ -41,14 +50,14 @@ pub async fn reconcile_system_services(
 
     match mcp_orchestrator.reconcile().await {
         Ok(running_count) => {
-            handle_reconcile_success(
+            handle_reconcile_success(ReconcileSuccessParams {
                 running_count,
                 required_count,
-                &required_servers,
+                required_servers: &required_servers,
                 mcp_orchestrator,
                 ctx,
                 events,
-            )
+            })
             .await?;
         },
         Err(e) => {
@@ -68,28 +77,25 @@ pub async fn reconcile_system_services(
     Ok(())
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn handle_reconcile_success(
-    running_count: usize,
-    required_count: usize,
-    required_servers: &[systemprompt_mcp::McpServerConfig],
-    mcp_orchestrator: &Arc<systemprompt_mcp::services::McpManager>,
-    ctx: &AppContext,
-    events: Option<&StartupEventSender>,
-) -> Result<()> {
-    if running_count < required_count {
-        return handle_missing_servers(required_servers, mcp_orchestrator, events).await;
+async fn handle_reconcile_success(params: ReconcileSuccessParams<'_>) -> Result<()> {
+    if params.running_count < params.required_count {
+        return handle_missing_servers(
+            params.required_servers,
+            params.mcp_orchestrator,
+            params.events,
+        )
+        .await;
     }
 
-    if running_count > 0 {
-        verify_database_registration(required_servers, ctx, events).await?;
+    if params.running_count > 0 {
+        verify_database_registration(params.required_servers, params.ctx, params.events).await?;
     }
 
-    if let Some(tx) = events {
+    if let Some(tx) = params.events {
         if tx
             .unbounded_send(StartupEvent::McpReconciliationComplete {
-                running: running_count,
-                required: required_count,
+                running: params.running_count,
+                required: params.required_count,
             })
             .is_err()
         {

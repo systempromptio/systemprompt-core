@@ -1,7 +1,6 @@
-#![allow(clippy::print_stderr)]
-
 mod visitor;
 
+use std::io::Write;
 use std::time::Duration;
 
 use chrono::Utc;
@@ -77,7 +76,7 @@ impl DatabaseLayer {
         if let Err(e) = Self::batch_insert(db_pool, buffer).await {
             let msg = e.to_string();
             if !msg.contains("does not exist") {
-                eprintln!("Failed to flush logs: {e}");
+                let _ = writeln!(std::io::stderr(), "Failed to flush logs: {e}");
             }
         }
         buffer.clear();

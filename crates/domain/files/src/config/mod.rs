@@ -29,7 +29,9 @@ impl FilesConfig {
         }
         let config = Self::from_profile()?;
         config.validate()?;
-        let _ = FILES_CONFIG.set(config);
+        if FILES_CONFIG.set(config).is_err() {
+            tracing::warn!("FilesConfig was already initialized by a concurrent caller");
+        }
         Ok(())
     }
 

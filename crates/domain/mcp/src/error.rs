@@ -39,8 +39,6 @@ pub enum McpError {
     Internal(String),
 }
 
-pub type Result<T> = std::result::Result<T, McpError>;
-
 impl From<anyhow::Error> for McpError {
     fn from(err: anyhow::Error) -> Self {
         Self::Internal(err.to_string())

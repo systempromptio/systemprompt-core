@@ -43,12 +43,10 @@ pub async fn ensure_session(
     }
 
     let user_service = UserService::new(ctx.db_pool())?;
-    let analytics: Arc<dyn systemprompt_traits::AnalyticsProvider> =
-        Arc::clone(ctx.analytics_service()) as Arc<dyn systemprompt_traits::AnalyticsProvider>;
-    let session_service = SessionCreationService::new(
-        analytics,
-        Arc::new(UserProviderImpl::new(user_service)),
-    );
+    let concrete = Arc::clone(ctx.analytics_service());
+    let analytics: Arc<dyn systemprompt_traits::AnalyticsProvider> = concrete;
+    let session_service =
+        SessionCreationService::new(analytics, Arc::new(UserProviderImpl::new(user_service)));
 
     let client_id = ClientId::new("sp_web".to_string());
     let session_info = session_service

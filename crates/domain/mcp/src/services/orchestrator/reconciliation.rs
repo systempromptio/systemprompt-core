@@ -70,10 +70,12 @@ pub async fn reconcile(params: ReconcileParams<'_>) -> Result<usize> {
 
 fn notify_cleanup(events: Option<&StartupEventSender>, count: usize, reason: &str) {
     if let Some(tx) = events {
-        let _ = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+        if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} disabled service(s)", count),
             reason: reason.to_string(),
-        });
+        }) {
+            tracing::warn!(error = %e, "Failed to send cleanup notification");
+        }
     }
 }
 
@@ -114,10 +116,12 @@ fn log_and_notify_cleanup(
     tracing::info!(count = count, message);
 
     if let Some(tx) = events {
-        let _ = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+        if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
             name: format!("{} processes", count),
             reason: reason.to_string(),
-        });
+        }) {
+            tracing::warn!(error = %e, "Failed to send cleanup notification");
+        }
     }
 }
 
@@ -147,16 +151,24 @@ async fn kill_single_server(
     if let Ok(Some(service_info)) = database.get_service_by_name(server_name).await {
         if let Some(pid) = service_info.pid {
             if let Some(tx) = events {
-                let _ = tx.unbounded_send(StartupEvent::McpServiceCleanup {
+                if let Err(e) = tx.unbounded_send(StartupEvent::McpServiceCleanup {
                     name: server_name.to_string(),
                     reason: "Restarting to ensure fresh state".to_string(),
-                });
+                }) {
+                    tracing::warn!(error = %e, "Failed to send cleanup notification");
+                }
             }
-            ProcessManager::terminate_gracefully(pid as u32).ok();
+            if let Err(e) = ProcessManager::terminate_gracefully(pid as u32) {
+                tracing::warn!(pid = pid, error = %e, "Failed to terminate process gracefully");
+            }
             tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
-            ProcessManager::force_kill(pid as u32).ok();
+            if let Err(e) = ProcessManager::force_kill(pid as u32) {
+                tracing::warn!(pid = pid, error = %e, "Failed to force kill process");
+            }
         }
-        database.unregister_service(server_name).await.ok();
+        if let Err(e) = database.unregister_service(server_name).await {
+            tracing::warn!(server = %server_name, error = %e, "Failed to unregister service");
+        }
     }
     Ok(())
 }

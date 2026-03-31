@@ -121,7 +121,13 @@ impl FileUploadService {
         }
 
         if let Err(e) = self.file_service.insert(insert_request).await {
-            let _ = fs::remove_file(&storage_path).await;
+            if let Err(cleanup_err) = fs::remove_file(&storage_path).await {
+                tracing::warn!(
+                    path = %storage_path.display(),
+                    error = %cleanup_err,
+                    "Failed to clean up uploaded file after database error"
+                );
+            }
             return Err(FileUploadError::Database(e.to_string()));
         }
 

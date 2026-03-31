@@ -32,8 +32,8 @@ impl SessionMiddleware {
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
         let jwt_extractor = Arc::new(JwtExtractor::new(jwt_secret));
         let user_service = UserService::new(ctx.db_pool())?;
-        let analytics: Arc<dyn AnalyticsProvider> =
-            Arc::clone(ctx.analytics_service()) as Arc<dyn AnalyticsProvider>;
+        let concrete = Arc::clone(ctx.analytics_service());
+        let analytics: Arc<dyn AnalyticsProvider> = concrete;
         let session_creation_service = Arc::new(SessionCreationService::new(
             analytics,
             Arc::new(UserProviderImpl::new(user_service)),

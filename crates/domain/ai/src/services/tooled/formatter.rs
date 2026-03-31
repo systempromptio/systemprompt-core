@@ -133,5 +133,4 @@ impl ToolResultFormatter {
             .collect::<Vec<_>>()
             .join("\n")
     }
-
 }

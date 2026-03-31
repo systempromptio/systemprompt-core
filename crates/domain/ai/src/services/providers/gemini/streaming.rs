@@ -72,7 +72,7 @@ fn parse_stream_chunks(bytes: &bytes::Bytes) -> Vec<StreamChunk> {
         return chunks;
     }
 
-    try_parse_chunked_format(cleaned).unwrap_or_default()
+    try_parse_chunked_format(cleaned).unwrap_or_else(Vec::new)
 }
 
 fn try_parse_array_format(cleaned: &str) -> Option<Vec<StreamChunk>> {

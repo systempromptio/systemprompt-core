@@ -56,12 +56,12 @@ pub async fn run() -> Result<()> {
         .as_ref()
         .map_or(CommandDescriptor::FULL, DescribeCommand::descriptor);
 
-    if !desc.database {
+    if !desc.database() {
         let effective_level = resolve_log_level(&cli_config);
         systemprompt_logging::init_console_logging_with_level(effective_level.as_deref());
     }
 
-    if desc.profile {
+    if desc.profile() {
         if let Some(external_db_url) = bootstrap_profile(&cli, &desc, &cli_config).await? {
             return run_with_database_url(cli.command, &cli_config, &external_db_url).await;
         }
@@ -91,7 +91,7 @@ async fn enforce_routing_policy(
     cli: &args::Cli,
     desc: &CommandDescriptor,
 ) -> Result<()> {
-    if !ctx.env.is_fly && desc.remote_eligible && !ctx.has_export {
+    if !ctx.env.is_fly && desc.remote_eligible() && !ctx.has_export {
         let profile = ProfileBootstrap::get()?;
         try_remote_routing(cli, profile).await?;
         return Ok(());
@@ -135,20 +135,20 @@ async fn initialize_post_routing(
         bootstrap::init_credentials_gracefully().await?;
     }
 
-    if desc.secrets {
+    if desc.secrets() {
         bootstrap::init_secrets()?;
     }
 
-    if ctx.is_cloud && ctx.external_db_access && desc.paths && !ctx.env.is_fly {
+    if ctx.is_cloud && ctx.external_db_access && desc.paths() && !ctx.env.is_fly {
         let secrets = SecretsBootstrap::get()
             .map_err(|e| anyhow::anyhow!("Secrets required for external DB access: {}", e))?;
         let db_url = secrets.effective_database_url(true).to_string();
         return Ok(RoutingAction::ExternalDbUrl(db_url));
     }
 
-    if desc.paths {
+    if desc.paths() {
         bootstrap::init_paths()?;
-        if !desc.skip_validation {
+        if !desc.skip_validation() {
             bootstrap::run_validation()?;
         }
     }

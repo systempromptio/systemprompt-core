@@ -201,7 +201,11 @@ async fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData
     })
 }
 
-#[allow(clippy::items_after_statements)]
+#[derive(serde::Deserialize)]
+struct TaskCreatedData {
+    task: systemprompt_agent::models::a2a::Task,
+}
+
 async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_data = request.task_data.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
@@ -209,11 +213,6 @@ async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, 
             request.entity_id
         )
     })?;
-
-    #[derive(serde::Deserialize)]
-    struct TaskCreatedData {
-        task: systemprompt_agent::models::a2a::Task,
-    }
 
     let payload: TaskCreatedData = serde_json::from_value(task_data.clone()).map_err(|e| {
         anyhow::anyhow!(

@@ -211,7 +211,8 @@ pub async fn list_links_handler(
             Err(e) => ApiError::internal_error(e.to_string()).into_response(),
         }
     } else {
-        ApiError::bad_request("Must provide either campaign_id or source_content_id").into_response()
+        ApiError::bad_request("Must provide either campaign_id or source_content_id")
+            .into_response()
     }
 }
 

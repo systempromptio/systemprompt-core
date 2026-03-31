@@ -74,7 +74,6 @@ pub async fn handle_health_detail(
     let memory = get_process_memory();
     let check_duration_ms = start.elapsed().as_millis();
 
-    // JSON: protocol boundary
     let data = json!({
         "status": overall_status,
         "timestamp": chrono::Utc::now().to_rfc3339(),

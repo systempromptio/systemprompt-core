@@ -22,8 +22,7 @@ pub struct ListClientsQuery {
     pub status: Option<String>,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn paginated_response<T: serde::Serialize>(items: Vec<T>, pagination: PaginationInfo) -> Response {
+fn paginated_response<T: serde::Serialize>(items: &[T], pagination: &PaginationInfo) -> Response {
     (
         StatusCode::OK,
         Json(serde_json::json!({
@@ -42,14 +41,13 @@ pub async fn list_clients(
     OAuthRepo(repository): OAuthRepo,
     Query(query): Query<ListClientsQuery>,
 ) -> impl IntoResponse {
-
     if let Err(e) = query.validate() {
         tracing::info!(
             reason = "Validation error",
             requested_by = %req_ctx.auth.user_id,
             "OAuth clients list rejected - validation failed"
         );
-        return bad_request(format!("Invalid query parameters: {e}"));
+        return bad_request(&format!("Invalid query parameters: {e}"));
     }
 
     let page = query.pagination.page;
@@ -73,7 +71,7 @@ pub async fn list_clients(
             let pagination = PaginationInfo::new(total, page, per_page);
             let items: Vec<systemprompt_oauth::clients::api::OAuthClientResponse> =
                 clients.into_iter().map(Into::into).collect();
-            paginated_response(items, pagination)
+            paginated_response(&items, &pagination)
         },
         (Err(e), _) | (_, Err(e)) => {
             tracing::error!(
@@ -81,7 +79,7 @@ pub async fn list_clients(
                 requested_by = %req_ctx.auth.user_id,
                 "OAuth clients list failed"
             );
-            internal_error(format!("Failed to list clients: {e}"))
+            internal_error(&format!("Failed to list clients: {e}"))
         },
     }
 }

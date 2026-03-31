@@ -5,7 +5,6 @@ use super::ToolAnalyticsRepository;
 use crate::models::cli::ToolListRow;
 
 impl ToolAnalyticsRepository {
-    #[allow(clippy::too_many_arguments)]
     pub async fn list_tools(
         &self,
         start: DateTime<Utc>,
@@ -24,7 +23,6 @@ impl ToolAnalyticsRepository {
         }
     }
 
-    #[allow(clippy::too_many_arguments)]
     async fn list_tools_with_filter(
         &self,
         start: DateTime<Utc>,

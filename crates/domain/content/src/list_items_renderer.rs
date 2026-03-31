@@ -17,7 +17,6 @@ const PLACEHOLDER_IMAGE_SVG: &str = r#"<div class="card-image card-image--placeh
 pub struct ListItemsCardRenderer;
 
 #[async_trait]
-#[allow(clippy::unnecessary_literal_bound)]
 impl ComponentRenderer for ListItemsCardRenderer {
     fn component_id(&self) -> &str {
         "list-items-cards"

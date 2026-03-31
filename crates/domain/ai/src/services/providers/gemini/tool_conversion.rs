@@ -65,7 +65,7 @@ pub async fn convert_tools(
     } else if provider.google_search_enabled {
         gemini_tools.push(GeminiTool {
             function_declarations: None,
-            google_search: Some(GoogleSearch {}),
+            google_search: Some(GoogleSearch::default()),
             url_context: None,
             code_execution: None,
         });

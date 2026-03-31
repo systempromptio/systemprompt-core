@@ -69,7 +69,9 @@ impl EventHandler for HealthCheckHandler {
                             service_name: service_name.clone(),
                             reason: format!("Health check failed {} times", failure_count),
                         };
-                        let _ = sender.send(restart_event);
+                        if let Err(e) = sender.send(restart_event) {
+                            tracing::warn!(service = %service_name, error = %e, "Failed to send restart event");
+                        }
                     }
                 }
             },

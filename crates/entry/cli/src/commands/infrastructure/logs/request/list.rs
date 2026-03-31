@@ -6,8 +6,8 @@ use systemprompt_logging::{CliService, TraceQueryService};
 use super::{RequestListOutput, RequestListRow};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use systemprompt_models::text::truncate_with_ellipsis;
 use crate::shared::CommandResult;
+use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Args)]
 pub struct ListArgs {

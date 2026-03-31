@@ -1,5 +1,6 @@
 use std::path::Path;
 use systemprompt_extension::ExtensionRegistry;
+use systemprompt_logging::CliService;
 use systemprompt_logging::services::cli::{BrandColors, render_phase_success};
 use systemprompt_models::{AppPaths, Config};
 use systemprompt_traits::validation_report::ValidationError;
@@ -7,7 +8,6 @@ use systemprompt_traits::{StartupValidationReport, ValidationReport};
 
 use super::config_loaders::load_extension_config;
 
-#[allow(clippy::print_stdout)]
 pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport, verbose: bool) {
     let extensions = ExtensionRegistry::discover();
     let config_extensions = extensions.config_extensions();
@@ -20,12 +20,12 @@ pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport
     }
 
     if verbose {
-        println!();
-        println!(
+        CliService::output("");
+        CliService::output(&format!(
             "{} {}",
             BrandColors::primary("▸"),
             BrandColors::white_bold("Validating extensions")
-        );
+        ));
     }
 
     for ext in config_extensions {
@@ -35,16 +35,15 @@ pub fn validate_extensions(config: &Config, report: &mut StartupValidationReport
     match AppPaths::get() {
         Ok(paths) => validate_extension_assets(&extensions, paths, report, verbose),
         Err(_) if verbose => {
-            println!(
+            CliService::output(&format!(
                 "  {} Asset validation skipped (AppPaths not initialized)",
                 BrandColors::dim("○")
-            );
+            ));
         },
         Err(_) => {},
     }
 }
 
-#[allow(clippy::print_stdout)]
 fn validate_extension_assets(
     registry: &ExtensionRegistry,
     paths: &AppPaths,
@@ -68,12 +67,12 @@ fn validate_extension_assets(
                 );
                 report.add_extension(ext_report);
 
-                println!(
+                CliService::output(&format!(
                     "  {} [ext:{}] Missing asset: {}",
                     BrandColors::stopped("✗"),
                     ext_id,
                     asset.source().display()
-                );
+                ));
             }
         }
 
@@ -83,7 +82,6 @@ fn validate_extension_assets(
     }
 }
 
-#[allow(clippy::print_stdout)]
 fn validate_single_extension(
     config: &Config,
     ext: &dyn systemprompt_extension::Extension,
@@ -109,7 +107,12 @@ fn validate_single_extension(
                     format!("Failed to load config: {}", e),
                 ));
                 report.add_extension(ext_report);
-                println!("  {} [ext:{}] {}", BrandColors::stopped("✗"), ext_id, e);
+                CliService::output(&format!(
+                    "  {} [ext:{}] {}",
+                    BrandColors::stopped("✗"),
+                    ext_id,
+                    e
+                ));
                 return;
             },
         }
@@ -130,7 +133,12 @@ fn validate_single_extension(
                 e.to_string(),
             ));
             report.add_extension(ext_report);
-            println!("  {} [ext:{}] {}", BrandColors::stopped("✗"), ext_id, e);
+            CliService::output(&format!(
+                "  {} [ext:{}] {}",
+                BrandColors::stopped("✗"),
+                ext_id,
+                e
+            ));
         },
     }
 }

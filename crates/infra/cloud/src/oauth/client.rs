@@ -63,7 +63,9 @@ pub async fn run_oauth_flow(
                 let sender = tx.lock().await.take();
                 if let Some(sender) = sender {
                     let is_success = result.is_ok();
-                    let _ = sender.send(result);
+                    if sender.send(result).is_err() {
+                        tracing::warn!("OAuth result receiver dropped before result could be sent");
+                    }
 
                     if is_success {
                         Html(success_html)

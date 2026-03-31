@@ -144,11 +144,18 @@ async fn fan_out_engagement(
 ) {
     let Some(ref data) = input.data else { return };
 
-    let get_i32 =
-        |key: &str| -> Option<i32> { data.get(key).and_then(serde_json::Value::as_i64).map(|v| v as i32) };
-    let get_f32 =
-        |key: &str| -> Option<f32> { data.get(key).and_then(serde_json::Value::as_f64).map(|v| v as f32) };
-    let get_bool = |key: &str| -> Option<bool> { data.get(key).and_then(serde_json::Value::as_bool) };
+    let get_i32 = |key: &str| -> Option<i32> {
+        data.get(key)
+            .and_then(serde_json::Value::as_i64)
+            .map(|v| v as i32)
+    };
+    let get_f32 = |key: &str| -> Option<f32> {
+        data.get(key)
+            .and_then(serde_json::Value::as_f64)
+            .map(|v| v as f32)
+    };
+    let get_bool =
+        |key: &str| -> Option<bool> { data.get(key).and_then(serde_json::Value::as_bool) };
     let get_string =
         |key: &str| -> Option<String> { data.get(key).and_then(|v| v.as_str()).map(String::from) };
 

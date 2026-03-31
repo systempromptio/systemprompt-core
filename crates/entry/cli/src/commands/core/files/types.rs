@@ -142,13 +142,9 @@ pub struct FileConfigOutput {
     pub storage_paths: StoragePathsOutput,
 }
 
-#[allow(clippy::struct_excessive_bools)]
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct AllowedTypesOutput {
-    pub images: bool,
-    pub documents: bool,
-    pub audio: bool,
-    pub video: bool,
+    pub allowed: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]

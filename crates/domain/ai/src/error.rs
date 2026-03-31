@@ -52,7 +52,7 @@ pub enum AiError {
     ConfigurationError(String),
 
     #[error("Database operation failed: {0}")]
-    DatabaseError(#[from] anyhow::Error),
+    DatabaseError(String),
 
     #[error("MCP service {service_id} not found or not configured")]
     McpServiceNotFound { service_id: String },
@@ -87,14 +87,8 @@ pub enum RepositoryError {
 
 pub type Result<T> = std::result::Result<T, AiError>;
 
-impl AiError {
-    pub fn with_context(self, context: &str) -> anyhow::Error {
-        anyhow::anyhow!("{context}: {self}")
-    }
-}
-
 impl From<RepositoryError> for AiError {
     fn from(error: RepositoryError) -> Self {
-        Self::DatabaseError(anyhow::anyhow!("{}", error))
+        Self::DatabaseError(error.to_string())
     }
 }

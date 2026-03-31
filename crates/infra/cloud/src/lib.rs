@@ -1,17 +1,3 @@
-#![allow(
-    clippy::significant_drop_in_scrutinee,
-    clippy::cognitive_complexity,
-    clippy::too_many_lines,
-    clippy::clone_on_ref_ptr,
-    clippy::if_not_else,
-    clippy::single_match_else,
-    clippy::ignored_unit_patterns,
-    clippy::map_unwrap_or,
-    clippy::manual_let_else,
-    clippy::missing_const_for_fn,
-    clippy::option_if_let_else
-)]
-
 pub mod api_client;
 pub mod auth;
 pub mod checkout;

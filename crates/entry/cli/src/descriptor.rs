@@ -1,79 +1,71 @@
 #[derive(Debug, Clone, Copy, Default)]
-#[allow(clippy::struct_excessive_bools)]
 pub struct CommandDescriptor {
-    pub profile: bool,
-    pub secrets: bool,
-    pub paths: bool,
-    pub database: bool,
-    pub remote_eligible: bool,
-    pub skip_validation: bool,
+    flags: u8,
 }
 
 impl CommandDescriptor {
-    pub const NONE: Self = Self {
-        profile: false,
-        secrets: false,
-        paths: false,
-        database: false,
-        remote_eligible: false,
-        skip_validation: false,
-    };
+    const FLAG_PROFILE: u8 = 0b0000_0001;
+    const FLAG_SECRETS: u8 = 0b0000_0010;
+    const FLAG_PATHS: u8 = 0b0000_0100;
+    const FLAG_DATABASE: u8 = 0b0000_1000;
+    const FLAG_REMOTE_ELIGIBLE: u8 = 0b0001_0000;
+    const FLAG_SKIP_VALIDATION: u8 = 0b0010_0000;
+
+    pub const NONE: Self = Self { flags: 0 };
 
     pub const PROFILE_ONLY: Self = Self {
-        profile: true,
-        secrets: false,
-        paths: false,
-        database: false,
-        remote_eligible: false,
-        skip_validation: false,
+        flags: Self::FLAG_PROFILE,
     };
 
     pub const PROFILE_AND_SECRETS: Self = Self {
-        profile: true,
-        secrets: true,
-        paths: false,
-        database: false,
-        remote_eligible: false,
-        skip_validation: false,
+        flags: Self::FLAG_PROFILE | Self::FLAG_SECRETS,
     };
 
     pub const PROFILE_SECRETS_AND_PATHS: Self = Self {
-        profile: true,
-        secrets: true,
-        paths: true,
-        database: false,
-        remote_eligible: false,
-        skip_validation: false,
+        flags: Self::FLAG_PROFILE | Self::FLAG_SECRETS | Self::FLAG_PATHS,
     };
 
     pub const FULL: Self = Self {
-        profile: true,
-        secrets: true,
-        paths: true,
-        database: true,
-        remote_eligible: true,
-        skip_validation: false,
+        flags: Self::FLAG_PROFILE
+            | Self::FLAG_SECRETS
+            | Self::FLAG_PATHS
+            | Self::FLAG_DATABASE
+            | Self::FLAG_REMOTE_ELIGIBLE,
     };
+
+    pub const fn profile(&self) -> bool {
+        self.flags & Self::FLAG_PROFILE != 0
+    }
+
+    pub const fn secrets(&self) -> bool {
+        self.flags & Self::FLAG_SECRETS != 0
+    }
+
+    pub const fn paths(&self) -> bool {
+        self.flags & Self::FLAG_PATHS != 0
+    }
+
+    pub const fn database(&self) -> bool {
+        self.flags & Self::FLAG_DATABASE != 0
+    }
+
+    pub const fn remote_eligible(&self) -> bool {
+        self.flags & Self::FLAG_REMOTE_ELIGIBLE != 0
+    }
+
+    pub const fn skip_validation(&self) -> bool {
+        self.flags & Self::FLAG_SKIP_VALIDATION != 0
+    }
 
     pub const fn with_remote_eligible(self) -> Self {
         Self {
-            profile: self.profile,
-            secrets: self.secrets,
-            paths: self.paths,
-            database: self.database,
-            remote_eligible: true,
-            skip_validation: self.skip_validation,
+            flags: self.flags | Self::FLAG_REMOTE_ELIGIBLE,
         }
     }
 
     pub const fn with_skip_validation(self) -> Self {
         Self {
-            profile: self.profile,
-            secrets: self.secrets,
-            paths: self.paths,
-            database: self.database,
-            remote_eligible: self.remote_eligible,
-            skip_validation: true,
+            flags: self.flags | Self::FLAG_SKIP_VALIDATION,
         }
     }
 }

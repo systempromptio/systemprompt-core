@@ -91,14 +91,14 @@ pub async fn execute(args: CallArgs, config: &CliConfig) -> Result<CommandResult
 
     let start_time = std::time::Instant::now();
 
-    let result = execute_tool_call(
-        &server_name,
-        running_server.port,
-        &tool_name,
-        tool_args,
-        &session_ctx,
+    let result = execute_tool_call(ToolCallParams {
+        server_name: &server_name,
+        port: running_server.port,
+        tool_name: &tool_name,
+        arguments: tool_args,
+        session_ctx: &session_ctx,
         timeout_secs,
-    )
+    })
     .await;
 
     let execution_time_ms = start_time.elapsed().as_millis() as u64;
@@ -168,15 +168,24 @@ fn convert_content(raw: &RawContent) -> McpToolContent {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn execute_tool_call(
-    server_name: &str,
+struct ToolCallParams<'a> {
+    server_name: &'a str,
     port: u16,
-    tool_name: &str,
+    tool_name: &'a str,
     arguments: Option<serde_json::Value>,
-    session_ctx: &CliSessionContext,
+    session_ctx: &'a CliSessionContext,
     timeout_secs: u64,
-) -> Result<CallToolResult> {
+}
+
+async fn execute_tool_call(params: ToolCallParams<'_>) -> Result<CallToolResult> {
+    let ToolCallParams {
+        server_name,
+        port,
+        tool_name,
+        arguments,
+        session_ctx,
+        timeout_secs,
+    } = params;
     let url = format!("http://127.0.0.1:{}/mcp", port);
 
     let request_context = session_ctx.to_request_context(&format!("cli-{}", server_name));

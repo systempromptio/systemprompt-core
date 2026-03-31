@@ -19,7 +19,6 @@ pub async fn handle_authorize_get(
     Query(params): Query<AuthorizeQuery>,
     OAuthRepo(repo): OAuthRepo,
 ) -> impl IntoResponse {
-
     tracing::info!(
         client_id = %params.client_id,
         response_type = %params.response_type,

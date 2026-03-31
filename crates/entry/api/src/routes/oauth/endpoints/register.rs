@@ -160,7 +160,7 @@ pub async fn register_client(
                 client_uri: request.client_uri,
                 logo_uri: request.logo_uri,
                 contacts: request.contacts,
-                client_secret_expires_at: 0, // 0 means never expires
+                client_secret_expires_at: 0,
                 client_id_issued_at: Utc::now(),
                 registration_access_token,
                 registration_client_uri,

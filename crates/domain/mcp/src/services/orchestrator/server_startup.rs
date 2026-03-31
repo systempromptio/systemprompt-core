@@ -67,7 +67,11 @@ fn notify_reconciliation_complete(
     use systemprompt_traits::StartupEvent;
 
     if let Some(tx) = events {
-        let _ = tx.unbounded_send(StartupEvent::McpReconciliationComplete { running, required });
+        if let Err(e) =
+            tx.unbounded_send(StartupEvent::McpReconciliationComplete { running, required })
+        {
+            tracing::warn!(error = %e, "Failed to send reconciliation complete event");
+        }
     }
 }
 

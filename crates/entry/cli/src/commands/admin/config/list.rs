@@ -1,4 +1,3 @@
-use anyhow::Result;
 use clap::Args;
 
 use super::types::{ConfigFileInfo, ConfigListOutput, ConfigSection, read_yaml_file};
@@ -11,8 +10,7 @@ pub struct ListArgs {
     pub errors_only: bool,
 }
 
-#[allow(clippy::unnecessary_wraps)]
-pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<ConfigListOutput>> {
+pub fn execute(args: ListArgs, _config: &CliConfig) -> CommandResult<ConfigListOutput> {
     let mut files = Vec::new();
     let mut valid_count = 0;
     let mut invalid_count = 0;
@@ -64,5 +62,5 @@ pub fn execute(args: ListArgs, _config: &CliConfig) -> Result<CommandResult<Conf
         files,
     };
 
-    Ok(CommandResult::table(output).with_title("Configuration Files"))
+    CommandResult::table(output).with_title("Configuration Files")
 }

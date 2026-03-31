@@ -1,5 +1,3 @@
-#![allow(clippy::module_name_repetitions)]
-
 pub mod constants;
 pub(crate) mod extension;
 pub mod models;

@@ -12,11 +12,6 @@ pub struct SessionStatsRow {
     pub conversions: i64,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct ActiveSessionCountRow {
-    pub count: i64,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct LiveSessionRow {
     pub session_id: SessionId,

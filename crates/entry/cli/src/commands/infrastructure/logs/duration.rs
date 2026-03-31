@@ -53,8 +53,8 @@ pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
         return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
     }
 
-    if let Ok(datetime) = chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S") {
-        return Ok(Some(DateTime::from_naive_utc_and_offset(datetime, Utc)));
+    if let Ok(dt) = DateTime::parse_from_str(&format!("{}+00:00", s), "%Y-%m-%dT%H:%M:%S%:z") {
+        return Ok(Some(dt.with_timezone(&Utc)));
     }
 
     Err(anyhow!(

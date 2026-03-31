@@ -2,8 +2,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Serialize;
 
-#[allow(clippy::needless_pass_by_value)]
-pub fn error_response(status: StatusCode, error: &str, description: String) -> Response {
+pub fn error_response(status: StatusCode, error: &str, description: &str) -> Response {
     (
         status,
         Json(serde_json::json!({
@@ -14,15 +13,15 @@ pub fn error_response(status: StatusCode, error: &str, description: String) -> R
         .into_response()
 }
 
-pub fn internal_error(message: String) -> Response {
+pub fn internal_error(message: &str) -> Response {
     error_response(StatusCode::INTERNAL_SERVER_ERROR, "server_error", message)
 }
 
-pub fn not_found(message: String) -> Response {
+pub fn not_found(message: &str) -> Response {
     error_response(StatusCode::NOT_FOUND, "not_found", message)
 }
 
-pub fn bad_request(message: String) -> Response {
+pub fn bad_request(message: &str) -> Response {
     error_response(StatusCode::BAD_REQUEST, "bad_request", message)
 }
 
@@ -40,7 +39,7 @@ pub fn init_error(e: impl std::fmt::Display) -> Response {
     error_response(
         StatusCode::INTERNAL_SERVER_ERROR,
         "server_error",
-        format!("Repository initialization failed: {e}"),
+        &format!("Repository initialization failed: {e}"),
     )
 }
 

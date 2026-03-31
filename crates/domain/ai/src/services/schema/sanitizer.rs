@@ -28,31 +28,31 @@ impl SchemaSanitizer {
     }
 
     fn remove_unsupported_keywords(&self, obj: &mut Map<String, Value>) {
-        if !self.capabilities.supports_allof {
+        if !self.capabilities.composition.allof {
             obj.remove("allOf");
         }
-        if !self.capabilities.supports_anyof {
+        if !self.capabilities.composition.anyof {
             obj.remove("anyOf");
         }
-        if !self.capabilities.supports_oneof {
+        if !self.capabilities.composition.oneof {
             obj.remove("oneOf");
         }
-        if !self.capabilities.supports_if_then_else {
+        if !self.capabilities.composition.if_then_else {
             obj.remove("if");
             obj.remove("then");
             obj.remove("else");
         }
-        if !self.capabilities.supports_ref {
+        if !self.capabilities.features.references {
             obj.remove("$ref");
         }
-        if !self.capabilities.supports_definitions {
+        if !self.capabilities.features.definitions {
             obj.remove("definitions");
             obj.remove("$defs");
         }
-        if !self.capabilities.supports_not {
+        if !self.capabilities.composition.not {
             obj.remove("not");
         }
-        if !self.capabilities.supports_additional_properties {
+        if !self.capabilities.features.additional_properties {
             obj.remove("additionalProperties");
         }
     }
@@ -85,7 +85,7 @@ impl SchemaSanitizer {
     }
 
     fn convert_const_to_enum(&self, obj: &mut Map<String, Value>) {
-        if !self.capabilities.supports_const {
+        if !self.capabilities.features.const_values {
             if let Some(const_val) = obj.remove("const") {
                 obj.insert("enum".to_string(), json!([const_val]));
             }

@@ -71,21 +71,6 @@ pub struct ConversationListRow {
     pub updated_at: DateTime<Utc>,
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct ConversationStatsRow {
-    pub total_contexts: i64,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct TaskStatsRow {
-    pub total_tasks: i64,
-    pub avg_execution_time_ms: Option<f64>,
-}
-
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
-pub struct MessageCountRow {
-    pub total_messages: i64,
-}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, FromRow)]
 pub struct TimestampRow {

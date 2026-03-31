@@ -88,25 +88,28 @@ impl UiRenderer for DashboardRenderer {
 
         let sections_html: String = sections.iter().map(DashboardSection::render_html).collect();
 
-        let tabs_nav =
-            if matches!(layout, DashboardLayout::Tabs) {
-                use std::fmt::Write;
-                let tabs = sections.iter().enumerate().fold(String::new(), |mut acc, (i, s)| {
-                let active = if i == 0 { " active" } else { "" };
-                let _ = write!(
-                    acc,
-                    r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
-                    active = active,
-                    id = html_escape(&s.id),
-                    title = html_escape(&s.title),
-                );
-                acc
-            });
+        let tabs_nav = if matches!(layout, DashboardLayout::Tabs) {
+            use std::fmt::Write;
+            let tabs = sections
+                .iter()
+                .enumerate()
+                .fold(String::new(), |mut acc, (i, s)| {
+                    let active = if i == 0 { " active" } else { "" };
+                    write!(
+                        acc,
+                        r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
+                        active = active,
+                        id = html_escape(&s.id),
+                        title = html_escape(&s.title),
+                    )
+                    .expect("Writing to String should not fail");
+                    acc
+                });
 
-                format!(r#"<div class="tabs-nav">{tabs}</div>"#)
-            } else {
-                String::new()
-            };
+            format!(r#"<div class="tabs-nav">{tabs}</div>"#)
+        } else {
+            String::new()
+        };
 
         let chart_configs: Vec<JsonValue> = sections
             .iter()

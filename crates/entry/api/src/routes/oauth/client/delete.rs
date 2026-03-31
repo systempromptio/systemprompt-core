@@ -13,7 +13,6 @@ pub async fn delete_client(
     OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
 ) -> impl IntoResponse {
-
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(client)) => match repository.delete_client(&client_id).await {
             Ok(_) => {
@@ -32,7 +31,7 @@ pub async fn delete_client(
                     deleted_by = %req_ctx.auth.user_id,
                     "OAuth client deletion failed"
                 );
-                internal_error(format!("Failed to delete client: {e}"))
+                internal_error(&format!("Failed to delete client: {e}"))
             },
         },
         Ok(None) => {
@@ -42,7 +41,7 @@ pub async fn delete_client(
                 deleted_by = %req_ctx.auth.user_id,
                 "OAuth client deletion failed"
             );
-            not_found(format!("Client with ID '{client_id}' not found"))
+            not_found(&format!("Client with ID '{client_id}' not found"))
         },
         Err(e) => {
             tracing::error!(
@@ -51,7 +50,7 @@ pub async fn delete_client(
                 deleted_by = %req_ctx.auth.user_id,
                 "OAuth client deletion failed"
             );
-            internal_error(format!("Failed to get client: {e}"))
+            internal_error(&format!("Failed to get client: {e}"))
         },
     }
 }

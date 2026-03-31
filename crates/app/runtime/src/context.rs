@@ -100,9 +100,21 @@ impl AppContext {
             content_routing,
         )?);
 
-        let fingerprint_repo = FingerprintRepository::new(&database).ok().map(Arc::new);
+        let fingerprint_repo = match FingerprintRepository::new(&database) {
+            Ok(repo) => Some(Arc::new(repo)),
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to initialize fingerprint repository");
+                None
+            },
+        };
 
-        let user_service = UserService::new(&database).ok().map(Arc::new);
+        let user_service = match UserService::new(&database) {
+            Ok(svc) => Some(Arc::new(svc)),
+            Err(e) => {
+                tracing::warn!(error = %e, "Failed to initialize user service");
+                None
+            },
+        };
 
         systemprompt_logging::init_logging(Arc::clone(&database));
 
@@ -276,39 +288,39 @@ impl AppContext {
     }
 }
 
-#[allow(clippy::clone_on_ref_ptr)]
+#[allow(trivial_casts)]
 impl AppContextTrait for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        self.config.clone()
+        Arc::clone(&self.config) as _
     }
 
     fn database_handle(&self) -> Arc<dyn DatabaseHandle> {
-        self.database.clone()
+        Arc::clone(&self.database) as _
     }
 
     fn analytics_provider(&self) -> Option<Arc<dyn AnalyticsProvider>> {
-        Some(self.analytics_service.clone())
+        Some(Arc::clone(&self.analytics_service) as _)
     }
 
     fn fingerprint_provider(&self) -> Option<Arc<dyn FingerprintProvider>> {
-        let provider: Arc<dyn FingerprintProvider> = self.fingerprint_repo.clone()?;
-        Some(provider)
+        let repo = self.fingerprint_repo.as_ref()?;
+        Some(Arc::clone(repo) as _)
     }
 
     fn user_provider(&self) -> Option<Arc<dyn UserProvider>> {
-        let provider: Arc<dyn UserProvider> = self.user_service.clone()?;
-        Some(provider)
+        let service = self.user_service.as_ref()?;
+        Some(Arc::clone(service) as _)
     }
 }
 
-#[allow(clippy::clone_on_ref_ptr)]
+#[allow(trivial_casts)]
 impl ExtensionContext for AppContext {
     fn config(&self) -> Arc<dyn ConfigProvider> {
-        self.config.clone()
+        Arc::clone(&self.config) as _
     }
 
     fn database(&self) -> Arc<dyn DatabaseHandle> {
-        self.database.clone()
+        Arc::clone(&self.database) as _
     }
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {

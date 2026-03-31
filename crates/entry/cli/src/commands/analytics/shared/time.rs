@@ -43,8 +43,8 @@ pub fn parse_since(since: Option<&String>) -> Result<Option<DateTime<Utc>>> {
             .ok_or_else(|| anyhow!("Invalid date: {}", s));
     }
 
-    chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-        .map(|naive| Some(DateTime::from_naive_utc_and_offset(naive, Utc)))
+    DateTime::parse_from_str(&format!("{}+00:00", s), "%Y-%m-%dT%H:%M:%S%:z")
+        .map(|dt| Some(dt.with_timezone(&Utc)))
         .map_err(|_| {
             anyhow!(
                 "Invalid --since format: {}. Use '1h', '24h', '7d', '2026-01-13', or \
@@ -73,8 +73,8 @@ pub fn parse_until(until: Option<&String>) -> Result<Option<DateTime<Utc>>> {
             .ok_or_else(|| anyhow!("Invalid date: {}", s));
     }
 
-    chrono::NaiveDateTime::parse_from_str(&s, "%Y-%m-%dT%H:%M:%S")
-        .map(|naive| Some(DateTime::from_naive_utc_and_offset(naive, Utc)))
+    DateTime::parse_from_str(&format!("{}+00:00", s), "%Y-%m-%dT%H:%M:%S%:z")
+        .map(|dt| Some(dt.with_timezone(&Utc)))
         .map_err(|_| {
             anyhow!(
                 "Invalid --until format: {}. Use '1h', '24h', '7d', '2026-01-13', or \
@@ -118,4 +118,6 @@ pub fn truncate_to_period(dt: DateTime<Utc>, period: &str) -> DateTime<Utc> {
     }
 }
 
-pub use systemprompt_models::time_format::{format_duration_ms, format_period_label, format_timestamp};
+pub use systemprompt_models::time_format::{
+    format_duration_ms, format_period_label, format_timestamp,
+};

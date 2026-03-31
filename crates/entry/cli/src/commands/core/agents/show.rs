@@ -44,15 +44,14 @@ fn show_agent_detail(
     let system_prompt_preview = parsed
         .system_prompt
         .as_deref()
-        .map(|s| {
+        .map_or_else(String::new, |s| {
             let preview: String = s.chars().take(200).collect();
             if s.len() > 200 {
                 format!("{preview}...")
             } else {
                 preview
             }
-        })
-        .unwrap_or_default();
+        });
 
     let output = AgentDetailOutput {
         agent_id: agent_id.to_string(),

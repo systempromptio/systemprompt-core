@@ -60,8 +60,8 @@ pub async fn get_content_handler(
         .await
     {
         Ok(Some(content)) => {
-            let wants_markdown = accepted_format
-                .is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
+            let wants_markdown =
+                accepted_format.is_some_and(|f| f.0.media_type() == AcceptedMediaType::Markdown);
 
             if wants_markdown {
                 content_to_markdown_response(&content).into_response()

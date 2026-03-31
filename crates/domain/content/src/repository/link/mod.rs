@@ -27,7 +27,6 @@ impl LinkRepository {
         Ok(Self { pool, write_pool })
     }
 
-    #[allow(clippy::cognitive_complexity)]
     pub async fn create_link(
         &self,
         params: &CreateLinkParams,

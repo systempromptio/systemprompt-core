@@ -170,4 +170,3 @@ fn extract_status(agent: &AgentCardResponse) -> String {
         })
         .unwrap_or_else(|| "unknown".to_string())
 }
-

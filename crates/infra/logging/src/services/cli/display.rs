@@ -1,4 +1,4 @@
-#![allow(clippy::print_stdout)]
+use std::io::Write;
 
 use crate::services::cli::theme::{
     ActionType, EmphasisType, IconType, ItemStatus, MessageLevel, ModuleType, Theme,
@@ -13,68 +13,83 @@ pub trait DetailedDisplay {
     fn display_details(&self);
 }
 
+fn stdout_writeln(args: std::fmt::Arguments<'_>) {
+    let mut stdout = std::io::stdout();
+    let _ = writeln!(stdout, "{args}");
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct DisplayUtils;
 
 impl DisplayUtils {
     pub fn message(level: MessageLevel, text: &str) {
-        println!("{} {}", Theme::icon(level), Theme::color(text, level));
+        stdout_writeln(format_args!(
+            "{} {}",
+            Theme::icon(level),
+            Theme::color(text, level)
+        ));
     }
 
     pub fn section_header(title: &str) {
-        println!("\n{}", Theme::color(title, EmphasisType::Underlined));
+        stdout_writeln(format_args!(
+            "\n{}",
+            Theme::color(title, EmphasisType::Underlined)
+        ));
     }
 
     pub fn subsection_header(title: &str) {
-        println!("\n  {}", Theme::color(title, EmphasisType::Bold));
+        stdout_writeln(format_args!(
+            "\n  {}",
+            Theme::color(title, EmphasisType::Bold)
+        ));
     }
 
     pub fn item(icon_type: impl Into<IconType>, name: &str, detail: Option<&str>) {
         match detail {
-            Some(detail) => println!(
+            Some(detail) => stdout_writeln(format_args!(
                 "   {} {} {}",
                 Theme::icon(icon_type),
                 Theme::color(name, EmphasisType::Bold),
                 Theme::color(detail, EmphasisType::Dim)
-            ),
-            None => println!(
+            )),
+            None => stdout_writeln(format_args!(
                 "   {} {}",
                 Theme::icon(icon_type),
                 Theme::color(name, EmphasisType::Bold)
-            ),
+            )),
         }
     }
 
     pub fn relationship(icon_type: impl Into<IconType>, from: &str, to: &str, status: ItemStatus) {
-        println!(
+        stdout_writeln(format_args!(
             "   {} {} {} {} {}",
             Theme::icon(icon_type),
             Theme::color(from, EmphasisType::Highlight),
             Theme::icon(ActionType::Arrow),
             Theme::color(to, status),
             Theme::color(&format!("({})", status_text(status)), EmphasisType::Dim)
-        );
+        ));
     }
 
     pub fn module_status(module_name: &str, message: &str) {
         let module_label = format!("Module: {module_name}");
-        println!(
+        stdout_writeln(format_args!(
             "{} {} {}",
             Theme::icon(ModuleType::Module),
             Theme::color(&module_label, EmphasisType::Highlight),
             Theme::color(message, EmphasisType::Dim)
-        );
+        ));
     }
 
     pub fn count_message(level: MessageLevel, count: usize, item_type: &str) {
         let count_label = format!("{} {item_type}", count_text(count, item_type));
         let count_str = count.to_string();
-        println!(
+        stdout_writeln(format_args!(
             "   {} {}: {}",
             Theme::icon(level),
             count_label,
             Theme::color(&count_str, level)
-        );
+        ));
     }
 }
 
@@ -163,13 +178,16 @@ impl<T: Display> CollectionDisplay<T> {
 impl<T: Display> Display for CollectionDisplay<T> {
     fn display(&self) {
         if self.show_count && !self.items.is_empty() {
-            println!(
+            stdout_writeln(format_args!(
                 "\n{} {}:",
                 Theme::color(&self.title, EmphasisType::Bold),
                 Theme::color(&format!("({})", self.items.len()), EmphasisType::Dim)
-            );
+            ));
         } else if !self.items.is_empty() {
-            println!("\n{}:", Theme::color(&self.title, EmphasisType::Bold));
+            stdout_writeln(format_args!(
+                "\n{}:",
+                Theme::color(&self.title, EmphasisType::Bold)
+            ));
         }
 
         for item in &self.items {

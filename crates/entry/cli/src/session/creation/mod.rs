@@ -79,14 +79,26 @@ pub(super) async fn create_local_session(
     )
 }
 
+pub(super) struct TenantSessionParams<'a> {
+    pub creds: &'a CloudCredentials,
+    pub profile: &'a Profile,
+    pub profile_ctx: &'a ProfileContext<'a>,
+    pub session_key: &'a SessionKey,
+    pub config: &'a CliConfig,
+    pub session_email_hint: Option<&'a str>,
+}
+
 pub(super) async fn create_session_for_tenant(
-    creds: &CloudCredentials,
-    profile: &Profile,
-    profile_ctx: &ProfileContext<'_>,
-    session_key: &SessionKey,
-    config: &CliConfig,
-    session_email_hint: Option<&str>,
+    params: TenantSessionParams<'_>,
 ) -> Result<CliSession> {
+    let TenantSessionParams {
+        creds,
+        profile,
+        profile_ctx,
+        session_key,
+        config,
+        session_email_hint,
+    } = params;
     profile
         .validate()
         .with_context(|| format!("Failed to validate profile: {}", profile_ctx.name))?;

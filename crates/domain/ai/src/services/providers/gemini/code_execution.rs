@@ -39,7 +39,7 @@ fn build_code_execution_request(
         function_declarations: None,
         google_search: None,
         url_context: None,
-        code_execution: Some(CodeExecution {}),
+        code_execution: Some(CodeExecution::default()),
     }];
 
     let generation_config =

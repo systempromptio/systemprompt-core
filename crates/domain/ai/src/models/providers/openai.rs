@@ -253,12 +253,11 @@ pub struct OpenAiWebSearchAnnotation {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize)]
-#[allow(clippy::struct_field_names)]
 pub struct OpenAiResponsesUsage {
-    #[serde(default)]
-    pub input_tokens: u32,
-    #[serde(default)]
-    pub output_tokens: u32,
-    #[serde(default)]
-    pub total_tokens: u32,
+    #[serde(default, alias = "input_tokens")]
+    pub input: u32,
+    #[serde(default, alias = "output_tokens")]
+    pub output: u32,
+    #[serde(default, alias = "total_tokens")]
+    pub total: u32,
 }

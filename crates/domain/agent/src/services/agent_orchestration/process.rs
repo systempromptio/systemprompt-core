@@ -93,8 +93,14 @@ fn build_agent_command(
         .arg("--port")
         .arg(port.to_string())
         .env_clear()
-        .env("PATH", std::env::var("PATH").unwrap_or_default())
-        .env("HOME", std::env::var("HOME").unwrap_or_default())
+        .env(
+            "PATH",
+            std::env::var("PATH").expect("PATH environment variable must be set"),
+        )
+        .env(
+            "HOME",
+            std::env::var("HOME").expect("HOME environment variable must be set"),
+        )
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
         .env("JWT_SECRET", &secrets.jwt_secret)

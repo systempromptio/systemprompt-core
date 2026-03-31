@@ -84,8 +84,8 @@ pub fn build(
         },
         security: SecurityConfig {
             issuer: format!("systemprompt-{}", env_name),
-            access_token_expiration: 2_592_000,   // 30 days
-            refresh_token_expiration: 15_552_000, // 180 days
+            access_token_expiration: 2_592_000,
+            refresh_token_expiration: 15_552_000,
             audiences: vec![
                 JwtAudience::Web,
                 JwtAudience::Api,

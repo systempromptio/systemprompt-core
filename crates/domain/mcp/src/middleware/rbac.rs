@@ -161,18 +161,30 @@ fn try_proxy_verified_auth(
         .headers
         .get("x-user-id")
         .and_then(|v| v.to_str().ok())
-        .unwrap_or_default();
+        .ok_or_else(|| {
+            McpError::invalid_request(
+                "Proxy-verified request missing x-user-id header".to_string(),
+                None,
+            )
+        })?;
 
     let permissions = parts
         .headers
         .get("x-user-permissions")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| systemprompt_models::auth::parse_permissions(s).ok())
-        .unwrap_or_default();
+        .ok_or_else(|| {
+            McpError::invalid_request(
+                "Proxy-verified request missing x-user-permissions header".to_string(),
+                None,
+            )
+        })?;
 
     validate_scopes_for_permissions(server_name, &permissions, oauth_config)?;
 
-    let user_id: uuid::Uuid = user_id_str.parse().unwrap_or_default();
+    let user_id: uuid::Uuid = user_id_str.parse().map_err(|e| {
+        McpError::invalid_request(format!("Invalid user ID in x-user-id header: {e}"), None)
+    })?;
     let authenticated_user =
         AuthenticatedUser::new(user_id, String::new(), String::new(), permissions);
 
@@ -181,7 +193,12 @@ fn try_proxy_verified_auth(
         .get("authorization")
         .and_then(|v| v.to_str().ok())
         .and_then(|s| s.strip_prefix("Bearer "))
-        .unwrap_or_default()
+        .ok_or_else(|| {
+            McpError::invalid_request(
+                "Proxy-verified request missing Authorization Bearer token".to_string(),
+                None,
+            )
+        })?
         .to_string();
 
     let context = request_context

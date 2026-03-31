@@ -136,14 +136,14 @@ pub async fn execute(
     let result = if args.stream {
         execute_streaming(&agent, &agent_url, auth_token, &request, &message_text).await?
     } else {
-        execute_non_streaming(
-            &agent,
-            &agent_url,
+        execute_non_streaming(NonStreamingRequest {
+            agent: &agent,
+            agent_url: &agent_url,
             auth_token,
-            &request,
-            &message_text,
-            args.timeout,
-        )
+            request: &request,
+            message_text: &message_text,
+            timeout: args.timeout,
+        })
         .await?
     };
 
@@ -156,7 +156,6 @@ pub async fn execute(
     Ok(CommandResult::text(output).with_skip_render())
 }
 
-#[allow(clippy::print_stdout)]
 async fn execute_streaming(
     agent: &str,
     agent_url: &str,
@@ -203,13 +202,17 @@ async fn execute_streaming(
                             if let Some(ref msg) = event.status.message {
                                 let text = extract_text_from_parts(&msg.parts);
                                 if !text.is_empty() {
-                                    print!("{}", text);
+                                    let _ = std::io::Write::write_all(
+                                        &mut std::io::stdout(),
+                                        text.as_bytes(),
+                                    );
+                                    let _ = std::io::Write::flush(&mut std::io::stdout());
                                     accumulated_text.push_str(&text);
                                 }
                             }
 
                             if event.is_final {
-                                println!();
+                                CliService::output("");
                                 final_task = Some(Task {
                                     id: event.task_id.into(),
                                     context_id: event.context_id.into(),
@@ -259,15 +262,26 @@ async fn execute_streaming(
     Ok(CommandResult::card(output).with_title(format!("Message sent to {}", agent)))
 }
 
-#[allow(clippy::too_many_arguments)]
-async fn execute_non_streaming(
-    agent: &str,
-    agent_url: &str,
-    auth_token: &str,
-    request: &Request<MessageSendParams>,
-    message_text: &str,
+struct NonStreamingRequest<'a> {
+    agent: &'a str,
+    agent_url: &'a str,
+    auth_token: &'a str,
+    request: &'a Request<MessageSendParams>,
+    message_text: &'a str,
     timeout: u64,
+}
+
+async fn execute_non_streaming(
+    params: NonStreamingRequest<'_>,
 ) -> Result<CommandResult<MessageOutput>> {
+    let NonStreamingRequest {
+        agent,
+        agent_url,
+        auth_token,
+        request,
+        message_text,
+        timeout,
+    } = params;
     let client = Client::builder()
         .timeout(std::time::Duration::from_secs(timeout))
         .build()

@@ -32,5 +32,3 @@ pub enum ContentError {
     #[error("YAML parse error: {0}")]
     Yaml(#[from] serde_yaml::Error),
 }
-
-pub type Result<T> = std::result::Result<T, ContentError>;
