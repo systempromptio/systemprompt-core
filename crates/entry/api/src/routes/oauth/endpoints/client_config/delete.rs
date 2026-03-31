@@ -1,25 +1,15 @@
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
 
 use super::validation::validate_registration_token;
-use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
+use crate::routes::oauth::extractors::OAuthRepo;
 
 pub async fn delete_client_configuration(
-    State(state): State<OAuthState>,
+    OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     if let Err(response) = validate_registration_token(&headers) {
         return *response;
     }

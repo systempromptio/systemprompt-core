@@ -10,6 +10,7 @@ use systemprompt_identifiers::{
 use systemprompt_models::Config;
 use systemprompt_models::auth::{AuthenticatedUser, Permission, parse_permissions};
 
+use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{OAuthRepository, RefreshTokenParams};
 
@@ -22,17 +23,9 @@ pub struct CallbackQuery {
 pub async fn handle_callback(
     Query(params): Query<CallbackQuery>,
     State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let config = match Config::get() {
         Ok(c) => c,
         Err(e) => {

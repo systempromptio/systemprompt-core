@@ -5,9 +5,10 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
+
+use crate::routes::oauth::extractors::OAuthRepo;
 
 use super::LinkError;
 
@@ -24,10 +25,11 @@ pub struct StartLinkUserInfo {
 }
 
 #[allow(unused_qualifications)]
-#[instrument(skip(state, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
+#[instrument(skip(state, oauth_repo, params), fields(token_prefix = %params.token.chars().take(12).collect::<String>()))]
 pub async fn start_link(
     Query(params): Query<StartLinkQuery>,
     State(state): State<OAuthState>,
+    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> impl IntoResponse {
     if params.token.is_empty() {
         return (
@@ -39,21 +41,6 @@ pub async fn start_link(
         )
             .into_response();
     }
-
-    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            tracing::error!(error = %e, "Failed to initialize repository");
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(LinkError {
-                    error: "server_error".to_string(),
-                    error_description: format!("Repository initialization failed: {e}"),
-                }),
-            )
-                .into_response();
-        },
-    };
 
     let user_provider = Arc::clone(state.user_provider());
     let webauthn_service =

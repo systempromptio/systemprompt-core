@@ -1,14 +1,11 @@
-use super::types::{
-    AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery, internal_error,
-};
+use super::types::{AnalyticsQuery, GenerateLinkRequest, GenerateLinkResponse, ListLinksQuery};
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
 use axum::response::{IntoResponse, Redirect};
 use axum::{Extension, Json};
 use systemprompt_content::{LinkAnalyticsService, LinkGenerationService};
 use systemprompt_database::DbPool;
 use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId};
-use systemprompt_models::{Config, RequestContext};
+use systemprompt_models::{ApiError, Config, RequestContext};
 use systemprompt_runtime::AppContext;
 use tracing::error;
 
@@ -19,23 +16,19 @@ pub async fn redirect_handler(
 ) -> impl IntoResponse {
     let link_gen_service = match LinkGenerationService::new(&db_pool) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
     let analytics_service = match LinkAnalyticsService::new(&db_pool) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let link = match link_gen_service.get_link_by_short_code(&short_code).await {
         Ok(Some(link)) => link,
         Ok(None) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(serde_json::json!({"error": "Link not found"})),
-            )
-                .into_response();
+            return ApiError::not_found("Link not found").into_response();
         },
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let track_params = systemprompt_content::TrackClickParams::new(
@@ -66,11 +59,10 @@ pub async fn generate_link_handler(
         "utm" => systemprompt_content::LinkType::Utm,
         "both" => systemprompt_content::LinkType::Both,
         _ => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(serde_json::json!({"error": "Invalid link_type. Must be 'redirect', 'utm', or 'both'"})),
+            return ApiError::bad_request(
+                "Invalid link_type. Must be 'redirect', 'utm', or 'both'",
             )
-                .into_response();
+            .into_response();
         },
     };
 
@@ -91,7 +83,7 @@ pub async fn generate_link_handler(
 
     let link_gen_service = match LinkGenerationService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let campaign_id = payload.campaign_id.map(CampaignId::new);
@@ -116,7 +108,7 @@ pub async fn generate_link_handler(
             let base_url = match Config::get() {
                 Ok(c) => c.api_external_url.clone(),
                 Err(e) => {
-                    return internal_error(&format!("Configuration unavailable: {e}"))
+                    return ApiError::internal_error(format!("Configuration unavailable: {e}"))
                         .into_response();
                 },
             };
@@ -131,7 +123,7 @@ pub async fn generate_link_handler(
             })
             .into_response()
         },
-        Err(e) => internal_error(&e.to_string()).into_response(),
+        Err(e) => ApiError::internal_error(e.to_string()).into_response(),
     }
 }
 
@@ -142,18 +134,14 @@ pub async fn get_link_performance_handler(
 ) -> impl IntoResponse {
     let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let link_id = LinkId::new(link_id);
     match analytics_service.get_link_performance(&link_id).await {
         Ok(Some(performance)) => Json(performance).into_response(),
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Link not found"})),
-        )
-            .into_response(),
-        Err(e) => internal_error(&e.to_string()).into_response(),
+        Ok(None) => ApiError::not_found("Link not found").into_response(),
+        Err(e) => ApiError::internal_error(e.to_string()).into_response(),
     }
 }
 
@@ -164,7 +152,7 @@ pub async fn get_campaign_performance_handler(
 ) -> impl IntoResponse {
     let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let campaign_id = CampaignId::new(campaign_id);
@@ -173,12 +161,8 @@ pub async fn get_campaign_performance_handler(
         .await
     {
         Ok(Some(performance)) => Json(performance).into_response(),
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({"error": "Campaign not found"})),
-        )
-            .into_response(),
-        Err(e) => internal_error(&e.to_string()).into_response(),
+        Ok(None) => ApiError::not_found("Campaign not found").into_response(),
+        Err(e) => ApiError::internal_error(e.to_string()).into_response(),
     }
 }
 
@@ -189,7 +173,7 @@ pub async fn get_content_journey_handler(
 ) -> impl IntoResponse {
     let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     match analytics_service
@@ -197,7 +181,7 @@ pub async fn get_content_journey_handler(
         .await
     {
         Ok(journey) => Json(journey).into_response(),
-        Err(e) => internal_error(&e.to_string()).into_response(),
+        Err(e) => ApiError::internal_error(e.to_string()).into_response(),
     }
 }
 
@@ -208,14 +192,14 @@ pub async fn list_links_handler(
 ) -> impl IntoResponse {
     let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     if let Some(campaign_id) = query.campaign_id {
         let campaign_id = CampaignId::new(campaign_id);
         match analytics_service.get_links_by_campaign(&campaign_id).await {
             Ok(links) => Json(links).into_response(),
-            Err(e) => internal_error(&e.to_string()).into_response(),
+            Err(e) => ApiError::internal_error(e.to_string()).into_response(),
         }
     } else if let Some(source_content_id) = query.source_content_id {
         let source_content_id = ContentId::new(source_content_id);
@@ -224,14 +208,10 @@ pub async fn list_links_handler(
             .await
         {
             Ok(links) => Json(links).into_response(),
-            Err(e) => internal_error(&e.to_string()).into_response(),
+            Err(e) => ApiError::internal_error(e.to_string()).into_response(),
         }
     } else {
-        (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({"error": "Must provide either campaign_id or source_content_id"})),
-        )
-            .into_response()
+        ApiError::bad_request("Must provide either campaign_id or source_content_id").into_response()
     }
 }
 
@@ -243,7 +223,7 @@ pub async fn get_link_clicks_handler(
 ) -> impl IntoResponse {
     let analytics_service = match LinkAnalyticsService::new(ctx.db_pool()) {
         Ok(s) => s,
-        Err(e) => return internal_error(&e.to_string()).into_response(),
+        Err(e) => return ApiError::internal_error(e.to_string()).into_response(),
     };
 
     let link_id = LinkId::new(link_id);
@@ -252,6 +232,6 @@ pub async fn get_link_clicks_handler(
         .await
     {
         Ok(clicks) => Json(clicks).into_response(),
-        Err(e) => internal_error(&e.to_string()).into_response(),
+        Err(e) => ApiError::internal_error(e.to_string()).into_response(),
     }
 }

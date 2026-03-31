@@ -1,8 +1,8 @@
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json, Response};
+use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 
 use systemprompt_mcp::services::RegistryManager;
+use systemprompt_models::{ApiError, CollectionResponse};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct McpRegistryServer {
@@ -18,41 +18,13 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
-#[allow(clippy::needless_pass_by_value)]
-fn error_response(status: StatusCode, message: String) -> Response {
-    (
-        status,
-        Json(serde_json::json!({
-            "error": "internal_error",
-            "message": message
-        })),
-    )
-        .into_response()
-}
-
-#[allow(clippy::needless_pass_by_value)]
-fn collection_response<T: Serialize>(items: Vec<T>) -> Response {
-    (
-        StatusCode::OK,
-        Json(serde_json::json!({
-            "data": items,
-            "meta": {
-                "total": items.len()
-            }
-        })),
-    )
-        .into_response()
-}
-
 pub async fn handle_mcp_registry() -> impl IntoResponse {
     let server_configs = match RegistryManager::get_enabled_servers() {
         Ok(configs) => configs,
         Err(e) => {
             tracing::error!(error = %e, "Failed to load MCP server configs");
-            return error_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                format!("Failed to retrieve MCP registry: {e}"),
-            );
+            return ApiError::internal_error(format!("Failed to retrieve MCP registry: {e}"))
+                .into_response();
         },
     };
 
@@ -81,5 +53,5 @@ pub async fn handle_mcp_registry() -> impl IntoResponse {
         })
         .collect();
 
-    collection_response(servers)
+    CollectionResponse::new(servers).into_response()
 }

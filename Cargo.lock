@@ -4812,6 +4812,7 @@ dependencies = [
  "systemprompt-database",
  "systemprompt-extension",
  "systemprompt-identifiers",
+ "systemprompt-models",
  "systemprompt-traits",
  "thiserror 2.0.18",
  "tokio",

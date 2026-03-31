@@ -1,4 +1,3 @@
-use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
 use bcrypt::hash;
@@ -6,25 +5,17 @@ use chrono::Utc;
 use systemprompt_models::Config;
 use uuid::Uuid;
 
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::oauth::dynamic_registration::{
     DynamicRegistrationRequest, DynamicRegistrationResponse,
 };
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
 
+use crate::routes::oauth::extractors::OAuthRepo;
+
 pub async fn register_client(
-    State(state): State<OAuthState>,
+    OAuthRepo(repository): OAuthRepo,
     Json(request): Json<DynamicRegistrationRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let client_id = generate_client_id(&request);
     let client_secret = Uuid::new_v4().to_string();
     let registration_access_token = generate_registration_access_token();

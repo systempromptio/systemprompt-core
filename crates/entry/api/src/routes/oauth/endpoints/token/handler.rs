@@ -16,23 +16,16 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::{GrantType, OAuthState};
 use tracing::instrument;
 
-#[instrument(skip(state, _req_ctx, headers, request), fields(grant_type = %request.grant_type))]
+use crate::routes::oauth::extractors::OAuthRepo;
+
+#[instrument(skip(state, _req_ctx, headers, request, repo), fields(grant_type = %request.grant_type))]
 pub async fn handle_token(
     Extension(_req_ctx): Extension<RequestContext>,
     State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
     headers: HeaderMap,
     Form(request): Form<TokenRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
-
     tracing::info!(grant_type = %request.grant_type, "Token request received");
 
     match request.grant_type.parse::<GrantType>().map_err(|e| {

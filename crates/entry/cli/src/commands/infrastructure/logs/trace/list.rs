@@ -2,10 +2,8 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_logging::{CliService, TraceListFilter, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TraceListOutput, TraceListRow};
-use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
 use crate::shared::{CommandResult, render_result};
 
@@ -44,20 +42,7 @@ pub struct ListArgs {
     pub all: bool,
 }
 
-pub async fn execute(args: ListArgs, _config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
-}
-
-pub async fn execute_with_pool(
-    args: ListArgs,
-    db_ctx: &DatabaseContext,
-    _config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
-}
+crate::define_pool_command!(ListArgs => (), no_config);
 
 async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;

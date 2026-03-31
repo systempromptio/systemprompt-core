@@ -4,11 +4,9 @@ use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
-use crate::CliConfig;
 use crate::shared::CommandResult;
 
 #[derive(Debug, Clone, Copy, Default, ValueEnum)]
@@ -63,23 +61,7 @@ struct LogRow {
     metadata: Option<String>,
 }
 
-pub async fn execute(
-    args: ExportArgs,
-    _config: &CliConfig,
-) -> Result<CommandResult<LogExportOutput>> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
-}
-
-pub async fn execute_with_pool(
-    args: ExportArgs,
-    db_ctx: &DatabaseContext,
-    _config: &CliConfig,
-) -> Result<CommandResult<LogExportOutput>> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool).await
-}
+crate::define_pool_command!(ExportArgs => CommandResult<LogExportOutput>, no_config);
 
 async fn execute_with_pool_inner(
     args: ExportArgs,

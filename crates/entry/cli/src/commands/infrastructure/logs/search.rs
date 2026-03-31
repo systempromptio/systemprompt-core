@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::{CliService, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use super::shared::display_log_row;
@@ -56,23 +55,7 @@ pub struct CombinedSearchOutput {
     pub filters: LogFilters,
 }
 
-pub async fn execute(
-    args: SearchArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<CombinedSearchOutput>> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: SearchArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<CommandResult<CombinedSearchOutput>> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(SearchArgs => CommandResult<CombinedSearchOutput>, with_config);
 
 async fn execute_with_pool_inner(
     args: SearchArgs,

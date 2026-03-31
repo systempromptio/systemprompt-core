@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_logging::{CliService, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{RequestListOutput, RequestListRow};
 use crate::CliConfig;
@@ -33,23 +32,7 @@ pub struct ListArgs {
     pub provider: Option<String>,
 }
 
-pub async fn execute(
-    args: ListArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<RequestListOutput>> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: ListArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<CommandResult<RequestListOutput>> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(ListArgs => CommandResult<RequestListOutput>, with_config);
 
 async fn execute_with_pool_inner(
     args: ListArgs,

@@ -34,19 +34,10 @@ impl TraceListFilter {
         self
     }
 
-    pub fn with_agent(mut self, agent: String) -> Self {
-        self.agent = Some(agent);
-        self
-    }
-
-    pub fn with_status(mut self, status: String) -> Self {
-        self.status = Some(status);
-        self
-    }
-
-    pub fn with_tool(mut self, tool: String) -> Self {
-        self.tool = Some(tool);
-        self
+    systemprompt_models::builder_methods! {
+        with_agent(agent) -> String,
+        with_status(status) -> String,
+        with_tool(tool) -> String,
     }
 
     pub const fn with_has_mcp(mut self, has_mcp: bool) -> Self {
@@ -96,19 +87,10 @@ impl ToolExecutionFilter {
         self
     }
 
-    pub fn with_name(mut self, name: String) -> Self {
-        self.name = Some(name);
-        self
-    }
-
-    pub fn with_server(mut self, server: String) -> Self {
-        self.server = Some(server);
-        self
-    }
-
-    pub fn with_status(mut self, status: String) -> Self {
-        self.status = Some(status);
-        self
+    systemprompt_models::builder_methods! {
+        with_name(name) -> String,
+        with_server(server) -> String,
+        with_status(status) -> String,
     }
 }
 
@@ -145,9 +127,8 @@ impl LogSearchFilter {
         self
     }
 
-    pub fn with_level(mut self, level: String) -> Self {
-        self.level = Some(level);
-        self
+    systemprompt_models::builder_methods! {
+        with_level(level) -> String,
     }
 }
 
@@ -185,14 +166,9 @@ impl AiRequestFilter {
         self
     }
 
-    pub fn with_model(mut self, model: String) -> Self {
-        self.model = Some(model);
-        self
-    }
-
-    pub fn with_provider(mut self, provider: String) -> Self {
-        self.provider = Some(provider);
-        self
+    systemprompt_models::builder_methods! {
+        with_model(model) -> String,
+        with_provider(provider) -> String,
     }
 }
 

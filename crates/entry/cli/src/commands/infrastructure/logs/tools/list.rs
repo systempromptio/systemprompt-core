@@ -2,7 +2,6 @@ use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
 use systemprompt_logging::{CliService, ToolExecutionFilter, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;
@@ -27,20 +26,7 @@ pub struct ListArgs {
     pub limit: i64,
 }
 
-pub async fn execute(args: ListArgs, config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: ListArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(ListArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: ListArgs,

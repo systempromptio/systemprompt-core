@@ -5,9 +5,10 @@ use axum::response::IntoResponse;
 use serde::Deserialize;
 use std::sync::Arc;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
+
+use crate::routes::oauth::extractors::OAuthRepo;
 
 use super::RegisterError;
 
@@ -47,10 +48,11 @@ impl StartRegisterQuery {
 }
 
 #[allow(unused_qualifications)]
-#[instrument(skip(state, params), fields(username = %params.username, email = %params.email))]
+#[instrument(skip(state, oauth_repo, params), fields(username = %params.username, email = %params.email))]
 pub async fn start_register(
     Query(params): Query<StartRegisterQuery>,
     State(state): State<OAuthState>,
+    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> impl IntoResponse {
     if let Err(validation_error) = params.validate() {
         return (
@@ -63,15 +65,6 @@ pub async fn start_register(
             .into_response();
     }
 
-    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =

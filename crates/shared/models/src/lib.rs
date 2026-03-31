@@ -1,3 +1,5 @@
+pub mod macros;
+
 pub mod a2a;
 pub mod admin;
 pub mod agui;

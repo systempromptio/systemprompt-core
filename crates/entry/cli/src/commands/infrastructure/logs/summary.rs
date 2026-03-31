@@ -4,7 +4,6 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
 use crate::CliConfig;
@@ -73,20 +72,7 @@ struct TimeRangeRow {
     latest: Option<DateTime<Utc>>,
 }
 
-pub async fn execute(args: SummaryArgs, config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: SummaryArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(SummaryArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: SummaryArgs,

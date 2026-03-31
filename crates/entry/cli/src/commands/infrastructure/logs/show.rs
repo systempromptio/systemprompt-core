@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_logging::CliService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use systemprompt_models::text::truncate_with_ellipsis;
 use crate::CliConfig;
@@ -62,20 +61,7 @@ struct LogRow {
     context_id: Option<String>,
 }
 
-pub async fn execute(args: ShowArgs, config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: ShowArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(ShowArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,

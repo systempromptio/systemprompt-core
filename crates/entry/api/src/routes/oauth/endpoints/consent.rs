@@ -2,13 +2,14 @@
 
 use anyhow::Result;
 use axum::Json;
-use axum::extract::{Query, State};
+use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::ClientId;
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
+
+use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct ConsentQuery {
@@ -34,17 +35,8 @@ pub struct ConsentError {
 
 pub async fn handle_consent_get(
     Query(params): Query<ConsentQuery>,
-    State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     match get_consent_info(&repo, &params).await {
         Ok(consent_info) => {
             let consent_form = generate_consent_page(&consent_info, &params);
@@ -68,10 +60,7 @@ pub struct ConsentRequest {
     pub decision: String,
 }
 
-pub async fn handle_consent_post(
-    State(_state): State<OAuthState>,
-    Json(decision): Json<ConsentRequest>,
-) -> impl IntoResponse {
+pub async fn handle_consent_post(Json(decision): Json<ConsentRequest>) -> impl IntoResponse {
     let response = process_consent_decision(&decision);
     (StatusCode::OK, Json(response)).into_response()
 }

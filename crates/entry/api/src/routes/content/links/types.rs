@@ -1,6 +1,3 @@
-use axum::Json;
-use axum::http::StatusCode;
-use axum::response::IntoResponse;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use systemprompt_identifiers::LinkId;
@@ -41,11 +38,4 @@ pub struct ListLinksQuery {
 pub struct AnalyticsQuery {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
-}
-
-pub fn internal_error(message: &str) -> impl IntoResponse {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(serde_json::json!({"error": message})),
-    )
 }

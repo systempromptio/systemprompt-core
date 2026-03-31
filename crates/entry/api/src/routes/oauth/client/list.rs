@@ -1,18 +1,17 @@
 #![allow(unused_qualifications)]
 
 
-use axum::extract::{Extension, Query, State};
+use axum::extract::{Extension, Query};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Deserialize;
 use tracing::instrument;
 use validator::Validate;
 
-use super::super::responses::{bad_request, init_error, internal_error};
+use super::super::extractors::OAuthRepo;
+use super::super::responses::{bad_request, internal_error};
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
-use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 
 #[derive(Debug, Deserialize, Validate)]
 pub struct ListClientsQuery {
@@ -37,16 +36,12 @@ fn paginated_response<T: serde::Serialize>(items: Vec<T>, pagination: Pagination
         .into_response()
 }
 
-#[instrument(skip(state, req_ctx, query))]
+#[instrument(skip(repository, req_ctx, query))]
 pub async fn list_clients(
     Extension(req_ctx): Extension<RequestContext>,
-    State(state): State<OAuthState>,
+    OAuthRepo(repository): OAuthRepo,
     Query(query): Query<ListClientsQuery>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => return init_error(e),
-    };
 
     if let Err(e) = query.validate() {
         tracing::info!(

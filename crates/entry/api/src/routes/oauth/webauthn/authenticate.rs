@@ -5,10 +5,11 @@ use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use tracing::instrument;
 use webauthn_rs::prelude::*;
+
+use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 pub struct StartAuthQuery {
@@ -30,20 +31,12 @@ pub struct AuthError {
 }
 
 #[allow(unused_qualifications)]
-#[instrument(skip(state, params), fields(email = %params.email))]
+#[instrument(skip(state, oauth_repo, params), fields(email = %params.email))]
 pub async fn start_auth(
     Query(params): Query<StartAuthQuery>,
     State(state): State<OAuthState>,
+    OAuthRepo(oauth_repo): OAuthRepo,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =
@@ -141,20 +134,12 @@ pub struct FinishAuthResponse {
     pub auth_token: Option<String>,
 }
 
-#[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
+#[instrument(skip(state, oauth_repo, request), fields(challenge_id = %request.challenge_id))]
 pub async fn finish_auth(
     State(state): State<OAuthState>,
+    OAuthRepo(oauth_repo): OAuthRepo,
     Json(request): Json<FinishAuthRequest>,
 ) -> impl IntoResponse {
-    let oauth_repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let user_provider = Arc::clone(state.user_provider());
 
     let webauthn_service =

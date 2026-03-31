@@ -5,7 +5,6 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use systemprompt_logging::TraceQueryService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::audit_display::render_text_output;
 use super::types::MessageRow;
@@ -46,20 +45,7 @@ pub struct AuditToolCall {
     pub sequence: i32,
 }
 
-pub async fn execute(args: AuditArgs, config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: AuditArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(AuditArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: AuditArgs,

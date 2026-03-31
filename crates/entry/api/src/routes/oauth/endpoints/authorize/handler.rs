@@ -4,31 +4,21 @@ use super::response_builder::{
 };
 use super::validation::{validate_authorize_request, validate_oauth_parameters};
 use super::{AuthorizeQuery, AuthorizeRequest, AuthorizeResponse};
+use crate::routes::oauth::extractors::OAuthRepo;
 use axum::Json;
-use axum::extract::{Extension, Form, Query, State};
+use axum::extract::{Extension, Form, Query};
 use axum::http::StatusCode;
 use axum::response::{Html, IntoResponse, Redirect};
 use systemprompt_models::RequestContext;
-use systemprompt_oauth::OAuthState;
-use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::CsrfToken;
 use tracing::instrument;
 
-#[instrument(skip(state, _req_ctx, params), fields(client_id = %params.client_id))]
+#[instrument(skip(repo, _req_ctx, params), fields(client_id = %params.client_id))]
 pub async fn handle_authorize_get(
     Extension(_req_ctx): Extension<RequestContext>,
     Query(params): Query<AuthorizeQuery>,
-    State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
 
     tracing::info!(
         client_id = %params.client_id,
@@ -150,21 +140,12 @@ pub async fn handle_authorize_get(
     }
 }
 
-#[instrument(skip(state, _req_ctx, form), fields(client_id = %form.client_id))]
+#[instrument(skip(repo, _req_ctx, form), fields(client_id = %form.client_id))]
 pub async fn handle_authorize_post(
     Extension(_req_ctx): Extension<RequestContext>,
-    State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
     Form(form): Form<AuthorizeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let query = convert_form_to_query(&form);
 
     tracing::info!(

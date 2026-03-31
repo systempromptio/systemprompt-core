@@ -1,24 +1,19 @@
-use axum::extract::{Extension, Path, State};
+use axum::extract::{Extension, Path};
 use axum::response::{IntoResponse, Json};
 use tracing::instrument;
 
-use super::super::responses::{bad_request, init_error, internal_error, not_found, single_response};
+use super::super::extractors::OAuthRepo;
+use super::super::responses::{bad_request, internal_error, not_found, single_response};
 use systemprompt_models::RequestContext;
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::clients::api::{OAuthClientResponse, UpdateOAuthClientRequest};
-use systemprompt_oauth::repository::OAuthRepository;
 
-#[instrument(skip(state, req_ctx, request), fields(client_id = %client_id))]
+#[instrument(skip(repository, req_ctx, request), fields(client_id = %client_id))]
 pub async fn update_client(
     Extension(req_ctx): Extension<RequestContext>,
-    State(state): State<OAuthState>,
+    OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
     Json(request): Json<UpdateOAuthClientRequest>,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => return init_error(e),
-    };
 
     match repository.find_client_by_id(&client_id).await {
         Ok(Some(prev_client)) => {

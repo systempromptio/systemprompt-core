@@ -3,7 +3,6 @@ use std::sync::Arc;
 use anyhow::Result;
 use clap::Args;
 use systemprompt_logging::{AiTraceService, CliService, TraceQueryService};
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
 use crate::CliConfig;
@@ -24,23 +23,7 @@ pub struct ShowArgs {
     pub full: bool,
 }
 
-pub async fn execute(
-    args: ShowArgs,
-    config: &CliConfig,
-) -> Result<CommandResult<RequestShowOutput>> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: ShowArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<CommandResult<RequestShowOutput>> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(ShowArgs => CommandResult<RequestShowOutput>, with_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,

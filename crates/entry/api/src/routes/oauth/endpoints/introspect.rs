@@ -1,13 +1,13 @@
 use anyhow::Result;
-use axum::extract::State;
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
 use axum::{Form, Json};
 use serde::{Deserialize, Serialize};
-use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validate_jwt_token;
 use systemprompt_oauth::services::validation::validate_client_credentials;
+
+use crate::routes::oauth::extractors::OAuthRepo;
 
 #[derive(Debug, Deserialize)]
 
@@ -52,18 +52,9 @@ pub struct IntrospectError {
 }
 
 pub async fn handle_introspect(
-    State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
     Form(request): Form<IntrospectRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     if let Some(client_id) = &request.client_id {
         if validate_client_credentials(&repo, client_id, request.client_secret.as_deref())
             .await

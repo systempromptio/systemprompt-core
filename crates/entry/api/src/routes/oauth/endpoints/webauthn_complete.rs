@@ -6,6 +6,7 @@ use axum::response::{IntoResponse, Redirect};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
@@ -38,17 +39,8 @@ pub async fn handle_webauthn_complete(
     headers: HeaderMap,
     Query(params): Query<WebAuthnCompleteQuery>,
     State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
-                axum::Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
-
     let auth_token = match &params.auth_token {
         Some(token) => token.clone(),
         None => {

@@ -4,7 +4,6 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use systemprompt_logging::TraceQueryService;
-use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
@@ -55,20 +54,7 @@ pub struct ModelStats {
     pub avg_latency_ms: i64,
 }
 
-pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
-    let ctx = AppContext::new().await?;
-    let pool = ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
-
-pub async fn execute_with_pool(
-    args: StatsArgs,
-    db_ctx: &DatabaseContext,
-    config: &CliConfig,
-) -> Result<()> {
-    let pool = db_ctx.db_pool().pool_arc()?;
-    execute_with_pool_inner(args, &pool, config).await
-}
+crate::define_pool_command!(StatsArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: StatsArgs,

@@ -3,8 +3,9 @@ pub mod clients;
 pub mod core;
 pub mod discovery;
 pub mod endpoints;
+pub mod extractors;
 pub mod health;
-mod responses;
+pub(crate) mod responses;
 pub mod webauthn;
 pub mod wellknown;
 

@@ -12,6 +12,8 @@ use systemprompt_oauth::repository::OAuthRepository;
 use systemprompt_oauth::services::validation::{get_audit_user, validate_client_credentials};
 use tracing::instrument;
 
+use crate::routes::oauth::extractors::OAuthRepo;
+
 #[derive(Debug, Deserialize)]
 pub struct RevokeRequest {
     pub token: String,
@@ -26,22 +28,13 @@ pub struct RevokeError {
     pub error_description: Option<String>,
 }
 
-#[instrument(skip(state, req_ctx, request))]
+#[instrument(skip(state, req_ctx, request, repo))]
 pub async fn handle_revoke(
     Extension(req_ctx): Extension<RequestContext>,
     State(state): State<OAuthState>,
+    OAuthRepo(repo): OAuthRepo,
     Form(request): Form<RevokeRequest>,
 ) -> impl IntoResponse {
-    let repo = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
-
     let audit_user = match get_audit_user(Some(req_ctx.auth.user_id.as_str())) {
         Ok(user) => user,
         Err(e) => {

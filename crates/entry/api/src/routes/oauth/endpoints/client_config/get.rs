@@ -1,26 +1,16 @@
-use axum::extract::{Path, State};
+use axum::extract::Path;
 use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Json};
 use systemprompt_models::Config;
 
-use systemprompt_oauth::OAuthState;
+use crate::routes::oauth::extractors::OAuthRepo;
 use systemprompt_oauth::oauth::dynamic_registration::DynamicRegistrationResponse;
-use systemprompt_oauth::repository::OAuthRepository;
 
 pub async fn get_client_configuration(
-    State(state): State<OAuthState>,
+    OAuthRepo(repository): OAuthRepo,
     Path(client_id): Path<String>,
     headers: HeaderMap,
 ) -> impl IntoResponse {
-    let repository = match OAuthRepository::new(state.db_pool()) {
-        Ok(r) => r,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(serde_json::json!({"error": "server_error", "error_description": format!("Repository initialization failed: {}", e)})),
-            ).into_response();
-        },
-    };
     let auth_header = match headers.get("authorization") {
         Some(header) => match header.to_str() {
             Ok(value) => value,
