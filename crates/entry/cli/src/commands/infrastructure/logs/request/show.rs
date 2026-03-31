@@ -48,8 +48,7 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<CommandResult<RequestShowOutput>> {
     let service = TraceQueryService::new(Arc::clone(pool));
-    let Some(row) = service.find_ai_request_detail(&args.request_id).await?
-    else {
+    let Some(row) = service.find_ai_request_detail(&args.request_id).await? else {
         if !config.is_json_output() {
             CliService::warning(&format!("AI request not found: {}", args.request_id));
             CliService::info(
@@ -144,7 +143,6 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
             },
         )
 }
-
 
 
 fn render_text_output(output: &RequestShowOutput, full: bool) {

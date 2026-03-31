@@ -1,9 +1,7 @@
 use chrono::{DateTime, Utc};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use systemprompt_identifiers::{
-    CampaignId, ContentId, LinkId, SessionId, UserId,
-};
+use systemprompt_identifiers::{CampaignId, ContentId, LinkId, SessionId, UserId};
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct GenerateLinkOutput {

@@ -1,8 +1,8 @@
 use anyhow::Result;
 use reqwest::Client;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 use systemprompt_database::DbPool;
+use tokio::sync::Mutex;
 
 use crate::services::schema::ToolNameMapper;
 

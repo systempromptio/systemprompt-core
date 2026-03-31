@@ -86,7 +86,12 @@ async fn execute_with_pool_inner(
     let service = TraceQueryService::new(Arc::clone(pool));
 
     let rows = service
-        .search_logs(&pattern, since_timestamp, level_filter.as_deref(), args.limit)
+        .search_logs(
+            &pattern,
+            since_timestamp,
+            level_filter.as_deref(),
+            args.limit,
+        )
         .await?;
 
     let tool_rows = if args.include_tools {

@@ -118,10 +118,7 @@ impl WebAuthnService {
         );
     }
 
-    pub async fn consume_verified_authentication(
-        &self,
-        token: &str,
-    ) -> Result<String> {
+    pub async fn consume_verified_authentication(&self, token: &str) -> Result<String> {
         let data = {
             let mut verified = self.verified_auths.lock().await;
             verified

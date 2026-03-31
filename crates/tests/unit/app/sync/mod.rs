@@ -7,7 +7,8 @@
 //! - `SyncOperationResult` construction and methods
 //! - `FileBundle`, `FileManifest`, `FileEntry` models
 //! - `DatabaseExport` models (`SkillExport`, `ContextExport`)
-//! - `LocalSync` models (`DiffStatus`, `ContentDiffItem`, `SkillDiffItem`, etc.)
+//! - `LocalSync` models (`DiffStatus`, `ContentDiffItem`, `SkillDiffItem`,
+//!   etc.)
 //! - Hash computation functions
 //! - Export generation functions
 //! - YAML escaping
@@ -448,7 +449,10 @@ fn test_database_export_empty() {
 
 #[test]
 fn test_database_export_serialization() {
-    let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).single().expect("valid datetime");
+    let now = Utc
+        .with_ymd_and_hms(2024, 1, 15, 12, 0, 0)
+        .single()
+        .expect("valid datetime");
     let export = DatabaseExport {
         users: vec![],
         skills: vec![],
@@ -985,7 +989,8 @@ fn test_export_skill_to_disk_creates_files() {
     let skill_content = fs::read_to_string(skill_dir.join("SKILL.md")).expect("read SKILL.md");
     assert!(skill_content.contains("description: \"Testing export\""));
 
-    let config_content = fs::read_to_string(skill_dir.join("config.yaml")).expect("read config.yaml");
+    let config_content =
+        fs::read_to_string(skill_dir.join("config.yaml")).expect("read config.yaml");
     assert!(config_content.contains("id: export_test"));
 }
 
@@ -1028,7 +1033,10 @@ fn test_generate_content_markdown_structure() {
         description: "Article description".to_string(),
         body: "Article body content goes here.".to_string(),
         author: "Test Author".to_string(),
-        published_at: Utc.with_ymd_and_hms(2024, 6, 15, 0, 0, 0).single().expect("valid published date"),
+        published_at: Utc
+            .with_ymd_and_hms(2024, 6, 15, 0, 0, 0)
+            .single()
+            .expect("valid published date"),
         keywords: "test, article".to_string(),
         kind: "article".to_string(),
         image: Some("cover.jpg".to_string()),
@@ -1037,7 +1045,10 @@ fn test_generate_content_markdown_structure() {
         version_hash: "hash123".to_string(),
         public: true,
         links: serde_json::json!([]),
-        updated_at: Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).single().expect("valid updated date"),
+        updated_at: Utc
+            .with_ymd_and_hms(2024, 7, 20, 0, 0, 0)
+            .single()
+            .expect("valid updated date"),
     };
 
     let markdown = generate_content_markdown(&content);
@@ -1319,8 +1330,10 @@ fn test_sync_direction_roundtrip() {
 #[test]
 fn test_diff_status_serialize_all_variants() {
     let added_json = serde_json::to_string(&DiffStatus::Added).expect("serialize added status");
-    let removed_json = serde_json::to_string(&DiffStatus::Removed).expect("serialize removed status");
-    let modified_json = serde_json::to_string(&DiffStatus::Modified).expect("serialize modified status");
+    let removed_json =
+        serde_json::to_string(&DiffStatus::Removed).expect("serialize removed status");
+    let modified_json =
+        serde_json::to_string(&DiffStatus::Modified).expect("serialize modified status");
 
     assert_eq!(added_json, "\"Added\"");
     assert_eq!(removed_json, "\"Removed\"");
@@ -1370,7 +1383,8 @@ fn test_database_export_roundtrip() {
     };
 
     let json = serde_json::to_string(&original).expect("serialize database export");
-    let restored: DatabaseExport = serde_json::from_str(&json).expect("deserialize database export");
+    let restored: DatabaseExport =
+        serde_json::from_str(&json).expect("deserialize database export");
 
     assert_eq!(original.skills.len(), restored.skills.len());
     assert_eq!(original.skills[0].name, restored.skills[0].name);
@@ -2073,7 +2087,8 @@ fn test_database_export_full_roundtrip() {
     };
 
     let json = serde_json::to_string(&original).expect("serialize full database export");
-    let restored: DatabaseExport = serde_json::from_str(&json).expect("deserialize full database export");
+    let restored: DatabaseExport =
+        serde_json::from_str(&json).expect("deserialize full database export");
 
     assert_eq!(original.users.len(), restored.users.len());
     assert_eq!(original.skills.len(), restored.skills.len());

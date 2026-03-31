@@ -125,38 +125,23 @@ impl TraceQueryService {
         request_queries::get_ai_request_stats(&self.pool, since).await
     }
 
-    pub async fn find_ai_request_detail(
-        &self,
-        id: &str,
-    ) -> Result<Option<AiRequestDetail>> {
+    pub async fn find_ai_request_detail(&self, id: &str) -> Result<Option<AiRequestDetail>> {
         request_queries::find_ai_request_detail(&self.pool, id).await
     }
 
-    pub async fn find_ai_request_for_audit(
-        &self,
-        id: &str,
-    ) -> Result<Option<AuditLookupResult>> {
+    pub async fn find_ai_request_for_audit(&self, id: &str) -> Result<Option<AuditLookupResult>> {
         request_queries::find_ai_request_for_audit(&self.pool, id).await
     }
 
-    pub async fn list_audit_messages(
-        &self,
-        request_id: &str,
-    ) -> Result<Vec<ConversationMessage>> {
+    pub async fn list_audit_messages(&self, request_id: &str) -> Result<Vec<ConversationMessage>> {
         request_queries::list_audit_messages(&self.pool, request_id).await
     }
 
-    pub async fn list_audit_tool_calls(
-        &self,
-        request_id: &str,
-    ) -> Result<Vec<AuditToolCallRow>> {
+    pub async fn list_audit_tool_calls(&self, request_id: &str) -> Result<Vec<AuditToolCallRow>> {
         request_queries::list_audit_tool_calls(&self.pool, request_id).await
     }
 
-    pub async fn list_linked_mcp_calls(
-        &self,
-        request_id: &str,
-    ) -> Result<Vec<LinkedMcpCall>> {
+    pub async fn list_linked_mcp_calls(&self, request_id: &str) -> Result<Vec<LinkedMcpCall>> {
         request_queries::list_linked_mcp_calls(&self.pool, request_id).await
     }
 }

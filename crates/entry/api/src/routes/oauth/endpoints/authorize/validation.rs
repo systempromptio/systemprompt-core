@@ -171,7 +171,9 @@ fn validate_resource_uri(resource: &str) -> Result<(), String> {
 
     if let Some(host) = url.host_str() {
         if is_forbidden_host(host) {
-            return Err("Resource URI must not target internal or private network addresses".to_string());
+            return Err(
+                "Resource URI must not target internal or private network addresses".to_string(),
+            );
         }
     }
 
@@ -193,15 +195,15 @@ fn is_forbidden_host(host: &str) -> bool {
         return true;
     }
 
-    if lower.starts_with("10.")
-        || lower.starts_with("192.168.")
-        || lower.starts_with("169.254.")
-    {
+    if lower.starts_with("10.") || lower.starts_with("192.168.") || lower.starts_with("169.254.") {
         return true;
     }
 
     if lower.starts_with("172.") {
-        if let Some(second_octet_str) = lower.strip_prefix("172.").and_then(|rest| rest.split('.').next()) {
+        if let Some(second_octet_str) = lower
+            .strip_prefix("172.")
+            .and_then(|rest| rest.split('.').next())
+        {
             if let Ok(second_octet) = second_octet_str.parse::<u8>() {
                 if (16..=31).contains(&second_octet) {
                     return true;

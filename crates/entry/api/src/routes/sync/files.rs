@@ -157,8 +157,7 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
         let dest_path = target.join(&*entry_path);
 
         if let Some(parent) = dest_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|e| format!("Failed to create directory: {}", e))?;
+            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
             let canonical_parent = parent
                 .canonicalize()
                 .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
@@ -166,10 +165,7 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
                 .canonicalize()
                 .map_err(|e| format!("Failed to canonicalize target: {}", e))?;
             if !canonical_parent.starts_with(&canonical_target) {
-                return Err(format!(
-                    "Path escapes target directory: {}",
-                    entry_path_str
-                ));
+                return Err(format!("Path escapes target directory: {}", entry_path_str));
             }
         }
 

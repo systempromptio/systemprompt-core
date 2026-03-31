@@ -178,7 +178,8 @@ pub async fn finish_auth(
         .await
     {
         Ok((user_id, oauth_state)) => {
-            let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
+            let auth_token =
+                systemprompt_oauth::services::generate_secure_token("webauthn_verified");
             webauthn_service
                 .store_verified_authentication(auth_token.clone(), user_id.clone())
                 .await;
