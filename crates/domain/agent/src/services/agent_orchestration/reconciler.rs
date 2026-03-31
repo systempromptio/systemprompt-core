@@ -141,6 +141,12 @@ pub struct ConsistencyReport {
     pub orphaned_processes: Vec<(String, u32)>,
 }
 
+impl Default for ConsistencyReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ConsistencyReport {
     pub const fn new() -> Self {
         Self {

@@ -22,7 +22,7 @@ impl AgentRepository {
 
     pub async fn create(&self, agent: &Agent) -> Result<()> {
         let agent_id_str = agent.agent_id.as_str();
-        let category_id = agent.category_id.as_ref().map(|c| c.to_string());
+        let category_id = agent.category_id.as_ref().map(ToString::to_string);
         let source_id_str = agent.source_id.as_str();
 
         sqlx::query!(

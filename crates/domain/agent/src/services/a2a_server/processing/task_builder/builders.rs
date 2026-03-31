@@ -261,7 +261,7 @@ fn build_artifacts(
                     task_id.clone(),
                 )
                 .with_mcp_execution_id(call_id.to_string())
-                .with_tool_name(tool_name.to_string())
+                .with_tool_name(tool_name.clone())
                 .with_execution_index(idx),
             })
         })

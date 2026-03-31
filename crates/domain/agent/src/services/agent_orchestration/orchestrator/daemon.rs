@@ -19,7 +19,7 @@ impl AgentOrchestrator {
                     tracing::info!("Received shutdown signal");
                     break;
                 }
-                _ = tokio::time::sleep(Duration::from_secs(60)) => {
+                () = tokio::time::sleep(Duration::from_secs(60)) => {
                     if let Err(e) = self.cleanup_crashed_agents().await {
                         tracing::error!(error = %e, "Cleanup error");
                     }

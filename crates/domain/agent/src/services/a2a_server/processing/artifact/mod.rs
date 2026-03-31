@@ -57,7 +57,7 @@ pub struct ArtifactBuilder {
 }
 
 impl ArtifactBuilder {
-    pub fn new(
+    pub const fn new(
         tool_calls: Vec<ToolCall>,
         tool_results: Vec<CallToolResult>,
         tools: Vec<McpTool>,

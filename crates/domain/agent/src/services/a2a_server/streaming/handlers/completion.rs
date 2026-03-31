@@ -61,7 +61,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
     } = params;
     let completed_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_state(&task_id, TaskState::Completed, &completed_timestamp)
+        .update_task_state(task_id, TaskState::Completed, &completed_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
@@ -143,19 +143,18 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
         }
     }
 
-    let agent_message = match complete_task.status.message.clone() {
-        Some(msg) => msg,
-        None => {
-            tracing::error!("Task status message is None");
-            let error_event = AgUiEventBuilder::run_error(
-                "Task status message cannot be None".to_string(),
-                Some("INTERNAL_ERROR".to_string()),
-            );
-            if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
-                tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
-            }
-            return;
-        },
+    let agent_message = if let Some(msg) = complete_task.status.message.clone() {
+        msg
+    } else {
+        tracing::error!("Task status message is None");
+        let error_event = AgUiEventBuilder::run_error(
+            "Task status message cannot be None".to_string(),
+            Some("INTERNAL_ERROR".to_string()),
+        );
+        if let Err(broadcast_err) = webhook_context.broadcast_agui(error_event).await {
+            tracing::error!(error = %broadcast_err, "Failed to broadcast RUN_ERROR");
+        }
+        return;
     };
 
     match processor

@@ -37,7 +37,7 @@ impl AgentOrchestrator {
         let mut deleted_count = 0;
         for (agent_id, _) in agents {
             match self.delete_agent(&agent_id).await {
-                Ok(_) => {
+                Ok(()) => {
                     deleted_count += 1;
                 },
                 Err(e) => {
@@ -125,8 +125,7 @@ impl AgentOrchestrator {
                         .db_service
                         .get_agent_config(&agent_id)
                         .await
-                        .map(|config| config.name)
-                        .unwrap_or_else(|_| "unknown".to_string());
+                        .map_or_else(|_| "unknown".to_string(), |config| config.name);
 
                     match self.db_service.register_agent(&name, pid, port).await {
                         Ok(service_id) => {
@@ -191,7 +190,7 @@ impl AgentOrchestrator {
 
             for env_var in environ_str.split('\0') {
                 if env_var.starts_with("AGENT_ID=") || env_var.starts_with("AGENT_UUID=") {
-                    agent_id = env_var.split('=').nth(1).map(|s| s.to_string());
+                    agent_id = env_var.split('=').nth(1).map(ToString::to_string);
                 } else if env_var.starts_with("AGENT_PORT=") {
                     if let Some(port_str) = env_var.split('=').nth(1) {
                         port = port_str.parse::<u16>().ok();

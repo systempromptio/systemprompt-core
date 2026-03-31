@@ -39,7 +39,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -81,7 +81,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -128,7 +128,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -169,7 +169,7 @@ impl ArtifactRepository {
         )
         .fetch_optional(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         match row {
             Some(row) => {
@@ -211,7 +211,7 @@ impl ArtifactRepository {
         )
         .fetch_all(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         let mut artifacts = Vec::new();
         for row in rows {
@@ -278,11 +278,13 @@ fn extract_metadata_fields(
         .get("mcp_schema")
         .and_then(|v| if v.is_null() { None } else { Some(v.clone()) });
 
-    let is_internal = metadata.get("is_internal").and_then(|v| v.as_bool());
+    let is_internal = metadata
+        .get("is_internal")
+        .and_then(serde_json::Value::as_bool);
 
     let execution_index = metadata
         .get("execution_index")
-        .and_then(|v| v.as_u64())
+        .and_then(serde_json::Value::as_u64)
         .map(|v| v as usize);
 
     (rendering_hints, mcp_schema, is_internal, execution_index)

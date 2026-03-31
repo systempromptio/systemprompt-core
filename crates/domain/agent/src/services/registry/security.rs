@@ -75,7 +75,7 @@ pub fn oauth_to_security_config(
     let mut requirement = HashMap::new();
     requirement.insert(
         "oauth2".to_string(),
-        oauth.scopes.iter().map(|s| s.to_string()).collect(),
+        oauth.scopes.iter().map(ToString::to_string).collect(),
     );
     let requirements = vec![requirement];
 

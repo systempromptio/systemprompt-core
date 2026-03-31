@@ -19,19 +19,17 @@ impl TaskRepository {
             .write_pool
             .begin()
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
 
-        let status = task_state_to_db_string(task.status.state.clone());
+        let status = task_state_to_db_string(task.status.state);
         let metadata_json = task
             .metadata
-            .as_ref()
-            .map(|m| {
+            .as_ref().map_or_else(|| serde_json::json!({}), |m| {
                 serde_json::to_value(m).unwrap_or_else(|e| {
                     tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
                     serde_json::json!({})
                 })
-            })
-            .unwrap_or_else(|| serde_json::json!({}));
+            });
 
         let task_id_str = task.id.as_str();
         let is_completed = task.status.state == TaskState::Completed;
@@ -54,7 +52,7 @@ impl TaskRepository {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::database(e))?
+            .map_err(RepositoryError::database)?
         } else {
             sqlx::query!(
                 r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, metadata = $3, updated_at = CURRENT_TIMESTAMP WHERE task_id = $4"#,
@@ -65,7 +63,7 @@ impl TaskRepository {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| RepositoryError::database(e))?
+            .map_err(RepositoryError::database)?
         };
 
         if result.rows_affected() == 0 {
@@ -114,9 +112,7 @@ impl TaskRepository {
         )
         .await?;
 
-        tx.commit()
-            .await
-            .map_err(|e| RepositoryError::database(e))?;
+        tx.commit().await.map_err(RepositoryError::database)?;
 
         if let Some(ref analytics_provider) = self.session_analytics_provider {
             for _ in 0..2 {
@@ -146,12 +142,12 @@ impl TaskRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         sqlx::query!("DELETE FROM task_messages WHERE task_id = $1", task_id_str)
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
 
         sqlx::query!(
             "DELETE FROM task_execution_steps WHERE task_id = $1",
@@ -159,12 +155,12 @@ impl TaskRepository {
         )
         .execute(&*self.write_pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         sqlx::query!("DELETE FROM agent_tasks WHERE task_id = $1", task_id_str)
             .execute(&*self.write_pool)
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
 
         Ok(())
     }

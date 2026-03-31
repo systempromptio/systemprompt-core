@@ -8,7 +8,7 @@ pub struct TextStreamState {
 }
 
 impl TextStreamState {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             message_started: false,
             webhook_context: None,

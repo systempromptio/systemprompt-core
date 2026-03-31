@@ -73,12 +73,12 @@ impl Agent {
 
         let enabled = row
             .get("enabled")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .ok_or_else(|| anyhow!("Missing enabled"))?;
 
         let port = row
             .get("port")
-            .and_then(|v| v.as_i64())
+            .and_then(serde_json::Value::as_i64)
             .ok_or_else(|| anyhow!("Missing port"))? as i32;
 
         let endpoint = row
@@ -89,28 +89,27 @@ impl Agent {
 
         let dev_only = row
             .get("dev_only")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         let is_primary = row
             .get("is_primary")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         let is_default = row
             .get("is_default")
-            .and_then(|v| v.as_bool())
+            .and_then(serde_json::Value::as_bool)
             .unwrap_or(false);
 
         let tags = row
             .get("tags")
             .and_then(|v| v.as_array())
-            .map(|arr| {
+            .map_or_else(Vec::new, |arr| {
                 arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
-            })
-            .unwrap_or_else(Vec::new);
+            });
 
         let category_id = row
             .get("category_id")
@@ -133,22 +132,20 @@ impl Agent {
         let mcp_servers = row
             .get("mcp_servers")
             .and_then(|v| v.as_array())
-            .map(|arr| {
+            .map_or_else(Vec::new, |arr| {
                 arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
-            })
-            .unwrap_or_else(Vec::new);
+            });
 
         let skills = row
             .get("skills")
             .and_then(|v| v.as_array())
-            .map(|arr| {
+            .map_or_else(Vec::new, |arr| {
                 arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
-            })
-            .unwrap_or_else(Vec::new);
+            });
 
         let card_json = row
             .get("card_json")
@@ -157,12 +154,12 @@ impl Agent {
 
         let created_at = row
             .get("created_at")
-            .and_then(|v| systemprompt_database::parse_database_datetime(v))
+            .and_then(systemprompt_database::parse_database_datetime)
             .ok_or_else(|| anyhow!("Missing or invalid created_at"))?;
 
         let updated_at = row
             .get("updated_at")
-            .and_then(|v| systemprompt_database::parse_database_datetime(v))
+            .and_then(systemprompt_database::parse_database_datetime)
             .ok_or_else(|| anyhow!("Missing or invalid updated_at"))?;
 
         Ok(Self {

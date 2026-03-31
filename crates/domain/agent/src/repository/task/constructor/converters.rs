@@ -8,8 +8,7 @@ pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, Reposit
     let metadata_json = row
         .metadata
         .as_ref()
-        .map(|v| v.to_string())
-        .unwrap_or_else(|| "{}".to_string());
+        .map_or_else(|| "{}".to_string(), ToString::to_string);
 
     let agent_name = row
         .agent_name
@@ -24,7 +23,7 @@ pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, Reposit
     metadata.updated_at = Some(row.updated_at.to_rfc3339());
     metadata.started_at = row.started_at.map(|dt| dt.to_rfc3339());
     metadata.completed_at = row.completed_at.map(|dt| dt.to_rfc3339());
-    metadata.execution_time_ms = row.execution_time_ms.map(|v| v as i64);
+    metadata.execution_time_ms = row.execution_time_ms.map(i64::from);
 
     Ok(Some(metadata))
 }

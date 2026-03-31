@@ -30,7 +30,7 @@ impl TaskConstructor {
         })
     }
 
-    pub(crate) fn pool(&self) -> &Arc<PgPool> {
+    pub(crate) const fn pool(&self) -> &Arc<PgPool> {
         &self.pool
     }
 

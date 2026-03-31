@@ -27,18 +27,17 @@ pub async fn create_task(
     trace_id: &systemprompt_identifiers::TraceId,
     agent_name: &str,
 ) -> Result<String, RepositoryError> {
-    let metadata_json = task
-        .metadata
-        .as_ref()
-        .map(|m| {
+    let metadata_json = task.metadata.as_ref().map_or_else(
+        || serde_json::json!({}),
+        |m| {
             serde_json::to_value(m).unwrap_or_else(|e| {
                 tracing::warn!(error = %e, task_id = %task.id, "Failed to serialize task metadata");
                 serde_json::json!({})
             })
-        })
-        .unwrap_or_else(|| serde_json::json!({}));
+        },
+    );
 
-    let status = task_state_to_db_string(task.status.state.clone());
+    let status = task_state_to_db_string(task.status.state);
     let task_id_str = task.id.as_str();
     let context_id_str = task.context_id.as_str();
     let user_id_str = user_id.as_ref();
@@ -60,7 +59,7 @@ pub async fn create_task(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     Ok(task.id.to_string())
 }
@@ -79,7 +78,7 @@ pub async fn track_agent_in_context(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     Ok(())
 }
@@ -106,7 +105,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
     } else if state == TaskState::Working {
         sqlx::query!(
             r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, updated_at = CURRENT_TIMESTAMP,
@@ -118,7 +117,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
     } else {
         sqlx::query!(
             r#"UPDATE agent_tasks SET status = $1, status_timestamp = $2, updated_at = CURRENT_TIMESTAMP WHERE task_id = $3"#,
@@ -128,7 +127,7 @@ pub async fn update_task_state(
         )
         .execute(pool.as_ref())
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
     }
 
     Ok(())
@@ -158,7 +157,7 @@ pub async fn update_task_failed_with_error(
     )
     .execute(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     Ok(())
 }

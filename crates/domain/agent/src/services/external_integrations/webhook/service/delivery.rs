@@ -51,7 +51,7 @@ impl WebhookService {
                 let duration = start_time.elapsed();
 
                 Ok(WebhookDeliveryResult {
-                    success: status >= 200 && status < 300,
+                    success: (200..300).contains(&status),
                     status_code: status,
                     response_body: body,
                     response_headers: headers,

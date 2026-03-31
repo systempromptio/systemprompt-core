@@ -111,7 +111,7 @@ pub async fn handle_tool_calls(
                 .failed_results()
                 .iter()
                 .filter_map(|r| r.error.as_ref())
-                .map(|e| e.as_str())
+                .map(String::as_str)
                 .collect::<Vec<_>>()
                 .join("; "),
         )
@@ -170,7 +170,7 @@ async fn handle_validation_failure(
     context: &ExecutionContext,
     messages: Vec<AiMessage>,
 ) -> Result<ExecutionResult> {
-    let error_messages: Vec<String> = validation_errors.iter().map(|e| e.to_string()).collect();
+    let error_messages: Vec<String> = validation_errors.iter().map(ToString::to_string).collect();
 
     tracing::error!(
         errors = ?error_messages,
@@ -246,7 +246,7 @@ async fn record_execution_status(
             .failed_results()
             .iter()
             .filter_map(|r| r.error.as_ref())
-            .map(|e| e.as_str())
+            .map(String::as_str)
             .collect::<Vec<_>>()
             .join("; ");
 

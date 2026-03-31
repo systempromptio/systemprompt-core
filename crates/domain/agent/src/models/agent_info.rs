@@ -48,12 +48,13 @@ impl AgentInfo {
     pub fn full_endpoint(&self) -> String {
         let endpoint = &self.card.url;
         if endpoint.starts_with('/') {
-            let base_url = Config::get()
-                .map(|c| c.api_external_url.clone())
-                .unwrap_or_else(|_| "http://localhost:3000".to_string());
+            let base_url = Config::get().map_or_else(
+                |_| "http://localhost:3000".to_string(),
+                |c| c.api_external_url.clone(),
+            );
             format!("{}{}", base_url, endpoint)
         } else {
-            endpoint.to_string()
+            endpoint.clone()
         }
     }
 
@@ -72,10 +73,10 @@ impl AgentInfo {
     }
 
     pub fn skills_count(&self) -> usize {
-        self.skills.as_ref().map(|s| s.len()).unwrap_or(0)
+        self.skills.as_ref().map_or(0, Vec::len)
     }
 
     pub fn mcp_count(&self) -> usize {
-        self.mcp_servers.as_ref().map(|s| s.len()).unwrap_or(0)
+        self.mcp_servers.as_ref().map_or(0, Vec::len)
     }
 }

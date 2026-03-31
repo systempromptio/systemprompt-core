@@ -11,9 +11,10 @@ pub enum WebhookError {
 }
 
 fn get_api_url() -> String {
-    Config::get()
-        .map(|c| c.api_internal_url.clone())
-        .unwrap_or_else(|_| "http://localhost:3000".to_string())
+    Config::get().map_or_else(
+        |_| "http://localhost:3000".to_string(),
+        |c| c.api_internal_url.clone(),
+    )
 }
 
 pub async fn broadcast_agui_event(

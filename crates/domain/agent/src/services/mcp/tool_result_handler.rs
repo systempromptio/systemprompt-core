@@ -14,6 +14,12 @@ impl fmt::Debug for ToolResultHandler {
     }
 }
 
+impl Default for ToolResultHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ToolResultHandler {
     pub const fn new() -> Self {
         Self

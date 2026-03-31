@@ -25,22 +25,21 @@ pub async fn handle_agent_request(
 ) -> impl IntoResponse {
     let start_time = std::time::Instant::now();
 
-    let context = match request.extensions().get::<RequestContext>().cloned() {
-        Some(ctx) => ctx,
-        None => {
-            tracing::error!(
-                "RequestContext missing from request extensions - middleware configuration error"
-            );
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32603, "message": "Internal server error: request context unavailable"},
-                    "id": null
-                })),
-            )
-                .into_response();
-        },
+    let context = if let Some(ctx) = request.extensions().get::<RequestContext>().cloned() {
+        ctx
+    } else {
+        tracing::error!(
+            "RequestContext missing from request extensions - middleware configuration error"
+        );
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(json!({
+                "jsonrpc": "2.0",
+                "error": {"code": -32603, "message": "Internal server error: request context unavailable"},
+                "id": null
+            })),
+        )
+            .into_response();
     };
 
     tracing::info!("Agent request handler invoked");

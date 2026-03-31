@@ -40,16 +40,13 @@ impl MessageProcessor {
             "Context validated"
         );
 
-        let task_id = match message.task_id.clone() {
-            Some(existing_task_id) => {
-                tracing::info!(task_id = %existing_task_id, "Continuing existing task");
-                existing_task_id
-            },
-            None => {
-                let new_task_id = TaskId::new(Uuid::new_v4().to_string());
-                tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
-                new_task_id
-            },
+        let task_id = if let Some(existing_task_id) = message.task_id.clone() {
+            tracing::info!(task_id = %existing_task_id, "Continuing existing task");
+            existing_task_id
+        } else {
+            let new_task_id = TaskId::new(Uuid::new_v4().to_string());
+            tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
+            new_task_id
         };
 
         let metadata = TaskMetadata::new_agent_message(agent_name.to_string());

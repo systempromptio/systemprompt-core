@@ -13,27 +13,24 @@ impl AgentOrchestrator {
         let mut agent_info = Vec::new();
 
         for (agent_id, status) in agents {
-            match self.db_service.get_agent_config(&agent_id).await {
-                Ok(config) => {
-                    agent_info.push(AgentInfo {
-                        id: agent_id,
-                        name: config.name,
-                        status,
-                        port: config.port,
-                    });
-                },
-                Err(_) => {
-                    let port = match status {
-                        AgentStatus::Running { port, .. } => port,
-                        _ => 8000,
-                    };
-                    agent_info.push(AgentInfo {
-                        id: agent_id.clone(),
-                        name: "Unknown".to_string(),
-                        status,
-                        port,
-                    });
-                },
+            if let Ok(config) = self.db_service.get_agent_config(&agent_id).await {
+                agent_info.push(AgentInfo {
+                    id: agent_id,
+                    name: config.name,
+                    status,
+                    port: config.port,
+                });
+            } else {
+                let port = match status {
+                    AgentStatus::Running { port, .. } => port,
+                    _ => 8000,
+                };
+                agent_info.push(AgentInfo {
+                    id: agent_id.clone(),
+                    name: "Unknown".to_string(),
+                    status,
+                    port,
+                });
             }
         }
 

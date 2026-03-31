@@ -66,7 +66,7 @@ pub async fn synthesize_final_response(
             "Synthesizing results from tool calls"
         );
 
-        match synthesize_tool_results_with_artifacts(
+        if let Ok(synthesized) = synthesize_tool_results_with_artifacts(
             ai_service,
             agent_runtime,
             ai_messages_for_synthesis,
@@ -80,11 +80,10 @@ pub async fn synthesize_final_response(
         )
         .await
         {
-            Ok(synthesized) => synthesized,
-            Err(_) => {
-                tracing::warn!("Synthesis failed, using initial response");
-                accumulated_text.to_string()
-            },
+            synthesized
+        } else {
+            tracing::warn!("Synthesis failed, using initial response");
+            accumulated_text.to_string()
         }
     } else {
         if tool_calls.is_empty() && !accumulated_text.is_empty() {

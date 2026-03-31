@@ -27,7 +27,7 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                 let mime_type = item
                                     .get("mimeType")
                                     .and_then(|m| m.as_str())
-                                    .map(|s| s.to_string());
+                                    .map(ToString::to_string);
 
                                 parts.push(Part::File(FilePart {
                                     file: FileWithBytes {
@@ -43,7 +43,7 @@ pub fn build_parts(artifact: &JsonValue) -> Result<Vec<Part>, ArtifactError> {
                                 let mime_type = item
                                     .get("mimeType")
                                     .and_then(|m| m.as_str())
-                                    .map(|s| s.to_string());
+                                    .map(ToString::to_string);
 
                                 parts.push(Part::File(FilePart {
                                     file: FileWithBytes {

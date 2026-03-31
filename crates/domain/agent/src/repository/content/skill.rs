@@ -23,7 +23,7 @@ impl SkillRepository {
     pub async fn create(&self, skill: &Skill) -> Result<()> {
         let pool = &self.write_pool;
         let skill_id_str = skill.skill_id.as_str();
-        let category_id = skill.category_id.as_ref().map(|c| c.to_string());
+        let category_id = skill.category_id.as_ref().map(ToString::to_string);
         let source_id_str = skill.source_id.as_str();
 
         sqlx::query!(

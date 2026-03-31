@@ -13,7 +13,7 @@ impl AgentLifecycle {
 
         if process::is_port_in_use(port) {
             match port_manager.cleanup_port_if_needed(port).await {
-                Ok(_) => {
+                Ok(()) => {
                     tracing::info!(port = %port, "Cleaned up port");
                 },
                 Err(e) => {

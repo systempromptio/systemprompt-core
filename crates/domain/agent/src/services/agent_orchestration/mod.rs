@@ -39,6 +39,12 @@ pub struct ValidationReport {
     pub issues: Vec<String>,
 }
 
+impl Default for ValidationReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ValidationReport {
     pub const fn new() -> Self {
         Self {

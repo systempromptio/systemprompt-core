@@ -132,6 +132,12 @@ pub struct MonitoringReport {
     pub failed_agents: Vec<String>,
 }
 
+impl Default for MonitoringReport {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MonitoringReport {
     pub const fn new() -> Self {
         Self {
@@ -198,7 +204,7 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
 async fn get_agent_port_simple(agent_id: &str) -> Result<u16> {
     let port_str = agent_id
         .chars()
-        .filter(|c| c.is_ascii_digit())
+        .filter(char::is_ascii_digit)
         .collect::<String>();
 
     if port_str.is_empty() {

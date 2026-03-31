@@ -18,7 +18,7 @@ pub async fn construct_tasks_batch(
     }
 
     let pool = constructor.pool().clone();
-    let task_id_strings: Vec<String> = task_ids.iter().map(|id| id.to_string()).collect();
+    let task_id_strings: Vec<String> = task_ids.iter().map(ToString::to_string).collect();
 
     let task_rows = super::batch_queries::fetch_task_rows(&pool, &task_id_strings).await?;
     let all_messages = super::batch_queries::fetch_messages(&pool, &task_id_strings).await?;
@@ -91,8 +91,8 @@ fn build_tasks(
             .map_err(|e| RepositoryError::InvalidData(e.to_string()))?;
 
         tasks.push(Task {
-            id: row.task_id.clone().into(),
-            context_id: row.context_id.clone().into(),
+            id: row.task_id.clone(),
+            context_id: row.context_id.clone(),
             kind: "task".to_string(),
             status: TaskStatus {
                 state: task_state,

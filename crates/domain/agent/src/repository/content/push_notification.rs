@@ -119,7 +119,7 @@ impl PushNotificationConfigRepository {
         .await?;
 
         rows.iter()
-            .map(|r| Self::row_to_config(r))
+            .map(Self::row_to_config)
             .collect::<Result<Vec<_>>>()
     }
 

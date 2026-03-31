@@ -69,7 +69,7 @@ impl TaskRepository {
         self
     }
 
-    pub(crate) fn db_pool(&self) -> &DbPool {
+    pub(crate) const fn db_pool(&self) -> &DbPool {
         &self.db_pool
     }
 

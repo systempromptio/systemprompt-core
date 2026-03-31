@@ -93,15 +93,14 @@ async fn verify_user_exists_and_active(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to lookup user in database: {}", e))?;
 
-    let user = match user {
-        Some(u) => u,
-        None => {
-            tracing::warn!(
-                user_id = %claims.subject,
-                "User ID from token not found in database"
-            );
-            return Err(anyhow::anyhow!("User not found"));
-        },
+    let user = if let Some(u) = user {
+        u
+    } else {
+        tracing::warn!(
+            user_id = %claims.subject,
+            "User ID from token not found in database"
+        );
+        return Err(anyhow::anyhow!("User not found"));
     };
 
     if !user.is_active {
@@ -226,15 +225,13 @@ pub async fn validate_oauth_for_request(
 
             let has_required_scope = required_scopes.iter().any(|required_scope| {
                 claims.permissions.iter().any(|user_perm| {
-                    Permission::from_str(user_perm)
-                        .map(|p| p.implies(required_scope))
-                        .unwrap_or(false)
+                    Permission::from_str(user_perm).is_ok_and(|p| p.implies(required_scope))
                 })
             });
 
             if !has_required_scope {
                 let required_scopes_str: Vec<String> =
-                    required_scopes.iter().map(|s| s.to_string()).collect();
+                    required_scopes.iter().map(ToString::to_string).collect();
 
                 tracing::warn!(
                     username = %claims.username,

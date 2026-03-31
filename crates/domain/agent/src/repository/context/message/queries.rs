@@ -33,7 +33,7 @@ pub async fn get_messages_by_task(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let mut messages = Vec::new();
 
@@ -89,7 +89,7 @@ pub async fn get_messages_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let mut messages = Vec::new();
 
@@ -122,9 +122,9 @@ pub async fn get_next_sequence_number(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
-    Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
+    Ok(row.and_then(|r| r.max_seq).map_or(0, |s| s + 1))
 }
 
 pub async fn get_next_sequence_number_sqlx(
@@ -137,9 +137,9 @@ pub async fn get_next_sequence_number_sqlx(
     )
     .fetch_optional(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
-    Ok(row.and_then(|r| r.max_seq).map(|s| s + 1).unwrap_or(0))
+    Ok(row.and_then(|r| r.max_seq).map_or(0, |s| s + 1))
 }
 
 pub async fn get_next_sequence_number_in_tx(
@@ -152,10 +152,12 @@ pub async fn get_next_sequence_number_in_tx(
     let row = tx.fetch_optional(&query, &[&task_id_str]).await?;
 
     let max_seq = if let Some(ref r) = row {
-        r.get("max_seq").and_then(|v| v.as_i64()).map(|v| v as i32)
+        r.get("max_seq")
+            .and_then(serde_json::Value::as_i64)
+            .map(|v| v as i32)
     } else {
         None
     };
 
-    Ok(max_seq.map(|s| s + 1).unwrap_or(0))
+    Ok(max_seq.map_or(0, |s| s + 1))
 }

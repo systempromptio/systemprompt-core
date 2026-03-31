@@ -11,7 +11,7 @@ pub async fn handle_non_streaming_request(
     state: &AgentHandlerState,
     context: &RequestContext,
 ) -> Result<Task, Box<dyn std::error::Error + Send + Sync>> {
-    use crate::models::a2a::*;
+    use crate::models::a2a::A2aRequestParams;
 
     let config = state.config.read().await;
     let agent_name = config.name.clone();
@@ -34,7 +34,7 @@ pub async fn handle_non_streaming_request(
             message_processor
                 .handle_message(params.message, &agent_name, context)
                 .await
-                .map_err(|e| e.into())
+                .map_err(Into::into)
         },
         A2aRequestParams::SendStreamingMessage(params) => {
             tracing::info!("Handling message/stream request (fallback to non-streaming)");
@@ -52,7 +52,7 @@ pub async fn handle_non_streaming_request(
             message_processor
                 .handle_message(params.message, &agent_name, context)
                 .await
-                .map_err(|e| e.into())
+                .map_err(Into::into)
         },
         A2aRequestParams::GetTask(params) => {
             tracing::info!(task_id = %params.id, "Handling tasks/get request");

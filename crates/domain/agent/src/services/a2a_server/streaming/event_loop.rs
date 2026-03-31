@@ -77,7 +77,7 @@ pub async fn emit_run_started(
 ) {
     let working_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
-        .update_task_state(&task_id, TaskState::Working, &working_timestamp)
+        .update_task_state(task_id, TaskState::Working, &working_timestamp)
         .await
     {
         tracing::error!(task_id = %task_id, error = %e, "Failed to update task state");
@@ -166,7 +166,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 let result_value =
                     serde_json::to_value(&result).unwrap_or_else(|_| serde_json::Value::Null);
                 let result_event = AgUiEventBuilder::tool_call_result(
-                    &uuid::Uuid::new_v4().to_string(),
+                    uuid::Uuid::new_v4().to_string(),
                     &call_id,
                     result_value,
                 );

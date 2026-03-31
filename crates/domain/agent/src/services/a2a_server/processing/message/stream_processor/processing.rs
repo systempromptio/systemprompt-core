@@ -186,7 +186,7 @@ impl StreamProcessor {
             }
 
             let send_result = tx.send(StreamEvent::Complete {
-                full_text: final_text.clone(),
+                full_text: final_text,
                 artifacts: artifacts.clone(),
             });
 

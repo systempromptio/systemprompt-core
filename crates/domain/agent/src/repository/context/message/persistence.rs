@@ -17,7 +17,7 @@ pub async fn persist_message_sqlx(
     upload_ctx: Option<&FileUploadContext<'_>>,
 ) -> Result<(), RepositoryError> {
     let metadata_json =
-        serde_json::to_value(&message.metadata).map_err(|e| RepositoryError::Serialization(e))?;
+        serde_json::to_value(&message.metadata).map_err(RepositoryError::Serialization)?;
 
     sqlx::query!(
         "DELETE FROM message_parts WHERE message_id = $1",
@@ -25,7 +25,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     sqlx::query!(
         "DELETE FROM task_messages WHERE message_id = $1",
@@ -33,7 +33,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let client_message_id = message
         .metadata
@@ -44,7 +44,7 @@ pub async fn persist_message_sqlx(
     let reference_task_ids: Option<Vec<String>> = message
         .reference_task_ids
         .as_ref()
-        .map(|ids| ids.iter().map(|id| id.to_string()).collect());
+        .map(|ids| ids.iter().map(ToString::to_string).collect());
 
     sqlx::query!(
         r#"INSERT INTO task_messages (task_id, message_id, client_message_id, role, context_id,
@@ -64,7 +64,7 @@ pub async fn persist_message_sqlx(
     )
     .execute(&mut **tx)
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     for (idx, part) in message.parts.iter().enumerate() {
         persist_part_sqlx(tx, part, &message.id, task_id, idx as i32, upload_ctx).await?;
@@ -102,7 +102,7 @@ pub async fn persist_message_with_tx(
     let reference_task_ids = message
         .reference_task_ids
         .as_ref()
-        .map(|ids| ids.iter().map(|id| id.to_string()).collect::<Vec<String>>());
+        .map(|ids| ids.iter().map(ToString::to_string).collect::<Vec<String>>());
 
     let task_id_str = task_id.as_str();
     let context_id_str = context_id.as_str();

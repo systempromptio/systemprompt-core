@@ -77,7 +77,7 @@ async fn construct_task_from_row(
 
     Ok(Task {
         id: task_id,
-        context_id: row.context_id.clone().into(),
+        context_id: row.context_id.clone(),
         kind: "task".to_string(),
         status: TaskStatus {
             state: task_state,
@@ -119,7 +119,7 @@ async fn load_task_messages(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     if message_rows.is_empty() {
         return Ok(None);
@@ -164,7 +164,7 @@ async fn load_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     converters::build_parts_from_rows(&part_rows)
 }
@@ -207,7 +207,7 @@ async fn load_execution_steps(
 fn build_message_from_row(msg_row: TaskMessage, parts: Vec<Part>) -> Message {
     let reference_task_ids = msg_row
         .reference_task_ids
-        .map(|ids| ids.into_iter().map(|id| id.into()).collect());
+        .map(|ids| ids.into_iter().map(Into::into).collect());
 
     let mut final_metadata = msg_row.metadata.unwrap_or_else(|| serde_json::json!({}));
     if let Some(client_id) = &msg_row.client_message_id {

@@ -59,7 +59,7 @@ impl AgentOrchestrator {
         let db_pool = agent_state.db_pool();
 
         use crate::repository::agent_service::AgentServiceRepository;
-        let agent_repo = AgentServiceRepository::new(&db_pool)?;
+        let agent_repo = AgentServiceRepository::new(db_pool)?;
 
         let event_bus = Arc::new(AgentEventBus::new(100));
 
@@ -149,7 +149,7 @@ impl AgentOrchestrator {
                 match self.start_agent(&agent_id, events).await {
                     Ok(service_id) => service_ids.push(service_id),
                     Err(e) => {
-                        tracing::error!(agent_id = %agent_id, error = %e, "Failed to start agent")
+                        tracing::error!(agent_id = %agent_id, error = %e, "Failed to start agent");
                     },
                 }
             }

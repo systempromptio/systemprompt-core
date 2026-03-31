@@ -37,7 +37,7 @@ pub async fn get_task(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let Some(_row) = row else {
         return Ok(None);
@@ -78,7 +78,7 @@ pub async fn list_tasks_by_context(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let constructor = TaskConstructor::new(db_pool)?;
     let mut tasks = Vec::new();
@@ -101,8 +101,8 @@ pub async fn get_tasks_by_user_id(
     limit: Option<i32>,
     offset: Option<i32>,
 ) -> Result<Vec<Task>, RepositoryError> {
-    let lim = limit.map(i64::from).unwrap_or(1000);
-    let off = offset.map(i64::from).unwrap_or(0);
+    let lim = limit.map_or(1000, i64::from);
+    let off = offset.map_or(0, i64::from);
     let user_id_str = user_id.as_str();
 
     let rows = sqlx::query_as!(
@@ -130,7 +130,7 @@ pub async fn get_tasks_by_user_id(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let constructor = TaskConstructor::new(db_pool)?;
     let mut tasks = Vec::new();
@@ -176,7 +176,7 @@ pub async fn get_task_context_info(
     )
     .fetch_optional(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     Ok(row.map(|r| TaskContextInfo {
         context_id: r.context_id,

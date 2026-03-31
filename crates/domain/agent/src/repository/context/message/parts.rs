@@ -50,7 +50,7 @@ pub async fn get_message_parts(
     )
     .fetch_all(pool.as_ref())
     .await
-    .map_err(|e| RepositoryError::database(e))?;
+    .map_err(RepositoryError::database)?;
 
     let mut parts = Vec::new();
 
@@ -121,7 +121,7 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
         },
         Part::File(file_part) => {
             let upload_result = try_upload_file(file_part, upload_ctx).await;
@@ -145,11 +145,11 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
         },
         Part::Data(data_part) => {
-            let data_json = serde_json::to_value(&data_part.data)
-                .map_err(|e| RepositoryError::Serialization(e))?;
+            let data_json =
+                serde_json::to_value(&data_part.data).map_err(RepositoryError::Serialization)?;
             sqlx::query!(
                 r#"INSERT INTO message_parts (message_id, task_id, part_kind, sequence_number, data_content)
                 VALUES ($1, $2, 'data', $3, $4)"#,
@@ -160,7 +160,7 @@ pub async fn persist_part_sqlx(
             )
             .execute(&mut **tx)
             .await
-            .map_err(|e| RepositoryError::database(e))?;
+            .map_err(RepositoryError::database)?;
         },
     }
 

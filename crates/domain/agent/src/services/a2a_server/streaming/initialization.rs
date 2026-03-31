@@ -38,7 +38,7 @@ pub async fn detect_mcp_server_and_update_context(
     let is_mcp_server = state
         .agent_state
         .mcp_service_provider()
-        .map(|provider| {
+        .is_some_and(|provider| {
             provider
                 .validate_registry()
                 .ok()
@@ -53,8 +53,7 @@ pub async fn detect_mcp_server_and_update_context(
                         .flatten()
                 })
                 .is_some()
-        })
-        .unwrap_or(false);
+        });
 
     if is_mcp_server && context.agent_name().as_str() != agent_name {
         tracing::info!(
@@ -231,7 +230,7 @@ pub async fn save_push_notification_config(
     match config_repo.add_config(task_id, config).await {
         Ok(_) => tracing::info!(task_id = %task_id, "Push notification config saved"),
         Err(e) => {
-            tracing::warn!(task_id = %task_id, error = %e, "Failed to save push notification config")
+            tracing::warn!(task_id = %task_id, error = %e, "Failed to save push notification config");
         },
     }
 }

@@ -33,40 +33,37 @@ pub async fn ensure_task_exists(
     })?;
 
     let context_id = if context_id.is_empty() {
-        match context_repo
+        if let Ok(Some(existing)) = context_repo
             .find_by_session_id(request_context.session_id())
             .await
         {
-            Ok(Some(existing)) => {
-                tracing::debug!(
-                    context_id = %existing.context_id,
-                    session_id = %request_context.session_id(),
-                    "Reusing existing context for MCP session"
-                );
-                request_context.execution.context_id = existing.context_id.clone();
-                existing.context_id
-            },
-            _ => {
-                let new_context_id = context_repo
-                    .create_context(
-                        request_context.user_id(),
-                        Some(request_context.session_id()),
-                        &format!("MCP Session: {}", request_context.session_id()),
-                    )
-                    .await
-                    .map_err(|e| {
-                        tracing::error!(error = %e, "Failed to auto-create context for MCP session");
-                        McpError::internal_error(format!("Failed to create context: {e}"), None)
-                    })?;
+            tracing::debug!(
+                context_id = %existing.context_id,
+                session_id = %request_context.session_id(),
+                "Reusing existing context for MCP session"
+            );
+            request_context.execution.context_id = existing.context_id.clone();
+            existing.context_id
+        } else {
+            let new_context_id = context_repo
+                .create_context(
+                    request_context.user_id(),
+                    Some(request_context.session_id()),
+                    &format!("MCP Session: {}", request_context.session_id()),
+                )
+                .await
+                .map_err(|e| {
+                    tracing::error!(error = %e, "Failed to auto-create context for MCP session");
+                    McpError::internal_error(format!("Failed to create context: {e}"), None)
+                })?;
 
-                request_context.execution.context_id = new_context_id.clone();
-                tracing::info!(
-                    context_id = %new_context_id,
-                    session_id = %request_context.session_id(),
-                    "Auto-created context for MCP session"
-                );
-                new_context_id
-            },
+            request_context.execution.context_id = new_context_id.clone();
+            tracing::info!(
+                context_id = %new_context_id,
+                session_id = %request_context.session_id(),
+                "Auto-created context for MCP session"
+            );
+            new_context_id
         }
     } else {
         let old_context_id = context_id.clone();

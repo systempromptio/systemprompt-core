@@ -1,4 +1,4 @@
-//! Implementation of AgentRegistryProvider trait for the agent module.
+//! Implementation of `AgentRegistryProvider` trait for the agent module.
 
 use async_trait::async_trait;
 use systemprompt_traits::{AgentInfo, AgentRegistryProvider, RegistryError, ServiceOAuthConfig};
@@ -19,7 +19,7 @@ impl AgentRegistryProviderService {
         Ok(Self { registry })
     }
 
-    pub fn from_registry(registry: AgentRegistry) -> Self {
+    pub const fn from_registry(registry: AgentRegistry) -> Self {
         Self { registry }
     }
 }
@@ -39,7 +39,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             enabled: agent.enabled,
             oauth: ServiceOAuthConfig {
                 required: agent.oauth.required,
-                scopes: agent.oauth.scopes.iter().map(|s| s.to_string()).collect(),
+                scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                 audience: agent.oauth.audience.to_string(),
             },
         })
@@ -60,7 +60,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
                 enabled: agent.enabled,
                 oauth: ServiceOAuthConfig {
                     required: agent.oauth.required,
-                    scopes: agent.oauth.scopes.iter().map(|s| s.to_string()).collect(),
+                    scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                     audience: agent.oauth.audience.to_string(),
                 },
             })
@@ -80,7 +80,7 @@ impl AgentRegistryProvider for AgentRegistryProviderService {
             enabled: agent.enabled,
             oauth: ServiceOAuthConfig {
                 required: agent.oauth.required,
-                scopes: agent.oauth.scopes.iter().map(|s| s.to_string()).collect(),
+                scopes: agent.oauth.scopes.iter().map(ToString::to_string).collect(),
                 audience: agent.oauth.audience.to_string(),
             },
         })

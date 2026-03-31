@@ -37,7 +37,7 @@ pub fn build_execution_steps(
 
             Some(ExecutionStep {
                 step_id: StepId(row.step_id.to_string()),
-                task_id: row.task_id.clone().into(),
+                task_id: row.task_id.clone(),
                 status,
                 started_at: row.started_at,
                 completed_at: row.completed_at,
@@ -153,12 +153,14 @@ fn build_artifact(
         source: row.source.clone(),
         mcp_execution_id: row.mcp_execution_id.clone().map(|id| id.to_string()),
         mcp_schema: metadata_value.get("mcp_schema").cloned(),
-        is_internal: metadata_value.get("is_internal").and_then(|v| v.as_bool()),
+        is_internal: metadata_value
+            .get("is_internal")
+            .and_then(serde_json::Value::as_bool),
         fingerprint: row.fingerprint.clone(),
         tool_name: row.tool_name.clone(),
         execution_index: metadata_value
             .get("execution_index")
-            .and_then(|v| v.as_u64())
+            .and_then(serde_json::Value::as_u64)
             .map(|v| v as usize),
         skill_id: row.skill_id.clone().map(|id| id.to_string()),
         skill_name: row.skill_name.clone(),

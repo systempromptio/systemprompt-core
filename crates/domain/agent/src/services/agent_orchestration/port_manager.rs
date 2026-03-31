@@ -8,6 +8,12 @@ use crate::services::agent_orchestration::{OrchestrationError, OrchestrationResu
 #[derive(Debug, Copy, Clone)]
 pub struct PortManager;
 
+impl Default for PortManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PortManager {
     pub const fn new() -> Self {
         Self
@@ -225,9 +231,7 @@ impl PortManager {
                             e
                         })
                         .ok()
-                        .flatten()
-                        .map(|i| i.command)
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .flatten().map_or_else(|| "unknown".to_string(), |i| i.command);
 
                     return Err(OrchestrationError::ProcessSpawnFailed(format!(
                         "Port {} is in use by non-agent process (PID {}): {}\nPlease stop the \
@@ -265,7 +269,7 @@ impl PortManager {
         for &port in ports {
             if process::is_port_in_use(port) {
                 match self.cleanup_port_if_needed(port).await {
-                    Ok(_) => cleaned += 1,
+                    Ok(()) => cleaned += 1,
                     Err(e) => {
                         tracing::error!(port = %port, error = %e, "Failed to cleanup port");
                         return Err(e);
@@ -303,9 +307,7 @@ impl PortManager {
                             e
                         })
                         .ok()
-                        .flatten()
-                        .map(|i| i.command)
-                        .unwrap_or_else(|| "unknown".to_string());
+                        .flatten().map_or_else(|| "unknown".to_string(), |i| i.command);
                     format!("  • Port {} - PID {} ({})", port, pid, info)
                 })
                 .collect();

@@ -143,8 +143,8 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
         agent_name,
         port,
         profile_path,
-        &secrets,
-        &config,
+        secrets,
+        config,
         log_file,
     );
 

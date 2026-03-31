@@ -61,8 +61,7 @@ impl From<reqwest::Error> for AgentServiceError {
     fn from(err: reqwest::Error) -> Self {
         Self::Network(
             err.url()
-                .map(|u| u.to_string())
-                .unwrap_or_else(|| "unknown".to_string()),
+                .map_or_else(|| "unknown".to_string(), ToString::to_string),
         )
     }
 }

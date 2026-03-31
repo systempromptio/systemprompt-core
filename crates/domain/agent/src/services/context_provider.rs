@@ -1,4 +1,4 @@
-//! Implementation of ContextProvider trait for the agent module.
+//! Implementation of `ContextProvider` trait for the agent module.
 
 use async_trait::async_trait;
 use systemprompt_database::DbPool;

@@ -160,11 +160,7 @@ impl ContextService {
     }
 
     fn serialize_artifact_for_context(artifact: &Artifact) -> Result<String> {
-        let artifact_name = artifact
-            .name
-            .as_ref()
-            .map(String::as_str)
-            .unwrap_or("unnamed");
+        let artifact_name = artifact.name.as_deref().unwrap_or("unnamed");
 
         let mut content = format!(
             "[Artifact: {} (type: {}, id: {})]",

@@ -53,8 +53,7 @@ pub fn parse_tool_response(
     serde_json::from_value(structured_content.clone()).map_err(|e| {
         let actual_keys = structured_content
             .as_object()
-            .map(|o| o.keys().cloned().collect())
-            .unwrap_or_else(Vec::new);
+            .map_or_else(Vec::new, |o| o.keys().cloned().collect());
         ArtifactError::InvalidSchema {
             expected: "ToolResponse {artifact_id, mcp_execution_id, artifact, _metadata}",
             actual_keys,

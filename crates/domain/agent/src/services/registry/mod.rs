@@ -44,9 +44,7 @@ impl AgentRegistry {
 
     pub async fn list_enabled_agents(&self) -> Result<Vec<AgentConfig>> {
         let config = self.config.read().await;
-        let is_cloud = systemprompt_models::Config::get()
-            .map(|c| c.is_cloud)
-            .unwrap_or(false);
+        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         Ok(config
             .agents
             .values()
@@ -57,9 +55,7 @@ impl AgentRegistry {
 
     pub async fn get_default_agent(&self) -> Result<AgentConfig> {
         let config = self.config.read().await;
-        let is_cloud = systemprompt_models::Config::get()
-            .map(|c| c.is_cloud)
-            .unwrap_or(false);
+        let is_cloud = systemprompt_models::Config::get().is_ok_and(|c| c.is_cloud);
         config
             .agents
             .values()
@@ -194,9 +190,7 @@ fn build_extensions(
 fn load_agent_skills(agent: &AgentConfig) -> Vec<crate::models::a2a::AgentSkill> {
     let mut all_skills = Vec::new();
 
-    let skills_path = ProfileBootstrap::get()
-        .map(|p| p.paths.skills())
-        .unwrap_or_else(|_| String::new());
+    let skills_path = ProfileBootstrap::get().map_or_else(|_| String::new(), |p| p.paths.skills());
 
     if !skills_path.is_empty() {
         let skills_dir = Path::new(&skills_path);

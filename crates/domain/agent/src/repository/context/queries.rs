@@ -58,7 +58,7 @@ impl ContextRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         Ok(rows
             .into_iter()
@@ -96,7 +96,7 @@ impl ContextRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         Ok(rows
             .into_iter()
@@ -157,11 +157,11 @@ impl ContextRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         if !task_ids.is_empty() {
             let constructor = TaskConstructor::new(&self.db_pool)?;
-            let task_ids_typed: Vec<TaskId> = task_ids.iter().map(|id| TaskId::new(id)).collect();
+            let task_ids_typed: Vec<TaskId> = task_ids.iter().map(TaskId::new).collect();
             let tasks = constructor.construct_tasks_batch(&task_ids_typed).await?;
 
             for task in tasks {
@@ -186,7 +186,7 @@ impl ContextRepository {
         )
         .fetch_all(&*self.pool)
         .await
-        .map_err(|e| RepositoryError::database(e))?;
+        .map_err(RepositoryError::database)?;
 
         for row in context_updates {
             events.push(ContextStateEvent::ContextUpdated {
@@ -196,7 +196,7 @@ impl ContextRepository {
             });
         }
 
-        events.sort_by(|a, b| a.timestamp().cmp(&b.timestamp()));
+        events.sort_by_key(ContextStateEvent::timestamp);
 
         Ok(events)
     }

@@ -37,7 +37,7 @@ impl AgentIngestionService {
                 .ingest_agent(&agent_dir, source_id.clone(), override_existing)
                 .await
             {
-                Ok(_) => {
+                Ok(()) => {
                     report.files_processed += 1;
                 },
                 Err(e) => {
