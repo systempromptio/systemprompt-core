@@ -40,6 +40,9 @@ pub struct ListArgs {
 
     #[arg(long, help = "Only show traces with MCP tool calls")]
     pub has_mcp: bool,
+
+    #[arg(long, help = "Include system and untracked traces")]
+    pub all: bool,
 }
 
 struct TraceRow {
@@ -250,6 +253,15 @@ async fn execute_with_pool_inner(args: ListArgs, pool: &Arc<sqlx::PgPool>) -> Re
 }
 
 fn matches_filters(row: &TraceRow, args: &ListArgs) -> bool {
+    if !args.all {
+        if row.trace_id == "system" {
+            return false;
+        }
+        if row.status.is_none() {
+            return false;
+        }
+    }
+
     if let Some(ref agent_filter) = args.agent {
         match &row.agent {
             Some(agent) if agent.contains(agent_filter) => {},
