@@ -7,7 +7,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{RequestListOutput, RequestListRow};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
-use crate::commands::infrastructure::logs::shared::truncate_id;
+use systemprompt_models::text::truncate_with_ellipsis;
 use crate::shared::CommandResult;
 
 #[derive(Debug, Args)]
@@ -84,7 +84,7 @@ async fn execute_with_pool_inner(
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
             RequestListRow {
-                request_id: truncate_id(&r.id, 12),
+                request_id: truncate_with_ellipsis(&r.id, 12),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 provider: r.provider,
                 model: r.model,

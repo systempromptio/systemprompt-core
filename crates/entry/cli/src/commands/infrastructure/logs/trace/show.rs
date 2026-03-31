@@ -210,26 +210,20 @@ async fn execute_ai_trace(
 
     let show_all = args.all;
 
-    if show_all || args.steps {
-        let steps = service.get_execution_steps(task_id).await?;
-        if !args.json {
-            print_execution_steps(&steps);
-        }
+    let steps = service.get_execution_steps(task_id).await?;
+    if (show_all || args.steps) && !args.json {
+        print_execution_steps(&steps);
     }
 
-    if show_all || args.ai {
-        let ai_requests = service.get_ai_requests(task_id).await?;
-        if !args.json {
-            print_ai_requests(&ai_requests);
-        }
+    let ai_requests = service.get_ai_requests(task_id).await?;
+    if (show_all || args.ai) && !args.json {
+        print_ai_requests(&ai_requests);
     }
 
-    if show_all || args.mcp {
-        let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
-        if !args.json {
-            print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose)
-                .await;
-        }
+    let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
+    if (show_all || args.mcp) && !args.json {
+        print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose)
+            .await;
     }
 
     if show_all || args.artifacts {
@@ -245,29 +239,54 @@ async fn execute_ai_trace(
         CliService::info(&"═".repeat(60));
     }
 
+    let total_input_tokens: i64 = ai_requests
+        .iter()
+        .map(|r| i64::from(r.input_tokens.unwrap_or(0)))
+        .sum();
+    let total_output_tokens: i64 = ai_requests
+        .iter()
+        .map(|r| i64::from(r.output_tokens.unwrap_or(0)))
+        .sum();
+    let total_cost_microdollars: i64 = ai_requests.iter().map(|r| r.cost_microdollars).sum();
+    let total_latency_ms: i64 = ai_requests
+        .iter()
+        .map(|r| i64::from(r.latency_ms.unwrap_or(0)))
+        .sum();
+
+    let duration_ms = task_info
+        .started_at
+        .zip(task_info.completed_at)
+        .map(|(s, e)| (e - s).num_milliseconds());
+
     let output = TraceViewOutput {
         trace_id: task_id.to_string(),
         events: Vec::new(),
         ai_summary: AiSummaryRow {
-            request_count: 0,
-            total_tokens: 0,
-            input_tokens: 0,
-            output_tokens: 0,
-            cost_dollars: 0.0,
-            total_latency_ms: 0,
+            request_count: ai_requests.len() as i64,
+            total_tokens: total_input_tokens + total_output_tokens,
+            input_tokens: total_input_tokens,
+            output_tokens: total_output_tokens,
+            cost_dollars: total_cost_microdollars as f64 / 1_000_000.0,
+            total_latency_ms,
         },
         mcp_summary: McpSummaryRow {
-            execution_count: 0,
-            total_execution_time_ms: 0,
+            execution_count: mcp_executions.len() as i64,
+            total_execution_time_ms: mcp_executions
+                .iter()
+                .map(|e| i64::from(e.execution_time_ms.unwrap_or(0)))
+                .sum(),
         },
         step_summary: StepSummaryRow {
-            total: 0,
-            completed: 0,
-            failed: 0,
-            pending: 0,
+            total: steps.len() as i64,
+            completed: steps.iter().filter(|s| s.status == "completed").count() as i64,
+            failed: steps.iter().filter(|s| s.status == "failed").count() as i64,
+            pending: steps
+                .iter()
+                .filter(|s| s.status == "pending" || s.status == "in_progress")
+                .count() as i64,
         },
         task_id: Some(task_id.to_string()),
-        duration_ms: None,
+        duration_ms,
         status: task_info.status,
     };
 
