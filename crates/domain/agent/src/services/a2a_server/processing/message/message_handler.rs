@@ -110,13 +110,13 @@ impl MessageProcessor {
         };
 
         let mut chunk_rx = stream_processor
-            .process_message_stream(
-                &message,
-                &agent_runtime,
+            .process_message_stream(super::ProcessMessageStreamParams {
+                a2a_message: &message,
+                agent_runtime: &agent_runtime,
                 agent_name,
                 context,
-                task_id.clone(),
-            )
+                task_id: task_id.clone(),
+            })
             .await?;
 
         let mut response_text = String::new();

@@ -53,10 +53,7 @@ impl MessageService {
         })
     }
 
-    pub async fn persist_message_in_tx(
-        &self,
-        params: PersistMessageInTxParams<'_>,
-    ) -> Result<i32> {
+    pub async fn persist_message_in_tx(&self, params: PersistMessageInTxParams<'_>) -> Result<i32> {
         let PersistMessageInTxParams {
             tx,
             message,
@@ -95,10 +92,7 @@ impl MessageService {
         Ok(sequence_number)
     }
 
-    pub async fn persist_messages(
-        &self,
-        params: PersistMessagesParams<'_>,
-    ) -> Result<Vec<i32>> {
+    pub async fn persist_messages(&self, params: PersistMessagesParams<'_>) -> Result<Vec<i32>> {
         let PersistMessagesParams {
             task_id,
             context_id,

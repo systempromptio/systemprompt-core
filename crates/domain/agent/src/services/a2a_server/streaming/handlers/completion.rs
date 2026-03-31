@@ -157,15 +157,16 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
         return;
     };
 
+    use crate::services::a2a_server::processing::message::PersistCompletedTaskOnProcessorParams;
     match processor
-        .persist_completed_task(
-            &complete_task,
-            original_message,
-            &agent_message,
+        .persist_completed_task(PersistCompletedTaskOnProcessorParams {
+            task: &complete_task,
+            user_message: original_message,
+            agent_message: &agent_message,
             context,
             agent_name,
-            true,
-        )
+            artifacts_already_published: true,
+        })
         .await
     {
         Err(e) => {

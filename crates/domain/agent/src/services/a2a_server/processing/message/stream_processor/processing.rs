@@ -8,7 +8,7 @@ use super::helpers::{
 };
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Message;
-use crate::services::a2a_server::processing::message::StreamEvent;
+use crate::services::a2a_server::processing::message::{ProcessMessageStreamParams, StreamEvent};
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategySelector,
 };
@@ -18,12 +18,15 @@ use systemprompt_models::{AiMessage, MessageRole, RequestContext};
 impl StreamProcessor {
     pub async fn process_message_stream(
         &self,
-        a2a_message: &Message,
-        agent_runtime: &AgentRuntimeInfo,
-        agent_name: &str,
-        context: &RequestContext,
-        task_id: TaskId,
+        params: ProcessMessageStreamParams<'_>,
     ) -> Result<mpsc::UnboundedReceiver<StreamEvent>> {
+        let ProcessMessageStreamParams {
+            a2a_message,
+            agent_runtime,
+            agent_name,
+            context,
+            task_id,
+        } = params;
         let (tx, rx) = mpsc::unbounded_channel();
 
         let ai_service = self.ai_service.clone();

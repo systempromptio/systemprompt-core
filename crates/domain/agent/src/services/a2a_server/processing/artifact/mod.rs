@@ -91,12 +91,14 @@ impl ArtifactBuilder {
                     let output_schema = self.get_output_schema(&tool_call.name);
 
                     let mut artifact = McpToA2aTransformer::transform_from_json(
-                        &tool_call.name,
-                        structured_content,
-                        output_schema,
-                        &self.context_id,
-                        &self.task_id,
-                        Some(&tool_call.arguments),
+                        crate::services::mcp::artifact_transformer::TransformFromJsonParams {
+                            tool_name: &tool_call.name,
+                            tool_result_json: structured_content,
+                            output_schema,
+                            context_id: &self.context_id,
+                            task_id: &self.task_id,
+                            tool_arguments: Some(&tool_call.arguments),
+                        },
                     )
                     .map_err(|e| {
                         anyhow::anyhow!("Tool '{}' artifact transform failed: {e}", tool_call.name)

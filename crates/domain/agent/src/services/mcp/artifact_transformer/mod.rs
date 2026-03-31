@@ -154,18 +154,37 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
     })
 }
 
+pub struct TransformParams<'a> {
+    pub tool_name: &'a str,
+    pub tool_result: &'a CallToolResult,
+    pub output_schema: Option<&'a JsonValue>,
+    pub context_id: &'a str,
+    pub task_id: &'a str,
+    pub tool_arguments: Option<&'a JsonValue>,
+}
+
+pub struct TransformFromJsonParams<'a> {
+    pub tool_name: &'a str,
+    pub tool_result_json: &'a JsonValue,
+    pub output_schema: Option<&'a JsonValue>,
+    pub context_id: &'a str,
+    pub task_id: &'a str,
+    pub tool_arguments: Option<&'a JsonValue>,
+}
+
 #[derive(Debug, Copy, Clone)]
 pub struct McpToA2aTransformer;
 
 impl McpToA2aTransformer {
-    pub fn transform(
-        tool_name: &str,
-        tool_result: &CallToolResult,
-        output_schema: Option<&JsonValue>,
-        context_id: &str,
-        task_id: &str,
-        tool_arguments: Option<&JsonValue>,
-    ) -> Result<Artifact, ArtifactError> {
+    pub fn transform(params: TransformParams<'_>) -> Result<Artifact, ArtifactError> {
+        let TransformParams {
+            tool_name,
+            tool_result,
+            output_schema,
+            context_id,
+            task_id,
+            tool_arguments,
+        } = params;
         let structured_content =
             tool_result
                 .structured_content
@@ -186,13 +205,16 @@ impl McpToA2aTransformer {
     }
 
     pub fn transform_from_json(
-        tool_name: &str,
-        tool_result_json: &JsonValue,
-        output_schema: Option<&JsonValue>,
-        context_id: &str,
-        task_id: &str,
-        tool_arguments: Option<&JsonValue>,
+        params: TransformFromJsonParams<'_>,
     ) -> Result<Artifact, ArtifactError> {
+        let TransformFromJsonParams {
+            tool_name,
+            tool_result_json,
+            output_schema,
+            context_id,
+            task_id,
+            tool_arguments,
+        } = params;
         let parsed = parse_tool_response(tool_result_json)?;
         transform_parsed(TransformParsedParams {
             tool_name,

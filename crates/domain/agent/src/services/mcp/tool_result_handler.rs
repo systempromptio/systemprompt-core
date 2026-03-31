@@ -62,15 +62,16 @@ impl ToolResultHandler {
             "Transforming tool result to artifact"
         );
 
-        let artifact = McpToA2aTransformer::transform(
-            tool_name,
-            tool_result,
-            output_schema,
-            context_id.as_str(),
-            task_id.as_str(),
-            tool_arguments,
-        )
-        .map_err(|e| anyhow::anyhow!("Artifact transform failed: {}", e))?;
+        let artifact =
+            McpToA2aTransformer::transform(super::artifact_transformer::TransformParams {
+                tool_name,
+                tool_result,
+                output_schema,
+                context_id: context_id.as_str(),
+                task_id: task_id.as_str(),
+                tool_arguments,
+            })
+            .map_err(|e| anyhow::anyhow!("Artifact transform failed: {}", e))?;
 
         use systemprompt_traits::validation::Validate;
         artifact

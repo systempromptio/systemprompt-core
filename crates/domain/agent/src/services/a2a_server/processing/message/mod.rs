@@ -37,6 +37,23 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
 
+pub struct PersistCompletedTaskOnProcessorParams<'a> {
+    pub task: &'a Task,
+    pub user_message: &'a Message,
+    pub agent_message: &'a Message,
+    pub context: &'a RequestContext,
+    pub agent_name: &'a str,
+    pub artifacts_already_published: bool,
+}
+
+pub struct ProcessMessageStreamParams<'a> {
+    pub a2a_message: &'a Message,
+    pub agent_runtime: &'a AgentRuntimeInfo,
+    pub agent_name: &'a str,
+    pub context: &'a RequestContext,
+    pub task_id: TaskId,
+}
+
 pub struct MessageProcessor {
     db_pool: DbPool,
     ai_service: Arc<dyn AiProvider>,
@@ -88,32 +105,23 @@ impl MessageProcessor {
 
     pub async fn persist_completed_task(
         &self,
-        task: &Task,
-        user_message: &Message,
-        agent_message: &Message,
-        context: &RequestContext,
-        _agent_name: &str,
-        artifacts_already_published: bool,
+        params: PersistCompletedTaskOnProcessorParams<'_>,
     ) -> Result<Task> {
         persistence::persist_completed_task(persistence::PersistCompletedTaskParams {
-            task,
-            user_message,
-            agent_message,
-            context,
+            task: params.task,
+            user_message: params.user_message,
+            agent_message: params.agent_message,
+            context: params.context,
             task_repo: &self.task_repo,
             db_pool: &self.db_pool,
-            artifacts_already_published,
+            artifacts_already_published: params.artifacts_already_published,
         })
         .await
     }
 
     pub async fn process_message_stream(
         &self,
-        a2a_message: &Message,
-        agent_runtime: &AgentRuntimeInfo,
-        agent_name: &str,
-        context: &RequestContext,
-        task_id: TaskId,
+        params: ProcessMessageStreamParams<'_>,
     ) -> Result<mpsc::UnboundedReceiver<StreamEvent>> {
         let stream_processor = StreamProcessor {
             ai_service: self.ai_service.clone(),
@@ -122,8 +130,6 @@ impl MessageProcessor {
             execution_step_repo: self.execution_step_repo.clone(),
         };
 
-        stream_processor
-            .process_message_stream(a2a_message, agent_runtime, agent_name, context, task_id)
-            .await
+        stream_processor.process_message_stream(params).await
     }
 }

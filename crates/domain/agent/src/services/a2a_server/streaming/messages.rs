@@ -55,15 +55,16 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiv
 
         tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
 
+        use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
         match setup
             .processor
-            .process_message_stream(
-                &setup.message,
-                &setup.agent_runtime,
-                &setup.agent_name,
-                &setup.context,
-                setup.task_id.clone(),
-            )
+            .process_message_stream(ProcessMessageStreamParams {
+                a2a_message: &setup.message,
+                agent_runtime: &setup.agent_runtime,
+                agent_name: &setup.agent_name,
+                context: &setup.context,
+                task_id: setup.task_id.clone(),
+            })
             .await
         {
             Ok(chunk_rx) => {

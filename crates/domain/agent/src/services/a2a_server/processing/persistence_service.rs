@@ -7,6 +7,14 @@ use crate::models::{Message, Task, TaskState, TaskStatus};
 use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
 use crate::services::ArtifactPublishingService;
 
+pub struct PersistCompletedTaskServiceParams<'a> {
+    pub task: &'a Task,
+    pub user_message: &'a Message,
+    pub agent_message: &'a Message,
+    pub context: &'a RequestContext,
+    pub artifacts_already_published: bool,
+}
+
 #[derive(Debug)]
 pub struct PersistenceService {
     db_pool: DbPool,
@@ -56,12 +64,15 @@ impl PersistenceService {
 
     pub async fn persist_completed_task(
         &self,
-        task: &Task,
-        user_message: &Message,
-        agent_message: &Message,
-        context: &RequestContext,
-        artifacts_already_published: bool,
+        params: PersistCompletedTaskServiceParams<'_>,
     ) -> Result<Task> {
+        let PersistCompletedTaskServiceParams {
+            task,
+            user_message,
+            agent_message,
+            context,
+            artifacts_already_published,
+        } = params;
         let task_repo = TaskRepository::new(&self.db_pool)?;
 
         let updated_task = task_repo
