@@ -1,23 +1,12 @@
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Response};
+use axum::response::IntoResponse;
 use tracing::instrument;
 
-use super::super::responses::{internal_error, not_found};
+use super::super::responses::{init_error, internal_error, not_found};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::OAuthRepository;
-
-fn init_error(e: impl std::fmt::Display) -> Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        axum::Json(serde_json::json!({
-            "error": "server_error",
-            "error_description": format!("Repository initialization failed: {e}")
-        })),
-    )
-        .into_response()
-}
 
 #[instrument(skip(state, req_ctx), fields(client_id = %client_id))]
 pub async fn delete_client(

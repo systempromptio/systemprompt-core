@@ -1,24 +1,16 @@
 use axum::extract::{Extension, State};
 use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json, Response};
+use axum::response::{IntoResponse, Json};
 use bcrypt::{DEFAULT_COST, hash};
 use tracing::instrument;
 use uuid::Uuid;
 
-use super::super::responses::{created_response, error_response};
+use super::super::responses::{created_response, error_response, init_error};
 use systemprompt_models::RequestContext;
 use systemprompt_models::modules::ApiPaths;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::clients::api::{CreateOAuthClientRequest, OAuthClientResponse};
 use systemprompt_oauth::repository::{CreateClientParams, OAuthRepository};
-
-fn init_error(e: impl std::fmt::Display) -> Response {
-    error_response(
-        StatusCode::INTERNAL_SERVER_ERROR,
-        "server_error",
-        format!("Repository initialization failed: {e}"),
-    )
-}
 
 #[instrument(skip(state, req_ctx, request), fields(client_id = %request.client_id))]
 pub async fn create_client(

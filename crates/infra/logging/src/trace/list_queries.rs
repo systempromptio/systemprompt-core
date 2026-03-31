@@ -104,7 +104,7 @@ pub async fn list_traces(
     Ok(rows
         .into_iter()
         .map(|r| TraceListItem {
-            trace_id: r.trace_id,
+            trace_id: r.trace_id.into(),
             first_timestamp: r.first_timestamp,
             last_timestamp: r.last_timestamp,
             agent: r.agent,

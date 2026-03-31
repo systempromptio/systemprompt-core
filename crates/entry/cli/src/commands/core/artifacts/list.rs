@@ -10,7 +10,7 @@ use tabled::{Table, Tabled};
 use super::types::{ArtifactListOutput, ArtifactSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 #[derive(Debug, Args)]
 pub struct ListArgs {
@@ -99,7 +99,7 @@ pub async fn execute_with_pool(
             let rows: Vec<ArtifactRow> = summaries
                 .iter()
                 .map(|a| ArtifactRow {
-                    id: truncate_id(&a.id, 12),
+                    id: truncate_with_ellipsis(&a.id, 12),
                     name: a.name.clone().unwrap_or_else(|| "-".to_string()),
                     artifact_type: a.artifact_type.clone(),
                     tool_name: a.tool_name.clone().unwrap_or_else(|| "-".to_string()),
@@ -125,10 +125,3 @@ pub async fn execute_with_pool(
         ]))
 }
 
-fn truncate_id(id: &str, max_len: usize) -> String {
-    if id.len() <= max_len {
-        id.to_string()
-    } else {
-        format!("{}...", &id[..max_len])
-    }
-}

@@ -72,7 +72,7 @@ async fn execute_with_pool_inner(
         .into_iter()
         .map(|r| ToolExecutionRow {
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S").to_string(),
-            trace_id: r.trace_id,
+            trace_id: r.trace_id.to_string(),
             tool_name: r.tool_name,
             server: r.server_name.unwrap_or_else(|| "unknown".to_string()),
             status: r.status,

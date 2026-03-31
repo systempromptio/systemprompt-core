@@ -5,7 +5,7 @@ use serde::Deserialize;
 
 use super::types::{RegistryAgentInfo, RegistryOutput};
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 const DEFAULT_GATEWAY_URL: &str = "http://localhost:8080";
 
@@ -106,7 +106,7 @@ pub async fn execute(
                 description: if args.verbose {
                     agent.description
                 } else {
-                    truncate(&agent.description, 50)
+                    truncate_with_ellipsis(&agent.description, 50)
                 },
                 url: agent.url,
                 version: agent.version,
@@ -171,10 +171,3 @@ fn extract_status(agent: &AgentCardResponse) -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-fn truncate(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len.saturating_sub(3)])
-    }
-}

@@ -35,7 +35,7 @@ impl CreateContentParams {
             author: String::new(),
             published_at: Utc::now(),
             keywords: String::new(),
-            kind: String::from("article"),
+            kind: "article".into(),
             image: None,
             category_id: None,
             source_id,

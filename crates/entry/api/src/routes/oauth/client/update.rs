@@ -1,24 +1,12 @@
 use axum::extract::{Extension, Path, State};
-use axum::http::StatusCode;
-use axum::response::{IntoResponse, Json, Response};
+use axum::response::{IntoResponse, Json};
 use tracing::instrument;
 
-use super::super::responses::{bad_request, internal_error, not_found, single_response};
+use super::super::responses::{bad_request, init_error, internal_error, not_found, single_response};
 use systemprompt_models::RequestContext;
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::clients::api::{OAuthClientResponse, UpdateOAuthClientRequest};
 use systemprompt_oauth::repository::OAuthRepository;
-
-fn init_error(e: impl std::fmt::Display) -> Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(serde_json::json!({
-            "error": "server_error",
-            "error_description": format!("Repository initialization failed: {e}")
-        })),
-    )
-        .into_response()
-}
 
 #[instrument(skip(state, req_ctx, request), fields(client_id = %client_id))]
 pub async fn update_client(

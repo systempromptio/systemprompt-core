@@ -31,8 +31,8 @@ impl ToolModelConfig {
 
     pub fn merge_with(&self, other: &Self) -> Self {
         Self {
-            provider: other.provider.clone().or_else(|| self.provider.clone()),
-            model: other.model.clone().or_else(|| self.model.clone()),
+            provider: other.provider.as_ref().or(self.provider.as_ref()).cloned(),
+            model: other.model.as_ref().or(self.model.as_ref()).cloned(),
             max_output_tokens: other.max_output_tokens.or(self.max_output_tokens),
         }
     }

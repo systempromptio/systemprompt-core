@@ -45,7 +45,7 @@ pub async fn print_mcp_executions(
         print_tool_io(exec, show_full);
 
         if let Ok(linked_requests) = service
-            .get_mcp_linked_ai_requests(&exec.mcp_execution_id)
+            .get_mcp_linked_ai_requests(exec.mcp_execution_id.as_str())
             .await
         {
             if !linked_requests.is_empty() {

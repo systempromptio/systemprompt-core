@@ -5,6 +5,7 @@ pub mod paths;
 pub mod process;
 pub mod profile;
 pub mod project;
+pub mod text;
 
 pub use command_result::{
     ArtifactType, ChartType, CommandResult, KeyValueItem, KeyValueOutput, RenderingHints,
@@ -15,3 +16,4 @@ pub use profile::{
     ProfileResolutionError, is_path_input, resolve_profile_from_path, resolve_profile_path,
     resolve_profile_with_data,
 };
+pub use text::truncate_with_ellipsis;

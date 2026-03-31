@@ -116,11 +116,11 @@ fn print_trace_context(events: &[TraceEvent], task_id: Option<&str>) {
     }
 
     if let Some(session_id) = events.first().and_then(|e| e.session_id.as_ref()) {
-        CliService::key_value("  Session", session_id);
+        CliService::key_value("  Session", session_id.as_str());
     }
 
     if let Some(user_id) = events.first().and_then(|e| e.user_id.as_ref()) {
-        CliService::key_value("  User", user_id);
+        CliService::key_value("  User", user_id.as_str());
     }
 }
 

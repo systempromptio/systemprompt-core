@@ -7,6 +7,35 @@ use std::str::FromStr;
 pub use systemprompt_models::auth::JwtClaims;
 pub use systemprompt_models::oauth::OAuthServerConfig as OAuthConfig;
 
+macro_rules! impl_str_enum {
+    ($enum_name:ident, $error_variant:ident, { $($variant:ident => $str:expr),+ $(,)? }) => {
+        impl $enum_name {
+            pub const fn as_str(&self) -> &'static str {
+                match self {
+                    $(Self::$variant => $str),+
+                }
+            }
+        }
+
+        impl FromStr for $enum_name {
+            type Err = OAuthParseError;
+
+            fn from_str(s: &str) -> Result<Self, Self::Err> {
+                match s {
+                    $($str => Ok(Self::$variant)),+,
+                    _ => Err(OAuthParseError::$error_variant(s.to_string())),
+                }
+            }
+        }
+
+        impl fmt::Display for $enum_name {
+            fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+                f.write_str(self.as_str())
+            }
+        }
+    };
+}
+
 #[derive(Debug, Clone)]
 #[allow(clippy::enum_variant_names)]
 pub enum OAuthParseError {
@@ -42,36 +71,15 @@ pub enum GrantType {
     ClientCredentials,
 }
 
-impl GrantType {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::AuthorizationCode => "authorization_code",
-            Self::RefreshToken => "refresh_token",
-            Self::ClientCredentials => "client_credentials",
-        }
-    }
+impl_str_enum!(GrantType, InvalidGrantType, {
+    AuthorizationCode => "authorization_code",
+    RefreshToken => "refresh_token",
+    ClientCredentials => "client_credentials",
+});
 
+impl GrantType {
     pub const fn default_grant_types() -> &'static [&'static str] {
         &["authorization_code", "refresh_token"]
-    }
-}
-
-impl FromStr for GrantType {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "authorization_code" => Ok(Self::AuthorizationCode),
-            "refresh_token" => Ok(Self::RefreshToken),
-            "client_credentials" => Ok(Self::ClientCredentials),
-            _ => Err(OAuthParseError::InvalidGrantType(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for GrantType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
     }
 }
 
@@ -81,62 +89,19 @@ pub enum PkceMethod {
     Plain,
 }
 
-impl PkceMethod {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::S256 => "S256",
-            Self::Plain => "plain",
-        }
-    }
-}
-
-impl FromStr for PkceMethod {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "S256" => Ok(Self::S256),
-            "plain" => Ok(Self::Plain),
-            _ => Err(OAuthParseError::InvalidPkceMethod(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for PkceMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+impl_str_enum!(PkceMethod, InvalidPkceMethod, {
+    S256 => "S256",
+    Plain => "plain",
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResponseType {
     Code,
 }
 
-impl ResponseType {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Code => "code",
-        }
-    }
-}
-
-impl FromStr for ResponseType {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "code" => Ok(Self::Code),
-            _ => Err(OAuthParseError::InvalidResponseType(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for ResponseType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+impl_str_enum!(ResponseType, InvalidResponseType, {
+    Code => "code",
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ResponseMode {
@@ -144,32 +109,10 @@ pub enum ResponseMode {
     Fragment,
 }
 
-impl ResponseMode {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Query => "query",
-            Self::Fragment => "fragment",
-        }
-    }
-}
-
-impl FromStr for ResponseMode {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "query" => Ok(Self::Query),
-            "fragment" => Ok(Self::Fragment),
-            _ => Err(OAuthParseError::InvalidResponseMode(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for ResponseMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+impl_str_enum!(ResponseMode, InvalidResponseMode, {
+    Query => "query",
+    Fragment => "fragment",
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayMode {
@@ -179,36 +122,12 @@ pub enum DisplayMode {
     Wap,
 }
 
-impl DisplayMode {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::Page => "page",
-            Self::Popup => "popup",
-            Self::Touch => "touch",
-            Self::Wap => "wap",
-        }
-    }
-}
-
-impl FromStr for DisplayMode {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "page" => Ok(Self::Page),
-            "popup" => Ok(Self::Popup),
-            "touch" => Ok(Self::Touch),
-            "wap" => Ok(Self::Wap),
-            _ => Err(OAuthParseError::InvalidDisplayMode(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for DisplayMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+impl_str_enum!(DisplayMode, InvalidDisplayMode, {
+    Page => "page",
+    Popup => "popup",
+    Touch => "touch",
+    Wap => "wap",
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Prompt {
@@ -218,36 +137,12 @@ pub enum Prompt {
     SelectAccount,
 }
 
-impl Prompt {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::None => "none",
-            Self::Login => "login",
-            Self::Consent => "consent",
-            Self::SelectAccount => "select_account",
-        }
-    }
-}
-
-impl FromStr for Prompt {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "none" => Ok(Self::None),
-            "login" => Ok(Self::Login),
-            "consent" => Ok(Self::Consent),
-            "select_account" => Ok(Self::SelectAccount),
-            _ => Err(OAuthParseError::InvalidPrompt(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for Prompt {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
+impl_str_enum!(Prompt, InvalidPrompt, {
+    None => "none",
+    Login => "login",
+    Consent => "consent",
+    SelectAccount => "select_account",
+});
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TokenAuthMethod {
@@ -256,35 +151,14 @@ pub enum TokenAuthMethod {
     None,
 }
 
-impl TokenAuthMethod {
-    pub const fn as_str(&self) -> &'static str {
-        match self {
-            Self::ClientSecretPost => "client_secret_post",
-            Self::ClientSecretBasic => "client_secret_basic",
-            Self::None => "none",
-        }
-    }
+impl_str_enum!(TokenAuthMethod, InvalidTokenAuthMethod, {
+    ClientSecretPost => "client_secret_post",
+    ClientSecretBasic => "client_secret_basic",
+    None => "none",
+});
 
+impl TokenAuthMethod {
     pub const fn default() -> Self {
         Self::ClientSecretPost
-    }
-}
-
-impl FromStr for TokenAuthMethod {
-    type Err = OAuthParseError;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "client_secret_post" => Ok(Self::ClientSecretPost),
-            "client_secret_basic" => Ok(Self::ClientSecretBasic),
-            "none" => Ok(Self::None),
-            _ => Err(OAuthParseError::InvalidTokenAuthMethod(s.to_string())),
-        }
-    }
-}
-
-impl fmt::Display for TokenAuthMethod {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
     }
 }

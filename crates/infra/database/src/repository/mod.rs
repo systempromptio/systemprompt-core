@@ -2,7 +2,6 @@ pub mod base;
 pub mod cleanup;
 pub mod entity;
 pub mod info;
-pub mod macros;
 pub mod service;
 
 pub use base::PgDbPool;

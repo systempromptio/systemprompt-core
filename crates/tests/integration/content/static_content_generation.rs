@@ -45,27 +45,27 @@ async fn test_ingested_content_has_required_fields() -> Result<()> {
     let content = row.get("content").and_then(|v| v.as_str());
 
     assert!(
-        id.is_some() && !id.unwrap().is_empty(),
+        id.is_some_and(|v| !v.is_empty()),
         "ID should be populated"
     );
     assert!(
-        title.is_some() && !title.unwrap().is_empty(),
+        title.is_some_and(|v| !v.is_empty()),
         "Title should be populated"
     );
     assert!(
-        slug.is_some() && !slug.unwrap().is_empty(),
+        slug.is_some_and(|v| !v.is_empty()),
         "Slug should be populated"
     );
     assert!(
-        description.is_some() && !description.unwrap().is_empty(),
+        description.is_some_and(|v| !v.is_empty()),
         "Description should be populated"
     );
     assert!(
-        author.is_some() && !author.unwrap().is_empty(),
+        author.is_some_and(|v| !v.is_empty()),
         "Author should be populated"
     );
     assert!(
-        content.is_some() && !content.unwrap().is_empty(),
+        content.is_some_and(|v| !v.is_empty()),
         "Content should be populated"
     );
 

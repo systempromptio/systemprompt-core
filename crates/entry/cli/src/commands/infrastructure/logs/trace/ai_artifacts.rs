@@ -14,9 +14,9 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
     let mut artifact_rows: Vec<ArtifactRow> = Vec::new();
 
     for artifact in artifacts {
-        if seen_artifacts.insert(artifact.artifact_id.clone()) {
+        if seen_artifacts.insert(artifact.artifact_id.to_string()) {
             artifact_rows.push(ArtifactRow {
-                artifact_id: truncate(&artifact.artifact_id, 12),
+                artifact_id: truncate(artifact.artifact_id.as_str(), 12),
                 artifact_type: artifact.artifact_type.clone(),
                 name: artifact
                     .name
@@ -39,9 +39,10 @@ pub fn print_artifacts(artifacts: &[TaskArtifact]) {
 
     let mut current_artifact: Option<String> = None;
     for artifact in artifacts {
-        if current_artifact.as_ref() != Some(&artifact.artifact_id) {
-            current_artifact = Some(artifact.artifact_id.clone());
-            let truncated_id = truncate(&artifact.artifact_id, 12);
+        let id_str = artifact.artifact_id.to_string();
+        if current_artifact.as_ref() != Some(&id_str) {
+            let truncated_id = truncate(artifact.artifact_id.as_str(), 12);
+            current_artifact = Some(id_str);
             let display_name = artifact.name.as_deref().unwrap_or(&truncated_id);
             CliService::info(&format!(
                 "── {} ({}) ──",

@@ -35,6 +35,14 @@ pub fn single_response<T: Serialize>(data: T) -> Response {
         .into_response()
 }
 
+pub fn init_error(e: impl std::fmt::Display) -> Response {
+    error_response(
+        StatusCode::INTERNAL_SERVER_ERROR,
+        "server_error",
+        format!("Repository initialization failed: {e}"),
+    )
+}
+
 pub fn created_response(body: serde_json::Value, location: String) -> Response {
     (StatusCode::CREATED, [("Location", location)], Json(body)).into_response()
 }

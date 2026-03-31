@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tracing::instrument;
 use validator::Validate;
 
-use super::super::responses::{bad_request, internal_error};
+use super::super::responses::{bad_request, init_error, internal_error};
 use systemprompt_models::api::PaginationParams;
 use systemprompt_models::{PaginationInfo, RequestContext};
 use systemprompt_oauth::OAuthState;
@@ -21,17 +21,6 @@ pub struct ListClientsQuery {
 
     #[validate(length(min = 1, max = 50))]
     pub status: Option<String>,
-}
-
-fn init_error(e: impl std::fmt::Display) -> Response {
-    (
-        StatusCode::INTERNAL_SERVER_ERROR,
-        Json(serde_json::json!({
-            "error": "server_error",
-            "error_description": format!("Repository initialization failed: {e}")
-        })),
-    )
-        .into_response()
 }
 
 fn paginated_response<T: serde::Serialize>(items: Vec<T>, pagination: PaginationInfo) -> Response {

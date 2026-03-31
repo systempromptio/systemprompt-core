@@ -1,6 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use systemprompt_identifiers::{
+    ArtifactId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+};
 
 #[derive(Debug, Clone)]
 pub struct TraceListFilter {
@@ -59,7 +62,7 @@ impl TraceListFilter {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceListItem {
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub first_timestamp: DateTime<Utc>,
     pub last_timestamp: DateTime<Utc>,
     pub agent: Option<String>,
@@ -112,7 +115,7 @@ impl ToolExecutionFilter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolExecutionItem {
     pub timestamp: DateTime<Utc>,
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub tool_name: String,
     pub server_name: Option<String>,
     pub status: String,
@@ -151,7 +154,7 @@ impl LogSearchFilter {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogSearchItem {
     pub id: String,
-    pub trace_id: String,
+    pub trace_id: TraceId,
     pub timestamp: DateTime<Utc>,
     pub level: String,
     pub module: String,
@@ -197,7 +200,7 @@ impl AiRequestFilter {
 pub struct AiRequestListItem {
     pub id: String,
     pub created_at: DateTime<Utc>,
-    pub trace_id: Option<String>,
+    pub trace_id: Option<TraceId>,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,
@@ -259,8 +262,8 @@ pub struct AuditLookupResult {
     pub output_tokens: Option<i32>,
     pub cost_microdollars: i64,
     pub latency_ms: Option<i32>,
-    pub task_id: Option<String>,
-    pub trace_id: Option<String>,
+    pub task_id: Option<TaskId>,
+    pub trace_id: Option<TraceId>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -283,10 +286,10 @@ pub struct TraceEvent {
     pub event_type: String,
     pub timestamp: DateTime<Utc>,
     pub details: String,
-    pub user_id: Option<String>,
-    pub session_id: Option<String>,
-    pub task_id: Option<String>,
-    pub context_id: Option<String>,
+    pub user_id: Option<UserId>,
+    pub session_id: Option<SessionId>,
+    pub task_id: Option<TaskId>,
+    pub context_id: Option<ContextId>,
     pub metadata: Option<String>,
 }
 
@@ -320,8 +323,8 @@ pub struct ExecutionStepSummary {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskInfo {
-    pub task_id: String,
-    pub context_id: String,
+    pub task_id: TaskId,
+    pub context_id: ContextId,
     pub agent_name: Option<String>,
     pub status: String,
     pub created_at: DateTime<Utc>,
@@ -355,7 +358,7 @@ pub struct AiRequestInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpToolExecution {
-    pub mcp_execution_id: String,
+    pub mcp_execution_id: McpExecutionId,
     pub tool_name: String,
     pub server_name: String,
     pub status: String,
@@ -382,7 +385,7 @@ pub struct ToolLogEntry {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskArtifact {
-    pub artifact_id: String,
+    pub artifact_id: ArtifactId,
     pub artifact_type: String,
     pub name: Option<String>,
     pub source: Option<String>,

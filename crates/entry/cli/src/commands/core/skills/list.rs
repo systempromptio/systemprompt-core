@@ -4,7 +4,7 @@ use std::path::Path;
 use systemprompt_models::SKILL_CONFIG_FILENAME;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 use super::types::{
     ListOrDetail, SkillDetailOutput, SkillListOutput, SkillSummary, parse_skill_from_config,
@@ -81,12 +81,7 @@ fn show_skill_detail(skill_id: &str, skills_path: &Path) -> Result<CommandResult
 
     let parsed = parse_skill_from_config(&config_path, &skill_dir)?;
 
-    let instructions_preview = parsed.instructions.chars().take(200).collect::<String>()
-        + if parsed.instructions.len() > 200 {
-            "..."
-        } else {
-            ""
-        };
+    let instructions_preview = truncate_with_ellipsis(&parsed.instructions, 200);
 
     let output = SkillDetailOutput {
         skill_id: skill_id.to_string(),

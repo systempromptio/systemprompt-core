@@ -130,7 +130,7 @@ pub async fn list_ai_requests(
         .map(|r| AiRequestListItem {
             id: r.id,
             created_at: r.created_at,
-            trace_id: r.trace_id,
+            trace_id: r.trace_id.map(Into::into),
             provider: r.provider,
             model: r.model,
             input_tokens: r.input_tokens,
@@ -366,8 +366,8 @@ fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
         output_tokens: r.output_tokens,
         cost_microdollars: r.cost_microdollars,
         latency_ms: r.latency_ms,
-        task_id: r.task_id,
-        trace_id: r.trace_id,
+        task_id: r.task_id.map(Into::into),
+        trace_id: r.trace_id.map(Into::into),
     }
 }
 

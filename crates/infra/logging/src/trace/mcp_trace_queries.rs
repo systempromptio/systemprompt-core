@@ -24,7 +24,7 @@ pub async fn fetch_mcp_executions(
     Ok(rows
         .into_iter()
         .map(|r| McpToolExecution {
-            mcp_execution_id: r.mcp_execution_id,
+            mcp_execution_id: r.mcp_execution_id.into(),
             tool_name: r.tool_name,
             server_name: r.server_name,
             status: r.status,
@@ -121,7 +121,7 @@ pub async fn fetch_task_artifacts(
     Ok(rows
         .into_iter()
         .map(|r| TaskArtifact {
-            artifact_id: r.artifact_id,
+            artifact_id: r.artifact_id.into(),
             artifact_type: r.artifact_type,
             name: r.name,
             source: r.source,

@@ -4,7 +4,7 @@ use std::path::Path;
 use systemprompt_models::AGENT_CONFIG_FILENAME;
 
 use crate::CliConfig;
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 use super::types::{
     AgentDetailOutput, AgentListOutput, AgentSummary, ListOrDetail, get_agents_path,
@@ -81,14 +81,7 @@ fn show_agent_detail(agent_id: &str, agents_path: &Path) -> Result<CommandResult
     let system_prompt_preview = parsed
         .system_prompt
         .as_deref()
-        .map(|s| {
-            let preview: String = s.chars().take(200).collect();
-            if s.len() > 200 {
-                format!("{preview}...")
-            } else {
-                preview
-            }
-        })
+        .map(|s| truncate_with_ellipsis(s, 200))
         .unwrap_or_default();
 
     let output = AgentDetailOutput {

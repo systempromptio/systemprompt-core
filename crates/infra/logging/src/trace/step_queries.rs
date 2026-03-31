@@ -91,10 +91,10 @@ pub async fn fetch_mcp_execution_events(
                 event_type: "MCP".to_string(),
                 timestamp: row.timestamp,
                 details,
-                user_id: Some(row.user_id),
-                session_id: row.session_id,
-                task_id: row.task_id,
-                context_id: row.context_id,
+                user_id: Some(row.user_id.into()),
+                session_id: row.session_id.map(Into::into),
+                task_id: row.task_id.map(Into::into),
+                context_id: row.context_id.map(Into::into),
                 metadata: Some(metadata.to_string()),
             }
         })
@@ -203,10 +203,10 @@ pub async fn fetch_execution_step_events(
                 event_type: "STEP".to_string(),
                 timestamp: row.timestamp,
                 details,
-                user_id: row.user_id,
-                session_id: row.session_id,
-                task_id: Some(row.task_id),
-                context_id: Some(row.context_id),
+                user_id: row.user_id.map(Into::into),
+                session_id: row.session_id.map(Into::into),
+                task_id: Some(row.task_id.into()),
+                context_id: Some(row.context_id.into()),
                 metadata: Some(metadata.to_string()),
             }
         })

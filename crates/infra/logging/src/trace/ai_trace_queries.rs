@@ -31,8 +31,8 @@ pub async fn fetch_task_info(pool: &Arc<PgPool>, task_id: &str) -> Result<TaskIn
     .await?;
 
     Ok(TaskInfo {
-        task_id: row.task_id,
-        context_id: row.context_id,
+        task_id: row.task_id.into(),
+        context_id: row.context_id.into(),
         agent_name: row.agent_name,
         status: row.status,
         created_at: row.created_at,

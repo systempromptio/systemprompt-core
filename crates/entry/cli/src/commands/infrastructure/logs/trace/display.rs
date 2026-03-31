@@ -111,20 +111,24 @@ fn print_event_context(event: &TraceEvent) {
     let mut context_parts = Vec::new();
 
     if let Some(ref session_id) = event.session_id {
-        let len = session_id.len().min(12);
-        context_parts.push(format!("session: {}", &session_id[..len]));
+        let s = session_id.as_str();
+        let len = s.len().min(12);
+        context_parts.push(format!("session: {}", &s[..len]));
     }
     if let Some(ref user_id) = event.user_id {
-        let len = user_id.len().min(12);
-        context_parts.push(format!("user: {}", &user_id[..len]));
+        let s = user_id.as_str();
+        let len = s.len().min(12);
+        context_parts.push(format!("user: {}", &s[..len]));
     }
     if let Some(ref task_id) = event.task_id {
-        let len = task_id.len().min(12);
-        context_parts.push(format!("task: {}", &task_id[..len]));
+        let s = task_id.as_str();
+        let len = s.len().min(12);
+        context_parts.push(format!("task: {}", &s[..len]));
     }
     if let Some(ref context_id) = event.context_id {
-        let len = context_id.len().min(12);
-        context_parts.push(format!("context: {}", &context_id[..len]));
+        let s = context_id.as_str();
+        let len = s.len().min(12);
+        context_parts.push(format!("context: {}", &s[..len]));
     }
 
     if !context_parts.is_empty() {

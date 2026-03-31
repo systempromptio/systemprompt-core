@@ -9,7 +9,7 @@ use tabled::{Table, Tabled};
 use super::types::{ContextListOutput, ContextSummary};
 use crate::cli_settings::CliConfig;
 use crate::session::get_or_create_session;
-use crate::shared::CommandResult;
+use crate::shared::{CommandResult, truncate_with_ellipsis};
 
 #[derive(Debug, Clone, Copy, Args)]
 pub struct ListArgs;
@@ -85,7 +85,7 @@ pub async fn execute_with_pool(
                 .iter()
                 .map(|c| ContextRow {
                     id: c.id.as_str()[..8].to_string(),
-                    name: truncate_name(&c.name, 40),
+                    name: truncate_with_ellipsis(&c.name, 40),
                     task_count: c.task_count,
                     message_count: c.message_count,
                     updated_at: c.updated_at.format("%Y-%m-%d %H:%M").to_string(),
@@ -116,10 +116,3 @@ pub async fn execute_with_pool(
         ]))
 }
 
-fn truncate_name(name: &str, max_len: usize) -> String {
-    if name.len() <= max_len {
-        name.to_string()
-    } else {
-        format!("{}...", &name[..max_len - 3])
-    }
-}

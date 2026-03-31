@@ -27,7 +27,7 @@ pub(super) async fn execute_ai_trace(
     }
 
     let task_info = service.get_task_info(task_id).await?;
-    let context_id = task_info.context_id.clone();
+    let context_id = task_info.context_id.as_str().to_owned();
 
     if !args.json {
         print_task_info(&task_info);

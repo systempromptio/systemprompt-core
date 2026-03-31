@@ -91,7 +91,7 @@ pub fn print_content_block(content: &str) {
 
 pub fn print_task_info(task_info: &TaskInfo) {
     let rows = vec![TaskInfoRow {
-        task_id: task_info.task_id[..8].to_string(),
+        task_id: task_info.task_id.as_str()[..8].to_string(),
         agent_name: task_info
             .agent_name
             .clone()
