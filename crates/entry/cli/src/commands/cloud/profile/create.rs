@@ -15,7 +15,7 @@ use super::templates::{
     get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
     save_secrets, update_ai_config_default_provider, DatabaseUrls,
 };
-use super::{CreateArgs, TenantTypeArg};
+use super::CreateArgs;
 use crate::cli_settings::CliConfig;
 
 pub use super::profile_steps::{create_profile_for_tenant, CreatedProfile};

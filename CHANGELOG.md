@@ -65,6 +65,12 @@
 - **Rename `models::ContentError` to `ContentValidationError`**: resolve naming collision with the operational `error::ContentError` in the content crate
 - Fix `McpCspDomains` field references (`connect_domains` -> `connect`, `resource_domains` -> `resources`, etc.)
 - Fix `BuildContextParams` call sites to use struct construction instead of positional args
+- **Coding standards compliance sweep**:
+  - Delete 20 dead `.rs` files and 4 dead `.sql` files not declared in any `mod.rs`
+  - Convert 7 static `sqlx::query()` calls to compile-time verified `sqlx::query!()` / `sqlx::query_scalar!()` macros
+  - Remove `unsafe` block in config manager: replace `std::env::set_var` with in-process `HashMap` for secret resolution
+  - Remove `unsafe` block in health check: replace `libc::statvfs` FFI with `nix::sys::statvfs` safe wrapper
+  - Split 6 files exceeding 400 lines into focused submodules: `audit_queries.rs`, `ai_trace_display.rs`, `secrets_bootstrap.rs`, `file_bundler.rs`, `deploy_steps.rs`, `profile_steps.rs`
 - Fix `Arc<AnalyticsService>` to `Arc<dyn AnalyticsProvider>` coercion in session middleware
 - Fix `CloudPaths` API consumers after `get_cloud_paths()` return type change
 - Remove unused `_pool` parameter from `CleanupRepository::new_with_write_pool`
