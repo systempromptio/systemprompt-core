@@ -20,6 +20,7 @@
 - Reduce default tokio features in workspace (remove `fs`, `process`, `signal` from default set)
 - Replace blocking `std::sync::Mutex` with `tokio::sync::Mutex` in Gemini AI provider to prevent tokio worker thread stalls
 - Agent sub-processes now start with a clean environment (`env_clear`) instead of inheriting all parent secrets
+- Filter system traces and unknown status from trace list by default
 
 ### Security
 - Fix OAuth redirect URI bypass: full URLs can no longer match relative URI registrations
@@ -42,6 +43,13 @@
 - **Struct consolidation**: rename duplicate `ToolModelConfig` (all-optional) to `ToolModelOverride`, resolve `Settings` collision into `ServicesSettings`/`DeploymentSettings`, deduplicate `RenderingHints` (CLI now imports from models crate)
 - Convert `ToolContext` ID fields from raw `String` to typed identifiers (`SessionId`, `TraceId`, `AiToolCallId`)
 - Convert image generation model ID fields from raw `String` to typed identifiers (`UserId`, `SessionId`, `TraceId`, `McpExecutionId`)
+- **Eliminate inline SQL from CLI**: move 10 inline queries from `logs/show.rs`, `logs/export.rs`, and `logs/summary.rs` to `TraceQueryService` with dedicated query modules (`log_lookup_queries.rs`, `log_summary_queries.rs`)
+- **Typed IDs for trace models**: replace 6 remaining `String` ID fields with typed identifiers (`LogId`, `AiRequestId`, `ExecutionStepId`) across `LogSearchItem`, `AiRequestListItem`, `AiRequestDetail`, `AuditLookupResult`, `ExecutionStep`, `AiRequestInfo`
+- **DRY identifier definitions**: consolidate hand-written identifier structs into `define_id!()` macro invocations, removing ~2,500 lines of duplicated boilerplate across 14 identifier modules
+- Consolidate shared utilities and per-crate `.sqlx/` caches for publish workflow
+- Config cleanup: encapsulate visibility, remove dead code across config and logging crates
+- Extract trace/logging queries into dedicated modules (`log_search_queries.rs`, `request_queries.rs`, `tool_queries.rs`, etc.)
+- Remove dead `show_helpers.rs` and unused agent lib.rs clippy allow-list
 
 ### Fixed
 - Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development
@@ -49,6 +57,7 @@
 - Fix test compilation across `systemprompt-generator` and `systemprompt-sync`
 - Remove needless `..Default::default()` in API JWT config
 - Fix `bool as Option<bool>` invalid cast in trace list queries
+- Populate AI trace summary fields (`total_cost`, `total_tokens`, `total_latency`) that were previously always zero
 
 ## [0.1.18] - 2026-03-05
 

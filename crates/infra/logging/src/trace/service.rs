@@ -3,13 +3,18 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use crate::models::LogEntry;
+
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,
-    AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LinkedMcpCall, LogSearchItem,
-    McpExecutionSummary, ToolExecutionFilter, ToolExecutionItem, TraceEvent, TraceListFilter,
-    TraceListItem,
+    AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LevelCount, LinkedMcpCall,
+    LogSearchItem, LogTimeRange, McpExecutionSummary, ModuleCount, ToolExecutionFilter,
+    ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
 };
-use super::{list_queries, log_search_queries, queries, request_queries, tool_queries};
+use super::{
+    list_queries, log_lookup_queries, log_search_queries, log_summary_queries, queries,
+    request_queries, tool_queries,
+};
 
 #[derive(Debug, Clone)]
 pub struct TraceQueryService {
@@ -143,5 +148,49 @@ impl TraceQueryService {
 
     pub async fn list_linked_mcp_calls(&self, request_id: &str) -> Result<Vec<LinkedMcpCall>> {
         request_queries::list_linked_mcp_calls(&self.pool, request_id).await
+    }
+
+    pub async fn find_log_by_id(&self, id: &str) -> Result<Option<LogEntry>> {
+        log_lookup_queries::find_log_by_id(&self.pool, id).await
+    }
+
+    pub async fn find_log_by_partial_id(&self, id_prefix: &str) -> Result<Option<LogEntry>> {
+        log_lookup_queries::find_log_by_partial_id(&self.pool, id_prefix).await
+    }
+
+    pub async fn find_logs_by_trace_id(&self, trace_id: &str) -> Result<Vec<LogEntry>> {
+        log_lookup_queries::find_logs_by_trace_id(&self.pool, trace_id).await
+    }
+
+    pub async fn list_logs_filtered(
+        &self,
+        since: Option<DateTime<Utc>>,
+        level: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<LogEntry>> {
+        log_lookup_queries::list_logs_filtered(&self.pool, since, level, limit).await
+    }
+
+    pub async fn count_logs_by_level(
+        &self,
+        since: Option<DateTime<Utc>>,
+    ) -> Result<Vec<LevelCount>> {
+        log_summary_queries::count_logs_by_level(&self.pool, since).await
+    }
+
+    pub async fn top_modules(
+        &self,
+        since: Option<DateTime<Utc>>,
+        limit: i64,
+    ) -> Result<Vec<ModuleCount>> {
+        log_summary_queries::top_modules(&self.pool, since, limit).await
+    }
+
+    pub async fn log_time_range(&self, since: Option<DateTime<Utc>>) -> Result<LogTimeRange> {
+        log_summary_queries::log_time_range(&self.pool, since).await
+    }
+
+    pub async fn total_log_count(&self) -> Result<i64> {
+        log_summary_queries::total_log_count(&self.pool).await
     }
 }

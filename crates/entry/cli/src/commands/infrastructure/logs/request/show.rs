@@ -56,7 +56,7 @@ async fn execute_with_pool_inner(
             .with_skip_render());
     };
 
-    let request_id = row.id.clone();
+    let request_id = row.id.to_string();
     let cost_dollars = row.cost_microdollars as f64 / 1_000_000.0;
 
     let messages = if args.messages {

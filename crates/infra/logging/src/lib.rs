@@ -20,10 +20,10 @@ pub use services::{
 pub use trace::{
     AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
     AiRequestSummary, AiTraceService, AuditLookupResult, AuditToolCallRow, ConversationMessage,
-    ExecutionStep, ExecutionStepSummary, LinkedMcpCall, LogSearchFilter, LogSearchItem,
-    McpExecutionSummary, McpToolExecution, ModelStatsRow, ProviderStatsRow, TaskArtifact, TaskInfo,
-    ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter,
-    TraceListItem, TraceQueryService,
+    ExecutionStep, ExecutionStepSummary, LevelCount, LinkedMcpCall, LogSearchFilter, LogSearchItem,
+    LogTimeRange, McpExecutionSummary, McpToolExecution, ModelStatsRow, ModuleCount,
+    ProviderStatsRow, TaskArtifact, TaskInfo, ToolExecutionFilter, ToolExecutionItem, ToolLogEntry,
+    TraceEvent, TraceListFilter, TraceListItem, TraceQueryService,
 };
 
 use std::sync::OnceLock;

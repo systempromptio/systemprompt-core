@@ -37,31 +37,7 @@ pub struct ViewArgs {
 pub async fn execute(args: ViewArgs, config: &CliConfig) -> Result<CommandResult<LogViewOutput>> {
     let ctx = AppContext::new().await?;
     let service = LoggingMaintenanceService::new(ctx.db_pool())?;
-
-    let logs = get_logs(&service, &args).await?;
-    let output = build_output(&logs, &args);
-
-    let hints = RenderingHints {
-        columns: Some(vec![
-            "id".to_string(),
-            "trace_id".to_string(),
-            "timestamp".to_string(),
-            "level".to_string(),
-            "module".to_string(),
-            "message".to_string(),
-        ]),
-        ..Default::default()
-    };
-    let result = CommandResult::table(output)
-        .with_title("Log Entries")
-        .with_hints(hints);
-
-    if config.is_json_output() {
-        return Ok(result);
-    }
-
-    render_logs(&result.data);
-    Ok(result.with_skip_render())
+    execute_inner(args, &service, config).await
 }
 
 pub async fn execute_with_pool(
@@ -70,8 +46,15 @@ pub async fn execute_with_pool(
     config: &CliConfig,
 ) -> Result<CommandResult<LogViewOutput>> {
     let service = LoggingMaintenanceService::new(db_ctx.db_pool())?;
+    execute_inner(args, &service, config).await
+}
 
-    let logs = get_logs(&service, &args).await?;
+async fn execute_inner(
+    args: ViewArgs,
+    service: &LoggingMaintenanceService,
+    config: &CliConfig,
+) -> Result<CommandResult<LogViewOutput>> {
+    let logs = get_logs(service, &args).await?;
     let output = build_output(&logs, &args);
 
     let hints = RenderingHints {

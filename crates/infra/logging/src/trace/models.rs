@@ -2,7 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use systemprompt_identifiers::{
-    ArtifactId, ContextId, McpExecutionId, SessionId, TaskId, TraceId, UserId,
+    AiRequestId, ArtifactId, ContextId, ExecutionStepId, LogId, McpExecutionId, SessionId, TaskId,
+    TraceId, UserId,
 };
 
 #[derive(Debug, Clone)]
@@ -134,7 +135,7 @@ impl LogSearchFilter {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LogSearchItem {
-    pub id: String,
+    pub id: LogId,
     pub trace_id: TraceId,
     pub timestamp: DateTime<Utc>,
     pub level: String,
@@ -174,7 +175,7 @@ impl AiRequestFilter {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestListItem {
-    pub id: String,
+    pub id: AiRequestId,
     pub created_at: DateTime<Utc>,
     pub trace_id: Option<TraceId>,
     pub provider: String,
@@ -188,7 +189,7 @@ pub struct AiRequestListItem {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestDetail {
-    pub id: String,
+    pub id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,
@@ -231,7 +232,7 @@ pub struct ModelStatsRow {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuditLookupResult {
-    pub id: String,
+    pub id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub input_tokens: Option<i32>,
@@ -312,7 +313,7 @@ pub struct TaskInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutionStep {
-    pub step_id: String,
+    pub step_id: ExecutionStepId,
     pub step_type: Option<String>,
     pub title: Option<String>,
     pub status: String,
@@ -322,7 +323,7 @@ pub struct ExecutionStep {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AiRequestInfo {
-    pub id: String,
+    pub id: AiRequestId,
     pub provider: String,
     pub model: String,
     pub max_tokens: Option<i32>,
@@ -369,4 +370,22 @@ pub struct TaskArtifact {
     pub part_kind: Option<String>,
     pub text_content: Option<String>,
     pub data_content: Option<Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LevelCount {
+    pub level: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModuleCount {
+    pub module: String,
+    pub count: i64,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct LogTimeRange {
+    pub earliest: Option<DateTime<Utc>>,
+    pub latest: Option<DateTime<Utc>>,
 }

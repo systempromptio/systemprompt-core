@@ -1,9 +1,9 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::{Args, ValueEnum};
 use std::io::Write;
 use std::path::PathBuf;
 use std::sync::Arc;
+use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
 use super::{LogEntryRow, LogExportOutput};
@@ -51,16 +51,6 @@ pub struct ExportArgs {
     pub limit: i64,
 }
 
-struct LogRow {
-    id: String,
-    trace_id: String,
-    timestamp: DateTime<Utc>,
-    level: String,
-    module: String,
-    message: String,
-    metadata: Option<String>,
-}
-
 crate::define_pool_command!(ExportArgs => CommandResult<LogExportOutput>, no_config);
 
 async fn execute_with_pool_inner(
@@ -70,30 +60,26 @@ async fn execute_with_pool_inner(
     let since_timestamp = parse_since(args.since.as_ref())?;
     let level_filter = args.level.as_deref().map(str::to_uppercase);
 
-    let rows = fetch_logs(pool, since_timestamp, level_filter.as_deref(), args.limit).await?;
+    let service = TraceQueryService::new(Arc::clone(pool));
+    let entries = service
+        .list_logs_filtered(since_timestamp, level_filter.as_deref(), args.limit)
+        .await?;
 
-    let logs: Vec<LogEntryRow> = rows
+    let logs: Vec<LogEntryRow> = entries
         .into_iter()
-        .filter(|r| {
+        .filter(|e| {
             args.module
                 .as_ref()
-                .is_none_or(|module| r.module.contains(module))
+                .is_none_or(|module| e.module.contains(module))
         })
-        .map(|r| LogEntryRow {
-            id: r.id,
-            trace_id: r.trace_id,
-            timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-            level: r.level.to_uppercase(),
-            module: r.module,
-            message: r.message,
-            metadata: r.metadata.as_ref().and_then(|m| {
-                serde_json::from_str(m)
-                    .map_err(|e| {
-                        tracing::warn!(error = %e, "Failed to parse log metadata");
-                        e
-                    })
-                    .ok()
-            }),
+        .map(|e| LogEntryRow {
+            id: e.id.to_string(),
+            trace_id: e.trace_id.to_string(),
+            timestamp: e.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
+            level: e.level.to_string().to_uppercase(),
+            module: e.module,
+            message: e.message,
+            metadata: e.metadata,
         })
         .collect();
 
@@ -139,106 +125,6 @@ async fn execute_with_pool_inner(
             .with_title("Logs Exported")
             .with_skip_render())
     }
-}
-
-async fn fetch_logs(
-    pool: &Arc<sqlx::PgPool>,
-    since: Option<DateTime<Utc>>,
-    level: Option<&str>,
-    limit: i64,
-) -> Result<Vec<LogRow>> {
-    let rows = if let Some(since_ts) = since {
-        if let Some(level_str) = level {
-            sqlx::query_as!(
-                LogRow,
-                r#"
-                SELECT
-                    id as "id!",
-                    trace_id as "trace_id!",
-                    timestamp as "timestamp!",
-                    level as "level!",
-                    module as "module!",
-                    message as "message!",
-                    metadata
-                FROM logs
-                WHERE timestamp >= $1 AND UPPER(level) = $2
-                ORDER BY timestamp DESC
-                LIMIT $3
-                "#,
-                since_ts,
-                level_str,
-                limit
-            )
-            .fetch_all(pool.as_ref())
-            .await?
-        } else {
-            sqlx::query_as!(
-                LogRow,
-                r#"
-                SELECT
-                    id as "id!",
-                    trace_id as "trace_id!",
-                    timestamp as "timestamp!",
-                    level as "level!",
-                    module as "module!",
-                    message as "message!",
-                    metadata
-                FROM logs
-                WHERE timestamp >= $1
-                ORDER BY timestamp DESC
-                LIMIT $2
-                "#,
-                since_ts,
-                limit
-            )
-            .fetch_all(pool.as_ref())
-            .await?
-        }
-    } else if let Some(level_str) = level {
-        sqlx::query_as!(
-            LogRow,
-            r#"
-            SELECT
-                id as "id!",
-                trace_id as "trace_id!",
-                timestamp as "timestamp!",
-                level as "level!",
-                module as "module!",
-                message as "message!",
-                metadata
-            FROM logs
-            WHERE UPPER(level) = $1
-            ORDER BY timestamp DESC
-            LIMIT $2
-            "#,
-            level_str,
-            limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            LogRow,
-            r#"
-            SELECT
-                id as "id!",
-                trace_id as "trace_id!",
-                timestamp as "timestamp!",
-                level as "level!",
-                module as "module!",
-                message as "message!",
-                metadata
-            FROM logs
-            ORDER BY timestamp DESC
-            LIMIT $1
-            "#,
-            limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
-
-    Ok(rows)
 }
 
 fn format_csv(logs: &[LogEntryRow]) -> String {

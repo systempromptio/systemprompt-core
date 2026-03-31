@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::AiRequestId;
+
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, AuditLookupResult, AuditToolCallRow,
     ConversationMessage, LinkedMcpCall, ModelStatsRow, ProviderStatsRow,
@@ -128,7 +130,7 @@ pub async fn list_ai_requests(
     Ok(rows
         .into_iter()
         .map(|r| AiRequestListItem {
-            id: r.id,
+            id: AiRequestId::new(r.id),
             created_at: r.created_at,
             trace_id: r.trace_id.map(Into::into),
             provider: r.provider,
@@ -262,7 +264,7 @@ pub async fn find_ai_request_detail(
     .await?;
 
     Ok(row.map(|r| AiRequestDetail {
-        id: r.id,
+        id: AiRequestId::new(r.id),
         provider: r.provider,
         model: r.model,
         input_tokens: r.input_tokens,
@@ -359,7 +361,7 @@ async fn find_audit_by_trace_id(
 
 fn audit_row_to_result(r: AuditRow) -> AuditLookupResult {
     AuditLookupResult {
-        id: r.id,
+        id: AiRequestId::new(r.id),
         provider: r.provider,
         model: r.model,
         input_tokens: r.input_tokens,

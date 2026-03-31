@@ -1,9 +1,9 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_logging::TraceQueryService;
 
 use super::duration::parse_since;
 use crate::CliConfig;
@@ -57,21 +57,6 @@ pub struct DatabaseInfo {
     pub logs_table_rows: i64,
 }
 
-struct LevelRow {
-    level: String,
-    count: Option<i64>,
-}
-
-struct ModuleRow {
-    module: String,
-    count: Option<i64>,
-}
-
-struct TimeRangeRow {
-    earliest: Option<DateTime<Utc>>,
-    latest: Option<DateTime<Utc>>,
-}
-
 crate::define_pool_command!(SummaryArgs => (), with_config);
 
 async fn execute_with_pool_inner(
@@ -80,96 +65,20 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
+    let service = TraceQueryService::new(Arc::clone(pool));
 
-    let level_counts = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            LevelRow,
-            r#"
-            SELECT level as "level!", COUNT(*) as "count"
-            FROM logs
-            WHERE timestamp >= $1
-            GROUP BY level
-            "#,
-            since_ts
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            LevelRow,
-            r#"
-            SELECT level as "level!", COUNT(*) as "count"
-            FROM logs
-            GROUP BY level
-            "#
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
+    let (level_counts, top_modules, time_range, total_row_count) = tokio::try_join!(
+        service.count_logs_by_level(since_timestamp),
+        service.top_modules(since_timestamp, 10),
+        service.log_time_range(since_timestamp),
+        service.total_log_count(),
+    )?;
 
     let by_level = build_level_counts(&level_counts);
     let total_logs =
         by_level.error + by_level.warn + by_level.info + by_level.debug + by_level.trace;
 
-    let top_modules = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            ModuleRow,
-            r#"
-            SELECT module as "module!", COUNT(*) as "count"
-            FROM logs
-            WHERE timestamp >= $1
-            GROUP BY module
-            ORDER BY count DESC
-            LIMIT 10
-            "#,
-            since_ts
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            ModuleRow,
-            r#"
-            SELECT module as "module!", COUNT(*) as "count"
-            FROM logs
-            GROUP BY module
-            ORDER BY count DESC
-            LIMIT 10
-            "#
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
-
-    let time_range_row = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            TimeRangeRow,
-            r#"
-            SELECT MIN(timestamp) as "earliest", MAX(timestamp) as "latest"
-            FROM logs
-            WHERE timestamp >= $1
-            "#,
-            since_ts
-        )
-        .fetch_one(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            TimeRangeRow,
-            r#"
-            SELECT MIN(timestamp) as "earliest", MAX(timestamp) as "latest"
-            FROM logs
-            "#
-        )
-        .fetch_one(pool.as_ref())
-        .await?
-    };
-
-    let total_row_count: (i64,) = sqlx::query_as("SELECT COUNT(*) FROM logs")
-        .fetch_one(pool.as_ref())
-        .await?;
-
-    let span_hours = match (&time_range_row.earliest, &time_range_row.latest) {
+    let span_hours = match (&time_range.earliest, &time_range.latest) {
         (Some(e), Some(l)) => Some((*l - *e).num_hours()),
         _ => None,
     };
@@ -181,20 +90,20 @@ async fn execute_with_pool_inner(
             .into_iter()
             .map(|r| ModuleCount {
                 module: r.module,
-                count: r.count.unwrap_or(0),
+                count: r.count,
             })
             .collect(),
         time_range: TimeRange {
-            earliest: time_range_row
+            earliest: time_range
                 .earliest
                 .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
-            latest: time_range_row
+            latest: time_range
                 .latest
                 .map(|t| t.format("%Y-%m-%d %H:%M:%S").to_string()),
             span_hours,
         },
         database_info: DatabaseInfo {
-            logs_table_rows: total_row_count.0,
+            logs_table_rows: total_row_count,
         },
     };
 
@@ -211,7 +120,7 @@ async fn execute_with_pool_inner(
     Ok(())
 }
 
-fn build_level_counts(rows: &[LevelRow]) -> LevelCounts {
+fn build_level_counts(rows: &[systemprompt_logging::LevelCount]) -> LevelCounts {
     let mut counts = LevelCounts {
         error: 0,
         warn: 0,
@@ -221,13 +130,12 @@ fn build_level_counts(rows: &[LevelRow]) -> LevelCounts {
     };
 
     for row in rows {
-        let count = row.count.unwrap_or(0);
         match row.level.to_lowercase().as_str() {
-            "error" => counts.error = count,
-            "warn" | "warning" => counts.warn = count,
-            "info" => counts.info = count,
-            "debug" => counts.debug = count,
-            "trace" => counts.trace = count,
+            "error" => counts.error = row.count,
+            "warn" | "warning" => counts.warn = row.count,
+            "info" => counts.info = row.count,
+            "debug" => counts.debug = row.count,
+            "trace" => counts.trace = row.count,
             _ => {},
         }
     }

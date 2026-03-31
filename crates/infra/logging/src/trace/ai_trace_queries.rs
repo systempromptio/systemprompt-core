@@ -2,6 +2,8 @@ use anyhow::Result;
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::{AiRequestId, ExecutionStepId};
+
 use super::models::{AiRequestInfo, ConversationMessage, ExecutionStep, TaskInfo};
 
 pub use super::mcp_trace_queries::{
@@ -96,7 +98,7 @@ pub async fn fetch_execution_steps(
     Ok(rows
         .into_iter()
         .map(|r| ExecutionStep {
-            step_id: r.id,
+            step_id: ExecutionStepId::new(r.id),
             step_type: r.step_type,
             title: r.title,
             status: r.status,
@@ -120,7 +122,7 @@ pub async fn fetch_ai_requests(pool: &Arc<PgPool>, task_id: &str) -> Result<Vec<
     Ok(rows
         .into_iter()
         .map(|r| AiRequestInfo {
-            id: r.id,
+            id: AiRequestId::new(r.id),
             provider: r.provider,
             model: r.model,
             max_tokens: r.max_tokens,

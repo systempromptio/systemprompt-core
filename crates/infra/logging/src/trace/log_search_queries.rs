@@ -3,6 +3,8 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
+use systemprompt_identifiers::LogId;
+
 use super::models::{LogSearchItem, ToolExecutionItem};
 
 struct LogRow {
@@ -60,7 +62,7 @@ pub async fn search_logs(
     Ok(rows
         .into_iter()
         .map(|r| LogSearchItem {
-            id: r.id,
+            id: LogId::new(r.id),
             trace_id: r.trace_id.into(),
             timestamp: r.timestamp,
             level: r.level,

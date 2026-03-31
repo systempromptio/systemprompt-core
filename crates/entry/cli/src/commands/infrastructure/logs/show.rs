@@ -1,11 +1,9 @@
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, Utc};
 use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
+use systemprompt_logging::{CliService, LogEntry, TraceQueryService};
 
 use systemprompt_models::text::truncate_with_ellipsis;
 use crate::CliConfig;
@@ -47,39 +45,27 @@ pub struct TraceLogsOutput {
     pub logs: Vec<LogShowOutput>,
 }
 
-struct LogRow {
-    id: String,
-    trace_id: String,
-    timestamp: DateTime<Utc>,
-    level: String,
-    module: String,
-    message: String,
-    metadata: Option<String>,
-    user_id: Option<String>,
-    session_id: Option<String>,
-    task_id: Option<String>,
-    context_id: Option<String>,
-}
-
 crate::define_pool_command!(ShowArgs => (), with_config);
 
 async fn execute_with_pool_inner(
     args: ShowArgs,
-    pool: &Arc<PgPool>,
+    pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<()> {
-    if let Some(log) = find_log_by_id(pool, &args.id).await? {
+    let service = TraceQueryService::new(Arc::clone(pool));
+
+    if let Some(log) = service.find_log_by_id(&args.id).await? {
         display_single_log(&log, config, args.json);
         return Ok(());
     }
 
-    let logs = find_logs_by_trace(pool, &args.id).await?;
+    let logs = service.find_logs_by_trace_id(&args.id).await?;
     if !logs.is_empty() {
         display_trace_logs(&logs, config, args.json);
         return Ok(());
     }
 
-    if let Some(log) = find_log_by_partial_id(pool, &args.id).await? {
+    if let Some(log) = service.find_log_by_partial_id(&args.id).await? {
         display_single_log(&log, config, args.json);
         return Ok(());
     }
@@ -90,110 +76,24 @@ async fn execute_with_pool_inner(
     ))
 }
 
-async fn find_log_by_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogRow>> {
-    let row = sqlx::query_as!(
-        LogRow,
-        r#"
-        SELECT id as "id!", trace_id as "trace_id!", timestamp as "timestamp!",
-               level as "level!", module as "module!", message as "message!",
-               metadata, user_id, session_id, task_id, context_id
-        FROM logs
-        WHERE id = $1
-        "#,
-        id
-    )
-    .fetch_optional(pool.as_ref())
-    .await?;
-
-    Ok(row)
-}
-
-async fn find_log_by_partial_id(pool: &Arc<PgPool>, id: &str) -> Result<Option<LogRow>> {
-    let pattern = format!("{}%", id);
-    let row = sqlx::query_as!(
-        LogRow,
-        r#"
-        SELECT id as "id!", trace_id as "trace_id!", timestamp as "timestamp!",
-               level as "level!", module as "module!", message as "message!",
-               metadata, user_id, session_id, task_id, context_id
-        FROM logs
-        WHERE id LIKE $1
-        ORDER BY timestamp DESC
-        LIMIT 1
-        "#,
-        pattern
-    )
-    .fetch_optional(pool.as_ref())
-    .await?;
-
-    Ok(row)
-}
-
-async fn find_logs_by_trace(pool: &Arc<PgPool>, trace_id: &str) -> Result<Vec<LogRow>> {
-    let rows = sqlx::query_as!(
-        LogRow,
-        r#"
-        SELECT id as "id!", trace_id as "trace_id!", timestamp as "timestamp!",
-               level as "level!", module as "module!", message as "message!",
-               metadata, user_id, session_id, task_id, context_id
-        FROM logs
-        WHERE trace_id = $1
-        ORDER BY timestamp ASC
-        "#,
-        trace_id
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    if !rows.is_empty() {
-        return Ok(rows);
-    }
-
-    let pattern = format!("{}%", trace_id);
-    let rows = sqlx::query_as!(
-        LogRow,
-        r#"
-        SELECT id as "id!", trace_id as "trace_id!", timestamp as "timestamp!",
-               level as "level!", module as "module!", message as "message!",
-               metadata, user_id, session_id, task_id, context_id
-        FROM logs
-        WHERE trace_id LIKE $1
-        ORDER BY timestamp ASC
-        LIMIT 100
-        "#,
-        pattern
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
-
-    Ok(rows)
-}
-
-fn row_to_output(row: &LogRow) -> LogShowOutput {
+fn entry_to_output(entry: &LogEntry) -> LogShowOutput {
     LogShowOutput {
-        id: row.id.clone(),
-        trace_id: row.trace_id.clone(),
-        timestamp: row.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-        level: row.level.to_uppercase(),
-        module: row.module.clone(),
-        message: row.message.clone(),
-        metadata: row.metadata.as_ref().and_then(|m| {
-            serde_json::from_str(m)
-                .map_err(|e| {
-                    tracing::warn!(error = %e, "Failed to parse log metadata");
-                    e
-                })
-                .ok()
-        }),
-        user_id: row.user_id.clone(),
-        session_id: row.session_id.clone(),
-        task_id: row.task_id.clone(),
-        context_id: row.context_id.clone(),
+        id: entry.id.to_string(),
+        trace_id: entry.trace_id.to_string(),
+        timestamp: entry.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
+        level: entry.level.to_string().to_uppercase(),
+        module: entry.module.clone(),
+        message: entry.message.clone(),
+        metadata: entry.metadata.clone(),
+        user_id: Some(entry.user_id.to_string()),
+        session_id: Some(entry.session_id.to_string()),
+        task_id: entry.task_id.as_ref().map(ToString::to_string),
+        context_id: entry.context_id.as_ref().map(ToString::to_string),
     }
 }
 
-fn display_single_log(log: &LogRow, config: &CliConfig, json: bool) {
-    let output = row_to_output(log);
+fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
+    let output = entry_to_output(log);
 
     if config.is_json_output() || json {
         let result = CommandResult::table(output).with_title("Log Entry Details");
@@ -242,12 +142,12 @@ fn display_single_log(log: &LogRow, config: &CliConfig, json: bool) {
 }
 
 #[allow(clippy::expect_used)]
-fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
+fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
     let trace_id = logs
         .first()
-        .map(|l| l.trace_id.clone())
+        .map(|l| l.trace_id.to_string())
         .expect("display_trace_logs called with empty logs slice");
-    let outputs: Vec<LogShowOutput> = logs.iter().map(row_to_output).collect();
+    let outputs: Vec<LogShowOutput> = logs.iter().map(entry_to_output).collect();
 
     let output = TraceLogsOutput {
         trace_id: trace_id.clone(),
@@ -267,15 +167,13 @@ fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
 
     for log in logs {
         let time_part = log.timestamp.format("%H:%M:%S%.3f").to_string();
+        let level_str = log.level.to_string().to_uppercase();
         let line = format!(
             "{} {} [{}] {}",
-            time_part,
-            log.level.to_uppercase(),
-            log.module,
-            log.message
+            time_part, level_str, log.module, log.message
         );
 
-        match log.level.to_uppercase().as_str() {
+        match level_str.as_str() {
             "ERROR" => CliService::error(&line),
             "WARN" => CliService::warning(&line),
             _ => CliService::info(&line),

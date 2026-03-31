@@ -53,7 +53,7 @@ pub async fn fetch_mcp_linked_ai_requests(
     Ok(rows
         .into_iter()
         .map(|r| AiRequestInfo {
-            id: r.id,
+            id: r.id.into(),
             provider: r.provider,
             model: r.model,
             max_tokens: r.max_tokens,

@@ -67,7 +67,7 @@ async fn execute_with_pool_inner(
             let cost_dollars = r.cost_microdollars as f64 / 1_000_000.0;
 
             RequestListRow {
-                request_id: truncate_with_ellipsis(&r.id, 12),
+                request_id: truncate_with_ellipsis(r.id.as_str(), 12),
                 timestamp: r.created_at.format("%Y-%m-%d %H:%M:%S").to_string(),
                 provider: r.provider,
                 model: r.model,

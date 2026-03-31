@@ -96,7 +96,7 @@ async fn execute_with_pool_inner(
     let logs: Vec<LogEntryRow> = filtered_rows
         .into_iter()
         .map(|r| LogEntryRow {
-            id: r.id,
+            id: r.id.to_string(),
             trace_id: r.trace_id.to_string(),
             timestamp: r.timestamp.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
             level: r.level.to_uppercase(),

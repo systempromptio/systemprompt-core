@@ -174,7 +174,7 @@ pub fn print_ai_requests(requests: &[AiRequestInfo]) -> Vec<String> {
         return vec![];
     }
 
-    let request_ids: Vec<String> = requests.iter().map(|r| r.id.clone()).collect();
+    let request_ids: Vec<String> = requests.iter().map(|r| r.id.to_string()).collect();
 
     let ai_rows: Vec<AiRequestRow> = requests
         .iter()

@@ -1,24 +1,6 @@
-//! Client identifier types.
-
-use crate::{DbValue, ToDbValue};
-use serde::{Deserialize, Serialize};
-use std::fmt;
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
-#[cfg_attr(feature = "sqlx", derive(sqlx::Type))]
-#[cfg_attr(feature = "sqlx", sqlx(transparent))]
-#[serde(transparent)]
-pub struct ClientId(String);
+crate::define_id!(ClientId);
 
 impl ClientId {
-    pub fn new(id: impl Into<String>) -> Self {
-        Self(id.into())
-    }
-
-    pub fn as_str(&self) -> &str {
-        &self.0
-    }
-
     pub fn client_type(&self) -> ClientType {
         if self.0.starts_with("https://") {
             ClientType::Cimd
@@ -73,43 +55,7 @@ impl ClientId {
     }
 }
 
-impl fmt::Display for ClientId {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.0)
-    }
-}
-
-impl From<String> for ClientId {
-    fn from(s: String) -> Self {
-        Self(s)
-    }
-}
-
-impl From<&str> for ClientId {
-    fn from(s: &str) -> Self {
-        Self(s.to_string())
-    }
-}
-
-impl AsRef<str> for ClientId {
-    fn as_ref(&self) -> &str {
-        &self.0
-    }
-}
-
-impl ToDbValue for ClientId {
-    fn to_db_value(&self) -> DbValue {
-        DbValue::String(self.0.clone())
-    }
-}
-
-impl ToDbValue for &ClientId {
-    fn to_db_value(&self) -> DbValue {
-        DbValue::String(self.0.clone())
-    }
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum ClientType {
     Cimd,
@@ -131,8 +77,8 @@ impl ClientType {
     }
 }
 
-impl fmt::Display for ClientType {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+impl std::fmt::Display for ClientType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_str())
     }
 }
