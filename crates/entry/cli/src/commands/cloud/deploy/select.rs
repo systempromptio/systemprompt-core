@@ -100,7 +100,7 @@ fn resolve_profile_by_name(name: &str) -> Result<(Profile, PathBuf)> {
 }
 
 fn resolve_profile_interactive() -> Result<(Profile, PathBuf)> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         CliService::warning(&format!("Failed to load tenant store: {}", e));

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_cloud::paths::{CloudPath, get_cloud_paths};
 
@@ -24,8 +24,7 @@ impl ResolvedPaths {
         if self.has_local_dir {
             Ok(self.project_ctx.sessions_dir())
         } else {
-            let cloud_paths = get_cloud_paths()
-                .context("Failed to resolve cloud paths from profile configuration")?;
+            let cloud_paths = get_cloud_paths();
             Ok(cloud_paths.resolve(CloudPath::SessionsDir))
         }
     }
@@ -34,7 +33,7 @@ impl ResolvedPaths {
         if self.has_local_dir {
             Ok(self.project_ctx.local_tenants())
         } else {
-            let cloud_paths = get_cloud_paths().context("Failed to resolve cloud paths")?;
+            let cloud_paths = get_cloud_paths();
             Ok(cloud_paths.resolve(CloudPath::Tenants))
         }
     }

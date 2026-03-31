@@ -66,11 +66,11 @@ impl<E: ToSse + Clone + Send + Sync> Default for GenericBroadcaster<E> {
 impl<E: ToSse + Clone + Send + Sync + 'static> Broadcaster for GenericBroadcaster<E> {
     type Event = E;
 
-    #[allow(clippy::significant_drop_tightening)]
     async fn register(&self, user_id: &UserId, connection_id: &str, sender: EventSender) {
         let mut connections = self.connections.write().await;
         let user_connections = connections.entry(user_id.to_string()).or_default();
         user_connections.insert(connection_id.to_string(), sender);
+        drop(connections);
     }
 
     async fn unregister(&self, user_id: &UserId, connection_id: &str) {
@@ -153,13 +153,13 @@ pub struct ConnectionGuard<E: ToSse + Clone + Send + Sync + 'static> {
     connection_id: String,
 }
 
-#[allow(clippy::missing_fields_in_debug)]
 impl<E: ToSse + Clone + Send + Sync + 'static> std::fmt::Debug for ConnectionGuard<E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ConnectionGuard")
             .field("user_id", &self.user_id)
             .field("connection_id", &self.connection_id)
-            .finish_non_exhaustive()
+            .field("broadcaster", &"<LazyLock<GenericBroadcaster>>")
+            .finish()
     }
 }
 

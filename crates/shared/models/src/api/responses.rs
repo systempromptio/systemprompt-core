@@ -365,8 +365,8 @@ impl MarkdownFrontmatter {
         self
     }
 
-    pub fn to_yaml(&self) -> String {
-        serde_yaml::to_string(self).unwrap_or_default()
+    pub fn to_yaml(&self) -> Result<String, serde_yaml::Error> {
+        serde_yaml::to_string(self)
     }
 }
 
@@ -385,7 +385,8 @@ impl MarkdownResponse {
     }
 
     pub fn to_markdown(&self) -> String {
-        format!("---\n{}---\n\n{}", self.frontmatter.to_yaml(), self.body)
+        let yaml = self.frontmatter.to_yaml().unwrap_or_default();
+        format!("---\n{}---\n\n{}", yaml, self.body)
     }
 }
 

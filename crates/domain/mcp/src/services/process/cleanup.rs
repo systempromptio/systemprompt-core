@@ -4,7 +4,6 @@ use std::process::Command;
 use super::utils::process_exists;
 
 #[cfg(unix)]
-#[allow(clippy::unnecessary_wraps)]
 pub fn terminate_gracefully(pid: u32) -> Result<()> {
     use nix::sys::signal::{self, Signal};
     use nix::unistd::Pid;
@@ -16,9 +15,8 @@ pub fn terminate_gracefully(pid: u32) -> Result<()> {
 
     tracing::debug!(pid = pid, "Sending SIGTERM");
 
-    if let Err(e) = signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM) {
-        tracing::warn!(pid = pid, error = %e, "Failed to send SIGTERM");
-    }
+    signal::kill(Pid::from_raw(pid as i32), Signal::SIGTERM)
+        .map_err(|e| anyhow::anyhow!("Failed to send SIGTERM to PID {pid}: {e}"))?;
 
     Ok(())
 }

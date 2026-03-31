@@ -172,8 +172,10 @@ async fn try_remote_routing(cli: &args::Cli, profile: &systemprompt_models::Prof
             let args = args::reconstruct_args(cli);
             let exit_code =
                 routing::remote::execute_remote(&hostname, &token, &context_id, &args, 300).await?;
-            #[allow(clippy::exit)]
-            std::process::exit(exit_code);
+            if exit_code != 0 {
+                anyhow::bail!("Remote command exited with code {}", exit_code);
+            }
+            return Ok(());
         },
         Ok(routing::ExecutionTarget::Local) if is_cloud => {
             require_external_db_access(profile, "no tenant is configured")?;

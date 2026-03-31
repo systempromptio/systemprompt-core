@@ -79,7 +79,6 @@ pub(super) async fn create_local_session(
     )
 }
 
-#[allow(clippy::too_many_arguments)]
 pub(super) async fn create_session_for_tenant(
     creds: &CloudCredentials,
     profile: &Profile,

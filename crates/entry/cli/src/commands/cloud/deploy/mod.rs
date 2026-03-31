@@ -210,7 +210,7 @@ pub async fn execute(args: DeployArgs, config: &CliConfig) -> Result<()> {
         bail!("Token expired. Run 'systemprompt cloud login' to refresh.");
     }
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;

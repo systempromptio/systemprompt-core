@@ -20,7 +20,7 @@ pub async fn execute(
 
     let resolved_tenant_id = resolve_tenant_id(tenant_id)?;
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let tenant_name = if let Ok(store) = TenantStore::load_from_path(&tenants_path) {
         if let Some(tenant) = store.find_tenant(&resolved_tenant_id) {

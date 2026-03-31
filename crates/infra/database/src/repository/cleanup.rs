@@ -3,19 +3,16 @@ use sqlx::PgPool;
 
 #[derive(Debug)]
 pub struct CleanupRepository {
-    #[allow(dead_code)]
-    pool: PgPool,
     write_pool: PgPool,
 }
 
 impl CleanupRepository {
     pub fn new(pool: PgPool) -> Self {
-        let write_pool = pool.clone();
-        Self { pool, write_pool }
+        Self { write_pool: pool }
     }
 
-    pub const fn new_with_write_pool(pool: PgPool, write_pool: PgPool) -> Self {
-        Self { pool, write_pool }
+    pub fn new_with_write_pool(write_pool: PgPool) -> Self {
+        Self { write_pool }
     }
 
     pub async fn delete_orphaned_logs(&self) -> Result<u64> {

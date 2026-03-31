@@ -22,20 +22,17 @@ pub struct StreamState {
     pub context_provider: Arc<ContextProviderService>,
 }
 
-pub fn stream_router(ctx: &AppContext) -> Router {
+pub fn stream_router(ctx: &AppContext) -> anyhow::Result<Router> {
+    let context_provider = ContextProviderService::new(ctx.db_pool())?;
     let state = StreamState {
-        #[allow(clippy::expect_used)]
-        context_provider: Arc::new(
-            ContextProviderService::new(ctx.db_pool())
-                .expect("Failed to create ContextProviderService"),
-        ),
+        context_provider: Arc::new(context_provider),
     };
 
-    Router::new()
+    Ok(Router::new()
         .route("/contexts", get(contexts::stream_context_state))
         .route("/agui", get(stream_agui_events))
         .route("/a2a", get(stream_a2a_events))
-        .with_state(state)
+        .with_state(state))
 }
 
 pub async fn stream_a2a_events(
@@ -57,8 +54,7 @@ pub struct StreamWithGuard<E: ToSse + Clone + Send + Sync + 'static> {
 }
 
 impl<E: ToSse + Clone + Send + Sync + 'static> StreamWithGuard<E> {
-    #[allow(clippy::missing_const_for_fn)]
-    pub fn new(
+    pub const fn new(
         stream: UnboundedReceiverStream<Result<axum::response::sse::Event, Infallible>>,
         cleanup_guard: ConnectionGuard<E>,
     ) -> Self {

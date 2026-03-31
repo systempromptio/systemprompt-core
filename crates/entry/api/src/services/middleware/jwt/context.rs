@@ -16,6 +16,17 @@ use systemprompt_users::UserService;
 
 use super::token::{JwtExtractor, JwtUserContext};
 
+struct BuildContextParams {
+    jwt_context: JwtUserContext,
+    session_id: SessionId,
+    user_id: UserId,
+    trace_id: TraceId,
+    context_id: ContextId,
+    agent_name: AgentName,
+    task_id: Option<TaskId>,
+    auth_token: Option<String>,
+}
+
 #[derive(Clone)]
 pub struct JwtContextExtractor {
     jwt_extractor: Arc<JwtExtractor>,
@@ -165,17 +176,17 @@ impl JwtContextExtractor {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn build_context(
-        jwt_context: &JwtUserContext,
-        session_id: SessionId,
-        user_id: UserId,
-        trace_id: TraceId,
-        context_id: ContextId,
-        agent_name: AgentName,
-        task_id: Option<TaskId>,
-        auth_token: Option<String>,
-    ) -> RequestContext {
+    fn build_context(params: BuildContextParams) -> RequestContext {
+        let BuildContextParams {
+            jwt_context,
+            session_id,
+            user_id,
+            trace_id,
+            context_id,
+            agent_name,
+            task_id,
+            auth_token,
+        } = params;
         let mut ctx = RequestContext::new(session_id, trace_id, context_id, agent_name)
             .with_user_id(user_id)
             .with_user_type(jwt_context.user_type);
@@ -246,8 +257,8 @@ impl JwtContextExtractor {
 
         let (trace_id, task_id, auth_token, agent_name) = self.extract_common_headers(headers);
 
-        Ok(Self::build_context(
-            &jwt_context,
+        Ok(Self::build_context(BuildContextParams {
+            jwt_context,
             session_id,
             user_id,
             trace_id,
@@ -255,7 +266,7 @@ impl JwtContextExtractor {
             agent_name,
             task_id,
             auth_token,
-        ))
+        }))
     }
 
     pub async fn extract_mcp_a2a(
@@ -316,16 +327,18 @@ impl JwtContextExtractor {
 
         let task_id = task_id_from_payload.or(task_id_from_header);
 
-        let ctx = Self::build_context(
-            &jwt_context,
-            jwt_context.session_id.clone(),
-            jwt_context.user_id.clone(),
+        let session_id = jwt_context.session_id.clone();
+        let user_id = jwt_context.user_id.clone();
+        let ctx = Self::build_context(BuildContextParams {
+            jwt_context,
+            session_id,
+            user_id,
             trace_id,
             context_id,
             agent_name,
             task_id,
             auth_token,
-        );
+        });
 
         Ok((ctx, reconstructed_request))
     }

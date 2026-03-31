@@ -14,8 +14,7 @@ use systemprompt_runtime::AppContext;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
-#[allow(clippy::needless_pass_by_value)]
-fn cli_event_to_sse(event: CliOutputEvent) -> Event {
+fn cli_event_to_sse(event: &CliOutputEvent) -> Event {
     event
         .to_sse()
         .unwrap_or_else(|_| Event::default().event("cli").data("{}"))
@@ -96,8 +95,8 @@ fn create_cli_stream(
             Ok(c) => c,
             Err(e) => {
                 tracing::error!(error = %e, "Failed to spawn CLI process");
-                yield Ok(cli_event_to_sse(CliOutputEvent::Error { message: e.to_string() }));
-                yield Ok(cli_event_to_sse(CliOutputEvent::ExitCode { code: 1 }));
+                yield Ok(cli_event_to_sse(&CliOutputEvent::Error { message: e.to_string() }));
+                yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code: 1 }));
                 return;
             }
         };
@@ -106,7 +105,7 @@ fn create_cli_stream(
             tracing::debug!("Child process has no PID (already exited?)");
             0
         });
-        yield Ok(cli_event_to_sse(CliOutputEvent::Started { pid }));
+        yield Ok(cli_event_to_sse(&CliOutputEvent::Started { pid }));
 
         let stdout = child.stdout.take();
         let stderr = child.stderr.take();
@@ -159,7 +158,7 @@ fn create_cli_stream(
             tokio::select! {
                 event = rx.recv() => {
                     match event {
-                        Some(e) => yield Ok(cli_event_to_sse(e)),
+                        Some(ref e) => yield Ok(cli_event_to_sse(e)),
                         None => break,
                     }
                 }
@@ -168,10 +167,10 @@ fn create_cli_stream(
                     if let Err(e) = child.kill().await {
                         tracing::error!(error = %e, "Failed to kill CLI process");
                     }
-                    yield Ok(cli_event_to_sse(CliOutputEvent::Error {
+                    yield Ok(cli_event_to_sse(&CliOutputEvent::Error {
                         message: format!("Timeout after {}s", timeout.as_secs())
                     }));
-                    yield Ok(cli_event_to_sse(CliOutputEvent::ExitCode { code: -1 }));
+                    yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code: -1 }));
                     return;
                 }
             }
@@ -184,12 +183,12 @@ fn create_cli_stream(
                     -1
                 });
                 tracing::info!(exit_code = code, "CLI command completed");
-                yield Ok(cli_event_to_sse(CliOutputEvent::ExitCode { code }));
+                yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code }));
             }
             Err(e) => {
                 tracing::error!(error = %e, "Failed to wait for CLI process");
-                yield Ok(cli_event_to_sse(CliOutputEvent::Error { message: e.to_string() }));
-                yield Ok(cli_event_to_sse(CliOutputEvent::ExitCode { code: -1 }));
+                yield Ok(cli_event_to_sse(&CliOutputEvent::Error { message: e.to_string() }));
+                yield Ok(cli_event_to_sse(&CliOutputEvent::ExitCode { code: -1 }));
             }
         }
     }

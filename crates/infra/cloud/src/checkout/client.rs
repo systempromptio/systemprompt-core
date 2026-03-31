@@ -46,13 +46,12 @@ pub struct CheckoutTemplates {
     pub waiting_html: &'static str,
 }
 
-#[allow(clippy::struct_field_names)]
 struct AppState {
     tx: Arc<Mutex<Option<oneshot::Sender<Result<CheckoutCallbackResult>>>>>,
     api_client: Arc<CloudApiClient>,
-    success_html: String,
-    error_html: String,
-    waiting_html: String,
+    success_template: String,
+    error_template: String,
+    waiting_template: String,
 }
 
 pub async fn run_checkout_callback_flow(
@@ -69,9 +68,9 @@ pub async fn run_checkout_callback_flow(
             api_client.api_url(),
             api_client.token(),
         )?),
-        success_html: templates.success_html.to_string(),
-        error_html: templates.error_html.to_string(),
-        waiting_html: templates.waiting_html.to_string(),
+        success_template: templates.success_html.to_string(),
+        error_template: templates.error_html.to_string(),
+        waiting_template: templates.waiting_html.to_string(),
     };
 
     let app = Router::new()
@@ -120,7 +119,7 @@ async fn callback_handler(
     if let Some(error) = &params.error {
         tracing::error!(error = %error, "Checkout error from callback");
         send_result(&state.tx, Err(anyhow!("Checkout error: {}", error))).await;
-        return Html(state.error_html.clone());
+        return Html(state.error_template.clone());
     }
 
     if let (Some(transaction_id), Some(tenant_id)) =
@@ -135,12 +134,12 @@ async fn callback_handler(
                     needs_deploy: false,
                 });
                 send_result(&state.tx, result).await;
-                let html = state.success_html.replace("{{TENANT_ID}}", &tenant_id);
+                let html = state.success_template.replace("{{TENANT_ID}}", &tenant_id);
                 return Html(html);
             },
             Some(status) => {
                 send_result(&state.tx, Err(anyhow!("Checkout status: {}", status))).await;
-                return Html(state.error_html.clone());
+                return Html(state.error_template.clone());
             },
             None => {
                 send_result(
@@ -150,7 +149,7 @@ async fn callback_handler(
                     )),
                 )
                 .await;
-                return Html(state.error_html.clone());
+                return Html(state.error_template.clone());
             },
         }
     }
@@ -183,7 +182,7 @@ async fn callback_handler(
                 }
             });
 
-            return Html(state.waiting_html.clone());
+            return Html(state.waiting_template.clone());
         }
 
         send_result(
@@ -191,7 +190,7 @@ async fn callback_handler(
             Err(anyhow!("Pending status but no checkout_session_id")),
         )
         .await;
-        return Html(state.error_html.clone());
+        return Html(state.error_template.clone());
     }
 
     send_result(
@@ -199,7 +198,7 @@ async fn callback_handler(
         Err(anyhow!("Missing transaction_id or tenant_id in callback")),
     )
     .await;
-    Html(state.error_html.clone())
+    Html(state.error_template.clone())
 }
 
 async fn send_result(

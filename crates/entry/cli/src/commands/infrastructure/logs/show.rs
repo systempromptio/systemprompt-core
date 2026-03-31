@@ -141,12 +141,11 @@ fn display_single_log(log: &LogEntry, config: &CliConfig, json: bool) {
     ));
 }
 
-#[allow(clippy::expect_used)]
 fn display_trace_logs(logs: &[LogEntry], config: &CliConfig, json: bool) {
-    let trace_id = logs
-        .first()
-        .map(|l| l.trace_id.to_string())
-        .expect("display_trace_logs called with empty logs slice");
+    let Some(first_log) = logs.first() else {
+        return;
+    };
+    let trace_id = first_log.trace_id.to_string();
     let outputs: Vec<LogShowOutput> = logs.iter().map(entry_to_output).collect();
 
     let output = TraceLogsOutput {

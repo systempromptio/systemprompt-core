@@ -131,7 +131,12 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::STREAM_BASE,
-        crate::routes::stream::stream_router(ctx)
+        crate::routes::stream::stream_router(ctx).map_err(|e| {
+                LoaderError::InitializationFailed {
+                    extension: "stream".to_string(),
+                    message: e.to_string(),
+                }
+            })?
             .with_rate_limit(rate_config, rate_config.stream_per_second)
             .with_auth_middleware(user_middleware.clone()),
     );
@@ -211,16 +216,17 @@ pub fn configure_routes(
         },
     };
     let path = paths.system().content_config().to_path_buf();
-    #[allow(clippy::option_if_let_else)]
-    let content_matcher = if let Some(path_str) = path.to_str() {
-        match StaticContentMatcher::from_config(path_str) {
+    let content_matcher = match path.to_str() {
+        Some(path_str) => match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
             Err(e) => {
                 if let Some(tx) = events {
                     if tx
                         .unbounded_send(StartupEvent::Warning {
                             message: format!("Failed to load content config: {e}"),
-                            context: Some("Static content matching will be disabled".to_string()),
+                            context: Some(
+                                "Static content matching will be disabled".to_string(),
+                            ),
                         })
                         .is_err()
                     {
@@ -229,20 +235,21 @@ pub fn configure_routes(
                 }
                 Arc::new(StaticContentMatcher::empty())
             },
-        }
-    } else {
-        if let Some(tx) = events {
-            if tx
-                .unbounded_send(StartupEvent::Warning {
-                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
-                    context: None,
-                })
-                .is_err()
-            {
-                tracing::debug!("Startup event receiver dropped");
+        },
+        None => {
+            if let Some(tx) = events {
+                if tx
+                    .unbounded_send(StartupEvent::Warning {
+                        message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
+                        context: None,
+                    })
+                    .is_err()
+                {
+                    tracing::debug!("Startup event receiver dropped");
+                }
             }
-        }
-        Arc::new(StaticContentMatcher::empty())
+            Arc::new(StaticContentMatcher::empty())
+        },
     };
 
     let static_state = StaticContentState {

@@ -169,8 +169,7 @@ pub async fn get_artifact_ui(
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
-    #[allow(clippy::expect_used)]
-    Ok(Response::builder()
+    Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, MCP_APP_MIME_TYPE)
         .header(
@@ -179,5 +178,5 @@ pub async fn get_artifact_ui(
         )
         .header(header::X_FRAME_OPTIONS, "SAMEORIGIN")
         .body(axum::body::Body::from(ui_resource.html))
-        .expect("Response builder should not fail with valid headers"))
+        .map_err(|e| ApiError::internal_error(format!("Failed to build response: {e}")))
 }

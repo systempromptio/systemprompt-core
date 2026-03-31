@@ -11,7 +11,7 @@ use crate::cloud::types::LogoutOutput;
 use crate::shared::CommandResult;
 
 pub async fn execute(args: LogoutArgs, config: &CliConfig) -> Result<CommandResult<LogoutOutput>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
     if !creds_path.exists() {

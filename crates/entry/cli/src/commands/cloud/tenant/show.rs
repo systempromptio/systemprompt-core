@@ -11,7 +11,7 @@ pub async fn show_tenant(
     id: Option<String>,
     config: &CliConfig,
 ) -> Result<CommandResult<TenantDetailOutput>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         if !config.is_json_output() {

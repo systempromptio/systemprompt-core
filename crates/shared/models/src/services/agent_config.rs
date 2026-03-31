@@ -135,7 +135,6 @@ impl DiskAgentConfig {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(clippy::struct_excessive_bools)]
 pub struct AgentConfig {
     pub name: String,
     pub port: u16,

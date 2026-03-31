@@ -19,7 +19,7 @@ pub fn get_credentials() -> Result<CloudCredentials> {
             .pipe(Ok);
     }
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
     if creds_path.exists() {

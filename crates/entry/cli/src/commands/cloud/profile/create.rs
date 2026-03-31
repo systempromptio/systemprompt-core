@@ -43,7 +43,7 @@ pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
     std::fs::create_dir_all(ctx.profiles_dir())
         .with_context(|| format!("Failed to create {}", ctx.profiles_dir().display()))?;
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         CliService::warning(&format!("Failed to load tenant store: {}", e));

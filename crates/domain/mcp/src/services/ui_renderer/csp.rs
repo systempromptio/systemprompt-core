@@ -68,10 +68,10 @@ impl CspPolicy {
 
     pub fn to_mcp_domains(&self) -> systemprompt_models::mcp::McpCspDomains {
         systemprompt_models::mcp::McpCspDomains {
-            connect_domains: Self::extract_domains(&self.connect_src),
-            resource_domains: self.extract_resource_domains(),
-            frame_domains: Self::extract_domains(&self.frame_src),
-            base_uri_domains: Self::extract_domains(&self.base_uri),
+            connect: Self::extract_domains(&self.connect_src),
+            resources: self.extract_resource_domains(),
+            frames: Self::extract_domains(&self.frame_src),
+            base_uri: Self::extract_domains(&self.base_uri),
         }
     }
 

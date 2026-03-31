@@ -184,7 +184,9 @@ impl ContextPropagation for RequestContext {
                 .and_then(|v| v.to_str().ok())
                 .and_then(|s| crate::auth::parse_permissions(s).ok())
             {
-                let user_id_uuid = user_id.parse().unwrap_or_default();
+                let user_id_uuid = user_id.parse::<uuid::Uuid>().map_err(|e| {
+                    anyhow!("Invalid UUID in {} header: {}", headers::USER_ID, e)
+                })?;
                 let user = crate::auth::AuthenticatedUser::new(
                     user_id_uuid,
                     String::new(),

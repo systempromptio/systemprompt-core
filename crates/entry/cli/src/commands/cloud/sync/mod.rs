@@ -169,7 +169,7 @@ async fn execute_cloud_sync(direction: SyncDirection, args: SyncArgs) -> Result<
         .and_then(|c| c.tenant_id.as_ref())
         .ok_or_else(|| anyhow!("No tenant configured. Run 'systemprompt cloud profile create'"))?;
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         CliService::warning(&format!("Failed to load tenant store: {}", e));

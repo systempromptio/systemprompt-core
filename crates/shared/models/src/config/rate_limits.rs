@@ -72,11 +72,15 @@ impl RateLimitConfig {
         config
     }
 
-    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    #[must_use]
     pub fn effective_limit(&self, base_rate: u64, tier: RateLimitTier) -> u64 {
         let multiplier = self.tier_multiplier(tier);
-        let effective = (base_rate as f64 * multiplier) as u64;
-        effective.max(1)
+        let base_capped = u32::try_from(base_rate).unwrap_or(u32::MAX);
+        let scaled = f64::from(base_capped) * multiplier;
+        let clamped = scaled.clamp(1.0, f64::from(u32::MAX));
+        #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+        let result = clamped as u64;
+        result
     }
 
     pub const fn tier_multiplier(&self, tier: RateLimitTier) -> f64 {

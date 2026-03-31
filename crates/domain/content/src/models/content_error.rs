@@ -1,5 +1,5 @@
 #[derive(Debug, thiserror::Error)]
-pub enum ContentError {
+pub enum ContentValidationError {
     #[error("Missing required field: {field}")]
     MissingField { field: String },
 
@@ -21,7 +21,7 @@ pub enum ContentError {
     MissingBrandingConfig { field: String },
 }
 
-impl ContentError {
+impl ContentValidationError {
     pub fn missing_field(field: impl Into<String>) -> Self {
         Self::MissingField {
             field: field.into(),

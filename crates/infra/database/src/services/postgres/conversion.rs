@@ -38,11 +38,6 @@ pub fn row_to_json(row: &sqlx::postgres::PgRow) -> HashMap<String, serde_json::V
 }
 
 fn column_to_json(row: &sqlx::postgres::PgRow, ordinal: usize) -> serde_json::Value {
-    if let Ok(val) = row.try_get::<Option<chrono::NaiveDateTime>, _>(ordinal) {
-        return val.map_or(serde_json::Value::Null, |v| {
-            serde_json::Value::String(v.and_utc().to_rfc3339())
-        });
-    }
     if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(ordinal) {
         return val.map_or(serde_json::Value::Null, |v| {
             serde_json::Value::String(v.to_rfc3339())

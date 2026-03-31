@@ -24,15 +24,14 @@ pub use verbosity::VerbosityLevel;
 
 static CONFIG: OnceLock<Config> = OnceLock::new();
 
-#[allow(clippy::struct_field_names)]
 struct BuildConfigPaths {
-    system_path: String,
-    skills_path: String,
-    settings_path: String,
-    content_config_path: String,
-    web_path: String,
-    web_config_path: String,
-    web_metadata_path: String,
+    system: String,
+    skills: String,
+    settings: String,
+    content_config: String,
+    web: String,
+    web_config: String,
+    web_metadata: String,
 }
 
 #[derive(Debug, Clone)]
@@ -135,13 +134,13 @@ impl Config {
         )?;
 
         let paths = BuildConfigPaths {
-            system_path,
-            skills_path,
-            settings_path,
-            content_config_path,
-            web_path,
-            web_config_path,
-            web_metadata_path,
+            system: system_path,
+            skills: skills_path,
+            settings: settings_path,
+            content_config: content_config_path,
+            web: web_path,
+            web_config: web_config_path,
+            web_metadata: web_metadata_path,
         };
         let config = Self::build_config(profile, paths)?;
 
@@ -203,16 +202,16 @@ impl Config {
                 .clone()
                 .unwrap_or_else(|| "https://github.com/systemprompt/systemprompt-os".to_string()),
             github_token: secrets.github.clone(),
-            system_path: paths.system_path,
+            system_path: paths.system,
             services_path: profile.paths.services.clone(),
             bin_path: profile.paths.bin.clone(),
-            skills_path: paths.skills_path,
-            settings_path: paths.settings_path,
-            content_config_path: paths.content_config_path,
+            skills_path: paths.skills,
+            settings_path: paths.settings,
+            content_config_path: paths.content_config,
             geoip_database_path: profile.paths.geoip_database.clone(),
-            web_path: paths.web_path,
-            web_config_path: paths.web_config_path,
-            web_metadata_path: paths.web_metadata_path,
+            web_path: paths.web,
+            web_config_path: paths.web_config,
+            web_metadata_path: paths.web_metadata,
             host: profile.server.host.clone(),
             port: profile.server.port,
             api_server_url: profile.server.api_server_url.clone(),

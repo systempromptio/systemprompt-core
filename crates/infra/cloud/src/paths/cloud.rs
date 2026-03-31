@@ -128,8 +128,8 @@ impl CloudPaths {
     }
 }
 
-#[allow(clippy::unnecessary_wraps)]
-pub fn get_cloud_paths() -> anyhow::Result<CloudPaths> {
+#[must_use]
+pub fn get_cloud_paths() -> CloudPaths {
     let project_ctx = ProjectContext::discover();
-    Ok(CloudPaths::from_project_context(&project_ctx))
+    CloudPaths::from_project_context(&project_ctx)
 }

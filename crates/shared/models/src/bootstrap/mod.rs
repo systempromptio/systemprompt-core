@@ -51,8 +51,8 @@ impl BootstrapSequence<Uninitialized> {
         }
     }
 
-    #[allow(clippy::unused_self)]
     pub fn with_profile(self, path: &Path) -> Result<BootstrapSequence<ProfileInitialized>> {
+        drop(self);
         ProfileBootstrap::init_from_path(path)
             .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
 
@@ -68,8 +68,8 @@ impl BootstrapSequence<Uninitialized> {
 }
 
 impl BootstrapSequence<ProfileInitialized> {
-    #[allow(clippy::unused_self)]
     pub fn with_secrets(self) -> Result<BootstrapSequence<SecretsInitialized>> {
+        drop(self);
         SecretsBootstrap::init().context("Secrets initialization failed")?;
 
         Ok(BootstrapSequence {
@@ -84,8 +84,8 @@ impl BootstrapSequence<ProfileInitialized> {
 }
 
 impl BootstrapSequence<SecretsInitialized> {
-    #[allow(clippy::unused_self)]
     pub fn with_paths(self) -> Result<BootstrapSequence<PathsInitialized>> {
+        drop(self);
         let profile = ProfileBootstrap::get()?;
         AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
         Config::try_init().context("Failed to initialize configuration")?;
@@ -95,11 +95,11 @@ impl BootstrapSequence<SecretsInitialized> {
         })
     }
 
-    #[allow(clippy::unused_self)]
     pub fn with_paths_config(
         self,
         paths_config: &PathsConfig,
     ) -> Result<BootstrapSequence<PathsInitialized>> {
+        drop(self);
         AppPaths::init(paths_config).context("Failed to initialize paths")?;
         Config::try_init().context("Failed to initialize configuration")?;
 
@@ -116,8 +116,8 @@ impl BootstrapSequence<SecretsInitialized> {
 
 impl BootstrapSequence<PathsInitialized> {
     #[must_use]
-    #[allow(clippy::unused_self)]
-    pub const fn complete(&self) -> BootstrapComplete {
+    pub fn complete(&self) -> BootstrapComplete {
+        let _used = &self._state;
         BootstrapComplete { _private: () }
     }
 }

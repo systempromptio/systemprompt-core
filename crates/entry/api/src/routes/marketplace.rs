@@ -14,13 +14,11 @@ pub fn router() -> Router<AppContext> {
         .route("/plugins/{plugin_id}/{*path}", get(serve_plugin_file))
 }
 
-#[allow(clippy::result_large_err)]
 fn resolve_plugins_path() -> Result<PathBuf, ApiError> {
     let paths = AppPaths::get().map_err(|e| ApiError::internal_error(e.to_string()))?;
     Ok(paths.system().services().join("plugins"))
 }
 
-#[allow(clippy::result_large_err)]
 fn resolve_system_path() -> Result<PathBuf, ApiError> {
     let paths = AppPaths::get().map_err(|e| ApiError::internal_error(e.to_string()))?;
     Ok(paths.system().root().to_path_buf())

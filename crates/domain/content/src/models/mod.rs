@@ -11,7 +11,7 @@ pub use content::{
     Content, ContentKind, ContentLinkMetadata, ContentMetadata, ContentSummary, IngestionOptions,
     IngestionReport, IngestionSource, Tag,
 };
-pub use content_error::ContentError;
+pub use content_error::ContentValidationError;
 pub use link::{
     CampaignLink, CampaignPerformance, ContentJourneyNode, DestinationType, LinkClick,
     LinkPerformance, LinkType, UtmParams,

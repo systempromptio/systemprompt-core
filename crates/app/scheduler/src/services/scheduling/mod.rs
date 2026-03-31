@@ -36,7 +36,6 @@ impl SchedulerService {
         })
     }
 
-    #[allow(clippy::cognitive_complexity)]
     pub async fn start(self) -> Result<()> {
         if !self.config.enabled {
             info!("Scheduler is disabled");
@@ -60,8 +59,17 @@ impl SchedulerService {
 
         info!("Scheduler started");
 
-        let startup_job_names: Vec<String> = self
-            .config
+        let startup_job_names = self.collect_startup_job_names(&registered_jobs);
+        self.spawn_startup_jobs(startup_job_names, &running_jobs);
+
+        Ok(())
+    }
+
+    fn collect_startup_job_names(
+        &self,
+        registered_jobs: &HashMap<&str, &'static dyn JobTrait>,
+    ) -> Vec<String> {
+        self.config
             .jobs
             .iter()
             .filter(|jc| jc.enabled)
@@ -71,34 +79,36 @@ impl SchedulerService {
                     .filter(|j| j.run_on_startup())
                     .map(|_| jc.name.clone())
             })
-            .collect();
+            .collect()
+    }
 
-        if !startup_job_names.is_empty() {
-            let count = startup_job_names.len();
-            let db_pool = Arc::clone(&self.db_pool);
-            let repository = self.repository.clone();
-            let app_context = Arc::clone(&self.app_context);
-            let running_jobs = Arc::clone(&running_jobs);
-
-            info!(count, "Spawning startup jobs in background");
-
-            tokio::spawn(async move {
-                for job_name in startup_job_names {
-                    debug!(job_name = %job_name, "Running background startup job");
-                    Self::execute_job(
-                        job_name,
-                        Arc::clone(&db_pool),
-                        repository.clone(),
-                        Arc::clone(&app_context),
-                        Arc::clone(&running_jobs),
-                    )
-                    .await;
-                }
-                info!("Background startup jobs completed");
-            });
+    fn spawn_startup_jobs(&self, startup_job_names: Vec<String>, running_jobs: &RunningJobs) {
+        if startup_job_names.is_empty() {
+            return;
         }
 
-        Ok(())
+        let count = startup_job_names.len();
+        let db_pool = Arc::clone(&self.db_pool);
+        let repository = self.repository.clone();
+        let app_context = Arc::clone(&self.app_context);
+        let running_jobs = Arc::clone(running_jobs);
+
+        info!(count, "Spawning startup jobs in background");
+
+        tokio::spawn(async move {
+            for job_name in startup_job_names {
+                debug!(job_name = %job_name, "Running background startup job");
+                Self::execute_job(
+                    job_name,
+                    Arc::clone(&db_pool),
+                    repository.clone(),
+                    Arc::clone(&app_context),
+                    Arc::clone(&running_jobs),
+                )
+                .await;
+            }
+            info!("Background startup jobs completed");
+        });
     }
 
     fn discover_jobs() -> HashMap<&'static str, &'static dyn JobTrait> {
@@ -121,7 +131,6 @@ impl SchedulerService {
         Ok(())
     }
 
-    #[allow(clippy::cognitive_complexity)]
     async fn register_single_job(
         &self,
         scheduler: &JobScheduler,
@@ -251,7 +260,6 @@ impl SchedulerService {
         job.execute(&ctx).await
     }
 
-    #[allow(clippy::cognitive_complexity)]
     async fn handle_job_result(
         job_name: &str,
         result: Result<systemprompt_traits::JobResult>,

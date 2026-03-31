@@ -170,7 +170,7 @@ async fn build_sync_config(
     let secrets = SecretsBootstrap::get().context("Failed to load secrets")?;
     let creds = get_credentials()?;
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut tenant_store = TenantStore::load_from_path(&tenants_path)
         .context("Tenants not synced. Run 'systemprompt cloud login'")?;
@@ -217,7 +217,7 @@ async fn setup_sync_token(
     profile_path: &Path,
     tenant_store: &mut TenantStore,
 ) -> Result<Option<String>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let creds = get_credentials()?;
 

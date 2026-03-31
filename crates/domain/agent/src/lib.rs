@@ -1,10 +1,10 @@
 
-pub mod error;
-pub mod extension;
+pub(crate) mod error;
+pub(crate) mod extension;
 pub mod models;
 pub mod repository;
 pub mod services;
-pub mod state;
+pub(crate) mod state;
 
 pub use extension::AgentExtension;
 

@@ -1,13 +1,13 @@
 #![allow(clippy::use_self)]
 
-pub mod branding_provider;
-pub mod config;
-pub mod error;
-pub mod extension;
-pub mod homepage_prerenderer;
-pub mod jobs;
-pub mod list_branding_provider;
-pub mod list_items_renderer;
+pub(crate) mod branding_provider;
+pub(crate) mod config;
+pub(crate) mod error;
+pub(crate) mod extension;
+pub(crate) mod homepage_prerenderer;
+pub(crate) mod jobs;
+pub(crate) mod list_branding_provider;
+pub(crate) mod list_items_renderer;
 pub mod models;
 pub mod repository;
 pub mod services;

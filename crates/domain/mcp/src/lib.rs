@@ -1,18 +1,18 @@
-pub mod capabilities;
-pub mod cli;
-pub mod error;
-pub mod extension;
-pub mod jobs;
+pub(crate) mod capabilities;
+pub(crate) mod cli;
+pub(crate) mod error;
+pub(crate) mod extension;
+pub(crate) mod jobs;
 pub mod middleware;
 pub mod models;
 pub mod orchestration;
-pub mod progress;
+pub(crate) mod progress;
 pub mod repository;
-pub mod resources;
-pub mod response;
-pub mod schema;
+pub(crate) mod resources;
+pub(crate) mod response;
+pub(crate) mod schema;
 pub mod services;
-pub mod tool;
+pub(crate) mod tool;
 
 pub use extension::McpExtension;
 
@@ -65,7 +65,7 @@ pub mod registry {
 
 pub use cli::{list_services, show_status, start_services, stop_services};
 
-pub mod state;
+pub(crate) mod state;
 
 use axum::extract::Request;
 use axum::middleware::Next;

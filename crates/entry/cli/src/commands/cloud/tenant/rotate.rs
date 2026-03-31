@@ -14,7 +14,7 @@ pub async fn rotate_credentials(
     skip_confirm: bool,
     config: &CliConfig,
 ) -> Result<CommandResult<RotateCredentialsOutput>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         if !config.is_json_output() {
@@ -117,7 +117,7 @@ pub async fn rotate_sync_token(
     skip_confirm: bool,
     config: &CliConfig,
 ) -> Result<CommandResult<RotateSyncTokenOutput>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let mut store = TenantStore::load_from_path(&tenants_path).unwrap_or_else(|e| {
         if !config.is_json_output() {

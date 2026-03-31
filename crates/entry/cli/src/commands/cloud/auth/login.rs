@@ -32,7 +32,7 @@ pub async fn execute(
     CliService::section("systemprompt.io Cloud Login");
     CliService::info(&format!("Environment: {:?}", environment));
 
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
 
     if cloud_paths.exists(CloudPath::Credentials) {
         let creds_path = cloud_paths.resolve(CloudPath::Credentials);

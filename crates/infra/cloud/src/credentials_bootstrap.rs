@@ -63,7 +63,7 @@ impl CredentialsBootstrap {
                 .as_ref());
         }
 
-        let cloud_paths = crate::paths::get_cloud_paths()?;
+        let cloud_paths = crate::paths::get_cloud_paths();
         let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
 
         let creds = Self::load_credentials_from_path(&credentials_path)?;
@@ -149,8 +149,7 @@ impl CredentialsBootstrap {
     }
 
     pub async fn reload() -> Result<CloudCredentials, CredentialsBootstrapError> {
-        let cloud_paths =
-            crate::paths::get_cloud_paths().map_err(|_| CredentialsBootstrapError::NotAvailable)?;
+        let cloud_paths = crate::paths::get_cloud_paths();
         let credentials_path = cloud_paths.resolve(crate::paths::CloudPath::Credentials);
 
         let creds = Self::load_credentials_from_path(&credentials_path).map_err(|e| {

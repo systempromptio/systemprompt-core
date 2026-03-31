@@ -1,4 +1,4 @@
-use chrono::{DateTime, NaiveDateTime, Utc};
+use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 pub type JsonRow = HashMap<String, serde_json::Value>;
@@ -10,8 +10,9 @@ pub fn parse_database_datetime(value: &serde_json::Value) -> Option<DateTime<Utc
             return Some(dt.with_timezone(&Utc));
         }
 
-        if let Ok(dt) = NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f") {
-            return Some(dt.and_utc());
+        let with_tz = format!("{s}+00:00");
+        if let Ok(dt) = DateTime::parse_from_str(&with_tz, "%Y-%m-%d %H:%M:%S%.f%:z") {
+            return Some(dt.with_timezone(&Utc));
         }
 
         None

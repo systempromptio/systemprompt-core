@@ -50,6 +50,13 @@
 - Config cleanup: encapsulate visibility, remove dead code across config and logging crates
 - Extract trace/logging queries into dedicated modules (`log_search_queries.rs`, `request_queries.rs`, `tool_queries.rs`, etc.)
 - Remove dead `show_helpers.rs` and unused agent lib.rs clippy allow-list
+- **Module visibility hardening**: convert `pub mod` to `pub(crate) mod` for internal modules across 7 domain crates (agent, ai, analytics, users, oauth, content, mcp) — reduces public API surface while preserving re-exports
+- **Rename `models::ContentError` to `ContentValidationError`**: resolve naming collision with the operational `error::ContentError` in the content crate
+- Fix `McpCspDomains` field references (`connect_domains` -> `connect`, `resource_domains` -> `resources`, etc.)
+- Fix `BuildContextParams` call sites to use struct construction instead of positional args
+- Fix `Arc<AnalyticsService>` to `Arc<dyn AnalyticsProvider>` coercion in session middleware
+- Fix `CloudPaths` API consumers after `get_cloud_paths()` return type change
+- Remove unused `_pool` parameter from `CleanupRepository::new_with_write_pool`
 
 ### Fixed
 - Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development

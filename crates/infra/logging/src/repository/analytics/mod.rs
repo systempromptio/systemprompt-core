@@ -27,7 +27,6 @@ async fn execute_insert(pool: &PgPool, event: &AnalyticsEvent) -> anyhow::Result
     run_insert_query(pool, params).await
 }
 
-#[allow(clippy::cognitive_complexity)]
 async fn run_insert_query(pool: &PgPool, p: EventParams<'_>) -> anyhow::Result<u64> {
     sqlx::query!(
         r"

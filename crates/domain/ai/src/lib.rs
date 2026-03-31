@@ -1,6 +1,6 @@
 pub mod error;
-pub mod extension;
-pub mod jobs;
+pub(crate) mod extension;
+pub(crate) mod jobs;
 pub mod models;
 pub mod repository;
 pub mod services;

@@ -38,7 +38,7 @@ pub struct CloudContext {
 
 impl CloudContext {
     pub fn new_authenticated() -> CloudResult<Self> {
-        let cloud_paths = get_cloud_paths().map_err(|_| CloudError::NotAuthenticated)?;
+        let cloud_paths = get_cloud_paths();
         let creds_path = cloud_paths.resolve(CloudPath::Credentials);
         let credentials = CloudCredentials::load_and_validate_from_path(&creds_path)
             .map_err(|_| CloudError::NotAuthenticated)?;
@@ -71,7 +71,7 @@ impl CloudContext {
     }
 
     fn resolve_tenant(tenant_id: &str) -> CloudResult<Option<ResolvedTenant>> {
-        let cloud_paths = get_cloud_paths().map_err(|_| CloudError::TenantsNotSynced)?;
+        let cloud_paths = get_cloud_paths();
         let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
         if !tenants_path.exists() {

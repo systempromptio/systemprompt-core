@@ -28,10 +28,9 @@ pub async fn execute(config: &CliConfig) -> Result<CommandResult<CloudStatusOutp
             };
 
             if let Some(cloud) = &profile.cloud {
-                if let Ok(paths) = get_cloud_paths() {
-                    let creds_path = paths.resolve(CloudPath::Credentials);
-                    info.credentials_path = Some(creds_path.display().to_string());
-                }
+                let paths = get_cloud_paths();
+                let creds_path = paths.resolve(CloudPath::Credentials);
+                info.credentials_path = Some(creds_path.display().to_string());
                 info.validation_mode = Some(format!("{:?}", cloud.validation));
 
                 if let Some(ref tid) = cloud.tenant_id {

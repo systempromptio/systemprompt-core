@@ -36,7 +36,7 @@ pub struct ProfileDiscoveryResult {
 
 impl CloudUser {
     pub fn from_credentials() -> Result<Option<Self>> {
-        let cloud_paths = get_cloud_paths()?;
+        let cloud_paths = get_cloud_paths();
         let creds_path = cloud_paths.resolve(CloudPath::Credentials);
 
         if !creds_path.exists() {

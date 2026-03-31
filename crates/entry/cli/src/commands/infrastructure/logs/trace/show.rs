@@ -17,7 +17,6 @@ use super::summary::{SummaryContext, print_summary};
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceEventRow, TraceViewOutput};
 use crate::shared::CommandResult;
 
-#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Args)]
 pub struct ShowArgs {
     #[arg(help = "Trace ID or Task ID (can be partial)")]
@@ -29,6 +28,12 @@ pub struct ShowArgs {
     #[arg(long, help = "Output as JSON")]
     pub json: bool,
 
+    #[command(flatten)]
+    pub sections: TraceSections,
+}
+
+#[derive(Debug, Args)]
+pub struct TraceSections {
     #[arg(long, help = "Show execution steps")]
     pub steps: bool,
 
@@ -208,25 +213,25 @@ async fn execute_ai_trace(
         print_user_input(user_input.as_ref());
     }
 
-    let show_all = args.all;
+    let show_all = args.sections.all;
 
     let steps = service.get_execution_steps(task_id).await?;
-    if (show_all || args.steps) && !args.json {
+    if (show_all || args.sections.steps) && !args.json {
         print_execution_steps(&steps);
     }
 
     let ai_requests = service.get_ai_requests(task_id).await?;
-    if (show_all || args.ai) && !args.json {
+    if (show_all || args.sections.ai) && !args.json {
         print_ai_requests(&ai_requests);
     }
 
     let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
-    if (show_all || args.mcp) && !args.json {
+    if (show_all || args.sections.mcp) && !args.json {
         print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose)
             .await;
     }
 
-    if show_all || args.artifacts {
+    if show_all || args.sections.artifacts {
         let artifacts = service.get_task_artifacts(task_id, &context_id).await?;
         if !args.json {
             print_artifacts(&artifacts);

@@ -1,12 +1,12 @@
 #![allow(clippy::module_name_repetitions)]
 
 pub mod constants;
-pub mod extension;
+pub(crate) mod extension;
 pub mod models;
-pub mod queries;
+pub(crate) mod queries;
 pub mod repository;
 pub mod services;
-pub mod state;
+pub(crate) mod state;
 
 pub use extension::OauthExtension;
 

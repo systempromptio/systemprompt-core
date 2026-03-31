@@ -87,7 +87,7 @@ pub async fn setup_sync_token(
     profile_path: &Path,
     tenant_store: &mut TenantStore,
 ) -> Result<Option<String>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
     let creds = get_credentials()?;
 

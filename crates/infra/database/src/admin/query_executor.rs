@@ -82,11 +82,6 @@ impl QueryExecutor {
     }
 
     fn extract_value(row: &sqlx::postgres::PgRow, column_index: usize) -> serde_json::Value {
-        if let Ok(val) = row.try_get::<Option<chrono::NaiveDateTime>, _>(column_index) {
-            return val.map_or(serde_json::Value::Null, |dt| {
-                serde_json::Value::String(dt.and_utc().to_rfc3339())
-            });
-        }
         if let Ok(val) = row.try_get::<Option<chrono::DateTime<chrono::Utc>>, _>(column_index) {
             return val.map_or(serde_json::Value::Null, |dt| {
                 serde_json::Value::String(dt.to_rfc3339())

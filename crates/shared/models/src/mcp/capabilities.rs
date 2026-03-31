@@ -92,16 +92,15 @@ pub fn visibility_to_json(visibility: &[ToolVisibility]) -> serde_json::Value {
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-#[allow(clippy::struct_field_names)]
 pub struct McpCspDomains {
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub connect_domains: Vec<String>,
+    pub connect: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub resource_domains: Vec<String>,
+    pub resources: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub frame_domains: Vec<String>,
+    pub frames: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub base_uri_domains: Vec<String>,
+    pub base_uri: Vec<String>,
 }
 
 impl McpCspDomains {
@@ -125,19 +124,19 @@ impl McpCspDomainsBuilder {
     }
 
     pub fn connect_domain(mut self, domain: impl Into<String>) -> Self {
-        self.inner.connect_domains.push(domain.into());
+        self.inner.connect.push(domain.into());
         self
     }
 
     pub fn connect_domains(mut self, domains: impl IntoIterator<Item = impl Into<String>>) -> Self {
         self.inner
-            .connect_domains
+            .connect
             .extend(domains.into_iter().map(Into::into));
         self
     }
 
     pub fn resource_domain(mut self, domain: impl Into<String>) -> Self {
-        self.inner.resource_domains.push(domain.into());
+        self.inner.resources.push(domain.into());
         self
     }
 
@@ -146,18 +145,18 @@ impl McpCspDomainsBuilder {
         domains: impl IntoIterator<Item = impl Into<String>>,
     ) -> Self {
         self.inner
-            .resource_domains
+            .resources
             .extend(domains.into_iter().map(Into::into));
         self
     }
 
     pub fn frame_domain(mut self, domain: impl Into<String>) -> Self {
-        self.inner.frame_domains.push(domain.into());
+        self.inner.frames.push(domain.into());
         self
     }
 
     pub fn base_uri_domain(mut self, domain: impl Into<String>) -> Self {
-        self.inner.base_uri_domains.push(domain.into());
+        self.inner.base_uri.push(domain.into());
         self
     }
 

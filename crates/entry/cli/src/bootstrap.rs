@@ -148,8 +148,7 @@ pub fn run_validation() -> Result<()> {
 
     if report.has_errors() {
         display_validation_report(&report);
-        #[allow(clippy::exit)]
-        std::process::exit(1);
+        anyhow::bail!("Startup validation failed with errors");
     }
 
     if report.has_warnings() {

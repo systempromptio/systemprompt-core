@@ -94,6 +94,10 @@ impl ConfigManager {
                 }
 
                 if let Some((key, value)) = line.split_once('=') {
+                    // SAFETY: Config loading runs single-threaded during bootstrap
+                    // before any async runtime or worker threads are spawned.
+                    // Environment variables must be set here because resolve_variables()
+                    // uses std::env::var() to interpolate ${VAR} references in config YAML.
                     #[allow(unsafe_code)]
                     unsafe {
                         std::env::set_var(key.trim(), value.trim().trim_matches('"'));

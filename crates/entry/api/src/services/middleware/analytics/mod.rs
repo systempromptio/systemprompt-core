@@ -16,6 +16,17 @@ use systemprompt_security::ScannerDetector;
 
 pub use events::AnalyticsEventParams;
 
+struct TrackingParams<'a> {
+    req_ctx: &'a RequestContext,
+    uri: &'a http::Uri,
+    method: &'a http::Method,
+    status_code: u16,
+    response_time_ms: u64,
+    user_agent: Option<String>,
+    referer: Option<String>,
+    is_scanner: bool,
+}
+
 #[derive(Debug, Clone)]
 pub struct AnalyticsMiddleware {
     session_repo: Arc<SessionRepository>,
@@ -78,33 +89,30 @@ impl AnalyticsMiddleware {
             ScannerDetector::is_scanner(Some(uri.path()), user_agent.as_deref(), None, None);
 
         if should_track {
-            self.spawn_tracking_tasks(
-                &req_ctx,
-                &uri,
-                &method,
-                status_code.as_u16(),
+            self.spawn_tracking_tasks(TrackingParams {
+                req_ctx: &req_ctx,
+                uri: &uri,
+                method: &method,
+                status_code: status_code.as_u16(),
                 response_time_ms,
                 user_agent,
                 referer,
                 is_scanner,
-            );
+            });
         }
 
         Ok(response)
     }
 
-    #[allow(clippy::too_many_arguments)]
-    fn spawn_tracking_tasks(
-        &self,
-        req_ctx: &RequestContext,
-        uri: &http::Uri,
-        method: &http::Method,
-        status_code: u16,
-        response_time_ms: u64,
-        user_agent: Option<String>,
-        referer: Option<String>,
-        is_scanner: bool,
-    ) {
+    fn spawn_tracking_tasks(&self, params: TrackingParams<'_>) {
+        let req_ctx = params.req_ctx;
+        let uri = params.uri;
+        let method = params.method;
+        let status_code = params.status_code;
+        let response_time_ms = params.response_time_ms;
+        let user_agent = params.user_agent;
+        let referer = params.referer;
+        let is_scanner = params.is_scanner;
         let endpoint = format!("{} {}", method, uri.path());
         let path = uri.path().to_string();
 

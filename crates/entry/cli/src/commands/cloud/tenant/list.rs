@@ -13,7 +13,7 @@ use crate::cloud::types::{TenantListOutput, TenantSummary};
 use crate::shared::CommandResult;
 
 pub async fn list_tenants(config: &CliConfig) -> Result<CommandResult<TenantListOutput>> {
-    let cloud_paths = get_cloud_paths()?;
+    let cloud_paths = get_cloud_paths();
     let tenants_path = cloud_paths.resolve(CloudPath::Tenants);
 
     let store = sync_and_load_tenants(&tenants_path).await;
