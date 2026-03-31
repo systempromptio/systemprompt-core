@@ -253,9 +253,7 @@ impl<E: ContextExtractor> ContextMiddleware<E> {
                 next.run(req).instrument(span).await
             },
             Err(e) => {
-                if let Some(ctx) =
-                    request.extensions().get::<RequestContext>().cloned()
-                {
+                if let Some(ctx) = request.extensions().get::<RequestContext>().cloned() {
                     tracing::debug!(
                         error = %e,
                         trace_id = %trace_id,

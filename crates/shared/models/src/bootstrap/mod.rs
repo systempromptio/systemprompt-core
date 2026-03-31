@@ -52,7 +52,7 @@ impl BootstrapSequence<Uninitialized> {
     }
 
     pub fn with_profile(self, path: &Path) -> Result<BootstrapSequence<ProfileInitialized>> {
-        drop(self);
+        let Self { _state: _ } = self;
         ProfileBootstrap::init_from_path(path)
             .with_context(|| format!("Profile initialization failed from: {}", path.display()))?;
 
@@ -69,7 +69,7 @@ impl BootstrapSequence<Uninitialized> {
 
 impl BootstrapSequence<ProfileInitialized> {
     pub fn with_secrets(self) -> Result<BootstrapSequence<SecretsInitialized>> {
-        drop(self);
+        let Self { _state: _ } = self;
         SecretsBootstrap::init().context("Secrets initialization failed")?;
 
         Ok(BootstrapSequence {
@@ -85,7 +85,7 @@ impl BootstrapSequence<ProfileInitialized> {
 
 impl BootstrapSequence<SecretsInitialized> {
     pub fn with_paths(self) -> Result<BootstrapSequence<PathsInitialized>> {
-        drop(self);
+        let Self { _state: _ } = self;
         let profile = ProfileBootstrap::get()?;
         AppPaths::init(&profile.paths).context("Failed to initialize paths")?;
         Config::try_init().context("Failed to initialize configuration")?;
@@ -99,7 +99,7 @@ impl BootstrapSequence<SecretsInitialized> {
         self,
         paths_config: &PathsConfig,
     ) -> Result<BootstrapSequence<PathsInitialized>> {
-        drop(self);
+        let Self { _state: _ } = self;
         AppPaths::init(paths_config).context("Failed to initialize paths")?;
         Config::try_init().context("Failed to initialize configuration")?;
 
@@ -116,8 +116,8 @@ impl BootstrapSequence<SecretsInitialized> {
 
 impl BootstrapSequence<PathsInitialized> {
     #[must_use]
-    pub fn complete(&self) -> BootstrapComplete {
-        let _used = &self._state;
+    pub fn complete(self) -> BootstrapComplete {
+        let Self { _state: _ } = self;
         BootstrapComplete { _private: () }
     }
 }

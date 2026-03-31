@@ -131,11 +131,10 @@ pub fn configure_routes(
 
     router = router.nest(
         ApiPaths::STREAM_BASE,
-        crate::routes::stream::stream_router(ctx).map_err(|e| {
-                LoaderError::InitializationFailed {
-                    extension: "stream".to_string(),
-                    message: e.to_string(),
-                }
+        crate::routes::stream::stream_router(ctx)
+            .map_err(|e| LoaderError::InitializationFailed {
+                extension: "stream".to_string(),
+                message: e.to_string(),
             })?
             .with_rate_limit(rate_config, rate_config.stream_per_second)
             .with_auth_middleware(user_middleware.clone()),
@@ -224,9 +223,7 @@ pub fn configure_routes(
                     if tx
                         .unbounded_send(StartupEvent::Warning {
                             message: format!("Failed to load content config: {e}"),
-                            context: Some(
-                                "Static content matching will be disabled".to_string(),
-                            ),
+                            context: Some("Static content matching will be disabled".to_string()),
                         })
                         .is_err()
                     {

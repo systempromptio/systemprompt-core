@@ -227,8 +227,7 @@ async fn execute_ai_trace(
 
     let mcp_executions = service.get_mcp_executions(task_id, &context_id).await?;
     if (show_all || args.sections.mcp) && !args.json {
-        print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose)
-            .await;
+        print_mcp_executions(service, &mcp_executions, task_id, &context_id, args.verbose).await;
     }
 
     if show_all || args.sections.artifacts {
