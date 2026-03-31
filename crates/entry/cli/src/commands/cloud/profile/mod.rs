@@ -21,8 +21,8 @@ use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
-use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 

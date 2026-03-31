@@ -1,23 +1,16 @@
-use flate2::Compression;
-use flate2::read::GzDecoder;
-use flate2::write::GzEncoder;
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha256};
-use std::collections::HashMap;
 use std::fs;
-use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use tar::{Archive, Builder};
 use zip::ZipWriter;
 use zip::write::SimpleFileOptions;
 
 use crate::api_client::SyncApiClient;
 use crate::error::SyncResult;
+use crate::file_bundler::{
+    INCLUDE_DIRS, add_dir_to_zip, collect_files, compare_tarball_with_local, create_tarball,
+    extract_tarball, extract_tarball_selective, peek_manifest,
+};
 use crate::{SyncConfig, SyncDirection, SyncOperationResult};
-
-const INCLUDE_DIRS: [&str; 8] = [
-    "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
-];
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct FileBundle {
@@ -109,7 +102,7 @@ impl FileSyncService {
             .download_files(&self.config.tenant_id)
             .await?;
 
-        let diff = Self::compare_tarball_with_local(&data, &services_path)?;
+        let diff = compare_tarball_with_local(&data, &services_path)?;
 
         Ok(PullDownload { data, diff })
     }
@@ -130,7 +123,7 @@ impl FileSyncService {
         for dir in INCLUDE_DIRS {
             let dir_path = services_path.join(dir);
             if dir_path.exists() {
-                Self::add_dir_to_zip(&mut zip, &dir_path, services_path, options)?;
+                add_dir_to_zip(&mut zip, &dir_path, services_path, options)?;
             }
         }
 
@@ -140,14 +133,14 @@ impl FileSyncService {
 
     pub fn apply(data: &[u8], services_path: &Path, paths: Option<&[String]>) -> SyncResult<usize> {
         paths.map_or_else(
-            || Self::extract_tarball(data, services_path),
-            |paths| Self::extract_tarball_selective(data, services_path, paths),
+            || extract_tarball(data, services_path),
+            |paths| extract_tarball_selective(data, services_path, paths),
         )
     }
 
     async fn push(&self) -> SyncResult<SyncOperationResult> {
         let services_path = PathBuf::from(&self.config.services_path);
-        let bundle = Self::collect_files(&services_path)?;
+        let bundle = collect_files(&services_path)?;
         let file_count = bundle.manifest.files.len();
 
         if self.config.dry_run {
@@ -158,7 +151,7 @@ impl FileSyncService {
             ));
         }
 
-        let data = Self::create_tarball(&services_path, &bundle.manifest)?;
+        let data = create_tarball(&services_path, &bundle.manifest)?;
 
         let upload = self
             .api_client
@@ -179,7 +172,7 @@ impl FileSyncService {
             .await?;
 
         if self.config.dry_run {
-            let manifest = Self::peek_manifest(&data)?;
+            let manifest = peek_manifest(&data)?;
             return Ok(SyncOperationResult::dry_run(
                 "files_pull",
                 manifest.files.len(),
@@ -187,7 +180,7 @@ impl FileSyncService {
             ));
         }
 
-        let count = Self::extract_tarball(&data, &services_path)?;
+        let count = extract_tarball(&data, &services_path)?;
         Ok(SyncOperationResult::success("files_pull", count))
     }
 

@@ -4,11 +4,11 @@ use systemprompt_loader::EnhancedConfigLoader;
 use systemprompt_logging::CliService;
 use systemprompt_models::{AiConfig, AppPaths, Config, ContentConfigRaw, SkillsConfig, WebConfig};
 
-use super::ShowFilter;
 use super::show_display::print_formatted_config;
-use super::show_types::{FullConfig, SettingsOutput, build_env_config};
+use super::show_types::{build_env_config, FullConfig, SettingsOutput};
+use super::ShowFilter;
 use crate::cli_settings::CliConfig;
-use crate::shared::{CommandResult, render_result, resolve_profile_path};
+use crate::shared::{render_result, resolve_profile_path, CommandResult};
 
 pub fn execute(
     name: Option<&str>,

@@ -1,5 +1,6 @@
 mod ai_trace_queries;
 mod ai_trace_service;
+mod audit_queries;
 mod list_queries;
 mod log_lookup_queries;
 mod log_search_queries;

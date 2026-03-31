@@ -1,6 +1,7 @@
 mod ai_artifacts;
 mod ai_display;
 mod ai_mcp;
+mod ai_trace_display;
 mod display;
 mod json;
 mod list;

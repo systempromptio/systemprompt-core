@@ -1,11 +1,11 @@
 use anyhow::Result;
-use dialoguer::Select;
 use dialoguer::theme::ColorfulTheme;
+use dialoguer::Select;
 use std::path::PathBuf;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 
-use super::{ShowFilter, show};
+use super::{show, ShowFilter};
 use crate::cli_settings::CliConfig;
 use crate::cloud::types::{ProfileListOutput, ProfileSummary};
 use crate::shared::CommandResult;
