@@ -45,14 +45,14 @@ pub async fn construct_tasks_batch(
     let steps_by_task: HashMap<TaskId, Vec<&ExecutionStepBatchRow>> =
         group_by_key(&all_execution_steps, |s| s.task_id.clone());
 
-    build_tasks(
-        &task_rows,
-        &messages_by_task,
-        &parts_by_message,
-        &artifacts_by_task,
-        &artifact_parts_by_id,
-        &steps_by_task,
-    )
+    build_tasks(BuildTasksParams {
+        task_rows: &task_rows,
+        messages_by_task: &messages_by_task,
+        parts_by_message: &parts_by_message,
+        artifacts_by_task: &artifacts_by_task,
+        artifact_parts_by_id: &artifact_parts_by_id,
+        steps_by_task: &steps_by_task,
+    })
 }
 
 fn group_by_key<T, F, K>(items: &[T], key_fn: F) -> HashMap<K, Vec<&T>>
@@ -67,14 +67,24 @@ where
     })
 }
 
-fn build_tasks(
-    task_rows: &[TaskRow],
-    messages_by_task: &HashMap<TaskId, Vec<&TaskMessage>>,
-    parts_by_message: &HashMap<MessageId, Vec<&MessagePart>>,
-    artifacts_by_task: &HashMap<TaskId, Vec<&ArtifactRow>>,
-    artifact_parts_by_id: &HashMap<ArtifactId, Vec<&ArtifactPartRow>>,
-    steps_by_task: &HashMap<TaskId, Vec<&ExecutionStepBatchRow>>,
-) -> Result<Vec<Task>, RepositoryError> {
+struct BuildTasksParams<'a> {
+    task_rows: &'a [TaskRow],
+    messages_by_task: &'a HashMap<TaskId, Vec<&'a TaskMessage>>,
+    parts_by_message: &'a HashMap<MessageId, Vec<&'a MessagePart>>,
+    artifacts_by_task: &'a HashMap<TaskId, Vec<&'a ArtifactRow>>,
+    artifact_parts_by_id: &'a HashMap<ArtifactId, Vec<&'a ArtifactPartRow>>,
+    steps_by_task: &'a HashMap<TaskId, Vec<&'a ExecutionStepBatchRow>>,
+}
+
+fn build_tasks(params: BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryError> {
+    let BuildTasksParams {
+        task_rows,
+        messages_by_task,
+        parts_by_message,
+        artifacts_by_task,
+        artifact_parts_by_id,
+        steps_by_task,
+    } = params;
     let mut tasks = Vec::new();
 
     for row in task_rows {

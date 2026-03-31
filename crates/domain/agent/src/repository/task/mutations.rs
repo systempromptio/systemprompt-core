@@ -19,14 +19,24 @@ pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     }
 }
 
-pub async fn create_task(
-    pool: &Arc<PgPool>,
-    task: &Task,
-    user_id: &systemprompt_identifiers::UserId,
-    session_id: &systemprompt_identifiers::SessionId,
-    trace_id: &systemprompt_identifiers::TraceId,
-    agent_name: &str,
-) -> Result<String, RepositoryError> {
+pub struct CreateTaskParams<'a> {
+    pub pool: &'a Arc<PgPool>,
+    pub task: &'a Task,
+    pub user_id: &'a systemprompt_identifiers::UserId,
+    pub session_id: &'a systemprompt_identifiers::SessionId,
+    pub trace_id: &'a systemprompt_identifiers::TraceId,
+    pub agent_name: &'a str,
+}
+
+pub async fn create_task(params: CreateTaskParams<'_>) -> Result<String, RepositoryError> {
+    let CreateTaskParams {
+        pool,
+        task,
+        user_id,
+        session_id,
+        trace_id,
+        agent_name,
+    } = params;
     let metadata_json = task.metadata.as_ref().map_or_else(
         || serde_json::json!({}),
         |m| {

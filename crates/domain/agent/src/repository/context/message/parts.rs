@@ -101,14 +101,24 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
-pub async fn persist_part_sqlx(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    part: &Part,
-    message_id: &MessageId,
-    task_id: &TaskId,
-    sequence_number: i32,
-    upload_ctx: Option<&FileUploadContext<'_>>,
-) -> Result<(), RepositoryError> {
+pub struct PersistPartSqlxParams<'a> {
+    pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
+    pub part: &'a Part,
+    pub message_id: &'a MessageId,
+    pub task_id: &'a TaskId,
+    pub sequence_number: i32,
+    pub upload_ctx: Option<&'a FileUploadContext<'a>>,
+}
+
+pub async fn persist_part_sqlx(params: PersistPartSqlxParams<'_>) -> Result<(), RepositoryError> {
+    let PersistPartSqlxParams {
+        tx,
+        part,
+        message_id,
+        task_id,
+        sequence_number,
+        upload_ctx,
+    } = params;
     match part {
         Part::Text(text_part) => {
             sqlx::query!(

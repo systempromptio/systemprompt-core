@@ -183,5 +183,4 @@ impl FileSyncService {
         let count = extract_tarball(&data, &services_path)?;
         Ok(SyncOperationResult::success("files_pull", count))
     }
-
 }

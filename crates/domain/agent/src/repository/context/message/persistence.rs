@@ -3,19 +3,36 @@ use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-use super::parts::{FileUploadContext, persist_part_sqlx, persist_part_with_tx};
+use super::parts::{
+    FileUploadContext, PersistPartSqlxParams, persist_part_sqlx, persist_part_with_tx,
+};
+
+pub struct PersistMessageSqlxParams<'a> {
+    pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
+    pub message: &'a Message,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub sequence_number: i32,
+    pub user_id: Option<&'a UserId>,
+    pub session_id: &'a SessionId,
+    pub trace_id: &'a TraceId,
+    pub upload_ctx: Option<&'a FileUploadContext<'a>>,
+}
 
 pub async fn persist_message_sqlx(
-    tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-    message: &Message,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    sequence_number: i32,
-    user_id: Option<&UserId>,
-    session_id: &SessionId,
-    trace_id: &TraceId,
-    upload_ctx: Option<&FileUploadContext<'_>>,
+    params: PersistMessageSqlxParams<'_>,
 ) -> Result<(), RepositoryError> {
+    let PersistMessageSqlxParams {
+        tx,
+        message,
+        task_id,
+        context_id,
+        sequence_number,
+        user_id,
+        session_id,
+        trace_id,
+        upload_ctx,
+    } = params;
     let metadata_json =
         serde_json::to_value(&message.metadata).map_err(RepositoryError::Serialization)?;
 
@@ -67,22 +84,44 @@ pub async fn persist_message_sqlx(
     .map_err(RepositoryError::database)?;
 
     for (idx, part) in message.parts.iter().enumerate() {
-        persist_part_sqlx(tx, part, &message.id, task_id, idx as i32, upload_ctx).await?;
+        persist_part_sqlx(PersistPartSqlxParams {
+            tx,
+            part,
+            message_id: &message.id,
+            task_id,
+            sequence_number: idx as i32,
+            upload_ctx,
+        })
+        .await?;
     }
 
     Ok(())
 }
 
+pub struct PersistMessageWithTxParams<'a> {
+    pub tx: &'a mut dyn systemprompt_database::DatabaseTransaction,
+    pub message: &'a Message,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub sequence_number: i32,
+    pub user_id: Option<&'a UserId>,
+    pub session_id: &'a SessionId,
+    pub trace_id: &'a TraceId,
+}
+
 pub async fn persist_message_with_tx(
-    tx: &mut dyn systemprompt_database::DatabaseTransaction,
-    message: &Message,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    sequence_number: i32,
-    user_id: Option<&UserId>,
-    session_id: &SessionId,
-    trace_id: &TraceId,
+    params: PersistMessageWithTxParams<'_>,
 ) -> Result<(), RepositoryError> {
+    let PersistMessageWithTxParams {
+        tx,
+        message,
+        task_id,
+        context_id,
+        sequence_number,
+        user_id,
+        session_id,
+        trace_id,
+    } = params;
     let metadata_json = serde_json::to_string(&message.metadata)?;
 
     let delete_parts_query: &str = "DELETE FROM message_parts WHERE message_id = $1";

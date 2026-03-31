@@ -299,11 +299,13 @@ pub async fn create_database_in_docker(
         .await
         .context("Failed to connect to Docker PostgreSQL")?;
 
-    let user_exists: bool =
-        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)", &config.user)
-            .fetch_one(&pool)
-            .await?
-            .unwrap_or(false);
+    let user_exists: bool = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)",
+        &config.user
+    )
+    .fetch_one(&pool)
+    .await?
+    .unwrap_or(false);
 
     if !user_exists {
         let create_user_sql = format!(
@@ -315,11 +317,13 @@ pub async fn create_database_in_docker(
         CliService::success(&format!("Created user '{}'", config.user));
     }
 
-    let db_exists: bool =
-        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", &config.database)
-            .fetch_one(&pool)
-            .await?
-            .unwrap_or(false);
+    let db_exists: bool = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)",
+        &config.database
+    )
+    .fetch_one(&pool)
+    .await?
+    .unwrap_or(false);
 
     if !db_exists {
         let create_db_sql = format!(

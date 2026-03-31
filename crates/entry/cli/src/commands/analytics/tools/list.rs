@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::{Args, ValueEnum};
 use std::path::PathBuf;
-use systemprompt_analytics::ToolAnalyticsRepository;
+use systemprompt_analytics::{ToolAnalyticsRepository, ToolListParams};
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
@@ -86,13 +86,13 @@ async fn execute_internal(
     let (start, end) = parse_time_range(args.since.as_ref(), args.until.as_ref())?;
 
     let rows = repo
-        .list_tools(
+        .list_tools(ToolListParams {
             start,
             end,
-            args.limit,
-            args.server.as_deref(),
-            args.sort_by.as_str(),
-        )
+            limit: args.limit,
+            server_filter: args.server.as_deref(),
+            sort_order: args.sort_by.as_str(),
+        })
         .await?;
 
     let tools: Vec<ToolListRow> = rows

@@ -246,7 +246,10 @@ pub async fn test_connection(config: &PostgresConfig) -> bool {
         return false;
     };
 
-    let result = sqlx::query_scalar!("SELECT 1 as one").fetch_one(&pool).await.is_ok();
+    let result = sqlx::query_scalar!("SELECT 1 as one")
+        .fetch_one(&pool)
+        .await
+        .is_ok();
     pool.close().await;
     result
 }
@@ -279,11 +282,13 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
         .await
         .context("Failed to connect with superuser credentials")?;
 
-    let user_exists: bool =
-        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)", &config.user)
-            .fetch_one(&pool)
-            .await?
-            .unwrap_or(false);
+    let user_exists: bool = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)",
+        &config.user
+    )
+    .fetch_one(&pool)
+    .await?
+    .unwrap_or(false);
 
     if !user_exists {
         CliService::info(&format!("Creating user '{}'...", config.user));
@@ -296,11 +301,13 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
         CliService::success(&format!("Created user '{}'", config.user));
     }
 
-    let db_exists: bool =
-        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", &config.database)
-            .fetch_one(&pool)
-            .await?
-            .unwrap_or(false);
+    let db_exists: bool = sqlx::query_scalar!(
+        "SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)",
+        &config.database
+    )
+    .fetch_one(&pool)
+    .await?
+    .unwrap_or(false);
 
     if !db_exists {
         CliService::info(&format!("Creating database '{}'...", config.database));

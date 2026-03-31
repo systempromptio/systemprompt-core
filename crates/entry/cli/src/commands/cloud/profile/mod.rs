@@ -15,15 +15,15 @@ mod show_types;
 pub mod templates;
 
 pub use api_keys::collect_api_keys;
-pub use create::{create_profile_for_tenant, CreatedProfile};
+pub use create::{CreatedProfile, create_profile_for_tenant};
 pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 
 use crate::cli_settings::CliConfig;
 use crate::shared::render_result;
 use anyhow::Result;
 use clap::{Args, Subcommand, ValueEnum};
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{ProfilePath, ProjectContext};
 use systemprompt_logging::CliService;
 

@@ -5,13 +5,16 @@ mod queries;
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
-use systemprompt_identifiers::{ContextId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_traits::RepositoryError;
 
 use crate::models::a2a::Message;
 
-pub use parts::{FileUploadContext, get_message_parts};
-pub use persistence::{persist_message_sqlx, persist_message_with_tx};
+pub use parts::{FileUploadContext, PersistPartSqlxParams, get_message_parts};
+pub use persistence::{
+    PersistMessageSqlxParams, PersistMessageWithTxParams, persist_message_sqlx,
+    persist_message_with_tx,
+};
 pub use queries::{
     get_messages_by_context, get_messages_by_task, get_next_sequence_number,
     get_next_sequence_number_in_tx, get_next_sequence_number_sqlx,
@@ -50,51 +53,15 @@ impl MessageRepository {
 
     pub async fn persist_message_sqlx(
         &self,
-        tx: &mut sqlx::Transaction<'_, sqlx::Postgres>,
-        message: &Message,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        sequence_number: i32,
-        user_id: Option<&UserId>,
-        session_id: &SessionId,
-        trace_id: &TraceId,
-        upload_ctx: Option<&FileUploadContext<'_>>,
+        params: PersistMessageSqlxParams<'_>,
     ) -> Result<(), RepositoryError> {
-        persist_message_sqlx(
-            tx,
-            message,
-            task_id,
-            context_id,
-            sequence_number,
-            user_id,
-            session_id,
-            trace_id,
-            upload_ctx,
-        )
-        .await
+        persist_message_sqlx(params).await
     }
 
     pub async fn persist_message_with_tx(
         &self,
-        tx: &mut dyn systemprompt_database::DatabaseTransaction,
-        message: &Message,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        sequence_number: i32,
-        user_id: Option<&UserId>,
-        session_id: &SessionId,
-        trace_id: &TraceId,
+        params: PersistMessageWithTxParams<'_>,
     ) -> Result<(), RepositoryError> {
-        persist_message_with_tx(
-            tx,
-            message,
-            task_id,
-            context_id,
-            sequence_number,
-            user_id,
-            session_id,
-            trace_id,
-        )
-        .await
+        persist_message_with_tx(params).await
     }
 }

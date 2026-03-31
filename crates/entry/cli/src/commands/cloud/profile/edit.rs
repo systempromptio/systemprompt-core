@@ -1,15 +1,15 @@
 use anyhow::{Context, Result};
-use dialoguer::theme::ColorfulTheme;
 use dialoguer::Select;
+use dialoguer::theme::ColorfulTheme;
 use std::path::Path;
 use systemprompt_cloud::ProfilePath;
 use systemprompt_loader::ProfileLoader;
 use systemprompt_logging::CliService;
 
+use super::EditArgs;
 use super::edit_secrets::edit_api_keys;
 use super::edit_settings::{edit_runtime_settings, edit_security_settings, edit_server_settings};
 use super::templates::save_profile;
-use super::EditArgs;
 use crate::cli_settings::CliConfig;
 use crate::shared::resolve_profile_path;
 

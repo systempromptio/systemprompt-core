@@ -6,8 +6,8 @@ mod task_updates;
 
 pub use constructor::TaskConstructor;
 pub use mutations::{
-    create_task, task_state_to_db_string, track_agent_in_context, update_task_failed_with_error,
-    update_task_state,
+    CreateTaskParams, create_task, task_state_to_db_string, track_agent_in_context,
+    update_task_failed_with_error, update_task_state,
 };
 pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
@@ -81,14 +81,14 @@ impl TaskRepository {
         trace_id: &systemprompt_identifiers::TraceId,
         agent_name: &str,
     ) -> Result<String, RepositoryError> {
-        let result = create_task(
-            &self.write_pool,
+        let result = create_task(CreateTaskParams {
+            pool: &self.write_pool,
             task,
             user_id,
             session_id,
             trace_id,
             agent_name,
-        )
+        })
         .await?;
 
         if let Some(ref provider) = self.session_analytics_provider {

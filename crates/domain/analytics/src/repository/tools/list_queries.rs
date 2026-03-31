@@ -4,15 +4,23 @@ use chrono::{DateTime, Utc};
 use super::ToolAnalyticsRepository;
 use crate::models::cli::ToolListRow;
 
+pub struct ToolListParams<'a> {
+    pub start: DateTime<Utc>,
+    pub end: DateTime<Utc>,
+    pub limit: i64,
+    pub server_filter: Option<&'a str>,
+    pub sort_order: &'a str,
+}
+
 impl ToolAnalyticsRepository {
-    pub async fn list_tools(
-        &self,
-        start: DateTime<Utc>,
-        end: DateTime<Utc>,
-        limit: i64,
-        server_filter: Option<&str>,
-        sort_order: &str,
-    ) -> Result<Vec<ToolListRow>> {
+    pub async fn list_tools(&self, params: ToolListParams<'_>) -> Result<Vec<ToolListRow>> {
+        let ToolListParams {
+            start,
+            end,
+            limit,
+            server_filter,
+            sort_order,
+        } = params;
         if let Some(server) = server_filter {
             let pattern = format!("%{}%", server);
             self.list_tools_with_filter(start, end, limit, &pattern, sort_order)
@@ -23,6 +31,7 @@ impl ToolAnalyticsRepository {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn list_tools_with_filter(
         &self,
         start: DateTime<Utc>,

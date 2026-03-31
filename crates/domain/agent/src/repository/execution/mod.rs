@@ -6,7 +6,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
 
-fn parse_step(
+struct ParseStepParams {
     step_id: String,
     task_id: String,
     status: String,
@@ -15,7 +15,19 @@ fn parse_step(
     completed_at: Option<DateTime<Utc>>,
     duration_ms: Option<i32>,
     error_message: Option<String>,
-) -> Result<ExecutionStep> {
+}
+
+fn parse_step(params: ParseStepParams) -> Result<ExecutionStep> {
+    let ParseStepParams {
+        step_id,
+        task_id,
+        status,
+        content,
+        started_at,
+        completed_at,
+        duration_ms,
+        error_message,
+    } = params;
     let status = status
         .parse::<StepStatus>()
         .map_err(|e| anyhow::anyhow!("Invalid status: {}", e))?;
@@ -87,16 +99,16 @@ impl ExecutionStepRepository {
         .await
         .context(format!("Failed to get execution step: {step_id}"))?;
         row.map(|r| {
-            parse_step(
-                r.step_id,
-                r.task_id,
-                r.status,
-                r.content,
-                r.started_at,
-                r.completed_at,
-                r.duration_ms,
-                r.error_message,
-            )
+            parse_step(ParseStepParams {
+                step_id: r.step_id,
+                task_id: r.task_id,
+                status: r.status,
+                content: r.content,
+                started_at: r.started_at,
+                completed_at: r.completed_at,
+                duration_ms: r.duration_ms,
+                error_message: r.error_message,
+            })
         })
         .transpose()
     }
@@ -116,16 +128,16 @@ impl ExecutionStepRepository {
         ))?;
         rows.into_iter()
             .map(|r| {
-                parse_step(
-                    r.step_id,
-                    r.task_id,
-                    r.status,
-                    r.content,
-                    r.started_at,
-                    r.completed_at,
-                    r.duration_ms,
-                    r.error_message,
-                )
+                parse_step(ParseStepParams {
+                    step_id: r.step_id,
+                    task_id: r.task_id,
+                    status: r.status,
+                    content: r.content,
+                    started_at: r.started_at,
+                    completed_at: r.completed_at,
+                    duration_ms: r.duration_ms,
+                    error_message: r.error_message,
+                })
             })
             .collect()
     }
@@ -276,16 +288,16 @@ impl ExecutionStepRepository {
         .await
         .context(format!("Failed to complete planning step: {step_id}"))?;
 
-        parse_step(
-            row.step_id,
-            row.task_id,
-            row.status,
-            row.content,
-            row.started_at,
-            row.completed_at,
-            row.duration_ms,
-            row.error_message,
-        )
+        parse_step(ParseStepParams {
+            step_id: row.step_id,
+            task_id: row.task_id,
+            status: row.status,
+            content: row.content,
+            started_at: row.started_at,
+            completed_at: row.completed_at,
+            duration_ms: row.duration_ms,
+            error_message: row.error_message,
+        })
     }
 
     pub async fn mcp_execution_id_exists(&self, mcp_execution_id: &str) -> Result<bool> {

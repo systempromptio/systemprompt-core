@@ -1,11 +1,11 @@
 use anyhow::{Context, Result};
-use std::path::Path;
 use std::collections::HashMap;
+use std::path::Path;
 
 use crate::paths::constants::env_vars;
 use crate::profile::{SecretsSource, SecretsValidationMode, resolve_with_home};
 use crate::profile_bootstrap::ProfileBootstrap;
-use crate::secrets::{Secrets, SECRETS, JWT_SECRET_MIN_LENGTH};
+use crate::secrets::{JWT_SECRET_MIN_LENGTH, SECRETS, Secrets};
 
 #[derive(Debug, Clone, Copy)]
 pub struct SecretsBootstrap;

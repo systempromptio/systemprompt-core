@@ -1,24 +1,24 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use systemprompt_cloud::{
-    get_cloud_paths, CloudPath, ProfilePath, ProjectContext, TenantStore, TenantType,
+    CloudPath, ProfilePath, ProjectContext, TenantStore, TenantType, get_cloud_paths,
 };
 use systemprompt_logging::CliService;
 
 use systemprompt_identifiers::TenantId;
 
-use super::api_keys::{collect_api_keys, ApiKeys};
+use super::CreateArgs;
+use super::api_keys::{ApiKeys, collect_api_keys};
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::create_setup::{get_cloud_user, handle_local_tenant_setup};
 use super::create_tenant::{get_tenants_by_type, select_tenant, select_tenant_type};
 use super::profile_steps::{ensure_unmasked_credentials, resolve_tenant_from_args};
 use super::templates::{
-    get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
-    save_secrets, update_ai_config_default_provider, DatabaseUrls,
+    DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
+    save_profile, save_secrets, update_ai_config_default_provider,
 };
-use super::CreateArgs;
 use crate::cli_settings::CliConfig;
 
-pub use super::profile_steps::{create_profile_for_tenant, CreatedProfile};
+pub use super::profile_steps::{CreatedProfile, create_profile_for_tenant};
 
 pub async fn execute(args: &CreateArgs, config: &CliConfig) -> Result<()> {
     let name = &args.name;

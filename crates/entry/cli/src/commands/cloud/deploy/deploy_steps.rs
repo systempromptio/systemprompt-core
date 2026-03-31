@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use anyhow::{Result, anyhow};
 use systemprompt_cloud::constants::{container, paths};
 use systemprompt_cloud::{CloudApiClient, ProfilePath, ProjectContext};
-use systemprompt_logging::CliService;
 use systemprompt_loader::ConfigLoader;
+use systemprompt_logging::CliService;
 
 use super::super::dockerfile::validate_profile_dockerfile;
 use super::super::secrets::sync_cloud_credentials;

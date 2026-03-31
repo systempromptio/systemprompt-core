@@ -1,6 +1,6 @@
-use anyhow::{bail, Context, Result};
-use dialoguer::theme::ColorfulTheme;
+use anyhow::{Context, Result, bail};
 use dialoguer::Input;
+use dialoguer::theme::ColorfulTheme;
 use systemprompt_cloud::{
     CloudApiClient, ProfilePath, ProjectContext, StoredTenant, TenantStore, TenantType,
 };
@@ -14,8 +14,8 @@ use crate::commands::cloud::tenant::get_credentials;
 use super::api_keys::ApiKeys;
 use super::builders::{CloudProfileBuilder, LocalProfileBuilder};
 use super::templates::{
-    get_services_path, save_dockerfile, save_dockerignore, save_entrypoint, save_profile,
-    save_secrets, update_ai_config_default_provider, DatabaseUrls,
+    DatabaseUrls, get_services_path, save_dockerfile, save_dockerignore, save_entrypoint,
+    save_profile, save_secrets, update_ai_config_default_provider,
 };
 use super::{CreateArgs, TenantTypeArg};
 

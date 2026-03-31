@@ -29,7 +29,7 @@ pub use repository::{
     OverviewAnalyticsRepository, ProviderUsage, RequestAnalyticsRepository,
     SUSTAINED_VELOCITY_MINUTES, SessionBehavioralData, SessionEngagementSummary,
     SessionMigrationResult, SessionRecord, SessionRepository, StoredAnalyticsEvent,
-    ToolAnalyticsRepository, TrafficAnalyticsRepository,
+    ToolAnalyticsRepository, ToolListParams, TrafficAnalyticsRepository,
 };
 pub use services::bot_keywords::matches_bot_pattern;
 pub use services::{

@@ -36,4 +36,5 @@ pub use session::{
     SessionRepository,
 };
 pub use tools::ToolAnalyticsRepository;
+pub use tools::list_queries::ToolListParams;
 pub use traffic::TrafficAnalyticsRepository;
