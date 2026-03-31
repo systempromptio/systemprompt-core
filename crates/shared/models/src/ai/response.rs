@@ -8,15 +8,23 @@ pub struct AiResponse {
     pub content: String,
     pub provider: String,
     pub model: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens_used: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub input_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub output_tokens: Option<u32>,
     pub latency_ms: u64,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_calls: Vec<ToolCall>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tool_results: Vec<CallToolResult>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
     pub cache_hit: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_read_tokens: Option<u32>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cache_creation_tokens: Option<u32>,
     pub is_streaming: bool,
 }
@@ -120,9 +128,13 @@ pub struct SearchGroundedResponse {
     pub sources: Vec<WebSource>,
     pub confidence_scores: Vec<f32>,
     pub web_search_queries: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub url_context_metadata: Option<Vec<UrlMetadata>>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tokens_used: Option<u32>,
     pub latency_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub safety_ratings: Option<Vec<serde_json::Value>>,
 }

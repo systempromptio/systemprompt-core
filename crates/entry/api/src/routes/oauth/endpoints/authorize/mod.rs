@@ -26,9 +26,13 @@ pub struct AuthorizeQuery {
 
 #[derive(Debug, Serialize)]
 pub struct AuthorizeResponse {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub code: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_description: Option<String>,
 }
 

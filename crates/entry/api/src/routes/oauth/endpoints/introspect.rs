@@ -22,24 +22,32 @@ pub struct IntrospectRequest {
 
 pub struct IntrospectResponse {
     pub active: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub scope: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub client_id: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub token_type: Option<String>,
-
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub exp: Option<i64>,
-
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iat: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub sub: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub aud: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub iss: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub jti: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct IntrospectError {
     pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_description: Option<String>,
 }
 

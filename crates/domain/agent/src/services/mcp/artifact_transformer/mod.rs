@@ -2,7 +2,7 @@ mod metadata_builder;
 mod parts_builder;
 mod type_inference;
 
-use crate::error::ArtifactError;
+use crate::error::{ArtifactError, RowParseError};
 use crate::models::a2a::Artifact;
 use rmcp::model::CallToolResult;
 use serde::Deserialize;
@@ -35,16 +35,18 @@ pub fn parse_tool_response(
     structured_content: &JsonValue,
 ) -> Result<ParsedToolResponse, ArtifactError> {
     if structured_content.is_null() {
-        return Err(ArtifactError::MissingField {
+        return Err(RowParseError::MissingField {
             field: "structured_content (received null)".to_string(),
-        });
+        }
+        .into());
     }
 
     if let Some(obj) = structured_content.as_object() {
         if obj.is_empty() {
-            return Err(ArtifactError::MissingField {
+            return Err(RowParseError::MissingField {
                 field: "structured_content (received empty object {})".to_string(),
-            });
+            }
+            .into());
         }
     }
 
@@ -159,7 +161,7 @@ impl McpToA2aTransformer {
             tool_result
                 .structured_content
                 .as_ref()
-                .ok_or_else(|| ArtifactError::MissingField {
+                .ok_or_else(|| RowParseError::MissingField {
                     field: "structured_content".to_string(),
                 })?;
 

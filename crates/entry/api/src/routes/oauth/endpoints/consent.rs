@@ -21,12 +21,14 @@ pub struct ConsentQuery {
 pub struct ConsentResponse {
     pub client_name: String,
     pub scopes: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub state: Option<String>,
 }
 
 #[derive(Debug, Serialize)]
 pub struct ConsentError {
     pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_description: Option<String>,
 }
 

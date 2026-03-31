@@ -32,11 +32,23 @@
 - Block symlinks and hardlinks in tarball extraction with canonical path validation
 - Unify authorization code error messages to prevent enumeration attacks
 
+### Refactored
+- **CLI architecture remediation**: eliminate all `unwrap_or_default()`, `unsafe`, unlogged `.ok()`, and `println!()` violations across 8 CLI domains (admin, analytics, cloud, core, infrastructure, plugins, web, build)
+- Split 14 oversized CLI files (>300 lines) into focused submodules — zero files now exceed the 300-line limit
+- Extract magic numbers to named constants across analytics and infrastructure commands
+- Refactor long functions (>75 lines) in analytics agents/show, sessions/live, and tools/show
+- Replace `unsafe { std::env::set_var() }` in cloud profile/sync with safe `ProfileBootstrap::init_from_path()` config propagation
+- Replace raw `std::env::var()` calls in cloud commands with Config-based alternatives
+- **Struct consolidation**: rename duplicate `ToolModelConfig` (all-optional) to `ToolModelOverride`, resolve `Settings` collision into `ServicesSettings`/`DeploymentSettings`, deduplicate `RenderingHints` (CLI now imports from models crate)
+- Convert `ToolContext` ID fields from raw `String` to typed identifiers (`SessionId`, `TraceId`, `AiToolCallId`)
+- Convert image generation model ID fields from raw `String` to typed identifiers (`UserId`, `SessionId`, `TraceId`, `McpExecutionId`)
+
 ### Fixed
 - Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development
 - MCP binary validation uses dynamic bin directory resolution instead of hardcoding `target/release`
 - Fix test compilation across `systemprompt-generator` and `systemprompt-sync`
 - Remove needless `..Default::default()` in API JWT config
+- Fix `bool as Option<bool>` invalid cast in trace list queries
 
 ## [0.1.18] - 2026-03-05
 

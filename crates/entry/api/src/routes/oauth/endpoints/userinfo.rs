@@ -11,9 +11,13 @@ use systemprompt_oauth::services::validate_jwt_token;
 
 pub struct UserinfoResponse {
     pub sub: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub username: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub email: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub user_type: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub roles: Option<Vec<String>>,
 }
 
@@ -21,6 +25,7 @@ pub struct UserinfoResponse {
 
 pub struct UserinfoError {
     pub error: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_description: Option<String>,
 }
 

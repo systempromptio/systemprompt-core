@@ -2,7 +2,7 @@ pub mod a2a;
 pub mod agent;
 pub mod agent_info;
 pub mod context;
-pub mod database_rows;
+pub(crate) mod database_rows;
 pub mod external_integrations;
 pub mod runtime;
 pub mod skill;
@@ -30,9 +30,9 @@ pub use systemprompt_models::{
     ExecutionStep, PlannedTool, StepContent, StepId, StepStatus, StepType, TrackedStep,
 };
 
-pub use database_rows::{
-    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart,
-    PushNotificationConfigRow, SkillRow, TaskMessage, TaskRow,
+pub(crate) use database_rows::{
+    AgentRow, ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, SkillRow,
+    TaskMessage, TaskRow,
 };
 
 pub use web::*;

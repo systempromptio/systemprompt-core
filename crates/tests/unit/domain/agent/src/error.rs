@@ -1,13 +1,47 @@
 //! Unit tests for agent error types
 //!
 //! Tests cover:
+//! - RowParseError shared variants
 //! - TaskError variants and error messages
 //! - ContextError variants and error messages
 //! - ArtifactError variants and error messages
 //! - ProtocolError variants and error messages
 //! - AgentError conversions and wrapping
 
-use systemprompt_agent::{AgentError, ArtifactError, ContextError, ProtocolError, TaskError};
+use systemprompt_agent::{
+    AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError,
+};
+
+// ============================================================================
+// RowParseError Tests
+// ============================================================================
+
+#[test]
+fn test_row_parse_error_missing_field_display() {
+    let error = RowParseError::MissingField {
+        field: "context_id".to_string(),
+    };
+    assert!(error.to_string().contains("context_id"));
+    assert!(error.to_string().contains("Missing required field"));
+}
+
+#[test]
+fn test_row_parse_error_invalid_datetime_display() {
+    let error = RowParseError::InvalidDatetime {
+        field: "created_at".to_string(),
+    };
+    assert!(error.to_string().contains("created_at"));
+    assert!(error.to_string().contains("Invalid datetime"));
+}
+
+#[test]
+fn test_row_parse_error_debug() {
+    let error = RowParseError::MissingField {
+        field: "test".to_string(),
+    };
+    let debug_str = format!("{:?}", error);
+    assert!(debug_str.contains("MissingField"));
+}
 
 // ============================================================================
 // TaskError Tests
@@ -44,21 +78,23 @@ fn test_task_error_invalid_task_state_display() {
 }
 
 #[test]
-fn test_task_error_missing_field_display() {
-    let error = TaskError::MissingField {
+fn test_task_error_from_row_parse_missing_field() {
+    let row_err = RowParseError::MissingField {
         field: "context_id".to_string(),
     };
-    assert!(error.to_string().contains("context_id"));
-    assert!(error.to_string().contains("Missing required field"));
+    let task_error: TaskError = row_err.into();
+    assert!(task_error.to_string().contains("context_id"));
+    assert!(task_error.to_string().contains("Missing required field"));
 }
 
 #[test]
-fn test_task_error_invalid_datetime_display() {
-    let error = TaskError::InvalidDatetime {
-        field: "created_at".to_string(),
+fn test_task_error_from_row_parse_invalid_datetime() {
+    let row_err = RowParseError::InvalidDatetime {
+        field: "updated_at".to_string(),
     };
-    assert!(error.to_string().contains("created_at"));
-    assert!(error.to_string().contains("Invalid datetime"));
+    let task_error: TaskError = row_err.into();
+    assert!(task_error.to_string().contains("updated_at"));
+    assert!(task_error.to_string().contains("Invalid datetime"));
 }
 
 #[test]
@@ -123,21 +159,23 @@ fn test_context_error_missing_user_id_display() {
 }
 
 #[test]
-fn test_context_error_missing_field_display() {
-    let error = ContextError::MissingField {
+fn test_context_error_from_row_parse_missing_field() {
+    let row_err = RowParseError::MissingField {
         field: "description".to_string(),
     };
-    assert!(error.to_string().contains("description"));
-    assert!(error.to_string().contains("Missing required field"));
+    let context_error: ContextError = row_err.into();
+    assert!(context_error.to_string().contains("description"));
+    assert!(context_error.to_string().contains("Missing required field"));
 }
 
 #[test]
-fn test_context_error_invalid_datetime_display() {
-    let error = ContextError::InvalidDatetime {
+fn test_context_error_from_row_parse_invalid_datetime() {
+    let row_err = RowParseError::InvalidDatetime {
         field: "updated_at".to_string(),
     };
-    assert!(error.to_string().contains("updated_at"));
-    assert!(error.to_string().contains("Invalid datetime"));
+    let context_error: ContextError = row_err.into();
+    assert!(context_error.to_string().contains("updated_at"));
+    assert!(context_error.to_string().contains("Invalid datetime"));
 }
 
 // ============================================================================
@@ -163,21 +201,23 @@ fn test_artifact_error_missing_context_id_display() {
 }
 
 #[test]
-fn test_artifact_error_missing_field_display() {
-    let error = ArtifactError::MissingField {
+fn test_artifact_error_from_row_parse_missing_field() {
+    let row_err = RowParseError::MissingField {
         field: "content".to_string(),
     };
-    assert!(error.to_string().contains("content"));
-    assert!(error.to_string().contains("Missing required field"));
+    let artifact_error: ArtifactError = row_err.into();
+    assert!(artifact_error.to_string().contains("content"));
+    assert!(artifact_error.to_string().contains("Missing required field"));
 }
 
 #[test]
-fn test_artifact_error_invalid_datetime_display() {
-    let error = ArtifactError::InvalidDatetime {
+fn test_artifact_error_from_row_parse_invalid_datetime() {
+    let row_err = RowParseError::InvalidDatetime {
         field: "created_at".to_string(),
     };
-    assert!(error.to_string().contains("created_at"));
-    assert!(error.to_string().contains("Invalid datetime"));
+    let artifact_error: ArtifactError = row_err.into();
+    assert!(artifact_error.to_string().contains("created_at"));
+    assert!(artifact_error.to_string().contains("Invalid datetime"));
 }
 
 #[test]

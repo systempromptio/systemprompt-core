@@ -39,7 +39,7 @@ pub enum McpError {
     Internal(String),
 }
 
-pub type McpResult<T> = Result<T, McpError>;
+pub type Result<T> = std::result::Result<T, McpError>;
 
 impl From<anyhow::Error> for McpError {
     fn from(err: anyhow::Error) -> Self {

@@ -66,7 +66,7 @@ pub use models::a2a::{
     TransportProtocol,
 };
 
-pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, TaskError};
+pub use error::{AgentError, ArtifactError, ContextError, ProtocolError, RowParseError, TaskError};
 
 pub use services::{
     AgentEvent, AgentEventBus, AgentHandlerState, AgentOrchestrator, AgentServer, AgentStatus,

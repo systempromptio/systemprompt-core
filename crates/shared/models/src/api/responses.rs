@@ -203,8 +203,10 @@ impl<T: Serialize + 'static> CreatedResponse<T> {
 pub struct AcceptedResponse {
     pub message: String,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub job_id: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub status_url: Option<String>,
 
     pub meta: ResponseMeta,

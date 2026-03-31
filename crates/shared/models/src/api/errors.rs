@@ -196,6 +196,7 @@ pub struct ValidationError {
 
     pub code: String,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub context: Option<Value>,
 }
 
@@ -205,17 +206,21 @@ pub struct ApiError {
 
     pub message: String,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub error_key: Option<String>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub path: Option<String>,
 
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub validation_errors: Vec<ValidationError>,
 
     pub timestamp: DateTime<Utc>,
 
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub trace_id: Option<String>,
 }
 

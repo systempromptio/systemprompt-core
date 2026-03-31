@@ -94,7 +94,7 @@ pub async fn list_traces(
         exclude_system,
         agent_pat,
         status_val,
-        filter.has_mcp as Option<bool>,
+        Some(filter.has_mcp) as Option<bool>,
         require_tracked,
         filter.limit
     )

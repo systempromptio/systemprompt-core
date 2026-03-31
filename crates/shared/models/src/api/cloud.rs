@@ -24,14 +24,14 @@ pub struct CloudApiErrorDetail {
 pub struct CloudUserInfo {
     pub id: String,
     pub email: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudCustomerInfo {
     pub id: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<String>,
 }
 
@@ -47,7 +47,7 @@ pub enum SubscriptionStatus {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CloudPlanInfo {
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub id: Option<String>,
     pub name: String,
     pub memory_mb: i32,
@@ -63,7 +63,7 @@ pub struct CloudPlan {
     pub memory_mb_default: i32,
     #[serde(default)]
     pub volume_gb: i32,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tenants: Option<i32>,
 }
 
@@ -80,19 +80,19 @@ pub enum CloudTenantStatus {
 pub struct CloudTenantInfo {
     pub id: String,
     pub name: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscription_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub subscription_status: Option<SubscriptionStatus>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_id: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub region: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub status: Option<CloudTenantStatus>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<CloudPlanInfo>,
     #[serde(default)]
     pub external_db_access: bool,
@@ -103,20 +103,22 @@ pub struct CloudTenantInfo {
 pub struct CloudTenant {
     pub id: String,
     pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fly_app_name: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub fly_hostname: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hostname: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
 pub struct CloudTenantStatusResponse {
     pub status: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_url: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub secrets_url: Option<String>,
 }
 
@@ -166,18 +168,18 @@ pub struct CloudEnterpriseLicenseInfo {
     pub id: String,
     pub name: String,
     pub domain: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub plan: Option<CloudPlanInfo>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserMeResponse {
     pub user: CloudUserInfo,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub customer: Option<CloudCustomerInfo>,
     #[serde(default)]
     pub tenants: Vec<CloudTenantInfo>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub enterprise: Option<CloudEnterpriseLicenseInfo>,
 }
 
@@ -198,6 +200,7 @@ pub struct RegistryToken {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeployResponse {
     pub status: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub app_url: Option<String>,
 }
 
@@ -247,11 +250,11 @@ pub struct ProvisioningEvent {
     pub tenant_id: String,
     pub event_type: ProvisioningEventType,
     pub status: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_url: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fly_app_name: Option<String>,
 }
 
@@ -262,11 +265,11 @@ pub struct CheckoutEvent {
     pub tenant_name: String,
     pub event_type: ProvisioningEventType,
     pub status: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub message: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub app_url: Option<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fly_app_name: Option<String>,
 }
 
@@ -274,7 +277,7 @@ pub struct CheckoutEvent {
 pub struct CloudLogEntry {
     pub timestamp: String,
     pub message: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub level: Option<String>,
 }
 

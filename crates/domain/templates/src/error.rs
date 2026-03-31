@@ -32,3 +32,5 @@ pub enum TemplateError {
     #[error("Template registry not initialized")]
     NotInitialized,
 }
+
+pub type Result<T> = std::result::Result<T, TemplateError>;

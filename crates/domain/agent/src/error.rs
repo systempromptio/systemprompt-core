@@ -1,6 +1,22 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+pub enum RowParseError {
+    #[error("Missing required field: {field}")]
+    MissingField { field: String },
+
+    #[error("Invalid datetime for field '{field}'")]
+    InvalidDatetime { field: String },
+
+    #[error("JSON parse error for field '{field}': {source}")]
+    JsonParse {
+        field: String,
+        #[source]
+        source: serde_json::Error,
+    },
+}
+
+#[derive(Debug, Error)]
 pub enum TaskError {
     #[error("Task UUID missing from database row")]
     MissingTaskUuid,
@@ -14,18 +30,8 @@ pub enum TaskError {
     #[error("Invalid task state: {state}")]
     InvalidTaskState { state: String },
 
-    #[error("Missing required field: {field}")]
-    MissingField { field: String },
-
-    #[error("Invalid datetime for field '{field}'")]
-    InvalidDatetime { field: String },
-
-    #[error("JSON parse error for field '{field}': {source}")]
-    JsonParse {
-        field: String,
-        #[source]
-        source: serde_json::Error,
-    },
+    #[error(transparent)]
+    RowParse(#[from] RowParseError),
 
     #[error("Metadata parse error: {0}")]
     InvalidMetadata(#[from] serde_json::Error),
@@ -63,18 +69,8 @@ pub enum ContextError {
     #[error("User ID missing from database row")]
     MissingUserId,
 
-    #[error("Missing required field: {field}")]
-    MissingField { field: String },
-
-    #[error("Invalid datetime for field '{field}'")]
-    InvalidDatetime { field: String },
-
-    #[error("JSON parse error for field '{field}': {source}")]
-    JsonParse {
-        field: String,
-        #[source]
-        source: serde_json::Error,
-    },
+    #[error(transparent)]
+    RowParse(#[from] RowParseError),
 
     #[error("Role serialization error: {0}")]
     RoleSerialization(#[from] serde_json::Error),
@@ -94,18 +90,8 @@ pub enum ArtifactError {
     #[error("Context ID missing for artifact")]
     MissingContextId,
 
-    #[error("Missing required field: {field}")]
-    MissingField { field: String },
-
-    #[error("Invalid datetime for field '{field}'")]
-    InvalidDatetime { field: String },
-
-    #[error("JSON parse error for field '{field}': {source}")]
-    JsonParse {
-        field: String,
-        #[source]
-        source: serde_json::Error,
-    },
+    #[error(transparent)]
+    RowParse(#[from] RowParseError),
 
     #[error("Invalid tool response schema: expected {expected}, found keys: {actual_keys:?}")]
     InvalidSchema {

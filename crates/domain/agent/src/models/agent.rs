@@ -11,6 +11,7 @@ pub struct Agent {
     pub display_name: String,
     pub description: String,
     pub version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub system_prompt: Option<String>,
     pub enabled: bool,
     pub port: i32,
@@ -19,9 +20,12 @@ pub struct Agent {
     pub is_primary: bool,
     pub is_default: bool,
     pub tags: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub category_id: Option<CategoryId>,
     pub source_id: SourceId,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     pub mcp_servers: Vec<String>,
     pub skills: Vec<String>,
