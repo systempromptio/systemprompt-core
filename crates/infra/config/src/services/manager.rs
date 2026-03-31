@@ -51,7 +51,7 @@ impl ConfigManager {
             ));
         }
 
-        self.load_secrets()?;
+        let secrets = self.load_secrets()?;
 
         CliService::success(&format!(
             "   Parsing base config: {}",
@@ -67,7 +67,7 @@ impl ConfigManager {
 
         let merged = Self::merge_configs(base_vars, env_vars);
 
-        let resolved = Self::resolve_variables(merged)?;
+        let resolved = Self::resolve_variables(merged, &secrets)?;
 
         CliService::success("   Configuration generated successfully");
 
@@ -77,8 +77,9 @@ impl ConfigManager {
         })
     }
 
-    fn load_secrets(&self) -> Result<()> {
+    fn load_secrets(&self) -> Result<HashMap<String, String>> {
         let secrets_file = self.project_root.join(".env.secrets");
+        let mut secrets = HashMap::new();
 
         if secrets_file.exists() {
             CliService::info(&format!(
@@ -94,14 +95,10 @@ impl ConfigManager {
                 }
 
                 if let Some((key, value)) = line.split_once('=') {
-                    // SAFETY: Config loading runs single-threaded during bootstrap
-                    // before any async runtime or worker threads are spawned.
-                    // Environment variables must be set here because resolve_variables()
-                    // uses std::env::var() to interpolate ${VAR} references in config YAML.
-                    #[allow(unsafe_code)]
-                    unsafe {
-                        std::env::set_var(key.trim(), value.trim().trim_matches('"'));
-                    }
+                    secrets.insert(
+                        key.trim().to_string(),
+                        value.trim().trim_matches('"').to_string(),
+                    );
                 }
             }
 
@@ -110,7 +107,7 @@ impl ConfigManager {
             CliService::warning("   No .env.secrets file found");
         }
 
-        Ok(())
+        Ok(secrets)
     }
 
     fn yaml_to_flat_map(yaml_path: &Path) -> Result<HashMap<String, String>> {
@@ -169,7 +166,10 @@ impl ConfigManager {
         merged
     }
 
-    fn resolve_variables(mut vars: HashMap<String, String>) -> Result<HashMap<String, String>> {
+    fn resolve_variables(
+        mut vars: HashMap<String, String>,
+        secrets: &HashMap<String, String>,
+    ) -> Result<HashMap<String, String>> {
         let var_regex = Regex::new(r"\$\{([^}:]+)(?::-(.*?))?\}")?;
         let max_passes = 5;
 
@@ -178,7 +178,7 @@ impl ConfigManager {
 
             for (key, value) in vars.clone() {
                 if var_regex.is_match(&value) {
-                    let resolved = Self::resolve_value(&value, &vars, &var_regex)?;
+                    let resolved = Self::resolve_value(&value, &vars, secrets, &var_regex)?;
 
                     if resolved != value {
                         vars.insert(key, resolved);
@@ -214,6 +214,7 @@ impl ConfigManager {
     fn resolve_value(
         value: &str,
         vars: &HashMap<String, String>,
+        secrets: &HashMap<String, String>,
         var_regex: &Regex,
     ) -> Result<String> {
         let mut result = value.to_string();
@@ -229,11 +230,14 @@ impl ConfigManager {
                 .as_str();
             let default_value = cap.get(2).map(|m| m.as_str());
 
-            let replacement = std::env::var(var_name).unwrap_or_else(|_| {
-                vars.get(var_name).cloned().unwrap_or_else(|| {
+            let replacement = secrets
+                .get(var_name)
+                .cloned()
+                .or_else(|| std::env::var(var_name).ok())
+                .or_else(|| vars.get(var_name).cloned())
+                .unwrap_or_else(|| {
                     default_value.map_or_else(|| full_match.to_string(), ToString::to_string)
-                })
-            });
+                });
 
             result = result.replace(full_match, &replacement);
         }

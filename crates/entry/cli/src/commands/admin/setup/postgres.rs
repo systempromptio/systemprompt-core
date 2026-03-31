@@ -3,7 +3,6 @@ use dialoguer::theme::ColorfulTheme;
 use dialoguer::{Confirm, Input, Password, Select};
 use rand::distr::Alphanumeric;
 use rand::{Rng, rng};
-use sqlx::Row;
 use sqlx::postgres::PgPoolOptions;
 use std::net::ToSocketAddrs;
 use std::time::Duration;
@@ -247,7 +246,7 @@ pub async fn test_connection(config: &PostgresConfig) -> bool {
         return false;
     };
 
-    let result = sqlx::query("SELECT 1").fetch_one(&pool).await.is_ok();
+    let result = sqlx::query_scalar!("SELECT 1 as one").fetch_one(&pool).await.is_ok();
     pool.close().await;
     result
 }
@@ -280,11 +279,11 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
         .await
         .context("Failed to connect with superuser credentials")?;
 
-    let user_exists: bool = sqlx::query("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)")
-        .bind(&config.user)
-        .fetch_one(&pool)
-        .await?
-        .get(0);
+    let user_exists: bool =
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)", &config.user)
+            .fetch_one(&pool)
+            .await?
+            .unwrap_or(false);
 
     if !user_exists {
         CliService::info(&format!("Creating user '{}'...", config.user));
@@ -298,11 +297,10 @@ async fn create_database_interactive(config: &PostgresConfig) -> Result<()> {
     }
 
     let db_exists: bool =
-        sqlx::query("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)")
-            .bind(&config.database)
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", &config.database)
             .fetch_one(&pool)
             .await?
-            .get(0);
+            .unwrap_or(false);
 
     if !db_exists {
         CliService::info(&format!("Creating database '{}'...", config.database));

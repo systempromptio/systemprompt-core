@@ -65,23 +65,13 @@ fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
-#[allow(unsafe_code)]
 fn get_disk_usage() -> Option<serde_json::Value> {
-    let path = std::ffi::CString::new(".").ok()?;
-    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-    // SAFETY: statvfs is a POSIX syscall; path is a valid CString; stat is
-    // initialized on success
-    let ret = unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) };
-    if ret != 0 {
-        return None;
-    }
-    // SAFETY: ret == 0 guarantees stat is fully initialized
-    let stat = unsafe { stat.assume_init() };
+    let stat = nix::sys::statvfs::statvfs(".").ok()?;
 
-    let block_size = stat.f_frsize;
-    let total = stat.f_blocks.saturating_mul(block_size);
-    let available = stat.f_bavail.saturating_mul(block_size);
-    let free = stat.f_bfree.saturating_mul(block_size);
+    let block_size = stat.fragment_size();
+    let total = stat.blocks().saturating_mul(block_size);
+    let available = stat.blocks_available().saturating_mul(block_size);
+    let free = stat.blocks_free().saturating_mul(block_size);
     let used = total.saturating_sub(free);
 
     let usage_pct = if total > 0 {

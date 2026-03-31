@@ -93,7 +93,7 @@ validator = { workspace = true }
 webauthn-rs = { workspace = true }
 
 # System
-libc = { workspace = true }
+nix = { workspace = true }
 
 # Sync/compression
 flate2 = { workspace = true }

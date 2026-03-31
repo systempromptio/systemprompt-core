@@ -269,7 +269,6 @@ pub async fn create_database_in_docker(
     config: &PostgresConfig,
     container_name: &str,
 ) -> Result<()> {
-    use sqlx::Row;
     use sqlx::postgres::PgPoolOptions;
     use std::time::Duration;
 
@@ -300,11 +299,11 @@ pub async fn create_database_in_docker(
         .await
         .context("Failed to connect to Docker PostgreSQL")?;
 
-    let user_exists: bool = sqlx::query("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)")
-        .bind(&config.user)
-        .fetch_one(&pool)
-        .await?
-        .get(0);
+    let user_exists: bool =
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_roles WHERE rolname = $1)", &config.user)
+            .fetch_one(&pool)
+            .await?
+            .unwrap_or(false);
 
     if !user_exists {
         let create_user_sql = format!(
@@ -317,11 +316,10 @@ pub async fn create_database_in_docker(
     }
 
     let db_exists: bool =
-        sqlx::query("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)")
-            .bind(&config.database)
+        sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM pg_database WHERE datname = $1)", &config.database)
             .fetch_one(&pool)
             .await?
-            .get(0);
+            .unwrap_or(false);
 
     if !db_exists {
         let create_db_sql = format!(
