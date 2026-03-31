@@ -78,8 +78,7 @@ pub fn generate_webauthn_form(params: &AuthorizeQuery, resolved_scope: &str) -> 
     let code_challenge_method = params.code_challenge_method.as_deref().unwrap_or("");
     let resource = params.resource.as_deref().unwrap_or("");
     let api_external_url = Config::get()
-        .map(|c| c.api_external_url.as_str())
-        .unwrap_or("");
+        .map_or("", |c| c.api_external_url.as_str());
 
     context.insert("client_id", params.client_id.as_str());
     context.insert("scope", resolved_scope);

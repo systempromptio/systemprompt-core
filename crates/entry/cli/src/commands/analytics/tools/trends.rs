@@ -9,7 +9,8 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{ToolTrendPoint, ToolTrendsOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{
-    export_to_csv, format_period_label, parse_time_range, resolve_export_path, truncate_to_period,
+    export_to_csv, format_date_range, format_period_label, parse_time_range, resolve_export_path,
+    truncate_to_period,
 };
 use crate::shared::{ChartType, CommandResult};
 
@@ -106,7 +107,7 @@ async fn execute_internal(
 
     let output = ToolTrendsOutput {
         tool: args.tool.clone(),
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        period: format_date_range(start, end),
         group_by: args.group_by.clone(),
         points,
     };

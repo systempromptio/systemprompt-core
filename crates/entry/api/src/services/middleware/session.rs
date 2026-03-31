@@ -32,14 +32,17 @@ impl SessionMiddleware {
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?;
         let jwt_extractor = Arc::new(JwtExtractor::new(jwt_secret));
         let user_service = UserService::new(ctx.db_pool())?;
+        #[allow(clippy::clone_on_ref_ptr)]
+        let analytics: Arc<dyn AnalyticsProvider> =
+            ctx.analytics_service().clone();
         let session_creation_service = Arc::new(SessionCreationService::new(
-            ctx.analytics_service().clone(),
+            analytics,
             Arc::new(UserProviderImpl::new(user_service)),
         ));
 
         Ok(Self {
             jwt_extractor,
-            analytics_service: ctx.analytics_service().clone(),
+            analytics_service: Arc::clone(ctx.analytics_service()),
             session_creation_service,
         })
     }

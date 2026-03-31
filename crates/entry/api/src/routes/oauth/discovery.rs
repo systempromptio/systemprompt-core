@@ -106,7 +106,7 @@ pub async fn handle_oauth_protected_resource() -> impl IntoResponse {
         authorization_servers: vec![config.issuer.clone()],
         scopes_supported: config.supported_scopes,
         bearer_methods_supported: vec!["header".to_string(), "body".to_string()],
-        resource_documentation: Some(config.issuer.clone()),
+        resource_documentation: Some(config.issuer),
     };
 
     (StatusCode::OK, Json(response)).into_response()

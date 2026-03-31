@@ -20,14 +20,16 @@ impl FilesQuery {
             "agents", "skills", "content", "mcp", "ai", "config", "profiles",
         ];
 
-        match &self.filter {
-            Some(filter) => filter
-                .split(',')
-                .map(str::trim)
-                .filter(|d| ALL_DIRS.contains(d))
-                .collect(),
-            None => ALL_DIRS.to_vec(),
-        }
+        self.filter.as_ref().map_or_else(
+            || ALL_DIRS.to_vec(),
+            |filter| {
+                filter
+                    .split(',')
+                    .map(str::trim)
+                    .filter(|d| ALL_DIRS.contains(d))
+                    .collect()
+            },
+        )
     }
 }
 

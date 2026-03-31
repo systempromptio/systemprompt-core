@@ -71,6 +71,7 @@ pub async fn ip_ban_middleware(
     next.run(request).await
 }
 
+#[allow(clippy::type_complexity)]
 pub fn ip_ban_layer(
     banned_ip_repo: Arc<BannedIpRepository>,
 ) -> axum::middleware::FromFnLayer<
@@ -79,7 +80,7 @@ pub fn ip_ban_layer(
     Request,
 > {
     axum::middleware::from_fn(move |req: Request, next: Next| {
-        let repo = banned_ip_repo.clone();
+        let repo = Arc::clone(&banned_ip_repo);
         let fut: Pin<Box<dyn Future<Output = Response> + Send>> =
             Box::pin(async move { ip_ban_middleware(req, next, repo).await });
         fut

@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::{BotRow, BotsOutput};
 use crate::CliConfig;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, parse_time_range, resolve_export_path,
+    export_single_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
 use crate::shared::CommandResult;
 
@@ -79,7 +79,7 @@ async fn execute_internal(
         .collect();
 
     let output = BotsOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        period: format_date_range(start, end),
         human_sessions: totals.human,
         bot_sessions: totals.bot,
         bot_percentage,

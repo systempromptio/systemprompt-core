@@ -7,7 +7,9 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{TrafficSourceRow, TrafficSourcesOutput};
 use crate::CliConfig;
-use crate::commands::analytics::shared::{export_to_csv, parse_time_range, resolve_export_path};
+use crate::commands::analytics::shared::{
+    export_to_csv, format_date_range, parse_time_range, resolve_export_path,
+};
 use crate::shared::{CommandResult, RenderingHints};
 
 #[derive(Debug, Args)]
@@ -79,7 +81,7 @@ async fn execute_internal(
         .collect();
 
     let output = TrafficSourcesOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        period: format_date_range(start, end),
         sources,
         total_sessions: total,
     };

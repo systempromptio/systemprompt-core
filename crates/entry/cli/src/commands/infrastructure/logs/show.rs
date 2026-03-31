@@ -8,7 +8,7 @@ use std::sync::Arc;
 use systemprompt_logging::CliService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
-use super::shared::truncate_id;
+use systemprompt_models::text::truncate_with_ellipsis;
 use crate::CliConfig;
 use crate::shared::{CommandResult, render_result};
 
@@ -251,7 +251,7 @@ fn display_single_log(log: &LogRow, config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full execution trace",
-        truncate_id(&output.trace_id, 12)
+        truncate_with_ellipsis(&output.trace_id, 12)
     ));
 }
 
@@ -275,7 +275,7 @@ fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
         return;
     }
 
-    CliService::section(&format!("Logs for Trace: {}", truncate_id(&trace_id, 12)));
+    CliService::section(&format!("Logs for Trace: {}", truncate_with_ellipsis(&trace_id, 12)));
     CliService::info(&format!("Found {} log entries", logs.len()));
     CliService::info("");
 
@@ -299,6 +299,6 @@ fn display_trace_logs(logs: &[LogRow], config: &CliConfig, json: bool) {
     CliService::info("");
     CliService::info(&format!(
         "Tip: Use 'logs trace show {}' for full trace with AI/MCP details",
-        truncate_id(&trace_id, 12)
+        truncate_with_ellipsis(&trace_id, 12)
     ));
 }

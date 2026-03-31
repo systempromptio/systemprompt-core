@@ -218,7 +218,7 @@ impl RequestBuilder {
         url: &str,
         headers: &HeaderMap,
         body: Vec<u8>,
-    ) -> Result<reqwest::RequestBuilder, StatusCode> {
+    ) -> reqwest::RequestBuilder {
         let mut req_builder = client.request(method, url);
         req_builder = Self::add_headers(req_builder, headers);
 
@@ -226,7 +226,7 @@ impl RequestBuilder {
             req_builder = req_builder.body(body);
         }
 
-        Ok(req_builder)
+        req_builder
     }
 
     fn add_headers(

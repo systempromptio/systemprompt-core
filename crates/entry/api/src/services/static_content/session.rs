@@ -43,8 +43,11 @@ pub async fn ensure_session(
     }
 
     let user_service = UserService::new(ctx.db_pool())?;
+    #[allow(clippy::clone_on_ref_ptr)]
+    let analytics: Arc<dyn systemprompt_traits::AnalyticsProvider> =
+        ctx.analytics_service().clone();
     let session_service = SessionCreationService::new(
-        ctx.analytics_service().clone(),
+        analytics,
         Arc::new(UserProviderImpl::new(user_service)),
     );
 

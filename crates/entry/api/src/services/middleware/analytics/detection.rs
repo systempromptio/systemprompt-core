@@ -66,20 +66,21 @@ pub fn spawn_behavioral_detection_task(
             .flatten();
 
         let (started_at, last_activity_at, actual_request_count, landing_page, entry_url) =
-            session_data
-                .map(|s| {
+            session_data.map_or_else(
+                || {
+                    let now = Utc::now();
+                    (now, now, request_count, None, None)
+                },
+                |s| {
                     (
                         s.started_at,
                         s.last_activity_at,
-                        s.request_count.map(i64::from).unwrap_or(request_count),
+                        s.request_count.map_or(request_count, i64::from),
                         s.landing_page,
                         s.entry_url,
                     )
-                })
-                .unwrap_or_else(|| {
-                    let now = Utc::now();
-                    (now, now, request_count, None, None)
-                });
+                },
+            );
 
         let session_id_for_update = session_id.clone();
         let input = BehavioralAnalysisInput {

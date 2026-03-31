@@ -1,4 +1,5 @@
 use serde_json::json;
+use systemprompt_agent::models::a2a::TaskState;
 use systemprompt_identifiers::{TaskId, UserId};
 use systemprompt_models::ExecutionStep;
 use systemprompt_runtime::AppContext;
@@ -38,7 +39,6 @@ async fn load_task_completed(
     let artifact_repo = ArtifactRepository::new(db)?;
     let step_repo = ExecutionStepRepository::new(db)?;
 
-    use systemprompt_agent::models::a2a::TaskState;
     let task_id = TaskId::new(&request.entity_id);
     let timestamp = chrono::Utc::now();
     task_repo
@@ -201,6 +201,7 @@ async fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData
     })
 }
 
+#[allow(clippy::items_after_statements)]
 async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_data = request.task_data.as_ref().ok_or_else(|| {
         anyhow::anyhow!(

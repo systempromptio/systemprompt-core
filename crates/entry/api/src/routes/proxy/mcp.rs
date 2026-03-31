@@ -122,10 +122,9 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
         },
     };
 
-    let scopes = match get_mcp_server_scopes(&service_name).await {
-        Some(s) => s,
-        None => vec!["user".to_string()],
-    };
+    let scopes = get_mcp_server_scopes(&service_name)
+        .await
+        .unwrap_or_else(|| vec!["user".to_string()]);
 
     let resource_url = format!("{}/api/v1/mcp/{}/mcp", base_url, service_name);
 

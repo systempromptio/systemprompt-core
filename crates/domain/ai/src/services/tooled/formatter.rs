@@ -1,5 +1,6 @@
 use rmcp::model::{CallToolResult, RawContent};
 use systemprompt_models::ToolCall;
+use systemprompt_models::text::truncate_with_ellipsis;
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct ToolResultFormatter;
@@ -22,7 +23,7 @@ impl ToolResultFormatter {
             "Tool '{}' [{}]: {}",
             call.name,
             status,
-            Self::truncate(&content_text, 500)
+            truncate_with_ellipsis(&content_text, 500)
         )
     }
 
@@ -51,7 +52,7 @@ impl ToolResultFormatter {
             .take(200)
             .collect::<String>();
 
-        let truncated = Self::truncate(&content_text, 1000);
+        let truncated = truncate_with_ellipsis(&content_text, 1000);
 
         let completion_note = if is_success {
             "\n\n**IMPORTANT**: This tool completed successfully. The action has been performed. \
@@ -83,7 +84,7 @@ impl ToolResultFormatter {
     ) -> String {
         let status = Self::status_string(result);
         let content_text = Self::extract_text_content(result);
-        let preview = Self::truncate(&content_text, 200);
+        let preview = truncate_with_ellipsis(&content_text, 200);
 
         format!("{}. {} [{}]: {}", index, call.name, status, preview)
     }
@@ -133,11 +134,4 @@ impl ToolResultFormatter {
             .join("\n")
     }
 
-    fn truncate(s: &str, max_len: usize) -> String {
-        if s.len() > max_len {
-            format!("{}...", &s[..max_len])
-        } else {
-            s.to_string()
-        }
-    }
 }

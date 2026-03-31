@@ -169,6 +169,7 @@ pub async fn get_artifact_ui(
 
     tracing::debug!(artifact_id = %artifact_id, "Artifact UI rendered successfully");
 
+    #[allow(clippy::expect_used)]
     Ok(Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, MCP_APP_MIME_TYPE)

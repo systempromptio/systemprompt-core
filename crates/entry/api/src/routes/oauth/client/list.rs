@@ -23,6 +23,7 @@ pub struct ListClientsQuery {
     pub status: Option<String>,
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn paginated_response<T: serde::Serialize>(items: Vec<T>, pagination: PaginationInfo) -> Response {
     (
         StatusCode::OK,

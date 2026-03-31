@@ -118,25 +118,4 @@ pub fn truncate_to_period(dt: DateTime<Utc>, period: &str) -> DateTime<Utc> {
     }
 }
 
-pub fn format_duration_ms(ms: i64) -> String {
-    match ms {
-        ms if ms < 1000 => format!("{}ms", ms),
-        ms if ms < 60_000 => format!("{:.1}s", ms as f64 / 1000.0),
-        ms if ms < 3_600_000 => format!("{:.1}m", ms as f64 / 60_000.0),
-        _ => format!("{:.1}h", ms as f64 / 3_600_000.0),
-    }
-}
-
-pub fn format_timestamp(dt: DateTime<Utc>) -> String {
-    dt.format("%Y-%m-%d %H:%M:%S").to_string()
-}
-
-pub fn format_period_label(dt: DateTime<Utc>, period: &str) -> String {
-    match period {
-        "hour" => dt.format("%Y-%m-%d %H:00").to_string(),
-        "day" => dt.format("%Y-%m-%d").to_string(),
-        "week" => format!("Week of {}", dt.format("%Y-%m-%d")),
-        "month" => dt.format("%Y-%m").to_string(),
-        _ => dt.format("%Y-%m-%d %H:%M:%S").to_string(),
-    }
-}
+pub use systemprompt_models::time_format::{format_duration_ms, format_period_label, format_timestamp};

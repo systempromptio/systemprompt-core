@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::extract::{Extension, Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -21,7 +23,7 @@ pub async fn delete_context(
         ));
     }
 
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
     let context_repo = match ContextRepository::new(&db_pool) {
         Ok(repo) => repo,
         Err(e) => {

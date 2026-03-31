@@ -2,6 +2,7 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json, Response};
 use serde::Serialize;
 
+#[allow(clippy::needless_pass_by_value)]
 pub fn error_response(status: StatusCode, error: &str, description: String) -> Response {
     (
         status,

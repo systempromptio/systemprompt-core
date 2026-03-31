@@ -164,23 +164,19 @@ async fn serve_static_asset(
     dist_dir: &std::path::Path,
     headers: &HeaderMap,
 ) -> axum::response::Response {
-    let files_config = match FilesConfig::get() {
-        Ok(config) => config,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                "FilesConfig not initialized",
-            )
-                .into_response();
-        },
+    let Ok(files_config) = FilesConfig::get() else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            "FilesConfig not initialized",
+        )
+            .into_response();
     };
 
     let files_prefix = format!("{}/", files_config.url_prefix());
-    let asset_path = if let Some(relative_path) = path.strip_prefix(&files_prefix) {
-        files_config.files().join(relative_path)
-    } else {
-        dist_dir.join(path.trim_start_matches('/'))
-    };
+    let asset_path = path.strip_prefix(&files_prefix).map_or_else(
+        || dist_dir.join(path.trim_start_matches('/')),
+        |relative_path| files_config.files().join(relative_path),
+    );
 
     if asset_path.exists() && asset_path.is_file() {
         let mime_type = resolve_mime_type(&asset_path);
@@ -235,15 +231,12 @@ async fn serve_content_page(
         return serve_cached_file(&index_path, req.headers, "text/html", CACHE_HTML).await;
     }
 
-    let content_repo = match ContentRepository::new(ctx.db_pool()) {
-        Ok(r) => r,
-        Err(_) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                axum::response::Html("Database connection error"),
-            )
-                .into_response();
-        },
+    let Ok(content_repo) = ContentRepository::new(ctx.db_pool()) else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            axum::response::Html("Database connection error"),
+        )
+            .into_response();
     };
 
     match content_repo.get_by_slug(req.slug).await {

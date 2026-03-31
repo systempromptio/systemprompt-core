@@ -19,7 +19,7 @@ use systemprompt_users::BannedIpRepository;
 fn create_oauth_state(ctx: &AppContext) -> Option<OAuthState> {
     let analytics = ctx.analytics_provider()?;
     let users = ctx.user_provider()?;
-    let state = OAuthState::new(ctx.db_pool().clone(), analytics, users);
+    let state = OAuthState::new(Arc::clone(ctx.db_pool()), analytics, users);
     Some(state)
 }
 
@@ -50,7 +50,7 @@ pub fn configure_routes(
     let public_middleware = ContextMiddleware::public(jwt_extractor.clone());
     let user_middleware = ContextMiddleware::user_only(jwt_extractor.clone());
     let full_middleware = ContextMiddleware::full(jwt_extractor.clone());
-    let mcp_middleware = ContextMiddleware::mcp(jwt_extractor.clone());
+    let mcp_middleware = ContextMiddleware::mcp(jwt_extractor);
 
     if let Some(oauth_state) = create_oauth_state(ctx) {
         router = router.nest(
@@ -112,7 +112,7 @@ pub fn configure_routes(
         ApiPaths::AGENTS_BASE,
         crate::routes::proxy::agents::router(ctx)
             .with_rate_limit(rate_config, rate_config.agents_per_second)
-            .with_auth_middleware(full_middleware.clone()),
+            .with_auth_middleware(full_middleware),
     );
 
     router = router.nest(
@@ -126,7 +126,7 @@ pub fn configure_routes(
         ApiPaths::MCP_BASE,
         crate::routes::proxy::mcp::router(ctx)
             .with_rate_limit(rate_config, rate_config.mcp_per_second)
-            .with_auth_middleware(mcp_middleware.clone()),
+            .with_auth_middleware(mcp_middleware),
     );
 
     router = router.nest(
@@ -211,6 +211,7 @@ pub fn configure_routes(
         },
     };
     let path = paths.system().content_config().to_path_buf();
+    #[allow(clippy::option_if_let_else)]
     let content_matcher = if let Some(path_str) = path.to_str() {
         match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
@@ -247,12 +248,12 @@ pub fn configure_routes(
     let static_state = StaticContentState {
         ctx: Arc::new(ctx.clone()),
         matcher: content_matcher,
-        route_classifier: ctx.route_classifier().clone(),
+        route_classifier: Arc::clone(ctx.route_classifier()),
     };
 
     router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
     router = router
-        .merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware.clone()));
+        .merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware));
 
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 
@@ -265,7 +266,7 @@ pub fn configure_routes(
         .route("/", get(serve_homepage))
         .fallback(smart_fallback_handler)
         .with_state(static_state)
-        .with_auth_middleware(public_middleware.clone());
+        .with_auth_middleware(public_middleware);
 
     let site_auth_config = ctx
         .extension_registry()
@@ -299,7 +300,7 @@ pub fn configure_routes(
     })?);
 
     Ok(router.layer(axum::middleware::from_fn(move |req, next| {
-        let repo = banned_ip_repo.clone();
+        let repo = Arc::clone(&banned_ip_repo);
         async move { ip_ban_middleware(req, next, repo).await }
     })))
 }

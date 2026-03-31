@@ -22,6 +22,7 @@ pub async fn validate_client_credentials(
     validate_client_credentials_shared(repo, client_id.as_str(), client_secret).await
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn validate_authorization_code(
     repo: &OAuthRepository,
     code: &AuthorizationCode,

@@ -21,32 +21,33 @@ pub async fn initialize_scheduler(
         }
     }
 
-    let scheduler_config = ConfigLoader::load()
-        .map(|config| {
+    let scheduler_config = ConfigLoader::load().map_or_else(
+        |e| {
+            tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
+            SchedulerConfig::default()
+        },
+        |config| {
             config.scheduler.unwrap_or_else(|| {
                 tracing::info!("No scheduler config found, using defaults");
                 SchedulerConfig::default()
             })
-        })
-        .unwrap_or_else(|e| {
-            tracing::warn!(error = %e, "Failed to load scheduler config, using defaults");
-            SchedulerConfig::default()
-        });
+        },
+    );
 
     let bootstrap_jobs = scheduler_config.bootstrap_jobs.clone();
 
     let scheduler = SchedulerService::new(
         scheduler_config,
-        ctx.db_pool().clone(),
+        Arc::clone(ctx.db_pool()),
         Arc::new(ctx.clone()),
     )?;
 
     scheduler.start().await?;
 
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
     let scheduler_repo = SchedulerRepository::new(&db_pool)?;
 
-    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(db_pool.clone());
+    let db_pool_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::clone(&db_pool));
     let app_context_any: Arc<dyn std::any::Any + Send + Sync> = Arc::new(Arc::new(ctx.clone()));
     let job_ctx = JobContext::new(db_pool_any, app_context_any);
 

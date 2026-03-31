@@ -8,7 +8,7 @@ use systemprompt_runtime::{AppContext, DatabaseContext};
 use super::ContentStatsOutput;
 use crate::CliConfig;
 use crate::commands::analytics::shared::{
-    export_single_to_csv, parse_time_range, resolve_export_path,
+    export_single_to_csv, format_date_range, parse_time_range, resolve_export_path,
 };
 use crate::shared::CommandResult;
 
@@ -51,7 +51,7 @@ async fn execute_internal(
     let row = repo.get_stats(start, end).await?;
 
     let output = ContentStatsOutput {
-        period: format!("{} to {}", start.format("%Y-%m-%d"), end.format("%Y-%m-%d")),
+        period: format_date_range(start, end),
         total_views: row.total_views,
         unique_visitors: row.unique_visitors,
         avg_time_on_page_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),

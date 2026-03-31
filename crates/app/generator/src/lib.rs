@@ -1,6 +1,5 @@
 #![allow(clippy::incompatible_msrv)]
 
-pub(crate) mod api;
 pub(crate) mod assets;
 pub(crate) mod build;
 pub(crate) mod content;

@@ -40,7 +40,7 @@ impl JwtContextExtractor {
         Self {
             jwt_extractor: Arc::new(JwtExtractor::new(jwt_secret)),
             token_extractor: TokenExtractor::browser_only(),
-            db_pool: db_pool.clone(),
+            db_pool: Arc::clone(db_pool),
             analytics_provider: None,
         }
     }
@@ -134,8 +134,7 @@ impl JwtContextExtractor {
         let session_source = jwt_context
             .client_id
             .as_ref()
-            .map(|c| SessionSource::from_client_id(c.as_str()))
-            .unwrap_or(SessionSource::Api);
+            .map_or(SessionSource::Api, |c| SessionSource::from_client_id(c.as_str()));
 
         analytics_provider
             .create_session(CreateSessionInput {
@@ -166,6 +165,7 @@ impl JwtContextExtractor {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn build_context(
         jwt_context: &JwtUserContext,
         session_id: SessionId,

@@ -142,11 +142,6 @@ impl ProxyEngine {
         let req_builder =
             RequestBuilder::build_request(&client, reqwest_method, &full_url, &headers, body);
 
-        let req_builder = req_builder.map_err(|status| ProxyError::InvalidResponse {
-            service: service_name.to_string(),
-            reason: format!("Failed to build request: {status}"),
-        })?;
-
         let response = match req_builder.send().await {
             Ok(resp) => resp,
             Err(e) => {

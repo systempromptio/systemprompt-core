@@ -14,6 +14,7 @@ use systemprompt_runtime::AppContext;
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 
+#[allow(clippy::needless_pass_by_value)]
 fn cli_event_to_sse(event: CliOutputEvent) -> Event {
     event
         .to_sse()

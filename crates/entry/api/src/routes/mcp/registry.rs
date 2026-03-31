@@ -18,6 +18,7 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn error_response(status: StatusCode, message: String) -> Response {
     (
         status,
@@ -29,6 +30,7 @@ fn error_response(status: StatusCode, message: String) -> Response {
         .into_response()
 }
 
+#[allow(clippy::needless_pass_by_value)]
 fn collection_response<T: Serialize>(items: Vec<T>) -> Response {
     (
         StatusCode::OK,

@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use systemprompt_database::{ServiceConfig, ServiceRepository};
 use systemprompt_mcp::services::McpManager;
 use systemprompt_runtime::AppContext;
@@ -57,7 +59,7 @@ impl ServiceResolver {
 
     async fn attempt_restart(service_name: &str, ctx: &AppContext) -> Result<(), ProxyError> {
         let orchestrator =
-            McpManager::new(ctx.db_pool().clone()).map_err(|e| ProxyError::ServiceNotRunning {
+            McpManager::new(Arc::clone(ctx.db_pool())).map_err(|e| ProxyError::ServiceNotRunning {
                 service: service_name.to_string(),
                 status: format!("Failed to create orchestrator: {e}"),
             })?;

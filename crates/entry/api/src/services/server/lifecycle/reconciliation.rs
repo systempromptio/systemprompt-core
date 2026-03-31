@@ -68,6 +68,7 @@ pub async fn reconcile_system_services(
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn handle_reconcile_success(
     running_count: usize,
     required_count: usize,

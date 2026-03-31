@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::{Extension, State};
 use axum::response::Response;
@@ -14,7 +16,7 @@ pub async fn create_context(
     State(ctx): State<AppContext>,
     Json(request): Json<CreateContextRequest>,
 ) -> Response {
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
     let context_repo = match ContextRepository::new(&db_pool) {
         Ok(repo) => repo,
         Err(e) => {

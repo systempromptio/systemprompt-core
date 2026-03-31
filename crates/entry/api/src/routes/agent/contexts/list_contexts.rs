@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use axum::extract::{Extension, State};
 use axum::response::Response;
 use systemprompt_runtime::AppContext;
@@ -10,7 +12,7 @@ pub async fn list_contexts(
     Extension(req_ctx): Extension<systemprompt_models::RequestContext>,
     State(ctx): State<AppContext>,
 ) -> Response {
-    let db_pool = ctx.db_pool().clone();
+    let db_pool = Arc::clone(ctx.db_pool());
     let context_repo = match ContextRepository::new(&db_pool) {
         Ok(repo) => repo,
         Err(e) => {

@@ -58,6 +58,3 @@ pub fn get_templates_path(config: &FullWebConfig) -> PathBuf {
     )
 }
 
-pub fn get_assets_path(config: &FullWebConfig) -> &str {
-    &config.paths.assets
-}

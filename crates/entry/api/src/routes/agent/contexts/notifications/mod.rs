@@ -1,5 +1,7 @@
 mod handlers;
 
+use std::sync::Arc;
+
 use axum::Json;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -90,7 +92,7 @@ pub async fn handle_context_notification(
         .unwrap_or("unknown")
         .to_string();
 
-    match persist_notification(db.clone(), &context_id, &agent_id, &notification).await {
+    match persist_notification(Arc::clone(db), &context_id, &agent_id, &notification).await {
         Ok(notification_id) => {
             tracing::debug!(notification_id = %notification_id, context_id = %context_id, "Persisted notification");
 
@@ -101,7 +103,7 @@ pub async fn handle_context_notification(
                             tracing::debug!(broadcast_count = %broadcast_count, context_id = %context_id, "Broadcasted notification to streams");
 
                             if let Err(e) =
-                                mark_notification_broadcasted(db.clone(), notification_id).await
+                                mark_notification_broadcasted(Arc::clone(db), notification_id).await
                             {
                                 tracing::error!(error = %e, notification_id = %notification_id, "Failed to mark notification as broadcasted");
                             }

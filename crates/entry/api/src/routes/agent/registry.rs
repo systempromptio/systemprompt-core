@@ -78,7 +78,7 @@ pub async fn handle_agent_registry(
                     .and_then(|exts| exts.iter().find(|e| e.uri == "systemprompt:service-status"))
                     .and_then(|ext| ext.params.as_ref())
                     .and_then(|p| p.get("default"))
-                    .and_then(|v| v.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false);
 
                 let b_is_default = b
@@ -88,7 +88,7 @@ pub async fn handle_agent_registry(
                     .and_then(|exts| exts.iter().find(|e| e.uri == "systemprompt:service-status"))
                     .and_then(|ext| ext.params.as_ref())
                     .and_then(|p| p.get("default"))
-                    .and_then(|v| v.as_bool())
+                    .and_then(serde_json::Value::as_bool)
                     .unwrap_or(false);
 
                 b_is_default.cmp(&a_is_default)

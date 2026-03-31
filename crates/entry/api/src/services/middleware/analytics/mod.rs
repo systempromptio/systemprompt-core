@@ -28,7 +28,7 @@ impl AnalyticsMiddleware {
         let db_pool = app_context.db_pool();
         let session_repo = Arc::new(SessionRepository::new(db_pool)?);
         let analytics_repo = Arc::new(AnalyticsRepository::new(db_pool)?);
-        let route_classifier = app_context.route_classifier().clone();
+        let route_classifier = Arc::clone(app_context.route_classifier());
 
         Ok(Self {
             session_repo,
@@ -93,6 +93,7 @@ impl AnalyticsMiddleware {
         Ok(response)
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn spawn_tracking_tasks(
         &self,
         req_ctx: &RequestContext,
@@ -116,7 +117,7 @@ impl AnalyticsMiddleware {
         self.spawn_session_tracking_task(req_ctx.request.session_id.clone());
 
         detection::spawn_behavioral_detection_task(
-            self.session_repo.clone(),
+            Arc::clone(&self.session_repo),
             req_ctx.request.session_id.clone(),
             req_ctx.request.fingerprint_hash.clone(),
             user_agent.clone(),
@@ -124,8 +125,8 @@ impl AnalyticsMiddleware {
         );
 
         events::spawn_analytics_event_task(
-            self.analytics_repo.clone(),
-            self.route_classifier.clone(),
+            Arc::clone(&self.analytics_repo),
+            Arc::clone(&self.route_classifier),
             AnalyticsEventParams {
                 req_ctx: req_ctx.clone(),
                 endpoint,
@@ -141,7 +142,7 @@ impl AnalyticsMiddleware {
     }
 
     fn spawn_session_tracking_task(&self, session_id: SessionId) {
-        let session_repo = self.session_repo.clone();
+        let session_repo = Arc::clone(&self.session_repo);
 
         tokio::spawn(async move {
             if let Err(e) = session_repo.update_activity(&session_id).await {
@@ -155,7 +156,7 @@ impl AnalyticsMiddleware {
     }
 
     fn spawn_velocity_scanner_check(&self, session_id: SessionId) {
-        let session_repo = self.session_repo.clone();
+        let session_repo = Arc::clone(&self.session_repo);
 
         tokio::spawn(async move {
             let (request_count, duration_seconds) = session_repo
@@ -178,7 +179,7 @@ impl AnalyticsMiddleware {
     }
 
     fn spawn_mark_scanner_task(&self, session_id: SessionId) {
-        let session_repo = self.session_repo.clone();
+        let session_repo = Arc::clone(&self.session_repo);
 
         tokio::spawn(async move {
             if let Err(e) = session_repo.mark_as_scanner(&session_id).await {

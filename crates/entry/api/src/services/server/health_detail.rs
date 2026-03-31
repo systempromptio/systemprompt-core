@@ -27,12 +27,13 @@ async fn check_service_counts(ctx: &AppContext) -> (usize, &'static str, usize, 
 }
 
 fn check_static_content() -> (bool, bool) {
-    let web_dir = AppPaths::get()
-        .map(|p| p.web().dist().to_path_buf())
-        .unwrap_or_else(|e| {
+    let web_dir = AppPaths::get().map_or_else(
+        |e| {
             tracing::debug!(error = %e, "Failed to get web dist path, using default");
             std::path::PathBuf::from("/var/www/html/dist")
-        });
+        },
+        |p| p.web().dist().to_path_buf(),
+    );
     (
         web_dir.join("index.html").exists(),
         web_dir.join("sitemap.xml").exists(),

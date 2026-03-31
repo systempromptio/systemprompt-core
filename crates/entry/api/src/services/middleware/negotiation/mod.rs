@@ -65,11 +65,8 @@ fn parse_accept_header(header_value: &str) -> AcceptedFormat {
             .split(';')
             .find_map(|p| {
                 let p = p.trim();
-                if let Some(q_str) = p.strip_prefix("q=") {
-                    q_str.parse::<f32>().ok().map(|q| q.clamp(0.0, 1.0))
-                } else {
-                    None
-                }
+                p.strip_prefix("q=")
+                    .and_then(|q_str| q_str.parse::<f32>().ok().map(|q| q.clamp(0.0, 1.0)))
             })
             .unwrap_or(1.0);
 

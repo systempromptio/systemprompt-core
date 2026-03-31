@@ -80,21 +80,18 @@ pub async fn handle_webauthn_complete(
             },
         };
 
-    let verified_user_id = match webauthn_service
+    let Ok(verified_user_id) = webauthn_service
         .consume_verified_authentication(&auth_token)
         .await
-    {
-        Ok(uid) => uid,
-        Err(_) => {
-            return (
-                StatusCode::UNAUTHORIZED,
-                Json(WebAuthnCompleteError {
-                    error: "access_denied".to_string(),
-                    error_description: "Invalid or expired authentication token".to_string(),
-                }),
-            )
-                .into_response();
-        },
+    else {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(WebAuthnCompleteError {
+                error: "access_denied".to_string(),
+                error_description: "Invalid or expired authentication token".to_string(),
+            }),
+        )
+            .into_response();
     };
 
     if params.user_id != verified_user_id {

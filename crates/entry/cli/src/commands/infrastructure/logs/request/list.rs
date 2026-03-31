@@ -71,7 +71,7 @@ async fn execute_with_pool_inner(
         .await?;
 
     let single_trace_id = if args.limit == 1 && rows.len() == 1 {
-        rows[0].trace_id.as_ref().map(|id| id.to_string())
+        rows[0].trace_id.as_ref().map(ToString::to_string)
     } else {
         None
     };
