@@ -7,11 +7,11 @@ pub struct CleanupRepository {
 }
 
 impl CleanupRepository {
-    pub fn new(pool: PgPool) -> Self {
+    pub const fn new(pool: PgPool) -> Self {
         Self { write_pool: pool }
     }
 
-    pub fn new_with_write_pool(write_pool: PgPool) -> Self {
+    pub const fn new_with_write_pool(write_pool: PgPool) -> Self {
         Self { write_pool }
     }
 

@@ -116,7 +116,7 @@ impl BootstrapSequence<SecretsInitialized> {
 
 impl BootstrapSequence<PathsInitialized> {
     #[must_use]
-    pub fn complete(self) -> BootstrapComplete {
+    pub const fn complete(self) -> BootstrapComplete {
         let Self { _state: _ } = self;
         BootstrapComplete { _private: () }
     }
