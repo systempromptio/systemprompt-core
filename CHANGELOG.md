@@ -48,6 +48,17 @@
 - **DRY identifier definitions**: consolidate hand-written identifier structs into `define_id!()` macro invocations, removing ~2,500 lines of duplicated boilerplate across 14 identifier modules
 - Consolidate shared utilities and per-crate `.sqlx/` caches for publish workflow
 - Config cleanup: encapsulate visibility, remove dead code across config and logging crates
+- **Code quality sweep across all layers** (139 files): remove clippy suppressions, fix forbidden constructs, eliminate silent error patterns
+  - Remove `#[allow(clippy::*)]` suppressions by fixing underlying issues: `cognitive_complexity` (split functions), `too_many_arguments` (parameter structs), `struct_excessive_bools` (bitflags/enums), `print_stdout` (CliService::output/std::io::Write), `expect_used` (proper error propagation), `unnecessary_wraps`, `struct_field_names`, `empty_structs_with_brackets`, `option_option` (CategoryIdUpdate enum), `enum_variant_names`
+  - Replace `CommandDescriptor` 6-bool struct with u8 bitflags pattern and const accessor methods
+  - Introduce parameter structs: `TenantSessionParams`, `NonStreamingRequest`, `SessionStoreParams`, `ToolCallParams`, `TrackingParams`, `ReconcileSuccessParams`, `BuildContextParams`, `AuthCodeValidationParams`
+  - Remove anyhow bridges in `AiError` and `AgentError`: replace `DatabaseError(#[from] anyhow::Error)` with `DatabaseError(String)`
+  - Replace `println!`/`eprintln!` with `std::io::Write` across infra/logging CLI display and startup validation
+  - Fix all `unwrap_or_default()` in CLI and domain code with explicit error handling
+  - Fix silent error patterns: convert `let _ =` and `.ok()` to `tracing::warn!` or proper propagation across agent, mcp, scheduler, runtime, and API layers
+  - Replace `Vec<EndpointRateLimit>` for rate limit config (eliminate struct_field_names)
+  - Split `ProviderCapabilities` into `SchemaComposition` + `SchemaFeatures` sub-structs
+  - Replace `process::exit()` with proper error propagation in CLI bootstrap
 - Extract trace/logging queries into dedicated modules (`log_search_queries.rs`, `request_queries.rs`, `tool_queries.rs`, etc.)
 - Remove dead `show_helpers.rs` and unused agent lib.rs clippy allow-list
 - **Module visibility hardening**: convert `pub mod` to `pub(crate) mod` for internal modules across 7 domain crates (agent, ai, analytics, users, oauth, content, mcp) — reduces public API surface while preserving re-exports
