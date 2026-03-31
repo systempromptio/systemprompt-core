@@ -23,7 +23,7 @@ systemprompt-logging = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
 systemprompt-traits = { workspace = true }
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
 serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

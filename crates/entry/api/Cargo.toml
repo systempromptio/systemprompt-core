@@ -13,7 +13,7 @@ include = ["src/**/*", "Cargo.toml", "README.md", "CHANGELOG.md", ".sqlx/**/*"]
 
 [dependencies]
 # Core runtime
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["fs", "process"] }
 tokio-stream = { workspace = true }
 anyhow = { workspace = true }
 async-trait = { workspace = true }
@@ -65,7 +65,7 @@ systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
-systemprompt-runtime = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-users = { workspace = true }
 systemprompt-oauth = { workspace = true }
 systemprompt-logging = { workspace = true }
@@ -90,6 +90,9 @@ once_cell = { workspace = true }
 bcrypt = { workspace = true }
 validator = { workspace = true }
 webauthn-rs = { workspace = true }
+
+# System
+libc = { workspace = true }
 
 # Sync/compression
 flate2 = { workspace = true }

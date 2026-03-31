@@ -10,8 +10,10 @@ pub use extension::LoggingExtension;
 pub use layer::DatabaseLayer;
 pub use models::{LogEntry, LogFilter, LogLevel};
 pub use repository::{AnalyticsEvent, AnalyticsRepository, LoggingRepository};
+#[cfg(feature = "cli")]
+pub use services::CliService;
 pub use services::{
-    CliService, DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
+    DatabaseLogService, FilterSystemFields, LoggingMaintenanceService, RequestSpan,
     RequestSpanBuilder, SystemSpan, is_startup_mode, publish_log, set_log_publisher,
     set_startup_mode,
 };

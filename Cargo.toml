@@ -142,7 +142,7 @@ variant_size_differences = "warn"
 
 [workspace.dependencies]
 # Core dependencies
-tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros", "fs", "process", "signal"] }
+tokio = { version = "1.49", features = ["rt-multi-thread", "net", "io-util", "time", "sync", "macros"] }
 tokio-test = "0.4"
 axum-test = "18.0"
 anyhow = "1.0"
@@ -186,6 +186,7 @@ toml = "0.9"
 
 # Process management (for services)
 nix = { version = "0.31", features = ["process", "signal"] }
+libc = "0.2"
 ctrlc = "3.0"
 
 

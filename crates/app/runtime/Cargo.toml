@@ -13,19 +13,23 @@ description = "Application runtime context and module registry for systemprompt.
 [lints]
 workspace = true
 
+[features]
+default = []
+geolocation = ["dep:maxminddb", "systemprompt-analytics/geolocation"]
+
 [dependencies]
 tokio = { workspace = true }
 anyhow = { workspace = true }
 tracing = { workspace = true }
 inventory = { workspace = true }
 axum = { workspace = true }
-maxminddb = { workspace = true }
+maxminddb = { workspace = true, optional = true }
 systemprompt-models = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
-systemprompt-logging = { workspace = true }
+systemprompt-logging = { workspace = true, features = ["cli"] }
 systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-analytics = { workspace = true }

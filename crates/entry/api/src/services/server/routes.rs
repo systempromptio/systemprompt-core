@@ -251,6 +251,8 @@ pub fn configure_routes(
     };
 
     router = router.merge(discovery_router(ctx).with_auth_middleware(public_middleware.clone()));
+    router = router
+        .merge(authenticated_discovery_router(ctx).with_auth_middleware(user_middleware.clone()));
 
     router = router.merge(wellknown_router(ctx).with_auth_middleware(public_middleware.clone()));
 
@@ -304,6 +306,10 @@ pub fn configure_routes(
 
 fn discovery_router(ctx: &AppContext) -> Router {
     super::builder::discovery_router(ctx)
+}
+
+fn authenticated_discovery_router(ctx: &AppContext) -> Router {
+    super::builder::authenticated_discovery_router(ctx)
 }
 
 fn wellknown_router(ctx: &AppContext) -> Router {

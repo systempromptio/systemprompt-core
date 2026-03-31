@@ -38,11 +38,7 @@ impl StartRegisterQuery {
             );
         }
 
-        if self.email.trim().is_empty() {
-            return Err("Email is required and cannot be empty".to_string());
-        }
-
-        if !self.email.contains('@') || !self.email.contains('.') {
+        if !crate::services::validation::is_valid_email(&self.email) {
             return Err("Email must be a valid email address".to_string());
         }
 

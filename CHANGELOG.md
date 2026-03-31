@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.1.21] - 2026-03-31
+
+### Added
+- Authenticated `/api/v1/health/detail` endpoint with full system diagnostics (split from public health check)
+- Email validation module (`validation.rs`) with shared `is_valid_email` helper
+- ConnectInfo fallback for IP extraction in bot detector and IP ban middleware
+- `geolocation` feature flag for optional GeoIP/MaxMind dependency in analytics and runtime
+
+### Changed
+- Simplify public `/health` endpoint to a lightweight DB-only check (fast for load balancers)
+- Replace `tokio::process::Command("df")` disk usage with synchronous `libc::statvfs` syscall
+- Make `CliService` conditionally compiled behind `cli` feature flag in logging crate
+- Reduce default tokio features in workspace (remove `fs`, `process`, `signal` from default set)
+
+### Fixed
+- Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development
+- MCP binary validation uses dynamic bin directory resolution instead of hardcoding `target/release`
+
 ## [0.1.20] - 2026-03-25
 
 ### Added

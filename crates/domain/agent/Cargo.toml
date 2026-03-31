@@ -45,7 +45,7 @@ systemprompt-security = { workspace = true }
 rmcp = { workspace = true }
 
 # Async runtime
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["signal"] }
 tokio-util = { workspace = true }
 futures = { workspace = true }
 futures-util = { workspace = true }

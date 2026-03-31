@@ -32,11 +32,11 @@ sqlx = { workspace = true }
 # UUID for log entry IDs
 uuid = { workspace = true }
 
-# CLI formatting and display
-colored = { workspace = true }
-console = { workspace = true }
-dialoguer = { workspace = true }
-indicatif = { workspace = true }
+# CLI formatting and display (optional, enabled by "cli" feature)
+colored = { workspace = true, optional = true }
+console = { workspace = true, optional = true }
+dialoguer = { workspace = true, optional = true }
+indicatif = { workspace = true, optional = true }
 
 # Core libs
 systemprompt-database = { workspace = true }
@@ -58,3 +58,4 @@ axum = { workspace = true }
 [features]
 default = ["web"]
 web = []
+cli = ["dep:colored", "dep:console", "dep:dialoguer", "dep:indicatif"]

@@ -100,6 +100,11 @@ fn extract_ip_address(req: &Request) -> Option<String> {
                 .and_then(|v| v.to_str().ok())
                 .map(ToString::to_string)
         })
+        .or_else(|| {
+            req.extensions()
+                .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                .map(|ci| ci.0.ip().to_string())
+        })
 }
 
 fn is_datacenter_ip(ip: Option<&str>) -> bool {

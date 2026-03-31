@@ -17,6 +17,7 @@ workspace = true
 [features]
 default = []
 web = ["dep:axum"]
+geolocation = ["dep:maxminddb"]
 
 [dependencies]
 # Core runtime
@@ -42,7 +43,7 @@ chrono = { workspace = true }
 uuid = { workspace = true }
 
 # GeoIP
-maxminddb = { workspace = true }
+maxminddb = { workspace = true, optional = true }
 url = { workspace = true }
 
 # systemprompt.io dependencies

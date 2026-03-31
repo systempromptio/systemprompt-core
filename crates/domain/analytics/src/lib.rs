@@ -40,4 +40,7 @@ pub use services::{
     SignalType, ThrottleLevel, ThrottleService, detection,
 };
 
+#[cfg(feature = "geolocation")]
 pub type GeoIpReader = std::sync::Arc<maxminddb::Reader<Vec<u8>>>;
+#[cfg(not(feature = "geolocation"))]
+pub type GeoIpReader = std::sync::Arc<()>;

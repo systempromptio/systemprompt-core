@@ -1,3 +1,4 @@
+#[cfg(feature = "cli")]
 pub mod cli;
 mod database_log;
 mod format;
@@ -6,6 +7,7 @@ pub mod output;
 pub mod retention;
 pub mod spans;
 
+#[cfg(feature = "cli")]
 pub use cli::CliService;
 pub use database_log::DatabaseLogService;
 pub use format::FilterSystemFields;

@@ -120,6 +120,7 @@ impl AppContext {
         })
     }
 
+    #[cfg(feature = "geolocation")]
     fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
         let Some(geoip_path) = &config.geoip_database_path else {
             if show_warnings {
@@ -153,6 +154,11 @@ impl AppContext {
                 None
             },
         }
+    }
+
+    #[cfg(not(feature = "geolocation"))]
+    fn load_geoip_database(_config: &Config, _show_warnings: bool) -> Option<GeoIpReader> {
+        None
     }
 
     fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {

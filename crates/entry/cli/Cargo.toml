@@ -20,14 +20,14 @@ path = "src/lib.rs"
 
 [dependencies]
 # Core runtime
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["fs", "process"] }
 anyhow = { workspace = true }
 clap = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 
 # systemprompt.io crates
-systemprompt-runtime = { workspace = true }
+systemprompt-runtime = { workspace = true, features = ["geolocation"] }
 systemprompt-agent = { workspace = true }
 systemprompt-mcp = { workspace = true }
 systemprompt-api = { workspace = true }
@@ -43,7 +43,7 @@ systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-ai = { workspace = true }
 systemprompt-sync = { workspace = true }
-systemprompt-generator = { workspace = true }
+systemprompt-generator = { workspace = true, features = ["image-processing"] }
 systemprompt-models = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-identifiers = { workspace = true }

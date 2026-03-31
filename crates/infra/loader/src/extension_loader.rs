@@ -150,7 +150,7 @@ impl ExtensionLoader {
 
     pub fn validate_mcp_binaries(project_root: &Path) -> Vec<(String, std::path::PathBuf)> {
         let extensions = Self::get_enabled_mcp_extensions(project_root);
-        let target_dir = project_root.join(CARGO_TARGET).join("release");
+        let target_dir = Self::resolve_bin_directory(project_root, None);
 
         extensions
             .into_iter()

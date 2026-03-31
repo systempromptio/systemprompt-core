@@ -56,7 +56,7 @@ uuid = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-client = { workspace = true }
-systemprompt-logging = { workspace = true }
+systemprompt-logging = { workspace = true, features = ["cli"] }
 
 [dev-dependencies]
 tempfile.workspace = true

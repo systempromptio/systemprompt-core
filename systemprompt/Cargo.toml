@@ -74,6 +74,7 @@ full = [
     "dep:systemprompt-scheduler",
     "dep:systemprompt-generator",
     "dep:systemprompt-logging",
+    "systemprompt-logging/cli",
     "dep:systemprompt-config",
     "dep:systemprompt-files",
     # Infrastructure crates for extension authors
@@ -103,8 +104,8 @@ systemprompt-security = { workspace = true, optional = true }
 
 # Application
 systemprompt-sync = { workspace = true, optional = true }
-systemprompt-runtime = { workspace = true, optional = true }
-systemprompt-generator = { workspace = true, optional = true }
+systemprompt-runtime = { workspace = true, optional = true, features = ["geolocation"] }
+systemprompt-generator = { workspace = true, optional = true, features = ["image-processing"] }
 
 # Entry points
 systemprompt-api = { workspace = true, optional = true }

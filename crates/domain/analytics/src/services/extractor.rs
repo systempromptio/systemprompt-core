@@ -168,6 +168,7 @@ impl SessionAnalytics {
         })
     }
 
+    #[cfg(feature = "geolocation")]
     fn lookup_geoip(
         ip_str: &str,
         geoip_reader: Option<&GeoIpReader>,
@@ -228,6 +229,14 @@ impl SessionAnalytics {
         let city_name = city_data.city.names.english.map(ToString::to_string);
 
         Some((country, region, city_name))
+    }
+
+    #[cfg(not(feature = "geolocation"))]
+    fn lookup_geoip(
+        _ip_str: &str,
+        _geoip_reader: Option<&GeoIpReader>,
+    ) -> Option<(Option<String>, Option<String>, Option<String>)> {
+        None
     }
 
     fn parse_referrer_source(url: &str) -> Option<String> {

@@ -6,6 +6,7 @@ use systemprompt_models::modules::ApiPaths;
 use systemprompt_runtime::AppContext;
 
 use super::health::handle_health;
+use super::health_detail::handle_health_detail;
 
 pub async fn handle_root_discovery(
     axum::extract::State(ctx): axum::extract::State<AppContext>,
@@ -157,5 +158,11 @@ pub fn discovery_router(ctx: &AppContext) -> Router {
         .route(ApiPaths::CORE_BASE, get(handle_core_discovery))
         .route(ApiPaths::AGENTS_BASE, get(handle_agents_discovery))
         .route(ApiPaths::MCP_BASE, get(handle_mcp_discovery))
+        .with_state(ctx.clone())
+}
+
+pub fn authenticated_discovery_router(ctx: &AppContext) -> Router {
+    Router::new()
+        .route("/api/v1/health/detail", get(handle_health_detail))
         .with_state(ctx.clone())
 }

@@ -33,6 +33,12 @@ impl IpBanMiddleware {
                     .and_then(|v| v.to_str().ok())
                     .map(ToString::to_string)
             })
+            .or_else(|| {
+                request
+                    .extensions()
+                    .get::<axum::extract::ConnectInfo<std::net::SocketAddr>>()
+                    .map(|ci| ci.0.ip().to_string())
+            })
     }
 }
 

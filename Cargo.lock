@@ -4418,6 +4418,7 @@ dependencies = [
  "indexmap",
  "inventory",
  "jsonwebtoken",
+ "libc",
  "once_cell",
  "regex",
  "reqwest 0.12.28",

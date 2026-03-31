@@ -41,7 +41,7 @@ systemprompt-extension = { workspace = true }
 systemprompt-sync = { workspace = true }
 
 # Async runtime
-tokio = { workspace = true }
+tokio = { workspace = true, features = ["fs"] }
 futures = { workspace = true }
 
 # Error handling
@@ -73,7 +73,7 @@ indicatif = { workspace = true }
 walkdir = { workspace = true }
 
 # Image processing (WebP conversion)
-image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"] }
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
 
 # HTTP client
 reqwest = { workspace = true }
@@ -98,6 +98,10 @@ hex = { workspace = true }
 # Job registration
 inventory = { workspace = true }
 async-trait = { workspace = true }
+
+[features]
+default = []
+image-processing = ["dep:image"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
