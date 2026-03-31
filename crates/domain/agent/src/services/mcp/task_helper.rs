@@ -312,14 +312,14 @@ pub async fn save_messages_for_tool_execution(
     };
 
     message_service
-        .persist_messages(
+        .persist_messages(crate::services::PersistMessagesParams {
             task_id,
             context_id,
-            vec![user_message, agent_message],
-            Some(user_id),
+            messages: vec![user_message, agent_message],
+            user_id: Some(user_id),
             session_id,
             trace_id,
-        )
+        })
         .await
         .map_err(|e| McpError::internal_error(format!("Failed to save messages: {e}"), None))?;
 

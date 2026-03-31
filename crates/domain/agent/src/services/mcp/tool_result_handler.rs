@@ -5,6 +5,16 @@ use systemprompt_models::ai::tools::CallToolResult;
 
 use super::artifact_transformer::McpToA2aTransformer;
 
+pub struct ProcessToolResultParams<'a> {
+    pub tool_name: &'a str,
+    pub tool_result: &'a CallToolResult,
+    pub output_schema: Option<&'a serde_json::Value>,
+    pub tool_arguments: Option<&'a serde_json::Value>,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub context: &'a systemprompt_models::RequestContext,
+}
+
 #[derive(Clone, Copy)]
 pub struct ToolResultHandler;
 

@@ -20,18 +20,16 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
 
     if args.dry_run {
         let pool = ctx.db_pool().pool_arc()?;
-        let days_str = args.days.to_string();
-        let count: i64 = sqlx::query_scalar!(
+        let count: i64 = sqlx::query_scalar::<_, i64>(
             r"
             SELECT COUNT(*)
             FROM application_logs
             WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
             ",
-            days_str
         )
+        .bind(args.days.to_string())
         .fetch_one(&*pool)
         .await
-        .unwrap_or(None)
         .unwrap_or(0);
 
         let output = LogCleanupOutput {
@@ -48,14 +46,13 @@ pub async fn execute(args: LogCleanupArgs) -> Result<CommandResult<LogCleanupOut
     }
 
     let write_pool = ctx.db_pool().write_pool_arc()?;
-    let days_str = args.days.to_string();
-    let deleted_count = sqlx::query!(
+    let deleted_count = sqlx::query(
         r"
         DELETE FROM application_logs
         WHERE created_at < NOW() - ($1 || ' days')::INTERVAL
         ",
-        days_str
     )
+    .bind(args.days.to_string())
     .execute(&*write_pool)
     .await?
     .rows_affected() as i64;

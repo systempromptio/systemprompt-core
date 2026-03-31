@@ -74,15 +74,26 @@ fn configure_secrets_env(command: &mut Command, secrets: &Secrets) {
     }
 }
 
-fn build_agent_command(
-    binary_path: &PathBuf,
-    agent_name: &str,
+struct BuildAgentCommandParams<'a> {
+    binary_path: &'a PathBuf,
+    agent_name: &'a str,
     port: u16,
-    profile_path: &str,
-    secrets: &Secrets,
-    config: &Config,
+    profile_path: &'a str,
+    secrets: &'a Secrets,
+    config: &'a Config,
     log_file: File,
-) -> Command {
+}
+
+fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
+    let BuildAgentCommandParams {
+        binary_path,
+        agent_name,
+        port,
+        profile_path,
+        secrets,
+        config,
+        log_file,
+    } = params;
     let mut command = Command::new(binary_path);
     for arg in CliPaths::agent_run_args() {
         command.arg(arg);
@@ -138,15 +149,15 @@ pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<
 
     let log_file = prepare_agent_log_file(agent_name, &paths.system().logs())?;
 
-    let mut command = build_agent_command(
-        &binary_path,
+    let mut command = build_agent_command(BuildAgentCommandParams {
+        binary_path: &binary_path,
         agent_name,
         port,
         profile_path,
         secrets,
         config,
         log_file,
-    );
+    });
 
     let child = command.spawn().map_err(|e| {
         OrchestrationError::ProcessSpawnFailed(format!("Failed to spawn {agent_name}: {e}"))

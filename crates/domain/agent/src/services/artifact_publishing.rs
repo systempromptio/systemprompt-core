@@ -173,13 +173,13 @@ impl ArtifactPublishingService {
 
             let (user_message_id, _seq) = self
                 .message_service
-                .create_tool_execution_message(
+                .create_tool_execution_message(super::CreateToolExecutionMessageParams {
                     task_id,
                     context_id,
                     tool_name,
                     tool_args,
                     request_context,
-                )
+                })
                 .await?;
 
             tracing::info!(
@@ -211,14 +211,14 @@ impl ArtifactPublishingService {
             };
 
             self.message_service
-                .persist_messages(
+                .persist_messages(super::PersistMessagesParams {
                     task_id,
                     context_id,
-                    vec![agent_message],
-                    Some(request_context.user_id()),
-                    request_context.session_id(),
-                    request_context.trace_id(),
-                )
+                    messages: vec![agent_message],
+                    user_id: Some(request_context.user_id()),
+                    session_id: request_context.session_id(),
+                    trace_id: request_context.trace_id(),
+                })
                 .await?;
 
             tracing::info!("Created agent response message with artifact reference");

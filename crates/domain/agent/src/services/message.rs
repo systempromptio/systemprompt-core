@@ -9,6 +9,33 @@ use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::RequestContext;
 
+pub struct PersistMessageInTxParams<'a> {
+    pub tx: &'a mut dyn DatabaseTransaction,
+    pub message: &'a Message,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
+    pub session_id: &'a systemprompt_identifiers::SessionId,
+    pub trace_id: &'a systemprompt_identifiers::TraceId,
+}
+
+pub struct PersistMessagesParams<'a> {
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub messages: Vec<Message>,
+    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
+    pub session_id: &'a systemprompt_identifiers::SessionId,
+    pub trace_id: &'a systemprompt_identifiers::TraceId,
+}
+
+pub struct CreateToolExecutionMessageParams<'a> {
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub tool_name: &'a str,
+    pub tool_args: &'a serde_json::Value,
+    pub request_context: &'a RequestContext,
+}
+
 pub struct MessageService {
     task_repo: TaskRepository,
 }
@@ -28,14 +55,17 @@ impl MessageService {
 
     pub async fn persist_message_in_tx(
         &self,
-        tx: &mut dyn DatabaseTransaction,
-        message: &Message,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        user_id: Option<&systemprompt_identifiers::UserId>,
-        session_id: &systemprompt_identifiers::SessionId,
-        trace_id: &systemprompt_identifiers::TraceId,
+        params: PersistMessageInTxParams<'_>,
     ) -> Result<i32> {
+        let PersistMessageInTxParams {
+            tx,
+            message,
+            task_id,
+            context_id,
+            user_id,
+            session_id,
+            trace_id,
+        } = params;
         let sequence_number = self
             .task_repo
             .get_next_sequence_number_in_tx(tx, task_id)
@@ -67,13 +97,17 @@ impl MessageService {
 
     pub async fn persist_messages(
         &self,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        messages: Vec<Message>,
-        user_id: Option<&systemprompt_identifiers::UserId>,
-        session_id: &systemprompt_identifiers::SessionId,
-        trace_id: &systemprompt_identifiers::TraceId,
+        params: PersistMessagesParams<'_>,
     ) -> Result<Vec<i32>> {
+        let PersistMessagesParams {
+            task_id,
+            context_id,
+            messages,
+            user_id,
+            session_id,
+            trace_id,
+        } = params;
+
         if messages.is_empty() {
             return Ok(Vec::new());
         }
@@ -94,9 +128,15 @@ impl MessageService {
 
         for message in messages {
             let seq = self
-                .persist_message_in_tx(
-                    &mut *tx, &message, task_id, context_id, user_id, session_id, trace_id,
-                )
+                .persist_message_in_tx(PersistMessageInTxParams {
+                    tx: &mut *tx,
+                    message: &message,
+                    task_id,
+                    context_id,
+                    user_id,
+                    session_id,
+                    trace_id,
+                })
                 .await?;
             sequence_numbers.push(seq);
         }
@@ -114,12 +154,15 @@ impl MessageService {
 
     pub async fn create_tool_execution_message(
         &self,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        tool_name: &str,
-        tool_args: &serde_json::Value,
-        request_context: &RequestContext,
+        params: CreateToolExecutionMessageParams<'_>,
     ) -> Result<(String, i32)> {
+        let CreateToolExecutionMessageParams {
+            task_id,
+            context_id,
+            tool_name,
+            tool_args,
+            request_context,
+        } = params;
         let message_id = Uuid::new_v4().to_string();
 
         let tool_args_display =
@@ -161,15 +204,15 @@ impl MessageService {
             .await?;
 
         let sequence_number = self
-            .persist_message_in_tx(
-                &mut *tx,
-                &message,
+            .persist_message_in_tx(PersistMessageInTxParams {
+                tx: &mut *tx,
+                message: &message,
                 task_id,
                 context_id,
-                Some(request_context.user_id()),
-                request_context.session_id(),
-                request_context.trace_id(),
-            )
+                user_id: Some(request_context.user_id()),
+                session_id: request_context.session_id(),
+                trace_id: request_context.trace_id(),
+            })
             .await?;
 
         tx.commit().await?;

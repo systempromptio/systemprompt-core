@@ -33,7 +33,11 @@ pub use skills::{SkillIngestionService, SkillMetadata, SkillService};
 
 pub use artifact_publishing::ArtifactPublishingService;
 
-pub use message::MessageService;
+pub use artifact_publishing::PublishFromMcpParams;
+pub use message::{
+    CreateToolExecutionMessageParams, MessageService, PersistMessageInTxParams,
+    PersistMessagesParams,
+};
 
 pub use context::ContextService;
 
