@@ -8,13 +8,14 @@ mod edit;
 mod edit_secrets;
 mod edit_settings;
 mod list;
+mod profile_steps;
 mod show;
 mod show_display;
 mod show_types;
 pub mod templates;
 
 pub use api_keys::collect_api_keys;
-pub use create::create_profile_for_tenant;
+pub use create::{create_profile_for_tenant, CreatedProfile};
 pub use create_setup::{get_cloud_user, handle_local_tenant_setup};
 
 use crate::cli_settings::CliConfig;

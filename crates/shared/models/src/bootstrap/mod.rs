@@ -11,7 +11,7 @@ use std::path::Path;
 use anyhow::{Context, Result};
 
 use crate::profile_bootstrap::ProfileBootstrap;
-use crate::secrets::SecretsBootstrap;
+use crate::secrets_bootstrap::SecretsBootstrap;
 use crate::{AppPaths, Config, PathsConfig};
 
 pub trait BootstrapState {}

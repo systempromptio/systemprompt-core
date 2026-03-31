@@ -4,6 +4,7 @@ pub mod database;
 pub mod diff;
 pub mod error;
 pub mod export;
+mod file_bundler;
 pub mod files;
 pub mod jobs;
 pub mod local;

@@ -12,8 +12,8 @@ use super::models::{
     ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
 };
 use super::{
-    list_queries, log_lookup_queries, log_search_queries, log_summary_queries, queries,
-    request_queries, tool_queries,
+    audit_queries, list_queries, log_lookup_queries, log_search_queries, log_summary_queries,
+    queries, request_queries, tool_queries,
 };
 
 #[derive(Debug, Clone)]
@@ -135,19 +135,19 @@ impl TraceQueryService {
     }
 
     pub async fn find_ai_request_for_audit(&self, id: &str) -> Result<Option<AuditLookupResult>> {
-        request_queries::find_ai_request_for_audit(&self.pool, id).await
+        audit_queries::find_ai_request_for_audit(&self.pool, id).await
     }
 
     pub async fn list_audit_messages(&self, request_id: &str) -> Result<Vec<ConversationMessage>> {
-        request_queries::list_audit_messages(&self.pool, request_id).await
+        audit_queries::list_audit_messages(&self.pool, request_id).await
     }
 
     pub async fn list_audit_tool_calls(&self, request_id: &str) -> Result<Vec<AuditToolCallRow>> {
-        request_queries::list_audit_tool_calls(&self.pool, request_id).await
+        audit_queries::list_audit_tool_calls(&self.pool, request_id).await
     }
 
     pub async fn list_linked_mcp_calls(&self, request_id: &str) -> Result<Vec<LinkedMcpCall>> {
-        request_queries::list_linked_mcp_calls(&self.pool, request_id).await
+        audit_queries::list_linked_mcp_calls(&self.pool, request_id).await
     }
 
     pub async fn find_log_by_id(&self, id: &str) -> Result<Option<LogEntry>> {

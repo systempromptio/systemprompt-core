@@ -5,7 +5,7 @@ use systemprompt_traits::ConfigProvider;
 use crate::auth::JwtAudience;
 use crate::profile::{ContentNegotiationConfig, Profile, SecurityHeadersConfig};
 use crate::profile_bootstrap::ProfileBootstrap;
-use crate::secrets::SecretsBootstrap;
+use crate::secrets_bootstrap::SecretsBootstrap;
 
 mod environment;
 mod paths;
