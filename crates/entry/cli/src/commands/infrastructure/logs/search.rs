@@ -3,11 +3,10 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use systemprompt_logging::CliService;
+use systemprompt_logging::{CliService, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::duration::parse_since;
-use super::search_queries::{search_logs, search_tools};
 use super::shared::display_log_row;
 use super::{LogEntryRow, LogFilters};
 use crate::CliConfig;
@@ -84,17 +83,16 @@ async fn execute_with_pool_inner(
     let level_filter = args.level.as_deref().map(str::to_uppercase);
     let pattern = format!("%{}%", args.pattern);
 
-    let rows = search_logs(
-        pool,
-        &pattern,
-        since_timestamp,
-        level_filter.as_deref(),
-        args.limit,
-    )
-    .await?;
+    let service = TraceQueryService::new(Arc::clone(pool));
+
+    let rows = service
+        .search_logs(&pattern, since_timestamp, level_filter.as_deref(), args.limit)
+        .await?;
 
     let tool_rows = if args.include_tools {
-        search_tools(pool, &pattern, since_timestamp, args.limit).await?
+        service
+            .search_tool_executions(&pattern, since_timestamp, args.limit)
+            .await?
     } else {
         vec![]
     };

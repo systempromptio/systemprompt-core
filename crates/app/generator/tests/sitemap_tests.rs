@@ -238,8 +238,8 @@ fn test_sitemap_index_generation() {
         priority: 0.5,
     }];
 
-    let chunks = vec![chunk1, chunk2];
-    let xml = build_sitemap_index(&chunks, "https://example.com");
+    let sitemap_groups = vec![chunk1, chunk2];
+    let xml = build_sitemap_index(&sitemap_groups, "https://example.com");
 
     assert!(xml.contains("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"));
     assert!(xml.contains("<sitemapindex xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">"));
@@ -305,7 +305,7 @@ fn test_sitemap_index_with_different_base_urls() {
         priority: 0.5,
     }];
 
-    let chunks = vec![chunk.clone()];
+    let chunks = vec![chunk];
 
     // Test with trailing slash
     let xml1 = build_sitemap_index(&chunks, "https://example.com/");

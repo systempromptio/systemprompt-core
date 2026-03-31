@@ -18,9 +18,12 @@ pub use services::{
     set_startup_mode,
 };
 pub use trace::{
-    AiRequestInfo, AiRequestSummary, AiTraceService, ConversationMessage, ExecutionStep,
-    ExecutionStepSummary, McpExecutionSummary, McpToolExecution, TaskArtifact, TaskInfo,
-    ToolLogEntry, TraceEvent, TraceQueryService,
+    AiRequestDetail, AiRequestFilter, AiRequestInfo, AiRequestListItem, AiRequestStats,
+    AiRequestSummary, AiTraceService, AuditLookupResult, AuditToolCallRow, ConversationMessage,
+    ExecutionStep, ExecutionStepSummary, LinkedMcpCall, LogSearchFilter, LogSearchItem,
+    McpExecutionSummary, McpToolExecution, ModelStatsRow, ProviderStatsRow, TaskArtifact, TaskInfo,
+    ToolExecutionFilter, ToolExecutionItem, ToolLogEntry, TraceEvent, TraceListFilter,
+    TraceListItem, TraceQueryService,
 };
 
 use std::sync::OnceLock;

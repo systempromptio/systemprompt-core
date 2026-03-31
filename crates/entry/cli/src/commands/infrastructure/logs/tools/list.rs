@@ -1,10 +1,9 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
+use systemprompt_logging::{CliService, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
-use super::queries::query_tools;
 use super::{ToolExecutionRow, ToolsListOutput};
 use crate::CliConfig;
 use crate::commands::infrastructure::logs::duration::parse_since;
@@ -49,18 +48,19 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
-    let name_pattern = args.name.as_ref().map(|n| format!("%{}%", n));
-    let server_pattern = args.server.as_ref().map(|s| format!("%{}%", s));
+    let name_pattern = args.name.as_ref().map(|n| format!("%{n}%"));
+    let server_pattern = args.server.as_ref().map(|s| format!("%{s}%"));
 
-    let rows = query_tools(
-        pool,
-        since_timestamp,
-        name_pattern.as_deref(),
-        server_pattern.as_deref(),
-        args.status.as_deref(),
-        args.limit,
-    )
-    .await?;
+    let service = TraceQueryService::new(Arc::clone(pool));
+    let rows = service
+        .list_tool_executions(
+            since_timestamp,
+            name_pattern.as_deref(),
+            server_pattern.as_deref(),
+            args.status.as_deref(),
+            args.limit,
+        )
+        .await?;
 
     let executions: Vec<ToolExecutionRow> = rows
         .into_iter()

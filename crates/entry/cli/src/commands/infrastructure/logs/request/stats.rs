@@ -3,6 +3,7 @@ use clap::Args;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
+use systemprompt_logging::TraceQueryService;
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use crate::CliConfig;
@@ -54,31 +55,6 @@ pub struct ModelStats {
     pub avg_latency_ms: i64,
 }
 
-struct TotalRow {
-    request_count: Option<i64>,
-    total_input_tokens: Option<i64>,
-    total_output_tokens: Option<i64>,
-    total_cost_microdollars: Option<i64>,
-    avg_latency_ms: Option<i64>,
-}
-
-struct ProviderRow {
-    provider: String,
-    request_count: Option<i64>,
-    total_tokens: Option<i64>,
-    total_cost_microdollars: Option<i64>,
-    avg_latency_ms: Option<i64>,
-}
-
-struct ModelRow {
-    model: String,
-    provider: String,
-    request_count: Option<i64>,
-    total_tokens: Option<i64>,
-    total_cost_microdollars: Option<i64>,
-    avg_latency_ms: Option<i64>,
-}
-
 pub async fn execute(args: StatsArgs, config: &CliConfig) -> Result<()> {
     let ctx = AppContext::new().await?;
     let pool = ctx.db_pool().pool_arc()?;
@@ -101,154 +77,42 @@ async fn execute_with_pool_inner(
 ) -> Result<()> {
     let since_timestamp = parse_since(args.since.as_ref())?;
 
-    let totals = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            TotalRow,
-            r#"
-            SELECT
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
-                COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            WHERE created_at >= $1
-            "#,
-            since_ts
-        )
-        .fetch_one(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            TotalRow,
-            r#"
-            SELECT
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) as "total_input_tokens",
-                COALESCE(SUM(output_tokens), 0) as "total_output_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            "#
-        )
-        .fetch_one(pool.as_ref())
-        .await?
-    };
+    let service = TraceQueryService::new(Arc::clone(pool));
+    let stats = service.get_ai_request_stats(since_timestamp).await?;
 
-    let by_provider = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            ProviderRow,
-            r#"
-            SELECT
-                provider as "provider!",
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            WHERE created_at >= $1
-            GROUP BY provider
-            ORDER BY request_count DESC
-            "#,
-            since_ts
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            ProviderRow,
-            r#"
-            SELECT
-                provider as "provider!",
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            GROUP BY provider
-            ORDER BY request_count DESC
-            "#
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
-
-    let by_model = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            ModelRow,
-            r#"
-            SELECT
-                model as "model!",
-                provider as "provider!",
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            WHERE created_at >= $1
-            GROUP BY model, provider
-            ORDER BY request_count DESC
-            LIMIT 10
-            "#,
-            since_ts
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            ModelRow,
-            r#"
-            SELECT
-                model as "model!",
-                provider as "provider!",
-                COUNT(*) as "request_count",
-                COALESCE(SUM(input_tokens), 0) + COALESCE(SUM(output_tokens), 0) as "total_tokens",
-                COALESCE(SUM(cost_microdollars), 0)::bigint as "total_cost_microdollars",
-                COALESCE(AVG(latency_ms), 0)::bigint as "avg_latency_ms"
-            FROM ai_requests
-            GROUP BY model, provider
-            ORDER BY request_count DESC
-            LIMIT 10
-            "#
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
-
-    let input_tokens = totals.total_input_tokens.unwrap_or(0);
-    let output_tokens = totals.total_output_tokens.unwrap_or(0);
-    let total_cost_microdollars = totals.total_cost_microdollars.unwrap_or(0);
+    let input_tokens = stats.total_input_tokens;
+    let output_tokens = stats.total_output_tokens;
 
     let output = RequestStatsOutput {
-        total_requests: totals.request_count.unwrap_or(0),
+        total_requests: stats.total_requests,
         total_tokens: TokenStats {
             input: input_tokens,
             output: output_tokens,
             total: input_tokens + output_tokens,
         },
-        total_cost_dollars: f64::from(total_cost_microdollars as i32) / 1_000_000.0,
-        average_latency_ms: totals.avg_latency_ms.unwrap_or(0),
-        by_provider: by_provider
+        total_cost_dollars: f64::from(stats.total_cost_microdollars as i32) / 1_000_000.0,
+        average_latency_ms: stats.avg_latency_ms,
+        by_provider: stats
+            .by_provider
             .into_iter()
             .map(|r| ProviderStats {
                 provider: r.provider,
-                request_count: r.request_count.unwrap_or(0),
-                total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32)
-                    / 1_000_000.0,
-                avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
+                request_count: r.request_count,
+                total_tokens: r.total_tokens,
+                total_cost_dollars: f64::from(r.total_cost_microdollars as i32) / 1_000_000.0,
+                avg_latency_ms: r.avg_latency_ms,
             })
             .collect(),
-        by_model: by_model
+        by_model: stats
+            .by_model
             .into_iter()
             .map(|r| ModelStats {
                 model: r.model,
                 provider: r.provider,
-                request_count: r.request_count.unwrap_or(0),
-                total_tokens: r.total_tokens.unwrap_or(0),
-                total_cost_dollars: f64::from(r.total_cost_microdollars.unwrap_or(0) as i32)
-                    / 1_000_000.0,
-                avg_latency_ms: r.avg_latency_ms.unwrap_or(0),
+                request_count: r.request_count,
+                total_tokens: r.total_tokens,
+                total_cost_dollars: f64::from(r.total_cost_microdollars as i32) / 1_000_000.0,
+                avg_latency_ms: r.avg_latency_ms,
             })
             .collect(),
     };

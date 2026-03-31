@@ -6,7 +6,6 @@ pub mod duration;
 mod export;
 pub mod request;
 mod search;
-mod search_queries;
 pub mod shared;
 mod show;
 mod stream;

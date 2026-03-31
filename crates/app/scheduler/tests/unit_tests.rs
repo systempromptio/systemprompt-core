@@ -1,9 +1,10 @@
+#![allow(clippy::expect_used)]
 //! Unit tests for systemprompt-core-scheduler crate
 //!
 //! Tests cover:
-//! - SchedulerService job scheduling and execution logic
-//! - ServiceManagementService lifecycle management
-//! - ServiceReconciler state drift detection and correction
+//! - `SchedulerService` job scheduling and execution logic
+//! - `ServiceManagementService` lifecycle management
+//! - `ServiceReconciler` state drift detection and correction
 //! - Job implementations (behavioral analysis, database cleanup, etc.)
 //! - Repository operations (job persistence, queries, status updates)
 //! - Model validation and state transitions
@@ -36,20 +37,22 @@ fn test_job_status_display() {
 #[test]
 fn test_job_status_serialization() {
     let success = JobStatus::Success;
-    let json = serde_json::to_string(&success).unwrap();
+    let json = serde_json::to_string(&success).expect("JobStatus::Success should serialize");
     assert_eq!(json, "\"success\"");
 
     let failed = JobStatus::Failed;
-    let json = serde_json::to_string(&failed).unwrap();
+    let json = serde_json::to_string(&failed).expect("JobStatus::Failed should serialize");
     assert_eq!(json, "\"failed\"");
 }
 
 #[test]
 fn test_job_status_deserialization() {
-    let success: JobStatus = serde_json::from_str("\"success\"").unwrap();
+    let success: JobStatus =
+        serde_json::from_str("\"success\"").expect("should deserialize success status");
     assert_eq!(success, JobStatus::Success);
 
-    let failed: JobStatus = serde_json::from_str("\"failed\"").unwrap();
+    let failed: JobStatus =
+        serde_json::from_str("\"failed\"").expect("should deserialize failed status");
     assert_eq!(failed, JobStatus::Failed);
 }
 
@@ -152,7 +155,10 @@ fn test_scheduled_job_with_error() {
 
 #[test]
 fn test_scheduled_job_serialization() {
-    let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
+    let now = Utc
+        .with_ymd_and_hms(2024, 1, 15, 12, 0, 0)
+        .single()
+        .expect("valid datetime for test");
     let job = ScheduledJob {
         id: ScheduledJobId::generate(),
         job_name: "serialization_test".to_string(),
@@ -167,7 +173,7 @@ fn test_scheduled_job_serialization() {
         updated_at: now,
     };
 
-    let json = serde_json::to_string(&job).unwrap();
+    let json = serde_json::to_string(&job).expect("ScheduledJob should serialize");
     assert!(json.contains("\"job_name\":\"serialization_test\""));
     assert!(json.contains("\"enabled\":false"));
 }
@@ -220,11 +226,11 @@ fn test_desired_status_variants() {
 #[test]
 fn test_desired_status_serialization() {
     let enabled = DesiredStatus::Enabled;
-    let json = serde_json::to_string(&enabled).unwrap();
+    let json = serde_json::to_string(&enabled).expect("DesiredStatus::Enabled should serialize");
     assert_eq!(json, "\"Enabled\"");
 
     let disabled = DesiredStatus::Disabled;
-    let json = serde_json::to_string(&disabled).unwrap();
+    let json = serde_json::to_string(&disabled).expect("DesiredStatus::Disabled should serialize");
     assert_eq!(json, "\"Disabled\"");
 }
 
@@ -892,7 +898,7 @@ fn test_verified_state_serialization() {
     .with_pid(1234)
     .build();
 
-    let json = serde_json::to_string(&state).unwrap();
+    let json = serde_json::to_string(&state).expect("VerifiedServiceState should serialize");
     assert!(json.contains("\"name\":\"test-service\""));
     assert!(json.contains("\"port\":8080"));
     assert!(json.contains("\"pid\":1234"));
@@ -911,7 +917,8 @@ fn test_verified_state_deserialization() {
         "error": null
     }"#;
 
-    let state: VerifiedServiceState = serde_json::from_str(json).unwrap();
+    let state: VerifiedServiceState =
+        serde_json::from_str(json).expect("VerifiedServiceState should deserialize from JSON");
     assert_eq!(state.name, "api-server");
     assert_eq!(state.port, 9000);
     assert_eq!(state.pid, Some(5678));
@@ -1012,13 +1019,16 @@ fn test_very_long_error_message() {
         last_run: Some(now),
         next_run: None,
         last_status: Some("failed".to_string()),
-        last_error: Some(long_error.clone()),
+        last_error: Some(long_error),
         run_count: 1,
         created_at: now,
         updated_at: now,
     };
 
-    assert_eq!(job.last_error.unwrap().len(), 10000);
+    assert_eq!(
+        job.last_error.expect("last_error should be set").len(),
+        10000
+    );
 }
 
 // ============================================================================
@@ -1062,7 +1072,7 @@ fn test_common_cron_schedules() {
 
 #[test]
 fn test_multiple_service_configs() {
-    let configs = vec![
+    let configs = [
         ServiceConfig {
             name: "api".to_string(),
             service_type: ServiceType::Api,
@@ -1209,9 +1219,8 @@ fn test_job_schedules_are_valid_cron_format() {
     for job in jobs {
         let schedule = job.schedule();
         // 6-field cron: second minute hour day month weekday
-        let parts: Vec<&str> = schedule.split_whitespace().collect();
         assert_eq!(
-            parts.len(),
+            schedule.split_whitespace().count(),
             6,
             "Job {} has invalid cron schedule: {}",
             job.name(),
@@ -1236,7 +1245,7 @@ fn test_all_jobs_have_unique_names() {
     ];
 
     let mut unique_names = names.clone();
-    unique_names.sort();
+    unique_names.sort_unstable();
     unique_names.dedup();
 
     assert_eq!(
@@ -1319,7 +1328,7 @@ fn test_process_info_with_long_name() {
     let long_name = "a".repeat(1000);
     let info = ProcessInfo {
         pid: 200,
-        name: long_name.clone(),
+        name: long_name,
         port: 6000,
     };
 
@@ -1497,7 +1506,7 @@ fn test_verified_state_serialization_with_error() {
     .with_error("Connection refused".to_string())
     .build();
 
-    let json = serde_json::to_string(&state).unwrap();
+    let json = serde_json::to_string(&state).expect("state with error should serialize");
     assert!(json.contains("\"error\":\"Connection refused\""));
 }
 
@@ -1512,7 +1521,7 @@ fn test_verified_state_serialization_without_pid() {
     )
     .build();
 
-    let json = serde_json::to_string(&state).unwrap();
+    let json = serde_json::to_string(&state).expect("state without pid should serialize");
     assert!(json.contains("\"pid\":null"));
 }
 
@@ -1534,7 +1543,7 @@ fn test_verified_state_all_service_types() {
         )
         .build();
 
-        let json = serde_json::to_string(&state).unwrap();
+        let json = serde_json::to_string(&state).expect("service type state should serialize");
         assert!(
             json.contains(expected_str),
             "JSON should contain service type: {}",
@@ -1752,7 +1761,7 @@ fn test_service_action_serialization_all_variants() {
     ];
 
     for (action, expected) in actions {
-        let json = serde_json::to_string(&action).unwrap();
+        let json = serde_json::to_string(&action).expect("ServiceAction should serialize");
         assert_eq!(json, expected, "Serialization mismatch for {:?}", action);
     }
 }
@@ -1769,7 +1778,8 @@ fn test_service_action_deserialization_all_variants() {
     ];
 
     for (json, expected) in cases {
-        let action: ServiceAction = serde_json::from_str(json).unwrap();
+        let action: ServiceAction =
+            serde_json::from_str(json).expect("ServiceAction should deserialize");
         assert_eq!(action, expected, "Deserialization mismatch for {}", json);
     }
 }
@@ -1803,7 +1813,7 @@ fn test_runtime_status_serialization() {
     ];
 
     for (status, expected) in statuses {
-        let json = serde_json::to_string(&status).unwrap();
+        let json = serde_json::to_string(&status).expect("RuntimeStatus should serialize");
         assert_eq!(json, expected, "Serialization mismatch for {:?}", status);
     }
 }
@@ -1819,7 +1829,8 @@ fn test_runtime_status_deserialization() {
     ];
 
     for (json, expected) in cases {
-        let status: RuntimeStatus = serde_json::from_str(json).unwrap();
+        let status: RuntimeStatus =
+            serde_json::from_str(json).expect("RuntimeStatus should deserialize");
         assert_eq!(status, expected, "Deserialization mismatch for {}", json);
     }
 }

@@ -1,13 +1,13 @@
 //! Unit tests for systemprompt-sync crate
 //!
 //! Tests cover:
-//! - SyncError variants and error messages
-//! - SyncConfig and SyncConfigBuilder
-//! - SyncDirection enum and serialization
-//! - SyncOperationResult construction and methods
-//! - FileBundle, FileManifest, FileEntry models
-//! - DatabaseExport models (SkillExport, ContextExport)
-//! - LocalSync models (DiffStatus, ContentDiffItem, SkillDiffItem, etc.)
+//! - `SyncError` variants and error messages
+//! - `SyncConfig` and `SyncConfigBuilder`
+//! - `SyncDirection` enum and serialization
+//! - `SyncOperationResult` construction and methods
+//! - `FileBundle`, `FileManifest`, `FileEntry` models
+//! - `DatabaseExport` models (`SkillExport`, `ContextExport`)
+//! - `LocalSync` models (`DiffStatus`, `ContentDiffItem`, `SkillDiffItem`, etc.)
 //! - Hash computation functions
 //! - Export generation functions
 //! - YAML escaping
@@ -167,8 +167,8 @@ fn test_sync_direction_serialization() {
     let push = SyncDirection::Push;
     let pull = SyncDirection::Pull;
 
-    let push_json = serde_json::to_string(&push).unwrap();
-    let pull_json = serde_json::to_string(&pull).unwrap();
+    let push_json = serde_json::to_string(&push).expect("serialize push direction");
+    let pull_json = serde_json::to_string(&pull).expect("serialize pull direction");
 
     assert_eq!(push_json, "\"Push\"");
     assert_eq!(pull_json, "\"Pull\"");
@@ -176,8 +176,8 @@ fn test_sync_direction_serialization() {
 
 #[test]
 fn test_sync_direction_deserialization() {
-    let push: SyncDirection = serde_json::from_str("\"Push\"").unwrap();
-    let pull: SyncDirection = serde_json::from_str("\"Pull\"").unwrap();
+    let push: SyncDirection = serde_json::from_str("\"Push\"").expect("deserialize push direction");
+    let pull: SyncDirection = serde_json::from_str("\"Pull\"").expect("deserialize pull direction");
 
     assert_eq!(push, SyncDirection::Push);
     assert_eq!(pull, SyncDirection::Pull);
@@ -239,7 +239,7 @@ fn test_sync_operation_result_chained_with_details() {
 #[test]
 fn test_sync_operation_result_serialization() {
     let result = SyncOperationResult::success("test_op", 5);
-    let json = serde_json::to_string(&result).unwrap();
+    let json = serde_json::to_string(&result).expect("serialize sync operation result");
 
     assert!(json.contains("\"operation\":\"test_op\""));
     assert!(json.contains("\"success\":true"));
@@ -267,7 +267,7 @@ fn test_file_entry_serialization() {
         size: 100,
     };
 
-    let json = serde_json::to_string(&entry).unwrap();
+    let json = serde_json::to_string(&entry).expect("serialize file entry");
     assert!(json.contains("\"path\":\"test.md\""));
     assert!(json.contains("\"checksum\":\"hash\""));
     assert!(json.contains("\"size\":100"));
@@ -448,7 +448,7 @@ fn test_database_export_empty() {
 
 #[test]
 fn test_database_export_serialization() {
-    let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).unwrap();
+    let now = Utc.with_ymd_and_hms(2024, 1, 15, 12, 0, 0).single().expect("valid datetime");
     let export = DatabaseExport {
         users: vec![],
         skills: vec![],
@@ -456,7 +456,7 @@ fn test_database_export_serialization() {
         timestamp: now,
     };
 
-    let json = serde_json::to_string(&export).unwrap();
+    let json = serde_json::to_string(&export).expect("serialize database export");
     assert!(json.contains("\"skills\":[]"));
     assert!(json.contains("\"contexts\":[]"));
 }
@@ -481,9 +481,9 @@ fn test_diff_status_variants() {
 
 #[test]
 fn test_diff_status_serialization() {
-    let added = serde_json::to_string(&DiffStatus::Added).unwrap();
-    let removed = serde_json::to_string(&DiffStatus::Removed).unwrap();
-    let modified = serde_json::to_string(&DiffStatus::Modified).unwrap();
+    let added = serde_json::to_string(&DiffStatus::Added).expect("serialize added status");
+    let removed = serde_json::to_string(&DiffStatus::Removed).expect("serialize removed status");
+    let modified = serde_json::to_string(&DiffStatus::Modified).expect("serialize modified status");
 
     assert_eq!(added, "\"Added\"");
     assert_eq!(removed, "\"Removed\"");
@@ -959,7 +959,7 @@ fn test_export_skill_to_disk_creates_files() {
     use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("create temp directory");
     let skill = Skill {
         skill_id: SkillId::new("export_test"),
         file_path: "/skills/export-test/SKILL.md".to_string(),
@@ -982,10 +982,10 @@ fn test_export_skill_to_disk_creates_files() {
     assert!(skill_dir.join("SKILL.md").exists());
     assert!(skill_dir.join("config.yaml").exists());
 
-    let skill_content = fs::read_to_string(skill_dir.join("SKILL.md")).unwrap();
+    let skill_content = fs::read_to_string(skill_dir.join("SKILL.md")).expect("read SKILL.md");
     assert!(skill_content.contains("description: \"Testing export\""));
 
-    let config_content = fs::read_to_string(skill_dir.join("config.yaml")).unwrap();
+    let config_content = fs::read_to_string(skill_dir.join("config.yaml")).expect("read config.yaml");
     assert!(config_content.contains("id: export_test"));
 }
 
@@ -994,7 +994,7 @@ fn test_export_skill_underscore_to_dash() {
     use systemprompt_agent::models::Skill;
     use systemprompt_identifiers::{SkillId, SourceId};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("create temp directory");
     let skill = Skill {
         skill_id: SkillId::new("my_complex_skill_name"),
         file_path: "/skills/my-complex-skill-name/SKILL.md".to_string(),
@@ -1028,7 +1028,7 @@ fn test_generate_content_markdown_structure() {
         description: "Article description".to_string(),
         body: "Article body content goes here.".to_string(),
         author: "Test Author".to_string(),
-        published_at: Utc.with_ymd_and_hms(2024, 6, 15, 0, 0, 0).unwrap(),
+        published_at: Utc.with_ymd_and_hms(2024, 6, 15, 0, 0, 0).single().expect("valid published date"),
         keywords: "test, article".to_string(),
         kind: "article".to_string(),
         image: Some("cover.jpg".to_string()),
@@ -1037,7 +1037,7 @@ fn test_generate_content_markdown_structure() {
         version_hash: "hash123".to_string(),
         public: true,
         links: serde_json::json!([]),
-        updated_at: Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).unwrap(),
+        updated_at: Utc.with_ymd_and_hms(2024, 7, 20, 0, 0, 0).single().expect("valid updated date"),
     };
 
     let markdown = generate_content_markdown(&content);
@@ -1065,7 +1065,7 @@ fn test_generate_content_markdown_no_image() {
         body: "Body".to_string(),
         author: "Author".to_string(),
         published_at: Utc::now(),
-        keywords: "".to_string(),
+        keywords: String::new(),
         kind: "article".to_string(),
         image: None,
         category_id: None,
@@ -1087,7 +1087,7 @@ fn test_export_content_to_file_docs() {
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("create temp directory");
     let content = Content {
         id: ContentId::new("doc-1"),
         slug: "getting-started".to_string(),
@@ -1113,7 +1113,7 @@ fn test_export_content_to_file_docs() {
     let file_path = temp_dir.path().join("getting-started.md");
     assert!(file_path.exists());
 
-    let file_content = fs::read_to_string(&file_path).unwrap();
+    let file_content = fs::read_to_string(&file_path).expect("read exported content file");
     assert!(file_content.contains("title: \"Getting Started\""));
 }
 
@@ -1122,7 +1122,7 @@ fn test_export_content_to_file_blog_creates_directory() {
     use systemprompt_content::models::Content;
     use systemprompt_identifiers::{ContentId, SourceId};
 
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("create temp directory");
     let content = Content {
         id: ContentId::new("blog-1"),
         slug: "my-blog-post".to_string(),
@@ -1175,7 +1175,7 @@ fn test_special_characters_in_config() {
     .build();
 
     assert_eq!(config.tenant_id, "tenant-123_special!@#");
-    assert!(config.services_path.contains(" "));
+    assert!(config.services_path.contains(' '));
 }
 
 #[test]
@@ -1310,17 +1310,17 @@ fn test_content_diff_result_all_types() {
 #[test]
 fn test_sync_direction_roundtrip() {
     let original = SyncDirection::Push;
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: SyncDirection = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize sync direction");
+    let restored: SyncDirection = serde_json::from_str(&json).expect("deserialize sync direction");
 
     assert_eq!(original, restored);
 }
 
 #[test]
 fn test_diff_status_serialize_all_variants() {
-    let added_json = serde_json::to_string(&DiffStatus::Added).unwrap();
-    let removed_json = serde_json::to_string(&DiffStatus::Removed).unwrap();
-    let modified_json = serde_json::to_string(&DiffStatus::Modified).unwrap();
+    let added_json = serde_json::to_string(&DiffStatus::Added).expect("serialize added status");
+    let removed_json = serde_json::to_string(&DiffStatus::Removed).expect("serialize removed status");
+    let modified_json = serde_json::to_string(&DiffStatus::Modified).expect("serialize modified status");
 
     assert_eq!(added_json, "\"Added\"");
     assert_eq!(removed_json, "\"Removed\"");
@@ -1340,8 +1340,8 @@ fn test_file_manifest_roundtrip() {
         checksum: "manifest123".to_string(),
     };
 
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: FileManifest = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize file manifest");
+    let restored: FileManifest = serde_json::from_str(&json).expect("deserialize file manifest");
 
     assert_eq!(original.files.len(), restored.files.len());
     assert_eq!(original.checksum, restored.checksum);
@@ -1369,8 +1369,8 @@ fn test_database_export_roundtrip() {
         timestamp: now,
     };
 
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: DatabaseExport = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize database export");
+    let restored: DatabaseExport = serde_json::from_str(&json).expect("deserialize database export");
 
     assert_eq!(original.skills.len(), restored.skills.len());
     assert_eq!(original.skills[0].name, restored.skills[0].name);
@@ -1402,7 +1402,7 @@ fn test_sync_error_io_conversion() {
 fn test_sync_error_json_conversion() {
     let json_str = "{ invalid json }";
     let json_result: Result<serde_json::Value, _> = serde_json::from_str(json_str);
-    let json_error = json_result.unwrap_err();
+    let json_error = json_result.expect_err("invalid JSON should fail to parse");
     let sync_error: SyncError = json_error.into();
     assert!(sync_error.to_string().contains("JSON error"));
 }
@@ -1588,7 +1588,7 @@ fn test_user_export_serialization() {
         updated_at: now,
     };
 
-    let json = serde_json::to_string(&user).unwrap();
+    let json = serde_json::to_string(&user).expect("serialize user export");
     assert!(json.contains("\"id\":\"user_ser\""));
     assert!(json.contains("\"email_verified\":true"));
 }
@@ -1614,8 +1614,8 @@ fn test_user_export_roundtrip() {
         updated_at: now,
     };
 
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: UserExport = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize user export");
+    let restored: UserExport = serde_json::from_str(&json).expect("deserialize user export");
 
     assert_eq!(original.id, restored.id);
     assert_eq!(original.name, restored.name);
@@ -1662,7 +1662,7 @@ fn test_import_result_serialization() {
         skipped: 10,
     };
 
-    let json = serde_json::to_string(&result).unwrap();
+    let json = serde_json::to_string(&result).expect("serialize import result");
     assert!(json.contains("\"created\":100"));
     assert!(json.contains("\"updated\":50"));
     assert!(json.contains("\"skipped\":10"));
@@ -1678,8 +1678,8 @@ fn test_import_result_roundtrip() {
         skipped: 5,
     };
 
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: ImportResult = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize import result");
+    let restored: ImportResult = serde_json::from_str(&json).expect("deserialize import result");
 
     assert_eq!(original.created, restored.created);
     assert_eq!(original.updated, restored.updated);
@@ -1756,7 +1756,7 @@ fn test_registry_token_deserialize() {
     use systemprompt_sync::api_client::RegistryToken;
 
     let json = r#"{"registry":"registry.fly.io","username":"testuser","token":"secret123"}"#;
-    let token: RegistryToken = serde_json::from_str(json).unwrap();
+    let token: RegistryToken = serde_json::from_str(json).expect("deserialize registry token");
 
     assert_eq!(token.registry, "registry.fly.io");
     assert_eq!(token.username, "testuser");
@@ -1768,7 +1768,7 @@ fn test_registry_token_debug() {
     use systemprompt_sync::api_client::RegistryToken;
 
     let json = r#"{"registry":"registry.fly.io","username":"user","token":"tok"}"#;
-    let token: RegistryToken = serde_json::from_str(json).unwrap();
+    let token: RegistryToken = serde_json::from_str(json).expect("deserialize registry token");
 
     let debug_str = format!("{:?}", token);
     assert!(debug_str.contains("RegistryToken"));
@@ -1780,7 +1780,7 @@ fn test_deploy_response_deserialize() {
     use systemprompt_sync::api_client::DeployResponse;
 
     let json = r#"{"status":"success","app_url":"https://myapp.fly.dev"}"#;
-    let response: DeployResponse = serde_json::from_str(json).unwrap();
+    let response: DeployResponse = serde_json::from_str(json).expect("deserialize deploy response");
 
     assert_eq!(response.status, "success");
     assert_eq!(response.app_url, Some("https://myapp.fly.dev".to_string()));
@@ -1791,7 +1791,7 @@ fn test_deploy_response_no_url() {
     use systemprompt_sync::api_client::DeployResponse;
 
     let json = r#"{"status":"pending","app_url":null}"#;
-    let response: DeployResponse = serde_json::from_str(json).unwrap();
+    let response: DeployResponse = serde_json::from_str(json).expect("deserialize deploy response");
 
     assert_eq!(response.status, "pending");
     assert!(response.app_url.is_none());
@@ -1802,7 +1802,7 @@ fn test_deploy_response_debug() {
     use systemprompt_sync::api_client::DeployResponse;
 
     let json = r#"{"status":"deployed","app_url":"https://app.fly.dev"}"#;
-    let response: DeployResponse = serde_json::from_str(json).unwrap();
+    let response: DeployResponse = serde_json::from_str(json).expect("deserialize deploy response");
 
     let debug_str = format!("{:?}", response);
     assert!(debug_str.contains("DeployResponse"));
@@ -1934,7 +1934,7 @@ fn test_file_bundle_manifest_serialization() {
         data: vec![],
     };
 
-    let json = serde_json::to_string(&bundle.manifest).unwrap();
+    let json = serde_json::to_string(&bundle.manifest).expect("serialize file bundle manifest");
     assert!(json.contains("agents/default/config.yaml"));
     assert!(json.contains("skills/test-skill/SKILL.md"));
     assert!(json.contains("manifest_checksum"));
@@ -2072,8 +2072,8 @@ fn test_database_export_full_roundtrip() {
         timestamp: now,
     };
 
-    let json = serde_json::to_string(&original).unwrap();
-    let restored: DatabaseExport = serde_json::from_str(&json).unwrap();
+    let json = serde_json::to_string(&original).expect("serialize full database export");
+    let restored: DatabaseExport = serde_json::from_str(&json).expect("deserialize full database export");
 
     assert_eq!(original.users.len(), restored.users.len());
     assert_eq!(original.skills.len(), restored.skills.len());
@@ -2168,7 +2168,7 @@ fn test_skills_diff_result_serialization() {
         unchanged: 10,
     };
 
-    let json = serde_json::to_string(&result).unwrap();
+    let json = serde_json::to_string(&result).expect("serialize skills diff result");
     assert!(json.contains("new_skill"));
     assert!(json.contains("\"unchanged\":10"));
 }
@@ -2228,7 +2228,7 @@ fn test_content_diff_result_serialization() {
         unchanged: 3,
     };
 
-    let json = serde_json::to_string(&result).unwrap();
+    let json = serde_json::to_string(&result).expect("serialize content diff result");
     assert!(json.contains("blog"));
     assert!(json.contains("new-post"));
     assert!(json.contains("\"unchanged\":3"));

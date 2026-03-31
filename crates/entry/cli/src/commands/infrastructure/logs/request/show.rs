@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use clap::Args;
-use systemprompt_logging::{AiTraceService, CliService};
+use systemprompt_logging::{AiTraceService, CliService, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{MessageRow, RequestShowOutput, ToolCallRow};
@@ -22,25 +22,6 @@ pub struct ShowArgs {
 
     #[arg(long, help = "Show full message content without truncation")]
     pub full: bool,
-}
-
-struct AiRequestRow {
-    id: String,
-    provider: String,
-    model: String,
-    input_tokens: Option<i32>,
-    output_tokens: Option<i32>,
-    cost_microdollars: i64,
-    latency_ms: Option<i32>,
-    status: String,
-    error_message: Option<String>,
-}
-
-struct LinkedMcpRow {
-    tool_name: String,
-    server_name: String,
-    status: String,
-    execution_time_ms: Option<i32>,
 }
 
 pub async fn execute(
@@ -66,29 +47,8 @@ async fn execute_with_pool_inner(
     pool: &Arc<sqlx::PgPool>,
     config: &CliConfig,
 ) -> Result<CommandResult<RequestShowOutput>> {
-    let partial_match = format!("{}%", args.request_id);
-    let Some(row) = sqlx::query_as!(
-        AiRequestRow,
-        r#"
-        SELECT
-            id as "id!",
-            provider as "provider!",
-            model as "model!",
-            input_tokens,
-            output_tokens,
-            cost_microdollars as "cost_microdollars!",
-            latency_ms,
-            status as "status!",
-            error_message
-        FROM ai_requests
-        WHERE id = $1 OR id LIKE $2
-        LIMIT 1
-        "#,
-        args.request_id,
-        partial_match
-    )
-    .fetch_optional(pool.as_ref())
-    .await?
+    let service = TraceQueryService::new(Arc::clone(pool));
+    let Some(row) = service.find_ai_request_detail(&args.request_id).await?
     else {
         if !config.is_json_output() {
             CliService::warning(&format!("AI request not found: {}", args.request_id));

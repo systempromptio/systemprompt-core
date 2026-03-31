@@ -1,5 +1,4 @@
 mod list;
-mod queries;
 
 use anyhow::Result;
 use clap::Subcommand;

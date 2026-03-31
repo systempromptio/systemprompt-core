@@ -1,9 +1,14 @@
 use anyhow::Result;
+use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use super::models::{AiRequestSummary, ExecutionStepSummary, McpExecutionSummary, TraceEvent};
-use super::queries;
+use super::models::{
+    AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,
+    AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LinkedMcpCall, LogSearchItem,
+    McpExecutionSummary, ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
+};
+use super::{list_queries, log_search_queries, queries, request_queries, tool_queries};
 
 #[derive(Debug, Clone)]
 pub struct TraceQueryService {
@@ -70,5 +75,91 @@ impl TraceQueryService {
             self.get_execution_step_summary(trace_id),
             self.get_task_id(trace_id),
         )
+    }
+
+    pub async fn list_traces(&self, filter: &TraceListFilter) -> Result<Vec<TraceListItem>> {
+        list_queries::list_traces(&self.pool, filter).await
+    }
+
+    pub async fn list_tool_executions(
+        &self,
+        since: Option<DateTime<Utc>>,
+        name: Option<&str>,
+        server: Option<&str>,
+        status: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<ToolExecutionItem>> {
+        tool_queries::list_tool_executions(&self.pool, since, name, server, status, limit).await
+    }
+
+    pub async fn search_logs(
+        &self,
+        pattern: &str,
+        since: Option<DateTime<Utc>>,
+        level: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<LogSearchItem>> {
+        log_search_queries::search_logs(&self.pool, pattern, since, level, limit).await
+    }
+
+    pub async fn search_tool_executions(
+        &self,
+        pattern: &str,
+        since: Option<DateTime<Utc>>,
+        limit: i64,
+    ) -> Result<Vec<ToolExecutionItem>> {
+        log_search_queries::search_tool_executions(&self.pool, pattern, since, limit).await
+    }
+
+    pub async fn list_ai_requests(
+        &self,
+        since: Option<DateTime<Utc>>,
+        model: Option<&str>,
+        provider: Option<&str>,
+        limit: i64,
+    ) -> Result<Vec<AiRequestListItem>> {
+        request_queries::list_ai_requests(&self.pool, since, model, provider, limit).await
+    }
+
+    pub async fn get_ai_request_stats(
+        &self,
+        since: Option<DateTime<Utc>>,
+    ) -> Result<AiRequestStats> {
+        request_queries::get_ai_request_stats(&self.pool, since).await
+    }
+
+    pub async fn find_ai_request_detail(
+        &self,
+        id: &str,
+    ) -> Result<Option<AiRequestDetail>> {
+        request_queries::find_ai_request_detail(&self.pool, id).await
+    }
+
+    pub async fn find_ai_request_for_audit(
+        &self,
+        id: &str,
+    ) -> Result<Option<AuditLookupResult>> {
+        request_queries::find_ai_request_for_audit(&self.pool, id).await
+    }
+
+    pub async fn list_audit_messages(
+        &self,
+        request_id: &str,
+    ) -> Result<Vec<ConversationMessage>> {
+        request_queries::list_audit_messages(&self.pool, request_id).await
+    }
+
+    pub async fn list_audit_tool_calls(
+        &self,
+        request_id: &str,
+    ) -> Result<Vec<AuditToolCallRow>> {
+        request_queries::list_audit_tool_calls(&self.pool, request_id).await
+    }
+
+    pub async fn list_linked_mcp_calls(
+        &self,
+        request_id: &str,
+    ) -> Result<Vec<LinkedMcpCall>> {
+        request_queries::list_linked_mcp_calls(&self.pool, request_id).await
     }
 }

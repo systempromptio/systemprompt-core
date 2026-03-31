@@ -6,10 +6,11 @@ use tempfile::TempDir;
 
 #[tokio::test]
 async fn test_organize_dist_assets_creates_directories() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::write(temp_dir.path().join("style.css"), "body { color: red; }").unwrap();
-    fs::write(temp_dir.path().join("app.js"), "console.log('test')").unwrap();
+    fs::write(temp_dir.path().join("style.css"), "body { color: red; }")
+        .expect("test setup failed");
+    fs::write(temp_dir.path().join("app.js"), "console.log('test')").expect("test setup failed");
 
     let result = organize_dist_assets(temp_dir.path()).await;
 
@@ -20,18 +21,21 @@ async fn test_organize_dist_assets_creates_directories() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_copies_files() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::write(temp_dir.path().join("style.css"), "body { color: red; }").unwrap();
+    fs::write(temp_dir.path().join("style.css"), "body { color: red; }")
+        .expect("test setup failed");
     fs::write(
         temp_dir.path().join("theme.css"),
         ".theme { background: blue; }",
     )
-    .unwrap();
-    fs::write(temp_dir.path().join("app.js"), "console.log('app')").unwrap();
-    fs::write(temp_dir.path().join("utils.js"), "export {}").unwrap();
+    .expect("test setup failed");
+    fs::write(temp_dir.path().join("app.js"), "console.log('app')").expect("test setup failed");
+    fs::write(temp_dir.path().join("utils.js"), "export {}").expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 2);
     assert_eq!(js_count, 2);
@@ -44,14 +48,16 @@ async fn test_organize_dist_assets_copies_files() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_ignores_other_files() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::write(temp_dir.path().join("style.css"), "body {}").unwrap();
-    fs::write(temp_dir.path().join("script.js"), "console.log('test')").unwrap();
-    fs::write(temp_dir.path().join("index.html"), "<html></html>").unwrap();
-    fs::write(temp_dir.path().join("data.json"), "{}").unwrap();
+    fs::write(temp_dir.path().join("style.css"), "body {}").expect("test setup failed");
+    fs::write(temp_dir.path().join("script.js"), "console.log('test')").expect("test setup failed");
+    fs::write(temp_dir.path().join("index.html"), "<html></html>").expect("test setup failed");
+    fs::write(temp_dir.path().join("data.json"), "{}").expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 1);
     assert_eq!(js_count, 1);
@@ -63,9 +69,11 @@ async fn test_organize_dist_assets_ignores_other_files() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_empty_directory() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 0);
     assert_eq!(js_count, 0);
@@ -75,9 +83,9 @@ async fn test_organize_dist_assets_empty_directory() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_preserves_content() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    let css_content = r#"
+    let css_content = r"
 /* Complex CSS with various features */
 :root {
     --primary-color: #3498db;
@@ -94,9 +102,9 @@ body {
         padding: 1rem;
     }
 }
-"#;
+";
 
-    let js_content = r#"
+    let js_content = r"
 // Complex JS
 const config = {
     api: '/api/v1',
@@ -104,15 +112,19 @@ const config = {
 };
 
 export default config;
-"#;
+";
 
-    fs::write(temp_dir.path().join("complex.css"), css_content).unwrap();
-    fs::write(temp_dir.path().join("config.js"), js_content).unwrap();
+    fs::write(temp_dir.path().join("complex.css"), css_content).expect("test setup failed");
+    fs::write(temp_dir.path().join("config.js"), js_content).expect("test setup failed");
 
-    organize_dist_assets(temp_dir.path()).await.unwrap();
+    organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
-    let copied_css = fs::read_to_string(temp_dir.path().join("css/complex.css")).unwrap();
-    let copied_js = fs::read_to_string(temp_dir.path().join("js/config.js")).unwrap();
+    let copied_css =
+        fs::read_to_string(temp_dir.path().join("css/complex.css")).expect("test setup failed");
+    let copied_js =
+        fs::read_to_string(temp_dir.path().join("js/config.js")).expect("test setup failed");
     assert_eq!(copied_css, css_content);
     assert_eq!(copied_js, js_content);
 }
@@ -128,16 +140,18 @@ async fn test_organize_dist_assets_nonexistent_dir() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_with_subdirectories() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::create_dir(temp_dir.path().join("subdir")).unwrap();
-    fs::write(temp_dir.path().join("subdir/nested.css"), "body {}").unwrap();
-    fs::write(temp_dir.path().join("subdir/nested.js"), "export {}").unwrap();
+    fs::create_dir(temp_dir.path().join("subdir")).expect("test setup failed");
+    fs::write(temp_dir.path().join("subdir/nested.css"), "body {}").expect("test setup failed");
+    fs::write(temp_dir.path().join("subdir/nested.js"), "export {}").expect("test setup failed");
 
-    fs::write(temp_dir.path().join("main.css"), "body {}").unwrap();
-    fs::write(temp_dir.path().join("main.js"), "console.log('main')").unwrap();
+    fs::write(temp_dir.path().join("main.css"), "body {}").expect("test setup failed");
+    fs::write(temp_dir.path().join("main.js"), "console.log('main')").expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 1);
     assert_eq!(js_count, 1);
@@ -147,40 +161,46 @@ async fn test_organize_dist_assets_with_subdirectories() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_overwrites_existing() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::create_dir(temp_dir.path().join("css")).unwrap();
-    fs::create_dir(temp_dir.path().join("js")).unwrap();
-    fs::write(temp_dir.path().join("css/old.css"), "old content").unwrap();
-    fs::write(temp_dir.path().join("js/old.js"), "old content").unwrap();
+    fs::create_dir(temp_dir.path().join("css")).expect("test setup failed");
+    fs::create_dir(temp_dir.path().join("js")).expect("test setup failed");
+    fs::write(temp_dir.path().join("css/old.css"), "old content").expect("test setup failed");
+    fs::write(temp_dir.path().join("js/old.js"), "old content").expect("test setup failed");
 
-    fs::write(temp_dir.path().join("style.css"), "new css content").unwrap();
-    fs::write(temp_dir.path().join("app.js"), "new js content").unwrap();
+    fs::write(temp_dir.path().join("style.css"), "new css content").expect("test setup failed");
+    fs::write(temp_dir.path().join("app.js"), "new js content").expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 1);
     assert_eq!(js_count, 1);
     assert!(temp_dir.path().join("css/style.css").exists());
     assert!(temp_dir.path().join("js/app.js").exists());
 
-    let css_content = fs::read_to_string(temp_dir.path().join("css/style.css")).unwrap();
-    let js_content = fs::read_to_string(temp_dir.path().join("js/app.js")).unwrap();
+    let css_content =
+        fs::read_to_string(temp_dir.path().join("css/style.css")).expect("test setup failed");
+    let js_content =
+        fs::read_to_string(temp_dir.path().join("js/app.js")).expect("test setup failed");
     assert_eq!(css_content, "new css content");
     assert_eq!(js_content, "new js content");
 }
 
 #[tokio::test]
 async fn test_organize_dist_assets_handles_special_filenames() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::write(temp_dir.path().join("main.min.css"), "minified").unwrap();
-    fs::write(temp_dir.path().join("theme-dark.css"), "dark theme").unwrap();
-    fs::write(temp_dir.path().join("_partial.css"), "partial").unwrap();
-    fs::write(temp_dir.path().join("app.bundle.js"), "bundled").unwrap();
-    fs::write(temp_dir.path().join("vendor-chunk.js"), "vendor").unwrap();
+    fs::write(temp_dir.path().join("main.min.css"), "minified").expect("test setup failed");
+    fs::write(temp_dir.path().join("theme-dark.css"), "dark theme").expect("test setup failed");
+    fs::write(temp_dir.path().join("_partial.css"), "partial").expect("test setup failed");
+    fs::write(temp_dir.path().join("app.bundle.js"), "bundled").expect("test setup failed");
+    fs::write(temp_dir.path().join("vendor-chunk.js"), "vendor").expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 3);
     assert_eq!(js_count, 2);
@@ -193,27 +213,31 @@ async fn test_organize_dist_assets_handles_special_filenames() {
 
 #[tokio::test]
 async fn test_organize_dist_assets_large_files() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
     let large_css = "body { margin: 0; }\n".repeat(500);
     let large_js = "console.log('test');\n".repeat(500);
-    fs::write(temp_dir.path().join("large.css"), &large_css).unwrap();
-    fs::write(temp_dir.path().join("large.js"), &large_js).unwrap();
+    fs::write(temp_dir.path().join("large.css"), &large_css).expect("test setup failed");
+    fs::write(temp_dir.path().join("large.js"), &large_js).expect("test setup failed");
 
-    let (css_count, js_count) = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let (css_count, js_count) = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(css_count, 1);
     assert_eq!(js_count, 1);
 
-    let copied_css = fs::read_to_string(temp_dir.path().join("css/large.css")).unwrap();
-    let copied_js = fs::read_to_string(temp_dir.path().join("js/large.js")).unwrap();
+    let copied_css =
+        fs::read_to_string(temp_dir.path().join("css/large.css")).expect("test setup failed");
+    let copied_js =
+        fs::read_to_string(temp_dir.path().join("js/large.js")).expect("test setup failed");
     assert_eq!(copied_css, large_css);
     assert_eq!(copied_js, large_js);
 }
 
 #[tokio::test]
 async fn test_organize_dist_assets_unicode_content() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
     let unicode_css = r#"
 /* CSS with Unicode */
@@ -231,27 +255,37 @@ const greeting = "مرحبا";
 const emoji = "🚀";
 "#;
 
-    fs::write(temp_dir.path().join("unicode.css"), unicode_css).unwrap();
-    fs::write(temp_dir.path().join("unicode.js"), unicode_js).unwrap();
+    fs::write(temp_dir.path().join("unicode.css"), unicode_css).expect("test setup failed");
+    fs::write(temp_dir.path().join("unicode.js"), unicode_js).expect("test setup failed");
 
-    organize_dist_assets(temp_dir.path()).await.unwrap();
+    organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
-    let copied_css = fs::read_to_string(temp_dir.path().join("css/unicode.css")).unwrap();
-    let copied_js = fs::read_to_string(temp_dir.path().join("js/unicode.js")).unwrap();
+    let copied_css =
+        fs::read_to_string(temp_dir.path().join("css/unicode.css")).expect("test setup failed");
+    let copied_js =
+        fs::read_to_string(temp_dir.path().join("js/unicode.js")).expect("test setup failed");
     assert_eq!(copied_css, unicode_css);
     assert_eq!(copied_js, unicode_js);
 }
 
 #[tokio::test]
 async fn test_organize_dist_assets_multiple_calls_idempotent() {
-    let temp_dir = TempDir::new().unwrap();
+    let temp_dir = TempDir::new().expect("test setup failed");
 
-    fs::write(temp_dir.path().join("style.css"), "body {}").unwrap();
-    fs::write(temp_dir.path().join("app.js"), "console.log('test')").unwrap();
+    fs::write(temp_dir.path().join("style.css"), "body {}").expect("test setup failed");
+    fs::write(temp_dir.path().join("app.js"), "console.log('test')").expect("test setup failed");
 
-    let first = organize_dist_assets(temp_dir.path()).await.unwrap();
-    let second = organize_dist_assets(temp_dir.path()).await.unwrap();
-    let third = organize_dist_assets(temp_dir.path()).await.unwrap();
+    let first = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
+    let second = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
+    let third = organize_dist_assets(temp_dir.path())
+        .await
+        .expect("test setup failed");
 
     assert_eq!(first, (1, 1));
     assert_eq!(second, (1, 1));

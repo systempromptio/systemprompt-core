@@ -1,8 +1,7 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::CliService;
+use systemprompt_logging::{CliService, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{RequestListOutput, RequestListRow};
@@ -34,19 +33,6 @@ pub struct ListArgs {
     pub provider: Option<String>,
 }
 
-struct AiRequestRow {
-    id: String,
-    created_at: DateTime<Utc>,
-    trace_id: Option<String>,
-    provider: String,
-    model: String,
-    input_tokens: Option<i32>,
-    output_tokens: Option<i32>,
-    cost_microdollars: i64,
-    latency_ms: Option<i32>,
-    status: String,
-}
-
 pub async fn execute(
     args: ListArgs,
     config: &CliConfig,
@@ -71,56 +57,18 @@ async fn execute_with_pool_inner(
     config: &CliConfig,
 ) -> Result<CommandResult<RequestListOutput>> {
     let since_timestamp = parse_since(args.since.as_ref())?;
+    let model_pattern = args.model.as_ref().map(|m| format!("%{m}%"));
+    let provider_pattern = args.provider.as_ref().map(|p| format!("%{p}%"));
 
-    let rows = if let Some(since_ts) = since_timestamp {
-        sqlx::query_as!(
-            AiRequestRow,
-            r#"
-            SELECT
-                id as "id!",
-                created_at as "created_at!",
-                trace_id,
-                provider as "provider!",
-                model as "model!",
-                input_tokens,
-                output_tokens,
-                cost_microdollars as "cost_microdollars!",
-                latency_ms,
-                status as "status!"
-            FROM ai_requests
-            WHERE created_at >= $1
-            ORDER BY created_at DESC
-            LIMIT $2
-            "#,
-            since_ts,
-            args.limit
+    let service = TraceQueryService::new(Arc::clone(pool));
+    let rows = service
+        .list_ai_requests(
+            since_timestamp,
+            model_pattern.as_deref(),
+            provider_pattern.as_deref(),
+            args.limit,
         )
-        .fetch_all(pool.as_ref())
-        .await?
-    } else {
-        sqlx::query_as!(
-            AiRequestRow,
-            r#"
-            SELECT
-                id as "id!",
-                created_at as "created_at!",
-                trace_id,
-                provider as "provider!",
-                model as "model!",
-                input_tokens,
-                output_tokens,
-                cost_microdollars as "cost_microdollars!",
-                latency_ms,
-                status as "status!"
-            FROM ai_requests
-            ORDER BY created_at DESC
-            LIMIT $1
-            "#,
-            args.limit
-        )
-        .fetch_all(pool.as_ref())
-        .await?
-    };
+        .await?;
 
     let single_trace_id = if args.limit == 1 && rows.len() == 1 {
         rows[0].trace_id.clone()
@@ -130,19 +78,6 @@ async fn execute_with_pool_inner(
 
     let requests: Vec<RequestListRow> = rows
         .into_iter()
-        .filter(|r| {
-            if let Some(ref model) = args.model {
-                if !r.model.to_lowercase().contains(&model.to_lowercase()) {
-                    return false;
-                }
-            }
-            if let Some(ref provider) = args.provider {
-                if !r.provider.to_lowercase().contains(&provider.to_lowercase()) {
-                    return false;
-                }
-            }
-            true
-        })
         .map(|r| {
             let input = r.input_tokens.unwrap_or(0);
             let output = r.output_tokens.unwrap_or(0);

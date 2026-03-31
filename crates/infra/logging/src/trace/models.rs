@@ -2,6 +2,282 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+#[derive(Debug, Clone)]
+pub struct TraceListFilter {
+    pub limit: i64,
+    pub since: Option<DateTime<Utc>>,
+    pub agent: Option<String>,
+    pub status: Option<String>,
+    pub tool: Option<String>,
+    pub has_mcp: bool,
+    pub include_system: bool,
+}
+
+impl TraceListFilter {
+    pub fn new(limit: i64) -> Self {
+        Self {
+            limit,
+            since: None,
+            agent: None,
+            status: None,
+            tool: None,
+            has_mcp: false,
+            include_system: false,
+        }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_agent(mut self, agent: String) -> Self {
+        self.agent = Some(agent);
+        self
+    }
+
+    pub fn with_status(mut self, status: String) -> Self {
+        self.status = Some(status);
+        self
+    }
+
+    pub fn with_tool(mut self, tool: String) -> Self {
+        self.tool = Some(tool);
+        self
+    }
+
+    pub fn with_has_mcp(mut self, has_mcp: bool) -> Self {
+        self.has_mcp = has_mcp;
+        self
+    }
+
+    pub fn with_include_system(mut self, include_system: bool) -> Self {
+        self.include_system = include_system;
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TraceListItem {
+    pub trace_id: String,
+    pub first_timestamp: DateTime<Utc>,
+    pub last_timestamp: DateTime<Utc>,
+    pub agent: Option<String>,
+    pub status: Option<String>,
+    pub ai_requests: i64,
+    pub mcp_calls: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct ToolExecutionFilter {
+    pub limit: i64,
+    pub since: Option<DateTime<Utc>>,
+    pub name: Option<String>,
+    pub server: Option<String>,
+    pub status: Option<String>,
+}
+
+impl ToolExecutionFilter {
+    pub fn new(limit: i64) -> Self {
+        Self {
+            limit,
+            since: None,
+            name: None,
+            server: None,
+            status: None,
+        }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_name(mut self, name: String) -> Self {
+        self.name = Some(name);
+        self
+    }
+
+    pub fn with_server(mut self, server: String) -> Self {
+        self.server = Some(server);
+        self
+    }
+
+    pub fn with_status(mut self, status: String) -> Self {
+        self.status = Some(status);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ToolExecutionItem {
+    pub timestamp: DateTime<Utc>,
+    pub trace_id: String,
+    pub tool_name: String,
+    pub server_name: Option<String>,
+    pub status: String,
+    pub execution_time_ms: Option<i32>,
+}
+
+#[derive(Debug, Clone)]
+pub struct LogSearchFilter {
+    pub pattern: String,
+    pub limit: i64,
+    pub since: Option<DateTime<Utc>>,
+    pub level: Option<String>,
+}
+
+impl LogSearchFilter {
+    pub fn new(pattern: String, limit: i64) -> Self {
+        Self {
+            pattern,
+            limit,
+            since: None,
+            level: None,
+        }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_level(mut self, level: String) -> Self {
+        self.level = Some(level);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LogSearchItem {
+    pub id: String,
+    pub trace_id: String,
+    pub timestamp: DateTime<Utc>,
+    pub level: String,
+    pub module: String,
+    pub message: String,
+    pub metadata: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct AiRequestFilter {
+    pub limit: i64,
+    pub since: Option<DateTime<Utc>>,
+    pub model: Option<String>,
+    pub provider: Option<String>,
+}
+
+impl AiRequestFilter {
+    pub fn new(limit: i64) -> Self {
+        Self {
+            limit,
+            since: None,
+            model: None,
+            provider: None,
+        }
+    }
+
+    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+        self.since = Some(since);
+        self
+    }
+
+    pub fn with_model(mut self, model: String) -> Self {
+        self.model = Some(model);
+        self
+    }
+
+    pub fn with_provider(mut self, provider: String) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiRequestListItem {
+    pub id: String,
+    pub created_at: DateTime<Utc>,
+    pub trace_id: Option<String>,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub cost_microdollars: i64,
+    pub latency_ms: Option<i32>,
+    pub status: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AiRequestDetail {
+    pub id: String,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub cost_microdollars: i64,
+    pub latency_ms: Option<i32>,
+    pub status: String,
+    pub error_message: Option<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AiRequestStats {
+    pub total_requests: i64,
+    pub total_input_tokens: i64,
+    pub total_output_tokens: i64,
+    pub total_cost_microdollars: i64,
+    pub avg_latency_ms: i64,
+    pub by_provider: Vec<ProviderStatsRow>,
+    pub by_model: Vec<ModelStatsRow>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProviderStatsRow {
+    pub provider: String,
+    pub request_count: i64,
+    pub total_tokens: i64,
+    pub total_cost_microdollars: i64,
+    pub avg_latency_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ModelStatsRow {
+    pub model: String,
+    pub provider: String,
+    pub request_count: i64,
+    pub total_tokens: i64,
+    pub total_cost_microdollars: i64,
+    pub avg_latency_ms: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditLookupResult {
+    pub id: String,
+    pub provider: String,
+    pub model: String,
+    pub input_tokens: Option<i32>,
+    pub output_tokens: Option<i32>,
+    pub cost_microdollars: i64,
+    pub latency_ms: Option<i32>,
+    pub task_id: Option<String>,
+    pub trace_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuditToolCallRow {
+    pub tool_name: String,
+    pub tool_input: String,
+    pub sequence_number: i32,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LinkedMcpCall {
+    pub tool_name: String,
+    pub server_name: String,
+    pub status: String,
+    pub execution_time_ms: Option<i32>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TraceEvent {
     pub event_type: String,

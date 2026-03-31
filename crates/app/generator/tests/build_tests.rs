@@ -76,7 +76,7 @@ fn test_build_mode_debug() {
 #[test]
 fn test_build_orchestrator_creation() {
     let web_dir = PathBuf::from("/var/www/html/web");
-    let orchestrator = BuildOrchestrator::new(web_dir.clone(), BuildMode::Development);
+    let orchestrator = BuildOrchestrator::new(web_dir, BuildMode::Development);
 
     // Just verify it can be created - internal state is private
     let debug_str = format!("{:?}", orchestrator);
@@ -89,7 +89,7 @@ fn test_build_orchestrator_with_different_modes() {
 
     let dev = BuildOrchestrator::new(web_dir.clone(), BuildMode::Development);
     let prod = BuildOrchestrator::new(web_dir.clone(), BuildMode::Production);
-    let docker = BuildOrchestrator::new(web_dir.clone(), BuildMode::Docker);
+    let docker = BuildOrchestrator::new(web_dir, BuildMode::Docker);
 
     // Each should be creatable
     assert!(format!("{:?}", dev).contains("Development"));
@@ -193,7 +193,7 @@ fn test_build_mode_all_variants() {
     ];
 
     for (name, expected) in modes {
-        let parsed = BuildMode::parse(name).unwrap();
+        let parsed = BuildMode::parse(name).expect("valid build mode should parse");
         assert_eq!(parsed, expected);
         assert_eq!(parsed.as_str(), name);
     }

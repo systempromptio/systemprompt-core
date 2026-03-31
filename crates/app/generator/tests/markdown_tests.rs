@@ -110,11 +110,11 @@ fn test_markdown_with_links() {
 
 #[test]
 fn test_markdown_with_tables() {
-    let markdown = r#"
+    let markdown = r"
 | Header 1 | Header 2 |
 |----------|----------|
 | Cell 1   | Cell 2   |
-"#;
+";
     let html = render_markdown(markdown);
 
     assert!(html.contains("<table>"));
@@ -134,10 +134,10 @@ fn test_markdown_with_strikethrough() {
 
 #[test]
 fn test_markdown_with_task_list() {
-    let markdown = r#"
+    let markdown = r"
 - [x] Completed task
 - [ ] Pending task
-"#;
+";
     let html = render_markdown(markdown);
 
     assert!(html.contains("type=\"checkbox\""));
@@ -176,18 +176,18 @@ fn test_markdown_only_heading() {
 
 #[test]
 fn test_extract_frontmatter() {
-    let content = r#"---
+    let content = r"---
 title: Test Post
 author: John Doe
 ---
 # Content
 
-This is the body."#;
+This is the body.";
 
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, body) = result.unwrap();
+    let (yaml, body) = result.expect("test setup failed");
     assert_eq!(yaml["title"].as_str(), Some("Test Post"));
     assert_eq!(yaml["author"].as_str(), Some("John Doe"));
     assert!(body.contains("# Content"));
@@ -196,7 +196,7 @@ This is the body."#;
 
 #[test]
 fn test_extract_frontmatter_with_complex_yaml() {
-    let content = r#"---
+    let content = r"---
 title: Complex Post
 tags:
   - rust
@@ -206,15 +206,15 @@ metadata:
   published: true
   views: 1000
 ---
-Body content here."#;
+Body content here.";
 
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, body) = result.unwrap();
+    let (yaml, body) = result.expect("test setup failed");
     assert_eq!(yaml["title"].as_str(), Some("Complex Post"));
 
-    let tags = yaml["tags"].as_sequence().unwrap();
+    let tags = yaml["tags"].as_sequence().expect("test setup failed");
     assert_eq!(tags.len(), 3);
     assert_eq!(tags[0].as_str(), Some("rust"));
 
@@ -234,10 +234,10 @@ fn test_extract_frontmatter_no_frontmatter() {
 
 #[test]
 fn test_extract_frontmatter_incomplete() {
-    let content = r#"---
+    let content = r"---
 title: Incomplete
 # No closing delimiter
-Body starts here."#;
+Body starts here.";
 
     let result = extract_frontmatter(content);
     assert!(result.is_none());
@@ -245,15 +245,15 @@ Body starts here."#;
 
 #[test]
 fn test_extract_frontmatter_empty_body() {
-    let content = r#"---
+    let content = r"---
 title: Empty Body
 ---
-"#;
+";
 
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, body) = result.unwrap();
+    let (yaml, body) = result.expect("test setup failed");
     assert_eq!(yaml["title"].as_str(), Some("Empty Body"));
     assert!(body.trim().is_empty());
 }
@@ -269,41 +269,51 @@ Body"#;
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, _) = result.unwrap();
-    assert!(yaml["title"].as_str().unwrap().contains("colons"));
-    assert!(yaml["description"].as_str().unwrap().contains("quotes"));
+    let (yaml, _) = result.expect("test setup failed");
+    assert!(
+        yaml["title"]
+            .as_str()
+            .expect("test setup failed")
+            .contains("colons")
+    );
+    assert!(
+        yaml["description"]
+            .as_str()
+            .expect("test setup failed")
+            .contains("quotes")
+    );
 }
 
 #[test]
 fn test_extract_frontmatter_date_field() {
-    let content = r#"---
+    let content = r"---
 title: Date Test
 published_at: 2024-01-15
 ---
-Content"#;
+Content";
 
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, _) = result.unwrap();
+    let (yaml, _) = result.expect("test setup failed");
     assert!(yaml["published_at"].as_str().is_some());
 }
 
 #[test]
 fn test_extract_frontmatter_multiline_string() {
-    let content = r#"---
+    let content = r"---
 title: Multiline
 description: |
   This is a
   multiline description
   that spans multiple lines.
 ---
-Body"#;
+Body";
 
     let result = extract_frontmatter(content);
     assert!(result.is_some());
 
-    let (yaml, _) = result.unwrap();
-    let desc = yaml["description"].as_str().unwrap();
+    let (yaml, _) = result.expect("test setup failed");
+    let desc = yaml["description"].as_str().expect("test setup failed");
     assert!(desc.contains("multiline description"));
 }
