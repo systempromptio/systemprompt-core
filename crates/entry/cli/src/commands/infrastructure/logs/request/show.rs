@@ -84,7 +84,17 @@ async fn execute_with_pool_inner(
     };
 
     let linked_mcp_calls = if args.tools {
-        fetch_linked_mcp_calls(pool, &request_id).await?
+        service
+            .list_linked_mcp_calls(&request_id)
+            .await?
+            .into_iter()
+            .map(|r| ToolCallRow {
+                tool_name: r.tool_name,
+                server: r.server_name,
+                status: r.status,
+                duration_ms: r.execution_time_ms.map(i64::from),
+            })
+            .collect()
     } else {
         Vec::new()
     };
@@ -135,37 +145,7 @@ async fn fetch_messages(pool: &Arc<sqlx::PgPool>, request_id: &str) -> Vec<Messa
         )
 }
 
-async fn fetch_linked_mcp_calls(
-    pool: &Arc<sqlx::PgPool>,
-    request_id: &str,
-) -> Result<Vec<ToolCallRow>> {
-    let rows = sqlx::query_as!(
-        LinkedMcpRow,
-        r#"
-        SELECT
-            mte.tool_name as "tool_name!",
-            mte.server_name as "server_name!",
-            mte.status as "status!",
-            mte.execution_time_ms
-        FROM mcp_tool_executions mte
-        JOIN ai_request_tool_calls artc ON artc.mcp_execution_id = mte.mcp_execution_id
-        WHERE artc.request_id = $1
-        "#,
-        request_id
-    )
-    .fetch_all(pool.as_ref())
-    .await?;
 
-    Ok(rows
-        .into_iter()
-        .map(|r| ToolCallRow {
-            tool_name: r.tool_name,
-            server: r.server_name,
-            status: r.status,
-            duration_ms: r.execution_time_ms.map(i64::from),
-        })
-        .collect())
-}
 
 fn render_text_output(output: &RequestShowOutput, full: bool) {
     CliService::section(&format!("AI Request: {}", output.request_id));
