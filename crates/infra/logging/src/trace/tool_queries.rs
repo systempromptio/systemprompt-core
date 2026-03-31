@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::PgPool;
 use std::sync::Arc;
 
-use super::models::ToolExecutionItem;
+use super::models::{ToolExecutionFilter, ToolExecutionItem};
 
 struct DbRow {
     timestamp: DateTime<Utc>,
@@ -16,11 +16,7 @@ struct DbRow {
 
 pub async fn list_tool_executions(
     pool: &Arc<PgPool>,
-    since: Option<DateTime<Utc>>,
-    name: Option<&str>,
-    server: Option<&str>,
-    status: Option<&str>,
-    limit: i64,
+    filter: &ToolExecutionFilter,
 ) -> Result<Vec<ToolExecutionItem>> {
     let rows = sqlx::query_as!(
         DbRow,
@@ -40,11 +36,11 @@ pub async fn list_tool_executions(
         ORDER BY started_at DESC
         LIMIT $5
         "#,
-        since,
-        name,
-        server,
-        status,
-        limit
+        filter.since,
+        filter.name.as_deref(),
+        filter.server.as_deref(),
+        filter.status.as_deref(),
+        filter.limit
     )
     .fetch_all(&**pool)
     .await?;

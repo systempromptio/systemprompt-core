@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use std::sync::Arc;
-use systemprompt_logging::{CliService, TraceQueryService};
+use systemprompt_logging::{CliService, ToolExecutionFilter, TraceQueryService};
 use systemprompt_runtime::{AppContext, DatabaseContext};
 
 use super::{ToolExecutionRow, ToolsListOutput};
@@ -51,16 +51,22 @@ async fn execute_with_pool_inner(
     let name_pattern = args.name.as_ref().map(|n| format!("%{n}%"));
     let server_pattern = args.server.as_ref().map(|s| format!("%{s}%"));
 
+    let mut filter = ToolExecutionFilter::new(args.limit);
+    if let Some(since) = since_timestamp {
+        filter = filter.with_since(since);
+    }
+    if let Some(name) = name_pattern {
+        filter = filter.with_name(name);
+    }
+    if let Some(server) = server_pattern {
+        filter = filter.with_server(server);
+    }
+    if let Some(status) = args.status.clone() {
+        filter = filter.with_status(status);
+    }
+
     let service = TraceQueryService::new(Arc::clone(pool));
-    let rows = service
-        .list_tool_executions(
-            since_timestamp,
-            name_pattern.as_deref(),
-            server_pattern.as_deref(),
-            args.status.as_deref(),
-            args.limit,
-        )
-        .await?;
+    let rows = service.list_tool_executions(&filter).await?;
 
     let executions: Vec<ToolExecutionRow> = rows
         .into_iter()

@@ -5,26 +5,26 @@ use systemprompt_database::DbPool;
 use systemprompt_traits::RepositoryError;
 
 #[derive(Debug)]
-pub(crate) struct AgentServiceRow {
-    pub(crate) name: String,
-    pub(crate) pid: Option<i32>,
-    pub(crate) port: i32,
-    pub(crate) status: String,
+pub struct AgentServiceRow {
+    pub name: String,
+    pub pid: Option<i32>,
+    pub port: i32,
+    pub status: String,
 }
 
 #[derive(Debug)]
-pub(crate) struct AgentServerIdRow {
-    pub(crate) name: String,
+pub struct AgentServerIdRow {
+    pub name: String,
 }
 
 #[derive(Debug)]
-pub(crate) struct AgentServerIdPidRow {
-    pub(crate) name: String,
-    pub(crate) pid: i32,
+pub struct AgentServerIdPidRow {
+    pub name: String,
+    pub pid: i32,
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct AgentServiceRepository {
+pub struct AgentServiceRepository {
     pool: Arc<PgPool>,
     write_pool: Arc<PgPool>,
 }

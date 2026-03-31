@@ -14,7 +14,7 @@ pub struct TraceListFilter {
 }
 
 impl TraceListFilter {
-    pub fn new(limit: i64) -> Self {
+    pub const fn new(limit: i64) -> Self {
         Self {
             limit,
             since: None,
@@ -26,7 +26,7 @@ impl TraceListFilter {
         }
     }
 
-    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+    pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
     }
@@ -46,12 +46,12 @@ impl TraceListFilter {
         self
     }
 
-    pub fn with_has_mcp(mut self, has_mcp: bool) -> Self {
+    pub const fn with_has_mcp(mut self, has_mcp: bool) -> Self {
         self.has_mcp = has_mcp;
         self
     }
 
-    pub fn with_include_system(mut self, include_system: bool) -> Self {
+    pub const fn with_include_system(mut self, include_system: bool) -> Self {
         self.include_system = include_system;
         self
     }
@@ -78,7 +78,7 @@ pub struct ToolExecutionFilter {
 }
 
 impl ToolExecutionFilter {
-    pub fn new(limit: i64) -> Self {
+    pub const fn new(limit: i64) -> Self {
         Self {
             limit,
             since: None,
@@ -88,7 +88,7 @@ impl ToolExecutionFilter {
         }
     }
 
-    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+    pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
     }
@@ -128,7 +128,7 @@ pub struct LogSearchFilter {
 }
 
 impl LogSearchFilter {
-    pub fn new(pattern: String, limit: i64) -> Self {
+    pub const fn new(pattern: String, limit: i64) -> Self {
         Self {
             pattern,
             limit,
@@ -137,7 +137,7 @@ impl LogSearchFilter {
         }
     }
 
-    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+    pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
     }
@@ -168,7 +168,7 @@ pub struct AiRequestFilter {
 }
 
 impl AiRequestFilter {
-    pub fn new(limit: i64) -> Self {
+    pub const fn new(limit: i64) -> Self {
         Self {
             limit,
             since: None,
@@ -177,7 +177,7 @@ impl AiRequestFilter {
         }
     }
 
-    pub fn with_since(mut self, since: DateTime<Utc>) -> Self {
+    pub const fn with_since(mut self, since: DateTime<Utc>) -> Self {
         self.since = Some(since);
         self
     }

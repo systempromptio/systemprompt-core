@@ -69,7 +69,7 @@ pub struct SearchResultRow {
     pub category_id: Option<CategoryId>,
 }
 
-pub(crate) const fn is_zero(val: &usize) -> bool {
+pub const fn is_zero(val: &usize) -> bool {
     *val == 0
 }
 

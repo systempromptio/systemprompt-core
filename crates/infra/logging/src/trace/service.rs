@@ -6,7 +6,8 @@ use std::sync::Arc;
 use super::models::{
     AiRequestDetail, AiRequestListItem, AiRequestStats, AiRequestSummary, AuditLookupResult,
     AuditToolCallRow, ConversationMessage, ExecutionStepSummary, LinkedMcpCall, LogSearchItem,
-    McpExecutionSummary, ToolExecutionItem, TraceEvent, TraceListFilter, TraceListItem,
+    McpExecutionSummary, ToolExecutionFilter, ToolExecutionItem, TraceEvent, TraceListFilter,
+    TraceListItem,
 };
 use super::{list_queries, log_search_queries, queries, request_queries, tool_queries};
 
@@ -83,13 +84,9 @@ impl TraceQueryService {
 
     pub async fn list_tool_executions(
         &self,
-        since: Option<DateTime<Utc>>,
-        name: Option<&str>,
-        server: Option<&str>,
-        status: Option<&str>,
-        limit: i64,
+        filter: &ToolExecutionFilter,
     ) -> Result<Vec<ToolExecutionItem>> {
-        tool_queries::list_tool_executions(&self.pool, since, name, server, status, limit).await
+        tool_queries::list_tool_executions(&self.pool, filter).await
     }
 
     pub async fn search_logs(
