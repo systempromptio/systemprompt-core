@@ -78,7 +78,8 @@ Entry (api, cli) → App (runtime, scheduler) → Domain (agent, ai, mcp...) →
 - Zero inline comments - code documents itself through naming
 - Zero raw String IDs - use typed identifiers from `systemprompt_identifiers`
 - Services call repositories, never execute SQL directly
-- All SQL in `.sql` files, never inline
+- All queries via compile-time verified macros: `sqlx::query!()`, `sqlx::query_as!()`, `sqlx::query_scalar!()` (never unverified `sqlx::query()`)
+- Schema DDL lives in `{crate}/schema/*.sql` files, embedded via `include_str!()` in extension.rs
 
 ## Facade Crate (`systemprompt/`)
 
