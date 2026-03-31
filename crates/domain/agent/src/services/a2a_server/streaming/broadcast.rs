@@ -4,14 +4,24 @@ use systemprompt_models::{Config, TaskMetadata};
 
 use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
 
-pub async fn broadcast_task_created(
-    task_id: &TaskId,
-    context_id: &ContextId,
-    user_id: &str,
-    user_message: &Message,
-    agent_name: &str,
-    token: &str,
-) {
+pub struct BroadcastTaskCreatedParams<'a> {
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub user_id: &'a str,
+    pub user_message: &'a Message,
+    pub agent_name: &'a str,
+    pub token: &'a str,
+}
+
+pub async fn broadcast_task_created(params: BroadcastTaskCreatedParams<'_>) {
+    let BroadcastTaskCreatedParams {
+        task_id,
+        context_id,
+        user_id,
+        user_message,
+        agent_name,
+        token,
+    } = params;
     let event_task = build_event_task(task_id, context_id, user_message, agent_name);
 
     let api_url = match Config::get() {

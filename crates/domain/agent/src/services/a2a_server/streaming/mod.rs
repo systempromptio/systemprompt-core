@@ -9,5 +9,5 @@ pub mod webhook_client;
 
 pub use broadcast::{broadcast_artifact_created, broadcast_task_completed};
 pub use event_loop::ProcessEventsParams;
-pub use messages::create_sse_stream;
+pub use messages::{CreateSseStreamParams, create_sse_stream};
 pub use types::{PersistTaskInput, StreamContext, StreamInput, StreamSetupResult};

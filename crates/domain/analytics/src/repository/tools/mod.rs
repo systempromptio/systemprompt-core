@@ -1,5 +1,5 @@
 mod detail_queries;
-pub(crate) mod list_queries;
+pub(super) mod list_queries;
 
 use anyhow::Result;
 use sqlx::PgPool;

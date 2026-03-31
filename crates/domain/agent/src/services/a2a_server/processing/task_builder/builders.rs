@@ -63,25 +63,36 @@ pub fn build_submitted_task(
     }
 }
 
-pub fn build_multiturn_task(
-    context_id: ContextId,
-    task_id: TaskId,
-    user_message: Message,
-    tool_calls: Vec<ToolCall>,
-    tool_results: Vec<CallToolResult>,
-    final_response: String,
-    total_iterations: usize,
-) -> Task {
+pub struct BuildMultiturnTaskParams {
+    pub context_id: ContextId,
+    pub task_id: TaskId,
+    pub user_message: Message,
+    pub tool_calls: Vec<ToolCall>,
+    pub tool_results: Vec<CallToolResult>,
+    pub final_response: String,
+    pub total_iterations: usize,
+}
+
+pub fn build_multiturn_task(params: BuildMultiturnTaskParams) -> Task {
+    let BuildMultiturnTaskParams {
+        context_id,
+        task_id,
+        user_message,
+        tool_calls,
+        tool_results,
+        final_response,
+        total_iterations,
+    } = params;
     let ctx_id = context_id;
 
-    let history = build_history(
-        &ctx_id,
-        &task_id,
+    let history = build_history(BuildHistoryParams {
+        ctx_id: &ctx_id,
+        task_id: &task_id,
         user_message,
-        &tool_calls,
-        &tool_results,
-        &final_response,
-    );
+        tool_calls: &tool_calls,
+        tool_results: &tool_results,
+        final_response: &final_response,
+    });
 
     let artifacts = build_artifacts(&ctx_id, &task_id, &tool_calls, &tool_results);
 
@@ -120,14 +131,24 @@ pub fn build_multiturn_task(
     }
 }
 
-fn build_history(
-    ctx_id: &ContextId,
-    task_id: &TaskId,
+struct BuildHistoryParams<'a> {
+    ctx_id: &'a ContextId,
+    task_id: &'a TaskId,
     user_message: Message,
-    tool_calls: &[ToolCall],
-    tool_results: &[CallToolResult],
-    final_response: &str,
-) -> Vec<Message> {
+    tool_calls: &'a [ToolCall],
+    tool_results: &'a [CallToolResult],
+    final_response: &'a str,
+}
+
+fn build_history(params: BuildHistoryParams<'_>) -> Vec<Message> {
+    let BuildHistoryParams {
+        ctx_id,
+        task_id,
+        user_message,
+        tool_calls,
+        tool_results,
+        final_response,
+    } = params;
     let mut history = Vec::new();
     history.push(user_message);
 

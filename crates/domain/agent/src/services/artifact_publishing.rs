@@ -11,6 +11,16 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 
+pub struct PublishFromMcpParams<'a> {
+    pub artifact: &'a Artifact,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub tool_name: &'a str,
+    pub tool_args: &'a serde_json::Value,
+    pub request_context: &'a RequestContext,
+    pub call_source: CallSource,
+}
+
 pub struct ArtifactPublishingService {
     artifact_repo: ArtifactRepository,
     skill_repo: SkillRepository,
@@ -125,16 +135,16 @@ impl ArtifactPublishingService {
         Ok(())
     }
 
-    pub async fn publish_from_mcp(
-        &self,
-        artifact: &Artifact,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        tool_name: &str,
-        tool_args: &serde_json::Value,
-        request_context: &RequestContext,
-        call_source: CallSource,
-    ) -> Result<()> {
+    pub async fn publish_from_mcp(&self, params: PublishFromMcpParams<'_>) -> Result<()> {
+        let PublishFromMcpParams {
+            artifact,
+            task_id,
+            context_id,
+            tool_name,
+            tool_args,
+            request_context,
+            call_source,
+        } = params;
         let enriched_artifact = self.enrich_artifact_with_skill(artifact).await;
         let validated_artifact = self.validate_execution_id(&enriched_artifact).await;
 

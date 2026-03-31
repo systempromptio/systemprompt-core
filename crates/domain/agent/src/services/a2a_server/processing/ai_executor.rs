@@ -63,18 +63,34 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
+pub struct SynthesizeToolResultsParams<'a> {
+    pub ai_service: Arc<dyn AiProvider>,
+    pub agent_runtime: &'a AgentRuntimeInfo,
+    pub original_messages: Vec<AiMessage>,
+    pub initial_response: &'a str,
+    pub tool_calls: &'a [ToolCall],
+    pub tool_results: &'a [CallToolResult],
+    pub artifacts: &'a [Artifact],
+    pub tx: mpsc::UnboundedSender<StreamEvent>,
+    pub request_context: RequestContext,
+    pub skill_service: Arc<SkillService>,
+}
+
 pub async fn synthesize_tool_results_with_artifacts(
-    ai_service: Arc<dyn AiProvider>,
-    agent_runtime: &AgentRuntimeInfo,
-    original_messages: Vec<AiMessage>,
-    initial_response: &str,
-    tool_calls: &[ToolCall],
-    tool_results: &[CallToolResult],
-    artifacts: &[Artifact],
-    tx: mpsc::UnboundedSender<StreamEvent>,
-    request_context: RequestContext,
-    _skill_service: Arc<SkillService>,
+    params: SynthesizeToolResultsParams<'_>,
 ) -> Result<String, ()> {
+    let SynthesizeToolResultsParams {
+        ai_service,
+        agent_runtime,
+        original_messages,
+        initial_response,
+        tool_calls,
+        tool_results,
+        artifacts,
+        tx,
+        request_context,
+        skill_service: _skill_service,
+    } = params;
     let tool_results_context = ToolResultFormatter::format_for_synthesis(tool_calls, tool_results);
     let artifact_references = build_artifact_references(artifacts);
 

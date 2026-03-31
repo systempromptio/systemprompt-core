@@ -6,7 +6,7 @@ use systemprompt_models::RequestContext;
 use super::validation::validate_message_context;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
-use crate::services::a2a_server::streaming::create_sse_stream;
+use crate::services::a2a_server::streaming::{CreateSseStreamParams, create_sse_stream};
 
 pub async fn handle_streaming_request(
     request: crate::models::a2a::A2aRequestParams,
@@ -66,14 +66,14 @@ pub async fn handle_streaming_request(
             .as_ref()
             .and_then(|c| c.push_notification_config.clone());
 
-        create_sse_stream(
-            params.message,
+        create_sse_stream(CreateSseStreamParams {
+            message: params.message,
             agent_name,
             state,
             request_id,
             context,
             callback_config,
-        )
+        })
         .await
         .map(Ok)
     } else {

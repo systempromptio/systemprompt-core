@@ -10,7 +10,7 @@ use serde_json::{Value as JsonValue, json};
 use systemprompt_identifiers::{ArtifactId, McpExecutionId};
 use systemprompt_models::artifacts::types::ArtifactType;
 
-use metadata_builder::build_metadata;
+use metadata_builder::{BuildMetadataParams, build_metadata};
 use parts_builder::build_parts;
 
 pub use type_inference::infer_type;
@@ -101,14 +101,24 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     format!("{}-{:x}", tool_name, hash)
 }
 
-fn transform_parsed(
-    tool_name: &str,
+struct TransformParsedParams<'a> {
+    tool_name: &'a str,
     parsed: ParsedToolResponse,
-    output_schema: Option<&JsonValue>,
-    context_id: &str,
-    task_id: &str,
-    tool_arguments: Option<&JsonValue>,
-) -> Result<Artifact, ArtifactError> {
+    output_schema: Option<&'a JsonValue>,
+    context_id: &'a str,
+    task_id: &'a str,
+    tool_arguments: Option<&'a JsonValue>,
+}
+
+fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, ArtifactError> {
+    let TransformParsedParams {
+        tool_name,
+        parsed,
+        output_schema,
+        context_id,
+        task_id,
+        tool_arguments,
+    } = params;
     let artifact_type = infer_type(&parsed.artifact, output_schema, tool_name)?;
     let fingerprint = calculate_fingerprint(tool_name, tool_arguments);
     let parts = build_parts(&parsed.artifact)?;
@@ -117,14 +127,14 @@ fn transform_parsed(
         .filter(|s| !s.is_empty())
         .or_else(|| parsed.metadata.execution_id.clone());
 
-    let mut metadata = build_metadata(
-        &artifact_type,
-        output_schema,
+    let mut metadata = build_metadata(BuildMetadataParams {
+        artifact_type: &artifact_type,
+        schema: output_schema,
         mcp_execution_id,
         context_id,
         task_id,
         tool_name,
-    )?;
+    })?;
 
     metadata = metadata.with_fingerprint(fingerprint);
 
@@ -165,14 +175,14 @@ impl McpToA2aTransformer {
                 })?;
 
         let parsed = parse_tool_response(structured_content)?;
-        transform_parsed(
+        transform_parsed(TransformParsedParams {
             tool_name,
             parsed,
             output_schema,
             context_id,
             task_id,
             tool_arguments,
-        )
+        })
     }
 
     pub fn transform_from_json(
@@ -184,13 +194,13 @@ impl McpToA2aTransformer {
         tool_arguments: Option<&JsonValue>,
     ) -> Result<Artifact, ArtifactError> {
         let parsed = parse_tool_response(tool_result_json)?;
-        transform_parsed(
+        transform_parsed(TransformParsedParams {
             tool_name,
             parsed,
             output_schema,
             context_id,
             task_id,
             tool_arguments,
-        )
+        })
     }
 }

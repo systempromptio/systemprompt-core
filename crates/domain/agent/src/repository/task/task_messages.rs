@@ -1,8 +1,8 @@
 use super::TaskRepository;
 use crate::models::a2a::{Message, Part};
 use crate::repository::context::message::{
-    get_message_parts, get_messages_by_context, get_messages_by_task, get_next_sequence_number,
-    get_next_sequence_number_in_tx, persist_message_with_tx,
+    PersistMessageWithTxParams, get_message_parts, get_messages_by_context, get_messages_by_task,
+    get_next_sequence_number, get_next_sequence_number_in_tx, persist_message_with_tx,
 };
 use systemprompt_traits::RepositoryError;
 
@@ -45,25 +45,8 @@ impl TaskRepository {
 
     pub async fn persist_message_with_tx(
         &self,
-        tx: &mut dyn systemprompt_database::DatabaseTransaction,
-        message: &Message,
-        task_id: &systemprompt_identifiers::TaskId,
-        context_id: &systemprompt_identifiers::ContextId,
-        sequence_number: i32,
-        user_id: Option<&systemprompt_identifiers::UserId>,
-        session_id: &systemprompt_identifiers::SessionId,
-        trace_id: &systemprompt_identifiers::TraceId,
+        params: PersistMessageWithTxParams<'_>,
     ) -> Result<(), RepositoryError> {
-        persist_message_with_tx(
-            tx,
-            message,
-            task_id,
-            context_id,
-            sequence_number,
-            user_id,
-            session_id,
-            trace_id,
-        )
-        .await
+        persist_message_with_tx(params).await
     }
 }

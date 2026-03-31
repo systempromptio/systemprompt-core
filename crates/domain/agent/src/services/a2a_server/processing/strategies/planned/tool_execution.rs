@@ -15,16 +15,28 @@ use super::super::{ExecutionContext, ExecutionResult};
 use crate::services::ExecutionTrackingService;
 use crate::services::a2a_server::processing::message::StreamEvent;
 
-pub async fn handle_tool_calls(
-    reasoning: String,
-    calls: Vec<PlannedToolCall>,
-    context: &ExecutionContext,
-    tracking: &ExecutionTrackingService,
-    planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
-    task_id: TaskId,
-    messages: Vec<AiMessage>,
-    tools: Vec<McpTool>,
-) -> Result<ExecutionResult> {
+pub struct HandleToolCallsParams<'a> {
+    pub reasoning: String,
+    pub calls: Vec<PlannedToolCall>,
+    pub context: &'a ExecutionContext,
+    pub tracking: &'a ExecutionTrackingService,
+    pub planning_tracked: Result<(TrackedStep, ExecutionStep), anyhow::Error>,
+    pub task_id: TaskId,
+    pub messages: Vec<AiMessage>,
+    pub tools: Vec<McpTool>,
+}
+
+pub async fn handle_tool_calls(params: HandleToolCallsParams<'_>) -> Result<ExecutionResult> {
+    let HandleToolCallsParams {
+        reasoning,
+        calls,
+        context,
+        tracking,
+        planning_tracked,
+        task_id,
+        messages,
+        tools,
+    } = params;
     tracing::info!(
         tool_count = calls.len(),
         reasoning = %reasoning,

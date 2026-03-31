@@ -3,6 +3,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use crate::models::a2a::{Message, Part, TextPart};
+use crate::repository::context::message::PersistMessageWithTxParams;
 use crate::repository::task::TaskRepository;
 use systemprompt_database::{DatabaseProvider, DatabaseTransaction, DbPool};
 use systemprompt_identifiers::{ContextId, TaskId};
@@ -41,7 +42,7 @@ impl MessageService {
             .await?;
 
         self.task_repo
-            .persist_message_with_tx(
+            .persist_message_with_tx(PersistMessageWithTxParams {
                 tx,
                 message,
                 task_id,
@@ -50,7 +51,7 @@ impl MessageService {
                 user_id,
                 session_id,
                 trace_id,
-            )
+            })
             .await
             .map_err(|e| anyhow!("Failed to persist message: {}", e))?;
 

@@ -45,19 +45,36 @@ pub fn build_artifacts_from_results(
     artifact_builder.build_artifacts()
 }
 
-pub async fn synthesize_final_response(
-    tool_calls: &[systemprompt_models::ToolCall],
-    tool_results: &[systemprompt_models::CallToolResult],
-    artifacts: &[Artifact],
-    accumulated_text: &str,
-    ai_service: Arc<dyn AiProvider>,
-    agent_runtime: &AgentRuntimeInfo,
-    ai_messages_for_synthesis: Vec<AiMessage>,
-    tx: mpsc::UnboundedSender<StreamEvent>,
-    request_ctx: RequestContext,
-    skill_service: Arc<SkillService>,
-) -> String {
-    use crate::services::a2a_server::processing::ai_executor::synthesize_tool_results_with_artifacts;
+pub struct SynthesizeFinalResponseParams<'a> {
+    pub tool_calls: &'a [systemprompt_models::ToolCall],
+    pub tool_results: &'a [systemprompt_models::CallToolResult],
+    pub artifacts: &'a [Artifact],
+    pub accumulated_text: &'a str,
+    pub ai_service: Arc<dyn AiProvider>,
+    pub agent_runtime: &'a AgentRuntimeInfo,
+    pub ai_messages_for_synthesis: Vec<AiMessage>,
+    pub tx: mpsc::UnboundedSender<StreamEvent>,
+    pub request_ctx: RequestContext,
+    pub skill_service: Arc<SkillService>,
+}
+
+pub async fn synthesize_final_response(params: SynthesizeFinalResponseParams<'_>) -> String {
+    use crate::services::a2a_server::processing::ai_executor::{
+        SynthesizeToolResultsParams, synthesize_tool_results_with_artifacts,
+    };
+
+    let SynthesizeFinalResponseParams {
+        tool_calls,
+        tool_results,
+        artifacts,
+        accumulated_text,
+        ai_service,
+        agent_runtime,
+        ai_messages_for_synthesis,
+        tx,
+        request_ctx,
+        skill_service,
+    } = params;
 
     if !tool_calls.is_empty() && !tool_results.is_empty() {
         tracing::info!(
@@ -66,19 +83,20 @@ pub async fn synthesize_final_response(
             "Synthesizing results from tool calls"
         );
 
-        if let Ok(synthesized) = synthesize_tool_results_with_artifacts(
-            ai_service,
-            agent_runtime,
-            ai_messages_for_synthesis,
-            accumulated_text,
-            tool_calls,
-            tool_results,
-            artifacts,
-            tx,
-            request_ctx,
-            skill_service,
-        )
-        .await
+        if let Ok(synthesized) =
+            synthesize_tool_results_with_artifacts(SynthesizeToolResultsParams {
+                ai_service,
+                agent_runtime,
+                original_messages: ai_messages_for_synthesis,
+                initial_response: accumulated_text,
+                tool_calls,
+                tool_results,
+                artifacts,
+                tx,
+                request_context: request_ctx,
+                skill_service,
+            })
+            .await
         {
             synthesized
         } else {

@@ -5,14 +5,24 @@ use systemprompt_models::artifacts::types::ArtifactType;
 
 use super::artifact_type_to_string;
 
-pub fn build_metadata(
-    artifact_type: &ArtifactType,
-    schema: Option<&JsonValue>,
-    mcp_execution_id: Option<String>,
-    context_id: &str,
-    task_id: &str,
-    tool_name: &str,
-) -> Result<ArtifactMetadata, ArtifactError> {
+pub struct BuildMetadataParams<'a> {
+    pub artifact_type: &'a ArtifactType,
+    pub schema: Option<&'a JsonValue>,
+    pub mcp_execution_id: Option<String>,
+    pub context_id: &'a str,
+    pub task_id: &'a str,
+    pub tool_name: &'a str,
+}
+
+pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadata, ArtifactError> {
+    let BuildMetadataParams {
+        artifact_type,
+        schema,
+        mcp_execution_id,
+        context_id,
+        task_id,
+        tool_name,
+    } = params;
     use systemprompt_models::{ContextId, TaskId};
 
     let rendering_hints = match artifact_type {

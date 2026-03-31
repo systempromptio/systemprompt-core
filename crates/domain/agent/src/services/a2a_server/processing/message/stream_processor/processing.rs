@@ -3,7 +3,9 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 
 use super::StreamProcessor;
-use super::helpers::{build_artifacts_from_results, synthesize_final_response};
+use super::helpers::{
+    SynthesizeFinalResponseParams, build_artifacts_from_results, synthesize_final_response,
+};
 use crate::models::AgentRuntimeInfo;
 use crate::models::a2a::Message;
 use crate::services::a2a_server::processing::message::StreamEvent;
@@ -64,14 +66,14 @@ impl StreamProcessor {
                 "Processing streaming message for agent"
             );
 
-            let ai_messages = build_ai_messages(
-                &agent_runtime,
+            let ai_messages = build_ai_messages(BuildAiMessagesParams {
+                agent_runtime: &agent_runtime,
                 conversation_history,
                 user_text,
                 user_parts,
-                &skill_service,
-                &request_ctx,
-            )
+                skill_service: &skill_service,
+                request_ctx: &request_ctx,
+            })
             .await;
 
             let ai_messages_for_synthesis = ai_messages.clone();
@@ -160,18 +162,18 @@ impl StreamProcessor {
                 },
             };
 
-            let final_text = synthesize_final_response(
-                &tool_calls,
-                &tool_results,
-                &artifacts,
-                &accumulated_text,
-                ai_service_for_builder,
-                &agent_runtime,
+            let final_text = synthesize_final_response(SynthesizeFinalResponseParams {
+                tool_calls: &tool_calls,
+                tool_results: &tool_results,
+                artifacts: &artifacts,
+                accumulated_text: &accumulated_text,
+                ai_service: ai_service_for_builder,
+                agent_runtime: &agent_runtime,
                 ai_messages_for_synthesis,
-                tx.clone(),
-                request_ctx.clone(),
-                skill_service.clone(),
-            )
+                tx: tx.clone(),
+                request_ctx: request_ctx.clone(),
+                skill_service: skill_service.clone(),
+            })
             .await;
 
             tracing::info!(artifact_count = artifacts.len(), "Sending Complete event");
@@ -201,14 +203,24 @@ impl StreamProcessor {
     }
 }
 
-async fn build_ai_messages(
-    agent_runtime: &AgentRuntimeInfo,
+struct BuildAiMessagesParams<'a> {
+    agent_runtime: &'a AgentRuntimeInfo,
     conversation_history: Vec<AiMessage>,
     user_text: String,
     user_parts: Vec<systemprompt_models::AiContentPart>,
-    skill_service: &Arc<crate::services::SkillService>,
-    request_ctx: &RequestContext,
-) -> Vec<AiMessage> {
+    skill_service: &'a Arc<crate::services::SkillService>,
+    request_ctx: &'a RequestContext,
+}
+
+async fn build_ai_messages(params: BuildAiMessagesParams<'_>) -> Vec<AiMessage> {
+    let BuildAiMessagesParams {
+        agent_runtime,
+        conversation_history,
+        user_text,
+        user_parts,
+        skill_service,
+        request_ctx,
+    } = params;
     let mut ai_messages = Vec::new();
 
     if !agent_runtime.skills.is_empty() {

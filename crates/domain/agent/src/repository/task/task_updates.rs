@@ -1,20 +1,34 @@
 use super::{TaskRepository, task_state_to_db_string};
 use crate::models::a2a::{Message, Task, TaskState};
 use crate::repository::context::message::{
-    FileUploadContext, get_next_sequence_number_sqlx, persist_message_sqlx,
+    FileUploadContext, PersistMessageSqlxParams, get_next_sequence_number_sqlx,
+    persist_message_sqlx,
 };
 use systemprompt_traits::RepositoryError;
+
+#[allow(missing_debug_implementations)]
+pub struct UpdateTaskAndSaveMessagesParams<'a> {
+    pub task: &'a Task,
+    pub user_message: &'a Message,
+    pub agent_message: &'a Message,
+    pub user_id: Option<&'a systemprompt_identifiers::UserId>,
+    pub session_id: &'a systemprompt_identifiers::SessionId,
+    pub trace_id: &'a systemprompt_identifiers::TraceId,
+}
 
 impl TaskRepository {
     pub async fn update_task_and_save_messages(
         &self,
-        task: &Task,
-        user_message: &Message,
-        agent_message: &Message,
-        user_id: Option<&systemprompt_identifiers::UserId>,
-        session_id: &systemprompt_identifiers::SessionId,
-        trace_id: &systemprompt_identifiers::TraceId,
+        params: UpdateTaskAndSaveMessagesParams<'_>,
     ) -> Result<Task, RepositoryError> {
+        let UpdateTaskAndSaveMessagesParams {
+            task,
+            user_message,
+            agent_message,
+            user_id,
+            session_id,
+            trace_id,
+        } = params;
         let mut tx = self
             .write_pool
             .begin()
@@ -85,31 +99,31 @@ impl TaskRepository {
             });
 
         let user_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
-        persist_message_sqlx(
-            &mut tx,
-            user_message,
-            &task.id,
-            &task.context_id,
-            user_seq,
+        persist_message_sqlx(PersistMessageSqlxParams {
+            tx: &mut tx,
+            message: user_message,
+            task_id: &task.id,
+            context_id: &task.context_id,
+            sequence_number: user_seq,
             user_id,
             session_id,
             trace_id,
-            upload_ctx.as_ref(),
-        )
+            upload_ctx: upload_ctx.as_ref(),
+        })
         .await?;
 
         let agent_seq = get_next_sequence_number_sqlx(&mut tx, &task.id).await?;
-        persist_message_sqlx(
-            &mut tx,
-            agent_message,
-            &task.id,
-            &task.context_id,
-            agent_seq,
+        persist_message_sqlx(PersistMessageSqlxParams {
+            tx: &mut tx,
+            message: agent_message,
+            task_id: &task.id,
+            context_id: &task.context_id,
+            sequence_number: agent_seq,
             user_id,
             session_id,
             trace_id,
-            upload_ctx.as_ref(),
-        )
+            upload_ctx: upload_ctx.as_ref(),
+        })
         .await?;
 
         tx.commit().await.map_err(RepositoryError::database)?;

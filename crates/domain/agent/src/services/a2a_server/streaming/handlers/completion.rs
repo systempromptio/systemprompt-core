@@ -239,14 +239,24 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
     }
 }
 
-pub async fn handle_error(
-    tx: &UnboundedSender<Event>,
-    webhook_context: &WebhookContext,
-    error: String,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    task_repo: &TaskRepository,
-) {
+pub struct HandleErrorParams<'a> {
+    pub tx: &'a UnboundedSender<Event>,
+    pub webhook_context: &'a WebhookContext,
+    pub error: String,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub task_repo: &'a TaskRepository,
+}
+
+pub async fn handle_error(params: HandleErrorParams<'_>) {
+    let HandleErrorParams {
+        tx,
+        webhook_context,
+        error,
+        task_id,
+        context_id,
+        task_repo,
+    } = params;
     tracing::error!(task_id = %task_id, error = %error, "Stream error");
 
     let failed_timestamp = chrono::Utc::now();

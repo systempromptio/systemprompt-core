@@ -27,14 +27,17 @@ impl ToolResultHandler {
 
     pub async fn process_tool_result(
         &self,
-        tool_name: &str,
-        tool_result: &CallToolResult,
-        output_schema: Option<&serde_json::Value>,
-        tool_arguments: Option<&serde_json::Value>,
-        task_id: &TaskId,
-        context_id: &ContextId,
-        context: &systemprompt_models::RequestContext,
+        params: ProcessToolResultParams<'_>,
     ) -> Result<crate::models::a2a::Artifact> {
+        let ProcessToolResultParams {
+            tool_name,
+            tool_result,
+            output_schema,
+            tool_arguments,
+            task_id,
+            context_id,
+            context,
+        } = params;
         if !context.is_authenticated() || context.is_system() {
             return Err(anyhow!(
                 "Invalid user - unauthenticated and system users cannot create artifacts"

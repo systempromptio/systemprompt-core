@@ -12,6 +12,7 @@ pub use mutations::{
 pub use queries::{
     TaskContextInfo, get_task, get_task_context_info, get_tasks_by_user_id, list_tasks_by_context,
 };
+pub use task_updates::UpdateTaskAndSaveMessagesParams;
 
 use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;

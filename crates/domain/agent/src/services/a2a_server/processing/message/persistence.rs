@@ -3,30 +3,41 @@ use systemprompt_database::DbPool;
 use systemprompt_models::RequestContext;
 
 use crate::models::a2a::{Message, Task};
-use crate::repository::task::TaskRepository;
+use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
 use crate::services::ArtifactPublishingService;
 use crate::services::a2a_server::streaming::{
     broadcast_artifact_created, broadcast_task_completed,
 };
 
-pub async fn persist_completed_task(
-    task: &Task,
-    user_message: &Message,
-    agent_message: &Message,
-    context: &RequestContext,
-    task_repo: &TaskRepository,
-    db_pool: &DbPool,
-    artifacts_already_published: bool,
-) -> Result<Task> {
+pub struct PersistCompletedTaskParams<'a> {
+    pub task: &'a Task,
+    pub user_message: &'a Message,
+    pub agent_message: &'a Message,
+    pub context: &'a RequestContext,
+    pub task_repo: &'a TaskRepository,
+    pub db_pool: &'a DbPool,
+    pub artifacts_already_published: bool,
+}
+
+pub async fn persist_completed_task(params: PersistCompletedTaskParams<'_>) -> Result<Task> {
+    let PersistCompletedTaskParams {
+        task,
+        user_message,
+        agent_message,
+        context,
+        task_repo,
+        db_pool,
+        artifacts_already_published,
+    } = params;
     let updated_task = task_repo
-        .update_task_and_save_messages(
+        .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
             task,
             user_message,
             agent_message,
-            Some(context.user_id()),
-            context.session_id(),
-            context.trace_id(),
-        )
+            user_id: Some(context.user_id()),
+            session_id: context.session_id(),
+            trace_id: context.trace_id(),
+        })
         .await
         .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
 

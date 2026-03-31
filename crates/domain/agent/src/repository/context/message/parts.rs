@@ -101,6 +101,7 @@ pub async fn get_message_parts(
     Ok(parts)
 }
 
+#[allow(missing_debug_implementations)]
 pub struct PersistPartSqlxParams<'a> {
     pub tx: &'a mut sqlx::Transaction<'static, sqlx::Postgres>,
     pub part: &'a Part,

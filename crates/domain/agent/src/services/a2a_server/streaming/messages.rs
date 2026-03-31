@@ -14,14 +14,24 @@ use super::initialization::setup_stream;
 use super::types::StreamInput;
 use super::webhook_client::WebhookContext;
 
-pub async fn create_sse_stream(
-    message: Message,
-    agent_name: String,
-    state: Arc<AgentHandlerState>,
-    request_id: NumberOrString,
-    context: RequestContext,
-    callback_config: Option<PushNotificationConfig>,
-) -> UnboundedReceiverStream<Event> {
+pub struct CreateSseStreamParams {
+    pub message: Message,
+    pub agent_name: String,
+    pub state: Arc<AgentHandlerState>,
+    pub request_id: NumberOrString,
+    pub context: RequestContext,
+    pub callback_config: Option<PushNotificationConfig>,
+}
+
+pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiverStream<Event> {
+    let CreateSseStreamParams {
+        message,
+        agent_name,
+        state,
+        request_id,
+        context,
+        callback_config,
+    } = params;
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tracing::info!("create_sse_stream() called - spawning tokio task");

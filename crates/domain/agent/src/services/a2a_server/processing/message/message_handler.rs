@@ -6,7 +6,9 @@ use super::stream_processor::StreamProcessor;
 use super::{MessageProcessor, StreamEvent};
 use crate::models::a2a::{Message, Part, Task, TaskState, TaskStatus, TextPart};
 use crate::services::a2a_server::processing::task_builder::build_completed_task;
-use crate::services::a2a_server::streaming::broadcast::broadcast_task_created;
+use crate::services::a2a_server::streaming::broadcast::{
+    BroadcastTaskCreatedParams, broadcast_task_created,
+};
 use crate::services::a2a_server::streaming::webhook_client::broadcast_agui_event;
 use systemprompt_identifiers::{MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{AgUiEventBuilder, AgUiMessageRole, RequestContext, TaskMetadata};
@@ -81,14 +83,14 @@ impl MessageProcessor {
 
         tracing::info!(task_id = %task_id, "Task persisted to database");
 
-        broadcast_task_created(
-            &task_id,
-            &message.context_id,
-            context.user_id().as_str(),
-            &message,
+        broadcast_task_created(BroadcastTaskCreatedParams {
+            task_id: &task_id,
+            context_id: &message.context_id,
+            user_id: context.user_id().as_str(),
+            user_message: &message,
             agent_name,
-            context.auth_token().as_str(),
-        )
+            token: context.auth_token().as_str(),
+        })
         .await;
 
         let working_timestamp = chrono::Utc::now();
@@ -192,15 +194,15 @@ impl MessageProcessor {
             );
         }
 
-        if let Err(e) = persist_completed_task(
-            &task,
-            &message,
-            &agent_message,
+        if let Err(e) = persist_completed_task(super::persistence::PersistCompletedTaskParams {
+            task: &task,
+            user_message: &message,
+            agent_message: &agent_message,
             context,
-            &self.task_repo,
-            &self.db_pool,
-            false,
-        )
+            task_repo: &self.task_repo,
+            db_pool: &self.db_pool,
+            artifacts_already_published: false,
+        })
         .await
         {
             let error_msg = format!("Failed to persist completed task: {}", e);

@@ -67,6 +67,7 @@ where
     })
 }
 
+#[allow(missing_debug_implementations)]
 struct BuildTasksParams<'a> {
     task_rows: &'a [TaskRow],
     messages_by_task: &'a HashMap<TaskId, Vec<&'a TaskMessage>>,

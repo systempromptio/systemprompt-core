@@ -6,6 +6,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::{ExecutionStep, PlannedTool, StepContent, StepId, StepStatus};
 
+#[allow(missing_debug_implementations)]
 struct ParseStepParams {
     step_id: String,
     task_id: String,

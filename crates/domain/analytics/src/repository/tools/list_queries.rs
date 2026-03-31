@@ -4,6 +4,7 @@ use chrono::{DateTime, Utc};
 use super::ToolAnalyticsRepository;
 use crate::models::cli::ToolListRow;
 
+#[derive(Debug)]
 pub struct ToolListParams<'a> {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,

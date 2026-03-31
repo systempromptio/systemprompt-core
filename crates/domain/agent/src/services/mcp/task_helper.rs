@@ -245,17 +245,32 @@ async fn trigger_task_completion_broadcast(
     Ok(())
 }
 
+pub struct SaveMessagesForToolExecutionParams<'a> {
+    pub db_pool: &'a DbPool,
+    pub task_id: &'a TaskId,
+    pub context_id: &'a ContextId,
+    pub tool_name: &'a str,
+    pub tool_result: &'a str,
+    pub artifact: Option<&'a Artifact>,
+    pub user_id: &'a UserId,
+    pub session_id: &'a SessionId,
+    pub trace_id: &'a TraceId,
+}
+
 pub async fn save_messages_for_tool_execution(
-    db_pool: &DbPool,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    tool_name: &str,
-    tool_result: &str,
-    artifact: Option<&Artifact>,
-    user_id: &UserId,
-    session_id: &SessionId,
-    trace_id: &TraceId,
+    params: SaveMessagesForToolExecutionParams<'_>,
 ) -> Result<(), McpError> {
+    let SaveMessagesForToolExecutionParams {
+        db_pool,
+        task_id,
+        context_id,
+        tool_name,
+        tool_result,
+        artifact,
+        user_id,
+        session_id,
+        trace_id,
+    } = params;
     let message_service = MessageService::new(db_pool).map_err(|e| {
         McpError::internal_error(format!("Failed to create message service: {e}"), None)
     })?;

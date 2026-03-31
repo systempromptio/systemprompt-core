@@ -100,16 +100,16 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
             },
 
             PlanningResult::ToolCalls { reasoning, calls } => {
-                tool_execution::handle_tool_calls(
+                tool_execution::handle_tool_calls(tool_execution::HandleToolCallsParams {
                     reasoning,
                     calls,
-                    &context,
-                    &tracking,
+                    context: &context,
+                    tracking: &tracking,
                     planning_tracked,
                     task_id,
                     messages,
                     tools,
-                )
+                })
                 .await
             },
         }

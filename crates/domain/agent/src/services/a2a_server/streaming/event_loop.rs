@@ -12,7 +12,7 @@ use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::processing::message::{MessageProcessor, StreamEvent};
 
 use super::handlers::text::TextStreamState;
-use super::handlers::{HandleCompleteParams, handle_complete, handle_error};
+use super::handlers::{HandleCompleteParams, HandleErrorParams, handle_complete, handle_error};
 use super::webhook_client::WebhookContext;
 
 pub struct ProcessEventsParams {
@@ -40,14 +40,24 @@ impl std::fmt::Debug for ProcessEventsParams {
     }
 }
 
-fn send_a2a_status_event(
-    tx: &UnboundedSender<Event>,
-    task_id: &TaskId,
-    context_id: &ContextId,
-    state: &str,
+struct SendA2aStatusEventParams<'a> {
+    tx: &'a UnboundedSender<Event>,
+    task_id: &'a TaskId,
+    context_id: &'a ContextId,
+    state: &'a str,
     is_final: bool,
-    request_id: &NumberOrString,
-) {
+    request_id: &'a NumberOrString,
+}
+
+fn send_a2a_status_event(params: SendA2aStatusEventParams<'_>) {
+    let SendA2aStatusEventParams {
+        tx,
+        task_id,
+        context_id,
+        state,
+        is_final,
+        request_id,
+    } = params;
     let event = json!({
         "jsonrpc": "2.0",
         "id": request_id,
@@ -67,14 +77,24 @@ fn send_a2a_status_event(
     }
 }
 
-pub async fn emit_run_started(
-    tx: &UnboundedSender<Event>,
-    webhook_context: &WebhookContext,
-    context_id: &ContextId,
-    task_id: &TaskId,
-    task_repo: &TaskRepository,
-    request_id: &NumberOrString,
-) {
+pub struct EmitRunStartedParams<'a> {
+    pub tx: &'a UnboundedSender<Event>,
+    pub webhook_context: &'a WebhookContext,
+    pub context_id: &'a ContextId,
+    pub task_id: &'a TaskId,
+    pub task_repo: &'a TaskRepository,
+    pub request_id: &'a NumberOrString,
+}
+
+pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
+    let EmitRunStartedParams {
+        tx,
+        webhook_context,
+        context_id,
+        task_id,
+        task_repo,
+        request_id,
+    } = params;
     let working_timestamp = chrono::Utc::now();
     if let Err(e) = task_repo
         .update_task_state(task_id, TaskState::Working, &working_timestamp)
@@ -84,7 +104,14 @@ pub async fn emit_run_started(
         return;
     }
 
-    send_a2a_status_event(tx, task_id, context_id, "working", false, request_id);
+    send_a2a_status_event(SendA2aStatusEventParams {
+        tx,
+        task_id,
+        context_id,
+        state: "working",
+        is_final: false,
+        request_id,
+    });
 
     let a2a_event = A2AEventBuilder::task_status_update(
         task_id.clone(),
@@ -120,14 +147,14 @@ pub async fn process_events(params: ProcessEventsParams) {
     let webhook_context =
         WebhookContext::new(context.user_id().as_str(), context.auth_token().as_str());
 
-    emit_run_started(
-        &tx,
-        &webhook_context,
-        &context_id,
-        &task_id,
-        &task_repo,
-        &request_id,
-    )
+    emit_run_started(EmitRunStartedParams {
+        tx: &tx,
+        webhook_context: &webhook_context,
+        context_id: &context_id,
+        task_id: &task_id,
+        task_repo: &task_repo,
+        request_id: &request_id,
+    })
     .await;
 
     tracing::info!("Stream channel received, waiting for events...");
@@ -203,7 +230,14 @@ pub async fn process_events(params: ProcessEventsParams) {
                 };
                 handle_complete(complete_params).await;
 
-                send_a2a_status_event(&tx, &task_id, &context_id, "completed", true, &request_id);
+                send_a2a_status_event(SendA2aStatusEventParams {
+                    tx: &tx,
+                    task_id: &task_id,
+                    context_id: &context_id,
+                    state: "completed",
+                    is_final: true,
+                    request_id: &request_id,
+                });
 
                 let a2a_event = A2AEventBuilder::task_status_update(
                     task_id.clone(),
@@ -219,17 +253,24 @@ pub async fn process_events(params: ProcessEventsParams) {
             },
             StreamEvent::Error(error) => {
                 text_state.finalize(message_id.as_str()).await;
-                handle_error(
-                    &tx,
-                    &webhook_context,
+                handle_error(HandleErrorParams {
+                    tx: &tx,
+                    webhook_context: &webhook_context,
                     error,
-                    &task_id,
-                    &context_id,
-                    &task_repo,
-                )
+                    task_id: &task_id,
+                    context_id: &context_id,
+                    task_repo: &task_repo,
+                })
                 .await;
 
-                send_a2a_status_event(&tx, &task_id, &context_id, "failed", true, &request_id);
+                send_a2a_status_event(SendA2aStatusEventParams {
+                    tx: &tx,
+                    task_id: &task_id,
+                    context_id: &context_id,
+                    state: "failed",
+                    is_final: true,
+                    request_id: &request_id,
+                });
 
                 let a2a_event = A2AEventBuilder::task_status_update(
                     task_id.clone(),

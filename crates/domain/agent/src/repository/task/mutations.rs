@@ -19,6 +19,7 @@ pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     }
 }
 
+#[allow(missing_debug_implementations)]
 pub struct CreateTaskParams<'a> {
     pub pool: &'a Arc<PgPool>,
     pub task: &'a Task,

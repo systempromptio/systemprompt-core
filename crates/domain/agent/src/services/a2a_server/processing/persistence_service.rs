@@ -4,7 +4,7 @@ use systemprompt_identifiers::{SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 
 use crate::models::{Message, Task, TaskState, TaskStatus};
-use crate::repository::task::TaskRepository;
+use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
 use crate::services::ArtifactPublishingService;
 
 #[derive(Debug)]
@@ -65,14 +65,14 @@ impl PersistenceService {
         let task_repo = TaskRepository::new(&self.db_pool)?;
 
         let updated_task = task_repo
-            .update_task_and_save_messages(
+            .update_task_and_save_messages(UpdateTaskAndSaveMessagesParams {
                 task,
                 user_message,
                 agent_message,
-                Some(context.user_id()),
-                context.session_id(),
-                context.trace_id(),
-            )
+                user_id: Some(context.user_id()),
+                session_id: context.session_id(),
+                trace_id: context.trace_id(),
+            })
             .await
             .map_err(|e| anyhow!("Failed to update task and save messages: {}", e))?;
 

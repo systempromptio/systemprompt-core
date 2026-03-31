@@ -95,15 +95,15 @@ impl MessageProcessor {
         _agent_name: &str,
         artifacts_already_published: bool,
     ) -> Result<Task> {
-        persistence::persist_completed_task(
+        persistence::persist_completed_task(persistence::PersistCompletedTaskParams {
             task,
             user_message,
             agent_message,
             context,
-            &self.task_repo,
-            &self.db_pool,
+            task_repo: &self.task_repo,
+            db_pool: &self.db_pool,
             artifacts_already_published,
-        )
+        })
         .await
     }
 
