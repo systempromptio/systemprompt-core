@@ -4428,6 +4428,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "sqlx",
+ "subtle",
  "systemprompt-agent",
  "systemprompt-analytics",
  "systemprompt-content",

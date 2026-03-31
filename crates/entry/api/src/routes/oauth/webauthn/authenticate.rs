@@ -138,6 +138,7 @@ pub struct FinishAuthResponse {
     pub user_id: String,
     pub oauth_state: Option<String>,
     pub success: bool,
+    pub auth_token: Option<String>,
 }
 
 #[instrument(skip(state, request), fields(challenge_id = %request.challenge_id))]
@@ -176,15 +177,23 @@ pub async fn finish_auth(
         .finish_authentication(&request.challenge_id, &request.credential)
         .await
     {
-        Ok((user_id, oauth_state)) => (
-            StatusCode::OK,
-            Json(FinishAuthResponse {
-                user_id,
-                oauth_state,
-                success: true,
-            }),
-        )
-            .into_response(),
+        Ok((user_id, oauth_state)) => {
+            let auth_token = systemprompt_oauth::services::generate_secure_token("webauthn_verified");
+            webauthn_service
+                .store_verified_authentication(auth_token.clone(), user_id.clone())
+                .await;
+
+            (
+                StatusCode::OK,
+                Json(FinishAuthResponse {
+                    user_id,
+                    oauth_state,
+                    success: true,
+                    auth_token: Some(auth_token),
+                }),
+            )
+                .into_response()
+        },
         Err(e) => (
             StatusCode::UNAUTHORIZED,
             Json(AuthError {

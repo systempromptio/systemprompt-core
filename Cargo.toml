@@ -235,6 +235,7 @@ bcrypt = "0.18"
 base64 = "0.22"
 jsonwebtoken = { version = "10", features = ["rust_crypto"] }
 sha2 = "0.10"
+subtle = "2"
 oauth2 = "5.0"
 md5 = "0.8"
 hmac = "0.12"

@@ -32,7 +32,7 @@ async fn generate_with_tools_config(
     let start = Instant::now();
     let request_id = Uuid::new_v4();
 
-    let request = build_tool_request(provider, &params)?;
+    let request = build_tool_request(provider, &params).await?;
 
     info!(
         request_id = %request_id,
@@ -48,12 +48,12 @@ async fn generate_with_tools_config(
     build_tool_response(request_id, &gemini_response, provider, params.model, start).await
 }
 
-fn build_tool_request(
+async fn build_tool_request(
     provider: &GeminiProvider,
     params: &ToolConfigParams<'_>,
 ) -> Result<GeminiRequest> {
     let contents = converters::convert_messages(params.messages);
-    let gemini_tools = convert_tools(provider, params.tools.clone())?;
+    let gemini_tools = convert_tools(provider, params.tools.clone()).await?;
     let thinking_config = build_thinking_config(params.model);
     let generation_config = request_builders::build_generation_config(
         params.sampling,

@@ -1,18 +1,21 @@
 use anyhow::Result;
 use axum::Json;
 use axum::extract::{Query, State};
-use axum::http::{HeaderMap, HeaderValue, StatusCode};
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::{IntoResponse, Redirect};
 use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
 use systemprompt_identifiers::{AuthorizationCode, ClientId, UserId};
 use systemprompt_oauth::OAuthState;
 use systemprompt_oauth::repository::{AuthCodeParams, OAuthRepository};
+use systemprompt_oauth::services::webauthn::WebAuthnManager;
 use systemprompt_oauth::services::{generate_secure_token, is_browser_request};
 
 #[derive(Debug, Deserialize)]
 pub struct WebAuthnCompleteQuery {
     pub user_id: String,
+    pub auth_token: Option<String>,
     pub response_type: Option<String>,
     pub client_id: Option<String>,
     pub redirect_uri: Option<String>,
@@ -45,6 +48,71 @@ pub async fn handle_webauthn_complete(
             ).into_response();
         },
     };
+
+    let auth_token = match &params.auth_token {
+        Some(token) => token.clone(),
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(WebAuthnCompleteError {
+                    error: "invalid_request".to_string(),
+                    error_description: "Missing auth_token parameter".to_string(),
+                }),
+            )
+                .into_response();
+        },
+    };
+
+    let user_provider = state.user_provider();
+    let webauthn_service =
+        match WebAuthnManager::get_or_create_service(repo.clone(), Arc::clone(user_provider)).await
+        {
+            Ok(service) => service,
+            Err(e) => {
+                return (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(WebAuthnCompleteError {
+                        error: "server_error".to_string(),
+                        error_description: format!("WebAuthn service initialization failed: {e}"),
+                    }),
+                )
+                    .into_response();
+            },
+        };
+
+    let verified_user_id = match webauthn_service
+        .consume_verified_authentication(&auth_token)
+        .await
+    {
+        Ok(uid) => uid,
+        Err(_) => {
+            return (
+                StatusCode::UNAUTHORIZED,
+                Json(WebAuthnCompleteError {
+                    error: "access_denied".to_string(),
+                    error_description: "Invalid or expired authentication token".to_string(),
+                }),
+            )
+                .into_response();
+        },
+    };
+
+    if params.user_id != verified_user_id {
+        tracing::warn!(
+            claimed_user_id = %params.user_id,
+            verified_user_id = %verified_user_id,
+            "WebAuthn complete user_id mismatch"
+        );
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(WebAuthnCompleteError {
+                error: "access_denied".to_string(),
+                error_description: "User identity verification failed".to_string(),
+            }),
+        )
+            .into_response();
+    }
+
     if params.client_id.is_none() {
         return (
             StatusCode::BAD_REQUEST,
@@ -67,9 +135,7 @@ pub async fn handle_webauthn_complete(
             .into_response();
     };
 
-    let user_provider = state.user_provider();
-
-    match user_provider.find_by_id(&params.user_id).await {
+    match user_provider.find_by_id(&verified_user_id).await {
         Ok(Some(_)) => {
             let authorization_code = generate_secure_token("auth_code");
 
@@ -206,19 +272,6 @@ fn create_successful_response(
             client_id: params.client_id.as_deref().unwrap_or("").to_string(),
         };
 
-        let mut response = Json(response_data).into_response();
-
-        let headers = response.headers_mut();
-        headers.insert("access-control-allow-origin", HeaderValue::from_static("*"));
-        headers.insert(
-            "access-control-allow-methods",
-            HeaderValue::from_static("GET, POST, OPTIONS"),
-        );
-        headers.insert(
-            "access-control-allow-headers",
-            HeaderValue::from_static("content-type, authorization"),
-        );
-
-        response
+        Json(response_data).into_response()
     }
 }

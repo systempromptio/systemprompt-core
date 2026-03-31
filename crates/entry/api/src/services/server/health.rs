@@ -66,26 +66,26 @@ fn human_bytes(bytes: i64) -> String {
     format!("{size:.1} {}", UNITS[idx])
 }
 
-#[allow(unsafe_code, clippy::unnecessary_cast, trivial_numeric_casts)]
+#[allow(unsafe_code)]
 fn get_disk_usage() -> Option<serde_json::Value> {
     let path = std::ffi::CString::new(".").ok()?;
-    let mut stat: std::mem::MaybeUninit<libc::statvfs> = std::mem::MaybeUninit::uninit();
-    // SAFETY: statvfs is a standard POSIX syscall, path is a valid CString,
-    // and stat is properly initialized by the kernel on success
+    let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
+    // SAFETY: statvfs is a POSIX syscall; path is a valid CString; stat is
+    // initialized on success
     let ret = unsafe { libc::statvfs(path.as_ptr(), stat.as_mut_ptr()) };
     if ret != 0 {
         return None;
     }
-    // SAFETY: statvfs returned 0, so stat is fully initialized
+    // SAFETY: ret == 0 guarantees stat is fully initialized
     let stat = unsafe { stat.assume_init() };
 
-    let block_size = stat.f_frsize as u64;
-    let total = stat.f_blocks as u64 * block_size;
-    let available = stat.f_bavail as u64 * block_size;
-    let free = stat.f_bfree as u64 * block_size;
+    let block_size = stat.f_frsize;
+    let total = stat.f_blocks.saturating_mul(block_size);
+    let available = stat.f_bavail.saturating_mul(block_size);
+    let free = stat.f_bfree.saturating_mul(block_size);
     let used = total.saturating_sub(free);
 
-    #[allow(clippy::cast_precision_loss, clippy::cast_possible_wrap)]
+    #[allow(clippy::cast_precision_loss)]
     let usage_pct = if total > 0 {
         (used as f64 / total as f64) * 100.0
     } else {

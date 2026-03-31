@@ -18,6 +18,19 @@
 - Replace `tokio::process::Command("df")` disk usage with synchronous `libc::statvfs` syscall
 - Make `CliService` conditionally compiled behind `cli` feature flag in logging crate
 - Reduce default tokio features in workspace (remove `fs`, `process`, `signal` from default set)
+- Replace blocking `std::sync::Mutex` with `tokio::sync::Mutex` in Gemini AI provider to prevent tokio worker thread stalls
+- Agent sub-processes now start with a clean environment (`env_clear`) instead of inheriting all parent secrets
+
+### Security
+- Fix OAuth redirect URI bypass: full URLs can no longer match relative URI registrations
+- Fix WebAuthn user ID spoofing: completion handler now verifies authenticated user identity via auth token instead of trusting query parameter
+- Remove wildcard CORS headers from WebAuthn completion endpoint
+- Enforce 120-second expiry on WebAuthn registration and authentication challenges
+- Add Shannon entropy validation for PKCE code challenges
+- Block internal/private IP addresses in OAuth resource URI validation
+- Use constant-time comparison (`subtle` crate) for sync token authentication
+- Block symlinks and hardlinks in tarball extraction with canonical path validation
+- Unify authorization code error messages to prevent enumeration attacks
 
 ### Fixed
 - Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development

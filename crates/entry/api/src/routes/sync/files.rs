@@ -125,6 +125,17 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
     {
         let mut entry = entry.map_err(|e| format!("Failed to read entry: {}", e))?;
 
+        let entry_type = entry.header().entry_type();
+        if entry_type.is_symlink() || entry_type.is_hard_link() {
+            let entry_path = entry
+                .path()
+                .map_err(|e| format!("Failed to get entry path: {}", e))?;
+            return Err(format!(
+                "Symlinks not allowed in tarball: {}",
+                entry_path.to_string_lossy()
+            ));
+        }
+
         let entry_path = entry
             .path()
             .map_err(|e| format!("Failed to get entry path: {}", e))?;
@@ -146,7 +157,20 @@ fn extract_tarball(data: &[u8], target: &Path) -> Result<usize, String> {
         let dest_path = target.join(&*entry_path);
 
         if let Some(parent) = dest_path.parent() {
-            fs::create_dir_all(parent).map_err(|e| format!("Failed to create directory: {}", e))?;
+            fs::create_dir_all(parent)
+                .map_err(|e| format!("Failed to create directory: {}", e))?;
+            let canonical_parent = parent
+                .canonicalize()
+                .map_err(|e| format!("Failed to canonicalize path: {}", e))?;
+            let canonical_target = target
+                .canonicalize()
+                .map_err(|e| format!("Failed to canonicalize target: {}", e))?;
+            if !canonical_parent.starts_with(&canonical_target) {
+                return Err(format!(
+                    "Path escapes target directory: {}",
+                    entry_path_str
+                ));
+            }
         }
 
         entry

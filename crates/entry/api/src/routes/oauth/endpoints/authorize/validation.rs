@@ -169,7 +169,65 @@ fn validate_resource_uri(resource: &str) -> Result<(), String> {
         return Err("Resource URI must not contain a fragment".to_string());
     }
 
+    if let Some(host) = url.host_str() {
+        if is_forbidden_host(host) {
+            return Err("Resource URI must not target internal or private network addresses".to_string());
+        }
+    }
+
     Ok(())
+}
+
+fn is_forbidden_host(host: &str) -> bool {
+    let lower = host.to_lowercase();
+
+    if lower == "localhost" || lower == "127.0.0.1" || lower == "::1" || lower == "0.0.0.0" {
+        return true;
+    }
+
+    if lower.ends_with(".internal")
+        || std::path::Path::new(&lower)
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("local"))
+    {
+        return true;
+    }
+
+    if lower.starts_with("10.")
+        || lower.starts_with("192.168.")
+        || lower.starts_with("169.254.")
+    {
+        return true;
+    }
+
+    if lower.starts_with("172.") {
+        if let Some(second_octet_str) = lower.strip_prefix("172.").and_then(|rest| rest.split('.').next()) {
+            if let Ok(second_octet) = second_octet_str.parse::<u8>() {
+                if (16..=31).contains(&second_octet) {
+                    return true;
+                }
+            }
+        }
+    }
+
+    false
+}
+
+fn shannon_entropy(data: &str) -> f64 {
+    let len = data.len() as f64;
+    if len == 0.0 {
+        return 0.0;
+    }
+
+    let mut freq = std::collections::HashMap::new();
+    for c in data.chars() {
+        *freq.entry(c).or_insert(0u64) += 1;
+    }
+
+    freq.values().fold(0.0, |entropy, &count| {
+        let p = count as f64 / len;
+        p.mul_add(-p.log2(), entropy)
+    })
 }
 
 fn is_low_entropy_challenge(challenge: &str) -> bool {
@@ -190,6 +248,10 @@ fn is_low_entropy_challenge(challenge: &str) -> bool {
     }
 
     if has_low_diversity(challenge) {
+        return true;
+    }
+
+    if shannon_entropy(challenge) < 3.0 {
         return true;
     }
 

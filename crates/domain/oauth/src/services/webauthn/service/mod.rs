@@ -6,6 +6,8 @@ mod registration;
 pub use link::{LinkStates, LinkUserInfo, create_link_states};
 pub use registration::FinishRegistrationParams;
 
+use std::time::Duration;
+
 use super::config::WebAuthnConfig;
 use super::user_service::UserCreationService;
 use crate::repository::OAuthRepository;
@@ -26,6 +28,12 @@ pub(super) struct AuthenticationStateData {
     pub timestamp: Instant,
 }
 
+#[derive(Debug, Clone)]
+pub struct VerifiedAuthentication {
+    pub user_id: String,
+    pub timestamp: Instant,
+}
+
 pub struct WebAuthnService {
     pub(super) webauthn: Webauthn,
     pub(super) config: WebAuthnConfig,
@@ -33,6 +41,7 @@ pub struct WebAuthnService {
     pub(super) user_creation_service: UserCreationService,
     pub(super) reg_states: Arc<Mutex<HashMap<String, (PasskeyRegistration, Instant)>>>,
     pub(super) auth_states: Arc<Mutex<HashMap<String, AuthenticationStateData>>>,
+    pub(super) verified_auths: Arc<Mutex<HashMap<String, VerifiedAuthentication>>>,
 }
 
 impl std::fmt::Debug for WebAuthnService {
@@ -69,6 +78,7 @@ impl WebAuthnService {
             user_creation_service,
             reg_states: Arc::new(Mutex::new(HashMap::new())),
             auth_states: Arc::new(Mutex::new(HashMap::new())),
+            verified_auths: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -89,6 +99,40 @@ impl WebAuthnService {
                 .retain(|_challenge_id, data| now.duration_since(data.timestamp) < expiry_duration);
         }
 
+        {
+            let mut verified = self.verified_auths.lock().await;
+            verified.retain(|_token, data| now.duration_since(data.timestamp) < expiry_duration);
+        }
+
         Ok(())
+    }
+
+    pub async fn store_verified_authentication(&self, token: String, user_id: String) {
+        let mut verified = self.verified_auths.lock().await;
+        verified.insert(
+            token,
+            VerifiedAuthentication {
+                user_id,
+                timestamp: Instant::now(),
+            },
+        );
+    }
+
+    pub async fn consume_verified_authentication(
+        &self,
+        token: &str,
+    ) -> Result<String> {
+        let data = {
+            let mut verified = self.verified_auths.lock().await;
+            verified
+                .remove(token)
+                .ok_or_else(|| anyhow::anyhow!("No verified authentication found for token"))?
+        };
+
+        if data.timestamp.elapsed() > Duration::from_secs(120) {
+            return Err(anyhow::anyhow!("Verified authentication token expired"));
+        }
+
+        Ok(data.user_id)
     }
 }

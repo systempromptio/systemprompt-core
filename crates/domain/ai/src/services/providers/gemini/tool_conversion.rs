@@ -14,12 +14,12 @@ use uuid::Uuid;
 use super::constants::tokens;
 use super::provider::GeminiProvider;
 
-pub fn convert_tools(provider: &GeminiProvider, tools: Vec<McpTool>) -> Result<Vec<GeminiTool>> {
+pub async fn convert_tools(
+    provider: &GeminiProvider,
+    tools: Vec<McpTool>,
+) -> Result<Vec<GeminiTool>> {
     let transformer = SchemaTransformer::new(ProviderCapabilities::gemini());
-    let mut mapper = provider
-        .tool_mapper
-        .lock()
-        .map_err(|e| anyhow!("Lock poisoned: {e}"))?;
+    let mut mapper = provider.tool_mapper.lock().await;
 
     let mut seen_names = HashSet::new();
     let deduplicated_tools: Vec<_> = tools
@@ -87,10 +87,7 @@ pub async fn extract_tool_response(
     let mut tool_calls = Vec::new();
 
     if let Some(candidate_content) = &candidate.content {
-        let mapper = provider
-            .tool_mapper
-            .lock()
-            .map_err(|e| anyhow!("Lock poisoned: {e}"))?;
+        let mapper = provider.tool_mapper.lock().await;
 
         for part in &candidate_content.parts {
             match part {

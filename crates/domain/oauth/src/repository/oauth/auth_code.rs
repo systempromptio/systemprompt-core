@@ -149,35 +149,47 @@ impl OAuthRepository {
         )
         .fetch_optional(self.pool_ref())
         .await?
-        .ok_or_else(|| anyhow::anyhow!("Invalid authorization code"))?;
+        .ok_or_else(|| {
+            tracing::warn!("Authorization code not found");
+            anyhow::anyhow!("Invalid authorization code")
+        })?;
 
         if row.used_at.is_some() {
-            return Err(anyhow::anyhow!("Authorization code already used"));
+            tracing::warn!("Authorization code already used");
+            return Err(anyhow::anyhow!("Invalid authorization code"));
         }
 
         if row.expires_at < now {
-            return Err(anyhow::anyhow!("Authorization code expired"));
+            tracing::warn!("Authorization code expired");
+            return Err(anyhow::anyhow!("Invalid authorization code"));
         }
 
         if let Some(expected_uri) = redirect_uri {
             if row.redirect_uri != expected_uri {
-                return Err(anyhow::anyhow!("Redirect URI mismatch"));
+                tracing::warn!(
+                    expected = %expected_uri,
+                    actual = %row.redirect_uri,
+                    "Redirect URI mismatch"
+                );
+                return Err(anyhow::anyhow!("Invalid authorization code"));
             }
         }
 
         if let Some(ref challenge) = row.code_challenge {
-            let verifier =
-                code_verifier.ok_or_else(|| anyhow::anyhow!("code_verifier required for PKCE"))?;
+            let verifier = code_verifier.ok_or_else(|| {
+                tracing::warn!("Missing code_verifier for PKCE challenge");
+                anyhow::anyhow!("Invalid authorization code")
+            })?;
 
-            let method = row
-                .code_challenge_method
-                .as_ref()
-                .ok_or_else(|| anyhow::anyhow!("code_challenge_method required for PKCE"))?;
+            let method = row.code_challenge_method.as_ref().ok_or_else(|| {
+                tracing::warn!("Missing code_challenge_method for PKCE challenge");
+                anyhow::anyhow!("Invalid authorization code")
+            })?;
 
             let computed_challenge = match method
                 .parse::<PkceMethod>()
                 .map_err(|e| {
-                    tracing::debug!(method = %method, error = %e, "Failed to parse PKCE method");
+                    tracing::warn!(method = %method, error = %e, "Failed to parse PKCE method");
                     e
                 })
                 .ok()
@@ -189,20 +201,18 @@ impl OAuthRepository {
                     base64::engine::general_purpose::URL_SAFE_NO_PAD.encode(hasher.finalize())
                 },
                 Some(PkceMethod::Plain) => {
-                    return Err(anyhow::anyhow!(
-                        "PKCE method 'plain' is not allowed. Only 'S256' is supported for \
-                         security."
-                    ));
+                    tracing::warn!("PKCE method 'plain' attempted");
+                    return Err(anyhow::anyhow!("Invalid authorization code"));
                 },
                 None => {
-                    return Err(anyhow::anyhow!(
-                        "Unsupported code_challenge_method: {method}. Only 'S256' is allowed."
-                    ));
+                    tracing::warn!(method = %method, "Unsupported code_challenge_method");
+                    return Err(anyhow::anyhow!("Invalid authorization code"));
                 },
             };
 
             if computed_challenge != *challenge {
-                return Err(anyhow::anyhow!("PKCE validation failed"));
+                tracing::warn!("PKCE validation failed");
+                return Err(anyhow::anyhow!("Invalid authorization code"));
             }
         }
 

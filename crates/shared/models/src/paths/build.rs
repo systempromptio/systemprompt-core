@@ -28,21 +28,20 @@ impl BuildPaths {
             searched.push(alt_path.clone());
         }
 
-        match (primary.exists(), alt.as_ref().map_or(false, |p| p.exists())) {
-            (true, true) => {
-                let alt_path = alt.unwrap();
-                let primary_mtime =
-                    std::fs::metadata(&primary).and_then(|m| m.modified()).ok();
-                let alt_mtime =
-                    std::fs::metadata(&alt_path).and_then(|m| m.modified()).ok();
+        let alt_exists = alt.as_ref().filter(|p| p.exists());
+
+        match (primary.exists(), alt_exists) {
+            (true, Some(alt_path)) => {
+                let primary_mtime = std::fs::metadata(&primary).and_then(|m| m.modified()).ok();
+                let alt_mtime = std::fs::metadata(alt_path).and_then(|m| m.modified()).ok();
                 match (primary_mtime, alt_mtime) {
-                    (Some(p), Some(a)) if a > p => Self::ensure_absolute(alt_path),
+                    (Some(p), Some(a)) if a > p => Self::ensure_absolute(alt_path.clone()),
                     _ => Self::ensure_absolute(primary),
                 }
-            }
-            (true, false) => Self::ensure_absolute(primary),
-            (false, true) => Self::ensure_absolute(alt.unwrap()),
-            (false, false) => {
+            },
+            (true, None) => Self::ensure_absolute(primary),
+            (false, Some(alt_path)) => Self::ensure_absolute(alt_path.clone()),
+            (false, None) => {
                 if !std::env::consts::EXE_SUFFIX.is_empty() {
                     let path = self.bin.join(name);
                     searched.push(path.clone());
@@ -54,7 +53,7 @@ impl BuildPaths {
                     name: name.to_string(),
                     searched,
                 })
-            }
+            },
         }
     }
 

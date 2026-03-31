@@ -2,6 +2,7 @@ use axum::body::Body;
 use axum::http::Request;
 use axum::middleware::Next;
 use axum::response::{IntoResponse, Response};
+use subtle::ConstantTimeEq;
 use systemprompt_models::api::ApiError;
 
 pub async fn sync_token_middleware(request: Request<Body>, next: Next) -> Response {
@@ -26,7 +27,10 @@ pub async fn sync_token_middleware(request: Request<Body>, next: Next) -> Respon
         },
     };
 
-    if provided_token != expected_token {
+    let provided_bytes = provided_token.as_bytes();
+    let expected_bytes = expected_token.as_bytes();
+    let length_matches = provided_bytes.len() == expected_bytes.len();
+    if !length_matches || !bool::from(provided_bytes.ct_eq(expected_bytes)) {
         return ApiError::unauthorized("Invalid sync token").into_response();
     }
 

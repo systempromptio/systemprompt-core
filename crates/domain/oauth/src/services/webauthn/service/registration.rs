@@ -182,11 +182,18 @@ impl WebAuthnService {
         &self,
         challenge_id: &str,
     ) -> Result<PasskeyRegistration> {
-        let mut states = self.reg_states.lock().await;
-        states
-            .remove(challenge_id)
-            .map(|(state, _timestamp)| state)
-            .ok_or_else(|| anyhow::anyhow!("Registration state not found or expired"))
+        let (state, timestamp) = {
+            let mut states = self.reg_states.lock().await;
+            states
+                .remove(challenge_id)
+                .ok_or_else(|| anyhow::anyhow!("Registration state not found or expired"))?
+        };
+
+        if timestamp.elapsed() > std::time::Duration::from_secs(120) {
+            return Err(anyhow::anyhow!("Registration challenge expired"));
+        }
+
+        Ok(state)
     }
 
     async fn complete_registration(

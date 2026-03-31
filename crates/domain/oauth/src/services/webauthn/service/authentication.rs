@@ -103,11 +103,18 @@ impl WebAuthnService {
         &self,
         challenge_id: &str,
     ) -> Result<(PasskeyAuthentication, String, Option<String>)> {
-        let mut states = self.auth_states.lock().await;
-        states
-            .remove(challenge_id)
-            .map(|data| (data.state, data.user_id, data.oauth_state))
-            .ok_or_else(|| anyhow::anyhow!("Authentication state not found or expired"))
+        let data = {
+            let mut states = self.auth_states.lock().await;
+            states
+                .remove(challenge_id)
+                .ok_or_else(|| anyhow::anyhow!("Authentication state not found or expired"))?
+        };
+
+        if data.timestamp.elapsed() > std::time::Duration::from_secs(120) {
+            return Err(anyhow::anyhow!("Authentication challenge expired"));
+        }
+
+        Ok((data.state, data.user_id, data.oauth_state))
     }
 
     async fn complete_authentication(
