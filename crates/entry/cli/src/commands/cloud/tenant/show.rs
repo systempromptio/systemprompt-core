@@ -7,8 +7,8 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
 use crate::shared::CommandResult;
 
-pub async fn show_tenant(
-    id: Option<String>,
+pub fn show_tenant(
+    id: Option<&String>,
     config: &CliConfig,
 ) -> Result<CommandResult<TenantDetailOutput>> {
     let cloud_paths = get_cloud_paths();
@@ -21,7 +21,7 @@ pub async fn show_tenant(
     });
 
     let tenant = match id {
-        Some(ref id) => store
+        Some(id) => store
             .find_tenant(id)
             .ok_or_else(|| anyhow!("Tenant not found: {}", id))?,
         None if config.is_interactive() => {

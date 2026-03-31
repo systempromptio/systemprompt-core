@@ -84,7 +84,7 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn new_local(id: String, name: String, database_url: String) -> Self {
+    pub const fn new_local(id: String, name: String, database_url: String) -> Self {
         Self {
             id,
             name,
@@ -101,7 +101,7 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn new_local_shared(
+    pub const fn new_local_shared(
         id: String,
         name: String,
         database_url: String,
@@ -157,7 +157,7 @@ impl StoredTenant {
     }
 
     #[must_use]
-    pub fn uses_shared_container(&self) -> bool {
+    pub const fn uses_shared_container(&self) -> bool {
         self.shared_container_db.is_some()
     }
 

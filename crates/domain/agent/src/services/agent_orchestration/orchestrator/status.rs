@@ -23,7 +23,7 @@ impl AgentOrchestrator {
             } else {
                 let port = match status {
                     AgentStatus::Running { port, .. } => port,
-                    _ => 8000,
+                    AgentStatus::Failed { .. } => 8000,
                 };
                 agent_info.push(AgentInfo {
                     id: agent_id.clone(),

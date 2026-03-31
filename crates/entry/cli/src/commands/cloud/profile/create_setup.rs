@@ -47,7 +47,7 @@ pub async fn handle_local_tenant_setup(
             .interact()?;
 
         let migrations_succeeded = if run_migrations {
-            match run_migrations_cmd(profile_path).await {
+            match run_migrations_cmd(profile_path) {
                 Ok(()) => true,
                 Err(e) => {
                     CliService::warning(&format!("Migration failed: {}", e));

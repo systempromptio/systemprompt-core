@@ -231,7 +231,7 @@ impl SessionAnalytics {
     }
 
     #[cfg(not(feature = "geolocation"))]
-    fn lookup_geoip(
+    const fn lookup_geoip(
         _ip_str: &str,
         _geoip_reader: Option<&GeoIpReader>,
     ) -> Option<(Option<String>, Option<String>, Option<String>)> {

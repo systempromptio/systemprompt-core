@@ -18,6 +18,7 @@ pub struct McpRegistryServer {
     pub status: String,
 }
 
+#[allow(clippy::unused_async)]
 pub async fn handle_mcp_registry() -> impl IntoResponse {
     let server_configs = match RegistryManager::get_enabled_servers() {
         Ok(configs) => configs,

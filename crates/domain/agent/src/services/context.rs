@@ -34,14 +34,10 @@ impl ContextService {
         for task in tasks {
             if let Some(task_history) = task.history {
                 for msg in task_history {
-                    let (text, parts) = match Self::extract_message_content(&msg) {
-                        Ok((t, p)) if !t.is_empty() || !p.is_empty() => (t, p),
-                        Ok(_) => continue,
-                        Err(e) => {
-                            tracing::warn!(error = %e, "Failed to extract message content");
-                            continue;
-                        },
-                    };
+                    let (text, parts) = Self::extract_message_content(&msg);
+                    if text.is_empty() && parts.is_empty() {
+                        continue;
+                    }
 
                     let role = match msg.role.as_str() {
                         "user" => MessageRole::User,
@@ -59,13 +55,12 @@ impl ContextService {
 
             if let Some(artifacts) = task.artifacts {
                 for artifact in artifacts {
-                    if let Ok(artifact_content) = Self::serialize_artifact_for_context(&artifact) {
-                        history_messages.push(AiMessage {
-                            role: MessageRole::Assistant,
-                            content: artifact_content,
-                            parts: Vec::new(),
-                        });
-                    }
+                    let artifact_content = Self::serialize_artifact_for_context(&artifact);
+                    history_messages.push(AiMessage {
+                        role: MessageRole::Assistant,
+                        content: artifact_content,
+                        parts: Vec::new(),
+                    });
                 }
             }
         }
@@ -73,7 +68,7 @@ impl ContextService {
         Ok(history_messages)
     }
 
-    fn extract_message_content(message: &Message) -> Result<(String, Vec<AiContentPart>)> {
+    fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
         let mut text_content = String::new();
         let mut content_parts = Vec::new();
 
@@ -94,7 +89,7 @@ impl ContextService {
             }
         }
 
-        Ok((text_content, content_parts))
+        (text_content, content_parts)
     }
 
     fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
@@ -159,7 +154,7 @@ impl ContextService {
         Some(AiContentPart::text(formatted))
     }
 
-    fn serialize_artifact_for_context(artifact: &Artifact) -> Result<String> {
+    fn serialize_artifact_for_context(artifact: &Artifact) -> String {
         let artifact_name = artifact.name.as_deref().unwrap_or("unnamed");
 
         let mut content = format!(
@@ -178,6 +173,6 @@ impl ContextService {
             }
         }
 
-        Ok(content)
+        content
     }
 }

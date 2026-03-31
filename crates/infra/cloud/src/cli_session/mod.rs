@@ -31,7 +31,7 @@ impl SessionKey {
     }
 
     #[must_use]
-    pub fn tenant_id(&self) -> Option<&TenantId> {
+    pub const fn tenant_id(&self) -> Option<&TenantId> {
         match self {
             Self::Local => None,
             Self::Tenant(id) => Some(id),

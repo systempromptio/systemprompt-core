@@ -22,8 +22,8 @@ pub async fn load_event_data(
         "artifact_created" => load_artifact_created(db, request).await,
         "message_received" => load_message_received(db, request).await,
         "context_updated" => load_context_updated(db, request).await,
-        "execution_step" => load_execution_step(request).await,
-        "task_created" => load_task_created(request).await,
+        "execution_step" => load_execution_step(request),
+        "task_created" => load_task_created(request),
         _ => Err(anyhow::anyhow!(
             "Unknown event type: {}",
             request.event_type
@@ -177,7 +177,7 @@ async fn load_context_updated(
     })
 }
 
-async fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
+fn load_execution_step(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
     let step_data = request
         .step_data
         .as_ref()
@@ -206,7 +206,7 @@ struct TaskCreatedData {
     task: systemprompt_agent::models::a2a::Task,
 }
 
-async fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
+fn load_task_created(request: &WebhookRequest) -> Result<AgUiWebhookData, anyhow::Error> {
     let task_data = request.task_data.as_ref().ok_or_else(|| {
         anyhow::anyhow!(
             "task_created event MUST include task_data. Task ID: {}",

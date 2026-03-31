@@ -4,7 +4,7 @@ use crate::cli_settings::{CliConfig, ColorMode, OutputFormat, VerbosityLevel};
 use crate::commands::{admin, analytics, build, cloud, core, infrastructure, plugins, web};
 use crate::descriptor::{CommandDescriptor, DescribeCommand};
 
-#[derive(clap::Args)]
+#[derive(Debug, clap::Args)]
 pub struct VerbosityOpts {
     #[arg(
         long,
@@ -29,7 +29,7 @@ pub struct VerbosityOpts {
     pub debug: bool,
 }
 
-#[derive(clap::Args)]
+#[derive(Debug, clap::Args)]
 pub struct OutputOpts {
     #[arg(long, global = true, hide = true, help = "JSON output")]
     pub json: bool,
@@ -44,7 +44,7 @@ pub struct OutputOpts {
     pub yaml: bool,
 }
 
-#[derive(clap::Args)]
+#[derive(Debug, clap::Args)]
 pub struct DisplayOpts {
     #[arg(long, global = true, hide = true, help = "Disable colors")]
     pub no_color: bool,
@@ -53,7 +53,7 @@ pub struct DisplayOpts {
     pub non_interactive: bool,
 }
 
-#[derive(clap::Args)]
+#[derive(Debug, clap::Args)]
 pub struct DatabaseOpts {
     #[arg(
         long,
@@ -64,7 +64,7 @@ pub struct DatabaseOpts {
     pub database_url: Option<String>,
 }
 
-#[derive(clap::Args)]
+#[derive(Debug, clap::Args)]
 pub struct ProfileOpts {
     #[arg(
         long,

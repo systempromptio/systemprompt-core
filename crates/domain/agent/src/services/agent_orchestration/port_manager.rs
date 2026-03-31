@@ -20,7 +20,7 @@ impl PortManager {
     }
 
     #[cfg(unix)]
-    pub fn find_process_using_port(&self, port: u16) -> Result<Option<u32>> {
+    pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         let output = Command::new("lsof")
             .arg("-ti")
             .arg(format!(":{port}"))
@@ -46,7 +46,7 @@ impl PortManager {
     }
 
     #[cfg(windows)]
-    pub fn find_process_using_port(&self, port: u16) -> Result<Option<u32>> {
+    pub fn find_process_using_port(port: u16) -> Result<Option<u32>> {
         let output = Command::new("netstat")
             .args(["-ano", "-p", "TCP"])
             .output()
@@ -70,7 +70,7 @@ impl PortManager {
     }
 
     #[cfg(unix)]
-    pub fn get_process_info(&self, pid: u32) -> Result<Option<ProcessInfo>> {
+    pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
         let output = Command::new("ps")
             .arg("-p")
             .arg(pid.to_string())
@@ -109,7 +109,7 @@ impl PortManager {
     }
 
     #[cfg(windows)]
-    pub fn get_process_info(&self, pid: u32) -> Result<Option<ProcessInfo>> {
+    pub fn get_process_info(pid: u32) -> Result<Option<ProcessInfo>> {
         let output = Command::new("tasklist")
             .args(["/FI", &format!("PID eq {}", pid), "/FO", "CSV", "/NH"])
             .output()
@@ -132,8 +132,8 @@ impl PortManager {
         Ok(Some(ProcessInfo { pid, command }))
     }
 
-    pub fn is_agent_process(&self, pid: u32) -> Result<bool, String> {
-        match self.get_process_info(pid) {
+    pub fn is_agent_process(pid: u32) -> Result<bool, String> {
+        match Self::get_process_info(pid) {
             Ok(Some(info)) => {
                 let is_agent = info.command.contains("systemprompt")
                     && (info.command.contains(CliPaths::agent_run_cmd_pattern())
@@ -146,7 +146,7 @@ impl PortManager {
     }
 
     pub async fn kill_process_on_port(&self, port: u16) -> OrchestrationResult<bool> {
-        let pid = match self.find_process_using_port(port) {
+        let pid = match Self::find_process_using_port(port) {
             Ok(Some(p)) => p,
             Ok(None) => {
                 return Ok(false);
@@ -159,7 +159,7 @@ impl PortManager {
             },
         };
 
-        match self.is_agent_process(pid) {
+        match Self::is_agent_process(pid) {
             Ok(true) => {},
             Ok(false) => {
                 return Err(OrchestrationError::ProcessSpawnFailed(format!(
@@ -217,15 +217,14 @@ impl PortManager {
             return Ok(());
         }
 
-        match self.find_process_using_port(port) {
-            Ok(Some(pid)) => match self.is_agent_process(pid) {
+        match Self::find_process_using_port(port) {
+            Ok(Some(pid)) => match Self::is_agent_process(pid) {
                 Ok(true) => {
                     tracing::warn!(port = %port, pid = %pid, "Port occupied by orphaned agent process");
                     self.kill_process_on_port(port).await?;
                 },
                 Ok(false) => {
-                    let info = self
-                        .get_process_info(pid)
+                    let info = Self::get_process_info(pid)
                         .map_err(|e| {
                             tracing::trace!(pid = %pid, error = %e, "Failed to get process info for error message");
                             e
@@ -285,12 +284,12 @@ impl PortManager {
         Ok(cleaned)
     }
 
-    pub async fn verify_all_ports_available(&self, ports: &[u16]) -> OrchestrationResult<()> {
+    pub fn verify_all_ports_available(ports: &[u16]) -> OrchestrationResult<()> {
         let mut blocked_ports = Vec::new();
 
         for &port in ports {
             if process::is_port_in_use(port) {
-                if let Ok(Some(pid)) = self.find_process_using_port(port) {
+                if let Ok(Some(pid)) = Self::find_process_using_port(port) {
                     blocked_ports.push((port, pid));
                 }
             }
@@ -300,8 +299,7 @@ impl PortManager {
             let port_info: Vec<String> = blocked_ports
                 .iter()
                 .map(|(port, pid)| {
-                    let info = self
-                        .get_process_info(*pid)
+                    let info = Self::get_process_info(*pid)
                         .map_err(|e| {
                             tracing::trace!(pid = %pid, error = %e, "Failed to get process info for port status");
                             e

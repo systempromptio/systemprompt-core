@@ -91,7 +91,7 @@ impl ArtifactBuilder {
                     let output_schema = self.get_output_schema(&tool_call.name);
 
                     let mut artifact = McpToA2aTransformer::transform_from_json(
-                        crate::services::mcp::artifact_transformer::TransformFromJsonParams {
+                        &crate::services::mcp::artifact_transformer::TransformFromJsonParams {
                             tool_name: &tool_call.name,
                             tool_result_json: structured_content,
                             output_schema,

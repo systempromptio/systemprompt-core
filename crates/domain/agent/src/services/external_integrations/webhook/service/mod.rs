@@ -95,7 +95,7 @@ impl WebhookService {
         }
 
         if let (Some(_secret), Some(signature)) = (&endpoint.secret, &request.signature) {
-            if !self.verify_signature_internal(&endpoint, &request.body, signature)? {
+            if !Self::verify_signature_internal(&endpoint, &request.body, signature)? {
                 return Ok(WebhookResponse {
                     status: 401,
                     body: Some(serde_json::json!({"error": "Invalid signature"})),
@@ -144,11 +144,10 @@ impl WebhookService {
             })?
         };
 
-        self.verify_signature_internal(&endpoint, payload, signature)
+        Self::verify_signature_internal(&endpoint, payload, signature)
     }
 
     pub(crate) fn verify_signature_internal(
-        &self,
         endpoint: &WebhookEndpoint,
         payload: &Value,
         signature: &str,
@@ -157,13 +156,12 @@ impl WebhookService {
             IntegrationError::Webhook("No secret configured for endpoint".to_string())
         })?;
 
-        let expected_signature = self.generate_signature(secret, payload)?;
+        let expected_signature = Self::generate_signature(secret, payload)?;
 
-        Ok(self.secure_compare(&expected_signature, signature))
+        Ok(Self::secure_compare(&expected_signature, signature))
     }
 
     pub(crate) fn generate_signature(
-        &self,
         secret: &str,
         payload: &Value,
     ) -> IntegrationResult<String> {
@@ -179,7 +177,7 @@ impl WebhookService {
         Ok(format!("sha256={hex_result}"))
     }
 
-    fn secure_compare(&self, a: &str, b: &str) -> bool {
+    fn secure_compare(a: &str, b: &str) -> bool {
         if a.len() != b.len() {
             return false;
         }

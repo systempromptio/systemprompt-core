@@ -19,7 +19,7 @@ use super::backend::ProxyError;
 pub struct AuthValidator;
 
 impl AuthValidator {
-    pub async fn validate_service_access(
+    pub fn validate_service_access(
         headers: &HeaderMap,
         service_name: &str,
         _ctx: &AppContext,
@@ -41,7 +41,7 @@ impl AuthValidator {
 pub struct OAuthChallengeBuilder;
 
 impl OAuthChallengeBuilder {
-    pub async fn build_challenge_response(
+    pub fn build_challenge_response(
         service_name: &str,
         resource_path: &str,
         ctx: &AppContext,
@@ -101,7 +101,7 @@ impl AccessValidator {
         req_context: Option<&RequestContext>,
     ) -> Result<Option<AuthenticatedUser>, ProxyError> {
         let (oauth_required, required_scopes) = if service.module_name == "agent" {
-            match AgentRegistryProviderService::new().await {
+            match AgentRegistryProviderService::new() {
                 Ok(registry) => match registry.get_agent(service_name).await {
                     Ok(agent_info) => (agent_info.oauth.required, agent_info.oauth.scopes),
                     Err(e) => {
@@ -164,9 +164,7 @@ impl AccessValidator {
             service_name,
             ctx,
             req_context,
-        )
-        .await
-        {
+        ) {
             Ok(user) => user,
             Err(status_code) => {
                 if service.module_name == "mcp"
@@ -202,9 +200,7 @@ impl AccessValidator {
                     &resource_path,
                     ctx,
                     status_code,
-                )
-                .await
-                {
+                ) {
                     Ok(challenge_response) => {
                         return Err(ProxyError::AuthChallenge(challenge_response));
                     },

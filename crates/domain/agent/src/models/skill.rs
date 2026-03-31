@@ -6,7 +6,8 @@ use systemprompt_identifiers::{CategoryId, SkillId, SourceId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Skill {
-    pub skill_id: SkillId,
+    #[serde(rename = "skill_id")]
+    pub id: SkillId,
     pub file_path: String,
     pub name: String,
     pub description: String,
@@ -21,7 +22,7 @@ pub struct Skill {
 
 impl Skill {
     pub fn from_json_row(row: &JsonRow) -> Result<Self> {
-        let skill_id = SkillId::new(
+        let id = SkillId::new(
             row.get("skill_id")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("Missing skill_id"))?,
@@ -87,7 +88,7 @@ impl Skill {
             .ok_or_else(|| anyhow!("Missing or invalid updated_at"))?;
 
         Ok(Self {
-            skill_id,
+            id,
             file_path,
             name,
             description,

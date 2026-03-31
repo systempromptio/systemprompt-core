@@ -82,19 +82,19 @@ where
 
 #[derive(Debug, Clone, Copy)]
 pub struct TimeoutConfiguration {
-    pub default_timeout: Duration,
-    pub connect_timeout: Duration,
-    pub read_timeout: Duration,
-    pub write_timeout: Duration,
+    pub default: Duration,
+    pub connect: Duration,
+    pub read: Duration,
+    pub write: Duration,
 }
 
 impl Default for TimeoutConfiguration {
     fn default() -> Self {
         Self {
-            default_timeout: Duration::from_secs(30),
-            connect_timeout: Duration::from_secs(10),
-            read_timeout: Duration::from_secs(30),
-            write_timeout: Duration::from_secs(30),
+            default: Duration::from_secs(30),
+            connect: Duration::from_secs(10),
+            read: Duration::from_secs(30),
+            write: Duration::from_secs(30),
         }
     }
 }
@@ -108,10 +108,10 @@ where
     F: Future<Output = Result<T>>,
 {
     let duration = match timeout_type {
-        TimeoutType::Connect => config.connect_timeout,
-        TimeoutType::Read => config.read_timeout,
-        TimeoutType::Write => config.write_timeout,
-        TimeoutType::Default => config.default_timeout,
+        TimeoutType::Connect => config.connect,
+        TimeoutType::Read => config.read,
+        TimeoutType::Write => config.write,
+        TimeoutType::Default => config.default,
     };
 
     execute_with_timeout(duration, operation).await

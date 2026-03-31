@@ -92,7 +92,7 @@ pub async fn delete_tenant(
             spinner.finish_and_clear();
         }
     } else if tenant.uses_shared_container() {
-        cleanup_shared_container_tenant(&tenant, config).await?;
+        cleanup_shared_container_tenant(&tenant, config)?;
     }
 
     store.tenants.retain(|t| t.id != tenant_id);
@@ -107,7 +107,7 @@ pub async fn delete_tenant(
     Ok(CommandResult::text(output).with_title("Delete Tenant"))
 }
 
-async fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {
+fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConfig) -> Result<()> {
     let Some(ref db_name) = tenant.shared_container_db else {
         return Ok(());
     };
@@ -118,8 +118,7 @@ async fn cleanup_shared_container_tenant(tenant: &StoredTenant, config: &CliConf
     };
 
     let spinner = CliService::spinner(&format!("Dropping database '{}'...", db_name));
-    match drop_database_for_tenant(&shared_config.admin_password, shared_config.port, db_name).await
-    {
+    match drop_database_for_tenant(&shared_config.admin_password, shared_config.port, db_name) {
         Ok(()) => {
             spinner.finish_and_clear();
             CliService::success(&format!("Database '{}' dropped", db_name));

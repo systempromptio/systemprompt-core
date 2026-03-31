@@ -3,13 +3,15 @@ use systemprompt_models::AgentOAuthConfig;
 
 use crate::models::a2a::{OAuth2Flow, OAuth2Flows, SecurityScheme};
 
+type SecurityConfig = (
+    Option<HashMap<String, SecurityScheme>>,
+    Option<Vec<HashMap<String, Vec<String>>>>,
+);
+
 pub fn convert_json_security_to_struct(
     security_schemes: Option<&serde_json::Value>,
     security: Option<&Vec<serde_json::Value>>,
-) -> (
-    Option<HashMap<String, SecurityScheme>>,
-    Option<Vec<HashMap<String, Vec<String>>>>,
-) {
+) -> SecurityConfig {
     let schemes = security_schemes.and_then(|schemes_json| {
         serde_json::from_value::<HashMap<String, SecurityScheme>>(schemes_json.clone())
             .map_err(|e| {
@@ -37,10 +39,7 @@ pub fn convert_json_security_to_struct(
 pub fn oauth_to_security_config(
     oauth: &AgentOAuthConfig,
     api_external_url: &str,
-) -> (
-    Option<HashMap<String, SecurityScheme>>,
-    Option<Vec<HashMap<String, Vec<String>>>>,
-) {
+) -> SecurityConfig {
     if !oauth.required {
         return (None, None);
     }

@@ -4,6 +4,7 @@ use systemprompt_models::{Config, TaskMetadata};
 
 use crate::models::a2a::{Message, Task, TaskState, TaskStatus};
 
+#[derive(Debug)]
 pub struct BroadcastTaskCreatedParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,

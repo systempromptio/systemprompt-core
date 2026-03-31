@@ -25,7 +25,7 @@ pub struct Server {
 impl std::fmt::Debug for Server {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Server")
-            .field("pool", &"SqlitePool")
+            .field("db_pool", &"<DbPool>")
             .field("config", &"Arc<RwLock<AgentConfig>>")
             .field("oauth_state", &"Arc<AgentOAuthState>")
             .field("agent_state", &"Arc<AgentState>")
@@ -46,7 +46,7 @@ impl Server {
         use crate::services::registry::AgentRegistry;
 
         let mut config = if let Some(name) = agent_name {
-            let registry = AgentRegistry::new().await?;
+            let registry = AgentRegistry::new()?;
             registry.get_agent(&name).await?
         } else {
             return Err(anyhow::anyhow!("Agent name is required"));
@@ -58,13 +58,12 @@ impl Server {
         let jwt_secret = systemprompt_models::SecretsBootstrap::jwt_secret()?.to_string();
         let global_config = systemprompt_models::Config::get()?;
         let mut oauth_state = AgentOAuthState::new(
-            db_pool.clone(),
+            Arc::clone(&db_pool),
             oauth_config,
             jwt_secret,
             global_config.jwt_issuer.clone(),
             global_config.jwt_audiences.clone(),
-        )
-        .await?;
+        );
 
         oauth_state = oauth_state.with_jwt_provider(Arc::clone(agent_state.jwt_provider()));
         if let Some(user_provider) = agent_state.user_provider().cloned() {
@@ -89,7 +88,7 @@ impl Server {
             config.name.clone()
         };
 
-        let registry = AgentRegistry::new().await?;
+        let registry = AgentRegistry::new()?;
         let mut new_config = registry.get_agent(&agent_name).await?;
         new_config.extract_oauth_scopes_from_card();
         *self.config.write().await = new_config;
@@ -100,7 +99,7 @@ impl Server {
 
     pub fn create_router(&self) -> Router {
         let state = Arc::new(AgentHandlerState {
-            db_pool: self.db_pool.clone(),
+            db_pool: Arc::clone(&self.db_pool),
             config: Arc::clone(&self.config),
             oauth_state: Arc::clone(&self.oauth_state),
             agent_state: Arc::clone(&self.agent_state),
@@ -109,9 +108,9 @@ impl Server {
 
         let post_router = Router::new()
             .route("/", post(handle_agent_request))
-            .with_state(state.clone())
+            .with_state(Arc::clone(&state))
             .layer(middleware::from_fn_with_state(
-                state.clone(),
+                Arc::clone(&state),
                 agent_oauth_middleware_wrapper,
             ));
 
@@ -133,7 +132,7 @@ impl Server {
     }
 
     pub async fn run(self) -> anyhow::Result<()> {
-        self.log_server_configuration().await;
+        Self::log_server_configuration();
         self.start_server(None).await
     }
 
@@ -141,11 +140,11 @@ impl Server {
         self,
         shutdown_signal: impl Future<Output = ()> + Send + 'static,
     ) -> anyhow::Result<()> {
-        self.log_server_configuration().await;
+        Self::log_server_configuration();
         self.start_server(Some(Box::pin(shutdown_signal))).await
     }
 
-    async fn log_server_configuration(&self) {}
+    const fn log_server_configuration() {}
 
     async fn start_server(
         self,

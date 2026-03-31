@@ -4,7 +4,7 @@ use crate::models::{MessagePart, TaskRow};
 use systemprompt_models::a2a::TaskMetadata;
 use systemprompt_traits::RepositoryError;
 
-pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, RepositoryError> {
+pub fn construct_metadata(row: &TaskRow) -> TaskMetadata {
     let metadata_json = row
         .metadata
         .as_ref()
@@ -25,7 +25,7 @@ pub fn construct_metadata(row: &TaskRow) -> Result<Option<TaskMetadata>, Reposit
     metadata.completed_at = row.completed_at.map(|dt| dt.to_rfc3339());
     metadata.execution_time_ms = row.execution_time_ms.map(i64::from);
 
-    Ok(Some(metadata))
+    metadata
 }
 
 pub fn parse_task_state(state_str: &str) -> Result<TaskState, TaskError> {

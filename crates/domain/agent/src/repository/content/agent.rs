@@ -21,7 +21,7 @@ impl AgentRepository {
     }
 
     pub async fn create(&self, agent: &Agent) -> Result<()> {
-        let agent_id_str = agent.agent_id.as_str();
+        let agent_id_str = agent.id.as_str();
         let category_id = agent.category_id.as_ref().map(ToString::to_string);
         let source_id_str = agent.source_id.as_str();
 
@@ -94,7 +94,7 @@ impl AgentRepository {
         .await
         .context(format!("Failed to get agent by id: {agent_id}"))?;
 
-        row.map(agent_from_row).transpose()
+        Ok(row.map(agent_from_row))
     }
 
     pub async fn get_by_name(&self, name: &str) -> Result<Option<Agent>> {
@@ -130,7 +130,7 @@ impl AgentRepository {
         .await
         .context(format!("Failed to get agent by name: {name}"))?;
 
-        row.map(agent_from_row).transpose()
+        Ok(row.map(agent_from_row))
     }
 
     pub async fn list_enabled(&self) -> Result<Vec<Agent>> {
@@ -165,9 +165,7 @@ impl AgentRepository {
         .await
         .context("Failed to list enabled agents")?;
 
-        rows.into_iter()
-            .map(agent_from_row)
-            .collect::<Result<Vec<_>>>()
+        Ok(rows.into_iter().map(agent_from_row).collect())
     }
 
     pub async fn list_all(&self) -> Result<Vec<Agent>> {
@@ -202,9 +200,7 @@ impl AgentRepository {
         .await
         .context("Failed to list all agents")?;
 
-        rows.into_iter()
-            .map(agent_from_row)
-            .collect::<Result<Vec<_>>>()
+        Ok(rows.into_iter().map(agent_from_row).collect())
     }
 
     pub async fn update(&self, agent_id: &AgentId, agent: &Agent) -> Result<()> {
@@ -254,9 +250,9 @@ impl AgentRepository {
     }
 }
 
-fn agent_from_row(row: AgentRow) -> Result<Agent> {
-    Ok(Agent {
-        agent_id: row.agent_id,
+fn agent_from_row(row: AgentRow) -> Agent {
+    Agent {
+        id: row.agent_id,
         name: row.name,
         display_name: row.display_name,
         description: row.description,
@@ -278,5 +274,5 @@ fn agent_from_row(row: AgentRow) -> Result<Agent> {
         card_json: row.card_json,
         created_at: row.created_at,
         updated_at: row.updated_at,
-    })
+    }
 }

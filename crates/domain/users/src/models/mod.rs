@@ -74,7 +74,7 @@ pub struct UserSession {
 }
 
 #[derive(Debug, Clone, FromRow)]
-pub(crate) struct UserSessionRow {
+pub struct UserSessionRow {
     #[sqlx(try_from = "String")]
     pub session_id: SessionId,
     pub user_id: Option<String>,

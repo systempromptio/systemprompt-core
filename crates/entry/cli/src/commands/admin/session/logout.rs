@@ -24,7 +24,7 @@ pub struct LogoutArgs {
 
 pub fn execute(args: &LogoutArgs, config: &CliConfig) -> Result<CommandResult<LogoutOutput>> {
     let paths = ResolvedPaths::discover();
-    let sessions_dir = paths.sessions_dir()?;
+    let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     if store.is_empty() {

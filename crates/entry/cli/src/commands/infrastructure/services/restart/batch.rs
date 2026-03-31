@@ -20,7 +20,7 @@ pub async fn execute_all_agents(
     }
 
     let orchestrator = super::create_orchestrator(ctx).await?;
-    let agent_registry = AgentRegistry::new().await?;
+    let agent_registry = AgentRegistry::new()?;
     let all_agents = orchestrator.list_all().await?;
 
     let mut restarted = 0usize;
@@ -181,7 +181,7 @@ async fn restart_failed_agents(
     quiet: bool,
 ) -> Result<()> {
     let orchestrator = super::create_orchestrator(ctx).await?;
-    let agent_registry = AgentRegistry::new().await?;
+    let agent_registry = AgentRegistry::new()?;
 
     let all_agents = orchestrator.list_all().await?;
     for (agent_id, status) in &all_agents {

@@ -41,11 +41,11 @@ pub async fn run_oauth_flow(
     let error_html = templates.error_html.to_string();
 
     let callback_handler = {
-        let tx = tx.clone();
+        let tx = Arc::clone(&tx);
         let success_html = success_html.clone();
         let error_html = error_html.clone();
         move |Query(params): Query<CallbackParams>| {
-            let tx = tx.clone();
+            let tx = Arc::clone(&tx);
             let success_html = success_html.clone();
             let error_html = error_html.clone();
             async move {

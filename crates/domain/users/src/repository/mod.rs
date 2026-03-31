@@ -11,7 +11,7 @@ use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
 
-pub(crate) const MAX_PAGE_SIZE: i64 = 100;
+pub const MAX_PAGE_SIZE: i64 = 100;
 
 #[derive(Debug, Clone)]
 pub struct UserRepository {

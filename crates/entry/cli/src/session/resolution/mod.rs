@@ -56,7 +56,7 @@ async fn get_session_for_loaded_profile(
     let profile_name = extract_profile_name(profile_path)?;
     let tenant_id = profile.cloud.as_ref().and_then(|c| c.tenant_id.as_deref());
     let session_key = SessionKey::from_tenant_id(tenant_id);
-    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     if let Some(mut session) = store.get_valid_session(&session_key).cloned() {
@@ -108,7 +108,7 @@ async fn get_session_for_loaded_profile(
 
 async fn try_session_from_active_key(config: &CliConfig) -> Result<Option<CliSessionContext>> {
     let paths = ResolvedPaths::discover();
-    let sessions_dir = paths.sessions_dir()?;
+    let sessions_dir = paths.sessions_dir();
     let store = SessionStore::load_or_create(&sessions_dir)?;
 
     let Some(ref active_key_str) = store.active_key else {

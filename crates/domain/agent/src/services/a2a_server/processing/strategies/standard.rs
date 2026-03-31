@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
@@ -32,7 +34,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
     ) -> Result<ExecutionResult> {
         tracing::info!("Processing without tools");
 
-        let tracking = ExecutionTrackingService::new(context.execution_step_repo.clone());
+        let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
         let task_id = TaskId::new(context.task_id.as_str());
 
         if let Ok(step) = tracking.track_understanding(task_id.clone()).await {
@@ -46,7 +48,7 @@ impl ExecutionStrategy for StandardExecutionStrategy {
         }
 
         let (accumulated_text, tool_calls, tool_results) = process_without_tools(
-            context.ai_service.clone(),
+            Arc::clone(&context.ai_service),
             &context.agent_runtime,
             messages,
             context.tx.clone(),

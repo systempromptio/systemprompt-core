@@ -22,7 +22,7 @@ impl SkillRepository {
 
     pub async fn create(&self, skill: &Skill) -> Result<()> {
         let pool = &self.write_pool;
-        let skill_id_str = skill.skill_id.as_str();
+        let skill_id_str = skill.id.as_str();
         let category_id = skill.category_id.as_ref().map(ToString::to_string);
         let source_id_str = skill.source_id.as_str();
 
@@ -72,7 +72,7 @@ impl SkillRepository {
         .await
         .context(format!("Failed to get skill by id: {skill_id}"))?;
 
-        row.map(skill_from_row).transpose()
+        Ok(row.map(skill_from_row))
     }
 
     pub async fn get_by_file_path(&self, file_path: &str) -> Result<Option<Skill>> {
@@ -99,7 +99,7 @@ impl SkillRepository {
         .await
         .context(format!("Failed to get skill by file path: {file_path}"))?;
 
-        row.map(skill_from_row).transpose()
+        Ok(row.map(skill_from_row))
     }
 
     pub async fn list_enabled(&self) -> Result<Vec<Skill>> {
@@ -125,9 +125,7 @@ impl SkillRepository {
         .await
         .context("Failed to list enabled skills")?;
 
-        rows.into_iter()
-            .map(skill_from_row)
-            .collect::<Result<Vec<_>>>()
+        Ok(rows.into_iter().map(skill_from_row).collect())
     }
 
     pub async fn list_all(&self) -> Result<Vec<Skill>> {
@@ -153,9 +151,7 @@ impl SkillRepository {
         .await
         .context("Failed to list all skills")?;
 
-        rows.into_iter()
-            .map(skill_from_row)
-            .collect::<Result<Vec<_>>>()
+        Ok(rows.into_iter().map(skill_from_row).collect())
     }
 
     pub async fn update(&self, skill_id: &SkillId, skill: &Skill) -> Result<()> {
@@ -181,9 +177,9 @@ impl SkillRepository {
     }
 }
 
-fn skill_from_row(row: SkillRow) -> Result<Skill> {
-    Ok(Skill {
-        skill_id: row.skill_id,
+fn skill_from_row(row: SkillRow) -> Skill {
+    Skill {
+        id: row.skill_id,
         file_path: row.file_path,
         name: row.name,
         description: row.description,
@@ -194,5 +190,5 @@ fn skill_from_row(row: SkillRow) -> Result<Skill> {
         source_id: row.source_id,
         created_at: row.created_at,
         updated_at: row.updated_at,
-    })
+    }
 }

@@ -13,7 +13,7 @@ pub async fn run_standalone(
     port: u16,
 ) -> Result<()> {
     let server = Server::new(
-        agent_state.db_pool().clone(),
+        Arc::clone(agent_state.db_pool()),
         agent_state,
         ai_service,
         Some(agent_name.to_string()),

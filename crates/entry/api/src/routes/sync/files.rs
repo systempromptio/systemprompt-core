@@ -211,6 +211,7 @@ fn peek_manifest(data: &[u8]) -> Result<FileManifest, String> {
     })
 }
 
+#[allow(clippy::unused_async)]
 pub async fn manifest(Query(query): Query<FilesQuery>) -> ApiResult<Json<FileManifest>> {
     let services_path = get_services_path().map_err(to_api_error)?;
     let directories = query.directories();
@@ -220,6 +221,7 @@ pub async fn manifest(Query(query): Query<FilesQuery>) -> ApiResult<Json<FileMan
     Ok(Json(manifest))
 }
 
+#[allow(clippy::unused_async)]
 pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, ApiError> {
     let services_path = get_services_path().map_err(to_api_error)?;
     let directories = query.directories();
@@ -244,6 +246,7 @@ pub async fn download(Query(query): Query<FilesQuery>) -> Result<Response, ApiEr
         .map_err(|e| ApiError::internal_error(e.to_string()))
 }
 
+#[allow(clippy::unused_async)]
 pub async fn upload(
     Query(query): Query<FilesQuery>,
     body: axum::body::Bytes,

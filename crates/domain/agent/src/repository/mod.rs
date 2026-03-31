@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use systemprompt_database::DbPool;
 
 pub mod agent_service;
@@ -26,7 +28,7 @@ impl A2ARepositories {
         let push_notification_configs = content::PushNotificationConfigRepository::new(db)?;
 
         Ok(Self {
-            db_pool: db.clone(),
+            db_pool: Arc::clone(db),
             agent_services,
             tasks,
             execution_steps,

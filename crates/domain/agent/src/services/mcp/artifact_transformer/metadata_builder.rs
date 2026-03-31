@@ -1,6 +1,6 @@
 use crate::error::ArtifactError;
 use serde_json::{Value as JsonValue, json};
-use systemprompt_models::ArtifactMetadata;
+use systemprompt_models::{ArtifactMetadata, ContextId, TaskId};
 use systemprompt_models::artifacts::types::ArtifactType;
 
 use super::artifact_type_to_string;
@@ -23,7 +23,6 @@ pub fn build_metadata(params: BuildMetadataParams<'_>) -> Result<ArtifactMetadat
         task_id,
         tool_name,
     } = params;
-    use systemprompt_models::{ContextId, TaskId};
 
     let rendering_hints = match artifact_type {
         ArtifactType::Table => extract_table_hints(schema),
@@ -184,7 +183,6 @@ fn schema_type_to_form_type(prop_schema: &JsonValue) -> &str {
     }
 
     match prop_schema.get("type").and_then(|t| t.as_str()) {
-        Some("string") => "text",
         Some("integer" | "number") => "number",
         Some("boolean") => "checkbox",
         _ => "text",

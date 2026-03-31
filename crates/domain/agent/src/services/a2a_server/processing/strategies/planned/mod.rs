@@ -2,6 +2,8 @@ mod direct_response;
 mod helpers;
 mod tool_execution;
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use systemprompt_identifiers::TaskId;
@@ -35,7 +37,7 @@ impl ExecutionStrategy for PlannedAgenticStrategy {
         context: ExecutionContext,
         messages: Vec<AiMessage>,
     ) -> Result<ExecutionResult> {
-        let tracking = ExecutionTrackingService::new(context.execution_step_repo.clone());
+        let tracking = ExecutionTrackingService::new(Arc::clone(&context.execution_step_repo));
         let task_id = TaskId::new(context.task_id.as_str());
 
         tracing::info!("Starting PLAN → EXECUTE → RESPOND flow");

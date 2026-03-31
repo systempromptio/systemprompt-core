@@ -26,7 +26,7 @@ impl SkillsDiffCalculator {
         let db_skills = self.skill_repo.list_all().await?;
         let db_map: HashMap<SkillId, Skill> = db_skills
             .into_iter()
-            .map(|s| (s.skill_id.clone(), s))
+            .map(|s| (s.id.clone(), s))
             .collect();
 
         let disk_skills = Self::scan_disk_skills(skills_path)?;

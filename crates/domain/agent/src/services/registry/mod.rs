@@ -21,7 +21,7 @@ pub struct AgentRegistry {
 }
 
 impl AgentRegistry {
-    pub async fn new() -> Result<Self> {
+    pub fn new() -> Result<Self> {
         let config = ConfigLoader::load()?;
         Ok(Self {
             config: Arc::new(RwLock::new(config)),
@@ -74,7 +74,7 @@ impl AgentRegistry {
         let agent = self.get_agent(name).await?;
         let url = agent.construct_url(api_external_url);
 
-        let extensions = build_extensions(&agent, runtime_status, mcp_extensions);
+        let extensions = build_extensions(&agent, runtime_status.as_ref(), mcp_extensions);
 
         let (security_schemes, security) =
             if agent.card.security_schemes.is_some() || agent.card.security.is_some() {
@@ -99,7 +99,6 @@ impl AgentRegistry {
             url,
             version: agent.card.version.clone(),
             preferred_transport: Some(match agent.card.preferred_transport.as_str() {
-                "JSONRPC" => TransportProtocol::JsonRpc,
                 "GRPC" => TransportProtocol::Grpc,
                 "HTTP+JSON" => TransportProtocol::HttpJson,
                 _ => TransportProtocol::JsonRpc,
@@ -165,7 +164,7 @@ impl AgentRegistry {
 
 fn build_extensions(
     agent: &AgentConfig,
-    runtime_status: Option<(String, Option<u16>, Option<u32>)>,
+    runtime_status: Option<&(String, Option<u16>, Option<u32>)>,
     mcp_extensions: Vec<AgentExtension>,
 ) -> Vec<AgentExtension> {
     let mut extensions = vec![AgentExtension::agent_identity(&agent.name)];
@@ -174,7 +173,7 @@ fn build_extensions(
         extensions.push(AgentExtension::system_instructions(prompt));
     }
 
-    if let Some((status, port, pid)) = &runtime_status {
+    if let Some((status, port, pid)) = runtime_status {
         extensions.push(AgentExtension::service_status(
             status,
             *port,

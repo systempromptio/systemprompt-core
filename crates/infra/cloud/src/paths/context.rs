@@ -43,7 +43,7 @@ impl UnifiedContext {
     }
 
     #[must_use]
-    pub fn has_project(&self) -> bool {
+    pub const fn has_project(&self) -> bool {
         self.project.is_some()
     }
 
@@ -51,7 +51,7 @@ impl UnifiedContext {
     pub fn project_root(&self) -> Option<&Path> {
         self.project
             .as_ref()
-            .map(super::discovery::DiscoveredProject::root)
+            .map(DiscoveredProject::root)
     }
 
     #[must_use]
@@ -136,12 +136,12 @@ impl UnifiedContext {
     }
 
     #[must_use]
-    pub fn project(&self) -> Option<&DiscoveredProject> {
+    pub const fn project(&self) -> Option<&DiscoveredProject> {
         self.project.as_ref()
     }
 
     #[must_use]
-    pub fn cloud_paths(&self) -> Option<&CloudPaths> {
+    pub const fn cloud_paths(&self) -> Option<&CloudPaths> {
         self.cloud_paths.as_ref()
     }
 }

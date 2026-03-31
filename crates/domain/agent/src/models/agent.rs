@@ -6,7 +6,8 @@ use systemprompt_identifiers::{AgentId, CategoryId, SourceId};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Agent {
-    pub agent_id: AgentId,
+    #[serde(rename = "agent_id")]
+    pub id: AgentId,
     pub name: String,
     pub display_name: String,
     pub description: String,
@@ -36,7 +37,7 @@ pub struct Agent {
 
 impl Agent {
     pub fn from_json_row(row: &JsonRow) -> Result<Self> {
-        let agent_id = AgentId::new(
+        let id = AgentId::new(
             row.get("agent_id")
                 .and_then(|v| v.as_str())
                 .ok_or_else(|| anyhow!("Missing agent_id"))?,
@@ -163,7 +164,7 @@ impl Agent {
             .ok_or_else(|| anyhow!("Missing or invalid updated_at"))?;
 
         Ok(Self {
-            agent_id,
+            id,
             name,
             display_name,
             description,

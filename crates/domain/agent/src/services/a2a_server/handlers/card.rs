@@ -21,7 +21,7 @@ pub async fn handle_agent_card(State(state): State<Arc<AgentHandlerState>>) -> i
         |c| c.api_external_url.clone(),
     );
 
-    match AgentRegistry::new().await {
+    match AgentRegistry::new() {
         Ok(registry) => match registry.get_agent(&agent_name).await {
             Ok(agent_config) => {
                 match registry

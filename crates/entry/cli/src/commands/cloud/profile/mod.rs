@@ -199,7 +199,7 @@ async fn execute_command(cmd: ProfileCommands, config: &CliConfig) -> Result<boo
             render_result(&result);
             Ok(false)
         },
-        ProfileCommands::Edit(args) => edit::execute(&args, config).await.map(|()| false),
+        ProfileCommands::Edit(args) => edit::execute(&args, config).map(|()| false),
     }
 }
 

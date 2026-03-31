@@ -98,9 +98,9 @@ impl RenderedComponent {
 
 #[async_trait]
 pub trait ComponentRenderer: Send + Sync {
-    fn component_id(&self) -> &str;
+    fn component_id(&self) -> &'static str;
 
-    fn variable_name(&self) -> &str;
+    fn variable_name(&self) -> &'static str;
 
     fn applies_to(&self) -> Vec<String> {
         vec![]

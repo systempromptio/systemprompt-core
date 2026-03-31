@@ -93,9 +93,7 @@ async fn verify_user_exists_and_active(
         .await
         .map_err(|e| anyhow::anyhow!("Failed to lookup user in database: {}", e))?;
 
-    let user = if let Some(u) = user {
-        u
-    } else {
+    let Some(user) = user else {
         tracing::warn!(
             user_id = %claims.subject,
             "User ID from token not found in database"
@@ -157,11 +155,9 @@ pub fn extract_bearer_token(headers: &HeaderMap) -> Option<String> {
                 .ok()
         })
         .and_then(|auth_header| {
-            if auth_header.starts_with("Bearer ") {
-                Some(auth_header[7..].to_string())
-            } else {
-                None
-            }
+            auth_header
+                .strip_prefix("Bearer ")
+                .map(ToString::to_string)
         })
 }
 
@@ -177,16 +173,12 @@ pub async fn validate_oauth_for_request(
             return Err(unauthorized_response(
                 "Bearer token required. Include 'Authorization: Bearer <token>' header.",
                 request_id,
-            )
-            .await);
+            ));
         },
     };
 
-    let provider = match jwt_provider {
-        Some(p) => p,
-        None => {
-            return Err(unauthorized_response("JWT provider not configured", request_id).await);
-        },
+    let Some(provider) = jwt_provider else {
+        return Err(unauthorized_response("JWT provider not configured", request_id));
     };
 
     match provider.validate_token(&token) {
@@ -205,7 +197,7 @@ pub async fn validate_oauth_for_request(
                     ),
                     request_id,
                 )
-                .await);
+                );
             }
 
             if claims.is_admin {
@@ -249,7 +241,7 @@ pub async fn validate_oauth_for_request(
                     ),
                     request_id,
                 )
-                .await);
+                );
             }
 
             Ok(Some(serde_json::json!({
@@ -262,7 +254,7 @@ pub async fn validate_oauth_for_request(
             })))
         },
         Err(e) => {
-            Err(unauthorized_response(format!("Invalid or expired token: {e}"), request_id).await)
+            Err(unauthorized_response(format!("Invalid or expired token: {e}"), request_id))
         },
     }
 }

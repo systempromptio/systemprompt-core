@@ -28,9 +28,15 @@ pub struct ExecutionContext {
 impl std::fmt::Debug for ExecutionContext {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ExecutionContext")
+            .field("ai_service", &"<Arc<dyn AiProvider>>")
+            .field("skill_service", &"<Arc<SkillService>>")
+            .field("agent_runtime", &self.agent_runtime)
             .field("agent_name", &self.agent_name)
             .field("task_id", &self.task_id)
             .field("context_id", &self.context_id)
+            .field("tx", &"<UnboundedSender>")
+            .field("request_ctx", &self.request_ctx)
+            .field("execution_step_repo", &"<Arc<ExecutionStepRepository>>")
             .finish()
     }
 }

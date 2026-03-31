@@ -25,7 +25,7 @@ impl TaskConstructor {
         let artifact_repo = ArtifactRepository::new(db)?;
         Ok(Self {
             pool,
-            db_pool: db.clone(),
+            db_pool: Arc::clone(db),
             artifact_repo,
         })
     }

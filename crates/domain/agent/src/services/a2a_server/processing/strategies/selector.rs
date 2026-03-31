@@ -8,7 +8,7 @@ impl ExecutionStrategySelector {
         Self
     }
 
-    pub fn select_strategy(&self, has_tools: bool) -> Box<dyn ExecutionStrategy> {
+    pub fn select_strategy(has_tools: bool) -> Box<dyn ExecutionStrategy> {
         if has_tools {
             Box::new(PlannedAgenticStrategy::new())
         } else {

@@ -34,7 +34,7 @@ impl SkillService {
     pub fn new(db_pool: &DbPool) -> Result<Self> {
         Ok(Self {
             skill_repo: Arc::new(SkillRepository::new(db_pool)?),
-            db_pool: db_pool.clone(),
+            db_pool: Arc::clone(db_pool),
         })
     }
 
@@ -53,16 +53,16 @@ impl SkillService {
                 )
             })?;
 
-        tracing::info!(skill_id = %skill.skill_id, "Loaded skill");
+        tracing::info!(skill_id = %skill.id, "Loaded skill");
 
         let event = AgUiEventBuilder::skill_loaded(
-            skill.skill_id.clone(),
+            skill.id.clone(),
             skill.name.clone(),
             Some(skill.description.clone()),
             ctx.task_id().cloned(),
         );
 
-        tracing::info!(skill_id = %skill.skill_id, "Broadcasting skill_loaded event");
+        tracing::info!(skill_id = %skill.id, "Broadcasting skill_loaded event");
 
         if let Err(e) = broadcast_skill_event(ctx, event).await {
             tracing::error!(error = %e, "Failed to broadcast skill_loaded");
@@ -82,7 +82,7 @@ impl SkillService {
             match tracking
                 .track_skill_usage(
                     TaskId::new(task_id.as_str()),
-                    skill.skill_id.clone(),
+                    skill.id.clone(),
                     skill.name.clone(),
                 )
                 .await
@@ -109,7 +109,7 @@ impl SkillService {
 
     pub async fn list_skill_ids(&self) -> Result<Vec<String>> {
         let skills = self.skill_repo.list_enabled().await?;
-        Ok(skills.into_iter().map(|s| s.skill_id.to_string()).collect())
+        Ok(skills.into_iter().map(|s| s.id.to_string()).collect())
     }
 
     pub async fn load_skill_metadata(&self, skill_id: &str) -> Result<SkillMetadata> {
@@ -127,10 +127,10 @@ impl SkillService {
                 )
             })?;
 
-        tracing::info!(skill_id = %skill.skill_id, "Loaded skill metadata");
+        tracing::info!(skill_id = %skill.id, "Loaded skill metadata");
 
         Ok(SkillMetadata {
-            skill_id: skill.skill_id,
+            skill_id: skill.id,
             name: skill.name,
         })
     }

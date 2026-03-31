@@ -16,7 +16,7 @@ fn sanitize_database_name(name: &str) -> String {
         .collect()
 }
 
-pub async fn create_database_for_tenant(
+pub fn create_database_for_tenant(
     admin_password: &str,
     port: u16,
     db_name: &str,
@@ -73,7 +73,7 @@ pub async fn create_database_for_tenant(
     Ok(())
 }
 
-pub async fn drop_database_for_tenant(
+pub fn drop_database_for_tenant(
     admin_password: &str,
     port: u16,
     db_name: &str,

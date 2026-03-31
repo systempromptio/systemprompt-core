@@ -10,6 +10,20 @@ pub enum WebhookError {
     StatusError { status: u16, message: String },
 }
 
+#[derive(Serialize)]
+struct AgUiWebhookPayload {
+    #[serde(flatten)]
+    event: AgUiEvent,
+    user_id: String,
+}
+
+#[derive(Serialize)]
+struct A2AWebhookPayload {
+    #[serde(flatten)]
+    event: A2AEvent,
+    user_id: String,
+}
+
 fn get_api_url() -> String {
     Config::get().map_or_else(
         |_| "http://localhost:3000".to_string(),
@@ -34,13 +48,6 @@ pub async fn broadcast_agui_event(
     }
 
     tracing::debug!(event_type = ?event_type, url = %url, has_token = !auth_token.is_empty(), "Sending AGUI event");
-
-    #[derive(Serialize)]
-    struct AgUiWebhookPayload {
-        #[serde(flatten)]
-        event: AgUiEvent,
-        user_id: String,
-    }
 
     let payload = AgUiWebhookPayload {
         event,
@@ -113,13 +120,6 @@ pub async fn broadcast_a2a_event(
     let event_type = event.event_type();
 
     tracing::debug!(event_type = ?event_type, url = %url, "Sending A2A event");
-
-    #[derive(Serialize)]
-    struct A2AWebhookPayload {
-        #[serde(flatten)]
-        event: A2AEvent,
-        user_id: String,
-    }
 
     let payload = A2AWebhookPayload {
         event,

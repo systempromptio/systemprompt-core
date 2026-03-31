@@ -20,7 +20,7 @@ impl ContextRepository {
         Ok(Self {
             pool,
             write_pool,
-            db_pool: db.clone(),
+            db_pool: Arc::clone(db),
         })
     }
 }

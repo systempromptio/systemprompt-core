@@ -18,11 +18,11 @@ pub struct ListItemsCardRenderer;
 
 #[async_trait]
 impl ComponentRenderer for ListItemsCardRenderer {
-    fn component_id(&self) -> &str {
+    fn component_id(&self) -> &'static str {
         "list-items-cards"
     }
 
-    fn variable_name(&self) -> &str {
+    fn variable_name(&self) -> &'static str {
         "ITEMS"
     }
 

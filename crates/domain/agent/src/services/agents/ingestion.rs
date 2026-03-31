@@ -29,7 +29,7 @@ impl AgentIngestionService {
     ) -> Result<IngestionReport> {
         let mut report = IngestionReport::new();
 
-        let agent_dirs = self.scan_agent_directories(path)?;
+        let agent_dirs = Self::scan_agent_directories(path);
         report.files_found = agent_dirs.len();
 
         for agent_dir in agent_dirs {
@@ -98,7 +98,7 @@ impl AgentIngestionService {
             .map_err(|e| anyhow!("Failed to serialize agent card: {}", e))?;
 
         let agent = Agent {
-            agent_id: AgentId::new(&agent_id_str),
+            id: AgentId::new(&agent_id_str),
             name: config.name,
             display_name: config.display_name,
             description: config.description,
@@ -124,12 +124,12 @@ impl AgentIngestionService {
 
         if self
             .agent_repo
-            .get_by_agent_id(&agent.agent_id)
+            .get_by_agent_id(&agent.id)
             .await?
             .is_some()
         {
             if override_existing {
-                self.agent_repo.update(&agent.agent_id, &agent).await?;
+                self.agent_repo.update(&agent.id, &agent).await?;
             }
         } else {
             self.agent_repo.create(&agent).await?;
@@ -138,7 +138,7 @@ impl AgentIngestionService {
         Ok(())
     }
 
-    fn scan_agent_directories(&self, dir: &Path) -> Result<Vec<std::path::PathBuf>> {
+    fn scan_agent_directories(dir: &Path) -> Vec<std::path::PathBuf> {
         use walkdir::WalkDir;
 
         let mut agent_dirs = Vec::new();
@@ -155,14 +155,13 @@ impl AgentIngestionService {
                 let config_file = entry.path().join(AGENT_CONFIG_FILENAME);
                 if config_file.exists() {
                     let path = entry.path().to_path_buf();
-                    if !seen.contains(&path) {
-                        agent_dirs.push(path.clone());
-                        seen.insert(path);
+                    if seen.insert(path.clone()) {
+                        agent_dirs.push(path);
                     }
                 }
             }
         }
 
-        Ok(agent_dirs)
+        agent_dirs
     }
 }

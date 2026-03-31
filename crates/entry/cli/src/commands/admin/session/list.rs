@@ -28,10 +28,10 @@ pub fn execute(_config: &CliConfig) -> CommandResult<ProfileListOutput> {
         .with_title("Available Profiles");
     }
 
-    let store = ResolvedPaths::discover()
-        .sessions_dir()
-        .ok()
-        .and_then(|dir| SessionStore::load_or_create(&dir).ok());
+    let store = {
+        let dir = ResolvedPaths::discover().sessions_dir();
+        SessionStore::load_or_create(&dir).ok()
+    };
 
     let profiles = discovered
         .into_iter()

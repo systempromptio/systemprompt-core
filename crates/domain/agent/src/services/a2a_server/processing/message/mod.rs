@@ -37,6 +37,7 @@ use systemprompt_database::DbPool;
 use systemprompt_identifiers::TaskId;
 use systemprompt_models::RequestContext;
 
+#[derive(Debug)]
 pub struct PersistCompletedTaskOnProcessorParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
@@ -46,6 +47,7 @@ pub struct PersistCompletedTaskOnProcessorParams<'a> {
     pub artifacts_already_published: bool,
 }
 
+#[derive(Debug)]
 pub struct ProcessMessageStreamParams<'a> {
     pub a2a_message: &'a Message,
     pub agent_runtime: &'a AgentRuntimeInfo,
@@ -81,7 +83,7 @@ impl MessageProcessor {
         let execution_step_repo = Arc::new(ExecutionStepRepository::new(db_pool)?);
 
         Ok(Self {
-            db_pool: db_pool.clone(),
+            db_pool: Arc::clone(db_pool),
             ai_service,
             task_repo,
             context_repo,
@@ -94,7 +96,7 @@ impl MessageProcessor {
     pub async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
         use crate::services::registry::AgentRegistry;
 
-        let registry = AgentRegistry::new().await?;
+        let registry = AgentRegistry::new()?;
         let agent_config = registry
             .get_agent(agent_name)
             .await
@@ -124,10 +126,10 @@ impl MessageProcessor {
         params: ProcessMessageStreamParams<'_>,
     ) -> Result<mpsc::UnboundedReceiver<StreamEvent>> {
         let stream_processor = StreamProcessor {
-            ai_service: self.ai_service.clone(),
+            ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),
-            skill_service: self.skill_service.clone(),
-            execution_step_repo: self.execution_step_repo.clone(),
+            skill_service: Arc::clone(&self.skill_service),
+            execution_step_repo: Arc::clone(&self.execution_step_repo),
         };
 
         stream_processor.process_message_stream(params).await

@@ -27,6 +27,7 @@ pub fn router() -> Router<AppContext> {
     Router::new().route("/", post(execute_cli))
 }
 
+#[allow(clippy::unused_async)]
 async fn execute_cli(
     Extension(req_ctx): Extension<RequestContext>,
     Json(request): Json<CliExecuteRequest>,

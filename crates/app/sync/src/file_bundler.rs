@@ -15,11 +15,11 @@ use crate::files::{
     FileBundle, FileDiffStatus, FileEntry, FileManifest, SyncDiffEntry, SyncDiffResult,
 };
 
-pub(crate) const INCLUDE_DIRS: [&str; 8] = [
+pub const INCLUDE_DIRS: [&str; 8] = [
     "agents", "skills", "content", "web", "config", "profiles", "plugins", "hooks",
 ];
 
-pub(crate) fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
+pub fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     let mut files = vec![];
 
     for dir in INCLUDE_DIRS {
@@ -45,7 +45,7 @@ pub(crate) fn collect_files(services_path: &Path) -> SyncResult<FileBundle> {
     })
 }
 
-pub(crate) fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResult<()> {
+pub fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -> SyncResult<()> {
     for entry in fs::read_dir(dir)? {
         let entry = entry?;
         let path = entry.path();
@@ -67,7 +67,7 @@ pub(crate) fn collect_dir(dir: &Path, base: &Path, files: &mut Vec<FileEntry>) -
     Ok(())
 }
 
-pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
+pub fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult<Vec<u8>> {
     let mut encoder = GzEncoder::new(Vec::new(), Compression::default());
     {
         let mut tar = Builder::new(&mut encoder);
@@ -80,7 +80,7 @@ pub(crate) fn create_tarball(base: &Path, manifest: &FileManifest) -> SyncResult
     Ok(encoder.finish()?)
 }
 
-pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
+pub fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut count = 0;
@@ -98,7 +98,7 @@ pub(crate) fn extract_tarball(data: &[u8], target: &Path) -> SyncResult<usize> {
     Ok(count)
 }
 
-pub(crate) fn extract_tarball_selective(
+pub fn extract_tarball_selective(
     data: &[u8],
     target: &Path,
     paths_to_sync: &[String],
@@ -129,7 +129,7 @@ pub(crate) fn extract_tarball_selective(
     Ok(count)
 }
 
-pub(crate) fn compare_tarball_with_local(
+pub fn compare_tarball_with_local(
     data: &[u8],
     services_path: &Path,
 ) -> SyncResult<SyncDiffResult> {
@@ -217,7 +217,7 @@ pub(crate) fn compare_tarball_with_local(
     })
 }
 
-pub(crate) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
+pub fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     let decoder = GzDecoder::new(data);
     let mut archive = Archive::new(decoder);
     let mut files = vec![];
@@ -238,7 +238,7 @@ pub(crate) fn peek_manifest(data: &[u8]) -> SyncResult<FileManifest> {
     })
 }
 
-pub(crate) fn add_dir_to_zip<W: Write + std::io::Seek>(
+pub fn add_dir_to_zip<W: Write + std::io::Seek>(
     zip: &mut ZipWriter<W>,
     dir: &Path,
     base: &Path,

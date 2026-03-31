@@ -29,7 +29,7 @@ impl SkillIngestionService {
     ) -> Result<IngestionReport> {
         let mut report = IngestionReport::new();
 
-        let skill_dirs = self.scan_skill_directories(path)?;
+        let skill_dirs = Self::scan_skill_directories(path);
         report.files_found = skill_dirs.len();
 
         for skill_dir in skill_dirs {
@@ -96,7 +96,7 @@ impl SkillIngestionService {
         let file_path = content_path.to_string_lossy().to_string();
 
         let skill = Skill {
-            skill_id: SkillId::new(skill_id_str),
+            id: SkillId::new(skill_id_str),
             file_path,
             name: config.name,
             description: config.description,
@@ -111,12 +111,12 @@ impl SkillIngestionService {
 
         if self
             .skill_repo
-            .get_by_skill_id(&skill.skill_id)
+            .get_by_skill_id(&skill.id)
             .await?
             .is_some()
         {
             if override_existing {
-                self.skill_repo.update(&skill.skill_id, &skill).await?;
+                self.skill_repo.update(&skill.id, &skill).await?;
             }
         } else {
             self.skill_repo.create(&skill).await?;
@@ -125,7 +125,7 @@ impl SkillIngestionService {
         Ok(())
     }
 
-    fn scan_skill_directories(&self, dir: &Path) -> Result<Vec<std::path::PathBuf>> {
+    fn scan_skill_directories(dir: &Path) -> Vec<std::path::PathBuf> {
         use walkdir::WalkDir;
 
         let mut skill_dirs = Vec::new();
@@ -142,14 +142,13 @@ impl SkillIngestionService {
                 let config_file = entry.path().join(SKILL_CONFIG_FILENAME);
                 if config_file.exists() {
                     let path = entry.path().to_path_buf();
-                    if !seen.contains(&path) {
-                        skill_dirs.push(path.clone());
-                        seen.insert(path);
+                    if seen.insert(path.clone()) {
+                        skill_dirs.push(path);
                     }
                 }
             }
         }
 
-        Ok(skill_dirs)
+        skill_dirs
     }
 }

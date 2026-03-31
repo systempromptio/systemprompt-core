@@ -20,13 +20,13 @@ pub struct ServiceTarget {
     pub mcp: bool,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ServiceFlags {
     pub all: bool,
     pub targets: ServiceTargetFlags,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ServiceTargetFlags {
     pub api: bool,
     pub agents: bool,
@@ -153,7 +153,7 @@ async fn run_startup(
 }
 
 async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new().await?;
+    let registry = AgentRegistry::new()?;
     let agent = registry.get_agent(agent_identifier).await?;
     Ok(agent.name)
 }

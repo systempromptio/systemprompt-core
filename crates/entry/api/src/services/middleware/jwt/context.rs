@@ -193,7 +193,7 @@ impl JwtContextExtractor {
             .with_user_id(user_id)
             .with_user_type(jwt_context.user_type);
 
-        if let Some(client_id) = jwt_context.client_id.clone() {
+        if let Some(client_id) = jwt_context.client_id {
             ctx = ctx.with_client_id(client_id);
         }
         if let Some(t_id) = task_id {

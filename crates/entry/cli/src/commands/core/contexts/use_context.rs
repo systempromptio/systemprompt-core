@@ -34,7 +34,7 @@ pub async fn execute(
         .await
         .context("Failed to fetch context details")?;
 
-    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     let session_key = SessionKey::from_tenant_id(

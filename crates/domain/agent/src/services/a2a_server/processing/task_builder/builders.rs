@@ -63,6 +63,7 @@ pub fn build_submitted_task(
     }
 }
 
+#[derive(Debug)]
 pub struct BuildMultiturnTaskParams {
     pub context_id: ContextId,
     pub task_id: TaskId,

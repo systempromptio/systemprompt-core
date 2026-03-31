@@ -215,8 +215,9 @@ pub fn configure_routes(
         },
     };
     let path = paths.system().content_config().to_path_buf();
-    let content_matcher = match path.to_str() {
-        Some(path_str) => match StaticContentMatcher::from_config(path_str) {
+    #[allow(clippy::option_if_let_else)]
+    let content_matcher = if let Some(path_str) = path.to_str() {
+        match StaticContentMatcher::from_config(path_str) {
             Ok(matcher) => Arc::new(matcher),
             Err(e) => {
                 if let Some(tx) = events {
@@ -232,21 +233,20 @@ pub fn configure_routes(
                 }
                 Arc::new(StaticContentMatcher::empty())
             },
-        },
-        None => {
-            if let Some(tx) = events {
-                if tx
-                    .unbounded_send(StartupEvent::Warning {
-                        message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
-                        context: None,
-                    })
-                    .is_err()
-                {
-                    tracing::debug!("Startup event receiver dropped");
-                }
+        }
+    } else {
+        if let Some(tx) = events {
+            if tx
+                .unbounded_send(StartupEvent::Warning {
+                    message: "CONTENT_CONFIG_PATH contains invalid UTF-8".to_string(),
+                    context: None,
+                })
+                .is_err()
+            {
+                tracing::debug!("Startup event receiver dropped");
             }
-            Arc::new(StaticContentMatcher::empty())
-        },
+        }
+        Arc::new(StaticContentMatcher::empty())
     };
 
     let static_state = StaticContentState {

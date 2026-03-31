@@ -42,8 +42,7 @@ pub async fn parse_a2a_request(
                 let error_response = JsonRpcErrorBuilder::invalid_params()
                     .with_data(helpful_message)
                     .log_error("Missing required contextId in message/stream request".to_string())
-                    .build(request_id)
-                    .await;
+                    .build(request_id);
                 Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
             } else {
                 let error_response = JsonRpcErrorBuilder::method_not_found()
@@ -55,8 +54,7 @@ pub async fn parse_a2a_request(
                         "Invalid A2A request method '{}': {}",
                         jsonrpc_request.method, e
                     ))
-                    .build(request_id)
-                    .await;
+                    .build(request_id);
                 Err((StatusCode::BAD_REQUEST, Json(error_response)).into_response())
             }
         },
@@ -131,8 +129,7 @@ pub async fn handle_push_notification_requests(
 
     if let Some(result) = push_notification_response {
         let (status, json_response) = match result {
-            Ok((status, json)) => (status, json),
-            Err((status, json)) => (status, json),
+            Ok((status, json)) | Err((status, json)) => (status, json),
         };
 
         let mut response_value = json_response.0;

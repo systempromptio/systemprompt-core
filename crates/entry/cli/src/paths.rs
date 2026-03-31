@@ -1,6 +1,5 @@
 use std::path::PathBuf;
 
-use anyhow::Result;
 use systemprompt_cloud::ProjectContext;
 use systemprompt_cloud::paths::{CloudPath, get_cloud_paths};
 
@@ -20,21 +19,21 @@ impl ResolvedPaths {
         }
     }
 
-    pub fn sessions_dir(&self) -> Result<PathBuf> {
+    pub fn sessions_dir(&self) -> PathBuf {
         if self.has_local_dir {
-            Ok(self.project_ctx.sessions_dir())
+            self.project_ctx.sessions_dir()
         } else {
             let cloud_paths = get_cloud_paths();
-            Ok(cloud_paths.resolve(CloudPath::SessionsDir))
+            cloud_paths.resolve(CloudPath::SessionsDir)
         }
     }
 
-    pub fn tenants_path(&self) -> Result<PathBuf> {
+    pub fn tenants_path(&self) -> PathBuf {
         if self.has_local_dir {
-            Ok(self.project_ctx.local_tenants())
+            self.project_ctx.local_tenants()
         } else {
             let cloud_paths = get_cloud_paths();
-            Ok(cloud_paths.resolve(CloudPath::Tenants))
+            cloud_paths.resolve(CloudPath::Tenants)
         }
     }
 

@@ -33,7 +33,7 @@ pub async fn execute(
     let new_tenant_id = new_profile.cloud.as_ref().and_then(|c| c.tenant_id.clone());
     let session_key = SessionKey::from_tenant_id(new_tenant_id.as_deref());
 
-    let sessions_dir = paths.sessions_dir()?;
+    let sessions_dir = paths.sessions_dir();
     let mut store = SessionStore::load_or_create(&sessions_dir)?;
 
     let previous_profile = store.active_profile_name.clone();

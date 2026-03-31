@@ -56,7 +56,7 @@ pub async fn create_local_tenant() -> Result<StoredTenant> {
     spinner.finish_and_clear();
 
     let spinner = CliService::spinner(&format!("Creating database '{}'...", db_name));
-    create_database_for_tenant(&config.admin_password, config.port, &db_name).await?;
+    create_database_for_tenant(&config.admin_password, config.port, &db_name)?;
     spinner.finish_and_clear();
     CliService::success(&format!("Database '{}' created", db_name));
 

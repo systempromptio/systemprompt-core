@@ -67,7 +67,7 @@ impl JsonRpcErrorBuilder {
         self
     }
 
-    pub async fn build(self, request_id: &NumberOrString) -> Value {
+    pub fn build(self, request_id: &NumberOrString) -> Value {
         if let Some(log_msg) = self.log_message {
             match self.log_level {
                 LogLevel::Error => {
@@ -104,7 +104,7 @@ impl JsonRpcErrorBuilder {
         })
     }
 
-    pub async fn build_with_status(self, request_id: &NumberOrString) -> (StatusCode, Value) {
+    pub fn build_with_status(self, request_id: &NumberOrString) -> (StatusCode, Value) {
         let status = match self.code {
             -32600 => StatusCode::BAD_REQUEST,
             -32601 => StatusCode::NOT_FOUND,
@@ -114,7 +114,7 @@ impl JsonRpcErrorBuilder {
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         };
 
-        (status, self.build(request_id).await)
+        (status, self.build(request_id))
     }
 
     pub fn invalid_request() -> Self {
@@ -150,7 +150,7 @@ impl JsonRpcErrorBuilder {
     }
 }
 
-pub async fn unauthorized_response(
+pub fn unauthorized_response(
     reason: impl Into<String>,
     request_id: &NumberOrString,
 ) -> (StatusCode, Value) {
@@ -159,12 +159,11 @@ pub async fn unauthorized_response(
         StatusCode::UNAUTHORIZED,
         JsonRpcErrorBuilder::unauthorized(&reason_str)
             .log_warn(&reason_str)
-            .build(request_id)
-            .await,
+            .build(request_id),
     )
 }
 
-pub async fn forbidden_response(
+pub fn forbidden_response(
     reason: impl Into<String>,
     request_id: &NumberOrString,
 ) -> (StatusCode, Value) {
@@ -173,7 +172,6 @@ pub async fn forbidden_response(
         StatusCode::FORBIDDEN,
         JsonRpcErrorBuilder::forbidden(&reason_str)
             .log_warn(&reason_str)
-            .build(request_id)
-            .await,
+            .build(request_id),
     )
 }

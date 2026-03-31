@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::{Result, anyhow};
 use uuid::Uuid;
 
@@ -42,14 +44,17 @@ impl MessageProcessor {
             "Context validated"
         );
 
-        let task_id = if let Some(existing_task_id) = message.task_id.clone() {
-            tracing::info!(task_id = %existing_task_id, "Continuing existing task");
-            existing_task_id
-        } else {
-            let new_task_id = TaskId::new(Uuid::new_v4().to_string());
-            tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
-            new_task_id
-        };
+        let task_id = message.task_id.clone().map_or_else(
+            || {
+                let new_task_id = TaskId::new(Uuid::new_v4().to_string());
+                tracing::info!(task_id = %new_task_id, "Starting NEW task with generated ID");
+                new_task_id
+            },
+            |existing_task_id| {
+                tracing::info!(task_id = %existing_task_id, "Continuing existing task");
+                existing_task_id
+            },
+        );
 
         let metadata = TaskMetadata::new_agent_message(agent_name.to_string());
 
@@ -69,13 +74,13 @@ impl MessageProcessor {
 
         if let Err(e) = self
             .task_repo
-            .create_task(
-                &task,
-                &UserId::new(context.user_id().as_str()),
-                &SessionId::new(context.session_id().as_str()),
-                &TraceId::new(context.trace_id().as_str()),
+            .create_task(crate::repository::task::RepoCreateTaskParams {
+                task: &task,
+                user_id: &UserId::new(context.user_id().as_str()),
+                session_id: &SessionId::new(context.session_id().as_str()),
+                trace_id: &TraceId::new(context.trace_id().as_str()),
                 agent_name,
-            )
+            })
             .await
         {
             return Err(anyhow!("Failed to persist task at start: {}", e));
@@ -103,10 +108,10 @@ impl MessageProcessor {
         }
 
         let stream_processor = StreamProcessor {
-            ai_service: self.ai_service.clone(),
+            ai_service: Arc::clone(&self.ai_service),
             context_service: self.context_service.clone(),
-            skill_service: self.skill_service.clone(),
-            execution_step_repo: self.execution_step_repo.clone(),
+            skill_service: Arc::clone(&self.skill_service),
+            execution_step_repo: Arc::clone(&self.execution_step_repo),
         };
 
         let mut chunk_rx = stream_processor

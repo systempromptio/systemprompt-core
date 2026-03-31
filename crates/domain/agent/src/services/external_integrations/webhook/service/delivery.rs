@@ -25,7 +25,7 @@ impl WebhookService {
         }
 
         if let Some(secret) = &config.secret {
-            let signature = self.generate_signature(secret, &payload)?;
+            let signature = Self::generate_signature(secret, &payload)?;
             request_builder = request_builder.header("X-Webhook-Signature", signature);
         }
 

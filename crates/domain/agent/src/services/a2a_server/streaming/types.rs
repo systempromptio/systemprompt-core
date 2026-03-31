@@ -64,7 +64,7 @@ impl StreamContext {
         self.tx.send(event).is_ok()
     }
 
-    pub fn send_json(&self, json: serde_json::Value) -> bool {
+    pub fn send_json(&self, json: &serde_json::Value) -> bool {
         self.tx
             .send(Event::default().data(json.to_string()))
             .is_ok()

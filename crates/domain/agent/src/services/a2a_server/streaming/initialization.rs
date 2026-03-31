@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use axum::response::sse::Event;
 use serde_json::json;
-use systemprompt_identifiers::{ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
+use systemprompt_identifiers::{AgentName, ContextId, MessageId, SessionId, TaskId, TraceId, UserId};
 use systemprompt_models::{RequestContext, TaskMetadata};
 use tokio::sync::mpsc::UnboundedSender;
 use uuid::Uuid;
@@ -30,7 +30,7 @@ pub fn create_jsonrpc_error_event(code: i32, message: &str, request_id: &NumberO
     Event::default().data(error_event.to_string())
 }
 
-pub async fn detect_mcp_server_and_update_context(
+pub fn detect_mcp_server_and_update_context(
     agent_name: &str,
     context: &mut RequestContext,
     state: &Arc<AgentHandlerState>,
@@ -68,7 +68,6 @@ pub async fn detect_mcp_server_and_update_context(
             "Agent mismatch, using service name"
         );
 
-        use systemprompt_identifiers::AgentName;
         context.execution.agent_name = AgentName::new(agent_name.to_string());
     }
 }
@@ -173,13 +172,13 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
     };
 
     task_repo
-        .create_task(
-            &task,
-            &UserId::new(context.user_id().as_str()),
-            &SessionId::new(context.session_id().as_str()),
-            &TraceId::new(context.trace_id().as_str()),
+        .create_task(crate::repository::task::RepoCreateTaskParams {
+            task: &task,
+            user_id: &UserId::new(context.user_id().as_str()),
+            session_id: &SessionId::new(context.session_id().as_str()),
+            trace_id: &TraceId::new(context.trace_id().as_str()),
             agent_name,
-        )
+        })
         .await
         .map_err(|e| {
             tracing::error!(task_id = %task_id, error = %e, "Failed to persist task at start");
@@ -210,7 +209,7 @@ pub async fn persist_initial_task(input: PersistTaskInput<'_>) -> Result<TaskRep
 
 pub async fn save_push_notification_config(
     task_id: &TaskId,
-    callback_config: &Option<PushNotificationConfig>,
+    callback_config: Option<&PushNotificationConfig>,
     state: &Arc<AgentHandlerState>,
 ) {
     let Some(config) = callback_config else {
@@ -248,7 +247,7 @@ pub async fn setup_stream(
         callback_config,
     } = input;
 
-    detect_mcp_server_and_update_context(&agent_name, &mut context, &state).await;
+    detect_mcp_server_and_update_context(&agent_name, &mut context, &state);
 
     let task_id = resolve_task_id(&message);
     let context_id = message.context_id.clone();
@@ -284,13 +283,13 @@ pub async fn setup_stream(
     })
     .await;
 
-    save_push_notification_config(&task_id, &callback_config, &state).await;
+    save_push_notification_config(&task_id, callback_config.as_ref(), &state).await;
 
     let agent_runtime =
         load_agent_runtime(&agent_name, &task_id, &task_repo, tx, &request_id).await?;
 
     let processor =
-        MessageProcessor::new(&state.db_pool, state.ai_service.clone()).map_err(|e| {
+        MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service)).map_err(|e| {
             tracing::error!(error = %e, "Failed to create MessageProcessor");
             if tx
                 .send(create_jsonrpc_error_event(

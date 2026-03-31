@@ -8,6 +8,7 @@ use systemprompt_traits::{Phase, StartupEvent, StartupEventExt, StartupEventSend
 use tokio::sync::broadcast;
 use tokio::task::JoinHandle;
 
+use crate::repository::agent_service::AgentServiceRepository;
 use crate::services::agent_orchestration::database::AgentDatabaseService;
 use crate::services::agent_orchestration::event_bus::AgentEventBus;
 use crate::services::agent_orchestration::events::AgentEvent;
@@ -58,17 +59,15 @@ impl AgentOrchestrator {
 
         let db_pool = agent_state.db_pool();
 
-        use crate::repository::agent_service::AgentServiceRepository;
         let agent_repo = AgentServiceRepository::new(db_pool)?;
 
         let event_bus = Arc::new(AgentEventBus::new(100));
 
-        let db_service = AgentDatabaseService::new(agent_repo).await?;
-        let lifecycle = AgentLifecycle::new(db_pool.clone())
-            .await?
-            .with_event_bus(event_bus.clone());
-        let reconciler = AgentReconciler::new(db_pool.clone()).await?;
-        let monitor = AgentMonitor::new(db_pool.clone()).await?;
+        let db_service = AgentDatabaseService::new(agent_repo)?;
+        let lifecycle = AgentLifecycle::new(db_pool)?
+            .with_event_bus(Arc::clone(&event_bus));
+        let reconciler = AgentReconciler::new(db_pool)?;
+        let monitor = AgentMonitor::new(db_pool)?;
 
         let orchestrator = Self {
             db_service,

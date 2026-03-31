@@ -3,6 +3,7 @@ use crate::models::{
     ArtifactPartRow, ArtifactRow, ExecutionStepBatchRow, MessagePart, TaskMessage, TaskRow,
 };
 use std::collections::HashMap;
+use std::sync::Arc;
 use systemprompt_identifiers::{ArtifactId, MessageId, TaskId};
 use systemprompt_traits::RepositoryError;
 
@@ -17,7 +18,7 @@ pub async fn construct_tasks_batch(
         return Ok(Vec::new());
     }
 
-    let pool = constructor.pool().clone();
+    let pool = Arc::clone(constructor.pool());
     let task_id_strings: Vec<String> = task_ids.iter().map(ToString::to_string).collect();
 
     let task_rows = super::batch_queries::fetch_task_rows(&pool, &task_id_strings).await?;
@@ -45,7 +46,7 @@ pub async fn construct_tasks_batch(
     let steps_by_task: HashMap<TaskId, Vec<&ExecutionStepBatchRow>> =
         group_by_key(&all_execution_steps, |s| s.task_id.clone());
 
-    build_tasks(BuildTasksParams {
+    build_tasks(&BuildTasksParams {
         task_rows: &task_rows,
         messages_by_task: &messages_by_task,
         parts_by_message: &parts_by_message,
@@ -77,7 +78,7 @@ struct BuildTasksParams<'a> {
     steps_by_task: &'a HashMap<TaskId, Vec<&'a ExecutionStepBatchRow>>,
 }
 
-fn build_tasks(params: BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryError> {
+fn build_tasks(params: &BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryError> {
     let BuildTasksParams {
         task_rows,
         messages_by_task,
@@ -88,15 +89,13 @@ fn build_tasks(params: BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErro
     } = params;
     let mut tasks = Vec::new();
 
-    for row in task_rows {
+    for row in *task_rows {
         let history = build_messages(messages_by_task.get(&row.task_id), parts_by_message);
         let artifacts = build_artifacts(artifacts_by_task.get(&row.task_id), artifact_parts_by_id);
         let execution_steps = build_execution_steps(steps_by_task.get(&row.task_id));
 
-        let mut metadata = converters::construct_metadata(row)?;
-        if let Some(ref mut meta) = metadata {
-            meta.execution_steps = execution_steps;
-        }
+        let mut metadata = converters::construct_metadata(row);
+        metadata.execution_steps = execution_steps;
 
         let task_state = converters::parse_task_state(&row.status)
             .map_err(|e| RepositoryError::InvalidData(e.to_string()))?;
@@ -112,7 +111,7 @@ fn build_tasks(params: BuildTasksParams<'_>) -> Result<Vec<Task>, RepositoryErro
             },
             history,
             artifacts,
-            metadata,
+            metadata: Some(metadata),
         });
     }
 

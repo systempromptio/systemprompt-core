@@ -18,9 +18,9 @@ impl std::fmt::Debug for JwtValidator {
 }
 
 impl JwtValidator {
-    pub fn new(secret: String) -> Self {
+    pub fn new(secret: &str) -> Self {
         Self {
-            decoding_key: DecodingKey::from_secret(secret.as_ref()),
+            decoding_key: DecodingKey::from_secret(secret.as_bytes()),
             validation: Validation::default(),
         }
     }

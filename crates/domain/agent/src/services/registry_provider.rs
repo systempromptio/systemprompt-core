@@ -11,9 +11,8 @@ pub struct AgentRegistryProviderService {
 }
 
 impl AgentRegistryProviderService {
-    pub async fn new() -> Result<Self, RegistryError> {
+    pub fn new() -> Result<Self, RegistryError> {
         let registry = AgentRegistry::new()
-            .await
             .map_err(|e| RegistryError::Unavailable(e.to_string()))?;
 
         Ok(Self { registry })

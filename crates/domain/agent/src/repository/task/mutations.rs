@@ -6,8 +6,7 @@ use crate::models::a2a::{Task, TaskState};
 
 pub const fn task_state_to_db_string(state: TaskState) -> &'static str {
     match state {
-        TaskState::Pending => "submitted",
-        TaskState::Submitted => "submitted",
+        TaskState::Pending | TaskState::Submitted => "submitted",
         TaskState::Working => "working",
         TaskState::InputRequired => "input-required",
         TaskState::Completed => "completed",

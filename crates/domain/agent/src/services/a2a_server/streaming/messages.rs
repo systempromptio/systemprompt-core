@@ -8,6 +8,7 @@ use crate::models::a2a::Message;
 use crate::models::a2a::jsonrpc::NumberOrString;
 use crate::models::a2a::protocol::PushNotificationConfig;
 use crate::services::a2a_server::handlers::AgentHandlerState;
+use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
 
 use super::event_loop::{ProcessEventsParams, handle_stream_creation_error, process_events};
 use super::initialization::setup_stream;
@@ -21,6 +22,18 @@ pub struct CreateSseStreamParams {
     pub request_id: NumberOrString,
     pub context: RequestContext,
     pub callback_config: Option<PushNotificationConfig>,
+}
+
+impl std::fmt::Debug for CreateSseStreamParams {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CreateSseStreamParams")
+            .field("message", &self.message)
+            .field("agent_name", &self.agent_name)
+            .field("request_id", &self.request_id)
+            .field("context", &self.context)
+            .field("callback_config", &self.callback_config)
+            .finish_non_exhaustive()
+    }
 }
 
 pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiverStream<Event> {
@@ -48,14 +61,12 @@ pub async fn create_sse_stream(params: CreateSseStreamParams) -> UnboundedReceiv
     tokio::spawn(async move {
         tracing::info!("Inside tokio::spawn - task execution started");
 
-        let setup = match setup_stream(input, &tx).await {
-            Ok(s) => s,
-            Err(()) => return,
+        let Ok(setup) = setup_stream(input, &tx).await else {
+            return;
         };
 
         tracing::info!(agent = %setup.agent_name, "Starting message stream processing for agent");
 
-        use crate::services::a2a_server::processing::message::ProcessMessageStreamParams;
         match setup
             .processor
             .process_message_stream(ProcessMessageStreamParams {

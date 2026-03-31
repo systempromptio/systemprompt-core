@@ -16,7 +16,7 @@ pub async fn load_agent_runtime(
     tx: &UnboundedSender<Event>,
     request_id: &NumberOrString,
 ) -> Result<AgentRuntimeInfo, ()> {
-    let registry = match AgentRegistry::new().await {
+    let registry = match AgentRegistry::new() {
         Ok(r) => r,
         Err(e) => {
             let error_msg = format!("Failed to load agent registry: {}", e);

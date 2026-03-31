@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use std::time::Duration;
 use systemprompt_traits::StartupEventSender;
@@ -27,7 +29,7 @@ impl AgentOrchestrator {
             }
         }
 
-        self.shutdown().await;
+        self.shutdown();
         Ok(())
     }
 
@@ -38,7 +40,7 @@ impl AgentOrchestrator {
         tracing::debug!("Performing startup reconciliation");
 
         let reconciled = self.reconciler.reconcile_running_services().await?;
-        let started_fixed = self.reconciler.reconcile_starting_services().await?;
+        let started_fixed = crate::services::agent_orchestration::reconciler::AgentReconciler::reconcile_starting_services();
 
         let report = self.reconciler.perform_consistency_check().await?;
         if report.has_inconsistencies() {
@@ -57,10 +59,10 @@ impl AgentOrchestrator {
     }
 
     pub(super) fn start_health_monitoring(&mut self) {
-        let pool = self.agent_state.db_pool().clone();
+        let pool = Arc::clone(self.agent_state.db_pool());
 
         let handle: JoinHandle<Result<()>> = tokio::spawn(async move {
-            let monitor = match AgentMonitor::new(pool).await {
+            let monitor = match AgentMonitor::new(&pool) {
                 Ok(m) => m,
                 Err(e) => {
                     tracing::error!(error = %e, "Failed to initialize health monitor");
@@ -79,7 +81,7 @@ impl AgentOrchestrator {
                     Ok(report) => {
                         if report.total_agents() > 0 {
                             tracing::debug!(
-                                healthy = %report.healthy_agents.len(),
+                                healthy = %report.healthy.len(),
                                 total = %report.total_agents(),
                                 percentage = %format!("{:.1}", report.healthy_percentage()),
                                 "Health check complete"
@@ -100,7 +102,7 @@ impl AgentOrchestrator {
         self.monitoring_handle = Some(handle);
     }
 
-    pub async fn shutdown(&mut self) {
+    pub fn shutdown(&mut self) {
         tracing::info!("Shutting down Agent Orchestrator");
 
         if let Some(handle) = self.monitoring_handle.take() {

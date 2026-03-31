@@ -2,7 +2,7 @@ use systemprompt_logging::{AiRequestInfo, CliService, ExecutionStep, TaskInfo};
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct TaskInfoRow {
     #[tabled(rename = "Task ID")]
     pub task_id: String,
@@ -16,7 +16,7 @@ pub struct TaskInfoRow {
     pub duration: String,
 }
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct StepRow {
     #[tabled(rename = "#")]
     pub step_number: i32,
@@ -30,7 +30,7 @@ pub struct StepRow {
     pub duration: String,
 }
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct AiRequestRow {
     #[tabled(rename = "Model")]
     pub model: String,
@@ -44,7 +44,7 @@ pub struct AiRequestRow {
     pub latency: String,
 }
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct ToolCallRow {
     #[tabled(rename = "Tool")]
     pub tool_name: String,
@@ -56,7 +56,7 @@ pub struct ToolCallRow {
     pub duration: String,
 }
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct ArtifactRow {
     #[tabled(rename = "ID")]
     pub artifact_id: String,

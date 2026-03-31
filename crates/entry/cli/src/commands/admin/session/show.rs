@@ -17,9 +17,7 @@ pub fn execute(_config: &CliConfig) -> CommandResult<SessionShowOutput> {
 }
 
 fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
-    let Ok(sessions_dir) = paths.sessions_dir() else {
-        return Vec::new();
-    };
+    let sessions_dir = paths.sessions_dir();
 
     let Ok(store) = SessionStore::load_or_create(&sessions_dir) else {
         return Vec::new();
@@ -110,7 +108,7 @@ fn collect_sessions(paths: &ResolvedPaths) -> Vec<SessionInfo> {
 }
 
 fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
-    let sessions_dir = paths.sessions_dir().ok()?;
+    let sessions_dir = paths.sessions_dir();
     let store = SessionStore::load_or_create(&sessions_dir).ok()?;
     let active_key = store.active_session_key()?;
 
@@ -145,7 +143,7 @@ fn collect_routing_info(paths: &ResolvedPaths) -> Option<RoutingInfo> {
 }
 
 fn resolve_remote_hostname(paths: &ResolvedPaths, tenant_id: &str) -> Option<String> {
-    let tenants_path = paths.tenants_path().ok()?;
+    let tenants_path = paths.tenants_path();
     let store = TenantStore::load_from_path(&tenants_path).ok()?;
     let tenant = store.find_tenant(tenant_id)?;
     tenant.hostname.clone()

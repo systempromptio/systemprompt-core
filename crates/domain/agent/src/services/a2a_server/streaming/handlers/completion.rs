@@ -9,7 +9,9 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::models::a2a::protocol::TaskStatusUpdateEvent;
 use crate::models::a2a::{Artifact, Message, Part, Task, TaskState, TaskStatus, TextPart};
 use crate::repository::task::TaskRepository;
-use crate::services::a2a_server::processing::message::MessageProcessor;
+use crate::services::a2a_server::processing::message::{
+    MessageProcessor, PersistCompletedTaskOnProcessorParams,
+};
 use crate::services::a2a_server::streaming::broadcast_task_completed;
 use crate::services::a2a_server::streaming::webhook_client::WebhookContext;
 
@@ -143,9 +145,7 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
         }
     }
 
-    let agent_message = if let Some(msg) = complete_task.status.message.clone() {
-        msg
-    } else {
+    let Some(agent_message) = complete_task.status.message.clone() else {
         tracing::error!("Task status message is None");
         let error_event = AgUiEventBuilder::run_error(
             "Task status message cannot be None".to_string(),
@@ -157,7 +157,6 @@ pub async fn handle_complete(params: HandleCompleteParams<'_>) {
         return;
     };
 
-    use crate::services::a2a_server::processing::message::PersistCompletedTaskOnProcessorParams;
     match processor
         .persist_completed_task(PersistCompletedTaskOnProcessorParams {
             task: &complete_task,

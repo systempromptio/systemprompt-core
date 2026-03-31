@@ -205,7 +205,8 @@ async fn send_result(
     tx: &Arc<Mutex<Option<oneshot::Sender<Result<CheckoutCallbackResult>>>>>,
     result: Result<CheckoutCallbackResult>,
 ) {
-    if let Some(sender) = tx.lock().await.take() {
+    let sender = tx.lock().await.take();
+    if let Some(sender) = sender {
         if sender.send(result).is_err() {
             tracing::warn!("Checkout result receiver dropped");
         }

@@ -65,7 +65,7 @@ impl AuthResult {
 }
 
 #[tracing::instrument(name = "mcp_rbac", skip_all)]
-pub async fn enforce_rbac_from_registry(
+pub fn enforce_rbac_from_registry(
     mcp_context: &McpContext<RoleServer>,
     server_name: &str,
 ) -> Result<AuthResult, McpError> {

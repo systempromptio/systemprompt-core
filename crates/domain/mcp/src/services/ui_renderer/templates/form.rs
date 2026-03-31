@@ -119,6 +119,8 @@ impl FormField {
     }
 
     fn render_html(&self) -> String {
+        use std::fmt::Write;
+
         let required_attr = if self.required { " required" } else { "" };
         let placeholder_attr = self.placeholder.as_ref().map_or_else(String::new, |p| {
             format!(r#" placeholder="{}""#, html_escape(p))
@@ -137,21 +139,19 @@ impl FormField {
                     .unwrap_or(""),
             ),
             "select" => {
-                use std::fmt::Write;
                 let options_html = self.options.iter().fold(String::new(), |mut acc, o| {
                     let selected = self
                         .default_value
                         .as_ref()
                         .and_then(JsonValue::as_str)
                         .is_some_and(|dv| dv == o.value);
-                    write!(
+                    let _ = write!(
                         acc,
                         r#"<option value="{value}"{selected}>{label}</option>"#,
                         value = html_escape(&o.value),
                         selected = if selected { " selected" } else { "" },
                         label = html_escape(&o.label),
-                    )
-                    .expect("Writing to String should not fail");
+                    );
                     acc
                 });
 

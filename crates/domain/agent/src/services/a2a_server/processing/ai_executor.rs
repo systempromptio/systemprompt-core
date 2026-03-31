@@ -63,6 +63,7 @@ fn resolve_provider_config(
     (provider, model, max_tokens)
 }
 
+#[allow(missing_debug_implementations)]
 pub struct SynthesizeToolResultsParams<'a> {
     pub ai_service: Arc<dyn AiProvider>,
     pub agent_runtime: &'a AgentRuntimeInfo,

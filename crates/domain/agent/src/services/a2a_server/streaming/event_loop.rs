@@ -49,7 +49,7 @@ struct SendA2aStatusEventParams<'a> {
     request_id: &'a NumberOrString,
 }
 
-fn send_a2a_status_event(params: SendA2aStatusEventParams<'_>) {
+fn send_a2a_status_event(params: &SendA2aStatusEventParams<'_>) {
     let SendA2aStatusEventParams {
         tx,
         task_id,
@@ -104,7 +104,7 @@ pub async fn emit_run_started(params: EmitRunStartedParams<'_>) {
         return;
     }
 
-    send_a2a_status_event(SendA2aStatusEventParams {
+    send_a2a_status_event(&SendA2aStatusEventParams {
         tx,
         task_id,
         context_id,
@@ -230,7 +230,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 };
                 handle_complete(complete_params).await;
 
-                send_a2a_status_event(SendA2aStatusEventParams {
+                send_a2a_status_event(&SendA2aStatusEventParams {
                     tx: &tx,
                     task_id: &task_id,
                     context_id: &context_id,
@@ -263,7 +263,7 @@ pub async fn process_events(params: ProcessEventsParams) {
                 })
                 .await;
 
-                send_a2a_status_event(SendA2aStatusEventParams {
+                send_a2a_status_event(&SendA2aStatusEventParams {
                     tx: &tx,
                     task_id: &task_id,
                     context_id: &context_id,

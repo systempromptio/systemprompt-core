@@ -25,9 +25,7 @@ pub async fn handle_agent_request(
 ) -> impl IntoResponse {
     let start_time = std::time::Instant::now();
 
-    let context = if let Some(ctx) = request.extensions().get::<RequestContext>().cloned() {
-        ctx
-    } else {
+    let Some(context) = request.extensions().get::<RequestContext>().cloned() else {
         tracing::error!(
             "RequestContext missing from request extensions - middleware configuration error"
         );
@@ -47,19 +45,16 @@ pub async fn handle_agent_request(
     let (parts, body) = request.into_parts();
     let headers = parts.headers.clone();
 
-    let body_bytes = match axum::body::to_bytes(body, usize::MAX).await {
-        Ok(bytes) => bytes,
-        Err(_) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "jsonrpc": "2.0",
-                    "error": {"code": -32700, "message": "Failed to read request body"},
-                    "id": null
-                })),
-            )
-                .into_response();
-        },
+    let Ok(body_bytes) = axum::body::to_bytes(body, usize::MAX).await else {
+        return (
+            StatusCode::BAD_REQUEST,
+            Json(json!({
+                "jsonrpc": "2.0",
+                "error": {"code": -32700, "message": "Failed to read request body"},
+                "id": null
+            })),
+        )
+            .into_response();
     };
 
     let payload: serde_json::Value = match serde_json::from_slice(&body_bytes) {
@@ -86,8 +81,7 @@ pub async fn handle_agent_request(
                         "Request must be valid JSON-RPC 2.0 with jsonrpc, method, params, and id"
                     ))
                     .log_error(format!("Invalid JSON-RPC request: {e}"))
-                    .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0))
-                    .await;
+                    .build(&crate::models::a2a::jsonrpc::NumberOrString::Number(0));
                 return (StatusCode::BAD_REQUEST, Json(error_response)).into_response();
             },
         };
@@ -134,8 +128,7 @@ pub async fn handle_agent_request(
                         "message": "contextId must be a valid non-empty string. Please create a context first using POST /api/v1/core/contexts"
                     }))
                     .log_error("Rejected request with empty contextId".to_string())
-                    .build(&request_id)
-                    .await;
+                    .build(&request_id);
                 return (StatusCode::BAD_REQUEST, Json(error_response)).into_response();
             }
             enriched_context = enriched_context.with_context_id(params.message.context_id.clone());
@@ -169,7 +162,6 @@ pub async fn handle_agent_request(
                     .with_data(json!("Task serialization failed"))
                     .log_error(format!("Failed to serialize task response: {e}"))
                     .build(&request_id)
-                    .await
             },
         },
         Err(e) => {
@@ -177,7 +169,6 @@ pub async fn handle_agent_request(
                 .with_data(json!(format!("Request handling failed: {e}")))
                 .log_error(format!("A2A request handling failed: {e}"))
                 .build(&request_id)
-                .await
         },
     };
 

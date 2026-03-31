@@ -26,7 +26,7 @@ impl AgentsDiffCalculator {
         let db_agents = self.agent_repo.list_all().await?;
         let db_map: HashMap<AgentId, Agent> = db_agents
             .into_iter()
-            .map(|a| (a.agent_id.clone(), a))
+            .map(|a| (a.id.clone(), a))
             .collect();
 
         let disk_agents = Self::scan_disk_agents(agents_path)?;

@@ -7,12 +7,11 @@ use super::helpers::{
     SynthesizeFinalResponseParams, build_artifacts_from_results, synthesize_final_response,
 };
 use crate::models::AgentRuntimeInfo;
-use crate::models::a2a::Message;
 use crate::services::a2a_server::processing::message::{ProcessMessageStreamParams, StreamEvent};
 use crate::services::a2a_server::processing::strategies::{
     ExecutionContext, ExecutionStrategySelector,
 };
-use systemprompt_identifiers::{AgentName, TaskId};
+use systemprompt_identifiers::AgentName;
 use systemprompt_models::{AiMessage, MessageRole, RequestContext};
 
 impl StreamProcessor {
@@ -29,7 +28,7 @@ impl StreamProcessor {
         } = params;
         let (tx, rx) = mpsc::unbounded_channel();
 
-        let ai_service = self.ai_service.clone();
+        let ai_service = Arc::clone(&self.ai_service);
         let agent_runtime = agent_runtime.clone();
         let agent_name_string = agent_name.to_string();
         let agent_name_typed = AgentName::new(agent_name);
@@ -59,8 +58,8 @@ impl StreamProcessor {
             .clone()
             .with_task_id(task_id.clone())
             .with_context_id(context_id.clone());
-        let skill_service = self.skill_service.clone();
-        let execution_step_repo = self.execution_step_repo.clone();
+        let skill_service = Arc::clone(&self.skill_service);
+        let execution_step_repo = Arc::clone(&self.execution_step_repo);
 
         tokio::spawn(async move {
             tracing::info!(
@@ -88,21 +87,20 @@ impl StreamProcessor {
                 "Agent MCP server status"
             );
 
-            let ai_service_for_builder = ai_service.clone();
+            let ai_service_for_builder = Arc::clone(&ai_service);
 
-            let selector = ExecutionStrategySelector::new();
-            let strategy = selector.select_strategy(has_tools);
+            let strategy = ExecutionStrategySelector::select_strategy(has_tools);
 
             let execution_context = ExecutionContext {
-                ai_service: ai_service.clone(),
-                skill_service: skill_service.clone(),
+                ai_service: Arc::clone(&ai_service),
+                skill_service: Arc::clone(&skill_service),
                 agent_runtime: agent_runtime.clone(),
                 agent_name: agent_name_typed.clone(),
                 task_id: task_id.clone(),
                 context_id: context_id_owned,
                 tx: tx.clone(),
                 request_ctx: request_ctx.clone(),
-                execution_step_repo: execution_step_repo.clone(),
+                execution_step_repo: Arc::clone(&execution_step_repo),
             };
 
             let execution_result = match strategy
@@ -114,7 +112,7 @@ impl StreamProcessor {
                     tracing::error!(error = %e, "Execution failed");
 
                     let tracking =
-                        crate::services::ExecutionTrackingService::new(execution_step_repo.clone());
+                        crate::services::ExecutionTrackingService::new(Arc::clone(&execution_step_repo));
                     if let Err(fail_err) = tracking
                         .fail_in_progress_steps(&task_id, &e.to_string())
                         .await
@@ -175,7 +173,7 @@ impl StreamProcessor {
                 ai_messages_for_synthesis,
                 tx: tx.clone(),
                 request_ctx: request_ctx.clone(),
-                skill_service: skill_service.clone(),
+                skill_service: Arc::clone(&skill_service),
             })
             .await;
 

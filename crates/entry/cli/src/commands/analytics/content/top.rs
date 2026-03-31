@@ -62,9 +62,9 @@ async fn execute_internal(
         .into_iter()
         .map(|row| TopContentRow {
             content_id: row.content_id.to_string(),
-            slug: row.slug.map_or_else(String::new, |v| v),
-            title: row.title.map_or_else(String::new, |v| v),
-            source: row.source_id.map_or_else(String::new, |v| v),
+            slug: row.slug.unwrap_or_default(),
+            title: row.title.unwrap_or_default(),
+            source: row.source_id.unwrap_or_default(),
             views: row.total_views,
             unique_visitors: row.unique_visitors,
             avg_time_seconds: row.avg_time_on_page_seconds.map_or(0, |v| v as i64),

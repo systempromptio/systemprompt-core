@@ -7,6 +7,7 @@ use crate::models::{Message, Task, TaskState, TaskStatus};
 use crate::repository::task::{TaskRepository, UpdateTaskAndSaveMessagesParams};
 use crate::services::ArtifactPublishingService;
 
+#[derive(Debug)]
 pub struct PersistCompletedTaskServiceParams<'a> {
     pub task: &'a Task,
     pub user_message: &'a Message,
@@ -34,13 +35,13 @@ impl PersistenceService {
         let task_repo = TaskRepository::new(&self.db_pool)?;
 
         task_repo
-            .create_task(
+            .create_task(crate::repository::task::RepoCreateTaskParams {
                 task,
-                &UserId::new(context.user_id().as_str()),
-                &SessionId::new(context.session_id().as_str()),
-                &TraceId::new(context.trace_id().as_str()),
+                user_id: &UserId::new(context.user_id().as_str()),
+                session_id: &SessionId::new(context.session_id().as_str()),
+                trace_id: &TraceId::new(context.trace_id().as_str()),
                 agent_name,
-            )
+            })
             .await
             .map_err(|e| anyhow!("Failed to persist task at start: {}", e))?;
 
@@ -118,7 +119,6 @@ impl PersistenceService {
     }
 
     pub fn build_initial_task(
-        &self,
         task_id: TaskId,
         context_id: systemprompt_identifiers::ContextId,
         agent_name: &str,

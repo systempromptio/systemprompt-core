@@ -85,14 +85,18 @@ impl CloudPaths {
         let base_dir = credentials_path
             .as_ref()
             .and_then(|p| p.parent())
-            .map(PathBuf::from)
-            .unwrap_or_else(|| {
-                profile_dir
-                    .ancestors()
-                    .find(|p| p.file_name().is_some_and(|n| n == ".systemprompt"))
-                    .map(PathBuf::from)
-                    .unwrap_or_else(|| profile_dir.join(credentials::DEFAULT_DIR_NAME))
-            });
+            .map_or_else(
+                || {
+                    profile_dir
+                        .ancestors()
+                        .find(|p| p.file_name().is_some_and(|n| n == ".systemprompt"))
+                        .map_or_else(
+                            || profile_dir.join(credentials::DEFAULT_DIR_NAME),
+                            PathBuf::from,
+                        )
+                },
+                PathBuf::from,
+            );
 
         Self {
             base_dir,

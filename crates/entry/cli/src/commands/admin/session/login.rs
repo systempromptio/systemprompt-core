@@ -85,7 +85,7 @@ pub async fn login_for_profile(
     secrets: &Secrets,
     args: &LoginArgs,
 ) -> Result<CommandResult<LoginOutput>> {
-    let sessions_dir = ResolvedPaths::discover().sessions_dir()?;
+    let sessions_dir = ResolvedPaths::discover().sessions_dir();
     let session_key = session_key_for_profile(profile);
 
     if !args.force_new {

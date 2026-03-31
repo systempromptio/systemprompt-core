@@ -11,7 +11,7 @@ use super::show::ShowArgs;
 use super::{AiSummaryRow, McpSummaryRow, StepSummaryRow, TraceViewOutput};
 use crate::shared::CommandResult;
 
-pub(crate) async fn execute_ai_trace(
+pub async fn execute_ai_trace(
     service: &AiTraceService,
     task_id: &str,
     args: &ShowArgs,
@@ -118,7 +118,7 @@ pub(crate) async fn execute_ai_trace(
         .with_skip_render())
 }
 
-pub(crate) fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
+pub fn filter_log_events(log_events: Vec<TraceEvent>, verbose: bool) -> Vec<TraceEvent> {
     if verbose {
         return log_events;
     }

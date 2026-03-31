@@ -132,13 +132,13 @@ pub async fn ensure_task_exists(
     };
 
     task_repo
-        .create_task(
-            &task,
-            request_context.user_id(),
-            request_context.session_id(),
-            request_context.trace_id(),
-            &agent_name,
-        )
+        .create_task(crate::repository::task::RepoCreateTaskParams {
+            task: &task,
+            user_id: request_context.user_id(),
+            session_id: request_context.session_id(),
+            trace_id: request_context.trace_id(),
+            agent_name: &agent_name,
+        })
         .await
         .map_err(|e| McpError::internal_error(format!("Failed to create task: {e}"), None))?;
 
@@ -245,6 +245,7 @@ async fn trigger_task_completion_broadcast(
     Ok(())
 }
 
+#[derive(Debug)]
 pub struct SaveMessagesForToolExecutionParams<'a> {
     pub db_pool: &'a DbPool,
     pub task_id: &'a TaskId,

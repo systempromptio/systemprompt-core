@@ -33,13 +33,13 @@ impl MessageValidationService {
         agent_name: &str,
         context: &RequestContext,
     ) -> Result<ValidatedMessageRequest> {
-        self.validate_message_format(message)?;
+        Self::validate_message_format(message)?;
 
         let agent_runtime = self.load_agent_runtime(agent_name).await?;
 
         self.validate_context_ownership(message, context).await?;
 
-        let task_id = self.determine_task_id(message);
+        let task_id = Self::determine_task_id(message);
 
         let has_tools = !agent_runtime.mcp_servers.is_empty();
 
@@ -54,7 +54,7 @@ impl MessageValidationService {
     }
 
     async fn load_agent_runtime(&self, agent_name: &str) -> Result<AgentRuntimeInfo> {
-        let registry = AgentRegistry::new().await?;
+        let registry = AgentRegistry::new()?;
         let agent_config = registry
             .get_agent(agent_name)
             .await
@@ -85,7 +85,7 @@ impl MessageValidationService {
         Ok(())
     }
 
-    fn validate_message_format(&self, message: &Message) -> Result<()> {
+    fn validate_message_format(message: &Message) -> Result<()> {
         let has_text_part = message
             .parts
             .iter()
@@ -98,7 +98,7 @@ impl MessageValidationService {
         Ok(())
     }
 
-    fn determine_task_id(&self, message: &Message) -> TaskId {
+    fn determine_task_id(message: &Message) -> TaskId {
         message
             .task_id
             .clone()

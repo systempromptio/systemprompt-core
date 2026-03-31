@@ -76,6 +76,8 @@ impl UiRenderer for DashboardRenderer {
     }
 
     async fn render(&self, artifact: &Artifact) -> Result<UiResource> {
+        use std::fmt::Write;
+
         let sections = Self::extract_sections(artifact);
         let layout = Self::extract_layout(artifact);
         let title = artifact.name.as_deref().unwrap_or("Dashboard");
@@ -89,20 +91,18 @@ impl UiRenderer for DashboardRenderer {
         let sections_html: String = sections.iter().map(DashboardSection::render_html).collect();
 
         let tabs_nav = if matches!(layout, DashboardLayout::Tabs) {
-            use std::fmt::Write;
             let tabs = sections
                 .iter()
                 .enumerate()
                 .fold(String::new(), |mut acc, (i, s)| {
                     let active = if i == 0 { " active" } else { "" };
-                    write!(
+                    let _ = write!(
                         acc,
                         r#"<button class="tab-btn{active}" data-target="{id}">{title}</button>"#,
                         active = active,
                         id = html_escape(&s.id),
                         title = html_escape(&s.title),
-                    )
-                    .expect("Writing to String should not fail");
+                    );
                     acc
                 });
 

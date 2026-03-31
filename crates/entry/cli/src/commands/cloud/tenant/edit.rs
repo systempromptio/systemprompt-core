@@ -9,7 +9,7 @@ use crate::cli_settings::CliConfig;
 use crate::cloud::types::TenantDetailOutput;
 use crate::shared::CommandResult;
 
-pub async fn edit_tenant(
+pub fn edit_tenant(
     id: Option<String>,
     config: &CliConfig,
 ) -> Result<CommandResult<TenantDetailOutput>> {

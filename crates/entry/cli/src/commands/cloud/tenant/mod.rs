@@ -114,7 +114,7 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
             Ok(false)
         },
         TenantCommands::Show { id } => {
-            let result = show_tenant(id, config).await?;
+            let result = show_tenant(id.as_ref(), config)?;
             render_result(&result);
             Ok(false)
         },
@@ -124,7 +124,7 @@ async fn execute_command(cmd: TenantCommands, config: &CliConfig) -> Result<bool
             Ok(false)
         },
         TenantCommands::Edit { id } => {
-            let result = edit_tenant(id, config).await?;
+            let result = edit_tenant(id, config)?;
             render_result(&result);
             Ok(false)
         },

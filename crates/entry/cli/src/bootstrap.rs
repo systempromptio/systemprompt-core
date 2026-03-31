@@ -67,7 +67,7 @@ pub fn resolve_profile(cli_profile_override: Option<&str>) -> Result<PathBuf> {
 
 fn get_active_session_profile_path() -> Option<PathBuf> {
     let paths = ResolvedPaths::discover();
-    let sessions_dir = paths.sessions_dir().ok()?;
+    let sessions_dir = paths.sessions_dir();
 
     let store = SessionStore::load(&sessions_dir)?;
 

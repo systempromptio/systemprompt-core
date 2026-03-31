@@ -106,11 +106,11 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
         .env_clear()
         .env(
             "PATH",
-            std::env::var("PATH").expect("PATH environment variable must be set"),
+            std::env::var("PATH").unwrap_or_default(),
         )
         .env(
             "HOME",
-            std::env::var("HOME").expect("HOME environment variable must be set"),
+            std::env::var("HOME").unwrap_or_default(),
         )
         .env("SYSTEMPROMPT_PROFILE", profile_path)
         .env("SYSTEMPROMPT_SUBPROCESS", "1")
@@ -127,7 +127,7 @@ fn build_agent_command(params: BuildAgentCommandParams<'_>) -> Command {
     command
 }
 
-pub async fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
+pub fn spawn_detached(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
     let paths = AppPaths::get()
         .map_err(|e| OrchestrationError::ProcessSpawnFailed(format!("Failed to get paths: {e}")))?;
 
@@ -302,8 +302,8 @@ pub fn is_port_in_use(port: u16) -> bool {
     TcpListener::bind(format!("127.0.0.1:{port}")).is_err()
 }
 
-pub async fn spawn_detached_process(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
-    spawn_detached(agent_name, port).await
+pub fn spawn_detached_process(agent_name: &str, port: u16) -> OrchestrationResult<u32> {
+    spawn_detached(agent_name, port)
 }
 
 pub fn validate_agent_binary() -> Result<()> {

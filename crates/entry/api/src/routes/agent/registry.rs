@@ -14,7 +14,7 @@ pub async fn handle_agent_registry(
     Extension(_req_ctx): Extension<RequestContext>,
     State(ctx): State<AppContext>,
 ) -> impl IntoResponse {
-    let registry = match AgentRegistry::new().await {
+    let registry = match AgentRegistry::new() {
         Ok(r) => Arc::new(r),
         Err(e) => {
             tracing::error!(error = %e, "Failed to load agent registry");

@@ -11,6 +11,7 @@ use systemprompt_identifiers::{ContextId, MessageId, TaskId};
 use systemprompt_models::RequestContext;
 use systemprompt_models::execution::CallSource;
 
+#[derive(Debug)]
 pub struct PublishFromMcpParams<'a> {
     pub artifact: &'a Artifact,
     pub task_id: &'a TaskId,

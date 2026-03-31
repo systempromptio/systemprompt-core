@@ -35,7 +35,7 @@ assigned_agents:
   - content
 tags:
 {}"#,
-        skill.skill_id.as_str(),
+        skill.id.as_str(),
         escape_yaml(&skill.name),
         escape_yaml(&skill.description),
         skill.enabled,
@@ -44,7 +44,7 @@ tags:
 }
 
 pub fn export_skill_to_disk(skill: &Skill, base_path: &Path) -> Result<()> {
-    let skill_dir_name = skill.skill_id.as_str().replace('_', "-");
+    let skill_dir_name = skill.id.as_str().replace('_', "-");
     let skill_dir = base_path.join(&skill_dir_name);
     fs::create_dir_all(&skill_dir)?;
 

@@ -29,6 +29,7 @@ pub struct UserinfoError {
     pub error_description: Option<String>,
 }
 
+#[allow(clippy::unused_async)]
 pub async fn handle_userinfo(
     State(_state): State<OAuthState>,
     headers: HeaderMap,

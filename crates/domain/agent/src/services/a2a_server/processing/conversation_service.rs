@@ -36,14 +36,10 @@ impl ConversationService {
         for task in tasks {
             if let Some(task_history) = task.history {
                 for msg in task_history {
-                    let (text, parts) = match self.extract_message_content(&msg) {
-                        Ok((t, p)) if !t.is_empty() || !p.is_empty() => (t, p),
-                        Ok(_) => continue,
-                        Err(e) => {
-                            tracing::warn!(error = %e, "Failed to extract message content");
-                            continue;
-                        },
-                    };
+                    let (text, parts) = Self::extract_message_content(&msg);
+                    if text.is_empty() && parts.is_empty() {
+                        continue;
+                    }
 
                     let role = match msg.role.as_str() {
                         "user" => MessageRole::User,
@@ -61,13 +57,12 @@ impl ConversationService {
 
             if let Some(artifacts) = task.artifacts {
                 for artifact in artifacts {
-                    if let Ok(artifact_content) = self.serialize_artifact_for_context(&artifact) {
-                        history_messages.push(AiMessage {
-                            role: MessageRole::Assistant,
-                            content: artifact_content,
-                            parts: Vec::new(),
-                        });
-                    }
+                    let artifact_content = Self::serialize_artifact_for_context(&artifact);
+                    history_messages.push(AiMessage {
+                        role: MessageRole::Assistant,
+                        content: artifact_content,
+                        parts: Vec::new(),
+                    });
                 }
             }
         }
@@ -75,7 +70,7 @@ impl ConversationService {
         Ok(history_messages)
     }
 
-    fn extract_message_content(&self, message: &Message) -> Result<(String, Vec<AiContentPart>)> {
+    fn extract_message_content(message: &Message) -> (String, Vec<AiContentPart>) {
         let mut text_content = String::new();
         let mut content_parts = Vec::new();
 
@@ -88,7 +83,7 @@ impl ConversationService {
                     content_parts.push(AiContentPart::text(&text_part.text));
                 },
                 Part::File(file_part) => {
-                    if let Some(content_part) = self.file_to_content_part(file_part) {
+                    if let Some(content_part) = Self::file_to_content_part(file_part) {
                         content_parts.push(content_part);
                     }
                 },
@@ -96,10 +91,10 @@ impl ConversationService {
             }
         }
 
-        Ok((text_content, content_parts))
+        (text_content, content_parts)
     }
 
-    fn file_to_content_part(&self, file_part: &FilePart) -> Option<AiContentPart> {
+    fn file_to_content_part(file_part: &FilePart) -> Option<AiContentPart> {
         let mime_type = file_part.file.mime_type.as_deref()?;
         let file_name = file_part.file.name.as_deref().unwrap_or("unnamed");
 
@@ -116,7 +111,7 @@ impl ConversationService {
         }
 
         if is_supported_text(mime_type) {
-            return self.decode_text_file(file_part, file_name, mime_type);
+            return Self::decode_text_file(file_part, file_name, mime_type);
         }
 
         tracing::warn!(
@@ -128,7 +123,6 @@ impl ConversationService {
     }
 
     fn decode_text_file(
-        &self,
         file_part: &FilePart,
         file_name: &str,
         mime_type: &str,
@@ -162,7 +156,7 @@ impl ConversationService {
         Some(AiContentPart::text(formatted))
     }
 
-    fn serialize_artifact_for_context(&self, artifact: &Artifact) -> Result<String> {
+    fn serialize_artifact_for_context(artifact: &Artifact) -> String {
         let artifact_name = artifact
             .name
             .clone()
@@ -193,6 +187,6 @@ impl ConversationService {
             }
         }
 
-        Ok(content)
+        content
     }
 }

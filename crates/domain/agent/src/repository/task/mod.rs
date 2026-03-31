@@ -18,7 +18,17 @@ use crate::models::a2a::{Task, TaskState};
 use sqlx::PgPool;
 use std::sync::Arc;
 use systemprompt_database::DbPool;
+use systemprompt_identifiers::{SessionId, TraceId, UserId};
 use systemprompt_traits::{DynFileUploadProvider, DynSessionAnalyticsProvider, RepositoryError};
+
+#[allow(missing_debug_implementations)]
+pub struct RepoCreateTaskParams<'a> {
+    pub task: &'a Task,
+    pub user_id: &'a UserId,
+    pub session_id: &'a SessionId,
+    pub trace_id: &'a TraceId,
+    pub agent_name: &'a str,
+}
 
 #[derive(Clone)]
 pub struct TaskRepository {
@@ -32,6 +42,8 @@ pub struct TaskRepository {
 impl std::fmt::Debug for TaskRepository {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("TaskRepository")
+            .field("pool", &"<PgPool>")
+            .field("write_pool", &"<PgPool>")
             .field("db_pool", &"<DbPool>")
             .field(
                 "session_analytics_provider",
@@ -49,7 +61,7 @@ impl TaskRepository {
         Ok(Self {
             pool,
             write_pool,
-            db_pool: db.clone(),
+            db_pool: Arc::clone(db),
             session_analytics_provider: None,
             file_upload_provider: None,
         })
@@ -76,24 +88,20 @@ impl TaskRepository {
 
     pub async fn create_task(
         &self,
-        task: &Task,
-        user_id: &systemprompt_identifiers::UserId,
-        session_id: &systemprompt_identifiers::SessionId,
-        trace_id: &systemprompt_identifiers::TraceId,
-        agent_name: &str,
+        params: RepoCreateTaskParams<'_>,
     ) -> Result<String, RepositoryError> {
         let result = create_task(CreateTaskParams {
             pool: &self.write_pool,
-            task,
-            user_id,
-            session_id,
-            trace_id,
-            agent_name,
+            task: params.task,
+            user_id: params.user_id,
+            session_id: params.session_id,
+            trace_id: params.trace_id,
+            agent_name: params.agent_name,
         })
         .await?;
 
         if let Some(ref provider) = self.session_analytics_provider {
-            if let Err(e) = provider.increment_task_count(session_id).await {
+            if let Err(e) = provider.increment_task_count(params.session_id).await {
                 tracing::warn!(error = %e, "Failed to increment analytics task count");
             }
         }
@@ -130,7 +138,7 @@ impl TaskRepository {
 
     pub async fn get_tasks_by_user_id(
         &self,
-        user_id: &systemprompt_identifiers::UserId,
+        user_id: &UserId,
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<Task>, RepositoryError> {
@@ -143,7 +151,7 @@ impl TaskRepository {
         limit: Option<i32>,
         offset: Option<i32>,
     ) -> Result<Vec<Task>, RepositoryError> {
-        let user_id_typed = systemprompt_identifiers::UserId::new(user_id);
+        let user_id_typed = UserId::new(user_id);
         self.get_tasks_by_user_id(&user_id_typed, limit, offset)
             .await
     }

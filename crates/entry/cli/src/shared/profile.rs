@@ -131,7 +131,8 @@ fn resolve_profile_by_name(name: &str) -> Result<Option<PathBuf>, ProfileResolut
         return Ok(Some(found.path));
     }
 
-    if let Ok(paths) = crate::paths::ResolvedPaths::discover().sessions_dir() {
+    {
+        let paths = crate::paths::ResolvedPaths::discover().sessions_dir();
         if let Ok(store) = systemprompt_cloud::SessionStore::load_or_create(&paths) {
             if let Some(session) = store.find_by_profile_name(name) {
                 if let Some(ref profile_path) = session.profile_path {

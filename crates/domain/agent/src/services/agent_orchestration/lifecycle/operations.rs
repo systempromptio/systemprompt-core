@@ -41,8 +41,7 @@ impl AgentLifecycle {
             self.validate_prerequisites(agent_config.port).await?;
 
             let pid = self
-                .spawn_detached_process(agent_name, agent_config.port)
-                .await?;
+                .spawn_detached_process(agent_name, agent_config.port)?;
 
             let service_id = self
                 .db_service

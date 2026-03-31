@@ -62,7 +62,7 @@ mcp_servers:
 {}
 skills:
 {}"#,
-        agent.agent_id.as_str(),
+        agent.id.as_str(),
         escape_yaml(&agent.name),
         escape_yaml(&agent.display_name),
         escape_yaml(&agent.description),

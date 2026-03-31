@@ -139,6 +139,7 @@ pub async fn handle_mcp_protected_resource(Path(service_name): Path<String>) -> 
     (StatusCode::OK, Json(metadata)).into_response()
 }
 
+#[allow(clippy::unused_async)]
 pub async fn handle_mcp_authorization_server(
     Path(_service_name): Path<String>,
 ) -> impl IntoResponse {

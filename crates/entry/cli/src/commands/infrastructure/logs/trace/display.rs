@@ -4,7 +4,7 @@ use systemprompt_logging::{CliService, TraceEvent};
 use tabled::settings::Style;
 use tabled::{Table, Tabled};
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 pub struct TraceRow {
     #[tabled(rename = "Time")]
     pub time: String,

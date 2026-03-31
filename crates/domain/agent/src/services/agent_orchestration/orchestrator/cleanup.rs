@@ -5,11 +5,9 @@ impl AgentOrchestrator {
     pub async fn delete_agent(&self, agent_id: &str) -> OrchestrationResult<()> {
         tracing::debug!(agent_id = %agent_id, "Deleting agent");
 
-        if let Ok(status) = self.get_status(agent_id).await {
-            if let AgentStatus::Running { .. } = status {
-                tracing::debug!(agent_id = %agent_id, "Stopping running agent before deletion");
-                self.lifecycle.disable_agent(agent_id).await?;
-            }
+        if let Ok(AgentStatus::Running { .. }) = self.get_status(agent_id).await {
+            tracing::debug!(agent_id = %agent_id, "Stopping running agent before deletion");
+            self.lifecycle.disable_agent(agent_id).await?;
         }
 
         self.db_service.remove_agent_service(agent_id).await?;
@@ -113,7 +111,7 @@ impl AgentOrchestrator {
                     continue;
                 }
 
-                if let Some((agent_id, port)) = self.identify_orphaned_process(pid).await? {
+                if let Some((agent_id, port)) = Self::identify_orphaned_process(pid) {
                     tracing::debug!(
                         pid = %pid,
                         agent_id = %agent_id,
@@ -178,10 +176,7 @@ impl AgentOrchestrator {
     }
 
     #[cfg(target_os = "linux")]
-    pub(super) async fn identify_orphaned_process(
-        &self,
-        pid: u32,
-    ) -> OrchestrationResult<Option<(String, u16)>> {
+    pub(super) fn identify_orphaned_process(pid: u32) -> Option<(String, u16)> {
         let environ_path = format!("/proc/{}/environ", pid);
         if let Ok(environ_data) = std::fs::read(&environ_path) {
             let environ_str = String::from_utf8_lossy(&environ_data);
@@ -199,18 +194,15 @@ impl AgentOrchestrator {
             }
 
             if let (Some(id), Some(p)) = (agent_id, port) {
-                return Ok(Some((id, p)));
+                return Some((id, p));
             }
         }
 
-        Ok(None)
+        None
     }
 
     #[cfg(not(target_os = "linux"))]
-    pub(super) async fn identify_orphaned_process(
-        &self,
-        pid: u32,
-    ) -> OrchestrationResult<Option<(String, u16)>> {
+    pub(super) fn identify_orphaned_process(pid: u32) -> Option<(String, u16)> {
         let output = std::process::Command::new("ps")
             .args(["-p", &pid.to_string(), "-o", "args="])
             .output()
@@ -237,10 +229,10 @@ impl AgentOrchestrator {
             }
 
             if let (Some(name), Some(p)) = (agent_name, port) {
-                return Ok(Some((name, p)));
+                return Some((name, p));
             }
         }
 
-        Ok(None)
+        None
     }
 }

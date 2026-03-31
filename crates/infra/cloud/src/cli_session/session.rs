@@ -35,7 +35,7 @@ pub struct CliSession {
     pub last_used: DateTime<Utc>,
 }
 
-fn default_user_type() -> UserType {
+const fn default_user_type() -> UserType {
     UserType::Admin
 }
 
@@ -138,7 +138,7 @@ impl CliSession {
         CliSessionBuilder::new(profile_name, session_token, session_id, context_id)
     }
 
-    pub fn context_id(&self) -> &ContextId {
+    pub const fn context_id(&self) -> &ContextId {
         &self.context_id
     }
 

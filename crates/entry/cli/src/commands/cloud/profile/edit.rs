@@ -13,7 +13,7 @@ use super::templates::save_profile;
 use crate::cli_settings::CliConfig;
 use crate::shared::resolve_profile_path;
 
-pub async fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
+pub fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
     let profile_path = resolve_profile_path(args.name.as_deref(), None)?;
     let profile_dir = profile_path
         .parent()
@@ -56,7 +56,7 @@ pub async fn execute(args: &EditArgs, config: &CliConfig) -> Result<()> {
             0 => edit_server_settings(&mut profile)?,
             1 => edit_security_settings(&mut profile)?,
             2 => edit_runtime_settings(&mut profile)?,
-            3 => edit_api_keys(&profile_dir).await?,
+            3 => edit_api_keys(&profile_dir)?,
             4 => break,
             _ => unreachable!(),
         }

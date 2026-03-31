@@ -83,6 +83,7 @@ pub fn calculate_fingerprint(tool_name: &str, tool_arguments: Option<&JsonValue>
     use std::collections::hash_map::DefaultHasher;
     use std::hash::{Hash, Hasher};
 
+    #[allow(clippy::collection_is_never_read)]
     let args_str = tool_arguments
         .and_then(|args| {
             serde_json::to_string(args)
@@ -154,6 +155,7 @@ fn transform_parsed(params: TransformParsedParams<'_>) -> Result<Artifact, Artif
     })
 }
 
+#[derive(Debug)]
 pub struct TransformParams<'a> {
     pub tool_name: &'a str,
     pub tool_result: &'a CallToolResult,
@@ -163,6 +165,7 @@ pub struct TransformParams<'a> {
     pub tool_arguments: Option<&'a JsonValue>,
 }
 
+#[derive(Debug)]
 pub struct TransformFromJsonParams<'a> {
     pub tool_name: &'a str,
     pub tool_result_json: &'a JsonValue,
@@ -176,7 +179,7 @@ pub struct TransformFromJsonParams<'a> {
 pub struct McpToA2aTransformer;
 
 impl McpToA2aTransformer {
-    pub fn transform(params: TransformParams<'_>) -> Result<Artifact, ArtifactError> {
+    pub fn transform(params: &TransformParams<'_>) -> Result<Artifact, ArtifactError> {
         let TransformParams {
             tool_name,
             tool_result,
@@ -197,15 +200,15 @@ impl McpToA2aTransformer {
         transform_parsed(TransformParsedParams {
             tool_name,
             parsed,
-            output_schema,
+            output_schema: *output_schema,
             context_id,
             task_id,
-            tool_arguments,
+            tool_arguments: *tool_arguments,
         })
     }
 
     pub fn transform_from_json(
-        params: TransformFromJsonParams<'_>,
+        params: &TransformFromJsonParams<'_>,
     ) -> Result<Artifact, ArtifactError> {
         let TransformFromJsonParams {
             tool_name,
@@ -219,10 +222,10 @@ impl McpToA2aTransformer {
         transform_parsed(TransformParsedParams {
             tool_name,
             parsed,
-            output_schema,
+            output_schema: *output_schema,
             context_id,
             task_id,
-            tool_arguments,
+            tool_arguments: *tool_arguments,
         })
     }
 }

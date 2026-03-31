@@ -19,6 +19,20 @@ pub struct PersistMessageInTxParams<'a> {
     pub trace_id: &'a systemprompt_identifiers::TraceId,
 }
 
+impl std::fmt::Debug for PersistMessageInTxParams<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PersistMessageInTxParams")
+            .field("message", &self.message)
+            .field("task_id", &self.task_id)
+            .field("context_id", &self.context_id)
+            .field("user_id", &self.user_id)
+            .field("session_id", &self.session_id)
+            .field("trace_id", &self.trace_id)
+            .finish_non_exhaustive()
+    }
+}
+
+#[derive(Debug)]
 pub struct PersistMessagesParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,
@@ -28,6 +42,7 @@ pub struct PersistMessagesParams<'a> {
     pub trace_id: &'a systemprompt_identifiers::TraceId,
 }
 
+#[derive(Debug)]
 pub struct CreateToolExecutionMessageParams<'a> {
     pub task_id: &'a TaskId,
     pub context_id: &'a ContextId,

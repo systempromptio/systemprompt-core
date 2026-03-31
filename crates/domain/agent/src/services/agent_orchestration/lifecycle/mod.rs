@@ -17,11 +17,11 @@ pub struct AgentLifecycle {
 }
 
 impl AgentLifecycle {
-    pub async fn new(db_pool: DbPool) -> anyhow::Result<Self> {
+    pub fn new(db_pool: &DbPool) -> anyhow::Result<Self> {
         use crate::repository::agent_service::AgentServiceRepository;
 
-        let agent_service_repo = AgentServiceRepository::new(&db_pool)?;
-        let db_service = AgentDatabaseService::new(agent_service_repo).await?;
+        let agent_service_repo = AgentServiceRepository::new(db_pool)?;
+        let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self {
             db_service,
@@ -46,8 +46,7 @@ pub async fn start_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool.clone())
-        .await
+    let lifecycle = AgentLifecycle::new(pool)
         .map_err(OrchestrationError::Generic)?;
     lifecycle.start_agent(agent_name, events).await
 }
@@ -57,15 +56,13 @@ pub async fn enable_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool.clone())
-        .await
+    let lifecycle = AgentLifecycle::new(pool)
         .map_err(OrchestrationError::Generic)?;
     lifecycle.enable_agent(agent_name, events).await
 }
 
 pub async fn disable_agent(pool: &DbPool, agent_name: &str) -> OrchestrationResult<()> {
-    let lifecycle = AgentLifecycle::new(pool.clone())
-        .await
+    let lifecycle = AgentLifecycle::new(pool)
         .map_err(OrchestrationError::Generic)?;
     lifecycle.disable_agent(agent_name).await
 }
@@ -75,8 +72,7 @@ pub async fn restart_agent(
     agent_name: &str,
     events: Option<&StartupEventSender>,
 ) -> OrchestrationResult<String> {
-    let lifecycle = AgentLifecycle::new(pool.clone())
-        .await
+    let lifecycle = AgentLifecycle::new(pool)
         .map_err(OrchestrationError::Generic)?;
     lifecycle.restart_agent(agent_name, events).await
 }

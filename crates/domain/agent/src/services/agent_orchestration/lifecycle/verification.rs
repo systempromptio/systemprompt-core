@@ -26,12 +26,13 @@ impl AgentLifecycle {
         Ok(())
     }
 
-    pub(crate) async fn spawn_detached_process(
+    #[allow(clippy::unused_self)]
+    pub(crate) fn spawn_detached_process(
         &self,
         agent_name: &str,
         port: u16,
     ) -> OrchestrationResult<u32> {
-        process::spawn_detached_process(agent_name, port).await
+        process::spawn_detached_process(agent_name, port)
     }
 
     pub(crate) async fn verify_startup(

@@ -78,9 +78,7 @@ pub async fn get_message_parts(
                 let data_value = row
                     .data_content
                     .ok_or_else(|| RepositoryError::InvalidData("Missing data_content".into()))?;
-                let data = if let serde_json::Value::Object(map) = data_value {
-                    map
-                } else {
+                let serde_json::Value::Object(data) = data_value else {
                     return Err(RepositoryError::InvalidData(
                         "Data content must be a JSON object".into(),
                     ));

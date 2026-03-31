@@ -13,11 +13,11 @@ pub struct AgentMonitor {
 }
 
 impl AgentMonitor {
-    pub async fn new(db_pool: DbPool) -> OrchestrationResult<Self> {
+    pub fn new(db_pool: &DbPool) -> OrchestrationResult<Self> {
         use crate::repository::agent_service::AgentServiceRepository;
 
-        let agent_service_repo = AgentServiceRepository::new(&db_pool)?;
-        let db_service = AgentDatabaseService::new(agent_service_repo).await?;
+        let agent_service_repo = AgentServiceRepository::new(db_pool)?;
+        let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self { db_service })
     }
@@ -47,7 +47,7 @@ impl AgentMonitor {
                     }),
                 }
             },
-            _ => Ok(HealthCheckResult {
+            crate::services::agent_orchestration::AgentStatus::Failed { .. } => Ok(HealthCheckResult {
                 healthy: false,
                 message: format!("Agent {} not in running state", agent_id),
                 response_time_ms: 0,
@@ -65,19 +65,19 @@ impl AgentMonitor {
                     if process::process_exists(pid) {
                         let health_result = perform_tcp_health_check("127.0.0.1", port).await?;
                         if health_result.healthy {
-                            report.healthy_agents.push(agent_id);
+                            report.healthy.push(agent_id);
                         } else {
-                            report.unhealthy_agents.push(agent_id);
+                            report.unhealthy.push(agent_id);
                         }
                     } else {
                         self.db_service
                             .mark_failed(&agent_id, "Process died")
                             .await?;
-                        report.failed_agents.push(agent_id);
+                        report.failed.push(agent_id);
                     }
                 },
                 crate::services::agent_orchestration::AgentStatus::Failed { .. } => {
-                    report.failed_agents.push(agent_id);
+                    report.failed.push(agent_id);
                 },
             }
         }
@@ -127,9 +127,9 @@ pub struct HealthCheckResult {
 
 #[derive(Debug)]
 pub struct MonitoringReport {
-    pub healthy_agents: Vec<String>,
-    pub unhealthy_agents: Vec<String>,
-    pub failed_agents: Vec<String>,
+    pub healthy: Vec<String>,
+    pub unhealthy: Vec<String>,
+    pub failed: Vec<String>,
 }
 
 impl Default for MonitoringReport {
@@ -141,14 +141,14 @@ impl Default for MonitoringReport {
 impl MonitoringReport {
     pub const fn new() -> Self {
         Self {
-            healthy_agents: Vec::new(),
-            unhealthy_agents: Vec::new(),
-            failed_agents: Vec::new(),
+            healthy: Vec::new(),
+            unhealthy: Vec::new(),
+            failed: Vec::new(),
         }
     }
 
     pub fn total_agents(&self) -> usize {
-        self.healthy_agents.len() + self.unhealthy_agents.len() + self.failed_agents.len()
+        self.healthy.len() + self.unhealthy.len() + self.failed.len()
     }
 
     pub fn healthy_percentage(&self) -> f64 {
@@ -156,13 +156,13 @@ impl MonitoringReport {
         if total == 0 {
             0.0
         } else {
-            (self.healthy_agents.len() as f64 / total as f64) * 100.0
+            (self.healthy.len() as f64 / total as f64) * 100.0
         }
     }
 }
 
 pub async fn check_agent_health(agent_id: &str) -> Result<HealthCheckResult> {
-    let port = get_agent_port_simple(agent_id).await?;
+    let port = get_agent_port_simple(agent_id);
     perform_tcp_health_check("127.0.0.1", port).await
 }
 
@@ -201,22 +201,22 @@ async fn perform_tcp_health_check(host: &str, port: u16) -> Result<HealthCheckRe
     }
 }
 
-async fn get_agent_port_simple(agent_id: &str) -> Result<u16> {
+fn get_agent_port_simple(agent_id: &str) -> u16 {
     let port_str = agent_id
         .chars()
         .filter(char::is_ascii_digit)
         .collect::<String>();
 
     if port_str.is_empty() {
-        return Ok(8000);
+        return 8000;
     }
 
     let port_num: u16 = port_str.parse().unwrap_or(8000);
-    Ok(8000 + (port_num % 1000))
+    8000 + (port_num % 1000)
 }
 
 pub async fn check_agent_responsiveness(agent_id: &str, timeout_secs: u64) -> Result<bool> {
-    let port = get_agent_port_simple(agent_id).await?;
+    let port = get_agent_port_simple(agent_id);
     let address = format!("127.0.0.1:{port}");
 
     match timeout(
@@ -259,7 +259,6 @@ pub async fn check_a2a_agent_health(port: u16, timeout_secs: u64) -> Result<bool
                     Ok(is_valid_card)
                 })
         },
-        Ok(_) => Ok(false),
-        Err(_) => Ok(false),
+        Ok(_) | Err(_) => Ok(false),
     }
 }

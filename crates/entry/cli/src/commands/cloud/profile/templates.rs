@@ -208,7 +208,7 @@ pub async fn validate_connection(db_url: &str) -> bool {
     matches!(result, Ok(Ok(_)))
 }
 
-pub async fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
+pub fn run_migrations_cmd(profile_path: &Path) -> Result<()> {
     use std::process::Command;
 
     CliService::info("Running database migrations...");

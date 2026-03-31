@@ -154,7 +154,7 @@ async fn stop_mcp_servers(
 }
 
 async fn resolve_agent_name(agent_identifier: &str) -> Result<String> {
-    let registry = AgentRegistry::new().await?;
+    let registry = AgentRegistry::new()?;
     let agent = registry.get_agent(agent_identifier).await?;
     Ok(agent.name)
 }

@@ -1,4 +1,4 @@
-use crate::services::shared::{AgentSessionUser, Result};
+use crate::services::shared::AgentSessionUser;
 use std::sync::Arc;
 use systemprompt_database::Database;
 pub use systemprompt_models::AgentOAuthConfig;
@@ -30,14 +30,14 @@ impl std::fmt::Debug for AgentOAuthState {
 }
 
 impl AgentOAuthState {
-    pub async fn new(
+    pub fn new(
         db: Arc<Database>,
         config: AgentOAuthConfig,
         jwt_secret: String,
         jwt_issuer: String,
         jwt_audiences: Vec<JwtAudience>,
-    ) -> Result<Self> {
-        Ok(Self {
+    ) -> Self {
+        Self {
             config,
             auth_service: Arc::new(AuthValidationService::new(
                 jwt_secret,
@@ -47,7 +47,7 @@ impl AgentOAuthState {
             db,
             jwt_provider: None,
             user_provider: None,
-        })
+        }
     }
 
     #[must_use]

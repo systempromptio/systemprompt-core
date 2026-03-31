@@ -65,11 +65,9 @@ async fn construct_task_from_row(
     let artifacts = load_task_artifacts(constructor, &task_id).await?;
     let execution_steps = load_execution_steps(constructor, &task_id).await?;
 
-    let mut metadata = converters::construct_metadata(row)?;
+    let mut metadata = converters::construct_metadata(row);
     if let Some(steps) = execution_steps {
-        if let Some(ref mut meta) = metadata {
-            meta.execution_steps = Some(steps);
-        }
+        metadata.execution_steps = Some(steps);
     }
 
     let task_state = converters::parse_task_state(&row.status)
@@ -86,7 +84,7 @@ async fn construct_task_from_row(
         },
         history,
         artifacts,
-        metadata,
+        metadata: Some(metadata),
     })
 }
 

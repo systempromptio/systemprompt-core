@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::ArtifactRepository;
 use super::parts::persist_artifact_part;
 use crate::models::a2a::Artifact;
@@ -12,7 +14,7 @@ impl ArtifactRepository {
         context_id: &ContextId,
         artifact: &Artifact,
     ) -> Result<(), RepositoryError> {
-        let pool = self.write_pool.clone();
+        let pool = Arc::clone(&self.write_pool);
         let now = Utc::now();
 
         let metadata_json = serde_json::json!({
@@ -86,7 +88,7 @@ impl ArtifactRepository {
     }
 
     pub async fn delete_artifact(&self, artifact_id: &ArtifactId) -> Result<(), RepositoryError> {
-        let pool = self.write_pool.clone();
+        let pool = Arc::clone(&self.write_pool);
         let artifact_id_str = artifact_id.as_str();
 
         sqlx::query!(

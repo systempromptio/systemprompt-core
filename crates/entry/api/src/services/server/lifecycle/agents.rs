@@ -40,7 +40,7 @@ pub async fn reconcile_agents(
         },
     };
 
-    let agent_registry = match AgentRegistry::new().await {
+    let agent_registry = match AgentRegistry::new() {
         Ok(registry) => registry,
         Err(e) => {
             if let Some(tx) = events {

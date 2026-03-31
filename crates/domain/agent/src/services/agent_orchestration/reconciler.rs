@@ -9,11 +9,11 @@ pub struct AgentReconciler {
 }
 
 impl AgentReconciler {
-    pub async fn new(db_pool: DbPool) -> OrchestrationResult<Self> {
+    pub fn new(db_pool: &DbPool) -> OrchestrationResult<Self> {
         use crate::repository::agent_service::AgentServiceRepository;
 
-        let agent_service_repo = AgentServiceRepository::new(&db_pool)?;
-        let db_service = AgentDatabaseService::new(agent_service_repo).await?;
+        let agent_service_repo = AgentServiceRepository::new(db_pool)?;
+        let db_service = AgentDatabaseService::new(agent_service_repo)?;
 
         Ok(Self { db_service })
     }
@@ -52,10 +52,10 @@ impl AgentReconciler {
         Ok(reconciled)
     }
 
-    pub async fn reconcile_starting_services(&self) -> OrchestrationResult<u32> {
+    pub fn reconcile_starting_services() -> u32 {
         tracing::debug!("Checking for services stuck in 'starting' state");
 
-        Ok(0)
+        0
     }
 
     pub async fn perform_consistency_check(&self) -> OrchestrationResult<ConsistencyReport> {

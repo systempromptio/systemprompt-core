@@ -151,13 +151,11 @@ pub async fn get_next_sequence_number_in_tx(
     let task_id_str = task_id.as_str();
     let row = tx.fetch_optional(&query, &[&task_id_str]).await?;
 
-    let max_seq = if let Some(ref r) = row {
+    let max_seq = row.as_ref().and_then(|r| {
         r.get("max_seq")
             .and_then(serde_json::Value::as_i64)
             .map(|v| v as i32)
-    } else {
-        None
-    };
+    });
 
     Ok(max_seq.map_or(0, |s| s + 1))
 }

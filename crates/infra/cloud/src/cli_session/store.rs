@@ -104,8 +104,7 @@ impl SessionStore {
                 SessionKey::Local
             } else {
                 k.strip_prefix("tenant_")
-                    .map(|id| SessionKey::Tenant(TenantId::new(id)))
-                    .unwrap_or(SessionKey::Local)
+                    .map_or(SessionKey::Local, |id| SessionKey::Tenant(TenantId::new(id)))
             }
         })
     }

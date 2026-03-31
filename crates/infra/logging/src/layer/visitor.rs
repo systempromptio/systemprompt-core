@@ -12,7 +12,7 @@ mod field_names {
     pub const CLIENT_ID: &str = "client_id";
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct FieldVisitor {
     pub message: String,
     pub fields: Option<serde_json::Value>,
@@ -66,7 +66,7 @@ impl Visit for FieldVisitor {
     }
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 pub struct SpanContext {
     pub user: Option<String>,
     pub session: Option<String>,
@@ -76,6 +76,7 @@ pub struct SpanContext {
     pub client: Option<String>,
 }
 
+#[derive(Debug)]
 pub struct SpanVisitor<'a> {
     pub context: &'a mut SpanContext,
 }
@@ -111,7 +112,7 @@ impl SpanVisitor<'_> {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Debug, Default, Clone)]
 pub struct SpanFields {
     pub user: Option<String>,
     pub session: Option<String>,

@@ -2,9 +2,11 @@ use anyhow::{Result, anyhow};
 use std::fmt;
 use systemprompt_identifiers::{ContextId, TaskId};
 use systemprompt_models::ai::tools::CallToolResult;
+use systemprompt_traits::validation::Validate;
 
 use super::artifact_transformer::McpToA2aTransformer;
 
+#[derive(Debug)]
 pub struct ProcessToolResultParams<'a> {
     pub tool_name: &'a str,
     pub tool_result: &'a CallToolResult,
@@ -35,9 +37,8 @@ impl ToolResultHandler {
         Self
     }
 
-    pub async fn process_tool_result(
-        &self,
-        params: ProcessToolResultParams<'_>,
+    pub fn process_tool_result(
+        params: &ProcessToolResultParams<'_>,
     ) -> Result<crate::models::a2a::Artifact> {
         let ProcessToolResultParams {
             tool_name,
@@ -63,17 +64,16 @@ impl ToolResultHandler {
         );
 
         let artifact =
-            McpToA2aTransformer::transform(super::artifact_transformer::TransformParams {
+            McpToA2aTransformer::transform(&super::artifact_transformer::TransformParams {
                 tool_name,
                 tool_result,
-                output_schema,
+                output_schema: *output_schema,
                 context_id: context_id.as_str(),
                 task_id: task_id.as_str(),
-                tool_arguments,
+                tool_arguments: *tool_arguments,
             })
             .map_err(|e| anyhow::anyhow!("Artifact transform failed: {}", e))?;
 
-        use systemprompt_traits::validation::Validate;
         artifact
             .metadata
             .validate()

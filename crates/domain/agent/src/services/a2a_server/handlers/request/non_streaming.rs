@@ -1,4 +1,7 @@
-use crate::models::a2a::Task;
+use std::sync::Arc;
+
+use crate::models::a2a::{A2aRequestParams, Task};
+use crate::repository::task::TaskRepository;
 use crate::services::a2a_server::handlers::state::AgentHandlerState;
 use crate::services::a2a_server::processing::message::MessageProcessor;
 use crate::services::a2a_server::processing::task_builder::build_canceled_task;
@@ -7,12 +10,10 @@ use systemprompt_models::RequestContext;
 use super::validation::validate_message_context;
 
 pub async fn handle_non_streaming_request(
-    request: crate::models::a2a::A2aRequestParams,
+    request: A2aRequestParams,
     state: &AgentHandlerState,
     context: &RequestContext,
 ) -> Result<Task, Box<dyn std::error::Error + Send + Sync>> {
-    use crate::models::a2a::A2aRequestParams;
-
     let config = state.config.read().await;
     let agent_name = config.name.clone();
     drop(config);
@@ -29,7 +30,7 @@ pub async fn handle_non_streaming_request(
             .await?;
 
             let message_processor =
-                MessageProcessor::new(&state.db_pool, state.ai_service.clone())?;
+                MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service))?;
 
             message_processor
                 .handle_message(params.message, &agent_name, context)
@@ -47,7 +48,7 @@ pub async fn handle_non_streaming_request(
             .await?;
 
             let message_processor =
-                MessageProcessor::new(&state.db_pool, state.ai_service.clone())?;
+                MessageProcessor::new(&state.db_pool, Arc::clone(&state.ai_service))?;
 
             message_processor
                 .handle_message(params.message, &agent_name, context)
@@ -57,7 +58,6 @@ pub async fn handle_non_streaming_request(
         A2aRequestParams::GetTask(params) => {
             tracing::info!(task_id = %params.id, "Handling tasks/get request");
 
-            use crate::repository::task::TaskRepository;
             let task_repo = TaskRepository::new(&state.db_pool)?;
 
             match task_repo.get_task_by_str(&params.id).await {
@@ -69,7 +69,6 @@ pub async fn handle_non_streaming_request(
         A2aRequestParams::CancelTask(params) => {
             tracing::info!(task_id = %params.id, "Handling tasks/cancel request");
 
-            use crate::repository::task::TaskRepository;
             let task_repo = TaskRepository::new(&state.db_pool)?;
 
             match task_repo.get_task_by_str(&params.id).await {

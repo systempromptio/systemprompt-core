@@ -12,8 +12,8 @@ pub struct AgentDatabaseService {
 }
 
 impl AgentDatabaseService {
-    pub async fn new(repository: AgentServiceRepository) -> OrchestrationResult<Self> {
-        let registry = AgentRegistry::new().await.map_err(|e| {
+    pub fn new(repository: AgentServiceRepository) -> OrchestrationResult<Self> {
+        let registry = AgentRegistry::new().map_err(|e| {
             OrchestrationError::Database(format!("Failed to load agent registry: {e}"))
         })?;
 

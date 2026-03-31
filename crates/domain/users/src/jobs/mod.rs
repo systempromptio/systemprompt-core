@@ -1,1 +1,1 @@
-pub(crate) mod cleanup_anonymous_users;
+pub mod cleanup_anonymous_users;
