@@ -23,7 +23,6 @@ systemprompt-identifiers = { workspace = true }
 # Infrastructure layer
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true }
-systemprompt-config = { workspace = true }
 systemprompt-cloud = { workspace = true }
 
 # Domain layer (read-only access for content types)

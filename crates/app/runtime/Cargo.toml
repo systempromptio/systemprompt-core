@@ -30,7 +30,6 @@ systemprompt-extension = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 systemprompt-database = { workspace = true }
 systemprompt-logging = { workspace = true, features = ["cli"] }
-systemprompt-config = { workspace = true }
 systemprompt-loader = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-files = { workspace = true }

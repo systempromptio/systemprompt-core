@@ -1,4 +1,4 @@
-pub mod services;
+pub(crate) mod services;
 mod sse;
 
 use async_trait::async_trait;

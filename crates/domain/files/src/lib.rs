@@ -1,10 +1,10 @@
-pub mod config;
-pub mod error;
-pub mod extension;
-pub mod jobs;
-pub mod models;
-pub mod repository;
-pub mod services;
+pub(crate) mod config;
+pub(crate) mod error;
+pub(crate) mod extension;
+pub(crate) mod jobs;
+pub(crate) mod models;
+pub(crate) mod repository;
+pub(crate) mod services;
 
 pub use extension::FilesExtension;
 

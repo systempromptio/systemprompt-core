@@ -1,15 +1,15 @@
 #![allow(clippy::incompatible_msrv)]
 
-pub mod api;
-pub mod assets;
-pub mod build;
-pub mod content;
-pub mod error;
-pub mod jobs;
-pub mod prerender;
-pub mod rss;
-pub mod sitemap;
-pub mod templates;
+pub(crate) mod api;
+pub(crate) mod assets;
+pub(crate) mod build;
+pub(crate) mod content;
+pub(crate) mod error;
+pub(crate) mod jobs;
+pub(crate) mod prerender;
+pub(crate) mod rss;
+pub(crate) mod sitemap;
+pub(crate) mod templates;
 
 pub use assets::organize_dist_assets;
 pub use build::{BuildError, BuildMode, BuildOrchestrator};

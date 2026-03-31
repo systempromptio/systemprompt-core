@@ -38,7 +38,6 @@ systemprompt-database = { workspace = true }
 systemprompt-content = { workspace = true }
 systemprompt-files = { workspace = true }
 systemprompt-scheduler = { workspace = true }
-systemprompt-config = { workspace = true }
 systemprompt-analytics = { workspace = true }
 systemprompt-security = { workspace = true }
 systemprompt-ai = { workspace = true }

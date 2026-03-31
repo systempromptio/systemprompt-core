@@ -54,7 +54,6 @@ inventory = { workspace = true }
 async-trait = { workspace = true }
 systemprompt-traits = { workspace = true }
 systemprompt-provider-contracts = { workspace = true }
-systemprompt-config = { workspace = true }
 
 # Static content generation
 comrak = { workspace = true }

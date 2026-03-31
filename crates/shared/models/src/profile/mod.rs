@@ -139,51 +139,6 @@ impl Profile {
         serde_yaml::to_string(self).context("Failed to serialize profile")
     }
 
-    pub fn list_available(services_path: &Path) -> Vec<String> {
-        let profiles_dir = services_path.join("profiles");
-        if !profiles_dir.exists() {
-            return Vec::new();
-        }
-
-        std::fs::read_dir(&profiles_dir).map_or_else(
-            |_| Vec::new(),
-            |entries| {
-                entries
-                    .filter_map(std::result::Result::ok)
-                    .filter_map(|e| {
-                        let name = e.file_name().to_string_lossy().to_string();
-                        if name.ends_with(".secrets.profile.yaml") {
-                            Some(name.trim_end_matches(".secrets.profile.yaml").to_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
-            },
-        )
-    }
-
-    pub fn save(&self, services_path: &Path) -> Result<()> {
-        let profiles_dir = services_path.join("profiles");
-        std::fs::create_dir_all(&profiles_dir).context("Failed to create profiles directory")?;
-
-        let profile_path = profiles_dir.join(format!("{}.secrets.profile.yaml", self.name));
-        let content = serde_yaml::to_string(self).context("Failed to serialize profile")?;
-
-        let content_with_header = format!(
-            "# systemprompt.io Profile: {}\n# \n# WARNING: This file contains secrets (API keys, \
-             JWT secrets, database credentials).\n# DO NOT commit this file to version \
-             control.\n# DO NOT share this file publicly.\n# \n# Generated from environment \
-             variables\n\n{}",
-            self.display_name, content
-        );
-
-        std::fs::write(&profile_path, content_with_header)
-            .with_context(|| format!("Failed to write profile file: {}", profile_path.display()))?;
-
-        Ok(())
-    }
-
     pub fn profile_style(&self) -> ProfileStyle {
         match self.name.to_lowercase().as_str() {
             "dev" | "development" | "local" => ProfileStyle::Development,

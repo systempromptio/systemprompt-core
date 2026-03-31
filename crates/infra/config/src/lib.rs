@@ -1,4 +1,4 @@
-pub mod services;
+pub(crate) mod services;
 
 pub use services::{
     ConfigManager, ConfigValidationError, ConfigValidator, DeployEnvironment, DeploymentConfig,
