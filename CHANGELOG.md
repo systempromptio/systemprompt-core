@@ -1,8 +1,13 @@
 # Changelog
 
-## [0.1.21] - 2026-03-31
+## [0.1.19] - 2026-03-31
 
 ### Added
+- `CloudEnterpriseLicenseInfo` struct for domain-based enterprise licensing
+- `enterprise` field on `UserMeResponse` (optional, backward-compatible)
+- `EnterpriseLicenseInfo` type alias
+- Structured streaming with `StreamChunk` enum for typed AI provider responses with token usage tracking
+- Pricing-based cost calculation for streaming responses
 - Authenticated `/api/v1/health/detail` endpoint with full system diagnostics (split from public health check)
 - Email validation module (`validation.rs`) with shared `is_valid_email` helper
 - ConnectInfo fallback for IP extraction in bot detector and IP ban middleware
@@ -17,21 +22,6 @@
 ### Fixed
 - Sub-process binary resolution now checks both `target/release` and `target/debug`, preferring the newest by mtime — matches justfile behavior so MCP servers and agents find the correct binary during development
 - MCP binary validation uses dynamic bin directory resolution instead of hardcoding `target/release`
-
-## [0.1.20] - 2026-03-25
-
-### Added
-- `CloudEnterpriseLicenseInfo` struct for domain-based enterprise licensing
-- `enterprise` field on `UserMeResponse` (optional, backward-compatible)
-- `EnterpriseLicenseInfo` type alias
-
-## [0.1.19] - 2026-03-20
-
-### Added
-- Structured streaming with `StreamChunk` enum for typed AI provider responses with token usage tracking
-- Pricing-based cost calculation for streaming responses
-
-### Fixed
 - Fix test compilation across `systemprompt-generator` and `systemprompt-sync`
 - Remove needless `..Default::default()` in API JWT config
 
