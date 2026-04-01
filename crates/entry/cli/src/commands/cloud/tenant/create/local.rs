@@ -6,6 +6,7 @@ use std::process::Command;
 use systemprompt_cloud::{ProjectContext, StoredTenant};
 use systemprompt_logging::CliService;
 
+use crate::cloud::init::ensure_project_scaffolding;
 use crate::cloud::profile::templates::validate_connection;
 use crate::cloud::profile::{
     collect_api_keys, create_profile_for_tenant, get_cloud_user, handle_local_tenant_setup,
@@ -240,8 +241,10 @@ async fn setup_local_profile(tenant: &StoredTenant, name: &str, database_url: &s
     let profile = create_profile_for_tenant(tenant, &api_keys, &profile_name)?;
     CliService::success(&format!("Profile '{}' created", profile.name));
 
-    let cloud_user = get_cloud_user()?;
     let ctx = ProjectContext::discover();
+    ensure_project_scaffolding(ctx.root())?;
+
+    let cloud_user = get_cloud_user()?;
     let profile_path = ctx.profile_dir(&profile.name).join("profile.yaml");
     handle_local_tenant_setup(&cloud_user, database_url, name, &profile_path).await?;
 

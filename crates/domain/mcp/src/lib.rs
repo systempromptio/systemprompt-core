@@ -74,9 +74,7 @@ use rmcp::ServerHandler;
 pub use rmcp::model::ProtocolVersion;
 use rmcp::transport::StreamableHttpService;
 use rmcp::transport::streamable_http_server::StreamableHttpServerConfig;
-use std::time::Duration;
 use systemprompt_database::DbPool;
-use tokio_util::sync::CancellationToken;
 
 use crate::middleware::DatabaseSessionManager;
 
@@ -132,13 +130,7 @@ pub fn create_router<S>(server: S, db_pool: &DbPool) -> axum::Router
 where
     S: ServerHandler + Clone + Send + Sync + 'static,
 {
-    let config = StreamableHttpServerConfig {
-        stateful_mode: true,
-        sse_keep_alive: Some(Duration::from_secs(15)),
-        sse_retry: Some(Duration::from_secs(3)),
-        cancellation_token: CancellationToken::new(),
-        json_response: false,
-    };
+    let config = StreamableHttpServerConfig::default();
 
     let session_manager = DatabaseSessionManager::new(db_pool);
 

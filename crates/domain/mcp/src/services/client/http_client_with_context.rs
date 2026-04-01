@@ -8,7 +8,7 @@ use rmcp::transport::common::http_header::{
     EVENT_STREAM_MIME_TYPE, HEADER_LAST_EVENT_ID, HEADER_SESSION_ID, JSON_MIME_TYPE,
 };
 use rmcp::transport::streamable_http_client::{
-    AuthRequiredError, StreamableHttpClient, StreamableHttpError, StreamableHttpPostResponse,
+    StreamableHttpClient, StreamableHttpError, StreamableHttpPostResponse,
 };
 use sse_stream::{Error as SseError, Sse, SseStream};
 use std::collections::HashMap;
@@ -180,9 +180,9 @@ impl StreamableHttpClient for HttpClientWithContext {
                         ))
                     })?
                     .to_string();
-                return Err(StreamableHttpError::AuthRequired(AuthRequiredError {
-                    www_authenticate_header: header,
-                }));
+                return Err(StreamableHttpError::UnexpectedServerResponse(
+                    std::borrow::Cow::from(format!("auth required: {header}")),
+                ));
             }
         }
         let response = response

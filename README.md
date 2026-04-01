@@ -6,7 +6,7 @@
   <img src="https://systemprompt.io/files/images/logo-dark.svg" alt="systemprompt.io" width="400">
 </picture>
 
-### Production infrastructure for AI agents
+### Control how your organization uses AI
 
 [![Crates.io](https://img.shields.io/crates/v/systemprompt.svg)](https://crates.io/crates/systemprompt)
 [![Docs.rs](https://docs.rs/systemprompt/badge.svg)](https://docs.rs/systemprompt)
@@ -14,7 +14,7 @@
 [![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)](https://www.rust-lang.org/)
 [![Discord](https://img.shields.io/badge/Discord-Join%20us-5865F2.svg)](https://discord.gg/wkAbSuPWpr)
 
-[Website](https://systemprompt.io) · [Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Playbooks](https://systemprompt.io/documentation/playbooks) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions)
+[Website](https://systemprompt.io) · [Discord](https://discord.gg/wkAbSuPWpr) · [Installation](https://systemprompt.io/documentation/installation) · [Skills](https://systemprompt.io/documentation/skills) · [Config](https://systemprompt.io/documentation/config) · [Services](https://systemprompt.io/documentation/services) · [Extensions](https://systemprompt.io/documentation/extensions)
 
 **Platform Support:** Working and tested on Unix (macOS and Linux). Windows support coming later.
 
@@ -22,35 +22,35 @@
 
 ---
 
-AI infrastructure built for AI agents. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution. Not another SDK. Complete infrastructure with authentication, permissions, and multi-agent coordination on open standards (MCP, A2A, OAuth2).
+30 people. 30 different AI setups. No visibility. No standards. No enforcement.
 
-**Playbooks** provide deterministic instruction rails that eliminate hallucination. Your agents execute tested commands, not guessed syntax. When superintelligent systems manage your infrastructure, they need verified operational procedures, not prose.
+**systemprompt.io is the governance layer that fixes this.** Define how AI behaves across your organization — skills, permissions, and rules enforced consistently for every team member, every session, every time. Purpose-built in Rust for reliable orchestration, deep observability, and deterministic execution.
 
 ## Table of Contents
 
-- [Why systemprompt.io?](#ship-agents-to-production-in-record-time)
+- [Why systemprompt.io?](#governance-observability-deployment)
 - [Quick Start](#quick-start)
 - [Using as a Library](#using-as-a-library)
 - [Architecture](#architecture)
 - [Extension Framework](#extension-framework)
 - [License](#license)
 
-## Ship agents to production in record time.
+## Governance. Observability. Deployment.
 
-AI frameworks get you to a demo. Production requires everything else: auth, permissions, observability, multi-agent coordination. You shouldn't rebuild this infrastructure for every project.
+### One policy. Every session.
 
-systemprompt.io is the missing layer. A library you own, not a platform you rent:
+Define AI behavior once and enforce it everywhere. No more inconsistent setups across teams, no more untracked usage, no more ungoverned AI sprawl. systemprompt.io gives you policy-as-code enforcement with cryptographic traceability — built to survive an audit.
 
-- **Auth that works**: OAuth2/OIDC + WebAuthn, production-ready from day one
-- **Permissions that scale**: Per-user, per-agent, per-tool scopes
-- **Deployment that's real**: One command to cloud or self-host
-- **Multi-agent that coordinates**: A2A protocol with shared state
+- **Governance**: Skills, permissions, and behavioral rules enforced consistently across your entire organization
+- **Observability**: Know what AI you have deployed, how it is being used, and where — usage analytics, audit trails, and session monitoring from a single dashboard
+- **Deployment**: Self-host or deploy under your own brand — white-label AI governance for SaaS companies that need to offer it to customers
 
-50MB of production-ready Rust. You own the binary.
+Compatible with SOC 2, ISO 27001, HIPAA, and FedRAMP (on-prem). Full data-plane control.
 
-**Core capabilities:**
+### Core capabilities
+
 - **Complete Runtime**: Web API + agent processes + MCP servers with shared auth and database
-- **Open Standards**: MCP, A2A, OAuth2, WebAuthn - no vendor lock-in
+- **Open Standards**: MCP, A2A, OAuth2, WebAuthn — no vendor lock-in
 - **Agent-Executable CLI**: Your AI manages infrastructure directly via the same CLI you use
 - **Native Rust**: Async-first on Tokio, zero-cost abstractions
 - **Self-Hosted or Cloud**: Docker locally, or deploy to isolated VM with managed database
@@ -59,13 +59,13 @@ systemprompt.io is the missing layer. A library you own, not a platform you rent
 ### What You Get
 
 A complete platform with built-in:
-- **User Authentication**: OAuth2/OIDC, sessions, roles, and permissions
+- **Auth and Permissions**: OAuth2/OIDC, WebAuthn, sessions, roles, per-user and per-agent scopes
 - **File Storage**: Upload, serve, and manage files with metadata
 - **Content Management**: Markdown ingestion, search, and publishing
 - **AI Integration**: Multi-provider LLM support with request logging
-- **Analytics**: Session tracking, metrics, and usage reporting
-- **Agent Orchestration**: A2A protocol for agent-to-agent communication
-- **MCP Servers**: Tool and resource providers for AI clients
+- **Analytics**: Session tracking, usage reporting, and audit trails
+- **Agent Orchestration**: A2A protocol for multi-agent coordination
+- **MCP Servers**: Tool and resource providers for any MCP-compatible AI client
 
 ## Quick Start
 
@@ -91,10 +91,9 @@ See the [systemprompt-template](https://github.com/systempromptio/systemprompt-t
 
 ### Native MCP Client Support
 
-Works out of the box with any MCP client - Claude Code, Claude Desktop, ChatGPT, and more. All transports are HTTP-native, supported by modern MCP clients.
+Works out of the box with any MCP-compatible client — Claude Code, Claude Desktop, ChatGPT, Cursor, and more. All transports are HTTP-native, supported by modern MCP clients.
 
 ```json
-// claude_desktop_config.json
 {
   "mcpServers": {
     "my-server": {
@@ -105,7 +104,7 @@ Works out of the box with any MCP client - Claude Code, Claude Desktop, ChatGPT,
 }
 ```
 
-Your AI can now manage your entire infrastructure: deploy updates, query analytics, manage users, and orchestrate agents - all through natural conversation.
+One platform. Every team. Your AI tools connect to governed infrastructure with enforced permissions, audit trails, and consistent behavior — regardless of which AI provider your teams use.
 
 ### Discovery API
 
@@ -121,7 +120,7 @@ Get agent and MCP connection details from the API at any time:
 
 ### Config as Code
 
-Define your entire infrastructure in the `services/` directory - granular permissions for agents, MCP tools, and users backed by production-grade OAuth2 and WebAuthn:
+Define your entire AI governance infrastructure in the `services/` directory — granular permissions for agents, MCP tools, and users backed by production-grade OAuth2 and WebAuthn:
 
 ```
 services/
@@ -129,7 +128,7 @@ services/
 │   └── blog.yaml     # security: [oauth2: ["admin"]]
 ├── mcp/              # MCP servers with per-tool permissions
 │   └── content.yaml  # oauth: { required: true, scopes: ["admin"] }
-├── skills/           # Reusable agent capabilities
+├── skills/           # Anthropic marketplace skills and plugins
 ├── ai/               # Provider configs (Anthropic, OpenAI, Gemini)
 ├── content/          # Markdown content sources
 ├── scheduler/        # Cron jobs and background tasks
@@ -257,7 +256,7 @@ FSL-1.1-ALv2 (Functional Source License) - see [LICENSE](LICENSE) for details.
 
 ## Links
 
-- [Discord](https://discord.gg/wkAbSuPWpr): Get help and connect with the community
+- [Website](https://systemprompt.io): Learn more about AI governance at enterprise scale
 - [Documentation](https://systemprompt.io/documentation): Full guides and API reference
 - [GitHub](https://github.com/systempromptio/systemprompt-core): Source code and issues
-- [Website](https://systemprompt.io): Learn more about systemprompt.io
+- [Discord](https://discord.gg/wkAbSuPWpr): Get help and connect with the community

@@ -128,6 +128,34 @@ fn create_systemprompt_dir(dir: &Path, project_root: &Path) -> Result<()> {
     Ok(())
 }
 
+pub fn ensure_project_scaffolding(project_root: &Path) -> Result<()> {
+    let services_dir = project_root.join("services");
+    let web_dir = project_root.join("web");
+
+    if services_dir.exists() && web_dir.exists() {
+        return Ok(());
+    }
+
+    let project_name = project_root
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("systemprompt")
+        .to_string();
+
+    if !services_dir.exists() {
+        CliService::info("Scaffolding services/ directory...");
+        generate_services_boilerplate(project_root, &project_name)?;
+    }
+
+    if !web_dir.exists() {
+        std::fs::create_dir_all(&web_dir)
+            .with_context(|| format!("Failed to create directory: {}", web_dir.display()))?;
+        CliService::info("Created web/ directory");
+    }
+
+    Ok(())
+}
+
 fn generate_services_boilerplate(project_root: &Path, project_name: &str) -> Result<()> {
     CliService::section("Creating Services Boilerplate");
 
