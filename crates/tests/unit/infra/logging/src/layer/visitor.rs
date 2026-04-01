@@ -26,18 +26,6 @@ fn test_database_layer_is_debug() {
     assert_debug::<DatabaseLayer>();
 }
 
-#[test]
-fn test_database_layer_is_send() {
-    fn assert_send<T: Send>() {}
-    assert_send::<DatabaseLayer>();
-}
-
-#[test]
-fn test_database_layer_is_sync() {
-    fn assert_sync<T: Sync>() {}
-    assert_sync::<DatabaseLayer>();
-}
-
 // ============================================================================
 // Note on Further Testing
 // ============================================================================

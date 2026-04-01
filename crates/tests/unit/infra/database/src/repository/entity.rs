@@ -52,22 +52,6 @@ fn test_string_entity_id_roundtrip() {
 }
 
 // ============================================================================
-// EntityId Send + Sync Tests
-// ============================================================================
-
-#[test]
-fn test_string_entity_id_is_send() {
-    fn assert_send<T: Send>() {}
-    assert_send::<String>();
-}
-
-#[test]
-fn test_string_entity_id_is_sync() {
-    fn assert_sync<T: Sync>() {}
-    assert_sync::<String>();
-}
-
-// ============================================================================
 // EntityId Edge Cases
 // ============================================================================
 

@@ -1,5 +1,5 @@
 use systemprompt_ai::services::tooled::{
-    FallbackGenerator, FallbackReason, ResponseSynthesizer, SynthesisPromptBuilder,
+    FallbackGenerator, FallbackReason, SynthesisPromptBuilder,
 };
 use systemprompt_ai::models::tools::{CallToolResult, ToolCall};
 use systemprompt_ai::MessageRole;
@@ -54,32 +54,6 @@ mod fallback_reason_tests {
 
 mod fallback_generator_tests {
     use super::*;
-
-    #[test]
-    fn new_creates_generator() {
-        let generator = FallbackGenerator::new();
-        let _ = format!("{:?}", generator);
-    }
-
-    #[test]
-    fn default_creates_generator() {
-        let generator = FallbackGenerator::default();
-        let _ = format!("{:?}", generator);
-    }
-
-    #[test]
-    fn is_copy() {
-        let generator = FallbackGenerator::new();
-        let copied = generator;
-        let _ = format!("{:?}", copied);
-    }
-
-    #[test]
-    fn is_clone() {
-        let generator = FallbackGenerator::new();
-        let cloned = generator.clone();
-        let _ = format!("{:?}", cloned);
-    }
 
     #[test]
     fn generate_with_empty_content_reason() {
@@ -207,32 +181,3 @@ mod synthesis_prompt_builder_tests {
     }
 }
 
-mod response_synthesizer_tests {
-    use super::*;
-
-    #[test]
-    fn new_creates_synthesizer() {
-        let synthesizer = ResponseSynthesizer::new();
-        let _ = format!("{:?}", synthesizer);
-    }
-
-    #[test]
-    fn default_creates_synthesizer() {
-        let synthesizer = ResponseSynthesizer::default();
-        let _ = format!("{:?}", synthesizer);
-    }
-
-    #[test]
-    fn is_copy() {
-        let synthesizer = ResponseSynthesizer::new();
-        let copied = synthesizer;
-        let _ = format!("{:?}", copied);
-    }
-
-    #[test]
-    fn is_clone() {
-        let synthesizer = ResponseSynthesizer::new();
-        let cloned = synthesizer.clone();
-        let _ = format!("{:?}", cloned);
-    }
-}

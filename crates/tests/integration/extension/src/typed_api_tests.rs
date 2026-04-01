@@ -126,28 +126,6 @@ fn test_api_extension_typed_metadata() {
 // ApiExtensionTypedDyn Trait Tests
 // =============================================================================
 
-#[test]
-fn test_api_extension_typed_dyn_build_router() {
-    let ext = PublicApiExtension;
-    let router = ext.build_router();
-    // Just verify it returns a router without panicking
-    let _ = router;
-}
-
-#[test]
-fn test_api_extension_typed_dyn_authenticated_router() {
-    let ext = AuthenticatedApiExtension;
-    let router = ext.build_router();
-    let _ = router;
-}
-
-#[test]
-fn test_api_extension_typed_dyn_empty_router() {
-    let ext = NestedPathApiExtension;
-    let router = ext.build_router();
-    let _ = router;
-}
-
 // =============================================================================
 // Trait Object Tests
 // =============================================================================
@@ -239,44 +217,6 @@ fn test_api_extension_path_starts_with_api() {
 fn test_api_extension_path_versioned() {
     let ext = AuthenticatedApiExtension;
     assert!(ext.base_path().contains("/v1/"));
-}
-
-// =============================================================================
-// Custom Router Tests
-// =============================================================================
-
-#[derive(Default, Debug)]
-struct MultiRouteApiExtension;
-
-impl ExtensionType for MultiRouteApiExtension {
-    const ID: &'static str = "multi-route";
-    const NAME: &'static str = "Multi Route Extension";
-    const VERSION: &'static str = "1.0.0";
-}
-
-impl NoDependencies for MultiRouteApiExtension {}
-
-impl ApiExtensionTyped for MultiRouteApiExtension {
-    fn base_path(&self) -> &'static str {
-        "/api/v1/multi"
-    }
-}
-
-impl ApiExtensionTypedDyn for MultiRouteApiExtension {
-    fn build_router(&self) -> Router {
-        Router::new()
-            .route("/list", get(|| async { "list" }))
-            .route("/create", get(|| async { "create" }))
-            .route("/delete", get(|| async { "delete" }))
-    }
-}
-
-#[test]
-fn test_api_extension_multi_route() {
-    let ext = MultiRouteApiExtension;
-    let router = ext.build_router();
-    // Router created successfully with multiple routes
-    let _ = router;
 }
 
 // =============================================================================

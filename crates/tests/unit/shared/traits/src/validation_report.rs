@@ -384,10 +384,4 @@ mod startup_validation_error_tests {
         assert!(display.contains("1 warning(s)"));
     }
 
-    #[test]
-    fn error_is_std_error() {
-        let report = StartupValidationReport::new();
-        let error = StartupValidationError(report);
-        let _: &dyn std::error::Error = &error;
-    }
 }

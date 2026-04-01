@@ -1,8 +1,8 @@
 use std::sync::LazyLock;
 use std::time::Duration;
 use systemprompt_events::{
-    standard_keep_alive, A2ABroadcaster, AgUiBroadcaster, AnalyticsBroadcaster, Broadcaster,
-    ConnectionGuard, ContextBroadcaster, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
+    standard_keep_alive, Broadcaster,
+    ConnectionGuard, GenericBroadcaster, HEARTBEAT_INTERVAL, HEARTBEAT_JSON,
 };
 use systemprompt_identifiers::UserId;
 use systemprompt_models::SystemEvent;
@@ -335,21 +335,6 @@ async fn test_broadcaster_connection_info_with_data() {
     assert_eq!(conn_count, 3);
 }
 
-#[test]
-fn test_agui_broadcaster_type() {
-    let _broadcaster: AgUiBroadcaster = GenericBroadcaster::new();
-}
-
-#[test]
-fn test_a2a_broadcaster_type() {
-    let _broadcaster: A2ABroadcaster = GenericBroadcaster::new();
-}
-
-#[test]
-fn test_context_broadcaster_type() {
-    let _broadcaster: ContextBroadcaster = GenericBroadcaster::new();
-}
-
 #[tokio::test]
 async fn test_connection_guard_debug() {
     use systemprompt_events::AGUI_BROADCASTER;
@@ -369,11 +354,6 @@ async fn test_connection_guard_debug() {
     assert!(debug_str.contains("test-conn"));
 
     let _ = AGUI_BROADCASTER.total_connections().await;
-}
-
-#[test]
-fn test_analytics_broadcaster_type() {
-    let _broadcaster: AnalyticsBroadcaster = GenericBroadcaster::new();
 }
 
 #[test]

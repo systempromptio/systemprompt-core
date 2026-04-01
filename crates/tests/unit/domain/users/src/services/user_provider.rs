@@ -214,18 +214,6 @@ mod auth_user_structure_tests {
         assert!(debug.contains("AuthUser") || debug.contains("id") || debug.contains("user-123"));
     }
 
-    #[test]
-    fn auth_user_fields_are_public() {
-        let user = create_test_user();
-        let auth_user: AuthUser = user.into();
-
-        // All fields should be accessible
-        let _ = &auth_user.id;
-        let _ = &auth_user.name;
-        let _ = &auth_user.email;
-        let _ = &auth_user.roles;
-        let _ = auth_user.is_active;
-    }
 }
 
 // ============================================================================

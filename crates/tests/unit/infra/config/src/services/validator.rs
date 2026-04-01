@@ -719,20 +719,6 @@ fn test_config_validator_debug() {
 }
 
 #[test]
-fn test_config_validator_clone() {
-    let validator = ConfigValidator;
-    let cloned = validator;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_config_validator_copy() {
-    let validator = ConfigValidator;
-    let copied: ConfigValidator = validator;
-    let _ = format!("{:?}", copied);
-}
-
-#[test]
 fn test_validate_unresolved_variable_in_nested_value() {
     let mut config = create_valid_config(DeployEnvironment::Local);
     config.variables.insert("API_SERVER_URL".to_string(), "http://${HOST}:${PORT}".to_string());

@@ -28,14 +28,6 @@ fn test_network_manager_clone() {
     assert!(debug.contains("NetworkManager"));
 }
 
-#[test]
-fn test_network_manager_copy() {
-    let manager = NetworkManager::new();
-    let copied = manager;
-    let _original_debug = format!("{:?}", manager);
-    let _copied_debug = format!("{:?}", copied);
-}
-
 // ============================================================================
 // NetworkManager Static Method Tests
 // ============================================================================
@@ -44,11 +36,6 @@ fn test_network_manager_copy() {
 fn test_network_manager_is_port_responsive_unused_port() {
     let result = NetworkManager::is_port_responsive(59997);
     assert!(!result);
-}
-
-#[test]
-fn test_network_manager_cleanup_port_resources() {
-    NetworkManager::cleanup_port_resources(59996);
 }
 
 #[test]
@@ -72,15 +59,3 @@ fn test_network_manager_create_proxy() {
     assert!(debug.contains("Router"));
 }
 
-#[test]
-fn test_network_manager_create_proxy_various_hosts() {
-    let _ = NetworkManager::create_proxy("127.0.0.1", 3000);
-    let _ = NetworkManager::create_proxy("0.0.0.0", 5000);
-    let _ = NetworkManager::create_proxy("example.com", 443);
-}
-
-#[test]
-fn test_network_manager_create_proxy_boundary_ports() {
-    let _ = NetworkManager::create_proxy("localhost", 1);
-    let _ = NetworkManager::create_proxy("localhost", 65535);
-}

@@ -32,24 +32,6 @@ fn test_event_bus_custom_capacity() {
     assert!(debug_str.contains("AgentEventBus"));
 }
 
-// ============================================================================
-// Subscribe Tests
-// ============================================================================
-
-#[test]
-fn test_event_bus_subscribe() {
-    let bus = AgentEventBus::new(10);
-    let _receiver = bus.subscribe();
-}
-
-#[test]
-fn test_event_bus_multiple_subscribers() {
-    let bus = AgentEventBus::new(10);
-    let _receiver1 = bus.subscribe();
-    let _receiver2 = bus.subscribe();
-    let _receiver3 = bus.subscribe();
-}
-
 #[test]
 fn test_event_bus_sender() {
     let bus = AgentEventBus::new(10);
@@ -60,21 +42,6 @@ fn test_event_bus_sender() {
     };
     let result = sender.send(event);
     assert!(result.is_err());
-}
-
-// ============================================================================
-// Publish Tests
-// ============================================================================
-
-#[test]
-fn test_event_bus_publish_no_subscribers() {
-    let bus = AgentEventBus::new(10);
-
-    let event = AgentEvent::AgentStartRequested {
-        agent_id: "test".to_string(),
-    };
-
-    bus.publish(event);
 }
 
 #[tokio::test]

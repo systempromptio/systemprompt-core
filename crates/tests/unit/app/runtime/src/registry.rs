@@ -18,20 +18,6 @@ use systemprompt_runtime::{
 // ============================================================================
 
 #[test]
-fn test_api_registry_new() {
-    let registry = ModuleApiRegistry::new();
-    // Registry should be created (may or may not have entries depending on inventory)
-    let _ = registry;
-}
-
-#[test]
-fn test_api_registry_default() {
-    let registry = ModuleApiRegistry::default();
-    // Default should behave same as new()
-    let _ = registry;
-}
-
-#[test]
 fn test_api_registry_debug() {
     let registry = ModuleApiRegistry::new();
     let debug_str = format!("{:?}", registry);
@@ -88,30 +74,6 @@ fn test_modules_by_category_core() {
     let modules = registry.modules_by_category(ServiceCategory::Core);
     // Returns a list (may be empty if no modules registered)
     assert!(modules.is_empty() || !modules.is_empty());
-}
-
-#[test]
-fn test_modules_by_category_agent() {
-    let registry = ModuleApiRegistry::new();
-    let modules = registry.modules_by_category(ServiceCategory::Agent);
-    // Returns a list (may be empty if no modules registered)
-    let _ = modules;
-}
-
-#[test]
-fn test_modules_by_category_mcp() {
-    let registry = ModuleApiRegistry::new();
-    let modules = registry.modules_by_category(ServiceCategory::Mcp);
-    // Returns a list (may be empty if no modules registered)
-    let _ = modules;
-}
-
-#[test]
-fn test_modules_by_category_meta() {
-    let registry = ModuleApiRegistry::new();
-    let modules = registry.modules_by_category(ServiceCategory::Meta);
-    // Returns a list (may be empty if no modules registered)
-    let _ = modules;
 }
 
 #[test]
@@ -319,34 +281,6 @@ fn test_wellknown_route_clone() {
 
     let cloned = route;
     assert_eq!(cloned.path, "/.well-known/clone");
-}
-
-// ============================================================================
-// ServiceCategory Enum Tests
-// ============================================================================
-
-#[test]
-fn test_service_category_core_value() {
-    let category = ServiceCategory::Core;
-    let _ = category;
-}
-
-#[test]
-fn test_service_category_agent_value() {
-    let category = ServiceCategory::Agent;
-    let _ = category;
-}
-
-#[test]
-fn test_service_category_mcp_value() {
-    let category = ServiceCategory::Mcp;
-    let _ = category;
-}
-
-#[test]
-fn test_service_category_meta_value() {
-    let category = ServiceCategory::Meta;
-    let _ = category;
 }
 
 // ============================================================================

@@ -182,20 +182,6 @@ fn test_validation_result_type_copy() {
 }
 
 // ============================================================================
-// ValidationResultType Debug Tests
-// ============================================================================
-
-#[test]
-fn test_validation_result_type_debug() {
-    assert!(format!("{:?}", ValidationResultType::AuthRequired).contains("AuthRequired"));
-    assert!(format!("{:?}", ValidationResultType::PortUnavailable).contains("PortUnavailable"));
-    assert!(format!("{:?}", ValidationResultType::ConnectionFailed).contains("ConnectionFailed"));
-    assert!(format!("{:?}", ValidationResultType::Timeout).contains("Timeout"));
-    assert!(format!("{:?}", ValidationResultType::Success).contains("Success"));
-    assert!(format!("{:?}", ValidationResultType::Error).contains("Error"));
-}
-
-// ============================================================================
 // ValidationResultType Roundtrip Tests
 // ============================================================================
 

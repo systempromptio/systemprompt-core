@@ -4,7 +4,7 @@ use std::any::Any;
 use std::sync::Arc;
 
 use systemprompt_extension::capabilities::{
-    CapabilityContext, FullContext, HasConfig, HasDatabase, HasEventBus,
+    CapabilityContext, FullContext, HasConfig, HasDatabase,
 };
 use systemprompt_traits::{ConfigProvider, DatabaseHandle, UserEvent, UserEventPublisher};
 
@@ -69,20 +69,6 @@ impl UserEventPublisher for MockEventBus {
 // =============================================================================
 
 #[test]
-fn test_capability_context_creation() {
-    let config = Arc::new(MockConfig {
-        app_name: "test-app".to_string(),
-    });
-    let database = Arc::new(MockDatabase);
-    let event_bus = Arc::new(MockEventBus);
-
-    let ctx = CapabilityContext::new(config, database, event_bus);
-
-    // Just verify it compiles and can be created
-    let _ = ctx;
-}
-
-#[test]
 fn test_has_config_trait() {
     let config = Arc::new(MockConfig {
         app_name: "test-app".to_string(),
@@ -108,35 +94,6 @@ fn test_has_database_trait() {
 
     let db: &MockDatabase = ctx.database();
     assert!(db.is_connected());
-}
-
-#[test]
-fn test_has_event_bus_trait() {
-    let config = Arc::new(MockConfig {
-        app_name: "test-app".to_string(),
-    });
-    let database = Arc::new(MockDatabase);
-    let event_bus = Arc::new(MockEventBus);
-
-    let ctx = CapabilityContext::new(config, database, event_bus);
-
-    let _bus: &MockEventBus = ctx.event_bus();
-    // Just verify we can access it
-}
-
-#[test]
-fn test_full_context_trait() {
-    // Verify that CapabilityContext implements FullContext
-    fn assert_full_context<T: FullContext>(_: &T) {}
-
-    let config = Arc::new(MockConfig {
-        app_name: "test-app".to_string(),
-    });
-    let database = Arc::new(MockDatabase);
-    let event_bus = Arc::new(MockEventBus);
-
-    let ctx = CapabilityContext::new(config, database, event_bus);
-    assert_full_context(&ctx);
 }
 
 // =============================================================================

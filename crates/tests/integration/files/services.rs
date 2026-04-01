@@ -5,7 +5,7 @@
 
 use systemprompt_database::Database;
 use systemprompt_files::{
-    AiService, ContentService, FileRepository, FileService, InsertFileRequest,
+    AiService, ContentService, FileService, InsertFileRequest,
 };
 use systemprompt_identifiers::{ContentId, FileId, UserId};
 
@@ -38,32 +38,6 @@ async fn test_file_service_new() {
 
     let result = FileService::new(db.pool());
     assert!(result.is_ok(), "FileService::new should succeed");
-}
-
-#[tokio::test]
-async fn test_file_service_from_repository() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
-    let service = FileService::from_repository(repo);
-
-    // Verify we can use the service
-    let _ = service.repository();
-}
-
-#[tokio::test]
-async fn test_file_service_repository_accessor() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let service = FileService::new(db.pool()).expect("Failed to create service");
-    let _repo = service.repository();
-    // Just verify accessor works
 }
 
 #[tokio::test]
@@ -185,27 +159,6 @@ async fn test_file_service_delete() {
     assert!(file.is_none(), "File should be deleted");
 }
 
-#[tokio::test]
-async fn test_file_service_update_metadata() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    use systemprompt_files::FileMetadata;
-
-    let service = FileService::new(db.pool()).expect("Failed to create service");
-    let request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
-
-    service.insert(request.clone()).await.expect("Insert should succeed");
-
-    let metadata = FileMetadata::default();
-    service.update_metadata(&request.id, &metadata).await.expect("Update should succeed");
-
-    // Cleanup
-    let _ = service.delete(&request.id).await;
-}
-
 // ============================================================================
 // AiService Tests
 // ============================================================================
@@ -219,19 +172,6 @@ async fn test_ai_service_new() {
 
     let result = AiService::new(db.pool());
     assert!(result.is_ok(), "AiService::new should succeed");
-}
-
-#[tokio::test]
-async fn test_ai_service_from_repository() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
-    let service = AiService::from_repository(repo);
-
-    let _ = service.repository();
 }
 
 #[tokio::test]
@@ -331,57 +271,6 @@ async fn test_content_service_new() {
 
     let result = ContentService::new(db.pool());
     assert!(result.is_ok(), "ContentService::new should succeed");
-}
-
-#[tokio::test]
-async fn test_content_service_from_repository() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    let repo = FileRepository::new(db.pool()).expect("Failed to create repository");
-    let service = ContentService::from_repository(repo);
-
-    let _ = service.repository();
-}
-
-// Note: ContentService methods require content to exist in the database
-// These tests would require setting up content records first
-// For now, we just test service construction
-
-#[tokio::test]
-async fn test_content_service_link_operations() {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return;
-    };
-
-    use systemprompt_files::FileRole;
-
-    let content_service = ContentService::new(db.pool()).expect("Failed to create content service");
-    let file_service = FileService::new(db.pool()).expect("Failed to create file service");
-
-    // Insert a file first
-    let file_request = create_test_file_request(&uuid::Uuid::new_v4().to_string());
-    file_service.insert(file_request.clone()).await.expect("Insert should succeed");
-
-    // Try to link to a content ID (this may fail if content doesn't exist due to FK constraint)
-    let content_id = ContentId::new(format!("content_{}", uuid::Uuid::new_v4()));
-
-    let link_result = content_service
-        .link_to_content(&content_id, &file_request.id, FileRole::Attachment, 0)
-        .await;
-
-    // The link may fail due to FK constraint if content doesn't exist
-    // That's expected behavior - we're just testing the service method works
-    if link_result.is_ok() {
-        // If it succeeded, clean up the link
-        let _ = content_service.unlink_from_content(&content_id, &file_request.id).await;
-    }
-
-    // Cleanup file
-    let _ = file_service.delete(&file_request.id).await;
 }
 
 #[tokio::test]

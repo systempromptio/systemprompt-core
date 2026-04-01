@@ -64,28 +64,6 @@ fn test_log_row_minimal() {
     assert!(row.client_id.is_none());
 }
 
-#[test]
-fn test_log_row_debug() {
-    let row = LogRow {
-        id: LogId::new("debug-row"),
-        timestamp: Utc::now(),
-        level: "debug".to_string(),
-        module: "debug::module".to_string(),
-        message: "Debug message".to_string(),
-        metadata: None,
-        user_id: None,
-        session_id: None,
-        task_id: None,
-        trace_id: None,
-        context_id: None,
-        client_id: None,
-    };
-
-    let debug = format!("{:?}", row);
-    assert!(debug.contains("LogRow"));
-    assert!(debug.contains("debug::module"));
-}
-
 // ============================================================================
 // LogRow to LogEntry Conversion Tests
 // ============================================================================

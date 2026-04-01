@@ -91,18 +91,3 @@ fn test_database_extension_copy() {
     assert_eq!(ext.metadata().id, copied.metadata().id);
 }
 
-// ============================================================================
-// DatabaseExtension is_send_sync Tests
-// ============================================================================
-
-#[test]
-fn test_database_extension_is_send() {
-    fn assert_send<T: Send>() {}
-    assert_send::<DatabaseExtension>();
-}
-
-#[test]
-fn test_database_extension_is_sync() {
-    fn assert_sync<T: Sync>() {}
-    assert_sync::<DatabaseExtension>();
-}

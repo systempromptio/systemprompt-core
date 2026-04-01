@@ -258,20 +258,6 @@ fn test_header_injector_debug() {
     assert!(debug_str.contains("HeaderInjector"));
 }
 
-#[test]
-fn test_header_injector_clone() {
-    let injector = HeaderInjector;
-    let cloned = injector;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_header_injector_copy() {
-    let injector = HeaderInjector;
-    let copied: HeaderInjector = injector;
-    let _ = format!("{:?}", copied);
-}
-
 // ============================================================================
 // HeaderExtractor Tests
 // ============================================================================
@@ -420,20 +406,6 @@ fn test_header_extractor_debug() {
     let extractor = HeaderExtractor;
     let debug_str = format!("{:?}", extractor);
     assert!(debug_str.contains("HeaderExtractor"));
-}
-
-#[test]
-fn test_header_extractor_clone() {
-    let extractor = HeaderExtractor;
-    let cloned = extractor;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_header_extractor_copy() {
-    let extractor = HeaderExtractor;
-    let copied: HeaderExtractor = extractor;
-    let _ = format!("{:?}", copied);
 }
 
 // ============================================================================

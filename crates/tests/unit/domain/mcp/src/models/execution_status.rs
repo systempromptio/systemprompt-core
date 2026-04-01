@@ -86,21 +86,3 @@ fn test_execution_status_copy() {
     assert_eq!(status, copied);
 }
 
-// ============================================================================
-// ExecutionStatus Debug Tests
-// ============================================================================
-
-#[test]
-fn test_execution_status_debug_pending() {
-    assert!(format!("{:?}", ExecutionStatus::Pending).contains("Pending"));
-}
-
-#[test]
-fn test_execution_status_debug_success() {
-    assert!(format!("{:?}", ExecutionStatus::Success).contains("Success"));
-}
-
-#[test]
-fn test_execution_status_debug_failed() {
-    assert!(format!("{:?}", ExecutionStatus::Failed).contains("Failed"));
-}

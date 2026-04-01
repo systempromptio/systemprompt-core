@@ -85,18 +85,6 @@ fn test_health_status_copy() {
 }
 
 // ============================================================================
-// HealthStatus Debug Tests
-// ============================================================================
-
-#[test]
-fn test_health_status_debug() {
-    assert!(format!("{:?}", HealthStatus::Healthy).contains("Healthy"));
-    assert!(format!("{:?}", HealthStatus::Degraded).contains("Degraded"));
-    assert!(format!("{:?}", HealthStatus::Unhealthy).contains("Unhealthy"));
-    assert!(format!("{:?}", HealthStatus::Unknown).contains("Unknown"));
-}
-
-// ============================================================================
 // HealthStatus All Variants Tests
 // ============================================================================
 

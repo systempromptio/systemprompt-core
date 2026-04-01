@@ -578,16 +578,3 @@ fn test_scanner_detector_debug() {
     assert!(debug_str.contains("ScannerDetector"));
 }
 
-#[test]
-fn test_scanner_detector_clone() {
-    let detector = ScannerDetector;
-    let cloned = detector;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_scanner_detector_copy() {
-    let detector = ScannerDetector;
-    let copied: ScannerDetector = detector;
-    let _ = format!("{:?}", copied);
-}

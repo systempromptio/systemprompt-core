@@ -46,16 +46,6 @@ fn test_authenticated_request_context_empty_token() {
 }
 
 #[test]
-fn test_authenticated_request_context_deref() {
-    let context = create_test_context();
-    let token = "test_token".to_string();
-    let auth_ctx = AuthenticatedRequestContext::new(context, token);
-
-    // Test Deref - should be able to access RequestContext methods
-    let _trace_id = auth_ctx.trace_id();
-}
-
-#[test]
 fn test_authenticated_request_context_clone() {
     let context = create_test_context();
     let token = "test_token".to_string();
@@ -78,42 +68,6 @@ fn test_authenticated_request_context_debug() {
 // ============================================================================
 // AuthResult Tests
 // ============================================================================
-
-#[test]
-fn test_auth_result_anonymous_context() {
-    let context = create_test_context();
-    let auth_result = AuthResult::Anonymous(context);
-
-    let _ctx = auth_result.context();
-}
-
-#[test]
-fn test_auth_result_authenticated_context() {
-    let context = create_test_context();
-    let token = "test_token".to_string();
-    let auth_ctx = AuthenticatedRequestContext::new(context, token);
-    let auth_result = AuthResult::Authenticated(auth_ctx);
-
-    let _ctx = auth_result.context();
-}
-
-#[test]
-fn test_auth_result_context_mut_anonymous() {
-    let context = create_test_context();
-    let mut auth_result = AuthResult::Anonymous(context);
-
-    let _ctx_mut = auth_result.context_mut();
-}
-
-#[test]
-fn test_auth_result_context_mut_authenticated() {
-    let context = create_test_context();
-    let token = "test_token".to_string();
-    let auth_ctx = AuthenticatedRequestContext::new(context, token);
-    let mut auth_result = AuthResult::Authenticated(auth_ctx);
-
-    let _ctx_mut = auth_result.context_mut();
-}
 
 #[test]
 fn test_auth_result_expect_authenticated_success() {

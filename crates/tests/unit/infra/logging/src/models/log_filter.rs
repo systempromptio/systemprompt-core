@@ -191,14 +191,6 @@ fn test_log_filter_clone() {
     assert_eq!(filter.message(), cloned.message());
 }
 
-#[test]
-fn test_log_filter_debug() {
-    let filter = LogFilter::new(1, 10).with_level("INFO");
-    let debug = format!("{:?}", filter);
-
-    assert!(debug.contains("LogFilter"));
-}
-
 // ============================================================================
 // LogFilter Edge Cases
 // ============================================================================

@@ -105,16 +105,3 @@ fn test_is_browser_request_html_with_charset() {
     assert!(is_browser_request(&headers));
 }
 
-#[test]
-fn test_is_browser_request_case_sensitivity() {
-    let mut headers = HeaderMap::new();
-    headers.insert("accept", "TEXT/HTML".parse().unwrap());
-
-    // HTTP headers are case-insensitive, but content types are typically lowercase
-    // This tests how the implementation handles case
-    // The check uses contains("text/html") so uppercase may not match
-    // This test documents the actual behavior
-    let result = is_browser_request(&headers);
-    // Accept whatever the implementation does - this documents behavior
-    let _ = result;
-}

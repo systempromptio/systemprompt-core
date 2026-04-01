@@ -28,14 +28,6 @@ fn test_process_manager_clone() {
     assert!(debug.contains("ProcessManager"));
 }
 
-#[test]
-fn test_process_manager_copy() {
-    let manager = ProcessManager::new();
-    let copied = manager;
-    let _original_debug = format!("{:?}", manager);
-    let _copied_debug = format!("{:?}", copied);
-}
-
 // ============================================================================
 // ProcessManager Static Method Tests
 // ============================================================================

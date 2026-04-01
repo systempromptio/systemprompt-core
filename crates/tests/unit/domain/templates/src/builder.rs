@@ -58,14 +58,6 @@ mod with_provider_tests {
         assert_eq!(registry.stats().providers, 3);
     }
 
-    #[test]
-    fn with_provider_returns_self_for_chaining() {
-        let _registry = TemplateRegistryBuilder::new()
-            .with_provider(provider(MockProvider::new("p1")))
-            .with_provider(provider(MockProvider::new("p2")))
-            .with_loader(loader(MockLoader::new()))
-            .build();
-    }
 }
 
 mod with_loader_tests {
@@ -181,13 +173,6 @@ mod build_tests {
         assert_eq!(stats.page_providers, 1);
     }
 
-    #[test]
-    fn build_consumes_builder() {
-        let builder = TemplateRegistryBuilder::new()
-            .with_provider(provider(MockProvider::new("p")));
-
-        let _registry = builder.build();
-    }
 }
 
 mod build_and_init_tests {
@@ -274,22 +259,6 @@ mod build_and_init_tests {
 
 mod chaining_tests {
     use super::*;
-
-    #[test]
-    fn all_methods_can_be_chained() {
-        let _registry = TemplateRegistryBuilder::new()
-            .with_provider(provider(MockProvider::new("p1")))
-            .with_provider(provider(MockProvider::new("p2")))
-            .with_loader(loader(MockLoader::new()))
-            .with_loader(loader(MockLoader::new()))
-            .with_extender(extender(MockExtender::new("e1")))
-            .with_extender(extender(MockExtender::new("e2")))
-            .with_component(component(MockComponent::new("c1", "var1")))
-            .with_component(component(MockComponent::new("c2", "var2")))
-            .with_page_provider(page_provider(MockPageProvider::new("pp1")))
-            .with_page_provider(page_provider(MockPageProvider::new("pp2")))
-            .build();
-    }
 
     #[test]
     fn methods_can_be_called_in_any_order() {

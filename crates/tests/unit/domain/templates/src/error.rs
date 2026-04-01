@@ -199,12 +199,6 @@ mod error_trait_tests {
     use std::error::Error;
 
     #[test]
-    fn template_error_is_error() {
-        let error = TemplateError::NotFound("test".to_string());
-        let _: &dyn Error = &error;
-    }
-
-    #[test]
     fn not_found_source_is_none() {
         let error = TemplateError::NotFound("test".to_string());
         assert!(error.source().is_none());

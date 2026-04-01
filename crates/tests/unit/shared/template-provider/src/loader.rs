@@ -53,24 +53,6 @@ mod embedded_loader_tests {
     }
 
     #[test]
-    fn is_default() {
-        let _loader = EmbeddedLoader::default();
-    }
-
-    #[test]
-    fn is_clone() {
-        let loader = EmbeddedLoader;
-        let _cloned = loader;
-    }
-
-    #[test]
-    fn is_copy() {
-        let loader = EmbeddedLoader;
-        let copied: EmbeddedLoader = loader;
-        let _ = copied;
-    }
-
-    #[test]
     fn is_debug() {
         let loader = EmbeddedLoader;
         let debug = format!("{:?}", loader);

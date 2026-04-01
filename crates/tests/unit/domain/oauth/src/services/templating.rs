@@ -173,23 +173,6 @@ fn test_load_webauthn_oauth_template() {
 // ============================================================================
 
 #[test]
-fn test_template_engine_copy() {
-    let engine = TemplateEngine;
-    let copied = engine;
-    // Should compile - TemplateEngine is Copy
-    let _ = copied;
-    let _ = engine;
-}
-
-#[test]
-fn test_template_engine_clone() {
-    let engine = TemplateEngine;
-    let cloned = engine.clone();
-    // Should compile - TemplateEngine is Clone
-    let _ = cloned;
-}
-
-#[test]
 fn test_template_engine_debug() {
     let engine = TemplateEngine;
     let debug_str = format!("{:?}", engine);

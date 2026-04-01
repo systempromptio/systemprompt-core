@@ -68,12 +68,6 @@ mod validation_error_tests {
     }
 
     #[test]
-    fn validation_error_is_std_error() {
-        let err = ValidationError::new("test", "error");
-        let _: &dyn std::error::Error = &err;
-    }
-
-    #[test]
     fn validation_error_is_clone() {
         let err = ValidationError::new("field", "message")
             .with_context("ctx");

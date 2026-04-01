@@ -250,16 +250,3 @@ fn test_jwt_service_debug() {
     assert!(debug_str.contains("JwtService"));
 }
 
-#[test]
-fn test_jwt_service_clone() {
-    let service = JwtService;
-    let cloned = service;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_jwt_service_copy() {
-    let service = JwtService;
-    let copied: JwtService = service;
-    let _ = format!("{:?}", copied);
-}

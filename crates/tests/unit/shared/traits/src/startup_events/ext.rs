@@ -329,14 +329,6 @@ mod optional_startup_event_ext_tests {
     }
 
     #[tokio::test]
-    async fn phase_started_with_none_does_nothing() {
-        let optional: Option<&systemprompt_traits::StartupEventSender> = None;
-
-        // Should not panic
-        optional.phase_started(Phase::Database);
-    }
-
-    #[tokio::test]
     async fn mcp_starting_with_some_sender() {
         let (tx, mut rx) = startup_channel();
         let optional: Option<&_> = Some(&tx);
@@ -353,26 +345,10 @@ mod optional_startup_event_ext_tests {
         }
     }
 
-    #[tokio::test]
-    async fn mcp_starting_with_none_does_nothing() {
-        let optional: Option<&systemprompt_traits::StartupEventSender> = None;
-
-        // Should not panic
-        optional.mcp_starting("test", 5000);
-    }
 }
 
 mod startup_channel_tests {
     use super::*;
-
-    #[test]
-    fn startup_channel_creates_sender_receiver_pair() {
-        let (tx, _rx) = startup_channel();
-        // Should be able to send without receiver being polled (unbounded channel)
-        tx.phase_started(Phase::PreFlight);
-        tx.phase_started(Phase::Database);
-        tx.phase_started(Phase::McpServers);
-    }
 
     #[tokio::test]
     async fn multiple_events_received_in_order() {

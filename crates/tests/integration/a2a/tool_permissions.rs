@@ -149,64 +149,6 @@ async fn test_permission_filtering_prevents_403_errors() {
     );
 }
 
-/// Test that users without required permissions don't see restricted tools
-#[tokio::test]
-async fn test_restricted_tools_not_visible_without_permission() {
-    let ctx = TestContext::new().await.expect("Failed to create test context");
-
-    // If we had a server that requires "admin" scope, anonymous users shouldn't see its tools
-    // For now, verify that the permission filtering is applied
-
-    let anon_token_response = ctx.http_client
-        .post(&format!("{}/api/v1/core/oauth/session", ctx.base_url))
-        .send()
-        .await
-        .expect("Failed to generate anonymous token");
-
-    let token_data: serde_json::Value = anon_token_response.json().await
-        .expect("Failed to parse token response");
-
-    let anon_token = token_data.get("access_token")
-        .and_then(|t| t.as_str())
-        .expect("Should have access_token");
-
-    // Get admin agent (might have restricted tools)
-    let card_response = ctx.http_client
-        .get(&format!("{}/api/v1/agents/admin/.well-known/agent-card.json", ctx.base_url))
-        .header("Authorization", format!("Bearer {}", anon_token))
-        .send()
-        .await
-        .expect("Failed to get admin agent card");
-
-    if card_response.status() == 200 {
-        let card: serde_json::Value = card_response.json().await
-            .expect("Failed to parse agent card");
-
-        let tools = card.get("capabilities")
-            .and_then(|c| c.get("tools"))
-            .and_then(|t| t.as_array())
-            .unwrap_or(&vec![]);
-
-        // Check if any tools from systemprompt-admin server are visible
-        // (they shouldn't be if that server requires admin scope)
-        let has_admin_tools = tools.iter().any(|tool| {
-            tool.get("serverName")
-                .and_then(|s| s.as_str())
-                .map(|s| s == "systemprompt-admin")
-                .unwrap_or(false)
-        });
-
-        // This assertion depends on your server configuration
-        // Adjust based on whether systemprompt-admin requires admin scope
-        if has_admin_tools {
-            println!(
-                "Warning: Anonymous user can see admin tools. \
-                 Check if systemprompt-admin server has proper OAuth requirements."
-            );
-        }
-    }
-}
-
 /// Test that permission check logs are generated
 #[tokio::test]
 async fn test_permission_checks_are_logged() {

@@ -29,53 +29,6 @@ fn test_event_bus_new_with_large_capacity() {
 }
 
 // ============================================================================
-// EventBus Subscribe Tests
-// ============================================================================
-
-#[test]
-fn test_event_bus_subscribe() {
-    let event_bus = EventBus::new(100);
-    let _receiver = event_bus.subscribe();
-}
-
-#[test]
-fn test_event_bus_multiple_subscribers() {
-    let event_bus = EventBus::new(100);
-    let _receiver1 = event_bus.subscribe();
-    let _receiver2 = event_bus.subscribe();
-    let _receiver3 = event_bus.subscribe();
-}
-
-// ============================================================================
-// EventBus Sender Tests
-// ============================================================================
-
-#[test]
-fn test_event_bus_sender() {
-    let event_bus = EventBus::new(100);
-    let sender = event_bus.sender();
-
-    // Verify sender can be cloned
-    let _sender_clone = sender.clone();
-}
-
-#[test]
-fn test_event_bus_sender_send() {
-    let event_bus = EventBus::new(100);
-    let sender = event_bus.sender();
-    let mut receiver = event_bus.subscribe();
-
-    let event = McpEvent::ServiceStartRequested {
-        service_name: "test-service".to_string(),
-    };
-
-    let _ = sender.send(event);
-
-    // Try to receive (may or may not succeed depending on timing)
-    let _ = receiver.try_recv();
-}
-
-// ============================================================================
 // EventBus Publish Tests
 // ============================================================================
 

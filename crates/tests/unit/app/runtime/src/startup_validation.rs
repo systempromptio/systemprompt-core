@@ -10,26 +10,12 @@
 //! Note: The validate() method requires Config and performs I/O operations.
 //! Full validation testing is performed in integration tests.
 
-use systemprompt_runtime::{display_validation_report, display_validation_warnings, StartupValidator};
+use systemprompt_runtime::StartupValidator;
 use systemprompt_traits::{DomainConfig, StartupValidationReport, ValidationReport};
 
 // ============================================================================
 // StartupValidator Creation Tests
 // ============================================================================
-
-#[test]
-fn test_startup_validator_new() {
-    let validator = StartupValidator::new();
-    // Validator should be created successfully
-    let _ = validator;
-}
-
-#[test]
-fn test_startup_validator_default() {
-    let validator = StartupValidator::default();
-    // Default should behave same as new()
-    let _ = validator;
-}
 
 #[test]
 fn test_startup_validator_debug() {
@@ -51,22 +37,6 @@ fn test_startup_validator_debug() {
 // - AgentConfigValidator
 // - McpConfigValidator
 // - AiConfigValidator
-
-#[test]
-fn test_startup_validator_creates_with_validators() {
-    // Creating a validator should not panic
-    let _validator = StartupValidator::new();
-}
-
-#[test]
-fn test_startup_validator_new_multiple_times() {
-    // Should be able to create multiple validators
-    let v1 = StartupValidator::new();
-    let v2 = StartupValidator::new();
-    let v3 = StartupValidator::default();
-
-    let _ = (v1, v2, v3);
-}
 
 // ============================================================================
 // Expected Domain Validators Documentation Tests
@@ -113,15 +83,6 @@ fn test_all_expected_domains() {
 // ============================================================================
 // Validator Lifecycle Tests
 // ============================================================================
-
-#[test]
-fn test_validator_can_be_dropped() {
-    {
-        let validator = StartupValidator::new();
-        let _ = validator;
-    }
-    // Validator should be dropped without issues
-}
 
 #[test]
 fn test_validator_in_option() {
@@ -313,22 +274,6 @@ fn test_phase_error_pattern() {
 // ============================================================================
 // FilesConfigValidator Tests
 // ============================================================================
-
-#[test]
-fn test_files_config_validator_creation() {
-    use systemprompt_runtime::FilesConfigValidator;
-
-    let validator = FilesConfigValidator::new();
-    let _ = validator;
-}
-
-#[test]
-fn test_files_config_validator_default() {
-    use systemprompt_runtime::FilesConfigValidator;
-
-    let validator = FilesConfigValidator::default();
-    let _ = validator;
-}
 
 #[test]
 fn test_files_config_validator_debug() {
@@ -545,61 +490,6 @@ fn test_validation_warning_with_suggestion() {
 // Display Functions Tests
 // ============================================================================
 
-#[test]
-fn test_display_validation_report_no_panic() {
-    let report = StartupValidationReport::new();
-    display_validation_report(&report);
-}
-
-#[test]
-fn test_display_validation_warnings_no_panic() {
-    let report = StartupValidationReport::new();
-    display_validation_warnings(&report);
-}
-
-#[test]
-fn test_display_validation_warnings_empty_report() {
-    let report = StartupValidationReport::new();
-    display_validation_warnings(&report);
-}
-
-#[test]
-fn test_display_validation_report_with_profile_path() {
-    use std::path::PathBuf;
-
-    let report = StartupValidationReport::new()
-        .with_profile_path(PathBuf::from("/etc/config.yaml"));
-    display_validation_report(&report);
-}
-
-#[test]
-fn test_display_validation_report_with_domain() {
-    let mut report = StartupValidationReport::new();
-    report.add_domain(ValidationReport::new("test"));
-    display_validation_report(&report);
-}
-
-#[test]
-fn test_display_validation_report_with_domain_error() {
-    use systemprompt_traits::validation_report::ValidationError;
-
-    let mut report = StartupValidationReport::new();
-    let mut domain = ValidationReport::new("test");
-    domain.add_error(ValidationError::new("field", "error message"));
-    report.add_domain(domain);
-    display_validation_report(&report);
-}
-
-#[test]
-fn test_display_validation_warnings_with_warnings() {
-    use systemprompt_traits::validation_report::ValidationWarning;
-
-    let mut report = StartupValidationReport::new();
-    let mut domain = ValidationReport::new("test");
-    domain.add_warning(ValidationWarning::new("field", "warning message"));
-    report.add_domain(domain);
-    display_validation_warnings(&report);
-}
 
 // ============================================================================
 // Expected Domains Complete List Tests

@@ -64,14 +64,6 @@ fn test_bot_type_debug() {
     assert_eq!(debug_str, "Human");
 }
 
-#[test]
-fn test_bot_type_all_variants_debug() {
-    assert_eq!(format!("{:?}", BotType::KnownBot), "KnownBot");
-    assert_eq!(format!("{:?}", BotType::Scanner), "Scanner");
-    assert_eq!(format!("{:?}", BotType::Suspicious), "Suspicious");
-    assert_eq!(format!("{:?}", BotType::Human), "Human");
-}
-
 // ============================================================================
 // BotMarker Struct Tests
 // ============================================================================

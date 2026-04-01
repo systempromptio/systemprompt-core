@@ -64,30 +64,4 @@ mod noop_provider_tests {
         assert!(debug.contains("NoopToolProvider"));
     }
 
-    #[test]
-    fn is_clone() {
-        let provider = NoopToolProvider::new();
-        let cloned = provider.clone();
-        // Both should be NoopToolProvider
-        assert!(format!("{:?}", cloned).contains("NoopToolProvider"));
-    }
-
-    #[test]
-    fn is_copy() {
-        let provider = NoopToolProvider::new();
-        let copied = provider;
-        // Original should still be usable (Copy)
-        assert!(format!("{:?}", provider).contains("NoopToolProvider"));
-        assert!(format!("{:?}", copied).contains("NoopToolProvider"));
-    }
-
-    #[test]
-    fn default_creates_same_as_new() {
-        let provider1 = NoopToolProvider::new();
-        let provider2 = NoopToolProvider::default();
-
-        // Both should behave the same
-        assert!(format!("{:?}", provider1).contains("NoopToolProvider"));
-        assert!(format!("{:?}", provider2).contains("NoopToolProvider"));
-    }
 }

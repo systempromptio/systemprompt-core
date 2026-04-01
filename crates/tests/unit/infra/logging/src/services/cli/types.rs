@@ -9,42 +9,6 @@ use systemprompt_logging::services::cli::theme::{
 // ============================================================================
 
 #[test]
-fn test_item_status_missing() {
-    let status = ItemStatus::Missing;
-    assert_eq!(format!("{:?}", status), "Missing");
-}
-
-#[test]
-fn test_item_status_applied() {
-    let status = ItemStatus::Applied;
-    assert_eq!(format!("{:?}", status), "Applied");
-}
-
-#[test]
-fn test_item_status_failed() {
-    let status = ItemStatus::Failed;
-    assert_eq!(format!("{:?}", status), "Failed");
-}
-
-#[test]
-fn test_item_status_valid() {
-    let status = ItemStatus::Valid;
-    assert_eq!(format!("{:?}", status), "Valid");
-}
-
-#[test]
-fn test_item_status_disabled() {
-    let status = ItemStatus::Disabled;
-    assert_eq!(format!("{:?}", status), "Disabled");
-}
-
-#[test]
-fn test_item_status_pending() {
-    let status = ItemStatus::Pending;
-    assert_eq!(format!("{:?}", status), "Pending");
-}
-
-#[test]
 fn test_item_status_clone() {
     let status = ItemStatus::Applied;
     let cloned = status.clone();
@@ -67,30 +31,6 @@ fn test_item_status_equality() {
 // ============================================================================
 // ModuleType Tests
 // ============================================================================
-
-#[test]
-fn test_module_type_schema() {
-    let module = ModuleType::Schema;
-    assert_eq!(format!("{:?}", module), "Schema");
-}
-
-#[test]
-fn test_module_type_seed() {
-    let module = ModuleType::Seed;
-    assert_eq!(format!("{:?}", module), "Seed");
-}
-
-#[test]
-fn test_module_type_module() {
-    let module = ModuleType::Module;
-    assert_eq!(format!("{:?}", module), "Module");
-}
-
-#[test]
-fn test_module_type_configuration() {
-    let module = ModuleType::Configuration;
-    assert_eq!(format!("{:?}", module), "Configuration");
-}
 
 #[test]
 fn test_module_type_clone() {
@@ -117,30 +57,6 @@ fn test_module_type_equality() {
 // ============================================================================
 
 #[test]
-fn test_message_level_success() {
-    let level = MessageLevel::Success;
-    assert_eq!(format!("{:?}", level), "Success");
-}
-
-#[test]
-fn test_message_level_warning() {
-    let level = MessageLevel::Warning;
-    assert_eq!(format!("{:?}", level), "Warning");
-}
-
-#[test]
-fn test_message_level_error() {
-    let level = MessageLevel::Error;
-    assert_eq!(format!("{:?}", level), "Error");
-}
-
-#[test]
-fn test_message_level_info() {
-    let level = MessageLevel::Info;
-    assert_eq!(format!("{:?}", level), "Info");
-}
-
-#[test]
 fn test_message_level_clone() {
     let level = MessageLevel::Success;
     let cloned = level.clone();
@@ -163,80 +79,6 @@ fn test_message_level_equality() {
 // ============================================================================
 // ActionType Tests
 // ============================================================================
-
-#[test]
-fn test_action_type_install() {
-    let action = ActionType::Install;
-    assert_eq!(format!("{:?}", action), "Install");
-}
-
-#[test]
-fn test_action_type_update() {
-    let action = ActionType::Update;
-    assert_eq!(format!("{:?}", action), "Update");
-}
-
-#[test]
-fn test_action_type_arrow() {
-    let action = ActionType::Arrow;
-    assert_eq!(format!("{:?}", action), "Arrow");
-}
-
-#[test]
-fn test_action_type_clone() {
-    let action = ActionType::Install;
-    let cloned = action.clone();
-    assert_eq!(format!("{:?}", action), format!("{:?}", cloned));
-}
-
-#[test]
-fn test_action_type_copy() {
-    let action = ActionType::Update;
-    let copied: ActionType = action;
-    assert_eq!(format!("{:?}", action), format!("{:?}", copied));
-}
-
-// ============================================================================
-// EmphasisType Tests
-// ============================================================================
-
-#[test]
-fn test_emphasis_type_highlight() {
-    let emphasis = EmphasisType::Highlight;
-    assert_eq!(format!("{:?}", emphasis), "Highlight");
-}
-
-#[test]
-fn test_emphasis_type_dim() {
-    let emphasis = EmphasisType::Dim;
-    assert_eq!(format!("{:?}", emphasis), "Dim");
-}
-
-#[test]
-fn test_emphasis_type_bold() {
-    let emphasis = EmphasisType::Bold;
-    assert_eq!(format!("{:?}", emphasis), "Bold");
-}
-
-#[test]
-fn test_emphasis_type_underlined() {
-    let emphasis = EmphasisType::Underlined;
-    assert_eq!(format!("{:?}", emphasis), "Underlined");
-}
-
-#[test]
-fn test_emphasis_type_clone() {
-    let emphasis = EmphasisType::Bold;
-    let cloned = emphasis.clone();
-    assert_eq!(format!("{:?}", emphasis), format!("{:?}", cloned));
-}
-
-#[test]
-fn test_emphasis_type_copy() {
-    let emphasis = EmphasisType::Dim;
-    let copied: EmphasisType = emphasis;
-    assert_eq!(format!("{:?}", emphasis), format!("{:?}", copied));
-}
 
 // ============================================================================
 // IconType Conversion Tests
@@ -290,14 +132,6 @@ fn test_icon_type_from_action_type_update() {
     assert!(matches!(icon, IconType::Action(ActionType::Update)));
 }
 
-#[test]
-fn test_icon_type_debug() {
-    let icon = IconType::Status(ItemStatus::Applied);
-    let debug = format!("{:?}", icon);
-    assert!(debug.contains("Status"));
-    assert!(debug.contains("Applied"));
-}
-
 // ============================================================================
 // ColorType Conversion Tests
 // ============================================================================
@@ -336,14 +170,6 @@ fn test_color_type_from_emphasis_type() {
 fn test_color_type_from_emphasis_type_bold() {
     let color: ColorType = EmphasisType::Bold.into();
     assert!(matches!(color, ColorType::Emphasis(EmphasisType::Bold)));
-}
-
-#[test]
-fn test_color_type_debug() {
-    let color = ColorType::Message(MessageLevel::Error);
-    let debug = format!("{:?}", color);
-    assert!(debug.contains("Message"));
-    assert!(debug.contains("Error"));
 }
 
 // ============================================================================

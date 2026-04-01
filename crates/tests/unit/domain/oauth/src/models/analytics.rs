@@ -50,19 +50,6 @@ fn test_client_analytics_timestamps_are_rfc3339() {
 }
 
 #[test]
-fn test_client_analytics_client_type_derived() {
-    let row = ClientAnalyticsRow {
-        client_id: "fp_first-party-client".to_string(),
-        ..create_analytics_row()
-    };
-
-    let analytics: ClientAnalytics = row.into();
-    // ClientType should be derived from client_id
-    assert!(format!("{:?}", analytics.client_type).contains("FirstParty") ||
-            format!("{:?}", analytics.client_type).contains("Unknown"));
-}
-
-#[test]
 fn test_client_analytics_serialize() {
     let row = create_analytics_row();
     let analytics: ClientAnalytics = row.into();

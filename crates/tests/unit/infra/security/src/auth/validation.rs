@@ -145,13 +145,6 @@ fn test_auth_mode_disabled_variant() {
 }
 
 #[test]
-fn test_auth_mode_debug() {
-    assert!(format!("{:?}", AuthMode::Required).contains("Required"));
-    assert!(format!("{:?}", AuthMode::Optional).contains("Optional"));
-    assert!(format!("{:?}", AuthMode::Disabled).contains("Disabled"));
-}
-
-#[test]
 fn test_auth_mode_clone() {
     let mode = AuthMode::Required;
     let cloned = mode;

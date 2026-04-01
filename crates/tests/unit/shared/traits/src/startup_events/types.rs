@@ -105,14 +105,6 @@ mod service_state_tests {
     use super::*;
 
     #[test]
-    fn service_state_variants() {
-        let _ = ServiceState::Starting;
-        let _ = ServiceState::Running;
-        let _ = ServiceState::Stopped;
-        let _ = ServiceState::Failed;
-    }
-
-    #[test]
     fn service_state_is_copy() {
         let state = ServiceState::Running;
         let copied = state;

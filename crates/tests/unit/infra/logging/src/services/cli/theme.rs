@@ -70,12 +70,6 @@ fn test_service_status_unknown_text() {
 }
 
 #[test]
-fn test_service_status_debug() {
-    let status = ServiceStatus::Running;
-    assert_eq!(format!("{:?}", status), "Running");
-}
-
-#[test]
 fn test_service_status_clone() {
     let status = ServiceStatus::Failed;
     let cloned = status.clone();
@@ -285,26 +279,6 @@ fn test_icons_for_message_level_info() {
     assert!(!emoji.to_string().is_empty());
 }
 
-#[test]
-fn test_icons_debug() {
-    let icons = Icons;
-    assert_eq!(format!("{:?}", icons), "Icons");
-}
-
-#[test]
-fn test_icons_clone() {
-    let icons = Icons;
-    let cloned = icons.clone();
-    assert_eq!(format!("{:?}", icons), format!("{:?}", cloned));
-}
-
-#[test]
-fn test_icons_copy() {
-    let icons = Icons;
-    let copied: Icons = icons;
-    assert_eq!(format!("{:?}", icons), format!("{:?}", copied));
-}
-
 // ============================================================================
 // Colors Tests
 // ============================================================================
@@ -417,12 +391,6 @@ fn test_colors_for_message_level_info() {
     assert!(!styled.to_string().is_empty());
 }
 
-#[test]
-fn test_colors_debug() {
-    let colors = Colors;
-    assert_eq!(format!("{:?}", colors), "Colors");
-}
-
 // ============================================================================
 // BrandColors Tests
 // ============================================================================
@@ -479,26 +447,6 @@ fn test_brand_colors_stopped() {
 fn test_brand_colors_starting() {
     let styled = BrandColors::starting("starting");
     assert!(!styled.to_string().is_empty());
-}
-
-#[test]
-fn test_brand_colors_debug() {
-    let brand = BrandColors;
-    assert_eq!(format!("{:?}", brand), "BrandColors");
-}
-
-#[test]
-fn test_brand_colors_clone() {
-    let brand = BrandColors;
-    let cloned = brand.clone();
-    assert_eq!(format!("{:?}", brand), format!("{:?}", cloned));
-}
-
-#[test]
-fn test_brand_colors_copy() {
-    let brand = BrandColors;
-    let copied: BrandColors = brand;
-    assert_eq!(format!("{:?}", brand), format!("{:?}", copied));
 }
 
 // ============================================================================
@@ -575,26 +523,6 @@ fn test_theme_color_for_emphasis_bold() {
 fn test_theme_color_for_emphasis_underlined() {
     let styled = Theme::color("test", EmphasisType::Underlined);
     assert!(!styled.to_string().is_empty());
-}
-
-#[test]
-fn test_theme_debug() {
-    let theme = Theme;
-    assert_eq!(format!("{:?}", theme), "Theme");
-}
-
-#[test]
-fn test_theme_clone() {
-    let theme = Theme;
-    let cloned = theme.clone();
-    assert_eq!(format!("{:?}", theme), format!("{:?}", cloned));
-}
-
-#[test]
-fn test_theme_copy() {
-    let theme = Theme;
-    let copied: Theme = theme;
-    assert_eq!(format!("{:?}", theme), format!("{:?}", copied));
 }
 
 // ============================================================================

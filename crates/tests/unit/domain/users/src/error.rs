@@ -209,13 +209,6 @@ mod error_trait_tests {
     use std::error::Error;
 
     #[test]
-    fn user_error_is_error() {
-        let error = UserError::Validation("test".to_string());
-        // This test verifies that UserError implements std::error::Error
-        let _: &dyn Error = &error;
-    }
-
-    #[test]
     fn not_found_source_is_none() {
         let error = UserError::NotFound(UserId::new("user-123".to_string()));
         assert!(error.source().is_none());

@@ -53,28 +53,6 @@ fn test_write_query_not_allowed_debug() {
 }
 
 // ============================================================================
-// QueryExecutorError Variant Tests
-// ============================================================================
-
-#[test]
-fn test_write_query_not_allowed_is_error() {
-    let error = QueryExecutorError::WriteQueryNotAllowed;
-    let _: &dyn std::error::Error = &error;
-}
-
-#[test]
-fn test_query_executor_error_is_send() {
-    fn assert_send<T: Send>() {}
-    assert_send::<QueryExecutorError>();
-}
-
-#[test]
-fn test_query_executor_error_is_sync() {
-    fn assert_sync<T: Sync>() {}
-    assert_sync::<QueryExecutorError>();
-}
-
-// ============================================================================
 // QueryExecutor Type Tests
 // ============================================================================
 

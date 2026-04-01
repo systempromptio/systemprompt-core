@@ -59,21 +59,6 @@ fn test_event_router_is_debug() {
     assert!(debug_str.contains("EventRouter"));
 }
 
-#[test]
-fn test_event_router_is_clone() {
-    let router = EventRouter;
-    let cloned = Clone::clone(&router);
-    assert!(format!("{:?}", cloned).contains("EventRouter"));
-}
-
-#[test]
-fn test_event_router_is_copy() {
-    let router = EventRouter;
-    let copied = router;
-    assert!(format!("{:?}", copied).contains("EventRouter"));
-    assert!(format!("{:?}", router).contains("EventRouter"));
-}
-
 #[tokio::test]
 async fn test_route_agui_returns_tuple() {
     let user_id = test_user_id();

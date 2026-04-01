@@ -215,25 +215,6 @@ mod anomaly_detection_service_tests {
     use super::*;
 
     #[test]
-    fn new_creates_service() {
-        let service = AnomalyDetectionService::new();
-        let _ = format!("{:?}", service);
-    }
-
-    #[test]
-    fn default_creates_service() {
-        let service = AnomalyDetectionService::default();
-        let _ = format!("{:?}", service);
-    }
-
-    #[test]
-    fn service_is_clone() {
-        let service = AnomalyDetectionService::new();
-        let cloned = service.clone();
-        let _ = format!("{:?}", cloned);
-    }
-
-    #[test]
     fn service_is_debug() {
         let service = AnomalyDetectionService::new();
         let debug_str = format!("{:?}", service);

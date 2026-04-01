@@ -83,12 +83,6 @@ impl ApiExtensionTypedDyn for ApiTestExtension {
 // =============================================================================
 
 #[test]
-fn test_extension_wrapper_new() {
-    let wrapper = ExtensionWrapper::new(BasicExtension);
-    let _ = wrapper; // Just verify it compiles and can be created
-}
-
-#[test]
 fn test_extension_wrapper_id() {
     let wrapper = ExtensionWrapper::new(BasicExtension);
     assert_eq!(wrapper.id(), "basic");
@@ -151,12 +145,6 @@ fn test_extension_wrapper_debug() {
 // =============================================================================
 // SchemaExtensionWrapper Tests
 // =============================================================================
-
-#[test]
-fn test_schema_extension_wrapper_new() {
-    let wrapper = SchemaExtensionWrapper::new(SchemaTestExtension);
-    let _ = wrapper;
-}
 
 #[test]
 fn test_schema_extension_wrapper_id() {
@@ -229,12 +217,6 @@ fn test_schema_extension_wrapper_debug() {
 // =============================================================================
 
 #[test]
-fn test_api_extension_wrapper_new() {
-    let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
-    let _ = wrapper;
-}
-
-#[test]
 fn test_api_extension_wrapper_id() {
     let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
     assert_eq!(wrapper.id(), "api-test");
@@ -295,15 +277,6 @@ fn test_api_extension_wrapper_debug() {
     let debug_str = format!("{:?}", wrapper);
     assert!(debug_str.contains("ApiExtensionWrapper"));
     assert!(debug_str.contains("ApiTestExtension"));
-}
-
-#[test]
-fn test_api_extension_wrapper_build_router() {
-    let wrapper = ApiExtensionWrapper::new(ApiTestExtension);
-    let api = wrapper.as_api().expect("should have api");
-    let router = api.build_router();
-    // Just verify it returns a router without panicking
-    let _ = router;
 }
 
 // =============================================================================

@@ -35,13 +35,6 @@ fn test_context_builder_with_extensions() {
 }
 
 #[test]
-fn test_context_builder_chaining() {
-    let registry = ExtensionRegistry::new();
-    let builder = AppContextBuilder::new().with_extensions(registry);
-    let _ = builder;
-}
-
-#[test]
 fn test_context_builder_with_startup_warnings_true() {
     let builder = AppContextBuilder::new().with_startup_warnings(true);
     let debug_str = format!("{:?}", builder);

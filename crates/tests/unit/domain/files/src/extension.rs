@@ -17,20 +17,6 @@ fn test_files_extension_default() {
 }
 
 #[test]
-fn test_files_extension_clone() {
-    let ext = FilesExtension;
-    let cloned = ext;
-    let _ = format!("{:?}", cloned);
-}
-
-#[test]
-fn test_files_extension_copy() {
-    let ext = FilesExtension;
-    let copied: FilesExtension = ext;
-    let _ = format!("{:?}", copied);
-}
-
-#[test]
 fn test_files_extension_debug() {
     let ext = FilesExtension;
     let debug_str = format!("{:?}", ext);

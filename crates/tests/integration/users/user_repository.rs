@@ -19,26 +19,6 @@ async fn get_db() -> Option<Database> {
 }
 
 // ============================================================================
-// UserRepository::new Tests
-// ============================================================================
-
-#[tokio::test]
-async fn repository_creation_from_db_pool() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let repo = UserRepository::new(&db_pool)?;
-
-    // Verify the repo is functional by calling find_first_user
-    let _ = repo.find_first_user().await;
-
-    Ok(())
-}
-
-// ============================================================================
 // UserRepository::create Tests
 // ============================================================================
 
@@ -303,28 +283,6 @@ async fn find_by_role_returns_users_with_role() -> Result<()> {
         .bind(created.id.as_str())
         .execute(pool.as_ref())
         .await;
-
-    Ok(())
-}
-
-// ============================================================================
-// UserRepository::find_first_user Tests
-// ============================================================================
-
-#[tokio::test]
-async fn find_first_user_returns_oldest_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let repo = UserRepository::new(&db_pool)?;
-
-    // This might return any user, just verify it doesn't error
-    let first = repo.find_first_user().await?;
-    // Can be None if no users exist, or Some if users exist
-    let _ = first;
 
     Ok(())
 }

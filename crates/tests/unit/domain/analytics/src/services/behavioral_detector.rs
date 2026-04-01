@@ -261,25 +261,6 @@ mod behavioral_bot_detector_tests {
     }
 
     #[test]
-    fn new_creates_detector() {
-        let detector = BehavioralBotDetector::new();
-        let _ = format!("{:?}", detector);
-    }
-
-    #[test]
-    fn detector_is_default() {
-        let detector = BehavioralBotDetector::default();
-        let _ = format!("{:?}", detector);
-    }
-
-    #[test]
-    fn detector_is_copy() {
-        let detector = BehavioralBotDetector::new();
-        let copied = detector;
-        let _ = format!("{:?}", copied);
-    }
-
-    #[test]
     fn analyze_normal_traffic_returns_low_score() {
         let input = create_input(10, vec!["/page1".to_string()], 100, 1, 10);
         let result = BehavioralBotDetector::analyze(&input);

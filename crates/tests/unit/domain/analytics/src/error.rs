@@ -58,12 +58,6 @@ mod analytics_error_tests {
     }
 
     #[test]
-    fn analytics_error_is_std_error() {
-        let err = AnalyticsError::SessionExpired;
-        let _: &dyn std::error::Error = &err;
-    }
-
-    #[test]
     fn analytics_error_is_debug() {
         let err = AnalyticsError::SessionNotFound("test".to_string());
         let debug_str = format!("{:?}", err);

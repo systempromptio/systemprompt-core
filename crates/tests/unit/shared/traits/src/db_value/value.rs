@@ -155,17 +155,6 @@ mod db_value_enum_tests {
     }
 
     #[test]
-    fn can_create_null_variants() {
-        let _ = DbValue::NullString;
-        let _ = DbValue::NullInt;
-        let _ = DbValue::NullFloat;
-        let _ = DbValue::NullBool;
-        let _ = DbValue::NullBytes;
-        let _ = DbValue::NullTimestamp;
-        let _ = DbValue::NullStringArray;
-    }
-
-    #[test]
     fn db_value_is_clone() {
         let value = DbValue::String("test".to_string());
         let cloned = value.clone();

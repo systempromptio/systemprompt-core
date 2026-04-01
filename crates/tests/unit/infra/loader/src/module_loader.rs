@@ -1,12 +1,6 @@
 use systemprompt_loader::ModuleLoader;
 
 #[test]
-fn test_discover_extensions_returns_vec() {
-    let extensions = ModuleLoader::discover_extensions();
-    let _ = extensions.len();
-}
-
-#[test]
 fn test_extensions_have_required_metadata() {
     let extensions = ModuleLoader::discover_extensions();
 
@@ -18,12 +12,6 @@ fn test_extensions_have_required_metadata() {
             "Extension version should not be empty"
         );
     }
-}
-
-#[test]
-fn test_collect_extension_schemas() {
-    let schemas = ModuleLoader::collect_extension_schemas();
-    let _ = schemas.len();
 }
 
 #[test]

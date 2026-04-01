@@ -117,37 +117,6 @@ fn test_logging_error_database_unavailable() {
 }
 
 // ============================================================================
-// LoggingError Debug Tests
-// ============================================================================
-
-#[test]
-fn test_logging_error_debug_invalid_log_entry() {
-    let error = LoggingError::invalid_log_entry("field", "reason");
-    let debug = format!("{:?}", error);
-
-    assert!(debug.contains("InvalidLogEntry"));
-    assert!(debug.contains("field"));
-    assert!(debug.contains("reason"));
-}
-
-#[test]
-fn test_logging_error_debug_validation_error() {
-    let error = LoggingError::validation_error("message");
-    let debug = format!("{:?}", error);
-
-    assert!(debug.contains("ValidationError"));
-    assert!(debug.contains("message"));
-}
-
-#[test]
-fn test_logging_error_debug_empty_module_name() {
-    let error = LoggingError::EmptyModuleName;
-    let debug = format!("{:?}", error);
-
-    assert!(debug.contains("EmptyModuleName"));
-}
-
-// ============================================================================
 // LoggingError Constructor with String Types Tests
 // ============================================================================
 

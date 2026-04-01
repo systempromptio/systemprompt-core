@@ -15,26 +15,6 @@ async fn get_db() -> Option<Database> {
 }
 
 // ============================================================================
-// UserService::new Tests
-// ============================================================================
-
-#[tokio::test]
-async fn service_creation_from_db_pool() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let service = UserService::new(&db_pool)?;
-
-    // Verify the service is functional
-    let _ = service.count().await?;
-
-    Ok(())
-}
-
-// ============================================================================
 // UserService CRUD Operations
 // ============================================================================
 
@@ -120,23 +100,6 @@ async fn service_list_users() -> Result<()> {
 
     let users = service.list(10, 0).await?;
     assert!(users.len() <= 10);
-
-    Ok(())
-}
-
-#[tokio::test]
-async fn service_list_all_users() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let service = UserService::new(&db_pool)?;
-
-    let users = service.list_all().await?;
-    // Just verify it runs
-    let _ = users;
 
     Ok(())
 }
@@ -362,23 +325,6 @@ async fn service_cleanup_old_anonymous() -> Result<()> {
 // ============================================================================
 // UserService Special Queries
 // ============================================================================
-
-#[tokio::test]
-async fn service_find_first_user() -> Result<()> {
-    let Some(db) = get_db().await else {
-        eprintln!("Skipping test (database not available)");
-        return Ok(());
-    };
-
-    let db_pool = db.as_pool()?;
-    let service = UserService::new(&db_pool)?;
-
-    let first = service.find_first_user().await?;
-    // May or may not exist
-    let _ = first;
-
-    Ok(())
-}
 
 #[tokio::test]
 async fn service_find_first_admin() -> Result<()> {

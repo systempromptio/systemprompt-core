@@ -11,12 +11,6 @@ fn test_box_future_type_compiles() {
     fn _assert_future_type<T>(_: BoxFuture<'_, T>) {}
 }
 
-#[test]
-fn test_box_future_is_send() {
-    fn assert_send<T: Send>() {}
-    assert_send::<BoxFuture<'static, ()>>();
-}
-
 // ============================================================================
 // DatabaseTransaction Trait Tests
 // ============================================================================

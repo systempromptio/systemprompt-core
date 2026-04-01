@@ -153,17 +153,6 @@ fn test_build_error_debug() {
 }
 
 // ============================================================================
-// BuildMode Debug Tests
-// ============================================================================
-
-#[test]
-fn test_build_mode_debug() {
-    assert!(format!("{:?}", BuildMode::Development).contains("Development"));
-    assert!(format!("{:?}", BuildMode::Production).contains("Production"));
-    assert!(format!("{:?}", BuildMode::Docker).contains("Docker"));
-}
-
-// ============================================================================
 // Edge Cases
 // ============================================================================
 

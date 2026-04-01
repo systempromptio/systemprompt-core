@@ -196,33 +196,7 @@ fn test_different_roles_have_different_permissions() {
 // ============================================================================
 
 #[test]
-fn test_base_roles_constants_are_static() {
-    // These should compile because the constants are 'static
-    let _: &'static str = BaseRoles::ANONYMOUS;
-    let _: &'static str = BaseRoles::USER;
-    let _: &'static str = BaseRoles::ADMIN;
-}
-
-#[test]
 fn test_available_roles_is_static() {
     let roles: &'static [&'static str] = BaseRoles::available_roles();
     assert!(!roles.is_empty());
-}
-
-#[test]
-fn test_base_role_name_is_static() {
-    let role = BaseRoles::anonymous();
-    let _: &'static str = role.name;
-}
-
-#[test]
-fn test_base_role_display_name_is_static() {
-    let role = BaseRoles::admin();
-    let _: &'static str = role.display_name;
-}
-
-#[test]
-fn test_base_role_description_is_static() {
-    let role = BaseRoles::anonymous();
-    let _: &'static str = role.description;
 }

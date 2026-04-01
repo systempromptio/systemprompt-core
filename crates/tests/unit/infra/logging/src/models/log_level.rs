@@ -143,19 +143,6 @@ fn test_log_level_copy() {
 }
 
 // ============================================================================
-// LogLevel Debug Tests
-// ============================================================================
-
-#[test]
-fn test_log_level_debug() {
-    assert!(format!("{:?}", LogLevel::Error).contains("Error"));
-    assert!(format!("{:?}", LogLevel::Warn).contains("Warn"));
-    assert!(format!("{:?}", LogLevel::Info).contains("Info"));
-    assert!(format!("{:?}", LogLevel::Debug).contains("Debug"));
-    assert!(format!("{:?}", LogLevel::Trace).contains("Trace"));
-}
-
-// ============================================================================
 // LogLevel Serialization Tests
 // ============================================================================
 

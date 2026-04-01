@@ -243,12 +243,6 @@ mod throttle_service_tests {
     }
 
     #[test]
-    fn new_creates_service() {
-        let service = ThrottleService::new();
-        let _ = format!("{:?}", service);
-    }
-
-    #[test]
     fn should_escalate_returns_false_when_blocked() {
         let criteria = create_criteria(100, 1000, 1.0, 100.0);
         assert!(!ThrottleService::should_escalate(&criteria, ThrottleLevel::Blocked));
@@ -363,16 +357,4 @@ mod throttle_service_tests {
         ));
     }
 
-    #[test]
-    fn throttle_service_is_default() {
-        let service = ThrottleService::default();
-        let _ = format!("{:?}", service);
-    }
-
-    #[test]
-    fn throttle_service_is_copy() {
-        let service = ThrottleService::new();
-        let copied = service;
-        let _ = format!("{:?}", copied);
-    }
 }

@@ -1,6 +1,6 @@
 //! Unit tests for repository types and traits
 
-use systemprompt_database::repository::{Entity, EntityId, GenericRepository, PgDbPool, RepositoryExt};
+use systemprompt_database::repository::{Entity, EntityId, GenericRepository, PgDbPool};
 use systemprompt_database::PgPool;
 
 // ============================================================================
@@ -32,29 +32,8 @@ fn test_string_implements_entity_id() {
 }
 
 // ============================================================================
-// Entity Trait Tests
-// ============================================================================
-
-#[test]
-fn test_entity_associated_types() {
-    fn _check_entity<E: Entity>()
-    where
-        E::Id: EntityId,
-    {
-    }
-}
-
-// ============================================================================
 // GenericRepository Tests
 // ============================================================================
-
-#[test]
-fn test_generic_repository_is_send_sync() {
-    fn _assert_send_sync<T: Send + Sync>() {}
-    fn _check<E: Entity>() {
-        _assert_send_sync::<GenericRepository<E>>();
-    }
-}
 
 #[test]
 fn test_generic_repository_is_clone() {
@@ -64,15 +43,3 @@ fn test_generic_repository_is_clone() {
     }
 }
 
-// ============================================================================
-// RepositoryExt Trait Tests
-// ============================================================================
-
-#[test]
-fn test_generic_repository_implements_repository_ext() {
-    fn _check<E: Entity>()
-    where
-        GenericRepository<E>: RepositoryExt<E>,
-    {
-    }
-}
