@@ -5119,6 +5119,7 @@ dependencies = [
  "systemprompt-identifiers",
  "systemprompt-models",
  "systemprompt-scheduler",
+ "systemprompt-traits",
  "tokio",
 ]
 
@@ -5191,8 +5192,11 @@ version = "0.0.11"
 dependencies = [
  "chrono",
  "serde_json",
+ "systemprompt-agent",
+ "systemprompt-content",
  "systemprompt-identifiers",
  "systemprompt-sync",
+ "tempfile",
  "tokio",
 ]
 
