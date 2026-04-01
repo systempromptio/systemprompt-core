@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.1.21] - 2026-04-01
+
+### Fixed
+- Remove silent error swallowing in `DatabaseLayer::flush()` — all DB log write failures are now reported with entry count
+- Logging initialization order: `init_logging(db_pool)` now works regardless of whether `init_console_logging()` was called first
+
+### Changed
+- Replace `DatabaseLayer` with `ProxyDatabaseLayer` architecture — subscriber is always initialized with a proxy that accepts a DB pool attachment at any time
+- Move `AppContext` construction logic from `new_internal()` into `AppContextBuilder::build()` — builder owns its construction
+- Move `init_logging()` call earlier in `AppContextBuilder::build()` — immediately after DB pool creation, before extension discovery
+- Extract `AppContextBuilder` into `crates/app/runtime/src/builder.rs`
+- Extract `ProxyDatabaseLayer` and shared span/event helpers into `crates/infra/logging/src/layer/proxy.rs`
+- Remove redundant `init_logging()` call from `serve.rs`
+
 ## [0.1.20] - 2026-04-01
 
 ### Changed

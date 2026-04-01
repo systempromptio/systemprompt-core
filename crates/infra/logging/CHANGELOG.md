@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.21] - 2026-04-01
+
+### Fixed
+- Remove silent error swallowing in `DatabaseLayer::flush()` — "does not exist" errors were silently dropped, hiding missing table issues
+
+### Changed
+- Replace fragile `OnceLock` initialization with `ProxyDatabaseLayer` — `init_logging(db_pool)` now works regardless of prior `init_console_logging()` calls
+- Unified subscriber setup via `ensure_subscriber()` — both init paths use the same registry with fmt + proxy layers
+- Extract `ProxyDatabaseLayer` and shared span/event helpers into `layer/proxy.rs`
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

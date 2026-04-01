@@ -1,12 +1,13 @@
+use crate::builder::AppContextBuilder;
 use crate::registry::ModuleApiRegistry;
 use anyhow::Result;
 use std::sync::Arc;
 use systemprompt_analytics::{AnalyticsService, FingerprintRepository, GeoIpReader};
-use systemprompt_database::{Database, DbPool};
+use systemprompt_database::DbPool;
 use systemprompt_extension::{Extension, ExtensionContext, ExtensionRegistry};
 use systemprompt_logging::CliService;
 use systemprompt_models::{
-    AppPaths, Config, ContentConfigRaw, ContentRouting, ProfileBootstrap, RouteClassifier,
+    AppPaths, Config, ContentConfigRaw, ContentRouting, RouteClassifier,
 };
 use systemprompt_traits::{
     AnalyticsProvider, AppContext as AppContextTrait, ConfigProvider, DatabaseHandle,
@@ -45,6 +46,20 @@ impl std::fmt::Debug for AppContext {
     }
 }
 
+#[derive(Debug)]
+pub struct AppContextParts {
+    pub config: Arc<Config>,
+    pub database: DbPool,
+    pub api_registry: Arc<ModuleApiRegistry>,
+    pub extension_registry: Arc<ExtensionRegistry>,
+    pub geoip_reader: Option<GeoIpReader>,
+    pub content_config: Option<Arc<ContentConfigRaw>>,
+    pub route_classifier: Arc<RouteClassifier>,
+    pub analytics_service: Arc<AnalyticsService>,
+    pub fingerprint_repo: Option<Arc<FingerprintRepository>>,
+    pub user_service: Option<Arc<UserService>>,
+}
+
 impl AppContext {
     pub async fn new() -> Result<Self> {
         Self::builder().build().await
@@ -55,85 +70,23 @@ impl AppContext {
         AppContextBuilder::new()
     }
 
-    async fn new_internal(
-        extension_registry: Option<ExtensionRegistry>,
-        show_startup_warnings: bool,
-    ) -> Result<Self> {
-        let profile = ProfileBootstrap::get()?;
-        AppPaths::init(&profile.paths)?;
-        systemprompt_files::FilesConfig::init()?;
-        let config = Arc::new(Config::get()?.clone());
-        let database = Arc::new(
-            Database::from_config_with_write(
-                &config.database_type,
-                &config.database_url,
-                config.database_write_url.as_deref(),
-            )
-            .await?,
-        );
-
-        if config.database_write_url.is_some() {
-            tracing::info!(
-                "Database read/write separation enabled: reads from replica, writes to primary"
-            );
+    pub fn from_parts(parts: AppContextParts) -> Self {
+        Self {
+            config: parts.config,
+            database: parts.database,
+            api_registry: parts.api_registry,
+            extension_registry: parts.extension_registry,
+            geoip_reader: parts.geoip_reader,
+            content_config: parts.content_config,
+            route_classifier: parts.route_classifier,
+            analytics_service: parts.analytics_service,
+            fingerprint_repo: parts.fingerprint_repo,
+            user_service: parts.user_service,
         }
-
-        let api_registry = Arc::new(ModuleApiRegistry::new());
-
-        let registry = extension_registry.unwrap_or_else(ExtensionRegistry::discover);
-        registry.validate()?;
-
-        let extension_registry = Arc::new(registry);
-
-        let geoip_reader = Self::load_geoip_database(&config, show_startup_warnings);
-        let content_config = Self::load_content_config(&config);
-
-        #[allow(trivial_casts)]
-        let content_routing: Option<Arc<dyn ContentRouting>> =
-            content_config.clone().map(|c| c as Arc<dyn ContentRouting>);
-
-        let route_classifier = Arc::new(RouteClassifier::new(content_routing.clone()));
-
-        let analytics_service = Arc::new(AnalyticsService::new(
-            &database,
-            geoip_reader.clone(),
-            content_routing,
-        )?);
-
-        let fingerprint_repo = match FingerprintRepository::new(&database) {
-            Ok(repo) => Some(Arc::new(repo)),
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to initialize fingerprint repository");
-                None
-            },
-        };
-
-        let user_service = match UserService::new(&database) {
-            Ok(svc) => Some(Arc::new(svc)),
-            Err(e) => {
-                tracing::warn!(error = %e, "Failed to initialize user service");
-                None
-            },
-        };
-
-        systemprompt_logging::init_logging(Arc::clone(&database));
-
-        Ok(Self {
-            config,
-            database,
-            api_registry,
-            extension_registry,
-            geoip_reader,
-            content_config,
-            route_classifier,
-            analytics_service,
-            fingerprint_repo,
-            user_service,
-        })
     }
 
     #[cfg(feature = "geolocation")]
-    fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
+    pub fn load_geoip_database(config: &Config, show_warnings: bool) -> Option<GeoIpReader> {
         let Some(geoip_path) = &config.geoip_database_path else {
             if show_warnings {
                 CliService::warning(
@@ -169,11 +122,11 @@ impl AppContext {
     }
 
     #[cfg(not(feature = "geolocation"))]
-    fn load_geoip_database(_config: &Config, _show_warnings: bool) -> Option<GeoIpReader> {
+    pub fn load_geoip_database(_config: &Config, _show_warnings: bool) -> Option<GeoIpReader> {
         None
     }
 
-    fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {
+    pub fn load_content_config(config: &Config) -> Option<Arc<ContentConfigRaw>> {
         let content_config_path = AppPaths::get()
             .ok()?
             .system()
@@ -325,34 +278,5 @@ impl ExtensionContext for AppContext {
 
     fn get_extension(&self, id: &str) -> Option<Arc<dyn Extension>> {
         self.extension_registry.get(id).cloned()
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct AppContextBuilder {
-    extension_registry: Option<ExtensionRegistry>,
-    show_startup_warnings: bool,
-}
-
-impl AppContextBuilder {
-    #[must_use]
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    #[must_use]
-    pub fn with_extensions(mut self, registry: ExtensionRegistry) -> Self {
-        self.extension_registry = Some(registry);
-        self
-    }
-
-    #[must_use]
-    pub const fn with_startup_warnings(mut self, show: bool) -> Self {
-        self.show_startup_warnings = show;
-        self
-    }
-
-    pub async fn build(self) -> Result<AppContext> {
-        AppContext::new_internal(self.extension_registry, self.show_startup_warnings).await
     }
 }

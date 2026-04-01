@@ -56,8 +56,6 @@ pub async fn execute_with_events(
 
     run_migrations(&ctx, events).await?;
 
-    systemprompt_logging::init_logging(Arc::clone(ctx.db_pool()));
-
     if let Some(tx) = events {
         tx.phase_started(Phase::Database);
         tx.unbounded_send(StartupEvent::DatabaseValidated).ok();

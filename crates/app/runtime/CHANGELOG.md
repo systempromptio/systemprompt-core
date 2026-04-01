@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.21] - 2026-04-01
+
+### Changed
+- Move `AppContext` construction logic from `new_internal()` into `AppContextBuilder::build()` — builder owns its construction
+- Extract `AppContextBuilder` into `builder.rs` to keep `context.rs` under 300-line limit
+- Add `AppContextParts` struct to avoid too-many-arguments in `from_parts()`
+- Move `init_logging()` call earlier — immediately after DB pool creation, capturing all subsequent tracing events in DB
+- Remove redundant `init_logging()` call from `serve.rs`
+
 ## [0.1.18] - 2026-03-27
 
 ### Changed

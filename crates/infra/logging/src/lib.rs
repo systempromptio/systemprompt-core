@@ -28,12 +28,14 @@ pub use trace::{
 
 use std::sync::OnceLock;
 
+use layer::ProxyDatabaseLayer;
 use systemprompt_database::DbPool;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{EnvFilter, Layer};
 
-static LOGGING_INITIALIZED: OnceLock<()> = OnceLock::new();
+static SUBSCRIBER_INITIALIZED: OnceLock<()> = OnceLock::new();
+static DB_PROXY: OnceLock<ProxyDatabaseLayer> = OnceLock::new();
 
 const NOISE_FILTERS: &[&str] = &[
     "tokio_cron_scheduler=warn",
@@ -54,16 +56,21 @@ fn build_filter(base: &str) -> EnvFilter {
     EnvFilter::new(filter_str)
 }
 
-pub fn init_logging(db_pool: DbPool) {
-    if LOGGING_INITIALIZED.set(()).is_err() {
+fn ensure_subscriber(level_override: Option<&str>) {
+    if SUBSCRIBER_INITIALIZED.set(()).is_err() {
         return;
     }
 
-    let console_filter = if is_startup_mode() {
-        EnvFilter::new("warn")
-    } else {
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter("info"))
-    };
+    let console_filter = level_override.map_or_else(
+        || {
+            if is_startup_mode() {
+                EnvFilter::new("warn")
+            } else {
+                EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter("info"))
+            }
+        },
+        |level| EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter(level)),
+    );
 
     let fmt_layer = tracing_subscriber::fmt::layer()
         .fmt_fields(FilterSystemFields::new())
@@ -71,8 +78,8 @@ pub fn init_logging(db_pool: DbPool) {
         .with_writer(std::io::stderr)
         .with_filter(console_filter);
 
-    let db_layer =
-        DatabaseLayer::new(db_pool).with_filter(tracing_subscriber::filter::LevelFilter::INFO);
+    let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new).clone();
+    let db_layer = proxy.with_filter(tracing_subscriber::filter::LevelFilter::INFO);
 
     tracing_subscriber::registry()
         .with(fmt_layer)
@@ -80,17 +87,17 @@ pub fn init_logging(db_pool: DbPool) {
         .init();
 }
 
+pub fn init_logging(db_pool: DbPool) {
+    ensure_subscriber(None);
+
+    let proxy = DB_PROXY.get_or_init(ProxyDatabaseLayer::new);
+    proxy.attach(db_pool);
+}
+
 pub fn init_console_logging() {
     init_console_logging_with_level(None);
 }
 
 pub fn init_console_logging_with_level(level: Option<&str>) {
-    if LOGGING_INITIALIZED.set(()).is_err() {
-        return;
-    }
-
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| build_filter(level.unwrap_or("info")));
-
-    tracing_subscriber::fmt().with_env_filter(env_filter).init();
+    ensure_subscriber(level);
 }

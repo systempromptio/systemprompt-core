@@ -1,3 +1,4 @@
+mod builder;
 mod context;
 mod database_context;
 mod installation;
@@ -7,7 +8,8 @@ mod startup_validation;
 mod validation;
 mod wellknown;
 
-pub use context::{AppContext, AppContextBuilder};
+pub use builder::AppContextBuilder;
+pub use context::AppContext;
 pub use database_context::DatabaseContext;
 pub use installation::{install_module, install_module_with_db};
 pub use registry::{ModuleApiRegistration, ModuleApiRegistry, ModuleRuntime, WellKnownRoute};
