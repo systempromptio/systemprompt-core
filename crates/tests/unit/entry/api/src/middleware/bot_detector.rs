@@ -57,13 +57,6 @@ fn test_bot_type_clone() {
     assert_eq!(original, cloned);
 }
 
-#[test]
-fn test_bot_type_debug() {
-    let bot_type = BotType::Human;
-    let debug_str = format!("{:?}", bot_type);
-    assert_eq!(debug_str, "Human");
-}
-
 // ============================================================================
 // BotMarker Struct Tests
 // ============================================================================

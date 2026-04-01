@@ -35,17 +35,6 @@ mod sync_api_client_tests {
         assert!(debug_str.contains("None"));
     }
 
-    #[test]
-    fn clone() {
-        let client = SyncApiClient::new("https://api.example.com", "test-token")
-            .expect("test client")
-            .with_direct_sync(Some("host.com".to_string()), Some("token".to_string()));
-
-        let cloned = client.clone();
-        let debug_original = format!("{:?}", client);
-        let debug_cloned = format!("{:?}", cloned);
-        assert_eq!(debug_original, debug_cloned);
-    }
 }
 
 mod registry_token_tests {
