@@ -13,8 +13,11 @@ workspace = true
 [dependencies]
 systemprompt-sync = { workspace = true }
 systemprompt-identifiers = { workspace = true }
+systemprompt-agent = { workspace = true }
+systemprompt-content = { workspace = true }
 chrono = { workspace = true }
 serde_json = { workspace = true }
+tempfile = { workspace = true }
 
 [dev-dependencies]
 tokio = { workspace = true }

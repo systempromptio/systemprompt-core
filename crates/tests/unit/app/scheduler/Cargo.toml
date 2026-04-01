@@ -12,6 +12,7 @@ workspace = true
 
 [dependencies]
 systemprompt-scheduler = { workspace = true }
+systemprompt-traits = { workspace = true }
 systemprompt-models = { workspace = true }
 systemprompt-identifiers = { workspace = true }
 chrono = { workspace = true }
