@@ -27,7 +27,7 @@ fn create_valid_metadata() -> ContentMetadata {
 fn test_validate_content_metadata_valid() {
     let metadata = create_valid_metadata();
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -36,8 +36,8 @@ fn test_validate_content_metadata_empty_title() {
     metadata.title = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("title"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("title"));
 }
 
 #[test]
@@ -46,7 +46,7 @@ fn test_validate_content_metadata_whitespace_title() {
     metadata.title = "   ".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.unwrap_err();
+    assert!(result.is_err());
 }
 
 #[test]
@@ -55,7 +55,7 @@ fn test_validate_content_metadata_empty_slug_allowed_for_index() {
     metadata.slug = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -64,8 +64,8 @@ fn test_validate_content_metadata_empty_author() {
     metadata.author = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("author"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("author"));
 }
 
 #[test]
@@ -74,8 +74,8 @@ fn test_validate_content_metadata_empty_published_at() {
     metadata.published_at = "".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("published_at"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("published_at"));
 }
 
 #[test]
@@ -84,8 +84,8 @@ fn test_validate_content_metadata_invalid_slug_uppercase() {
     metadata.slug = "Invalid-Slug".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("slug"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("slug"));
 }
 
 #[test]
@@ -94,7 +94,7 @@ fn test_validate_content_metadata_invalid_slug_spaces() {
     metadata.slug = "invalid slug".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.unwrap_err();
+    assert!(result.is_err());
 }
 
 #[test]
@@ -103,7 +103,7 @@ fn test_validate_content_metadata_valid_slug_with_numbers() {
     metadata.slug = "article-2024-01".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -112,8 +112,8 @@ fn test_validate_content_metadata_invalid_date_format() {
     metadata.published_at = "01-15-2024".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("YYYY-MM-DD"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("YYYY-MM-DD"));
 }
 
 #[test]
@@ -122,7 +122,7 @@ fn test_validate_content_metadata_invalid_date_short() {
     metadata.published_at = "2024-1-5".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.unwrap_err();
+    assert!(result.is_err());
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn test_validate_content_metadata_nested_slug_simple() {
     metadata.slug = "getting-started/installation".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn test_validate_content_metadata_nested_slug_deep() {
     metadata.slug = "crates/infrastructure/database".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -149,7 +149,7 @@ fn test_validate_content_metadata_nested_slug_with_numbers() {
     metadata.slug = "guides/v2/migration-2024".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -158,8 +158,8 @@ fn test_validate_content_metadata_nested_slug_rejects_double_slash() {
     metadata.slug = "guides//migration".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("double slashes"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("double slashes"));
 }
 
 #[test]
@@ -168,8 +168,8 @@ fn test_validate_content_metadata_nested_slug_rejects_uppercase_segment() {
     metadata.slug = "guides/Migration/steps".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("slug"));
+    assert!(result.is_err());
+    assert!(result.unwrap_err().to_string().contains("slug"));
 }
 
 #[test]
@@ -178,7 +178,7 @@ fn test_validate_content_metadata_nested_slug_rejects_spaces_in_segment() {
     metadata.slug = "guides/my guide/steps".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.unwrap_err();
+    assert!(result.is_err());
 }
 
 #[test]
@@ -187,7 +187,7 @@ fn test_validate_content_metadata_nested_slug_allows_leading_trailing_slash_trim
     metadata.slug = "/guides/migration/".to_string();
 
     let result = validate_content_metadata(&metadata);
-    result.expect("expected success");
+    assert!(result.is_ok());
 }
 
 #[test]
@@ -196,7 +196,9 @@ fn test_validate_content_metadata_slug_only_slashes() {
     metadata.slug = "/".to_string();
 
     let result = validate_content_metadata(&metadata);
-    let err_str = result.unwrap_err().to_string();    assert!(
+    assert!(result.is_err());
+    let err_str = result.unwrap_err().to_string();
+    assert!(
         err_str.contains("only slashes"),
         "Expected error about only slashes, got: {}",
         err_str
